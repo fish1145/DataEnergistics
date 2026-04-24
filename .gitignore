@@ -25,3 +25,8 @@ replay_pid*
 
 # Common working directory
 run
+/.vscode/
+/.idea/
+/.gradle/
+/build/
+/run/
