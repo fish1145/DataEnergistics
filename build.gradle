@@ -96,6 +96,9 @@ dependencies {
     implementation "curse.maven:jei-238222:7420587"
     implementation "curse.maven:guideme-1173950:7127444"
     implementation "curse.maven:applied-energistics-2-223794:7027323"
+    implementation "curse.maven:glodium-957920:5821676"
+    implementation "curse.maven:applied-flux-965012:7429565"
+    implementation "curse.maven:ex-pattern-provider-892005:7871693"
     // Example mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
