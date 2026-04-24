@@ -1,0 +1,93 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Client",
+      "presentation": {
+        "group": "Mod Development - Data_Energistics",
+        "order": 0
+      },
+      "projectName": "Data_Energistics",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003ddata_energistics%%D:\\forge\\Data_Energistics\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Data",
+      "presentation": {
+        "group": "Mod Development - Data_Energistics",
+        "order": 1
+      },
+      "projectName": "Data_Energistics",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\dataRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003ddata_energistics%%D:\\forge\\Data_Energistics\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "GameTestServer",
+      "presentation": {
+        "group": "Mod Development - Data_Energistics",
+        "order": 2
+      },
+      "projectName": "Data_Energistics",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\gameTestServerRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\gameTestServerRunVmArgs.txt",
+        "-Dfml.modFolders\u003ddata_energistics%%D:\\forge\\Data_Energistics\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Server",
+      "presentation": {
+        "group": "Mod Development - Data_Energistics",
+        "order": 3
+      },
+      "projectName": "Data_Energistics",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\forge\\Data_Energistics\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003ddata_energistics%%D:\\forge\\Data_Energistics\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    }
+  ]
+}
