@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics;
 
 import com.fish_dan_.data_energistics.Item.ModCreativeModeTabs;
 import com.fish_dan_.data_energistics.Item.ModItems;
+
 import com.mojang.logging.LogUtils;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.api.distmarker.Dist;
@@ -26,10 +27,10 @@ public class Data_Energistics {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public Data_Energistics(IEventBus modEventBus, ModContainer modContainer) {
-        modEventBus.addListener(this::commonSetup);
-
         ModItems.register(modEventBus);
         ModCreativeModeTabs.register(modEventBus);
+
+        modEventBus.addListener(this::commonSetup);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
