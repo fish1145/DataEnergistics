@@ -20,9 +20,9 @@
   "item.data_energistics.obsidian_dust": "黑曜石粉",
   "item.data_energistics.data_carrier": "数据载体",
   "item.data_energistics.data_flow_component_housing": "数据流元件外壳",
-  "item.data_energistics.data_storage_component_1k": "1K存储组件",
-  "item.data_energistics.data_storage_component_4k": "4K存储组件",
-  "item.data_energistics.data_storage_component_16k": "16K存储组件",
-  "item.data_energistics.data_storage_component_64k": "64K存储组件",
-  "item.data_energistics.data_storage_component_256k": "256K存储组件"
+  "item.data_energistics.data_storage_component_1k": "1K-ME数据流存储组件",
+  "item.data_energistics.data_storage_component_4k": "4K-ME数据流存储组件",
+  "item.data_energistics.data_storage_component_16k": "16K-ME数据流存储组件",
+  "item.data_energistics.data_storage_component_64k": "64K-ME数据流存储组件",
+  "item.data_energistics.data_storage_component_256k": "256K-ME数据流存储组件"
 }
