@@ -1,18 +1,5 @@
 {
-  "itemGroup.data_energistics": "Data_Energistics",
-  "block.data_energistics.data_flow_generator": "Data Flow Generator",
-  "block.data_energistics.data_framework": "Data Framework",
-  "item.data_energistics.data_flow_cell_1k": "1K Data Flow Storage Cell",
-  "item.data_energistics.data_flow_cell_4k": "4K Data Flow Storage Cell",
-  "item.data_energistics.data_flow_cell_16k": "16K Data Flow Storage Cell",
-  "item.data_energistics.data_flow_cell_64k": "64K Data Flow Storage Cell",
-  "item.data_energistics.data_flow_cell_256k": "256K Data Flow Storage Cell",
-  "item.data_energistics.portable_data_flow_cell_1k": "Portable 1K Data Flow Storage Cell",
-  "item.data_energistics.portable_data_flow_cell_4k": "Portable 4K Data Flow Storage Cell",
-  "item.data_energistics.portable_data_flow_cell_16k": "Portable 16K Data Flow Storage Cell",
-  "item.data_energistics.portable_data_flow_cell_64k": "Portable 64K Data Flow Storage Cell",
-  "item.data_energistics.portable_data_flow_cell_256k": "Portable 256K Data Flow Storage Cell",
-  "key.data_energistics.data_flow": "Data Flow",
-  "item.data_energistics.solidify_data": "Solidified Data",
-  "item.data_energistics.data_carrier": "Data Carrier"
+  "itemGroup.data_energistics": "Example Mod Tab",
+  "block.data_energistics.example_block": "Example Block",
+  "item.data_energistics.example_item": "Example Item"
 }
