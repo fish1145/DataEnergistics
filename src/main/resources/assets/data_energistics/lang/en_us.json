@@ -1,5 +1,6 @@
 {
-  "itemGroup.data_energistics": "Example Mod Tab",
-  "block.data_energistics.example_block": "Example Block",
-  "item.data_energistics.example_item": "Example Item"
+  "itemGroup.data_energistics": "Data_Energistics",
+  "block.data_energistics.data_framework": "Data Framework",
+  "item.data_energistics.solidify_data": "Solidified Data",
+  "item.data_energistics.data_carrier": "Data Carrier"
 }
