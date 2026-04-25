@@ -18,7 +18,7 @@ public class DataFlowPortableCellItem extends PortableCellItem {
 
     @Override
     public int getBytes(ItemStack stack) {
-        return Math.max(1, super.getBytes(stack) / 2);
+        return super.getBytes(stack);
     }
 
     private static MenuType<?> portableItemCellMenu() {

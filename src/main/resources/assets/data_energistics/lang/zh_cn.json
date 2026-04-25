@@ -17,5 +17,10 @@
   "key.data_energistics.data_flow": "数据流",
 
   "item.data_energistics.solidify_data": "固化数据",
-  "item.data_energistics.data_carrier": "数据载体"
+  "item.data_energistics.data_carrier": "数据载体",
+  "item.data_energistics.data_storage_component_1k": "1K存储组件",
+  "item.data_energistics.data_storage_component_4k": "4K存储组件",
+  "item.data_energistics.data_storage_component_16k": "16K存储组件",
+  "item.data_energistics.data_storage_component_64k": "64K存储组件",
+  "item.data_energistics.data_storage_component_256k": "256K存储组件"
 }

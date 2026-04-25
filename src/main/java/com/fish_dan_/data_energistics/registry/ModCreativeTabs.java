@@ -31,6 +31,12 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_64K);
                         output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_256K);
 
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_1K);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_4K);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_16K);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_64K);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_256K);
+
                         output.accept(ModItems.DATA_FLOW_GENERATOR);
                         output.accept(ModItems.DATA_FRAMEWORK);
                         output.accept(ModItems.SOLIDIFY_DATA);

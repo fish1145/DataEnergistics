@@ -14,5 +14,10 @@
   "item.data_energistics.portable_data_flow_cell_256k": "Portable 256K Data Flow Storage Cell",
   "key.data_energistics.data_flow": "Data Flow",
   "item.data_energistics.solidify_data": "Solidified Data",
-  "item.data_energistics.data_carrier": "Data Carrier"
+  "item.data_energistics.data_carrier": "Data Carrier",
+  "item.data_energistics.data_storage_component_1k": "1K Storage Component",
+  "item.data_energistics.data_storage_component_4k": "4K Storage Component",
+  "item.data_energistics.data_storage_component_16k": "16K Storage Component",
+  "item.data_energistics.data_storage_component_64k": "64K Storage Component",
+  "item.data_energistics.data_storage_component_256k": "256K Storage Component"
 }
