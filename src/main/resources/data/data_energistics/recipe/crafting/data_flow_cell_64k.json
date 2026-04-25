@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "data_energistics:data_flow_component_housing"
+    },
+    {
+      "item": "data_energistics:data_storage_component_64k"
+    }
+  ],
+  "result": {
+    "id": "data_energistics:data_flow_cell_64k",
+    "count": 1
+  }
+}

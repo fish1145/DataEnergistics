@@ -35,8 +35,10 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> DATA_FLOW_GENERATOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FLOW_GENERATOR);
     public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK);
-    public static final DeferredItem<Item> SOLIDIFY_DATA = ITEMS.registerSimpleItem("solidify_data");
+    public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
+    public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.registerSimpleItem("data_carrier");
+    public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_1K = ITEMS.registerSimpleItem("data_storage_component_1k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_4K = ITEMS.registerSimpleItem("data_storage_component_4k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_16K = ITEMS.registerSimpleItem("data_storage_component_16k");

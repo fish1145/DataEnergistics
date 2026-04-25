@@ -1,0 +1,10 @@
+{
+  "type": "ae2:charger",
+  "ingredient": {
+    "tag": "c:dusts/obsidian"
+  },
+  "result": {
+    "count": 1,
+    "id": "data_energistics:solidified_obsidian"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "C C",
+    "DDD"
+  ],
+  "key": {
+    "A": {
+      "item": "ae2:quartz_glass"
+    },
+    "B": {
+      "item": "data_energistics:data_carrier"
+    },
+    "C": {
+      "tag": "c:dusts/redstone"
+    },
+    "D": {
+      "tag": "c:ingots/obsidian"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_flow_component_housing",
+    "count": 1
+  }
+}
