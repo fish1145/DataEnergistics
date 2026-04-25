@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "data_energistics:data_flow_generator",
+    "data_energistics:data_framework"
+  ]
+}

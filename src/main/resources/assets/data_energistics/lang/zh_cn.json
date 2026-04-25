@@ -1,0 +1,21 @@
+{
+  "itemGroup.data_energistics": "数据能源",
+
+  "block.data_energistics.data_flow_generator": "数据流生成器",
+  "block.data_energistics.data_framework": "数据框架",
+
+  "item.data_energistics.data_flow_cell_1k": "1K-ME数据流存储元件",
+  "item.data_energistics.data_flow_cell_4k": "4K-ME数据流存储元件",
+  "item.data_energistics.data_flow_cell_16k": "16K-ME数据流存储元件",
+  "item.data_energistics.data_flow_cell_64k": "64K-ME数据流存储元件",
+  "item.data_energistics.data_flow_cell_256k": "256K-ME数据流存储元件",
+  "item.data_energistics.portable_data_flow_cell_1k": "便携式1K-ME数据流存储元件",
+  "item.data_energistics.portable_data_flow_cell_4k": "便携式4K-ME数据流存储元件",
+  "item.data_energistics.portable_data_flow_cell_16k": "便携式16K-ME数据流存储元件",
+  "item.data_energistics.portable_data_flow_cell_64k": "便携式64K-ME数据流存储元件",
+  "item.data_energistics.portable_data_flow_cell_256k": "便携式256K-ME数据流存储元件",
+  "key.data_energistics.data_flow": "数据流",
+
+  "item.data_energistics.solidify_data": "固化数据",
+  "item.data_energistics.data_carrier": "数据载体"
+}

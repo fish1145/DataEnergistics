@@ -1,0 +1,48 @@
+package com.fish_dan_.data_energistics.registry;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+public final class ModCreativeTabs {
+    public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
+            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.MODID);
+
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> DATA_ENERGISTICS_TAB = CREATIVE_MODE_TABS.register(
+            Data_Energistics.MODID,
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup." + Data_Energistics.MODID))
+                    .icon(ModItems.SOLIDIFY_DATA::toStack)
+                    .displayItems((parameters, output) -> {
+                        output.accept(ModItems.DATA_FLOW_CELL_1K);
+                        output.accept(ModItems.DATA_FLOW_CELL_4K);
+                        output.accept(ModItems.DATA_FLOW_CELL_16K);
+                        output.accept(ModItems.DATA_FLOW_CELL_64K);
+                        output.accept(ModItems.DATA_FLOW_CELL_256K);
+
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_1K);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_4K);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_16K);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_64K);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_256K);
+
+                        output.accept(ModItems.DATA_FLOW_GENERATOR);
+                        output.accept(ModItems.DATA_FRAMEWORK);
+                        output.accept(ModItems.SOLIDIFY_DATA);
+                        output.accept(ModItems.DATA_CARRIER);
+                    })
+                    .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
+                    .build());
+
+    private ModCreativeTabs() {
+    }
+
+    public static void register(IEventBus modEventBus) {
+        CREATIVE_MODE_TABS.register(modEventBus);
+    }
+}
