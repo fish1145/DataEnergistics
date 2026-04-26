@@ -1,0 +1,18 @@
+{
+  "type": "ae2:transform",
+  "ingredients": [
+    {
+      "tag": "c:dusts/certus_quartz"
+    },
+    {
+      "tag": "c:dusts/redstone"
+    },
+    {
+      "tag": "c:dusts/sky_stone"
+    }
+  ],
+  "result": {
+    "count": 3,
+    "id": "data_energistics:mixed_redstone_dust"
+  }
+}

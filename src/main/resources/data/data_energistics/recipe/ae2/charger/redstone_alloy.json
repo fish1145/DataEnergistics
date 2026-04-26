@@ -1,10 +1,10 @@
 {
   "type": "ae2:charger",
   "ingredient": {
-    "tag": "c:dusts/obsidian"
+    "tag": "c:dusts/mixed_redstone"
   },
   "result": {
     "count": 1,
-    "id": "data_energistics:solidified_obsidian"
+    "id": "data_energistics:redstone_alloy"
   }
 }

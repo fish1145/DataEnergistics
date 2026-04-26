@@ -1,6 +1,9 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "data_energistics:item/portable_data_flow_cell_64k"
+    "layer0": "data_energistics:item/data_storage_component",
+    "layer1": "ae2:item/portable_cell_led",
+    "layer2": "data_energistics:item/portable_cell_screen",
+    "layer3": "ae2:item/portable_cell_side_64k"
   }
 }

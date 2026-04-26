@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "  A",
+    " B ",
+    "C  "
+  ],
+  "key": {
+    "A": {
+      "tag": "c:gems/quartz"
+    },
+    "B": {
+      "item": "ae2:logic_processor"
+    },
+    "C": {
+      "tag": "c:nuggets/iron"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_carrier",
+    "count": 1
+  }
+}

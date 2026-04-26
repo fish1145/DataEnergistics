@@ -35,7 +35,9 @@ public final class ModItems {
 
     public static final DeferredItem<BlockItem> DATA_FLOW_GENERATOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FLOW_GENERATOR);
     public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK);
+    public static final DeferredItem<Item> REDSTONE_ALLOY = ITEMS.registerSimpleItem("redstone_alloy");
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
+    public static final DeferredItem<Item> MIXED_REDSTONE_DUST = ITEMS.registerSimpleItem("mixed_redstone_dust");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.registerSimpleItem("data_carrier");
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");

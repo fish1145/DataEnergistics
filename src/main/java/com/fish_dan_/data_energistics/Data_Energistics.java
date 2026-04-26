@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics;
 
+import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
@@ -16,6 +18,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -42,6 +45,7 @@ public class Data_Energistics {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
+        event.enqueueWork(DataFlowBusStrategies::register);
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
@@ -56,6 +60,11 @@ public class Data_Energistics {
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
     @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
+        @SubscribeEvent
+        public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {
+            ModItemColors.register(event);
+        }
+
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {

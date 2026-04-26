@@ -16,7 +16,7 @@
       "tag": "c:dusts/redstone"
     },
     "D": {
-      "tag": "c:ingots/obsidian"
+      "tag": "c:ingots/redstone_alloy"
     },
     "E": {
       "item": "data_energistics:data_storage_component_64k"

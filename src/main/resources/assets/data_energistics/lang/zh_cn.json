@@ -16,7 +16,9 @@
   "item.data_energistics.portable_data_flow_cell_256k": "便携式256K-ME数据流存储元件",
   "key.data_energistics.data_flow": "数据流",
 
+  "item.data_energistics.redstone_alloy": "红石合金",
   "item.data_energistics.solidified_obsidian": "固化黑曜石",
+  "item.data_energistics.mixed_redstone_dust": "混合红石粉",
   "item.data_energistics.obsidian_dust": "黑曜石粉",
   "item.data_energistics.data_carrier": "数据载体",
   "item.data_energistics.data_flow_component_housing": "数据流元件外壳",

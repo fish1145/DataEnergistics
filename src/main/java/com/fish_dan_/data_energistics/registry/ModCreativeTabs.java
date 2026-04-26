@@ -17,7 +17,7 @@ public final class ModCreativeTabs {
             Data_Energistics.MODID,
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + Data_Energistics.MODID))
-                    .icon(ModItems.SOLIDIFIED_OBSIDIAN::toStack)
+                    .icon(ModItems.REDSTONE_ALLOY::toStack)
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.DATA_FLOW_CELL_1K);
                         output.accept(ModItems.DATA_FLOW_CELL_4K);
@@ -39,7 +39,9 @@ public final class ModCreativeTabs {
 
                         output.accept(ModItems.DATA_FLOW_GENERATOR);
                         output.accept(ModItems.DATA_FRAMEWORK);
+                        output.accept(ModItems.REDSTONE_ALLOY);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
+                        output.accept(ModItems.MIXED_REDSTONE_DUST);
                         output.accept(ModItems.OBSIDIAN_DUST);
                         output.accept(ModItems.DATA_CARRIER);
                         output.accept(ModItems.DATA_FLOW_COMPONENT_HOUSING);

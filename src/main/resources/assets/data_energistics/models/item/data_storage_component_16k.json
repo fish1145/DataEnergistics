@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "data_energistics:item/data_carrier"
+    "layer0": "data_energistics:item/data_storage_component_16k"
   }
 }

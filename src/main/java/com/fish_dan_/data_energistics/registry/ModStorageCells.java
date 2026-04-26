@@ -20,6 +20,12 @@ public final class ModStorageCells {
         StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_16K.get(), DRIVE_16K);
         StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_64K.get(), DRIVE_64K);
         StorageCellModels.registerModel(ModItems.DATA_FLOW_CELL_256K.get(), DRIVE_256K);
+
+        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_1K.get(), DRIVE_1K);
+        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_4K.get(), DRIVE_4K);
+        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_16K.get(), DRIVE_16K);
+        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_64K.get(), DRIVE_64K);
+        StorageCellModels.registerModel(ModItems.PORTABLE_DATA_FLOW_CELL_256K.get(), DRIVE_256K);
     }
 
     private static ResourceLocation model(String tier) {
