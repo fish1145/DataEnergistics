@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ACA"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:dusts/redstone"
+    },
+    "B": {
+      "tag": "c:gems/lapis"
+    },
+    "C": {
+      "item": "data_energistics:data_carrier"
+    },
+    "D": {
+      "item": "data_energistics:data_carrier"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_storage_component_4k",
+    "count": 1
+  }
+}
