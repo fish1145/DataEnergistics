@@ -45,6 +45,11 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.OBSIDIAN_DUST);
                         output.accept(ModItems.DATA_CARRIER);
                         output.accept(ModItems.DATA_FLOW_COMPONENT_HOUSING);
+                        output.accept(ModItems.DATA_RIPPER);
+                        output.accept(ModItems.createEntitySpeedCardStack((byte) 2));
+                        output.accept(ModItems.createEntitySpeedCardStack((byte) 4));
+                        output.accept(ModItems.createEntitySpeedCardStack((byte) 8));
+                        output.accept(ModItems.createEntitySpeedCardStack((byte) 16));
                     })
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
                     .build());

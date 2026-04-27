@@ -12,7 +12,7 @@ import net.minecraft.world.level.Level;
 import appeng.api.client.AEKeyRenderHandler;
 
 public final class DataFlowKeyRenderHandler implements AEKeyRenderHandler<DataFlowKey> {
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/data_flow.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/block/flow/data_flow.png");
 
     @Override
     public void drawInGui(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, DataFlowKey key) {

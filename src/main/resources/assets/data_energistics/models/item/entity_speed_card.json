@@ -1,0 +1,12 @@
+{
+  "parent": "item/generated",
+  "overrides": [
+    { "predicate": { "data_energistics:mult": 2.0 }, "model": "data_energistics:item/entity_speed_card_x2" },
+    { "predicate": { "data_energistics:mult": 4.0 }, "model": "data_energistics:item/entity_speed_card_x4" },
+    { "predicate": { "data_energistics:mult": 8.0 }, "model": "data_energistics:item/entity_speed_card_x8" },
+    { "predicate": { "data_energistics:mult": 16.0 }, "model": "data_energistics:item/entity_speed_card_x16" }
+  ],
+  "textures": {
+    "layer0": "data_energistics:item/entity_speed_card_x2"
+  }
+}

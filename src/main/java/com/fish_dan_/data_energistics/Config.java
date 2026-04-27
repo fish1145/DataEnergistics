@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 // An example config class. This is not required, but it's a good idea to have one to keep your config organized.
 // Demonstrates how to use Neo's config APIs
+@SuppressWarnings("removal")
 @EventBusSubscriber(modid = Data_Energistics.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
@@ -27,11 +28,25 @@ public class Config {
     // a list of strings that are treated as resource locations for items
     private static final ModConfigSpec.ConfigValue<List<? extends String>> ITEM_STRINGS = BUILDER.comment("A list of items to log on common setup.").defineListAllowEmpty("items", List.of("minecraft:iron_ingot"), Config::validateItemName);
 
+    private static final ModConfigSpec.IntValue DATA_RIPPER_BASE_COST = BUILDER.comment("Base power cost for the data ripper power curve.")
+            .defineInRange("dataRipperBaseCost", 512, 1, Integer.MAX_VALUE);
+
+    private static final ModConfigSpec.ConfigValue<List<? extends String>> DATA_RIPPER_BLACKLIST = BUILDER
+            .comment("Regex patterns for block ids that the data ripper should never accelerate.")
+            .defineListAllowEmpty("dataRipperBlacklist", List.of(), value -> value instanceof String);
+
+    private static final ModConfigSpec.ConfigValue<List<? extends String>> DATA_RIPPER_MULTIPLIERS = BUILDER
+            .comment("Regex-based power multipliers for the data ripper, formatted as pattern=value.")
+            .defineListAllowEmpty("dataRipperMultipliers", List.of(), value -> value instanceof String);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static boolean logDirtBlock;
     public static int magicNumber;
     public static String magicNumberIntroduction;
+    public static int dataRipperBaseCost;
+    public static List<String> dataRipperBlacklist;
+    public static List<String> dataRipperMultipliers;
     public static Set<Item> items;
 
     private static boolean validateItemName(final Object obj) {
@@ -43,6 +58,9 @@ public class Config {
         logDirtBlock = LOG_DIRT_BLOCK.get();
         magicNumber = MAGIC_NUMBER.get();
         magicNumberIntroduction = MAGIC_NUMBER_INTRODUCTION.get();
+        dataRipperBaseCost = DATA_RIPPER_BASE_COST.get();
+        dataRipperBlacklist = List.copyOf(DATA_RIPPER_BLACKLIST.get().stream().map(String::valueOf).toList());
+        dataRipperMultipliers = List.copyOf(DATA_RIPPER_MULTIPLIERS.get().stream().map(String::valueOf).toList());
 
         // convert the list of strings into a set of items
         items = ITEM_STRINGS.get().stream().map(itemName -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemName))).collect(Collectors.toSet());

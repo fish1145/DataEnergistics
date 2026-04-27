@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SZS",
+    "QXQ",
+    "SIS"
+  ],
+  "key": {
+    "S": {
+      "type": "neoforge:components",
+      "items": "data_energistics:entity_speed_card",
+      "components": {
+        "minecraft:custom_data": {
+          "EAS:mult": 2
+        }
+      },
+      "strict": true
+    },
+    "Z": {
+      "item": "ae2:dense_energy_cell"
+    },
+    "Q": {
+      "item": "ae2:singularity"
+    },
+    "X": {
+      "item": "minecraft:nether_star"
+    },
+    "I": {
+      "item": "data_energistics:data_flow_component_housing"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_ripper",
+    "count": 1
+  }
+}

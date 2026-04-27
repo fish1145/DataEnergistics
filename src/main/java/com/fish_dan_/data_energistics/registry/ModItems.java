@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
+import com.fish_dan_.data_energistics.item.DataRipperPartItem;
+import com.fish_dan_.data_energistics.item.EntityAccelerationCardItem;
 import appeng.api.stacks.GenericStack;
 import appeng.items.storage.StorageTier;
 import net.minecraft.world.item.BlockItem;
@@ -46,6 +48,10 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_16K = ITEMS.registerSimpleItem("data_storage_component_16k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_64K = ITEMS.registerSimpleItem("data_storage_component_64k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_256K = ITEMS.registerSimpleItem("data_storage_component_256k");
+    public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
+            () -> new DataRipperPartItem(new Item.Properties()));
+    public static final DeferredItem<EntityAccelerationCardItem> ENTITY_SPEED_CARD = ITEMS.register("entity_speed_card",
+            () -> new EntityAccelerationCardItem(new Item.Properties()));
 
     private ModItems() {
     }
@@ -64,5 +70,9 @@ public final class ModItems {
 
     private static DeferredItem<DataFlowPortableCellItem> registerPortableDataFlowCell(String id, StorageTier tier, int color) {
         return ITEMS.register(id, () -> new DataFlowPortableCellItem(tier, new Item.Properties(), color));
+    }
+
+    public static ItemStack createEntitySpeedCardStack(byte multiplier) {
+        return ENTITY_SPEED_CARD.get().withMultiplier(multiplier);
     }
 }

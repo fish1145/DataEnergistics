@@ -1,0 +1,50 @@
+{
+  "parent": "ae2:item/cable_interface",
+  "textures": {
+    "sides": "data_energistics:part/entity_speed_ticker_sides",
+    "front": "data_energistics:part/entity_speed_ticker_font",
+    "back": "data_energistics:part/entity_speed_ticker_back",
+    "particle": "ae2:part/monitor_sides_status"
+  },
+  "elements": [
+    {
+      "from": [4, 4, 7],
+      "to": [12, 12, 9],
+      "rotation": {"angle": 0, "axis": "y", "origin": [0, 0, 7]},
+      "faces": {
+        "north": {"uv": [3, 3, 13, 13], "texture": "#front"},
+        "south": {"uv": [3, 3, 13, 13], "texture": "#back"}
+      }
+    },
+    {
+      "from": [5, 5, 10],
+      "to": [11, 11, 11],
+      "rotation": {"angle": 0, "axis": "y", "origin": [0, 0, 7]},
+      "faces": {
+        "east": {"uv": [12, 5, 13, 11], "texture": "#sides"},
+        "south": {"uv": [5, 5, 11, 11], "texture": "#back"},
+        "west": {"uv": [3, 5, 4, 11], "texture": "#sides"},
+        "up": {"uv": [5, 3, 11, 4], "texture": "#sides"},
+        "down": {"uv": [5, 12, 11, 13], "texture": "#sides"}
+      }
+    },
+    {
+      "from": [5, 5, 9],
+      "to": [11, 11, 10],
+      "rotation": {"angle": 0, "axis": "y", "origin": [0, 0, 7]},
+      "faces": {
+        "east": {"uv": [13, 5, 14, 11], "texture": "#particle"},
+        "south": {"uv": [11, 5, 5, 11], "texture": "#back"},
+        "west": {"uv": [2, 5, 3, 11], "texture": "#particle"},
+        "up": {"uv": [5, 2, 11, 3], "texture": "#particle"},
+        "down": {"uv": [5, 13, 11, 14], "texture": "#particle"}
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [20, -130, 0],
+      "scale": [0.95, 0.95, 0.95]
+    }
+  }
+}
