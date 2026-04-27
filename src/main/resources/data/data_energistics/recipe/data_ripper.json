@@ -7,14 +7,7 @@
   ],
   "key": {
     "S": {
-      "type": "neoforge:components",
-      "items": "data_energistics:entity_speed_card",
-      "components": {
-        "minecraft:custom_data": {
-          "EAS:mult": 2
-        }
-      },
-      "strict": true
+      "item": "ae2:speed_card"
     },
     "Z": {
       "item": "ae2:dense_energy_cell"

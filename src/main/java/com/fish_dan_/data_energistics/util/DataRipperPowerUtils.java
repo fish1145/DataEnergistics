@@ -1,41 +1,28 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.Config;
-import com.fish_dan_.data_energistics.item.EntityAccelerationCardItem;
-import net.minecraft.world.item.ItemStack;
 import appeng.api.upgrades.IUpgradeInventory;
+import appeng.core.definitions.AEItems;
+import com.fish_dan_.data_energistics.Config;
 
 public final class DataRipperPowerUtils {
     private static final int DEFAULT_BASE_COST = 512;
+    private static final double DATA_FLOW_COST_RATIO = 0.125D;
 
     private DataRipperPowerUtils() {
     }
 
     public static int computeProductWithCap(IUpgradeInventory upgrades) {
-        long product = 1L;
-        long cap = 1L;
-        int speedCardCount = 0;
-
-        for (int i = 0; i < upgrades.size(); i++) {
-            ItemStack stack = upgrades.getStackInSlot(i);
-            if (!(stack.getItem() instanceof EntityAccelerationCardItem)) {
-                continue;
-            }
-            if (speedCardCount >= 4) {
-                continue;
-            }
-
-            speedCardCount++;
-            byte multiplier = EntityAccelerationCardItem.readMultiplier(stack);
-            product *= multiplier;
-            cap = Math.max(cap, EntityAccelerationCardItem.getCap(multiplier));
+        int speedCardCount = Math.min(upgrades.getInstalledUpgrades(AEItems.SPEED_CARD), 4);
+        if (speedCardCount <= 0) {
+            return 0;
         }
 
-        if (product <= 1L) {
-            return 1;
-        }
-
-        return (int) Math.min(Math.min(product, cap), 1024L);
+        return switch (speedCardCount) {
+            case 1 -> 16;
+            case 2 -> 64;
+            case 3 -> 256;
+            default -> 1024;
+        };
     }
 
     public static double computeFinalPowerForProduct(int speed, int energyCardCount) {
@@ -44,7 +31,10 @@ public final class DataRipperPowerUtils {
             return 0.0D;
         }
 
-        return basePower * getRemainingRatio(energyCardCount) * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST);
+        return basePower
+                * getRemainingRatio(energyCardCount)
+                * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST)
+                * DATA_FLOW_COST_RATIO;
     }
 
     public static double getRemainingRatio(int energyCardCount) {
@@ -63,6 +53,17 @@ public final class DataRipperPowerUtils {
 
     public static String formatPercentage(double value) {
         return String.format("%.2f%%", value * 100.0D);
+    }
+
+    public static long toDataFlowCost(double value) {
+        if (value <= 0.0D) {
+            return 0L;
+        }
+        return (long) Math.ceil(value);
+    }
+
+    public static String formatDataFlowCost(double value) {
+        return Long.toString(toDataFlowCost(value));
     }
 
     private static long basePowerForSpeed(int speed) {

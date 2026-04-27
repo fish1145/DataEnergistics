@@ -4,8 +4,6 @@ import appeng.api.config.YesNo;
 import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.widgets.CommonButtons;
-import appeng.util.Platform;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
 import com.fish_dan_.data_energistics.client.widget.DataRipperSettingToggleButton;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
@@ -20,7 +18,6 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
 
     public DataRipperScreen(DataRipperMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.addToLeftToolbar(CommonButtons.togglePowerUnit());
 
         this.accelerateButton = new DataRipperSettingToggleButton(
                 DataRipperSettings.ACCELERATE,
@@ -79,7 +76,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
         private void updateBlacklisted() {
             this.set("enable", this.translatable("enable"));
             this.set("speed", this.translatable("speed", 0));
-            this.set("energy", this.translatable("energy", Platform.formatPower(0, false)));
+            this.set("energy", this.translatable("energy", DataRipperPowerUtils.formatDataFlowCost(0)));
             this.set("power_ratio", this.translatable("power_ratio", DataRipperPowerUtils.formatPercentage(0.0D)));
             this.set("multiplier", this.translatable("multiplier", "0.00x"));
         }
@@ -98,7 +95,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
                             : this.translatable("warning_network_energy_insufficient")
             );
             this.set("speed", this.translatable("speed", effectiveSpeed));
-            this.set("energy", this.translatable("energy", Platform.formatPower(finalPower, false)));
+            this.set("energy", this.translatable("energy", DataRipperPowerUtils.formatDataFlowCost(finalPower)));
             this.set("power_ratio", this.translatable("power_ratio", DataRipperPowerUtils.formatPercentage(powerRatio)));
             this.set("multiplier", this.translatable("multiplier", String.format("%.2fx", multiplier)));
         }

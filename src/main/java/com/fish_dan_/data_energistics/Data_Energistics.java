@@ -8,16 +8,15 @@ import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
-import com.fish_dan_.data_energistics.item.EntityAccelerationCardItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
+import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -48,10 +47,12 @@ public class Data_Energistics {
         ModBlockEntities.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         ModMenus.register(modEventBus);
+        ModRecipes.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::registerAe2KeyTypes);
         NeoForge.EVENT_BUS.register(this);
+        NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
@@ -59,7 +60,7 @@ public class Data_Energistics {
         event.enqueueWork(() -> {
             DataFlowBusStrategies.register();
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
-            Upgrades.add(ModItems.ENTITY_SPEED_CARD.get(), ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
             );
@@ -89,11 +90,6 @@ public class Data_Energistics {
             event.enqueueWork(() -> {
                 ModAE2Keys.registerClient();
                 ModStorageCells.registerClientModels();
-                ItemProperties.register(
-                        ModItems.ENTITY_SPEED_CARD.get(),
-                        ResourceLocation.fromNamespaceAndPath(MODID, "mult"),
-                        (stack, level, entity, seed) -> EntityAccelerationCardItem.readMultiplier(stack)
-                );
             });
         }
 

@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
-import com.fish_dan_.data_energistics.item.EntityAccelerationCardItem;
 import appeng.api.stacks.GenericStack;
 import appeng.items.storage.StorageTier;
 import net.minecraft.world.item.BlockItem;
@@ -42,6 +41,7 @@ public final class ModItems {
     public static final DeferredItem<Item> MIXED_REDSTONE_DUST = ITEMS.registerSimpleItem("mixed_redstone_dust");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.registerSimpleItem("data_carrier");
+    public static final DeferredItem<Item> TIME_CORE = ITEMS.registerSimpleItem("time_core");
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_1K = ITEMS.registerSimpleItem("data_storage_component_1k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_4K = ITEMS.registerSimpleItem("data_storage_component_4k");
@@ -50,8 +50,6 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_256K = ITEMS.registerSimpleItem("data_storage_component_256k");
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));
-    public static final DeferredItem<EntityAccelerationCardItem> ENTITY_SPEED_CARD = ITEMS.register("entity_speed_card",
-            () -> new EntityAccelerationCardItem(new Item.Properties()));
 
     private ModItems() {
     }
@@ -70,9 +68,5 @@ public final class ModItems {
 
     private static DeferredItem<DataFlowPortableCellItem> registerPortableDataFlowCell(String id, StorageTier tier, int color) {
         return ITEMS.register(id, () -> new DataFlowPortableCellItem(tier, new Item.Properties(), color));
-    }
-
-    public static ItemStack createEntitySpeedCardStack(byte multiplier) {
-        return ENTITY_SPEED_CARD.get().withMultiplier(multiplier);
     }
 }

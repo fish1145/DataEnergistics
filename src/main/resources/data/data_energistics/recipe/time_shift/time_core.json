@@ -1,0 +1,19 @@
+{
+  "type": "data_energistics:time_shift",
+  "minutes": 4,
+  "time": "all",
+  "ingredients": [
+    {
+      "item": "ae2:singularity"
+    },
+    {
+      "item": "minecraft:clock"
+    }
+  ],
+  "results": [
+    {
+      "id": "data_energistics:time_core",
+      "count": 1
+    }
+  ]
+}

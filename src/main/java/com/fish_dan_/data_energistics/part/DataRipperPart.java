@@ -1,12 +1,11 @@
 package com.fish_dan_.data_energistics.part;
 
 import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
 import appeng.api.config.Setting;
 import appeng.api.config.YesNo;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
-import appeng.api.networking.energy.IEnergyService;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
@@ -23,8 +22,8 @@ import appeng.parts.PartModel;
 import appeng.parts.automation.UpgradeablePart;
 import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
@@ -65,7 +64,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         super(partItem);
         this.getMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL)
-                .setIdlePowerUsage(1)
+                .setIdlePowerUsage(2.0)
                 .addService(IGridTickable.class, this);
     }
 
@@ -244,7 +243,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private int calculateSpeed() {
-        int cardCount = this.getUpgrades().getInstalledUpgrades(ModItems.ENTITY_SPEED_CARD.get());
+        int cardCount = this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD);
         if (cardCount <= 0) {
             return 0;
         }
@@ -284,7 +283,8 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private boolean extractPower(double requiredPower) {
-        if (requiredPower <= 0.0D) {
+        long requiredDataFlow = DataRipperPowerUtils.toDataFlowCost(requiredPower);
+        if (requiredDataFlow <= 0L) {
             return true;
         }
 
@@ -295,14 +295,14 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                 return false;
             }
 
-            IEnergyService energyService = mainNode.getGrid().getEnergyService();
-            double simulated = energyService.extractAEPower(requiredPower, Actionable.SIMULATE, PowerMultiplier.CONFIG);
-            if (simulated + 1.0E-6D < requiredPower) {
+            var inventory = mainNode.getGrid().getStorageService().getInventory();
+            long simulated = inventory.extract(DataFlowKey.of(), requiredDataFlow, Actionable.SIMULATE, IActionSource.ofMachine(this));
+            if (simulated < requiredDataFlow) {
                 this.setNetworkEnergySufficient(false);
                 return false;
             }
 
-            energyService.extractAEPower(requiredPower, Actionable.MODULATE, PowerMultiplier.CONFIG);
+            inventory.extract(DataFlowKey.of(), requiredDataFlow, Actionable.MODULATE, IActionSource.ofMachine(this));
             this.setNetworkEnergySufficient(true);
             return true;
         } catch (Throwable ignored) {
