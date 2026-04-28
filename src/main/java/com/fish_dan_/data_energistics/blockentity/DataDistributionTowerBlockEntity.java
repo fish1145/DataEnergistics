@@ -324,13 +324,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
         boolean addedAny = false;
 
-        addedAny |= appendPartSummary(results, cableBus.getPart(null), pos, kind, maxEntries);
+        addedAny |= appendPartSummary(results, cableBus.getPart(null), pos, kind, maxEntries, null, "", "");
         if (results.size() >= maxEntries) {
             return true;
         }
 
+        ArrayList<CableBusSidePart> sideParts = new ArrayList<>();
         for (var direction : net.minecraft.core.Direction.values()) {
-            addedAny |= appendPartSummary(results, cableBus.getPart(direction), pos, kind, maxEntries);
+            IPart part = cableBus.getPart(direction);
+            if (part != null) {
+                sideParts.add(new CableBusSidePart(part, direction));
+            }
+        }
+
+        for (int i = 0; i < sideParts.size(); i++) {
+            CableBusSidePart sidePart = sideParts.get(i);
+            String prefix = i == sideParts.size() - 1 ? "└ " : "├ ";
+            String suffix = "";
+            addedAny |= appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix, suffix);
             if (results.size() >= maxEntries) {
                 return true;
             }
@@ -339,14 +350,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return addedAny;
     }
 
-    private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind, int maxEntries) {
+    private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind,
+                                      int maxEntries, @Nullable net.minecraft.core.Direction direction,
+                                      String prefix, String suffix) {
         if (part == null || this.level == null || results.size() >= maxEntries) {
             return false;
         }
 
         Item item = resolvePartItem(part);
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-        String displayName = resolvePartDisplayName(part, item);
+        String displayName = resolvePartDisplayName(part, item, direction, prefix, suffix);
         results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), kind));
         return true;
     }
@@ -365,13 +378,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return Items.BARRIER;
     }
 
-    private String resolvePartDisplayName(IPart part, Item item) {
+    private String resolvePartDisplayName(IPart part, Item item, @Nullable net.minecraft.core.Direction direction,
+                                          String prefix, String groupSuffix) {
+        String directionSuffix = direction == null ? "" : " [" + formatDirection(direction) + "]";
+        String suffix = directionSuffix + groupSuffix;
         if (part instanceof Nameable nameable) {
             Component displayName = nameable.getDisplayName();
             if (displayName != null) {
                 String resolved = displayName.getString();
                 if (!resolved.isBlank()) {
-                    return resolved;
+                    return prefix + resolved + suffix;
                 }
             }
         }
@@ -379,11 +395,22 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (item != Items.AIR) {
             String itemName = new ItemStack(item).getHoverName().getString();
             if (!itemName.isBlank()) {
-                return itemName;
+                return prefix + itemName + suffix;
             }
         }
 
-        return part.getClass().getSimpleName();
+        return prefix + part.getClass().getSimpleName() + suffix;
+    }
+
+    private String formatDirection(net.minecraft.core.Direction direction) {
+        return switch (direction) {
+            case NORTH -> "\u5317";
+            case SOUTH -> "\u5357";
+            case WEST -> "\u897f";
+            case EAST -> "\u4e1c";
+            case UP -> "\u4e0a";
+            case DOWN -> "\u4e0b";
+        };
     }
 
     private List<DisplayTarget> collectDisplayTargets() {
@@ -1365,6 +1392,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private record DisplayTarget(BlockPos pos, TargetKind kind) {
+    }
+
+    private record CableBusSidePart(IPart part, net.minecraft.core.Direction direction) {
     }
 
     private class TowerEnergyStorage implements IEnergyStorage {
