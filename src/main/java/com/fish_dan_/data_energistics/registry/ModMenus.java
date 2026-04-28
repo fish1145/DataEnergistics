@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.registry;
 
 import appeng.menu.implementations.MenuTypeBuilder;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import net.minecraft.core.registries.Registries;
@@ -19,6 +21,11 @@ public final class ModMenus {
             MENUS.register("data_ripper", () -> MenuTypeBuilder
                     .create(DataRipperMenu::new, DataRipperPart.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_ripper")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataDistributionTowerMenu>> DATA_DISTRIBUTION_TOWER =
+            MENUS.register("data_distribution_tower", () -> MenuTypeBuilder
+                    .create(DataDistributionTowerMenu::new, DataDistributionTowerBlockEntity.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_distribution_tower")));
 
     private ModMenus() {
     }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import net.minecraft.core.registries.Registries;
@@ -22,6 +23,11 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_framework",
                     () -> BlockEntityType.Builder.of(DataFrameworkBlockEntity::new, ModBlocks.DATA_FRAMEWORK.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "data_distribution_tower",
+                    () -> BlockEntityType.Builder.of(DataDistributionTowerBlockEntity::new, ModBlocks.DATA_DISTRIBUTION_TOWER.get()).build(null));
 
     private ModBlockEntities() {
     }

@@ -39,12 +39,22 @@ public class Config {
             .comment("Regex-based power multipliers for the data ripper, formatted as pattern=value.")
             .defineListAllowEmpty("dataRipperMultipliers", List.of(), value -> value instanceof String);
 
+    private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_RANGE = BUILDER
+            .comment("Range radius for the Data Distribution Tower.")
+            .defineInRange("dataDistributionTowerRange", 8, 1, 128);
+
+    private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK = BUILDER
+            .comment("Maximum FE transferred per tick by a Data Distribution Tower network.")
+            .defineInRange("dataDistributionTowerTransferPerTick", 100_000, 1, Integer.MAX_VALUE);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static boolean logDirtBlock;
     public static int magicNumber;
     public static String magicNumberIntroduction;
     public static int dataRipperBaseCost;
+    public static int dataDistributionTowerRange;
+    public static int dataDistributionTowerTransferPerTick;
     public static List<String> dataRipperBlacklist;
     public static List<String> dataRipperMultipliers;
     public static Set<Item> items;
@@ -59,6 +69,8 @@ public class Config {
         magicNumber = MAGIC_NUMBER.get();
         magicNumberIntroduction = MAGIC_NUMBER_INTRODUCTION.get();
         dataRipperBaseCost = DATA_RIPPER_BASE_COST.get();
+        dataDistributionTowerRange = DATA_DISTRIBUTION_TOWER_RANGE.get();
+        dataDistributionTowerTransferPerTick = DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK.get();
         dataRipperBlacklist = List.copyOf(DATA_RIPPER_BLACKLIST.get().stream().map(String::valueOf).toList());
         dataRipperMultipliers = List.copyOf(DATA_RIPPER_MULTIPLIERS.get().stream().map(String::valueOf).toList());
 

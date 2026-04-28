@@ -9,6 +9,7 @@ version = mod_version
 group = mod_group_id
 
 repositories {
+    mavenCentral()
     maven {
         url "https://cursemaven.com"
     }
@@ -74,6 +75,11 @@ neoForge {
             // You can set various levels here.
             // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
             logLevel = org.slf4j.event.Level.DEBUG
+
+            // Plain Java libraries used by the mod need to be present on the dev run classpath as well.
+            getAdditionalRuntimeClasspathConfiguration().dependencies.add(
+                    project.dependencies.create("com.belerweb:pinyin4j:2.5.1")
+            )
         }
     }
 
@@ -93,6 +99,9 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 
 dependencies {
+    implementation "com.belerweb:pinyin4j:2.5.1"
+    jarJar "com.belerweb:pinyin4j:2.5.1"
+
     implementation "curse.maven:jei-238222:7420587"
     implementation "curse.maven:jade-324717:7545219"
     implementation "curse.maven:ae2-jei-integration-1074338:7727898"
@@ -112,6 +121,7 @@ dependencies {
     implementation "curse.maven:patchouli-306770:7730942"
     implementation "curse.maven:ars-nouveau-401955:7764018"
     implementation "curse.maven:ars-energistique-905641:6203425"
+
     // Example mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"

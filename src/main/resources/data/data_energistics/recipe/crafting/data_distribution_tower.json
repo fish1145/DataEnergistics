@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " T ",
+    "ACA",
+    "BFB"
+  ],
+  "key": {
+    "A": {
+      "item": "data_energistics:redstone_alloy"
+    },
+    "B": {
+      "item": "minecraft:iron_ingot"
+    },
+    "C": {
+      "item": "data_energistics:data_carrier"
+    },
+    "F": {
+      "item": "data_energistics:data_framework"
+    },
+    "T": {
+      "item": "data_energistics:time_core"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_distribution_tower",
+    "count": 1
+  }
+}
