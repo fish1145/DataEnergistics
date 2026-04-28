@@ -6,7 +6,7 @@
     "common/toolbox.json"
   ],
   "background": {
-    "texture": "guis/blank_background.png",
+    "texture": "guis/data_ripper.png",
     "srcRect": [
       0,
       0,

@@ -2,7 +2,7 @@
   "$schema": "schema.json",
   "includes": ["common/common.json", "common/player_inventory.json"],
   "background": {
-    "texture": "guis/molecular_assembler.png",
+    "texture": "guis/data_distribution_tower.png",
     "srcRect": [0, 0, 176, 199]
   },
   "text": {
@@ -15,13 +15,13 @@
     "ae_channels": {
       "position": {
         "left": 13,
-        "top": 15
+        "top": 17
       }
     },
     "available_fe": {
       "position": {
         "left": 13,
-        "top": 27
+        "top": 26
       }
     },
     "bound_title": {
@@ -33,7 +33,7 @@
     "range": {
       "position": {
         "left": 13,
-        "top": 92
+        "top": 95
       }
     },
     "range_visible": {
@@ -46,8 +46,8 @@
   "widgets": {
     "scrollbar": {
       "left": 155,
-      "top": 50,
-      "height": 36
+      "top": 35,
+      "height": 59
     }
   }
 }

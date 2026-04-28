@@ -11,6 +11,7 @@ import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
 import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
@@ -38,6 +39,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.Nameable;
@@ -246,7 +248,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public int getBoundTargetCount() {
-        return collectDisplayTargets().size();
+        return getBoundTargetSummaries(Integer.MAX_VALUE).size();
     }
 
     public List<String> getBoundTargetDisplayLines(int maxLines) {
@@ -285,6 +287,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (DisplayTarget target : collectDisplayTargets()) {
             BlockPos pos = target.pos();
             BlockEntity blockEntity = this.level.getBlockEntity(pos);
+            if (appendCableBusSummaries(results, blockEntity, pos, target.kind(), maxEntries)) {
+                if (results.size() >= maxEntries) {
+                    break;
+                }
+                continue;
+            }
+
             BlockState state = this.level.getBlockState(pos);
             Block block = state.getBlock();
             Item item = block.asItem();
@@ -295,12 +304,86 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
             String displayName = resolveTargetDisplayName(state, blockEntity);
             results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), target.kind()));
+            if (results.size() >= maxEntries) {
+                break;
+            }
         }
 
         if (results.size() > maxEntries) {
             return List.copyOf(results.subList(0, maxEntries));
         }
         return List.copyOf(results);
+    }
+
+    private boolean appendCableBusSummaries(List<BoundTargetSummary> results, @Nullable BlockEntity blockEntity, BlockPos pos,
+                                            TargetKind kind, int maxEntries) {
+        if (!(blockEntity instanceof CableBusBlockEntity cableBusBlockEntity)) {
+            return false;
+        }
+
+        CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
+        boolean addedAny = false;
+
+        addedAny |= appendPartSummary(results, cableBus.getPart(null), pos, kind, maxEntries);
+        if (results.size() >= maxEntries) {
+            return true;
+        }
+
+        for (var direction : net.minecraft.core.Direction.values()) {
+            addedAny |= appendPartSummary(results, cableBus.getPart(direction), pos, kind, maxEntries);
+            if (results.size() >= maxEntries) {
+                return true;
+            }
+        }
+
+        return addedAny;
+    }
+
+    private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind, int maxEntries) {
+        if (part == null || this.level == null || results.size() >= maxEntries) {
+            return false;
+        }
+
+        Item item = resolvePartItem(part);
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
+        String displayName = resolvePartDisplayName(part, item);
+        results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), kind));
+        return true;
+    }
+
+    private Item resolvePartItem(IPart part) {
+        IPartItem<?> partItem = part.getPartItem();
+        if (partItem instanceof Item item) {
+            return item;
+        }
+        if (partItem instanceof ItemLike itemLike) {
+            Item item = itemLike.asItem();
+            if (item != Items.AIR) {
+                return item;
+            }
+        }
+        return Items.BARRIER;
+    }
+
+    private String resolvePartDisplayName(IPart part, Item item) {
+        if (part instanceof Nameable nameable) {
+            Component displayName = nameable.getDisplayName();
+            if (displayName != null) {
+                String resolved = displayName.getString();
+                if (!resolved.isBlank()) {
+                    return resolved;
+                }
+            }
+        }
+
+        if (item != Items.AIR) {
+            String itemName = new ItemStack(item).getHoverName().getString();
+            if (!itemName.isBlank()) {
+                return itemName;
+            }
+        }
+
+        return part.getClass().getSimpleName();
     }
 
     private List<DisplayTarget> collectDisplayTargets() {
