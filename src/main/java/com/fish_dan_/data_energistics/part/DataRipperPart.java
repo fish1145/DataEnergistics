@@ -6,6 +6,7 @@ import appeng.api.config.YesNo;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
@@ -31,13 +32,15 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 public class DataRipperPart extends UpgradeablePart implements IGridTickable {
@@ -174,12 +177,14 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
             return TickRateModulation.IDLE;
         }
 
-        BlockEntity target = level.getBlockEntity(this.getBlockEntity().getBlockPos().relative(this.getSide()));
-        if (target == null || !this.isActive()) {
+        BlockPos targetPos = this.getBlockEntity().getBlockPos().relative(this.getSide());
+        BlockState targetState = level.getBlockState(targetPos);
+        BlockEntity targetBlockEntity = level.getBlockEntity(targetPos);
+        if (!this.isActive()) {
             return TickRateModulation.IDLE;
         }
 
-        this.ticker(target);
+        this.ticker(targetPos, targetState, targetBlockEntity);
         return TickRateModulation.IDLE;
     }
 
@@ -199,18 +204,20 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         }
     }
 
-    private <T extends BlockEntity> void ticker(@NotNull T blockEntity) {
+    private void ticker(BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity) {
         if (!this.isValidForTicking()) {
             return;
         }
 
-        String blockId = BuiltInRegistries.BLOCK.getKey(blockEntity.getBlockState().getBlock()).toString();
+        String blockId = BuiltInRegistries.BLOCK.getKey(targetState.getBlock()).toString();
         if (DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklist)) {
             return;
         }
 
-        BlockEntityTicker<T> ticker = this.getTicker(blockEntity);
-        if (ticker == null) {
+        RandomTickTarget randomTickTarget = this.getRandomTickTarget(targetPos, targetState);
+        BlockEntityTicker<BlockEntity> ticker = targetBlockEntity != null ? this.getTicker(targetBlockEntity) : null;
+        GridTickTarget gridTickTarget = targetBlockEntity != null ? this.getGridTickTarget(targetBlockEntity) : null;
+        if (ticker == null && gridTickTarget == null && randomTickTarget == null) {
             return;
         }
 
@@ -224,7 +231,17 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
             return;
         }
 
-        this.performTicks(blockEntity, ticker, speed);
+        if (ticker != null) {
+            this.performBlockEntityTicks(targetBlockEntity, ticker, speed);
+        }
+
+        if (gridTickTarget != null) {
+            this.performGridTicks(targetBlockEntity, gridTickTarget, speed);
+        }
+
+        if (randomTickTarget != null) {
+            this.performRandomTicks(randomTickTarget, speed);
+        }
     }
 
     private boolean isValidForTicking() {
@@ -242,6 +259,39 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         return level.getBlockState(blockEntity.getBlockPos()).getTicker(level, (BlockEntityType<T>) blockEntity.getType());
     }
 
+    @Nullable
+    private GridTickTarget getGridTickTarget(BlockEntity blockEntity) {
+        if (!(blockEntity instanceof IActionHost actionHost)) {
+            return null;
+        }
+
+        IGridNode node = actionHost.getActionableNode();
+        if (node == null || node.getGrid() == null) {
+            return null;
+        }
+
+        IGridTickable tickable = node.getService(IGridTickable.class);
+        if (tickable == null) {
+            return null;
+        }
+
+        return new GridTickTarget(node, tickable);
+    }
+
+    @Nullable
+    private RandomTickTarget getRandomTickTarget(BlockPos targetPos, BlockState targetState) {
+        var level = this.getLevel();
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return null;
+        }
+
+        if (!targetState.isRandomlyTicking()) {
+            return null;
+        }
+
+        return new RandomTickTarget(serverLevel, targetPos);
+    }
+
     private int calculateSpeed() {
         int cardCount = this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD);
         if (cardCount <= 0) {
@@ -256,7 +306,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         return DataRipperPowerUtils.computeFinalPowerForProduct(speed, energyCardCount) * multiplier;
     }
 
-    private <T extends BlockEntity> void performTicks(T blockEntity, BlockEntityTicker<T> ticker, int speed) {
+    private <T extends BlockEntity> void performBlockEntityTicks(T blockEntity, BlockEntityTicker<T> ticker, int speed) {
         for (int i = 0; i < speed - 1; i++) {
             try {
                 ticker.tick(blockEntity.getLevel(), blockEntity.getBlockPos(), blockEntity.getBlockState(), blockEntity);
@@ -275,6 +325,49 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                         "Failed while accelerating block entity {} at {}",
                         blockEntity.getType(),
                         blockEntity.getBlockPos(),
+                        e
+                );
+                break;
+            }
+        }
+    }
+
+    private void performGridTicks(BlockEntity blockEntity, GridTickTarget gridTickTarget, int speed) {
+        for (int i = 0; i < speed - 1; i++) {
+            try {
+                TickRateModulation modulation = gridTickTarget.tickable().tickingRequest(gridTickTarget.node(), 1);
+                if (modulation == TickRateModulation.SLEEP) {
+                    var grid = gridTickTarget.node().getGrid();
+                    if (grid != null) {
+                        grid.getTickManager().sleepDevice(gridTickTarget.node());
+                    }
+                    break;
+                }
+            } catch (Exception e) {
+                LOGGER.error(
+                        "Failed while accelerating AE grid tick for block entity {} at {}",
+                        blockEntity.getType(),
+                        blockEntity.getBlockPos(),
+                        e
+                );
+                break;
+            }
+        }
+    }
+
+    private void performRandomTicks(RandomTickTarget randomTickTarget, int speed) {
+        for (int i = 0; i < speed - 1; i++) {
+            try {
+                BlockState currentState = randomTickTarget.level().getBlockState(randomTickTarget.pos());
+                if (!currentState.isRandomlyTicking()) {
+                    break;
+                }
+
+                currentState.randomTick(randomTickTarget.level(), randomTickTarget.pos(), randomTickTarget.level().getRandom());
+            } catch (Exception e) {
+                LOGGER.error(
+                        "Failed while accelerating random tick block at {}",
+                        randomTickTarget.pos(),
                         e
                 );
                 break;
@@ -310,5 +403,11 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
         this.setNetworkEnergySufficient(false);
         return false;
+    }
+
+    private record GridTickTarget(IGridNode node, IGridTickable tickable) {
+    }
+
+    private record RandomTickTarget(ServerLevel level, BlockPos pos) {
     }
 }

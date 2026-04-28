@@ -1,0 +1,19 @@
+{
+  "type": "ae2:inscriber",
+  "mode": "press",
+  "ingredients": {
+    "top": {
+      "item": "data_energistics:data_circuit_board"
+    },
+    "middle": {
+      "item": "minecraft:redstone"
+    },
+    "bottom": {
+      "item": "ae2:printed_silicon"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_processor",
+    "count": 1
+  }
+}

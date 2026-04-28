@@ -46,6 +46,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_CARRIER);
                         output.accept(ModItems.TIME_CORE);
                         output.accept(ModItems.DATA_FLOW_COMPONENT_HOUSING);
+                        output.accept(ModItems.DATA_INSCRIBER_TEMPLATE);
+                        output.accept(ModItems.DATA_CIRCUIT_BOARD);
+                        output.accept(ModItems.DATA_PROCESSOR);
                         output.accept(ModItems.DATA_RIPPER);
                     })
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())

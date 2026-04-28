@@ -43,6 +43,9 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.registerSimpleItem("data_carrier");
     public static final DeferredItem<Item> TIME_CORE = ITEMS.registerSimpleItem("time_core");
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
+    public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");
+    public static final DeferredItem<Item> DATA_CIRCUIT_BOARD = ITEMS.registerSimpleItem("data_circuit_board");
+    public static final DeferredItem<Item> DATA_PROCESSOR = ITEMS.registerSimpleItem("data_processor");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_1K = ITEMS.registerSimpleItem("data_storage_component_1k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_4K = ITEMS.registerSimpleItem("data_storage_component_4k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_16K = ITEMS.registerSimpleItem("data_storage_component_16k");
