@@ -33,7 +33,7 @@ public class DataDistributionTowerScreen extends UpgradeableScreen<DataDistribut
     private static final int LIST_Y = 52;
     private static final int LIST_WIDTH = 150;
     private static final int LIST_ROW_HEIGHT = 14;
-    private static final int LIST_VISIBLE_ROWS = 3;
+    private static final int LIST_VISIBLE_ROWS = 5;
     private static final int SEARCH_X = 94;
     private static final int SEARCH_Y = 4;
     private static final int SEARCH_WIDTH = 70;
