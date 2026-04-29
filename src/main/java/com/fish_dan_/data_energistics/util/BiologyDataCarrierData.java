@@ -37,7 +37,7 @@ public final class BiologyDataCarrierData {
             return false;
         }
 
-        float requiredDamage = Math.max(1.0F, entity.getMaxHealth() * 128.0F);
+        float requiredDamage = Math.max(1.0F, entity.getMaxHealth() * 64.0F);
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
             tag.putString(TAG_ENTITY_TYPE, entityId.toString());
             tag.putFloat(TAG_REQUIRED_DAMAGE, requiredDamage);
