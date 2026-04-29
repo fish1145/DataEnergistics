@@ -40,8 +40,8 @@ public class Config {
             .defineListAllowEmpty("dataRipperMultipliers", List.of(), value -> value instanceof String);
 
     private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_RANGE = BUILDER
-            .comment("Range radius for the Data Distribution Tower.")
-            .defineInRange("dataDistributionTowerRange", 8, 1, 128);
+            .comment("Base chunk coverage level for the Data Distribution Tower. 1=1x1 chunk, 2=3x3 chunks, etc.")
+            .defineInRange("dataDistributionTowerRange", 1, 1, 128);
 
     private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK = BUILDER
             .comment("Maximum FE transferred per tick by a Data Distribution Tower network.")

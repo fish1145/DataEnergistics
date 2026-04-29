@@ -69,5 +69,7 @@
   "message.data_energistics.data_distribution_tower.teleport_requires_cheats": "传送需要开启作弊或拥有管理员权限",
   "message.data_energistics.data_distribution_tower.channel": "范围传输频道：%s",
   "message.data_energistics.data_distribution_tower.range.enabled": "已开启塔范围显示",
-  "message.data_energistics.data_distribution_tower.range.disabled": "已关闭塔范围显示"
+  "message.data_energistics.data_distribution_tower.range.disabled": "已关闭塔范围显示",
+  "text.data_energistics.data_distribution_tower.range.current_chunk": "当前区块",
+  "text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s 区块"
 }

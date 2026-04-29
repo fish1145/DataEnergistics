@@ -27,16 +27,14 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     public void render(@NotNull DataDistributionTowerBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
         if (blockEntity.isRangeDisplayEnabled()) {
-            int range = blockEntity.getConfiguredRange();
-            if (range > 0) {
-                AABB aabb = new AABB(
-                        -range, -range, -range,
-                        range + 1.0, range + 3.0 + range, range + 1.0
-                );
+            AABB aabb = blockEntity.getCoverageAabb().move(
+                    -blockEntity.getBlockPos().getX(),
+                    -blockEntity.getBlockPos().getY(),
+                    -blockEntity.getBlockPos().getZ()
+            );
 
-                var consumer = buffer.getBuffer(RenderType.lines());
-                LevelRenderer.renderLineBox(poseStack, consumer, aabb, 0.2f, 0.85f, 1.0f, 0.85f);
-            }
+            var consumer = buffer.getBuffer(RenderType.lines());
+            LevelRenderer.renderLineBox(poseStack, consumer, aabb, 0.2f, 0.85f, 1.0f, 0.85f);
         }
 
         renderInfoLines(blockEntity, poseStack, buffer, packedLight);
@@ -44,7 +42,7 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
 
     @Override
     public @NotNull AABB getRenderBoundingBox(@NotNull DataDistributionTowerBlockEntity blockEntity) {
-        return new AABB(blockEntity.getBlockPos()).inflate(blockEntity.getConfiguredRange(), blockEntity.getConfiguredRange(), blockEntity.getConfiguredRange()).expandTowards(0, 2, 0);
+        return blockEntity.getCoverageAabb();
     }
 
     private void renderInfoLines(DataDistributionTowerBlockEntity blockEntity, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {

@@ -72,7 +72,6 @@ public class Data_Energistics {
             DataFlowBusStrategies.register();
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
-            Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_DISTRIBUTION_TOWER.get(), 6, "block.data_energistics.data_distribution_tower");
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
             );

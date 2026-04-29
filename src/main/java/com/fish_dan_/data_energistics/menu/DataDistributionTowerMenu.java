@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.menu;
 
-import appeng.menu.AEBaseMenu;
+import appeng.core.localization.ButtonToolTips;
+import appeng.core.localization.Tooltips;
 import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.UpgradeableMenu;
+import appeng.menu.AEBaseMenu;
+import appeng.menu.SlotSemantics;
+import appeng.menu.slot.RestrictedInputSlot;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -10,8 +13,10 @@ import it.unimi.dsi.fastutil.shorts.ShortSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Inventory;
 
-public class DataDistributionTowerMenu extends UpgradeableMenu<DataDistributionTowerBlockEntity> {
+public class DataDistributionTowerMenu extends AEBaseMenu {
     private static final String ACTION_FOCUS_TARGET = "focus_target";
+    private final DataDistributionTowerBlockEntity host;
+    private final RestrictedInputSlot boosterSlot;
 
     @GuiSync(730)
     public int usedChannels;
@@ -20,7 +25,7 @@ public class DataDistributionTowerMenu extends UpgradeableMenu<DataDistributionT
     @GuiSync(732)
     public int availableFe;
     @GuiSync(733)
-    public int range;
+    public int chunkRadius;
     @GuiSync(734)
     public boolean online;
     @GuiSync(735)
@@ -38,6 +43,15 @@ public class DataDistributionTowerMenu extends UpgradeableMenu<DataDistributionT
 
     public DataDistributionTowerMenu(int id, Inventory playerInventory, DataDistributionTowerBlockEntity host) {
         super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
+        this.host = host;
+        createPlayerInventorySlots(playerInventory);
+        this.boosterSlot = new RestrictedInputSlot(
+                RestrictedInputSlot.PlacableItemType.RANGE_BOOSTER,
+                host.getInternalInventory(),
+                0
+        );
+        addSlot(this.boosterSlot, SlotSemantics.STORAGE);
+        this.boosterSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(ButtonToolTips.PlaceWirelessBooster.text()));
         registerClientAction(ACTION_FOCUS_TARGET, TargetAction.class, this::onFocusTarget);
     }
 
@@ -51,11 +65,12 @@ public class DataDistributionTowerMenu extends UpgradeableMenu<DataDistributionT
 
     @Override
     public void broadcastChanges() {
-        if (getTarget() instanceof DataDistributionTowerBlockEntity tower) {
+        if (this.host != null) {
+            var tower = this.host;
             this.usedChannels = tower.getUsedChannelCount();
             this.maxChannels = tower.getMaxChannelCount();
             this.availableFe = tower.getAvailableFeForUi();
-            this.range = tower.getConfiguredRange();
+            this.chunkRadius = tower.getConfiguredChunkRadius();
             this.online = tower.isNetworkNodeOnline();
             this.rangeVisible = tower.isRangeDisplayEnabled();
             this.boundTargetCount = tower.getBoundTargetCount();

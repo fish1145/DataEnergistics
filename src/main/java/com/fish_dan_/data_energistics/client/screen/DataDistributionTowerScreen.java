@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.implementations.UpgradeableScreen;
+import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.Scrollbar;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class DataDistributionTowerScreen extends UpgradeableScreen<DataDistributionTowerMenu> {
+public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTowerMenu> {
     private static final HanyuPinyinOutputFormat PINYIN_FORMAT = createPinyinFormat();
     private static final int LIST_X = 13;
     private static final int LIST_Y = 52;
@@ -99,7 +99,7 @@ public class DataDistributionTowerScreen extends UpgradeableScreen<DataDistribut
         ));
         setTextContent("range", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.range",
-                this.menu.range
+                formatRangeText(this.menu.chunkRadius)
         ));
         setTextContent("range_visible", Component.translatable(
                 this.menu.rangeVisible
@@ -111,6 +111,11 @@ public class DataDistributionTowerScreen extends UpgradeableScreen<DataDistribut
                 this.menu.boundTargetCount
         ));
         setTextContent("player_inventory_title", Component.empty());
+    }
+
+    private Component formatRangeText(int chunkRadius) {
+        int diameter = chunkRadius * 2 + 1;
+        return Component.translatable("text.data_energistics.data_distribution_tower.range.chunk_square", diameter, diameter);
     }
 
     @Override

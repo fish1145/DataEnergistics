@@ -43,7 +43,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
         ));
         tooltip.add(Component.translatable(
                 "jade.data_energistics.data_distribution_tower.range",
-                serverData.getInt(TAG_RANGE)
+                formatRangeText(serverData.getInt(TAG_RANGE))
         ));
     }
 
@@ -57,7 +57,12 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
         data.putInt(TAG_AE_USED, tower.getUsedChannelCount());
         data.putInt(TAG_AE_MAX, tower.getMaxChannelCount());
         data.putString(TAG_FE, tower.getEnergyDisplayText());
-        data.putInt(TAG_RANGE, tower.getConfiguredRange());
+        data.putInt(TAG_RANGE, tower.getConfiguredChunkRadius());
+    }
+
+    private static Component formatRangeText(int chunkRadius) {
+        int diameter = chunkRadius * 2 + 1;
+        return Component.translatable("text.data_energistics.data_distribution_tower.range.chunk_square", diameter, diameter);
     }
 
     private DataDistributionTowerBlockEntity resolveTower(BlockAccessor accessor) {

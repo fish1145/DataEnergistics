@@ -69,5 +69,7 @@
   "message.data_energistics.data_distribution_tower.teleport_requires_cheats": "Teleport requires cheats/operator permission",
   "message.data_energistics.data_distribution_tower.channel": "Range transmission channel: %s",
   "message.data_energistics.data_distribution_tower.range.enabled": "Tower range display enabled",
-  "message.data_energistics.data_distribution_tower.range.disabled": "Tower range display disabled"
+  "message.data_energistics.data_distribution_tower.range.disabled": "Tower range display disabled",
+  "text.data_energistics.data_distribution_tower.range.current_chunk": "Current chunk",
+  "text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s chunks"
 }

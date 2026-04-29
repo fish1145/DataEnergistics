@@ -12,15 +12,15 @@ import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.api.upgrades.UpgradeInventories;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEItems;
 import appeng.parts.CableBusContainer;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import appeng.util.inv.filter.AEItemDefinitionFilter;
 import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
@@ -51,6 +51,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -72,36 +73,44 @@ import java.util.Objects;
 import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
-public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, IUpgradeableObject {
+public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
     private static final String TICK_BUDGET_TAG = "transfer_budget_hint";
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final int CACHE_TICKS = 20;
     private static final int INITIAL_PENDING_DELAY = 2;
+    private static final double BASE_IDLE_POWER_USAGE = 4.0;
+    private static final double IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK = 8.0;
+    private static final int BOOSTERS_PER_CHUNK_RING = 8;
+    private static final int VERTICAL_RANGE_ABOVE = 256;
+    private static final int VERTICAL_RANGE_BELOW = 128;
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
     private static MinecraftServer boundServer;
 
     private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
     private final Set<BlockPos> linkedPositions = new LinkedHashSet<>();
     private final Map<BlockPos, List<IGridConnection>> linkedConnections = new HashMap<>();
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_DISTRIBUTION_TOWER.get(), 6, this::onUpgradesChanged);
+    private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private long lastEndpointCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private long cachedTransferBudgetHint = 0L;
     private boolean showRange = false;
     private boolean pendingRangeRefresh = false;
     private int indexedChunkRadius = -1;
+    private int syncedChunkRadius = 0;
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL, GridFlags.DENSE_CAPACITY)
-                .setIdlePowerUsage(4.0);
+                .setIdlePowerUsage(BASE_IDLE_POWER_USAGE);
     }
 
     @Override
     public void onReady() {
         super.onReady();
+        updateIdlePowerUsage();
         if (this.level != null && !this.level.isClientSide()) {
             registerInChunkIndex();
             invalidateEndpointCache();
@@ -124,7 +133,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super.loadTag(data, registries);
         this.cachedTransferBudgetHint = data.getLong(TICK_BUDGET_TAG);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
-        this.upgrades.readFromNBT(data, "upgrades", registries);
+        this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
+        this.syncedChunkRadius = computeChunkRadius();
+        updateIdlePowerUsage();
         this.pendingLinkPositions.clear();
         this.linkedPositions.clear();
         this.linkedConnections.clear();
@@ -144,7 +155,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super.saveAdditional(data, registries);
         data.putLong(TICK_BUDGET_TAG, this.cachedTransferBudgetHint);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
-        this.upgrades.writeToNBT(data, "upgrades", registries);
+        this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
         ListTag linked = new ListTag();
         for (BlockPos pos : this.linkedPositions) {
@@ -159,6 +170,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     protected void writeToStream(RegistryFriendlyByteBuf data) {
         super.writeToStream(data);
         data.writeBoolean(this.showRange);
+        data.writeVarInt(computeChunkRadius());
     }
 
     @Override
@@ -167,6 +179,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean showRange = data.readBoolean();
         if (showRange != this.showRange) {
             this.showRange = showRange;
+            changed = true;
+        }
+        int syncedChunkRadius = data.readVarInt();
+        if (syncedChunkRadius != this.syncedChunkRadius) {
+            this.syncedChunkRadius = syncedChunkRadius;
             changed = true;
         }
         return changed;
@@ -211,8 +228,32 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.showRange;
     }
 
-    public int getConfiguredRange() {
-        return getTowerRange();
+    public int getConfiguredChunkRadius() {
+        return getChunkRadius();
+    }
+
+    public AABB getCoverageAabb() {
+        ChunkPos center = new ChunkPos(this.worldPosition);
+        int chunkRadius = getChunkRadius();
+        int minX = (center.x - chunkRadius) << 4;
+        int minZ = (center.z - chunkRadius) << 4;
+        int maxX = (center.x + chunkRadius + 1) << 4;
+        int maxZ = (center.z + chunkRadius + 1) << 4;
+        int minY = this.worldPosition.getY() - VERTICAL_RANGE_BELOW;
+        int maxY = this.worldPosition.getY() + VERTICAL_RANGE_ABOVE + 1;
+
+        if (this.level == null) {
+            return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+        }
+
+        return new AABB(
+                minX,
+                Math.max(this.level.getMinBuildHeight(), minY),
+                minZ,
+                maxX,
+                Math.min(this.level.getMaxBuildHeight(), maxY),
+                maxZ
+        );
     }
 
     public String getChannelDisplayText() {
@@ -242,9 +283,21 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return isTowerActive();
     }
 
+    public AppEngInternalInventory getInternalInventory() {
+        return this.wirelessBoosters;
+    }
+
     @Override
-    public IUpgradeInventory getUpgrades() {
-        return this.upgrades;
+    public void saveChangedInventory(AppEngInternalInventory inv) {
+        updateIdlePowerUsage();
+        invalidateEndpointCache();
+        setChanged();
+        markForClientUpdate();
+        this.pendingRangeRefresh = true;
+    }
+
+    @Override
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
     }
 
     public int getBoundTargetCount() {
@@ -527,7 +580,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!isWithinRange(towerPos, targetPos, tower.getTowerRange())) {
+                if (!tower.isWithinTowerCoverage(targetPos)) {
                     continue;
                 }
 
@@ -547,7 +600,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!isWithinRange(towerPos, targetPos, tower.getTowerRange())) {
+                if (!tower.isWithinTowerCoverage(targetPos)) {
                     continue;
                 }
 
@@ -562,8 +615,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         int added = 0;
-        int range = getTowerRange();
-        for (BlockEntity blockEntity : getNearbyBlockEntities(range)) {
+        for (BlockEntity blockEntity : getNearbyBlockEntities()) {
             BlockPos pos = blockEntity.getBlockPos().immutable();
             if (pos.equals(this.worldPosition)) {
                 continue;
@@ -605,12 +657,37 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.getMainNode().isActive();
     }
 
-    private int getTowerRange() {
-        return Config.dataDistributionTowerRange + this.getInstalledUpgrades(AEItems.CAPACITY_CARD) * 4;
+    private int getChunkRadius() {
+        if (this.level != null && this.level.isClientSide()) {
+            return this.syncedChunkRadius;
+        }
+        return computeChunkRadius();
     }
 
-    private int getChunkRadius() {
-        return Math.max(1, (int) Math.ceil(getTowerRange() / 16.0));
+    private int computeChunkRadius() {
+        ItemStack boosterStack = this.wirelessBoosters.getStackInSlot(0);
+        int boosterCount = boosterStack.isEmpty() ? 0 : boosterStack.getCount();
+        return Math.max(0, Config.dataDistributionTowerRange - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
+    }
+
+    private int getCoveredChunkCount() {
+        int diameter = computeChunkRadius() * 2 + 1;
+        return diameter * diameter;
+    }
+
+    private double computeIdlePowerUsage() {
+        return BASE_IDLE_POWER_USAGE
+                + Math.max(0, getCoveredChunkCount() - 1) * IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK;
+    }
+
+    private void updateIdlePowerUsage() {
+        this.getMainNode().setIdlePowerUsage(computeIdlePowerUsage());
+    }
+
+    private boolean isWithinTowerCoverage(BlockPos targetPos) {
+        return isWithinChunkRange(this.worldPosition, targetPos, getChunkRadius())
+                && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW
+                && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
     }
 
     private int getTransferBudgetPerTick() {
@@ -695,8 +772,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         LinkedHashSet<BlockPos> endpoints = new LinkedHashSet<>();
-        int range = getTowerRange();
-        for (BlockEntity blockEntity : getNearbyBlockEntities(range)) {
+        for (BlockEntity blockEntity : getNearbyBlockEntities()) {
             BlockPos pos = blockEntity.getBlockPos().immutable();
             if (isTowerBlock(pos)) {
                 continue;
@@ -710,16 +786,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.lastEndpointCacheTick = this.level.getGameTime();
     }
 
-    private List<BlockEntity> getNearbyBlockEntities(int range) {
+    private List<BlockEntity> getNearbyBlockEntities() {
         if (this.level == null) {
             return List.of();
         }
 
         ArrayList<BlockEntity> results = new ArrayList<>();
-        int minChunkX = (this.worldPosition.getX() - range) >> 4;
-        int maxChunkX = (this.worldPosition.getX() + range) >> 4;
-        int minChunkZ = (this.worldPosition.getZ() - range) >> 4;
-        int maxChunkZ = (this.worldPosition.getZ() + range) >> 4;
+        ChunkPos center = new ChunkPos(this.worldPosition);
+        int chunkRadius = getChunkRadius();
+        int minChunkX = center.x - chunkRadius;
+        int maxChunkX = center.x + chunkRadius;
+        int minChunkZ = center.z - chunkRadius;
+        int maxChunkZ = center.z + chunkRadius;
 
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -729,8 +807,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
 
                 for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
-                    BlockPos pos = blockEntity.getBlockPos();
-                    if (isWithinRange(this.worldPosition, pos, range)) {
+                    if (isWithinTowerCoverage(blockEntity.getBlockPos())) {
                         results.add(blockEntity);
                     }
                 }
@@ -1067,7 +1144,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean queueLink(BlockPos targetPos, int delay) {
-        if (this.worldPosition.equals(targetPos) || !isWithinRange(this.worldPosition, targetPos, getTowerRange())) {
+        if (this.worldPosition.equals(targetPos) || !isWithinTowerCoverage(targetPos)) {
             return false;
         }
 
@@ -1232,7 +1309,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!isWithinRange(towerPos, changedPos, tower.getTowerRange())) {
+                if (!tower.isWithinTowerCoverage(changedPos)) {
                     continue;
                 }
 
@@ -1254,11 +1331,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private static boolean isWithinRange(BlockPos source, BlockPos target, int range) {
-        return Math.max(
-                Math.max(Math.abs(source.getX() - target.getX()), Math.abs(source.getY() - target.getY())),
-                Math.abs(source.getZ() - target.getZ())
-        ) <= range;
+    private static boolean isWithinChunkRange(BlockPos source, BlockPos target, int chunkRadius) {
+        ChunkPos sourceChunk = new ChunkPos(source);
+        ChunkPos targetChunk = new ChunkPos(target);
+        return Math.abs(sourceChunk.x - targetChunk.x) <= chunkRadius
+                && Math.abs(sourceChunk.z - targetChunk.z) <= chunkRadius;
     }
 
     private static int compareBlockPos(BlockPos a, BlockPos b) {
@@ -1310,13 +1387,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return Long.toString(amount);
     }
 
-    private void onUpgradesChanged() {
-        invalidateEndpointCache();
-        setChanged();
-        markForClientUpdate();
-        this.pendingRangeRefresh = true;
-    }
-
     private void applyPendingRangeRefresh() {
         this.pendingRangeRefresh = false;
 
@@ -1340,12 +1410,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private void pruneTargetsOutsideRange() {
         ArrayList<BlockPos> toRemove = new ArrayList<>();
         for (BlockPos pos : this.linkedPositions) {
-            if (!isWithinRange(this.worldPosition, pos, getTowerRange())) {
+            if (!isWithinTowerCoverage(pos)) {
                 toRemove.add(pos);
             }
         }
         for (BlockPos pos : this.pendingLinkPositions.keySet()) {
-            if (!isWithinRange(this.worldPosition, pos, getTowerRange()) && !toRemove.contains(pos)) {
+            if (!isWithinTowerCoverage(pos) && !toRemove.contains(pos)) {
                 toRemove.add(pos);
             }
         }
@@ -1357,17 +1427,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
-        for (ItemStack upgrade : this.upgrades) {
-            if (!upgrade.isEmpty()) {
-                drops.add(upgrade);
-            }
+        ItemStack boosters = this.wirelessBoosters.getStackInSlot(0);
+        if (!boosters.isEmpty()) {
+            drops.add(boosters.copy());
         }
     }
 
     @Override
     public void clearContent() {
         super.clearContent();
-        this.upgrades.clear();
+        this.wirelessBoosters.setItemDirect(0, ItemStack.EMPTY);
+        updateIdlePowerUsage();
     }
 
     private record ChunkKey(Object dimension, int x, int z) {
