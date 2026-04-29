@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SCS",
+    "RHR",
+    "SDS"
+  ],
+  "key": {
+    "S": {
+      "item": "ae2:speed_card"
+    },
+    "C": {
+      "item": "ae2:capacity_card"
+    },
+    "R": {
+      "item": "data_energistics:redstone_alloy"
+    },
+    "H": {
+      "item": "data_energistics:data_flow_component_housing"
+    },
+    "D": {
+      "item": "data_energistics:data_carrier"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_extractor",
+    "count": 1
+  }
+}

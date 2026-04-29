@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "data_energistics:block/data_extractor_off"
+    },
+    "lit=true": {
+      "model": "data_energistics:block/data_extractor_on"
+    }
+  }
+}

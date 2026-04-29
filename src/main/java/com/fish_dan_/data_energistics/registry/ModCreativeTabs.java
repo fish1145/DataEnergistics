@@ -38,6 +38,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_STORAGE_COMPONENT_256K);
 
                         output.accept(ModItems.DATA_FLOW_GENERATOR);
+                        output.accept(ModItems.DATA_EXTRACTOR);
                         output.accept(ModItems.DATA_FRAMEWORK);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(ModItems.REDSTONE_ALLOY);

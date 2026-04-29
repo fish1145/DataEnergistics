@@ -1,6 +1,7 @@
 {
   "itemGroup.data_energistics": "数据能源",
   "block.data_energistics.data_flow_generator": "数据流生成器",
+  "block.data_energistics.data_extractor": "数据提取仪",
   "block.data_energistics.data_framework": "数据框架",
   "block.data_energistics.data_distribution_tower": "数据均分塔",
   "item.data_energistics.data_flow_cell_1k": "1K-ME 数据流存储元件",
@@ -55,7 +56,10 @@
   "jade.data_energistics.data_distribution_tower.ae": "AE 频道：%s/%s",
   "jade.data_energistics.data_distribution_tower.fe": "网络 FE：%s",
   "jade.data_energistics.data_distribution_tower.range": "范围：%s",
+  "jade.data_energistics.data_extractor.status.online": "设备在线",
+  "jade.data_energistics.data_extractor.status.offline": "设备离线",
   "config.jade.plugin_data_energistics.data_distribution_tower": "数据均分塔",
+  "config.jade.plugin_data_energistics.data_extractor": "数据提取仪",
   "screen.data_energistics.data_distribution_tower.title.online": "数据均分塔 - 在线",
   "screen.data_energistics.data_distribution_tower.title.offline": "数据均分塔 - 离线",
   "screen.data_energistics.data_distribution_tower.ae_channels": "AE 频道：%s/%s",
@@ -71,5 +75,14 @@
   "message.data_energistics.data_distribution_tower.range.enabled": "已开启塔范围显示",
   "message.data_energistics.data_distribution_tower.range.disabled": "已关闭塔范围显示",
   "text.data_energistics.data_distribution_tower.range.current_chunk": "当前区块",
-  "text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s 区块"
+  "text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s 区块",
+  "text.data_energistics.data_extractor.range.box": "上方 %sx%sx%s",
+  "screen.data_energistics.data_extractor.status.online": "状态：在线",
+  "screen.data_energistics.data_extractor.status.offline": "状态：离线",
+  "screen.data_energistics.data_extractor.damage": "伤害：%s/刻",
+  "screen.data_energistics.data_extractor.data_flow": "数据流生产：%s/刻",
+  "screen.data_energistics.data_extractor.speed_cards": "加速卡：%s",
+  "screen.data_energistics.data_extractor.capacity_cards": "容量卡：%s",
+  "message.data_energistics.data_extractor.range.enabled": "已开启提取仪范围显示",
+  "message.data_energistics.data_extractor.range.disabled": "已关闭提取仪范围显示"
 }

@@ -1,0 +1,52 @@
+{
+  "$schema": "schema.json",
+  "includes": [
+    "common/common.json",
+    "common/player_inventory.json"
+  ],
+  "generatedBackground": {
+    "width": 176,
+    "height": 168
+  },
+  "text": {
+    "dialog_title": {
+      "text": {
+        "translate": "block.data_energistics.data_extractor"
+      },
+      "position": {
+        "left": 8,
+        "top": 6
+      }
+    },
+    "status": {
+      "position": {
+        "left": 8,
+        "top": 20
+      }
+    },
+    "damage": {
+      "position": {
+        "left": 8,
+        "top": 34
+      }
+    },
+    "data_flow": {
+      "position": {
+        "left": 8,
+        "top": 48
+      }
+    },
+    "speed_cards": {
+      "position": {
+        "left": 8,
+        "top": 62
+      }
+    },
+    "capacity_cards": {
+      "position": {
+        "left": 8,
+        "top": 76
+      }
+    }
+  }
+}

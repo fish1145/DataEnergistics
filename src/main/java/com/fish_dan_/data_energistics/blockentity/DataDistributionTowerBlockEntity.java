@@ -14,7 +14,6 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEItems;
 import appeng.parts.CableBusContainer;
@@ -48,6 +47,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -376,8 +376,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
         boolean addedAny = false;
+        IPart centerPart = cableBus.getPart(null);
 
-        addedAny |= appendPartSummary(results, cableBus.getPart(null), pos, kind, maxEntries, null, "", "");
+        addedAny |= appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "", "");
         if (results.size() >= maxEntries) {
             return true;
         }
@@ -393,6 +394,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (int i = 0; i < sideParts.size(); i++) {
             CableBusSidePart sidePart = sideParts.get(i);
             String prefix = i == sideParts.size() - 1 ? "└ " : "├ ";
+            if (centerPart == null) {
+                prefix = "";
+            }
             String suffix = "";
             addedAny |= appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix, suffix);
             if (results.size() >= maxEntries) {
@@ -508,7 +512,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             Component displayName = nameable.getDisplayName();
             if (displayName != null) {
                 String resolved = displayName.getString();
-                if (!resolved.isBlank()) {
+                if (!resolved.isBlank() && !isFallbackAirName(resolved)) {
                     return resolved;
                 }
             }
@@ -524,6 +528,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         return block.getName().getString();
+    }
+
+    private boolean isFallbackAirName(String displayName) {
+        return displayName.equals(Items.AIR.getDescription().getString())
+                || displayName.equals(Blocks.AIR.getName().getString());
     }
 
     @Override
@@ -1228,10 +1237,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             IGrid targetGrid = targetNode.getGrid();
             IGrid selfGrid = selfNode.getGrid();
             if (targetGrid != null && selfGrid != null) {
-                if (targetGrid.getPathingService().getControllerState() != ControllerState.NO_CONTROLLER) {
-                    if (targetGrid != selfGrid) {
+                if (targetGrid == selfGrid) {
+                    if (targetNode.meetsChannelRequirements()) {
                         continue;
-                    } else if (targetNode.meetsChannelRequirements()) {
+                    }
+                } else {
+                    ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
+                    ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
+                    if (targetControllerState != ControllerState.NO_CONTROLLER
+                            && selfControllerState != ControllerState.NO_CONTROLLER) {
                         continue;
                     }
                 }
@@ -1269,7 +1283,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     public static List<IGridNode> getConnectableNodes(Level level, BlockPos pos) {
         ArrayList<IGridNode> nodes = new ArrayList<>();
         IInWorldGridNodeHost nodeHost = level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, pos, null);
-        if (nodeHost == null || nodeHost instanceof ControllerBlockEntity) {
+        if (nodeHost == null) {
             return nodes;
         }
 

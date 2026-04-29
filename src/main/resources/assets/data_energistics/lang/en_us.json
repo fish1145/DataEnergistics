@@ -1,6 +1,7 @@
 {
   "itemGroup.data_energistics": "Data_Energistics",
   "block.data_energistics.data_flow_generator": "Data Flow Generator",
+  "block.data_energistics.data_extractor": "Data Extractor",
   "block.data_energistics.data_framework": "Data Framework",
   "block.data_energistics.data_distribution_tower": "Data Distribution Tower",
   "item.data_energistics.data_flow_cell_1k": "1K Data Flow Storage Cell",
@@ -55,7 +56,10 @@
   "jade.data_energistics.data_distribution_tower.ae": "AE Channels: %s/%s",
   "jade.data_energistics.data_distribution_tower.fe": "Network FE: %s",
   "jade.data_energistics.data_distribution_tower.range": "Range: %s",
+  "jade.data_energistics.data_extractor.status.online": "Device Online",
+  "jade.data_energistics.data_extractor.status.offline": "Device Offline",
   "config.jade.plugin_data_energistics.data_distribution_tower": "Data Distribution Tower",
+  "config.jade.plugin_data_energistics.data_extractor": "Data Extractor",
   "screen.data_energistics.data_distribution_tower.title.online": "Data Distribution Tower - Online",
   "screen.data_energistics.data_distribution_tower.title.offline": "Data Distribution Tower - Offline",
   "screen.data_energistics.data_distribution_tower.ae_channels": "AE Channels: %s/%s",
@@ -71,5 +75,14 @@
   "message.data_energistics.data_distribution_tower.range.enabled": "Tower range display enabled",
   "message.data_energistics.data_distribution_tower.range.disabled": "Tower range display disabled",
   "text.data_energistics.data_distribution_tower.range.current_chunk": "Current chunk",
-  "text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s chunks"
+  "text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s chunks",
+  "text.data_energistics.data_extractor.range.box": "%sx%sx%s above",
+  "screen.data_energistics.data_extractor.status.online": "Status: Online",
+  "screen.data_energistics.data_extractor.status.offline": "Status: Offline",
+  "screen.data_energistics.data_extractor.damage": "Damage: %s/t",
+  "screen.data_energistics.data_extractor.data_flow": "Data Flow Production: %s/t",
+  "screen.data_energistics.data_extractor.speed_cards": "Speed Cards: %s",
+  "screen.data_energistics.data_extractor.capacity_cards": "Capacity Cards: %s",
+  "message.data_energistics.data_extractor.range.enabled": "Extractor range display enabled",
+  "message.data_energistics.data_extractor.range.disabled": "Extractor range display disabled"
 }

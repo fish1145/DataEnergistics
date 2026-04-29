@@ -2,7 +2,9 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import appeng.menu.implementations.MenuTypeBuilder;
@@ -31,6 +33,11 @@ public final class ModMenus {
                 DataDistributionTowerBlockEntity tower = blockEntity instanceof DataDistributionTowerBlockEntity host ? host : null;
                 return new DataDistributionTowerMenu(id, playerInventory, tower);
             }));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataExtractorMenu>> DATA_EXTRACTOR =
+            MENUS.register("data_extractor", () -> MenuTypeBuilder
+                    .create(DataExtractorMenu::new, DataExtractorBlockEntity.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_extractor")));
 
     private ModMenus() {
     }

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataFlowGeneratorBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -17,6 +18,11 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> DATA_FLOW_GENERATOR = BLOCKS.registerBlock(
             "data_flow_generator",
             DataFlowGeneratorBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_EXTRACTOR = BLOCKS.registerBlock(
+            "data_extractor",
+            DataExtractorBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(
