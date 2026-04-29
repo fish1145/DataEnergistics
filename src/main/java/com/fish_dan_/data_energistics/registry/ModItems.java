@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
@@ -42,7 +43,10 @@ public final class ModItems {
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
     public static final DeferredItem<Item> MIXED_REDSTONE_DUST = ITEMS.registerSimpleItem("mixed_redstone_dust");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
-    public static final DeferredItem<Item> DATA_CARRIER = ITEMS.registerSimpleItem("data_carrier");
+    public static final DeferredItem<Item> DATA_CARRIER = ITEMS.register("data_carrier",
+            () -> new BiologyDataCarrierItem(new Item.Properties(), false));
+    public static final DeferredItem<Item> BIOLOGY_DATA_CARRIER = ITEMS.register("biology_data_carrier",
+            () -> new BiologyDataCarrierItem(new Item.Properties(), true));
     public static final DeferredItem<Item> TIME_CORE = ITEMS.registerSimpleItem("time_core");
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");

@@ -4,9 +4,29 @@
     "common/common.json",
     "common/player_inventory.json"
   ],
-  "generatedBackground": {
-    "width": 176,
-    "height": 168
+  "background": {
+    "texture": "guis/data_extractor.png",
+    "srcRect": [0, 0, 176, 176]
+  },
+  "slots": {
+    "MACHINE_INPUT": {
+      "left": 138,
+      "top": 10
+    },
+    "MACHINE_OUTPUT": {
+      "left": 138,
+      "top": 62
+    },
+    "PLAYER_INVENTORY": {
+      "left": 8,
+      "bottom": 87,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "PLAYER_HOTBAR": {
+      "left": 8,
+      "bottom": 29,
+      "grid": "HORIZONTAL"
+    }
   },
   "text": {
     "dialog_title": {
@@ -15,38 +35,51 @@
       },
       "position": {
         "left": 8,
-        "top": 6
+        "top": 4
       }
     },
     "status": {
       "position": {
-        "left": 8,
-        "top": 20
+        "left": 10,
+        "top": 22
       }
     },
     "damage": {
       "position": {
-        "left": 8,
-        "top": 34
+        "left": 10,
+        "top": 38
       }
     },
     "data_flow": {
       "position": {
-        "left": 8,
-        "top": 48
+        "left": 10,
+        "top": 54
       }
     },
-    "speed_cards": {
+    "player_inventory_title": {
+      "text": {
+        "translate": "container.inventory"
+      },
       "position": {
         "left": 8,
-        "top": 62
+        "bottom": 97
       }
+    }
+  },
+  "images": {
+    "progressBar": {
+      "texture": "guis/data_extractor.png",
+      "srcRect": [176, 0, 6, 18]
+    }
+  },
+  "widgets": {
+    "progressBar": {
+      "left": 151,
+      "top": 31
     },
-    "capacity_cards": {
-      "position": {
-        "left": 8,
-        "top": 76
-      }
+    "upgrades": {
+      "left": 174,
+      "top": 0
     }
   }
 }

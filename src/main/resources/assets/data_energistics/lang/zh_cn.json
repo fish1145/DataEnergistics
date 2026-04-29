@@ -79,10 +79,13 @@
   "text.data_energistics.data_extractor.range.box": "上方 %sx%sx%s",
   "screen.data_energistics.data_extractor.status.online": "状态：在线",
   "screen.data_energistics.data_extractor.status.offline": "状态：离线",
-  "screen.data_energistics.data_extractor.damage": "伤害：%s/刻",
-  "screen.data_energistics.data_extractor.data_flow": "数据流生产：%s/刻",
-  "screen.data_energistics.data_extractor.speed_cards": "加速卡：%s",
-  "screen.data_energistics.data_extractor.capacity_cards": "容量卡：%s",
+  "screen.data_energistics.data_extractor.damage": "伤害：%s/5秒",
+  "screen.data_energistics.data_extractor.data_flow": "数据流生产：%s/5秒",
   "message.data_energistics.data_extractor.range.enabled": "已开启提取仪范围显示",
-  "message.data_energistics.data_extractor.range.disabled": "已关闭提取仪范围显示"
+  "message.data_energistics.data_extractor.range.disabled": "已关闭提取仪范围显示",
+  "item.data_energistics.biology_data_carrier": "\u751f\u7269\u6570\u636e\u8f7d\u4f53",
+  "item.data_energistics.carrier.target": "\u76ee\u6807\u751f\u7269\uff1a%s",
+  "item.data_energistics.carrier.target_unknown": "\u76ee\u6807\u751f\u7269\uff1a\u672a\u77e5",
+  "item.data_energistics.carrier.progress": "\u91c7\u96c6\u8fdb\u5ea6\uff1a%s / %s",
+  "item.data_energistics.carrier.completed": "\u6837\u672c\u5df2\u5b8c\u6210"
 }
