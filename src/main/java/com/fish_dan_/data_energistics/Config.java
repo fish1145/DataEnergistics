@@ -45,7 +45,7 @@ public class Config {
 
     private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK = BUILDER
             .comment("Maximum FE transferred per tick by a Data Distribution Tower network.")
-            .defineInRange("dataDistributionTowerTransferPerTick", 100_000, 1, Integer.MAX_VALUE);
+            .defineInRange("dataDistributionTowerTransferPerTick", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
 
     static final ModConfigSpec SPEC = BUILDER.build();
 

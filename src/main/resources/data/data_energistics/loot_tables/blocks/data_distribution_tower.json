@@ -6,13 +6,6 @@
       "conditions": [
         {
           "condition": "minecraft:survives_explosion"
-        },
-        {
-          "condition": "minecraft:block_state_property",
-          "block": "data_energistics:data_distribution_tower",
-          "properties": {
-            "part": "0"
-          }
         }
       ],
       "entries": [

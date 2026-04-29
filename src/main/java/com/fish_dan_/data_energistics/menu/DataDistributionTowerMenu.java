@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
+import appeng.util.inv.AppEngInternalInventory;
 import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.Tooltips;
 import appeng.menu.guisync.GuiSync;
@@ -12,9 +13,11 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Inventory;
+import org.jetbrains.annotations.Nullable;
 
 public class DataDistributionTowerMenu extends AEBaseMenu {
     private static final String ACTION_FOCUS_TARGET = "focus_target";
+    @Nullable
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
 
@@ -41,13 +44,13 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     @GuiSync(740)
     public String boundTargetKinds = "";
 
-    public DataDistributionTowerMenu(int id, Inventory playerInventory, DataDistributionTowerBlockEntity host) {
+    public DataDistributionTowerMenu(int id, Inventory playerInventory, @Nullable DataDistributionTowerBlockEntity host) {
         super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
         this.boosterSlot = new RestrictedInputSlot(
                 RestrictedInputSlot.PlacableItemType.RANGE_BOOSTER,
-                host.getInternalInventory(),
+                host != null ? host.getInternalInventory() : new AppEngInternalInventory(1),
                 0
         );
         addSlot(this.boosterSlot, SlotSemantics.STORAGE);

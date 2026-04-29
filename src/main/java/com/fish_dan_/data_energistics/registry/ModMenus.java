@@ -1,15 +1,17 @@
 package com.fish_dan_.data_energistics.registry;
 
-import appeng.menu.implementations.MenuTypeBuilder;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
+import appeng.menu.implementations.MenuTypeBuilder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -23,9 +25,12 @@ public final class ModMenus {
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_ripper")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataDistributionTowerMenu>> DATA_DISTRIBUTION_TOWER =
-            MENUS.register("data_distribution_tower", () -> MenuTypeBuilder
-                    .create(DataDistributionTowerMenu::new, DataDistributionTowerBlockEntity.class)
-                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_distribution_tower")));
+            MENUS.register("data_distribution_tower", () -> IMenuTypeExtension.create((id, playerInventory, data) -> {
+                var pos = data.readBlockPos();
+                BlockEntity blockEntity = playerInventory.player.level().getBlockEntity(pos);
+                DataDistributionTowerBlockEntity tower = blockEntity instanceof DataDistributionTowerBlockEntity host ? host : null;
+                return new DataDistributionTowerMenu(id, playerInventory, tower);
+            }));
 
     private ModMenus() {
     }

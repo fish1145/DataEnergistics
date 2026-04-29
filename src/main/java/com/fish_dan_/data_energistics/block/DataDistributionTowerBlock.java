@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.block;
 
 import appeng.block.AEBaseBlock;
+import appeng.blockentity.AEBaseBlockEntity;
 import appeng.core.definitions.AEItems;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
+import appeng.util.InteractionUtil;
+import appeng.util.SettingsFrom;
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
@@ -29,12 +32,20 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.BlockHitResult;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
+@EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlock {
     public static final IntegerProperty PART = IntegerProperty.create("part", 0, 2);
 
@@ -76,7 +87,7 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     @Override
     protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player,
                                               InteractionHand hand, BlockHitResult hit) {
-        if (isAeWrench(heldItem)) {
+        if (canDisassembleWithWrench(heldItem)) {
             if (player.isShiftKeyDown()) {
                 if (!level.isClientSide()) {
                     dismantleTower(level, getBasePos(pos, state), player);
@@ -97,8 +108,15 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         }
 
         if (!player.isShiftKeyDown()) {
-            if (!level.isClientSide()) {
-                MenuOpener.open(ModMenus.DATA_DISTRIBUTION_TOWER.get(), player, MenuLocators.forBlockEntity(tower));
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                        (containerId, playerInventory, menuPlayer) -> new com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu(
+                                containerId,
+                                playerInventory,
+                                tower
+                        ),
+                        Component.empty()
+                ), buffer -> buffer.writeBlockPos(basePos));
             }
             return InteractionResult.sidedSuccess(level.isClientSide());
         }
@@ -118,9 +136,20 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
+            if (!level.isClientSide() && state.getValue(PART) == 0) {
+                dropAdditionalBlockEntityContents(level, pos);
+            }
             removeOtherParts(level, pos, state);
             super.onRemove(state, level, pos, newState, isMoving);
         }
+    }
+
+    @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide() && state.getValue(PART) != 0) {
+            breakTower(level, getBasePos(pos, state), player);
+        }
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override
@@ -148,6 +177,14 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         return super.updateShape(state, direction, neighborState, level, currentPos, neighborPos);
     }
 
+    @Override
+    public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
+        BlockEntity blockEntity = builder.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_ENTITY);
+        net.minecraft.world.entity.Entity looter = builder.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY);
+        Player player = looter instanceof Player lootPlayer ? lootPlayer : null;
+        return List.of(createTowerItemDrop(blockEntity, player));
+    }
+
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
@@ -172,6 +209,36 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         return pos.below(state.getValue(PART));
     }
 
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        BlockState state = event.getLevel().getBlockState(event.getPos());
+        if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) || !event.getEntity().isShiftKeyDown()
+                || !canDisassembleWithWrench(event.getItemStack())) {
+            return;
+        }
+
+        if (state.getBlock() instanceof DataDistributionTowerBlock towerBlock && !event.getLevel().isClientSide()) {
+            towerBlock.dismantleTower(event.getLevel(), getBasePos(event.getPos(), state), event.getEntity());
+        }
+
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.sidedSuccess(event.getLevel().isClientSide()));
+    }
+
+    @SubscribeEvent
+    public static void onBreakBlock(BlockEvent.BreakEvent event) {
+        BlockState state = event.getState();
+        if (!(event.getLevel() instanceof Level level) || level.isClientSide()
+                || !state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get())) {
+            return;
+        }
+
+        if (state.getBlock() instanceof DataDistributionTowerBlock towerBlock
+                && towerBlock.breakTower(level, getBasePos(event.getPos(), state), event.getPlayer())) {
+            event.setCanceled(true);
+        }
+    }
+
     private void removeOtherParts(Level level, BlockPos pos, BlockState state) {
         int part = state.getValue(PART);
         if (part == 0) {
@@ -193,6 +260,51 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         }
     }
 
+    private boolean breakTower(Level level, BlockPos basePos, Player player) {
+        BlockState baseState = level.getBlockState(basePos);
+        if (!baseState.is(this) || baseState.getValue(PART) != 0) {
+            return false;
+        }
+
+        if (player.getAbilities().instabuild) {
+            level.setBlock(basePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+            return true;
+        }
+
+        if (level instanceof ServerLevel serverLevel) {
+            BlockEntity blockEntity = level.getBlockEntity(basePos);
+            List<ItemStack> drops = new ArrayList<>();
+            drops.add(createTowerItemDrop(blockEntity, player));
+            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+                tower.addAdditionalDrops(level, basePos, drops);
+                tower.clearContent();
+            }
+            level.setBlock(basePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+            for (ItemStack drop : drops) {
+                if (!drop.isEmpty()) {
+                    Block.popResource(level, basePos, drop);
+                }
+            }
+        }
+        return true;
+    }
+
+    private void dropAdditionalBlockEntityContents(Level level, BlockPos pos) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (!(blockEntity instanceof DataDistributionTowerBlockEntity tower)) {
+            return;
+        }
+
+        List<ItemStack> drops = new ArrayList<>();
+        tower.addAdditionalDrops(level, pos, drops);
+        tower.clearContent();
+        for (ItemStack drop : drops) {
+            if (!drop.isEmpty()) {
+                Block.popResource(level, pos, drop);
+            }
+        }
+    }
+
     private void dismantleTower(Level level, BlockPos basePos, Player player) {
         BlockState baseState = level.getBlockState(basePos);
         if (!baseState.is(this) || baseState.getValue(PART) != 0) {
@@ -209,7 +321,12 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
             return;
         }
 
-        List<ItemStack> drops = Block.getDrops(baseState, serverLevel, basePos, blockEntity, player, player.getMainHandItem());
+        List<ItemStack> drops = new ArrayList<>();
+        drops.add(createTowerItemDrop(blockEntity, player));
+        if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+            tower.addAdditionalDrops(level, basePos, drops);
+            tower.clearContent();
+        }
         level.setBlock(basePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
         for (ItemStack drop : drops) {
             if (drop.isEmpty()) {
@@ -223,9 +340,15 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         }
     }
 
-    private boolean isAeWrench(ItemStack stack) {
-        return AEItems.CERTUS_QUARTZ_WRENCH.is(stack)
-                || AEItems.NETHER_QUARTZ_WRENCH.is(stack)
-                || AEItems.NETWORK_TOOL.is(stack);
+    private static boolean canDisassembleWithWrench(ItemStack stack) {
+        return InteractionUtil.canWrenchDisassemble(stack) || AEItems.NETWORK_TOOL.is(stack);
+    }
+
+    private ItemStack createTowerItemDrop(@Nullable BlockEntity blockEntity, @Nullable Player player) {
+        ItemStack towerItem = new ItemStack(this);
+        if (blockEntity instanceof AEBaseBlockEntity aeBlockEntity) {
+            towerItem.applyComponents(aeBlockEntity.exportSettings(SettingsFrom.DISMANTLE_ITEM, player));
+        }
+        return towerItem;
     }
 }
