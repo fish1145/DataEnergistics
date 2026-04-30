@@ -47,6 +47,8 @@ public final class ModItems {
             () -> new BiologyDataCarrierItem(new Item.Properties(), false));
     public static final DeferredItem<Item> BIOLOGY_DATA_CARRIER = ITEMS.register("biology_data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), true));
+    public static final DeferredItem<Item> ORE_DATA_CARRIER = ITEMS.register("ore_data_carrier",
+            () -> new BiologyDataCarrierItem(new Item.Properties(), true));
     public static final DeferredItem<Item> TIME_CORE = ITEMS.registerSimpleItem("time_core");
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");

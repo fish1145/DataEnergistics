@@ -19,13 +19,16 @@ import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.tags.TagKey;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -49,6 +52,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import appeng.api.util.AECableType;
 import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.CombinedInternalInventory;
+import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
 import appeng.util.Platform;
@@ -73,18 +78,58 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private static final int INPUT_SLOT = 0;
     private static final int OUTPUT_SLOT = 1;
     private static final int SWORD_SLOT = 2;
+    private static final int ORE_SLOT = 3;
     private static final int UPGRADE_SLOTS = 6;
     private static final int BASE_HORIZONTAL_RANGE = 1;
     private static final int BASE_VERTICAL_RANGE = 3;
     private static final int RANGE_PER_CAPACITY_CARD = 2;
+    private static final String ORE_SUFFIX = "_ore";
+    private static final String[] ORE_PREFIXES = {"deepslate_", "nether_", "end_"};
     private static final String STORAGE_TAG = "storage";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
     private static final String SHOW_RANGE_TAG = "show_range";
+    private static final String WORK_PROGRESS_TAG = "work_progress";
+    private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
+    private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
 
     private final IUpgradeInventory upgrades =
             UpgradeInventories.forMachine(ModBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
-    private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
+    private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS + 1);
+    private final InternalInventory externalInput = new FilteredInternalInventory(
+            this.storage.getSubInventory(INPUT_SLOT, ORE_SLOT + 1),
+            new IAEItemFilter() {
+                @Override
+                public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
+                    return switch (slot) {
+                        case 0 -> stack.is(ModItems.DATA_CARRIER.get());
+                        case 2 -> stack.is(ItemTags.SWORDS);
+                        case 3 -> isOreOrRawOre(stack);
+                        default -> false;
+                    };
+                }
+
+                @Override
+                public boolean allowExtract(InternalInventory inv, int slot, int amount) {
+                    return false;
+                }
+            }
+    );
+    private final InternalInventory externalOutput = new FilteredInternalInventory(
+            this.storage.getSlotInv(OUTPUT_SLOT),
+            new IAEItemFilter() {
+                @Override
+                public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
+                    return false;
+                }
+
+                @Override
+                public boolean allowExtract(InternalInventory inv, int slot, int amount) {
+                    return true;
+                }
+            }
+    );
+    private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
     private boolean redstoneControlled;
     private boolean showRange;
     private int syncedCapacityCardCount;
@@ -102,7 +147,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
             @Override
             public boolean allowInsert(appeng.api.inventories.InternalInventory inv, int slot, ItemStack stack) {
                 return slot == INPUT_SLOT && stack.is(ModItems.DATA_CARRIER.get())
-                        || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS);
+                        || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS)
+                        || slot == ORE_SLOT && isOreOrRawOre(stack);
             }
         });
     }
@@ -126,6 +172,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
         this.syncedCapacityCardCount = computeCapacityCardCount(this.upgrades);
+        this.workTicks = Math.max(0, data.getInt(WORK_PROGRESS_TAG));
     }
 
     @Override
@@ -135,6 +182,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
+        data.putInt(WORK_PROGRESS_TAG, this.workTicks);
     }
 
     @Override
@@ -186,6 +234,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         return this.storage;
     }
 
+    public InternalInventory getExternalInventory() {
+        return this.externalInventory;
+    }
+
     @Override
     public InternalInventory getInternalInventory() {
         return this.storage;
@@ -217,13 +269,15 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
             return;
         }
 
-        tryOutputCompletedCarrier();
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
             resetWorkProgress();
             refillEnergyCache();
             updateOnlineState();
             return;
         }
+
+        recordOreSample();
+        tryOutputCompletedCarrier();
         performWork();
         refillEnergyCache();
         updateOnlineState();
@@ -270,6 +324,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
 
     public static int computeDamagePerCycle(ItemStack sword, @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
         return Math.round(DAMAGE_PER_CYCLE + getSwordInheritedDamage(sword) + getStaticSwordEnchantmentDamage(sword, registries));
+    }
+
+    public static boolean isOreOrRawOre(ItemStack stack) {
+        return stack.is(C_ORES_TAG) || stack.is(C_RAW_MATERIALS_TAG);
     }
 
     public static int computeCapacityCardCount(IUpgradeInventory upgrades) {
@@ -453,7 +511,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         ItemStack sword = storedSword.copy();
         boolean useSword = sword.is(ItemTags.SWORDS);
         ItemStack carrier = this.storage.getStackInSlot(INPUT_SLOT);
-        boolean canCollectBiology = carrier.is(ModItems.DATA_CARRIER.get()) && !BiologyDataCarrierData.isComplete(carrier);
+        boolean canCollectBiology = carrier.is(ModItems.DATA_CARRIER.get())
+                && !BiologyDataCarrierData.isComplete(carrier)
+                && !OreDataCarrierData.hasRecordedOre(carrier);
         ResourceLocation recordedEntityId = canCollectBiology ? BiologyDataCarrierData.getEntityTypeId(carrier) : null;
         float collectedDamage = 0.0F;
         boolean carrierUpdated = false;
@@ -523,13 +583,139 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.workTicks = 0;
     }
 
-    private void tryOutputCompletedCarrier() {
-        ItemStack input = this.storage.getStackInSlot(INPUT_SLOT);
-        if (!input.is(ModItems.DATA_CARRIER.get()) || !BiologyDataCarrierData.isComplete(input)) {
+    private void recordOreSample() {
+        ItemStack carrier = this.storage.getStackInSlot(INPUT_SLOT);
+        if (!carrier.is(ModItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.isComplete(carrier)) {
             return;
         }
 
-        ItemStack result = BiologyDataCarrierData.createCompletedCarrier(input);
+        ItemStack oreStack = this.storage.getStackInSlot(ORE_SLOT);
+        if (!isOreOrRawOre(oreStack)) {
+            return;
+        }
+
+        boolean updated = false;
+        if (!OreDataCarrierData.hasRecordedOre(carrier)) {
+            ItemStack recordedStack = resolveRecordedOreStack(oreStack);
+            if (recordedStack.isEmpty()) {
+                return;
+            }
+            updated = OreDataCarrierData.recordFirstOre(carrier, recordedStack);
+        }
+
+        ResourceLocation recordedOreId = OreDataCarrierData.getOreItemId(carrier);
+        ItemStack recordedStack = resolveRecordedOreStack(oreStack);
+        ResourceLocation currentRecordedId = recordedStack.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(recordedStack.getItem());
+        if (recordedOreId == null || currentRecordedId == null || !recordedOreId.equals(currentRecordedId)) {
+            if (updated) {
+                this.storage.setItemDirect(INPUT_SLOT, carrier.copy());
+            }
+            return;
+        }
+
+        float remaining = Math.max(0.0F, OreDataCarrierData.getRequiredAmount(carrier) - OreDataCarrierData.getCollectedAmount(carrier));
+        float amountPerItem = getRecordedAmountPerOreItem(oreStack);
+        int itemCountToConsume = amountPerItem <= 0.0F ? 0 : Math.min(oreStack.getCount(), (int) Math.ceil(remaining / amountPerItem));
+        float toRecord = Math.min(remaining, itemCountToConsume * amountPerItem);
+        if (itemCountToConsume > 0 && toRecord > 0.0F) {
+            updated = OreDataCarrierData.addCollectedOre(carrier, toRecord) || updated;
+            ItemStack newOreStack = oreStack.copy();
+            newOreStack.shrink(itemCountToConsume);
+            this.storage.setItemDirect(ORE_SLOT, newOreStack);
+        }
+
+        if (updated) {
+            this.storage.setItemDirect(INPUT_SLOT, carrier.copy());
+        }
+    }
+
+    private ItemStack resolveRecordedOreStack(ItemStack oreStack) {
+        if (oreStack.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        Item baseOreItem = resolveBaseOreItem(oreStack);
+        if (baseOreItem != null) {
+            return new ItemStack(baseOreItem);
+        }
+
+        if (oreStack.is(C_ORES_TAG)) {
+            return oreStack;
+        }
+
+        if (oreStack.is(C_RAW_MATERIALS_TAG)) {
+            return oreStack;
+        }
+
+        return oreStack;
+    }
+
+    private float getRecordedAmountPerOreItem(ItemStack oreStack) {
+        if (oreStack.isEmpty()) {
+            return 0.0F;
+        }
+
+        if (oreStack.is(C_RAW_MATERIALS_TAG)) {
+            return 0.5F;
+        }
+
+        return oreStack.is(C_ORES_TAG) ? 1.0F : 0.0F;
+    }
+
+    private Item resolveBaseOreItem(ItemStack oreStack) {
+        ResourceLocation oreItemId = BuiltInRegistries.ITEM.getKey(oreStack.getItem());
+        if (oreItemId == null) {
+            return null;
+        }
+
+        String path = oreItemId.getPath();
+        if (oreStack.is(C_RAW_MATERIALS_TAG)) {
+            if (!path.startsWith("raw_")) {
+                return null;
+            }
+
+            String material = path.substring("raw_".length());
+            if (material.isEmpty()) {
+                return null;
+            }
+
+            ResourceLocation baseOreId = ResourceLocation.fromNamespaceAndPath(oreItemId.getNamespace(), material + ORE_SUFFIX);
+            return BuiltInRegistries.ITEM.getOptional(baseOreId).orElse(null);
+        }
+
+        if (!oreStack.is(C_ORES_TAG)) {
+            return null;
+        }
+
+        for (String prefix : ORE_PREFIXES) {
+            if (!path.startsWith(prefix)) {
+                continue;
+            }
+
+            ResourceLocation baseOreId = ResourceLocation.fromNamespaceAndPath(oreItemId.getNamespace(), path.substring(prefix.length()));
+            Item baseOreItem = BuiltInRegistries.ITEM.getOptional(baseOreId).orElse(null);
+            if (baseOreItem != null) {
+                return baseOreItem;
+            }
+        }
+
+        return null;
+    }
+
+    private void tryOutputCompletedCarrier() {
+        ItemStack input = this.storage.getStackInSlot(INPUT_SLOT);
+        if (!input.is(ModItems.DATA_CARRIER.get())) {
+            return;
+        }
+
+        ItemStack result;
+        if (BiologyDataCarrierData.isComplete(input)) {
+            result = BiologyDataCarrierData.createCompletedCarrier(input);
+        } else if (OreDataCarrierData.isComplete(input)) {
+            result = OreDataCarrierData.createCompletedCarrier(input);
+        } else {
+            return;
+        }
         ItemStack output = this.storage.getStackInSlot(OUTPUT_SLOT);
         if (!canAcceptCompletedCarrier(output, result)) {
             return;

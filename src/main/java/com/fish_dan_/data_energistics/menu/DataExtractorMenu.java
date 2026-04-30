@@ -12,6 +12,7 @@ import appeng.menu.slot.RestrictedInputSlot;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.player.Inventory;
@@ -21,6 +22,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
     public static final SlotSemantic SWORD_INPUT = SlotSemantics.register("DATA_EXTRACTOR_SWORD", false);
+    public static final SlotSemantic ORE_INPUT = SlotSemantics.register("DATA_EXTRACTOR_ORE", false);
 
     @GuiSync(760)
     public boolean online;
@@ -55,6 +57,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         this.addSlot(new DataCarrierInputSlot(storage, 0), SlotSemantics.MACHINE_INPUT);
         this.addSlot(new OutputSlot(storage, 1, null), SlotSemantics.MACHINE_OUTPUT);
         this.addSlot(new SwordInputSlot(storage, 2), SWORD_INPUT);
+        this.addSlot(new OreInputSlot(storage, 3), ORE_INPUT);
     }
 
     @Override
@@ -85,8 +88,16 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
             this.redstoneControlled = host.isRedstoneControlled();
             this.rangeVisible = host.isRangeDisplayEnabled();
             ItemStack carrier = host.getStorageInventory().getStackInSlot(0);
-            this.collectionProgress = Math.round(BiologyDataCarrierData.getCollectedDamage(carrier) * 10.0F);
-            this.collectionMaxProgress = Math.round(BiologyDataCarrierData.getRequiredDamage(carrier) * 10.0F);
+            if (BiologyDataCarrierData.hasRecordedEntity(carrier)) {
+                this.collectionProgress = Math.round(BiologyDataCarrierData.getCollectedDamage(carrier) * 10.0F);
+                this.collectionMaxProgress = Math.round(BiologyDataCarrierData.getRequiredDamage(carrier) * 10.0F);
+            } else if (OreDataCarrierData.hasRecordedOre(carrier)) {
+                this.collectionProgress = Math.round(OreDataCarrierData.getCollectedAmount(carrier) * 10.0F);
+                this.collectionMaxProgress = Math.round(OreDataCarrierData.getRequiredAmount(carrier) * 10.0F);
+            } else {
+                this.collectionProgress = 0;
+                this.collectionMaxProgress = 0;
+            }
         }
 
         super.broadcastChanges();
@@ -156,6 +167,19 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         @Override
         public boolean mayPlace(ItemStack stack) {
             return stack.is(ItemTags.SWORDS) && super.mayPlace(stack);
+        }
+    }
+
+    private static final class OreInputSlot extends RestrictedInputSlot {
+        private OreInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
+            super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
+            this.setStackLimit(64);
+            this.setIcon(null);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return DataExtractorBlockEntity.isOreOrRawOre(stack) && super.mayPlace(stack);
         }
     }
 }

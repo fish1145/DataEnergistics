@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.Config;
 
 public final class DataRipperPowerUtils {
     private static final int DEFAULT_BASE_COST = 512;
-    private static final double DATA_FLOW_COST_RATIO = 0.125D;
+    private static final double DATA_FLOW_COST_RATIO = 0.0625D;
 
     private DataRipperPowerUtils() {
     }

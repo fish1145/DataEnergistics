@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "data_energistics:item/ore_data_carrier"
+  }
+}

@@ -21,6 +21,10 @@
       "left": 112,
       "top": 59
     },
+    "DATA_EXTRACTOR_ORE": {
+      "left": 153,
+      "top": 31
+    },
     "PLAYER_INVENTORY": {
       "left": 8,
       "bottom": 87,
@@ -84,7 +88,7 @@
   },
   "widgets": {
     "progressBar": {
-      "left": 151,
+      "left": 136,
       "top": 31
     },
     "upgrades": {

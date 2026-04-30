@@ -104,6 +104,11 @@ public class Data_Energistics {
                 (blockEntity, context) -> blockEntity
         );
         event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler()
+        );
+        event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity

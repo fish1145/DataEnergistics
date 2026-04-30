@@ -25,6 +25,11 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
             Icon.TEXTURE_WIDTH,
             Icon.TEXTURE_HEIGHT
     ).src(224, 240, 16, 16);
+    private static final Blitter ORE_SLOT_ICON = Blitter.texture(
+            Icon.TEXTURE,
+            Icon.TEXTURE_WIDTH,
+            Icon.TEXTURE_HEIGHT
+    ).src(240, 224, 16, 16);
     private final DataExtractorToggleButton redstoneControlButton;
     private final DataExtractorToggleButton rangeVisibleButton;
     private final ProgressBar collectionProgressBar;
@@ -86,6 +91,10 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
                         .blit(guiGraphics);
             } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.SWORD_INPUT) {
                 SWORD_SLOT_ICON.copy()
+                        .dest(slot.x, slot.y)
+                        .blit(guiGraphics);
+            } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.ORE_INPUT) {
+                ORE_SLOT_ICON.copy()
                         .dest(slot.x, slot.y)
                         .blit(guiGraphics);
             }
