@@ -41,12 +41,6 @@ public class DataFlowGeneratorBlockEntity extends AENetworkedBlockEntity impleme
     }
 
     @Override
-    public void setRemoved() {
-        super.setRemoved();
-        updateBlockState(false);
-    }
-
-    @Override
     public TickingRequest getTickingRequest(IGridNode node) {
         return TICKING_REQUEST;
     }
@@ -84,7 +78,11 @@ public class DataFlowGeneratorBlockEntity extends AENetworkedBlockEntity impleme
             return;
         }
 
-        BlockState state = this.getBlockState();
+        BlockState state = this.level.getBlockState(this.worldPosition);
+        if (!(state.getBlock() instanceof DataFlowGeneratorBlock)) {
+            return;
+        }
+
         if (state.hasProperty(DataFlowGeneratorBlock.LIT) && state.getValue(DataFlowGeneratorBlock.LIT) != online) {
             this.level.setBlock(this.worldPosition, state.setValue(DataFlowGeneratorBlock.LIT, online), 3);
         }

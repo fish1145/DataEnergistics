@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class DataDistributionTowerMenu extends AEBaseMenu {
     private static final String ACTION_FOCUS_TARGET = "focus_target";
+    private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
     @Nullable
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
@@ -56,6 +57,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         addSlot(this.boosterSlot, SlotSemantics.STORAGE);
         this.boosterSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(ButtonToolTips.PlaceWirelessBooster.text()));
         registerClientAction(ACTION_FOCUS_TARGET, TargetAction.class, this::onFocusTarget);
+        registerClientAction(ACTION_SET_RANGE_VISIBLE, Boolean.class, this::setRangeVisible);
     }
 
     @Override
@@ -101,6 +103,10 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         sendClientAction(ACTION_FOCUS_TARGET, new TargetAction(dimensionId, x, y, z, teleport));
     }
 
+    public void sendSetRangeVisible(boolean visible) {
+        sendClientAction(ACTION_SET_RANGE_VISIBLE, visible);
+    }
+
     private void onFocusTarget(TargetAction action) {
         if (action == null) {
             return;
@@ -143,6 +149,15 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         getPlayer().closeContainer();
         getPlayer().teleportTo(targetLevel, action.x() + 0.5, action.y() + 1.1, action.z() + 0.5,
                 java.util.Set.of(), getPlayer().getYRot(), getPlayer().getXRot());
+    }
+
+    private void setRangeVisible(Boolean visible) {
+        if (visible == null || this.host == null) {
+            return;
+        }
+
+        this.rangeVisible = this.host.toggleRangeDisplay();
+        broadcastChanges();
     }
 
     private record TargetAction(String dimensionId, int x, int y, int z, boolean teleport) {

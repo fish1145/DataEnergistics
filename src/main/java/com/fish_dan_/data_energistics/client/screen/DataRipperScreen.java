@@ -19,18 +19,6 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
     public DataRipperScreen(DataRipperMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
 
-        this.accelerateButton = new DataRipperSettingToggleButton(
-                DataRipperSettings.ACCELERATE,
-                YesNo.YES,
-                Icon.OVERLAY_ON,
-                Icon.OVERLAY_OFF,
-                "button.data_energistics.data_ripper.accelerate",
-                "button.data_energistics.data_ripper.accelerate.enabled",
-                "button.data_energistics.data_ripper.accelerate.disabled",
-                "button.data_energistics.data_ripper.accelerate.blocked"
-        );
-        this.addToLeftToolbar(this.accelerateButton);
-
         this.redstoneControlButton = new DataRipperSettingToggleButton(
                 DataRipperSettings.REDSTONE_CONTROL,
                 YesNo.NO,
@@ -42,6 +30,18 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
                 "button.data_energistics.data_ripper.redstone_control.blocked"
         );
         this.addToLeftToolbar(this.redstoneControlButton);
+
+        this.accelerateButton = new DataRipperSettingToggleButton(
+                DataRipperSettings.ACCELERATE,
+                YesNo.YES,
+                Icon.UNLOCKED,
+                Icon.LOCKED,
+                "button.data_energistics.data_ripper.accelerate",
+                "button.data_energistics.data_ripper.accelerate.enabled",
+                "button.data_energistics.data_ripper.accelerate.disabled",
+                "button.data_energistics.data_ripper.accelerate.blocked"
+        );
+        this.addToLeftToolbar(this.accelerateButton);
     }
 
     @Override

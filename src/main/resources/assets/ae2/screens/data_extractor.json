@@ -17,6 +17,10 @@
       "left": 138,
       "top": 62
     },
+    "DATA_EXTRACTOR_SWORD": {
+      "left": 112,
+      "top": 59
+    },
     "PLAYER_INVENTORY": {
       "left": 8,
       "bottom": 87,
@@ -54,6 +58,12 @@
       "position": {
         "left": 10,
         "top": 54
+      }
+    },
+    "targets": {
+      "position": {
+        "left": 10,
+        "top": 67
       }
     },
     "player_inventory_title": {

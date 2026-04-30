@@ -7,6 +7,7 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ProgressBar.Direction;
 import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -19,10 +20,37 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
             Icon.TEXTURE_WIDTH,
             Icon.TEXTURE_HEIGHT
     ).src(240, 240, 16, 16);
+    private static final Blitter SWORD_SLOT_ICON = Blitter.texture(
+            Icon.TEXTURE,
+            Icon.TEXTURE_WIDTH,
+            Icon.TEXTURE_HEIGHT
+    ).src(224, 240, 16, 16);
+    private final DataExtractorToggleButton redstoneControlButton;
+    private final DataExtractorToggleButton rangeVisibleButton;
     private final ProgressBar collectionProgressBar;
 
     public DataExtractorScreen(DataExtractorMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.redstoneControlButton = new DataExtractorToggleButton(
+                Icon.REDSTONE_ON,
+                Icon.REDSTONE_OFF,
+                "button.data_energistics.data_extractor.redstone_control",
+                "button.data_energistics.data_extractor.redstone_control.enabled",
+                "button.data_energistics.data_extractor.redstone_control.disabled",
+                this.menu::sendSetRedstoneControlled
+        );
+        this.addToLeftToolbar(this.redstoneControlButton);
+
+        this.rangeVisibleButton = new DataExtractorToggleButton(
+                Icon.PATTERN_TERMINAL_ALL,
+                Icon.PATTERN_TERMINAL_VISIBLE,
+                "button.data_energistics.data_extractor.range_visible",
+                "button.data_energistics.data_extractor.range_visible.enabled",
+                "button.data_energistics.data_extractor.range_visible.disabled",
+                this.menu::sendSetRangeVisible
+        );
+        this.addToLeftToolbar(this.rangeVisibleButton);
+
         this.collectionProgressBar = new ProgressBar(this.menu, style.getImage("progressBar"), Direction.VERTICAL);
         widgets.add("progressBar", this.collectionProgressBar);
     }
@@ -35,8 +63,11 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
                 this.menu.online
                         ? "screen.data_energistics.data_extractor.status.online"
                         : "screen.data_energistics.data_extractor.status.offline"));
-        this.setTextContent("damage", translate("damage", this.menu.damagePerCycle));
-        this.setTextContent("data_flow", translate("data_flow", this.menu.dataFlowPerCycle));
+        this.setTextContent("damage", translate("damage", this.menu.damagePerCycle, this.menu.workIntervalSeconds));
+        this.setTextContent("data_flow", translate("data_flow", this.menu.dataFlowPerCycle, this.menu.workIntervalSeconds));
+        this.setTextContent("targets", translate("targets", this.menu.targetCount, this.menu.targetLimit));
+        this.redstoneControlButton.setState(this.menu.redstoneControlled);
+        this.rangeVisibleButton.setState(this.menu.rangeVisible);
 
         boolean hasProgress = this.menu.getMaxProgress() > 0;
         this.collectionProgressBar.visible = hasProgress;
@@ -48,12 +79,16 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
 
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (this.menu.getSlotSemantic(slot) == SlotSemantics.MACHINE_INPUT
-                && slot.isActive()
-                && slot.getItem().isEmpty()) {
-            DATA_CARRIER_SLOT_ICON.copy()
-                    .dest(slot.x, slot.y)
-                    .blit(guiGraphics);
+        if (slot.isActive() && slot.getItem().isEmpty()) {
+            if (this.menu.getSlotSemantic(slot) == SlotSemantics.MACHINE_INPUT) {
+                DATA_CARRIER_SLOT_ICON.copy()
+                        .dest(slot.x, slot.y)
+                        .blit(guiGraphics);
+            } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.SWORD_INPUT) {
+                SWORD_SLOT_ICON.copy()
+                        .dest(slot.x, slot.y)
+                        .blit(guiGraphics);
+            }
         }
 
         super.renderSlot(guiGraphics, slot);

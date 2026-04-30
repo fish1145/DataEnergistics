@@ -1,8 +1,10 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.Scrollbar;
+import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import net.sourceforge.pinyin4j.PinyinHelper;
@@ -40,6 +42,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int SEARCH_HEIGHT = 12;
 
     private final Scrollbar scrollbar;
+    private final DataExtractorToggleButton rangeVisibleButton;
     private List<BoundRow> allRows = List.of();
     private List<BoundRow> cachedRows = List.of();
     private EditBox searchBox;
@@ -48,6 +51,15 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     public DataDistributionTowerScreen(DataDistributionTowerMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.scrollbar = widgets.addScrollBar("scrollbar", Scrollbar.BIG);
+        this.rangeVisibleButton = new DataExtractorToggleButton(
+                Icon.PATTERN_TERMINAL_ALL,
+                Icon.PATTERN_TERMINAL_VISIBLE,
+                "button.data_energistics.data_distribution_tower.range_visible",
+                "button.data_energistics.data_distribution_tower.range_visible.enabled",
+                "button.data_energistics.data_distribution_tower.range_visible.disabled",
+                this.menu::sendSetRangeVisible
+        );
+        this.addToLeftToolbar(this.rangeVisibleButton);
         refreshFromServer();
     }
 
@@ -72,11 +84,6 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         updateSearchSuggestion();
         this.addRenderableWidget(this.searchBox);
         applySearchFilter();
-    }
-
-    @Override
-    protected boolean shouldAddToolbar() {
-        return false;
     }
 
     @Override
@@ -106,6 +113,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                         ? "screen.data_energistics.data_distribution_tower.range_visible.on"
                         : "screen.data_energistics.data_distribution_tower.range_visible.off"
         ));
+        this.rangeVisibleButton.setState(this.menu.rangeVisible);
         setTextContent("bound_title", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.bound_title",
                 this.menu.boundTargetCount

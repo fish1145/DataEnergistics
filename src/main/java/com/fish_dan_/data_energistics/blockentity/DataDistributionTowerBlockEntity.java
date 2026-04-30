@@ -74,7 +74,6 @@ import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
-    private static final String TICK_BUDGET_TAG = "transfer_budget_hint";
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final int CACHE_TICKS = 20;
@@ -93,6 +92,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private long lastEndpointCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
+    private List<BlockPos> cachedAeDisplayTargets = List.of();
     private long cachedTransferBudgetHint = 0L;
     private boolean showRange = false;
     private boolean pendingRangeRefresh = false;
@@ -131,7 +131,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        this.cachedTransferBudgetHint = data.getLong(TICK_BUDGET_TAG);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
         this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
         this.syncedChunkRadius = computeChunkRadius();
@@ -153,7 +152,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
-        data.putLong(TICK_BUDGET_TAG, this.cachedTransferBudgetHint);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
         this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
@@ -488,6 +486,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
+        for (BlockPos pos : getCachedAeDisplayTargets()) {
+            if (!this.level.getBlockState(pos).isAir()) {
+                BlockEntity blockEntity = this.level.getBlockEntity(pos);
+                if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
+                    positions.putIfAbsent(pos.immutable(), TargetKind.AE);
+                }
+            }
+        }
+
         for (BlockPos pos : getCachedEndpoints()) {
             if (this.level.getBlockState(pos).isAir()) {
                 continue;
@@ -760,6 +767,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private void invalidateEndpointCache() {
         this.lastEndpointCacheTick = Long.MIN_VALUE;
         this.cachedEndpoints = List.of();
+        this.cachedAeDisplayTargets = List.of();
     }
 
     private List<BlockPos> getCachedEndpoints() {
@@ -774,13 +782,27 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.cachedEndpoints;
     }
 
+    private List<BlockPos> getCachedAeDisplayTargets() {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        long gameTime = this.level.getGameTime();
+        if (this.cachedAeDisplayTargets.isEmpty() || gameTime - this.lastEndpointCacheTick >= CACHE_TICKS) {
+            refreshEndpointCache();
+        }
+        return this.cachedAeDisplayTargets;
+    }
+
     private void refreshEndpointCache() {
         if (this.level == null) {
             this.cachedEndpoints = List.of();
+            this.cachedAeDisplayTargets = List.of();
             return;
         }
 
         LinkedHashSet<BlockPos> endpoints = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> aeDisplayTargets = new LinkedHashSet<>();
         for (BlockEntity blockEntity : getNearbyBlockEntities()) {
             BlockPos pos = blockEntity.getBlockPos().immutable();
             if (isTowerBlock(pos)) {
@@ -789,9 +811,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (hasAnyEnergyCapability(pos)) {
                 endpoints.add(pos);
             }
+            if (hasDisplayableAeParts(blockEntity)) {
+                aeDisplayTargets.add(pos);
+            }
         }
 
         this.cachedEndpoints = List.copyOf(endpoints);
+        this.cachedAeDisplayTargets = List.copyOf(aeDisplayTargets);
         this.lastEndpointCacheTick = this.level.getGameTime();
     }
 
@@ -833,6 +859,21 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         return getEnergyStorageAt(pos, null) != null;
+    }
+
+    private boolean hasDisplayableAeParts(BlockEntity blockEntity) {
+        if (!(blockEntity instanceof CableBusBlockEntity cableBusBlockEntity)) {
+            return false;
+        }
+
+        CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
+        for (var direction : net.minecraft.core.Direction.values()) {
+            if (cableBus.getPart(direction) != null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean isTowerBlock(BlockPos pos) {
@@ -1281,10 +1322,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public static List<IGridNode> getConnectableNodes(Level level, BlockPos pos) {
-        ArrayList<IGridNode> nodes = new ArrayList<>();
+        LinkedHashSet<IGridNode> nodes = new LinkedHashSet<>();
         IInWorldGridNodeHost nodeHost = level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, pos, null);
         if (nodeHost == null) {
-            return nodes;
+            return List.of();
         }
 
         if (nodeHost instanceof CableBusBlockEntity cableBusBlockEntity) {
@@ -1292,12 +1333,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             IPart center = cableBus.getPart(null);
             if (center != null) {
                 nodes.add(center.getGridNode());
-            } else {
-                for (var direction : net.minecraft.core.Direction.values()) {
-                    IPart part = cableBus.getPart(direction);
-                    if (part != null) {
-                        nodes.add(part.getGridNode());
-                    }
+            }
+            for (var direction : net.minecraft.core.Direction.values()) {
+                IPart part = cableBus.getPart(direction);
+                if (part != null) {
+                    nodes.add(part.getGridNode());
+                    nodes.add(cableBus.getGridNode(direction));
                 }
             }
         } else {
@@ -1311,7 +1352,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         nodes.removeIf(Objects::isNull);
-        return nodes;
+        return List.copyOf(nodes);
     }
 
     private static void invalidateNearbyCaches(Level level, BlockPos changedPos) {
