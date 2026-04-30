@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -34,6 +35,11 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_distribution_tower",
                     () -> BlockEntityType.Builder.of(DataDistributionTowerBlockEntity::new, ModBlocks.DATA_DISTRIBUTION_TOWER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataMimeticFieldBlockEntity>> DATA_MIMETIC_FIELD_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "data_mimetic_field",
+                    () -> BlockEntityType.Builder.of(DataMimeticFieldBlockEntity::new, ModBlocks.DATA_MIMETIC_FIELD.get()).build(null));
 
     private ModBlockEntities() {
     }

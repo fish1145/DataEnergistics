@@ -41,6 +41,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_EXTRACTOR);
                         output.accept(ModItems.DATA_FRAMEWORK);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
+                        output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.REDSTONE_ALLOY);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(ModItems.MIXED_REDSTONE_DUST);

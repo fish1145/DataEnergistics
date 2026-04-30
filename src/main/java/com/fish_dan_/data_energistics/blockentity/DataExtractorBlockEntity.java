@@ -8,11 +8,20 @@ import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.storage.MEStorage;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
+import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
+import appeng.util.Platform;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.CombinedInternalInventory;
+import appeng.util.inv.FilteredInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import appeng.util.inv.filter.IAEItemFilter;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -21,43 +30,42 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.tags.TagKey;
-import net.minecraft.tags.ItemTags;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import appeng.api.util.AECableType;
-import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.CombinedInternalInventory;
-import appeng.util.inv.FilteredInternalInventory;
-import appeng.util.inv.InternalInventoryHost;
-import appeng.util.inv.filter.IAEItemFilter;
-import appeng.util.Platform;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity implements IActionHost, IUpgradeableObject, InternalInventoryHost {
@@ -89,6 +97,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
     private static final String SHOW_RANGE_TAG = "show_range";
+    private static final String DROP_ROUTING_MODE_TAG = "drop_routing_mode";
     private static final String WORK_PROGRESS_TAG = "work_progress";
     private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
     private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
@@ -132,6 +141,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
     private boolean redstoneControlled;
     private boolean showRange;
+    private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
     private int syncedCapacityCardCount;
     private int workTicks;
 
@@ -171,6 +181,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
+        this.dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(data.getInt(DROP_ROUTING_MODE_TAG));
         this.syncedCapacityCardCount = computeCapacityCardCount(this.upgrades);
         this.workTicks = Math.max(0, data.getInt(WORK_PROGRESS_TAG));
     }
@@ -182,6 +193,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
+        data.putInt(DROP_ROUTING_MODE_TAG, this.dropRoutingMode.ordinal());
         data.putInt(WORK_PROGRESS_TAG, this.workTicks);
     }
 
@@ -279,6 +291,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         recordOreSample();
         tryOutputCompletedCarrier();
         performWork();
+        collectDroppedItems();
         refillEnergyCache();
         updateOnlineState();
     }
@@ -313,6 +326,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
 
     public boolean isRedstoneControlled() {
         return this.redstoneControlled;
+    }
+
+    public DataExtractorDropRoutingMode getDropRoutingMode() {
+        return this.dropRoutingMode;
     }
 
     public int getCapacityCardCount() {
@@ -400,6 +417,15 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
 
     public boolean isRangeDisplayEnabled() {
         return this.showRange;
+    }
+
+    public DataExtractorDropRoutingMode setDropRoutingMode(DataExtractorDropRoutingMode mode) {
+        DataExtractorDropRoutingMode resolvedMode = mode == null ? DataExtractorDropRoutingMode.OFF : mode;
+        if (this.dropRoutingMode != resolvedMode) {
+            this.dropRoutingMode = resolvedMode;
+            this.saveChanges();
+        }
+        return this.dropRoutingMode;
     }
 
     public AABB getCoverageAabb() {
@@ -500,6 +526,116 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
             entity.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, DEBUFF_DURATION_TICKS, 2, false, true, true));
             entity.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, DEBUFF_DURATION_TICKS, 1, false, true, true));
         }
+    }
+
+    private void collectDroppedItems() {
+        if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF || !(this.level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        List<IItemHandler> adjacentHandlers = getAdjacentItemHandlers();
+        MEStorage networkStorage = getConnectedItemNetwork();
+        if (adjacentHandlers.isEmpty() && networkStorage == null) {
+            return;
+        }
+
+        for (ItemEntity itemEntity : serverLevel.getEntitiesOfClass(
+                ItemEntity.class,
+                getCoverageAabb(),
+                entity -> entity.isAlive() && !entity.getItem().isEmpty())) {
+            ItemStack currentStack = itemEntity.getItem();
+            int originalCount = currentStack.getCount();
+            ItemStack remaining = routeDroppedItem(currentStack, adjacentHandlers, networkStorage);
+            if (remaining.getCount() >= originalCount) {
+                continue;
+            }
+
+            if (remaining.isEmpty()) {
+                itemEntity.discard();
+            } else {
+                itemEntity.setItem(remaining);
+            }
+        }
+    }
+
+    private ItemStack routeDroppedItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
+        ItemStack remaining = stack.copy();
+        if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
+            remaining = insertIntoNetwork(remaining, networkStorage);
+            return insertIntoAdjacentContainers(remaining, adjacentHandlers);
+        }
+
+        remaining = insertIntoAdjacentContainers(remaining, adjacentHandlers);
+        return insertIntoNetwork(remaining, networkStorage);
+    }
+
+    private ItemStack insertIntoAdjacentContainers(ItemStack stack, List<IItemHandler> adjacentHandlers) {
+        ItemStack remaining = stack.copy();
+        for (IItemHandler handler : adjacentHandlers) {
+            if (remaining.isEmpty()) {
+                break;
+            }
+            remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
+        }
+        return remaining;
+    }
+
+    private ItemStack insertIntoNetwork(ItemStack stack, @Nullable MEStorage networkStorage) {
+        if (stack.isEmpty() || networkStorage == null) {
+            return stack;
+        }
+
+        AEItemKey key = AEItemKey.of(stack);
+        if (key == null) {
+            return stack;
+        }
+
+        long inserted = networkStorage.insert(key, stack.getCount(), Actionable.MODULATE, IActionSource.ofMachine(this));
+        if (inserted <= 0) {
+            return stack;
+        }
+
+        ItemStack remaining = stack.copy();
+        remaining.shrink((int) Math.min(inserted, stack.getCount()));
+        return remaining;
+    }
+
+    private List<IItemHandler> getAdjacentItemHandlers() {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        List<IItemHandler> handlers = new ArrayList<>();
+        for (Direction direction : Direction.values()) {
+            BlockPos targetPos = this.worldPosition.relative(direction);
+            BlockState targetState = this.level.getBlockState(targetPos);
+            if (targetState.isAir()) {
+                continue;
+            }
+
+            IItemHandler handler = this.level.getCapability(
+                    Capabilities.ItemHandler.BLOCK,
+                    targetPos,
+                    targetState,
+                    this.level.getBlockEntity(targetPos),
+                    direction.getOpposite()
+            );
+            if (handler != null) {
+                handlers.add(handler);
+            }
+        }
+        return handlers;
+    }
+
+    @Nullable
+    private MEStorage getConnectedItemNetwork() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return null;
+        }
+
+        var storageService = node.getGrid().getStorageService();
+        return storageService == null ? null : storageService.getInventory();
     }
 
     private void applyDamageAndCollectBiology(List<LivingEntity> targets) {

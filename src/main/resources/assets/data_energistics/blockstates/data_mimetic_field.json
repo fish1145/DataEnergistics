@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "data_energistics:block/data_mimetic_field"
+    }
+  }
+}

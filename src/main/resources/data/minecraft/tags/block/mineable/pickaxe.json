@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "data_energistics:data_extractor",
-    "data_energistics:data_distribution_tower"
+    "data_energistics:data_distribution_tower",
+    "data_energistics:data_mimetic_field"
   ]
 }

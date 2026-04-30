@@ -10,10 +10,11 @@ import appeng.menu.interfaces.IProgressProvider;
 import appeng.menu.slot.OutputSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -21,6 +22,7 @@ import net.minecraft.world.item.ItemStack;
 public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity> implements IProgressProvider {
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
+    private static final String ACTION_SET_DROP_ROUTING_MODE = "set_drop_routing_mode";
     public static final SlotSemantic SWORD_INPUT = SlotSemantics.register("DATA_EXTRACTOR_SWORD", false);
     public static final SlotSemantic ORE_INPUT = SlotSemantics.register("DATA_EXTRACTOR_ORE", false);
 
@@ -44,11 +46,14 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     public boolean redstoneControlled;
     @GuiSync(769)
     public boolean rangeVisible;
+    @GuiSync(770)
+    public int dropRoutingModeOrdinal;
 
     public DataExtractorMenu(int id, Inventory playerInventory, DataExtractorBlockEntity host) {
         super(ModMenus.DATA_EXTRACTOR.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_REDSTONE_CONTROL, Boolean.class, this::setRedstoneControlled);
         registerClientAction(ACTION_SET_RANGE_VISIBLE, Boolean.class, this::setRangeVisible);
+        registerClientAction(ACTION_SET_DROP_ROUTING_MODE, Integer.class, this::setDropRoutingMode);
     }
 
     @Override
@@ -87,6 +92,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
             this.workIntervalSeconds = host.getWorkIntervalSeconds();
             this.redstoneControlled = host.isRedstoneControlled();
             this.rangeVisible = host.isRangeDisplayEnabled();
+            this.dropRoutingModeOrdinal = host.getDropRoutingMode().ordinal();
             ItemStack carrier = host.getStorageInventory().getStackInSlot(0);
             if (BiologyDataCarrierData.hasRecordedEntity(carrier)) {
                 this.collectionProgress = Math.round(BiologyDataCarrierData.getCollectedDamage(carrier) * 10.0F);
@@ -126,6 +132,14 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         sendClientAction(ACTION_SET_RANGE_VISIBLE, visible);
     }
 
+    public void sendSetDropRoutingMode(DataExtractorDropRoutingMode mode) {
+        sendClientAction(ACTION_SET_DROP_ROUTING_MODE, mode.ordinal());
+    }
+
+    public DataExtractorDropRoutingMode getDropRoutingMode() {
+        return DataExtractorDropRoutingMode.fromOrdinal(this.dropRoutingModeOrdinal);
+    }
+
     private void setRedstoneControlled(Boolean enabled) {
         if (enabled == null || this.getHost() == null) {
             return;
@@ -141,6 +155,17 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         }
 
         this.rangeVisible = this.getHost().setRangeDisplayEnabled(visible);
+        broadcastChanges();
+    }
+
+    private void setDropRoutingMode(Integer ordinal) {
+        if (ordinal == null || this.getHost() == null) {
+            return;
+        }
+
+        this.dropRoutingModeOrdinal = this.getHost()
+                .setDropRoutingMode(DataExtractorDropRoutingMode.fromOrdinal(ordinal))
+                .ordinal();
         broadcastChanges();
     }
 

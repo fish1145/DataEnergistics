@@ -7,6 +7,7 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ProgressBar.Direction;
 import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.client.widget.DataExtractorDropRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import net.minecraft.client.gui.GuiGraphics;
@@ -32,6 +33,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
     ).src(240, 224, 16, 16);
     private final DataExtractorToggleButton redstoneControlButton;
     private final DataExtractorToggleButton rangeVisibleButton;
+    private final DataExtractorDropRoutingButton dropRoutingButton;
     private final ProgressBar collectionProgressBar;
 
     public DataExtractorScreen(DataExtractorMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -56,6 +58,9 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         );
         this.addToLeftToolbar(this.rangeVisibleButton);
 
+        this.dropRoutingButton = new DataExtractorDropRoutingButton(this.menu::sendSetDropRoutingMode);
+        this.addToLeftToolbar(this.dropRoutingButton);
+
         this.collectionProgressBar = new ProgressBar(this.menu, style.getImage("progressBar"), Direction.VERTICAL);
         widgets.add("progressBar", this.collectionProgressBar);
     }
@@ -73,6 +78,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         this.setTextContent("targets", translate("targets", this.menu.targetCount, this.menu.targetLimit));
         this.redstoneControlButton.setState(this.menu.redstoneControlled);
         this.rangeVisibleButton.setState(this.menu.rangeVisible);
+        this.dropRoutingButton.setMode(this.menu.getDropRoutingMode());
 
         boolean hasProgress = this.menu.getMaxProgress() > 0;
         this.collectionProgressBar.visible = hasProgress;
