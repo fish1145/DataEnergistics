@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.registry;
 
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
@@ -45,6 +47,11 @@ public final class ModMenus {
             MENUS.register("data_mimetic_field", () -> MenuTypeBuilder
                     .create(DataMimeticFieldMenu::new, DataMimeticFieldBlockEntity.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_mimetic_field")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER =
+            MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
+                    .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderBlockEntity.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "adaptive_pattern_provider")));
 
     private ModMenus() {
     }

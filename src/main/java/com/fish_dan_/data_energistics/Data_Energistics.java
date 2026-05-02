@@ -9,7 +9,9 @@ import appeng.items.parts.PartModelsHelper;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
@@ -27,7 +29,11 @@ import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -74,11 +80,13 @@ public class Data_Energistics {
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             DataFlowBusStrategies.register();
+            ((AdaptivePatternProviderBlock) ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).bindBlockEntity();
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_FLOW_GENERATOR_BLOCK_ENTITY.get(), ModBlocks.DATA_FLOW_GENERATOR.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), ModBlocks.DATA_EXTRACTOR.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_FRAMEWORK_BLOCK_ENTITY.get(), ModBlocks.DATA_FRAMEWORK.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), ModBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), ModBlocks.DATA_MIMETIC_FIELD.get().asItem());
+            AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
             Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
@@ -86,10 +94,21 @@ public class Data_Energistics {
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 3, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
+            Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, "block.data_energistics.adaptive_pattern_provider");
+            registerAppliedFluxAdaptivePatternProviderCompat();
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
             );
         });
+    }
+
+    private void registerAppliedFluxAdaptivePatternProviderCompat() {
+        Item inductionCard = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("appflux", "induction_card"));
+        if (inductionCard == null || inductionCard == Items.AIR) {
+            return;
+        }
+
+        Upgrades.add(inductionCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, "block.data_energistics.adaptive_pattern_provider");
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
@@ -125,6 +144,11 @@ public class Data_Energistics {
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity
+        );
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity
         );
 
@@ -177,6 +201,7 @@ public class Data_Energistics {
             InitScreens.register(event, ModMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
             InitScreens.register(event, ModMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
             InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
+            InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
         }
 
         @SubscribeEvent

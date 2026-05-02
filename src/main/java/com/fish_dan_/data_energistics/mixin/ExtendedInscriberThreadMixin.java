@@ -4,16 +4,17 @@ import appeng.recipes.handlers.InscriberRecipe;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.api.networking.ticking.TickRateModulation;
 import com.fish_dan_.data_energistics.registry.ModItems;
-import com.glodblock.github.extendedae.common.me.InscriberThread;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(InscriberThread.class)
+@Pseudo
+@Mixin(targets = "com.glodblock.github.extendedae.common.me.InscriberThread")
 public abstract class ExtendedInscriberThreadMixin {
     @Shadow
     private AppEngInternalInventory sideItemHandler;

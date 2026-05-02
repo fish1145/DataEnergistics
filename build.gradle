@@ -113,7 +113,7 @@ dependencies {
 
     implementation "curse.maven:glodium-957920:5821676"
     implementation "curse.maven:applied-flux-965012:7429565"
-    implementation "curse.maven:ex-pattern-provider-892005:7871693"
+    runtimeOnly "curse.maven:ex-pattern-provider-892005:7871693"
 
 
     implementation "curse.maven:curios-309927:6529130"
@@ -121,6 +121,10 @@ dependencies {
     implementation "curse.maven:patchouli-306770:7730942"
     implementation "curse.maven:ars-nouveau-401955:7764018"
     implementation "curse.maven:ars-energistique-905641:6203425"
+
+    runtimeOnly "curse.maven:ae2-crystal-science-1435174:7865524"
+    runtimeOnly "curse.maven:advancedae-1084104:7849217"
+    implementation "curse.maven:ae2-lightning-tech-1527395:8018377"
 
     // Example mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime

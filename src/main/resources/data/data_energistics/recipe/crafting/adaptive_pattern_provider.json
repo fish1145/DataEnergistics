@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PCP",
+    "RHR",
+    "PSP"
+  ],
+  "key": {
+    "P": {
+      "item": "ae2:pattern_provider"
+    },
+    "C": {
+      "item": "ae2:capacity_card"
+    },
+    "R": {
+      "item": "data_energistics:redstone_alloy"
+    },
+    "H": {
+      "item": "data_energistics:data_flow_component_housing"
+    },
+    "S": {
+      "item": "ae2:speed_card"
+    }
+  },
+  "result": {
+    "id": "data_energistics:adaptive_pattern_provider",
+    "count": 1
+  }
+}

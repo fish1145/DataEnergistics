@@ -8,9 +8,12 @@
     "PathingServiceMixin",
     "InscriberBlockEntityMixin",
     "ExtendedInscriberThreadMixin",
-    "NetworkStatusMixin"
+    "NetworkStatusMixin",
+    "Ae2ltWirelessConnectorUsePacketMixin",
+    "Ae2ltEjectCapabilityMixin"
   ],
   "client": [
+    "Ae2ltWirelessConnectorRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

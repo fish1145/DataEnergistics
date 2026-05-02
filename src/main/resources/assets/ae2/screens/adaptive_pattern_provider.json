@@ -1,0 +1,80 @@
+{
+  "$schema": "schema.json",
+  "includes": ["common/common.json", "common/player_inventory.json"],
+  "background": {
+    "texture": "guis/adaptive_pattern_provider.png",
+    "srcRect": [0, 0, 176, 256]
+  },
+  "slots": {
+    "ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN": {
+      "left": 8,
+      "top": 42,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "STORAGE": {
+      "left": 8,
+      "top": 127,
+      "grid": "HORIZONTAL"
+    },
+    "ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2": {
+      "left": 8,
+      "top": 145,
+      "grid": "HORIZONTAL"
+    },
+    "ADAPTIVE_PATTERN_PROVIDER_PROVIDER": {
+      "left": 152,
+      "top": 17
+    }
+  },
+  "text": {
+    "dialog_title": {
+      "text": {
+        "translate": "block.data_energistics.adaptive_pattern_provider"
+      },
+      "position": {
+        "left": 8,
+        "top": 6
+      }
+    },
+    "interface_stored_items": {
+      "text": {
+        "translate": "gui.ae2.ReturnInventory"
+      },
+      "position": {
+        "left": 8,
+        "top": 116
+      }
+    },
+    "page_info": {
+      "position": {
+        "left": 8,
+        "top": 30
+      }
+    },
+    "player_inventory_title": {
+      "text": {
+        "translate": "container.inventory"
+      },
+      "position": {
+        "left": 8,
+        "bottom": 94
+      }
+    }
+  },
+  "widgets": {
+    "openPriority": {
+      "left": 152,
+      "top": -5,
+      "width": 20,
+      "height": 20
+    },
+    "lockReason": {
+      "left": 5,
+      "top": 15
+    },
+    "upgrades": {
+      "left": 174,
+      "top": 0
+    }
+  }
+}

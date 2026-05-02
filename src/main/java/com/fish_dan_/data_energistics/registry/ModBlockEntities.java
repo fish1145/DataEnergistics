@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.registry;
 
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
@@ -40,6 +41,11 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_mimetic_field",
                     () -> BlockEntityType.Builder.of(DataMimeticFieldBlockEntity::new, ModBlocks.DATA_MIMETIC_FIELD.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdaptivePatternProviderBlockEntity>> ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "adaptive_pattern_provider",
+                    () -> BlockEntityType.Builder.of(AdaptivePatternProviderBlockEntity::new, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).build(null));
 
     private ModBlockEntities() {
     }

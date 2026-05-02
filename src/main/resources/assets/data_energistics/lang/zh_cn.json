@@ -117,5 +117,19 @@
   "button.data_energistics.data_extractor.drop_routing.off": "\u5173\u95ed\u6389\u843d\u7269\u5438\u6536",
   "button.data_energistics.data_extractor.drop_routing.container": "\u4f18\u5148\u653e\u5165\u5468\u56f4\u5bb9\u5668\uff0c\u5931\u8d25\u65f6\u5c1d\u8bd5 AE \u7f51\u7edc",
   "button.data_energistics.data_extractor.drop_routing.ae": "\u4f18\u5148\u653e\u5165 AE \u7f51\u7edc\uff0c\u5931\u8d25\u65f6\u5c1d\u8bd5\u5468\u56f4\u5bb9\u5668",
-  "config.jade.plugin_data_energistics.data_mimetic_field": "\u6570\u636e\u62df\u751f\u573a"
+  "config.jade.plugin_data_energistics.data_mimetic_field": "\u6570\u636e\u62df\u751f\u573a",
+  "block.data_energistics.adaptive_pattern_provider": "\u81ea\u9002\u5e94\u6837\u677f\u4f9b\u5e94\u5668",
+  "screen.data_energistics.adaptive_pattern_provider.terminal_group": "\u81ea\u9002\u5e94(%s)",
+  "screen.data_energistics.adaptive_pattern_provider.page": "\u7b2c %s/%s \u9875",
+  "screen.data_energistics.adaptive_pattern_provider.page.previous": "\u4e0a\u4e00\u9875",
+  "screen.data_energistics.adaptive_pattern_provider.page.next": "\u4e0b\u4e00\u9875",
+  "button.data_energistics.adaptive_pattern_provider.filtered_import": "\u8f93\u5165\u8fc7\u6ee4",
+  "button.data_energistics.adaptive_pattern_provider.filtered_import.enabled": "\u5408\u6210\u4efb\u52a1\u8fdb\u884c\u65f6\uff0c\u53ea\u80fd\u8f93\u5165\u6837\u677f\u6807\u8bb0\u7684\u4ea7\u7269",
+  "button.data_energistics.adaptive_pattern_provider.filtered_import.disabled": "\u4e0d\u9650\u8f93\u5165",
+  "button.data_energistics.adaptive_pattern_provider.ae2lt_return_mode": "\u8fd4\u56de\u6a21\u5f0f",
+  "button.data_energistics.adaptive_pattern_provider.ae2lt_return_mode.off": "\u8fd4\u56de\u6a21\u5f0f\uff1a\u5173",
+  "button.data_energistics.adaptive_pattern_provider.ae2lt_return_mode.container": "\u8fd4\u56de\u6a21\u5f0f\uff1a\u81ea\u52a8",
+  "button.data_energistics.adaptive_pattern_provider.ae2lt_return_mode.ae": "\u8fd4\u56de\u6a21\u5f0f\uff1a\u5f39\u51fa",
+  "tooltip.data_energistics.adaptive_pattern_provider.provider_slot": "\u4f9b\u5e94\u5668\u69fd\u4f4d",
+  "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots": "\u5df2\u89e3\u9501\u6837\u677f\u69fd\uff1a%s/%s"
 }

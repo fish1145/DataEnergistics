@@ -30,3 +30,12 @@ run
 /.gradle/
 /build/
 /run/
+/.gradle-user/
+/.gradle-user-2/
+/.gradle-user-3/
+/.gradle-user-verify/
+
+# Local scratch / imported reference files
+/meteorite_logic.java
+/resonating_logic.java
+/aecs_tree.json
