@@ -2,23 +2,23 @@ package com.fish_dan_.data_energistics.integration;
 
 import appeng.client.gui.style.StyleManager;
 import appeng.menu.AEBaseMenu;
+import com.fish_dan_.data_energistics.compat.CompatIds;
+import com.fish_dan_.data_energistics.compat.OptionalMods;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.fml.ModList;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
 public final class Ae2WtLibCompat {
-    private static final String MOD_ID = "ae2wtlib";
     private static final String WET_SCREEN_CLASS = "de.mari_023.ae2wtlib.wet.WETScreen";
     private static final String WET_MENU_CLASS = "de.mari_023.ae2wtlib.wet.WETMenu";
     private static final String WIRELESS_SCREEN_CLASS =
             "com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen";
-    private static final boolean LOADED = ModList.get().isLoaded(MOD_ID);
+    private static final boolean LOADED = OptionalMods.isLoaded(CompatIds.AE2WTLIB);
 
     private Ae2WtLibCompat() {
     }

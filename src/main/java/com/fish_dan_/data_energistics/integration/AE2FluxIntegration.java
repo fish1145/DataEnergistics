@@ -8,12 +8,13 @@ import appeng.api.networking.storage.IStorageService;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
-import net.neoforged.fml.ModList;
+import com.fish_dan_.data_energistics.compat.CompatIds;
+import com.fish_dan_.data_energistics.compat.OptionalMods;
 
 import java.lang.reflect.Method;
 
 public final class AE2FluxIntegration {
-    private static final boolean APPFLUX_LOADED = ModList.get().isLoaded("appflux");
+    private static final boolean APPFLUX_LOADED = OptionalMods.isLoaded(CompatIds.APPFLUX);
 
     private static Class<?> fluxKeyClass;
     private static Class<?> energyTypeClass;

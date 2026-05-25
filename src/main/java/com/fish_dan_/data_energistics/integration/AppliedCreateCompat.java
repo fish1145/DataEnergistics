@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.integration;
 
-import net.neoforged.fml.ModList;
+import com.fish_dan_.data_energistics.compat.CompatIds;
+import com.fish_dan_.data_energistics.compat.OptionalMods;
 
 public final class AppliedCreateCompat {
-    private static final boolean CREATE_LOADED = ModList.get().isLoaded("create");
-    private static final boolean APPLIED_CREATE_LOADED = ModList.get().isLoaded("appliedcreate");
+    private static final boolean CREATE_LOADED = OptionalMods.isLoaded(CompatIds.CREATE);
+    private static final boolean APPLIED_CREATE_LOADED = OptionalMods.isLoaded(CompatIds.APPLIED_CREATE);
 
     private AppliedCreateCompat() {
     }

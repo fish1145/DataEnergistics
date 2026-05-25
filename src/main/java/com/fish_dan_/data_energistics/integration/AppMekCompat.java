@@ -4,10 +4,11 @@ import appeng.core.definitions.AEBlockEntities;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.compat.CompatIds;
+import com.fish_dan_.data_energistics.compat.OptionalMods;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import net.minecraft.core.Direction;
-import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import org.jetbrains.annotations.Nullable;
@@ -17,13 +18,13 @@ import java.lang.reflect.Method;
 import java.util.function.Supplier;
 
 public final class AppMekCompat {
-    private static final String MEKANISM_MOD_ID = "mekanism";
-    private static final String APPMEK_MOD_ID = "appmek";
+    private static final String MEKANISM_MOD_ID = CompatIds.MEKANISM;
+    private static final String APPMEK_MOD_ID = CompatIds.APPMEK;
     private static final String CHEMICAL_CAPABILITIES_CLASS = "mekanism.common.capabilities.Capabilities";
     private static final String CHEMICAL_HANDLER_CLASS =
             "com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler";
     private static final boolean CHEMICAL_SUPPORT_LOADED =
-            ModList.get().isLoaded(MEKANISM_MOD_ID) && ModList.get().isLoaded(APPMEK_MOD_ID);
+            OptionalMods.areLoaded(MEKANISM_MOD_ID, APPMEK_MOD_ID);
 
     private AppMekCompat() {
     }

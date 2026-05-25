@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.compat.CompatIds;
+import com.fish_dan_.data_energistics.compat.OptionalMods;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 import java.util.List;
 import java.util.Set;
-
-import net.neoforged.fml.ModList;
 
 public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final String AE2LT_SENTINEL_CLASS = "com/moakiee/ae2lt/logic/EjectModeRegistry.class";
@@ -28,7 +28,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
             "tamaized/ae2jeiintegration/integration/modules/jei/transfer/EncodePatternTransferHandler.class";
     private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
     private static final String EMI_HANDLER_SENTINEL_CLASS = "appeng/integration/modules/emi/EmiEncodePatternHandler.class";
-    private static final String NEOECOAE_MOD_ID = "neoecoae";
+    private static final String NEOECOAE_MOD_ID = CompatIds.NEOECOAE;
     private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
     private static final boolean ADVANCED_AE_PRESENT = isClassPresent(ADVANCED_AE_SENTINEL_CLASS);
     private static final boolean AE2CS_PRESENT = isClassPresent(AE2CS_SENTINEL_CLASS);
@@ -83,8 +83,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     }
 
     private static boolean isModLoaded(String modId) {
-        ModList modList = ModList.get();
-        return modList != null && modList.isLoaded(modId);
+        return OptionalMods.isLoaded(modId);
     }
 
     @Override
