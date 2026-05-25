@@ -15,11 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Ae2LtWirelessBridge {
-    private static final String CONNECTOR_ITEM_CLASS = "com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem";
-    private static final String TARGET_HELPER_CLASS = "com.moakiee.ae2lt.logic.WirelessConnectorTargetHelper";
-    private static final String PROVIDER_CLASS = "com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity";
-    private static final String RENDER_TYPES_CLASS = "com.moakiee.ae2lt.client.Ae2ltRenderTypes";
-
     private static boolean coreInitialized;
     private static boolean renderInitialized;
     private static @Nullable Class<?> connectorItemClass;
@@ -203,9 +198,9 @@ public final class Ae2LtWirelessBridge {
     private static void initializeCore() {
         coreInitialized = true;
         try {
-            connectorItemClass = Class.forName(CONNECTOR_ITEM_CLASS);
-            providerClass = Class.forName(PROVIDER_CLASS);
-            Class<?> targetHelperClass = Class.forName(TARGET_HELPER_CLASS);
+            connectorItemClass = Class.forName(Ae2LtInternalNames.WIRELESS_CONNECTOR_ITEM);
+            providerClass = Class.forName(Ae2LtInternalNames.OVERLOADED_PATTERN_PROVIDER_BLOCK_ENTITY);
+            Class<?> targetHelperClass = Class.forName(Ae2LtInternalNames.WIRELESS_CONNECTOR_TARGET_HELPER);
 
             hasSelectionMethod = connectorItemClass.getMethod("hasSelection", ItemStack.class);
             getSelectedHostTypeMethod = connectorItemClass.getMethod("getSelectedHostType", ItemStack.class);
@@ -227,7 +222,7 @@ public final class Ae2LtWirelessBridge {
     private static void initializeRender() {
         renderInitialized = true;
         try {
-            Class<?> renderTypesClass = Class.forName(RENDER_TYPES_CLASS);
+            Class<?> renderTypesClass = Class.forName(Ae2LtInternalNames.RENDER_TYPES);
             renderFaceSeeThroughMethod = renderTypesClass.getMethod("getFaceSeeThrough");
         } catch (Exception ignored) {
             renderFaceSeeThroughMethod = null;

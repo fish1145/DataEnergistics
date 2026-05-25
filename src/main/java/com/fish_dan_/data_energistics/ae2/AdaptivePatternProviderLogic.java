@@ -32,7 +32,8 @@ import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
+import com.fish_dan_.data_energistics.integration.Ae2LtCompat;
+import com.fish_dan_.data_energistics.integration.Ae2LtInternalNames;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
@@ -74,12 +75,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
     private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE =
             "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
-    private static final String AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE =
-            "com.moakiee.ae2lt.overload.pattern.OverloadedProviderOnlyPatternDetails";
-    private static final String AE2LT_POWER_COST_UTIL_CLASS =
-            "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
-    private static final String AE2LT_ALLOWED_OUTPUT_FILTER_CLASS =
-            "com.moakiee.ae2lt.logic.AllowedOutputFilter";
     private static final String AE2CS_GENERIC_STACK_INV_HELPER_CLASS =
             "io.github.lounode.ae2cs.api.util.GenericStackInvHelper";
     private static final String CREATE_MECHANICAL_CRAFTER_BE_CLASS =
@@ -589,7 +584,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean isAe2LightningTechOverloadedPattern(IPatternDetails patternDetails) {
         return isAe2LightningTechOverloadedProviderSelected()
-                && implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE);
+                && implementsNamedInterface(patternDetails, Ae2LtInternalNames.OVERLOADED_PATTERN_DETAILS);
     }
 
     private void rebuildPatternsIncludingAe2LtOverloadPatterns() {
@@ -694,7 +689,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                                                    KeyCounter[] inputHolder,
                                                    AdaptiveWirelessConnection connection,
                                                    ServerLevel targetLevel) {
-        List<GenericStack> overflow = Ae2LtRuntimeBridge.pushWirelessConnection(
+        List<GenericStack> overflow = Ae2LtCompat.pushWirelessConnection(
                 targetLevel,
                 connection,
                 patternDetails,
@@ -1210,7 +1205,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     @Nullable
     private Method findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
         try {
-            Class<?> owner = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
+            Class<?> owner = Class.forName(Ae2LtInternalNames.POWER_COST_UTIL);
             Method method = owner.getMethod(name, parameterTypes);
             method.setAccessible(true);
             return method;
@@ -1394,7 +1389,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return false;
         }
 
-        boolean flushed = Ae2LtRuntimeBridge.flushWirelessOverflow(
+        boolean flushed = Ae2LtCompat.flushWirelessOverflow(
                 targetLevel,
                 this.ae2ltWirelessSendConn,
                 this.ae2ltWirelessSendList,
@@ -1565,7 +1560,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         BlockPos providerPos = this.host.getBlockEntity().getBlockPos();
         for (Direction dir : this.host.getTargets()) {
             BlockPos targetPos = providerPos.relative(dir);
-            List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
+            List<GenericStack> outputs = Ae2LtCompat.extractOutputs(
                     level,
                     targetPos,
                     dir.getOpposite(),
@@ -1583,7 +1578,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
+            List<GenericStack> outputs = Ae2LtCompat.extractOutputs(
                     targetLevel,
                     conn.pos(),
                     conn.boundFace(),
@@ -1605,13 +1600,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            long affordable = Ae2LtRuntimeBridge.maxAffordable(grid, stack.what(), stack.amount());
+            long affordable = Ae2LtCompat.maxAffordable(grid, stack.what(), stack.amount());
             if (affordable <= 0) {
                 continue;
             }
             long inserted = getReturnInv().insert(stack.what(), affordable, Actionable.MODULATE, this.actionSource);
             if (inserted > 0) {
-                Ae2LtRuntimeBridge.consume(grid, stack.what(), inserted);
+                Ae2LtCompat.consume(grid, stack.what(), inserted);
             }
         }
     }
@@ -1696,7 +1691,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (!(this.host instanceof AdaptivePatternProviderHost adaptive)) {
             return;
         }
-        Ae2LtRuntimeBridge.refreshEjectRegistrations(
+        Ae2LtCompat.refreshEjectRegistrations(
                 this.host.getBlockEntity(),
                 adaptive.getConnections(),
                 isAe2LtEjectModeEnabled(),
@@ -1718,7 +1713,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     @Nullable
     private Object buildAe2LtAllowedOutputFilter() {
         try {
-            Class<?> filterClass = Class.forName(AE2LT_ALLOWED_OUTPUT_FILTER_CLASS);
+            Class<?> filterClass = Class.forName(Ae2LtInternalNames.ALLOWED_OUTPUT_FILTER);
             Object filter = filterClass.getConstructor().newInstance();
             Method allowStrict = filterClass.getMethod("allowStrict", AEKey.class);
             Method allowIdOnly = filterClass.getMethod("allowIdOnly", AEKey.class);

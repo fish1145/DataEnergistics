@@ -11,7 +11,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
@@ -21,10 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 public final class Ae2LtRuntimeBridge {
-    private static final String MACHINE_ADAPTER_REGISTRY_CLASS = "com.moakiee.ae2lt.logic.MachineAdapterRegistry";
-    private static final String EJECT_MODE_REGISTRY_CLASS = "com.moakiee.ae2lt.logic.EjectModeRegistry";
-    private static final String GHOST_OUTPUT_BLOCK_ENTITY_CLASS = "com.moakiee.ae2lt.blockentity.GhostOutputBlockEntity";
-    private static final String POWER_COST_UTIL_CLASS = "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static @Nullable Method machineAdapterFindMethod;
     private static @Nullable Method adapterCanAcceptMethod;
@@ -39,9 +38,12 @@ public final class Ae2LtRuntimeBridge {
     private static @Nullable Method ejectRegisterMethod;
     private static @Nullable Method dimPosDimensionMethod;
     private static @Nullable Method dimPosPosMethod;
+    private static @Nullable Method ghostOutputSetLevelMethod;
     private static @Nullable Constructor<?> ghostOutputConstructor;
     private static @Nullable Constructor<?> ejectEntryConstructor;
     private static boolean initialized;
+    private static boolean available;
+    private static boolean initFailureLogged;
 
     private Ae2LtRuntimeBridge() {
     }
@@ -51,11 +53,7 @@ public final class Ae2LtRuntimeBridge {
             return false;
         }
 
-        if (!initialized) {
-            initialize();
-        }
-
-        return machineAdapterFindMethod != null;
+        return ensureInitialized();
     }
 
     public static @Nullable List<GenericStack> pushWirelessConnection(ServerLevel targetLevel,
@@ -232,7 +230,7 @@ public final class Ae2LtRuntimeBridge {
                 BlockPos adjacentPos = connection.pos().relative(connection.boundFace());
                 Direction queryFace = connection.boundFace().getOpposite();
                 Object ghostBlockEntity = ghostOutputConstructor.newInstance(adjacentPos);
-                ghostBlockEntity.getClass().getMethod("setLevel", net.minecraft.world.level.Level.class).invoke(ghostBlockEntity, targetLevel);
+                ghostOutputSetLevelMethod.invoke(ghostBlockEntity, targetLevel);
 
                 Object entry = ejectEntryConstructor.newInstance(
                         new WeakReference<>(host),
@@ -273,83 +271,124 @@ public final class Ae2LtRuntimeBridge {
         }
     }
 
-    private static void initialize() {
-        initialized = true;
-        try {
-            Class<?> machineAdapterRegistryClass = Class.forName(MACHINE_ADAPTER_REGISTRY_CLASS);
-            machineAdapterFindMethod = machineAdapterRegistryClass.getMethod("find", net.minecraft.world.level.Level.class, BlockPos.class);
-
-            Class<?> machineAdapterClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter");
-            adapterCanAcceptMethod = machineAdapterClass.getMethod(
-                    "canAccept",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    IPatternDetails.class
-            );
-            adapterPushCopiesMethod = machineAdapterClass.getMethod(
-                    "pushCopies",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    IPatternDetails.class,
-                    KeyCounter[].class,
-                    int.class,
-                    boolean.class,
-                    Set.class,
-                    IActionSource.class
-            );
-            adapterFlushOverflowMethod = machineAdapterClass.getMethod(
-                    "flushOverflow",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    List.class,
-                    IActionSource.class
-            );
-            Class<?> allowedOutputFilterClass = Class.forName("com.moakiee.ae2lt.logic.AllowedOutputFilter");
-            adapterExtractOutputsMethod = machineAdapterClass.getMethod(
-                    "extractOutputs",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    allowedOutputFilterClass,
-                    IActionSource.class
-            );
-
-            Class<?> pushResultClass = Class.forName("com.moakiee.ae2lt.logic.PushResult");
-            pushResultAcceptedCopiesMethod = pushResultClass.getMethod("acceptedCopies");
-            pushResultOverflowMethod = pushResultClass.getMethod("overflow");
-
-            Class<?> powerCostClass = Class.forName(POWER_COST_UTIL_CLASS);
-            powerCostMaxAffordableMethod = powerCostClass.getMethod("maxAffordable", IGrid.class, AEKey.class, long.class);
-            powerCostConsumeMethod = powerCostClass.getMethod("consume", IGrid.class, AEKey.class, long.class);
-
-            Class<?> ejectRegistryClass = Class.forName(EJECT_MODE_REGISTRY_CLASS);
-            ejectUnregisterAllMethod = ejectRegistryClass.getMethod("unregisterAll", BlockEntity.class, boolean.class);
-            Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
-            ejectEntryConstructor = ejectEntryClass.getConstructor(
-                    WeakReference.class,
-                    BlockEntity.class,
-                    net.minecraft.resources.ResourceKey.class,
-                    BlockPos.class
-            );
-            ejectRegisterMethod = ejectRegistryClass.getMethod(
-                    "register",
-                    net.minecraft.resources.ResourceKey.class,
-                    long.class,
-                    Direction.class,
-                    ejectEntryClass
-            );
-
-            Class<?> dimPosClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$DimPos");
-            dimPosDimensionMethod = dimPosClass.getMethod("dimension");
-            dimPosPosMethod = dimPosClass.getMethod("pos");
-
-            Class<?> ghostClass = Class.forName(GHOST_OUTPUT_BLOCK_ENTITY_CLASS);
-            ghostOutputConstructor = ghostClass.getConstructor(BlockPos.class);
-        } catch (Exception ignored) {
-            machineAdapterFindMethod = null;
+    private static boolean ensureInitialized() {
+        if (initialized) {
+            return available;
         }
+        synchronized (Ae2LtRuntimeBridge.class) {
+            if (initialized) {
+                return available;
+            }
+            try {
+                Class<?> machineAdapterRegistryClass = Class.forName(Ae2LtInternalNames.MACHINE_ADAPTER_REGISTRY);
+                machineAdapterFindMethod = machineAdapterRegistryClass.getMethod("find", net.minecraft.world.level.Level.class, BlockPos.class);
+
+                Class<?> machineAdapterClass = Class.forName(Ae2LtInternalNames.MACHINE_ADAPTER);
+                adapterCanAcceptMethod = machineAdapterClass.getMethod(
+                        "canAccept",
+                        ServerLevel.class,
+                        BlockPos.class,
+                        Direction.class,
+                        IPatternDetails.class
+                );
+                adapterPushCopiesMethod = machineAdapterClass.getMethod(
+                        "pushCopies",
+                        ServerLevel.class,
+                        BlockPos.class,
+                        Direction.class,
+                        IPatternDetails.class,
+                        KeyCounter[].class,
+                        int.class,
+                        boolean.class,
+                        Set.class,
+                        IActionSource.class
+                );
+                adapterFlushOverflowMethod = machineAdapterClass.getMethod(
+                        "flushOverflow",
+                        ServerLevel.class,
+                        BlockPos.class,
+                        Direction.class,
+                        List.class,
+                        IActionSource.class
+                );
+                Class<?> allowedOutputFilterClass = Class.forName(Ae2LtInternalNames.ALLOWED_OUTPUT_FILTER);
+                adapterExtractOutputsMethod = machineAdapterClass.getMethod(
+                        "extractOutputs",
+                        ServerLevel.class,
+                        BlockPos.class,
+                        Direction.class,
+                        allowedOutputFilterClass,
+                        IActionSource.class
+                );
+
+                Class<?> pushResultClass = Class.forName(Ae2LtInternalNames.PUSH_RESULT);
+                pushResultAcceptedCopiesMethod = pushResultClass.getMethod("acceptedCopies");
+                pushResultOverflowMethod = pushResultClass.getMethod("overflow");
+
+                Class<?> powerCostClass = Class.forName(Ae2LtInternalNames.POWER_COST_UTIL);
+                powerCostMaxAffordableMethod = powerCostClass.getMethod("maxAffordable", IGrid.class, AEKey.class, long.class);
+                powerCostConsumeMethod = powerCostClass.getMethod("consume", IGrid.class, AEKey.class, long.class);
+
+                Class<?> ejectRegistryClass = Class.forName(Ae2LtInternalNames.EJECT_MODE_REGISTRY);
+                ejectUnregisterAllMethod = ejectRegistryClass.getMethod("unregisterAll", BlockEntity.class, boolean.class);
+                Class<?> ejectEntryClass = Class.forName(Ae2LtInternalNames.EJECT_ENTRY);
+                ejectEntryConstructor = ejectEntryClass.getConstructor(
+                        WeakReference.class,
+                        BlockEntity.class,
+                        net.minecraft.resources.ResourceKey.class,
+                        BlockPos.class
+                );
+                ejectRegisterMethod = ejectRegistryClass.getMethod(
+                        "register",
+                        net.minecraft.resources.ResourceKey.class,
+                        long.class,
+                        Direction.class,
+                        ejectEntryClass
+                );
+
+                Class<?> dimPosClass = Class.forName(Ae2LtInternalNames.EJECT_DIM_POS);
+                dimPosDimensionMethod = dimPosClass.getMethod("dimension");
+                dimPosPosMethod = dimPosClass.getMethod("pos");
+
+                Class<?> ghostClass = Class.forName(Ae2LtInternalNames.GHOST_OUTPUT_BLOCK_ENTITY);
+                ghostOutputConstructor = ghostClass.getConstructor(BlockPos.class);
+                ghostOutputSetLevelMethod = ghostClass.getMethod("setLevel", net.minecraft.world.level.Level.class);
+                available = true;
+            } catch (ReflectiveOperationException | LinkageError ex) {
+                clearResolvedMembers();
+                available = false;
+                logBridgeUnavailableOnce(ex);
+            } finally {
+                initialized = true;
+            }
+            return available;
+        }
+    }
+
+    private static void clearResolvedMembers() {
+        machineAdapterFindMethod = null;
+        adapterCanAcceptMethod = null;
+        adapterPushCopiesMethod = null;
+        adapterFlushOverflowMethod = null;
+        adapterExtractOutputsMethod = null;
+        pushResultAcceptedCopiesMethod = null;
+        pushResultOverflowMethod = null;
+        powerCostMaxAffordableMethod = null;
+        powerCostConsumeMethod = null;
+        ejectUnregisterAllMethod = null;
+        ejectRegisterMethod = null;
+        dimPosDimensionMethod = null;
+        dimPosPosMethod = null;
+        ghostOutputSetLevelMethod = null;
+        ghostOutputConstructor = null;
+        ejectEntryConstructor = null;
+    }
+
+    private static void logBridgeUnavailableOnce(Throwable ex) {
+        if (initFailureLogged) {
+            return;
+        }
+        initFailureLogged = true;
+        LOGGER.warn("AE2LT runtime bridge disabled; Data Energistics will keep running without AE2LT internal features", ex);
     }
 }

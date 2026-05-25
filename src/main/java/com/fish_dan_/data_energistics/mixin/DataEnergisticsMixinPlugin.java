@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin;
 
 import com.fish_dan_.data_energistics.compat.CompatIds;
 import com.fish_dan_.data_energistics.compat.OptionalMods;
+import com.fish_dan_.data_energistics.integration.Ae2LtMixinGuards;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -10,8 +11,6 @@ import java.util.List;
 import java.util.Set;
 
 public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
-    private static final String AE2LT_SENTINEL_CLASS = "com/moakiee/ae2lt/logic/EjectModeRegistry.class";
-    private static final String AE2LT_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2lt";
     private static final String ADVANCED_AE_SENTINEL_CLASS =
             "net/pedroksl/advanced_ae/common/logic/AdvPatternProviderLogic.class";
     private static final String ADVANCED_AE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.AdvancedAe";
@@ -29,7 +28,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
     private static final String EMI_HANDLER_SENTINEL_CLASS = "appeng/integration/modules/emi/EmiEncodePatternHandler.class";
     private static final String NEOECOAE_MOD_ID = CompatIds.NEOECOAE;
-    private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
+    private static final boolean AE2LT_PRESENT = Ae2LtMixinGuards.isPresent();
     private static final boolean ADVANCED_AE_PRESENT = isClassPresent(ADVANCED_AE_SENTINEL_CLASS);
     private static final boolean AE2CS_PRESENT = isClassPresent(AE2CS_SENTINEL_CLASS);
     private static final boolean APPLIED_CREATE_PRESENT = isClassPresent(APPLIED_CREATE_SENTINEL_CLASS);
@@ -48,7 +47,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.startsWith(AE2LT_MIXIN_PREFIX)) {
+        if (Ae2LtMixinGuards.isAe2LtMixin(mixinClassName)) {
             return AE2LT_PRESENT;
         }
         if (mixinClassName.startsWith(ADVANCED_AE_MIXIN_PREFIX)) {

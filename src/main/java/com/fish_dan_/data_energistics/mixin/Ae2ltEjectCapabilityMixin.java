@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.integration.Ae2LtInternalNames;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -23,8 +24,6 @@ import java.lang.reflect.Method;
 
 @Mixin(BlockCapability.class)
 public abstract class Ae2ltEjectCapabilityMixin<T, C> {
-    @Unique
-    private static final String DE_EJECT_MODE_REGISTRY = "com.moakiee.ae2lt.logic.EjectModeRegistry";
     @Unique
     private static boolean dataEnergistics$proxying = false;
     @Unique
@@ -113,7 +112,7 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
     private static void dataEnergistics$initEjectReflection() {
         dataEnergistics$ejectReflectionInitialized = true;
         try {
-            Class<?> registryClass = Class.forName(DE_EJECT_MODE_REGISTRY);
+            Class<?> registryClass = Class.forName(Ae2LtInternalNames.EJECT_MODE_REGISTRY);
             dataEnergistics$isBypassedMethod = registryClass.getMethod("isBypassed");
             dataEnergistics$lookupByFaceMethod = registryClass.getMethod(
                     "lookupByFace",
@@ -121,7 +120,7 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
                     long.class,
                     Direction.class
             );
-            Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
+            Class<?> ejectEntryClass = Class.forName(Ae2LtInternalNames.EJECT_ENTRY);
             dataEnergistics$getHostMethod = ejectEntryClass.getMethod("getHost");
         } catch (Exception ignored) {
             dataEnergistics$isBypassedMethod = null;
