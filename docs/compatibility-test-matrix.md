@@ -54,31 +54,30 @@ The table below tracks real optional or compatibility-gated integrations present
 | `.\gradlew.bat clean build` | **Passed** | Executed on JDK 21 during this phase. |
 | `.\gradlew.bat runData` | **Passed** | Executed on JDK 21 during this phase. |
 | `.\gradlew.bat runClient` | **Startup flow entered** | Real client startup and mod loading logs were observed; this is not a full interactive gameplay test. |
-| `.\gradlew.bat runServer` | **Failed / Not verified** | The dedicated server did not reach a `Done`-equivalent startup completion line. |
+| `.\gradlew.bat runServer` | **Passed** | Verified on **2026-05-25** through dedicated server startup completion in `run\\logs\\debug.log`. |
 
 ### Current dedicated server observation
 
-The current `runServer` attempt failed during mixin transformation before full server startup completed.
+Dedicated server startup is now verified on **2026-05-25**.
 
-Observed failure:
+Observed completion markers:
 
-- `Task :runServer FAILED`
-- dedicated server startup **did not** reach `Done`
-- the stack trace includes `BlockRedstonePulseMixin`
-- the immediate cause was `ClassNotFoundException: com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost` during mixin preprocessing
+- `Starting minecraft server version 1.21.1`
+- `Preparing level "world"`
+- `Done (4.117s)! For help, type "help"`
 
-This means dedicated server startup is **not verified** at the time of writing.
+The earlier dedicated server crash during mixin preprocessing was resolved before this validation run.
 
 ## Runtime Validation Matrix
 
 | Scenario | Client startup | Dedicated server startup | Data generation | Notes |
 | --- | --- | --- | --- | --- |
-| Baseline with current dev runtime dependencies | **Startup flow entered** | **Failed / Not verified** | **Passed** | Baseline dev runtime includes the currently declared implementation/runtime dependencies. |
+| Baseline with current dev runtime dependencies | **Startup flow entered** | **Passed** | **Passed** | Baseline dev runtime includes the currently declared implementation/runtime dependencies. |
 | Without `ae2lt` | Not verified | Not verified | Not verified | Requires a dedicated run with AE2LT removed from the runtime classpath. |
-| With `ae2lt` | **Startup flow entered** in baseline dev runtime | Failed / Not verified | Passed indirectly through baseline environment | Current validation is not an isolated AE2LT-only matrix entry. |
+| With `ae2lt` | **Startup flow entered** in baseline dev runtime | Passed indirectly through baseline environment | Passed indirectly through baseline environment | Current validation is not an isolated AE2LT-only matrix entry. |
 | Without `ae2wtlib` | Not verified | Not verified | Not verified | Requires a dedicated run with AE2WTLib removed from the runtime classpath. |
-| With `ae2wtlib` | **Startup flow entered** in baseline dev runtime | Failed / Not verified | Passed indirectly through baseline environment | Current validation is not an isolated AE2WTLib-only matrix entry. |
-| Dedicated server startup | N/A | **Failed / Not verified** | N/A | Did not complete initialization in this phase. |
+| With `ae2wtlib` | **Startup flow entered** in baseline dev runtime | Passed indirectly through baseline environment | Passed indirectly through baseline environment | Current validation is not an isolated AE2WTLib-only matrix entry. |
+| Dedicated server startup | N/A | **Passed** | N/A | Verified on 2026-05-25 with `Done (4.117s)! For help, type "help"` in `run\\logs\\debug.log`. |
 | Client startup | **Startup flow entered** | N/A | N/A | Not a gameplay interaction pass. |
 | Data generation | N/A | N/A | **Passed** | `runData` completed successfully in this phase. |
 
@@ -108,7 +107,6 @@ This means dedicated server startup is **not verified** at the time of writing.
 
 ## Known Gaps
 
-- `runServer` is **not yet fully verified** and currently fails before startup completion.
 - Optional dependency absent/present combinations still need dedicated runs.
 - Baseline client startup is not the same thing as per-mod isolated validation.
 - Several compatibility surfaces are guarded in code but are **not** declared as optional dependencies in `mods.toml` (`advanced_ae`, `appflux`, `appliedcreate`, `create`, `extendedae`, `neoecoae`).
@@ -119,11 +117,9 @@ This means dedicated server startup is **not verified** at the time of writing.
 
 Recommended next runs:
 
-1. Fix or isolate the current `runServer` failure, then rerun until a `Done`-equivalent startup completion line is observed.
-2. Run the client without `ae2lt`.
-3. Run the client with `ae2lt` as the only targeted optional-compat focus.
-4. Run the client without `ae2wtlib`.
-5. Run the client with `ae2wtlib` and exercise the relevant wireless terminal screen replacement path.
-6. Run dedicated server startup with the current baseline after the server failure is addressed.
-7. Add isolated absent/present checks for `ae2cs`, `advanced_ae`, `extendedae_plus`, `mekanism` + `appmek`, `appflux`, `appliedcreate` + `create`, `extendedae`, and `neoecoae`.
-8. Keep AE2LT Lightning capability deferred unless project requirements change.
+1. Run the client without `ae2lt`.
+2. Run the client with `ae2lt` as the only targeted optional-compat focus.
+3. Run the client without `ae2wtlib`.
+4. Run the client with `ae2wtlib` and exercise the relevant wireless terminal screen replacement path.
+5. Add isolated absent/present checks for `ae2cs`, `advanced_ae`, `extendedae_plus`, `mekanism` + `appmek`, `appflux`, `appliedcreate` + `create`, `extendedae`, and `neoecoae`.
+6. Keep AE2LT Lightning capability deferred unless project requirements change.
