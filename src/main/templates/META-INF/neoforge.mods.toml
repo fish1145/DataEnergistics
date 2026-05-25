@@ -73,6 +73,13 @@ ordering = "NONE"
 side = "BOTH"
 
 [[dependencies."${mod_id}"]]
+modId = "ae2"
+type = "required"
+versionRange = "[19.2.17,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
 modId = "ae2cs"
 type = "optional"
 versionRange = "[0,)"
@@ -89,8 +96,15 @@ side = "BOTH"
 [[dependencies."${mod_id}"]]
 modId = "ae2wtlib"
 type = "optional"
-versionRange = "[0,)"
+versionRange = "[19.4.1,)"
 ordering = "NONE"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "ae2lt"
+type = "optional"
+versionRange = "[1.0.4,)"
+ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies."${mod_id}"]]
