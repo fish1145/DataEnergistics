@@ -34,8 +34,8 @@ The table below tracks real optional or compatibility-gated integrations present
 
 | Mod ID | In `CompatIds` | Optional in `mods.toml` | Build scope | Load guard | Mixin guard | Reflection bridge | Not installed startup | Installed startup | Risk | Notes / next step |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ae2lt` | Yes | Yes | `compileOnly` + `runtimeOnly` | `Ae2LtCompat.isLoaded()`, `OptionalMods.isLoaded()` | `Ae2LtMixinGuards.isPresent()` plus AE2LT sentinel resource in `DataEnergisticsMixinPlugin` | `Ae2LtRuntimeBridge`, `Ae2LtWirelessBridge` | Not verified | **Client startup flow entered** in baseline dev runtime; dedicated server failed before completion | **High** | Highest-risk optional surface due to guarded mixins and internal reflection; keep dedicated absent/present runs separate. |
-| `ae2wtlib` | Yes | Yes | `compileOnly` + `runtimeOnly` (+ extracted API jar as `compileOnly`) | `Ae2WtLibCompat` load check via `OptionalMods.isLoaded()` | No dedicated mixin guard | `Ae2WtLibCompat` screen replacement reflection | Not verified | **Client startup flow entered** in baseline dev runtime | Medium | Needs dedicated run without AE2WTLib and a client path that opens the relevant terminal screen. |
+| `ae2lt` | Yes | Yes | `compileOnly` + `runtimeOnly` | `Ae2LtCompat.isLoaded()`, `OptionalMods.isLoaded()` | `Ae2LtMixinGuards.isPresent()` plus AE2LT sentinel resource in `DataEnergisticsMixinPlugin` | `Ae2LtRuntimeBridge`, `Ae2LtWirelessBridge` | **Client startup flow entered** and **dedicated server passed** with AE2LT runtime jar removed from the dev classpath | **Client startup flow entered** and **dedicated server passed** in baseline dev runtime | **High** | Optional absence was validated by filtered dev-launch classpath replay; no AE2LT CNFE or mixin apply failure was observed. |
+| `ae2wtlib` | Yes | Yes | `compileOnly` + `runtimeOnly` (+ extracted API jar as `compileOnly`) | `Ae2WtLibCompat` load check via `OptionalMods.isLoaded()` | No dedicated mixin guard | `Ae2WtLibCompat` screen replacement reflection | **Client startup flow entered** and **dedicated server passed** with AE2WTLib runtime jar removed from the dev classpath | **Client startup flow entered** and **dedicated server passed** in baseline dev runtime | Medium | Optional absence was validated by filtered dev-launch classpath replay. The extracted `ae2wtlib_api` compile-time jar still appears on the dev classpath, so this is runtime-mod absence coverage, not full API absence coverage. |
 | `ae2cs` | Yes | Yes | `compileOnly` + `runtimeOnly` | Class-presence and optional-mod usage in guarded code paths | Yes, `DataEnergisticsMixinPlugin` checks AE2CS sentinel class for `Ae2Cs*` mixins | No dedicated bridge class | Not verified | **Client startup flow entered** in baseline dev runtime | Medium | Needs dedicated absent/present startup runs; currently only baseline client presence is observed. |
 | `extendedae_plus` | Yes | Yes | `compileOnly` + `runtimeOnly` | `ExtendedAePlusCompat.isLoaded()` via `OptionalMods.isLoaded()` | No dedicated mixin prefix in plugin | No dedicated bridge class | Not verified | **Client startup flow entered** in baseline dev runtime | Medium | Present in baseline client run; isolated absent/present coverage still missing. |
 | `mekanism` | Yes | Yes | `implementation` | `OptionalMods.areLoaded(mekanism, appmek)` in `AppMekCompat` | No dedicated mixin prefix in plugin | `AppMekCompat` reflects Mekanism capability holder and handler construction | Not verified | **Client startup flow entered** in baseline dev runtime | Medium | Should be validated together with and without `appmek`; dedicated server run is still unresolved. |
@@ -56,6 +56,21 @@ The table below tracks real optional or compatibility-gated integrations present
 | `.\gradlew.bat runClient` | **Startup flow entered** | Real client startup and mod loading logs were observed; this is not a full interactive gameplay test. |
 | `.\gradlew.bat runServer` | **Passed** | Verified on **2026-05-25** through dedicated server startup completion in `run\\logs\\debug.log`. |
 
+## Latest Validation Run
+
+- Date: **2026-05-25**
+- JDK: **21.0.11**
+- Gradle Wrapper: **8.14.5**
+- Baseline `clean build`: **Passed**
+- Baseline `runData`: **Passed**
+- Baseline `runClient`: **Startup flow entered**
+- Baseline `runServer`: **Passed**
+- Without `ae2lt`: **Client startup flow entered**, **dedicated server passed**
+- With `ae2lt`: **Client startup flow entered**, **dedicated server passed** in baseline dev runtime
+- Without `ae2wtlib`: **Client startup flow entered**, **dedicated server passed**
+- With `ae2wtlib`: **Client startup flow entered**, **dedicated server passed** in baseline dev runtime
+- Without `ae2lt` and `ae2wtlib`: **Client startup flow entered**, **dedicated server passed**
+
 ### Current dedicated server observation
 
 Dedicated server startup is now verified on **2026-05-25**.
@@ -73,10 +88,11 @@ The earlier dedicated server crash during mixin preprocessing was resolved befor
 | Scenario | Client startup | Dedicated server startup | Data generation | Notes |
 | --- | --- | --- | --- | --- |
 | Baseline with current dev runtime dependencies | **Startup flow entered** | **Passed** | **Passed** | Baseline dev runtime includes the currently declared implementation/runtime dependencies. |
-| Without `ae2lt` | Not verified | Not verified | Not verified | Requires a dedicated run with AE2LT removed from the runtime classpath. |
-| With `ae2lt` | **Startup flow entered** in baseline dev runtime | Passed indirectly through baseline environment | Passed indirectly through baseline environment | Current validation is not an isolated AE2LT-only matrix entry. |
-| Without `ae2wtlib` | Not verified | Not verified | Not verified | Requires a dedicated run with AE2WTLib removed from the runtime classpath. |
-| With `ae2wtlib` | **Startup flow entered** in baseline dev runtime | Passed indirectly through baseline environment | Passed indirectly through baseline environment | Current validation is not an isolated AE2WTLib-only matrix entry. |
+| Without `ae2lt` | **Startup flow entered** | **Passed** | Not verified | Executed by replaying the real dev launch with AE2LT removed from the runtime and legacy classpaths; no AE2LT CNFE or mixin apply error was observed. |
+| With `ae2lt` | **Startup flow entered** in baseline dev runtime | **Passed** in baseline dev runtime | **Passed** in baseline dev runtime | Current validation is baseline-present rather than an AE2LT-only isolated environment. |
+| Without `ae2wtlib` | **Startup flow entered** | **Passed** | Not verified | Executed by replaying the real dev launch with the AE2WTLib runtime jar removed from the runtime and legacy classpaths. The extracted `ae2wtlib_api` jar still remained available on the classpath. |
+| With `ae2wtlib` | **Startup flow entered** in baseline dev runtime | **Passed** in baseline dev runtime | **Passed** in baseline dev runtime | Current validation is baseline-present rather than an AE2WTLib-only isolated environment. |
+| Without `ae2lt` and `ae2wtlib` | **Startup flow entered** | **Passed** | Not verified | Executed by replaying the real dev launch with both runtime jars removed. `ae2wtlib_api` still remained on the classpath from the extracted compile-time artifact. |
 | Dedicated server startup | N/A | **Passed** | N/A | Verified on 2026-05-25 with `Done (4.117s)! For help, type "help"` in `run\\logs\\debug.log`. |
 | Client startup | **Startup flow entered** | N/A | N/A | Not a gameplay interaction pass. |
 | Data generation | N/A | N/A | **Passed** | `runData` completed successfully in this phase. |
@@ -107,8 +123,8 @@ The earlier dedicated server crash during mixin preprocessing was resolved befor
 
 ## Known Gaps
 
-- Optional dependency absent/present combinations still need dedicated runs.
-- Baseline client startup is not the same thing as per-mod isolated validation.
+- Baseline client startup is not the same thing as per-mod isolated feature interaction validation.
+- `ae2wtlib` absence coverage currently removes the runtime mod jar, but the extracted `ae2wtlib_api` compile-time artifact still remains on the dev classpath.
 - Several compatibility surfaces are guarded in code but are **not** declared as optional dependencies in `mods.toml` (`advanced_ae`, `appflux`, `appliedcreate`, `create`, `extendedae`, `neoecoae`).
 - AE2LT Lightning capability remains deferred.
 - No Lightning Energy capability is registered.
@@ -117,9 +133,7 @@ The earlier dedicated server crash during mixin preprocessing was resolved befor
 
 Recommended next runs:
 
-1. Run the client without `ae2lt`.
-2. Run the client with `ae2lt` as the only targeted optional-compat focus.
-3. Run the client without `ae2wtlib`.
-4. Run the client with `ae2wtlib` and exercise the relevant wireless terminal screen replacement path.
-5. Add isolated absent/present checks for `ae2cs`, `advanced_ae`, `extendedae_plus`, `mekanism` + `appmek`, `appflux`, `appliedcreate` + `create`, `extendedae`, and `neoecoae`.
-6. Keep AE2LT Lightning capability deferred unless project requirements change.
+1. Exercise the AE2WTLib screen replacement path in-game, because startup coverage alone does not prove the reflected UI path.
+2. Add isolated absent/present checks for `ae2cs`, `advanced_ae`, `extendedae_plus`, `mekanism` + `appmek`, `appflux`, `appliedcreate` + `create`, `extendedae`, and `neoecoae`.
+3. If needed, add a stricter AE2WTLib-absent environment that also removes the extracted `ae2wtlib_api` artifact from the replayed classpath.
+4. Keep AE2LT Lightning capability deferred unless project requirements change.
