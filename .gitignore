@@ -40,10 +40,7 @@ run
 /resonating_logic.java
 /aecs_tree.json
 /.codex-temp/
-/.codex_tmp_wtlib/
-/.codex_tmp_eae/
-/.codex_tmp_ae2/
-/.codex_tmp_crash_20260516_115821/
-/.codex_tmp_crash_20260516_121721/
-/.codex_tmp_extendedae_ui/
+# Temporary agent / audit worktrees
+/.codex_tmp*
+/.codex_tmp_*
 /tmp/
