@@ -1,0 +1,73 @@
+dependencies {
+    compileOnly(libs.jetbrains.annotations)
+
+    testImplementation(libs.testframework)
+
+    // AE2
+    compileOnly(forge.ae2)
+    compileOnly(forge.guideme)
+    compileOnly(forge.ae2wt)
+    compileOnly(forge.ae2wt.api)
+
+    // AE2 addons
+    compileOnly(forge.eae)
+    compileOnly(forge.aecs)
+    compileOnly(forge.aelt)
+    compileOnly(forge.applied.flux)
+    compileOnly(forge.applied.create)
+    compileOnly(forge.mek)
+
+    // Recipe viewers
+    compileOnly(forge.bundles.jei)
+    compileOnly(forge.emi)
+
+    // WAILA-likes
+    compileOnly(forge.jade)
+
+    // Standard runtime mods
+    localRuntime(forge.jade)
+    localRuntime(forge.curios)
+    localRuntime(forge.modernfix)
+    localRuntime(forge.ae2)
+    localRuntime(forge.ldlib)
+    localRuntime(forge.glodium)
+    localRuntime(forge.geckolib)
+    localRuntime(forge.cloth.config)
+    localRuntime(forge.pneumaticcraft)
+    localRuntime(forge.kotlinforforge)
+    localRuntime(forge.create) {
+        // Needed to prevent game-test crashes
+        exclude group: "maven.modrinth", module: "journeymap"
+        exclude group: "info.journeymap", module: "journeymap-api-neoforge"
+    }
+
+    // Runtime AE2 addons
+    localRuntime(forge.ae2ji)
+    localRuntime(forge.guideme)
+    localRuntime(forge.ae2wt)
+    localRuntime(forge.eae)
+    localRuntime(forge.aecs)
+    localRuntime(forge.aelt)
+    localRuntime(forge.applied.flux)
+    localRuntime(forge.applied.create)
+    localRuntime(forge.aae)
+    localRuntime(forge.eco)
+    localRuntime(forge.extendedae.plus)
+    localRuntime(forge.applied.pneumatics)
+    localRuntime(forge.mega.cells)
+    localRuntime(forge.amek)
+    localRuntime(forge.mek)
+
+    // Runtime recipe viewers
+    localRuntime(forge.emi)
+    localRuntime(forge.jei.neoforge.impl)
+
+    // Client-only runtime mods
+    clientLocalRuntime(forge.sodium)
+    clientLocalRuntime(forge.iris)
+    renderNurseCfg(libs.renderNurse)
+
+    //////////////////////////////////////////////////////
+    // Runtime mods for dev testing with unclean client //
+    //////////////////////////////////////////////////////
+}

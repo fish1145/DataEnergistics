@@ -1,0 +1,91 @@
+[versions]
+guideme = "21.11.1-beta"
+ae2 = "19.2.8"
+ae2wt = "19.5.0"
+
+jei = "19.25.1.328"
+emi = "1.1.22+1.21.1"
+
+ldlib = "2.2.8"
+mekanism = "1.21.1-10.7.19.85"
+pneumaticcraft = "8.2.9+mc1.21.1"
+kotlinforforge = "5.7.0"
+create = "6.0.8-168"
+ponder = "1.0.64"
+flywheel = "1.0.5"
+curios = "9.4.2+1.21.1"
+
+## ftb mod ##
+ftblibrary = "2101.1.30"
+ftbteams = "2101.1.9"
+
+## modrinth maven ##
+jade = "15.10.0+neoforge"
+sodium = "mc1.21.1-0.6.13-neoforge"
+iris = "1.8.8+1.21.1-neoforge"
+modernfix = "4SPHwiDB" # 5.24.3+mc1.21.1
+
+## cursemaven ##
+geckolib = "7707149"
+glodium = "5821676"
+ae2ji = "7727898"
+eae = "8025439"
+aae = "7849217"
+aecs = "8036407"
+aelt = "8135920"
+eco = "7884362"
+extendedae-plus = "7960385"
+applied-flux = "7429565"
+applied-pneumatics = "7723695"
+applied-create = "7945860"
+mega-cells = "7952621"
+cloth-config = "5729127"
+amek = "7096962"
+
+
+## libs ##
+
+
+[libraries]
+guideme             = { module = "org.appliedenergistics:guideme", version.ref = "guideme" }
+ae2                 = { module = "org.appliedenergistics:appliedenergistics2", version.ref = "ae2" }
+ae2wt               = { module = "de.mari_023:ae2wtlib", version.ref = "ae2wt"}
+ae2wt_api           = { module = "de.mari_023:ae2wtlib_api", version.ref = "ae2wt"}
+
+jei-common-api      = { module = "mezz.jei:jei-1.21.1-common-api", version.ref = "jei" }
+jei-neoforge-api    = { module = "mezz.jei:jei-1.21.1-neoforge-api", version.ref = "jei" }
+jei-neoforge-impl   = { module = "mezz.jei:jei-1.21.1-neoforge", version.ref = "jei" }
+emi                 = { module = "dev.emi:emi-neoforge", version.ref = "emi" }
+
+ldlib               = { module = "com.lowdragmc.ldlib2:ldlib2-neoforge-1.21.1", version.ref = "ldlib" }
+mek                 = { module = "mekanism:Mekanism", version.ref = "mekanism" }
+pneumaticcraft      = { module = "me.desht.pneumaticcraft:pneumaticcraft-repressurized", version.ref = "pneumaticcraft" }
+kotlinforforge      = { module = "thedarkcolour:kotlinforforge-neoforge", version.ref = "kotlinforforge" }
+create              = { module = "com.simibubi.create:create-1.21.1", version.ref = "create" }
+ponder              = { module = "net.createmod.ponder:Ponder-NeoForge-1.21.1", version.ref = "ponder"}
+flywheel-forge-api  = { module = "dev.engine-room.flywheel:flywheel-neoforge-api-1.21.1", version.ref = "flywheel"}
+flywheel-forge      = { module = "dev.engine-room.flywheel:flywheel-neoforge-1.21.1", version.ref = "flywheel"}
+curios              = { module = "top.theillusivec4.curios:curios-neoforge", version.ref = "curios" }
+jade                = { module = "maven.modrinth:jade", version.ref = "jade" }
+sodium              = { module = "maven.modrinth:sodium", version.ref = "sodium" }
+iris                = { module = "maven.modrinth:iris", version.ref = "iris" }
+modernfix           = { module = "maven.modrinth:modernfix", version.ref = "modernfix" }
+
+geckolib            = { module = "curse.maven:geckolib-388172", version.ref = "geckolib" }
+glodium             = { module = "curse.maven:glodium-957920", version.ref = "glodium" }
+ae2ji               = { module = "curse.maven:ae2-jei-integration-1074338", version.ref = "ae2ji" }
+eae                 = { module = "curse.maven:ex-pattern-provider-892005", version.ref = "eae"}
+aae                 = { module = "curse.maven:advancedae-1084104", version.ref = "aae" }
+aecs                = { module = "curse.maven:ae2-crystal-science-1435174", version.ref = "aecs" }
+aelt                = { module = "curse.maven:ae2-lightning-tech-1527395", version.ref = "aelt" }
+eco                 = { module = "curse.maven:neo-eco-ae-extension-1460639", version.ref = "eco" }
+extendedae-plus     = { module = "curse.maven:extendedae-plus-1337639", version.ref = "extendedae-plus" }
+applied-flux        = { module = "curse.maven:applied-flux-965012", version.ref = "applied-flux" }
+applied-pneumatics  = { module = "curse.maven:applied-pneumatics-1355087", version.ref = "applied-pneumatics" }
+applied-create      = { module = "curse.maven:applied-create-1474758", version.ref = "applied-create" }
+mega-cells          = { module = "curse.maven:mega-cells-622112", version.ref = "mega-cells" }
+cloth-config        = { module = "curse.maven:cloth-config-348521", version.ref = "cloth-config" }
+amek                = { module = "curse.maven:applied-mekanistics-574300", version.ref = "amek" }
+
+[bundles]
+jei = ["jei-common-api", "jei-neoforge-api", "jei-neoforge-impl"]

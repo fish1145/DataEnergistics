@@ -1,0 +1,42 @@
+jar {
+    exclude "**/.cache"
+    exclude "**/SimplifiedToTraditional.properties"
+}
+
+tasks.register('slimJar', Jar) {
+    dependsOn("classes")
+    archiveClassifier = "slim"
+    from sourceSets.main.output
+}
+
+// Add sources jar to components.java
+java {
+    withSourcesJar()
+}
+
+// Use delombok'd files for sources
+sourcesJar {
+    exclude {
+        sourceSets.main.allSource.contains it.file
+    }
+    from delombok
+}
+
+base {
+    archivesName = "${project.name}-${libs.versions.minecraft.get()}"
+}
+
+afterEvaluate {
+    tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
+        destinationDirectory = file('build/libs/')
+        manifest.attributes([
+                'MixinConfigs': "gtmoremachine.mixins.json",
+                'Specification-Title': project.name,
+                'Specification-Version': mod_version,
+                'Specification-Vendor': 'QiuYe',
+                'Implementation-Title': base.archivesName,
+                'Implementation-Version': version,
+                'Implementation-Vendor': 'QiuYe',
+        ])
+    }
+}
