@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -8,21 +10,21 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.FarmBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
 
 import java.util.List;
 import java.util.Optional;
 
 public class PoweredHoeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
+
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
     public PoweredHoeItem(Tier tier, Properties properties) {
@@ -46,8 +48,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_HOE.get())
-                && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -73,9 +74,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
     @Override
     public float getDestroySpeed(ItemStack stack, BlockState state) {
         float base = super.getDestroySpeed(stack, state);
-        return this.hasSufficientEnergy(stack)
-                ? base + this.getSpeedCardDestroySpeedBonus(stack) + this.getSaberEnergyDestroySpeedBonus(stack)
-                : this.getUnpoweredDestroySpeed(stack, state);
+        return this.hasSufficientEnergy(stack) ? base + this.getSpeedCardDestroySpeedBonus(stack) + this.getSaberEnergyDestroySpeedBonus(stack) : this.getUnpoweredDestroySpeed(stack, state);
     }
 
     @Override
@@ -108,8 +107,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
     }
 
     @Override
-    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
-    }
+    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {}
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
@@ -152,10 +150,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     private void tryMarkPersistentFarmland(UseOnContext context) {
         ItemStack stack = context.getItemInHand();
-        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_HOE.get())
-                || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)
-                || !(context.getLevel() instanceof ServerLevel serverLevel)
-                || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 

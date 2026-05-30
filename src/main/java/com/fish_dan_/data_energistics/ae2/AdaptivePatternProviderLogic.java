@@ -1,45 +1,15 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.LockCraftingMode;
-import appeng.api.config.PowerMultiplier;
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.crafting.PatternDetailsHelper;
-import appeng.api.implementations.blockentities.ICraftingMachine;
-import appeng.api.networking.IManagedGridNode;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.crafting.ICraftingWatcherNode;
-import appeng.api.networking.IStackWatcher;
-import appeng.api.networking.energy.IEnergyService;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.storage.MEStorage;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
-import appeng.api.stacks.KeyCounter;
-import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
-import appeng.core.settings.TickRates;
-import appeng.helpers.InterfaceLogicHost;
-import appeng.helpers.patternprovider.PatternProviderLogic;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.helpers.patternprovider.PatternProviderReturnInventory;
-import appeng.helpers.patternprovider.PatternProviderTarget;
-import appeng.me.helpers.MachineSource;
-import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import net.minecraft.core.HolderLookup;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -56,6 +26,38 @@ import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.properties.Property;
+
+import appeng.api.config.Actionable;
+import appeng.api.config.LockCraftingMode;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.implementations.blockentities.ICraftingMachine;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.IStackWatcher;
+import appeng.api.networking.crafting.ICraftingWatcherNode;
+import appeng.api.networking.energy.IEnergyService;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.MEStorage;
+import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+import appeng.core.settings.TickRates;
+import appeng.helpers.InterfaceLogicHost;
+import appeng.helpers.patternprovider.PatternProviderLogic;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.helpers.patternprovider.PatternProviderReturnInventory;
+import appeng.helpers.patternprovider.PatternProviderTarget;
+import appeng.me.helpers.MachineSource;
+import appeng.util.inv.AppEngInternalInventory;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
@@ -70,24 +72,16 @@ import java.util.Optional;
 import java.util.Set;
 
 public class AdaptivePatternProviderLogic extends PatternProviderLogic implements PatternProviderLogicAccessor {
-    private static final String RESONATING_PATTERN_DETAILS_CLASS =
-            "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
-    private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE =
-            "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
-    private static final String AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE =
-            "com.moakiee.ae2lt.overload.pattern.OverloadedProviderOnlyPatternDetails";
-    private static final String AE2LT_POWER_COST_UTIL_CLASS =
-            "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
-    private static final String AE2LT_ALLOWED_OUTPUT_FILTER_CLASS =
-            "com.moakiee.ae2lt.logic.AllowedOutputFilter";
-    private static final String AE2CS_GENERIC_STACK_INV_HELPER_CLASS =
-            "io.github.lounode.ae2cs.api.util.GenericStackInvHelper";
-    private static final String CREATE_MECHANICAL_CRAFTER_BE_CLASS =
-            "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlockEntity";
-    private static final String CREATE_RECIPE_GRID_HANDLER_CLASS =
-            "com.simibubi.create.content.kinetics.crafter.RecipeGridHandler";
-    private static final String CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS =
-            "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlock";
+
+    private static final String RESONATING_PATTERN_DETAILS_CLASS = "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
+    private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE = "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
+    private static final String AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE = "com.moakiee.ae2lt.overload.pattern.OverloadedProviderOnlyPatternDetails";
+    private static final String AE2LT_POWER_COST_UTIL_CLASS = "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
+    private static final String AE2LT_ALLOWED_OUTPUT_FILTER_CLASS = "com.moakiee.ae2lt.logic.AllowedOutputFilter";
+    private static final String AE2CS_GENERIC_STACK_INV_HELPER_CLASS = "io.github.lounode.ae2cs.api.util.GenericStackInvHelper";
+    private static final String CREATE_MECHANICAL_CRAFTER_BE_CLASS = "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlockEntity";
+    private static final String CREATE_RECIPE_GRID_HANDLER_CLASS = "com.simibubi.create.content.kinetics.crafter.RecipeGridHandler";
+    private static final String CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS = "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlock";
     private static final int METEORITE_ENERGY_PER_WORK = 50;
     private static final int METEORITE_MAX_WORKS_PER_ROUND = 8;
     private static final int EXPANDED_RETURN_SLOTS = 18;
@@ -433,9 +427,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            boolean pushed = isDirectionalPattern(patternDetails)
-                    ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel)
-                    : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
+            boolean pushed = isDirectionalPattern(patternDetails) ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel) : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
             if (pushed) {
                 this.localRoundRobinIndex += i + 1;
                 consumeAe2LtTotalCost(totalCost);
@@ -576,20 +568,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isResonatingPullEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isResonatingProviderSelected()
-                && adaptivePatternProviderHost.isResonatingPullEnabled();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isResonatingProviderSelected() && adaptivePatternProviderHost.isResonatingPullEnabled();
     }
 
     private boolean isAdvancedAeDirectionalPattern(IPatternDetails patternDetails) {
-        return isAdvancedAeProviderSelected()
-                && implementsAdvancedAePatternInterface(patternDetails)
-                && hasDirectionalInputs(patternDetails);
+        return isAdvancedAeProviderSelected() && implementsAdvancedAePatternInterface(patternDetails) && hasDirectionalInputs(patternDetails);
     }
 
     private boolean isAe2LightningTechOverloadedPattern(IPatternDetails patternDetails) {
-        return isAe2LightningTechOverloadedProviderSelected()
-                && implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE);
+        return isAe2LightningTechOverloadedProviderSelected() && implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE);
     }
 
     private void rebuildPatternsIncludingAe2LtOverloadPatterns() {
@@ -617,41 +604,31 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAdvancedAeProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isAdvancedAeProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAdvancedAeProviderSelected();
     }
 
     private boolean isAe2LightningTechOverloadedProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private boolean isAppliedCreateMechanicalProviderSelected() {
-        return AppliedCreateCompat.isMechanicalProviderSupportEnabled()
-                && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
+        return AppliedCreateCompat.isMechanicalProviderSupportEnabled() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
     }
 
     private boolean isMeteoritePatternProvider() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isMeteoriteProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isMeteoriteProviderSelected();
     }
 
     private boolean isAe2LtWirelessMode() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isAe2LtWirelessMode();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessMode();
     }
 
     private boolean isAe2LtAutoReturnEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.getAe2LtReturnMode()
-                == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.AUTO;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.AUTO;
     }
 
     private boolean isAe2LtEjectModeEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.getAe2LtReturnMode()
-                == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.EJECT;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.EJECT;
     }
 
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {
@@ -701,8 +678,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 inputHolder,
                 this.isBlocking(),
                 getPatternInputs(),
-                this.actionSource
-        );
+                this.actionSource);
         if (overflow == null) {
             return false;
         }
@@ -719,9 +695,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean tryPushAdvancedDirectionalToWirelessConnection(IPatternDetails patternDetails,
-                                                                    KeyCounter[] inputHolder,
-                                                                    AdaptiveWirelessConnection connection,
-                                                                    ServerLevel targetLevel) {
+                                                                   KeyCounter[] inputHolder,
+                                                                   AdaptiveWirelessConnection connection,
+                                                                   ServerLevel targetLevel) {
         BlockEntity targetBlockEntity = targetLevel.getBlockEntity(connection.pos());
         if (targetBlockEntity == null || !patternDetails.supportsPushInputsToExternalInventory()) {
             return false;
@@ -879,7 +855,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 ResourceLocation.fromNamespaceAndPath("create", "mechanical_crafting"))
                 .orElse(null);
         if (mechanicalRecipeType instanceof RecipeType<?> rawMechanicalType) {
-            @SuppressWarnings({"rawtypes", "unchecked"})
+            @SuppressWarnings({ "rawtypes", "unchecked" })
             List<RecipeHolder<?>> recipeHolders = (List) level.getRecipeManager().getAllRecipesFor((RecipeType) rawMechanicalType);
             for (RecipeHolder<?> holder : recipeHolders) {
                 Object recipe = holder.value();
@@ -895,13 +871,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     @SuppressWarnings("unchecked")
                     List<Ingredient> ingredients = (List<Ingredient>) recipe.getClass().getMethod("getIngredients").invoke(recipe);
                     recipes.add(new AppliedCreateRecipeInfo(width, height, ingredients));
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             }
         }
 
-        for (RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> holder
-                : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
+        for (RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> holder : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
             if (!(holder.value() instanceof ShapedRecipe shapedRecipe)) {
                 continue;
             }
@@ -1040,9 +1014,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     for (int row = 0; row < height && matched; row++) {
                         for (int col = 0; col < width; col++) {
                             int ingredientIndex = col + row * width;
-                            Ingredient ingredient = ingredientIndex < recipe.ingredients().size()
-                                    ? recipe.ingredients().get(ingredientIndex)
-                                    : null;
+                            Ingredient ingredient = ingredientIndex < recipe.ingredients().size() ? recipe.ingredients().get(ingredientIndex) : null;
                             if (ingredient == null || ingredient.isEmpty()) {
                                 continue;
                             }
@@ -1130,8 +1102,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private void triggerCrafterRecipeCheck(Object crafter) {
         try {
             crafter.getClass().getMethod("checkCompletedRecipe", boolean.class).invoke(crafter, true);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private boolean isMechanicalCrafterBlockEntity(@Nullable Object value) {
@@ -1177,8 +1148,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (this.onPushPatternSuccessMethod != null) {
                 this.onPushPatternSuccessMethod.invoke(this, patternDetails);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     @Nullable
@@ -1398,8 +1368,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 targetLevel,
                 this.ae2ltWirelessSendConn,
                 this.ae2ltWirelessSendList,
-                this.actionSource
-        );
+                this.actionSource);
 
         if (flushed) {
             this.ae2ltWirelessSendConn = null;
@@ -1473,8 +1442,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (this.ae2LtConsumeRawMethod != null) {
                 this.ae2LtConsumeRawMethod.invoke(null, getGrid(), totalCost);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private boolean hasDirectionalInputs(IPatternDetails patternDetails) {
@@ -1570,8 +1538,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     targetPos,
                     dir.getOpposite(),
                     allowedOutputFilter,
-                    this.actionSource
-            );
+                    this.actionSource);
             insertAe2LtOutputsToReturnInventory(outputs);
         }
     }
@@ -1588,8 +1555,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     conn.pos(),
                     conn.boundFace(),
                     allowedOutputFilter,
-                    this.actionSource
-            );
+                    this.actionSource);
             insertAe2LtOutputsToReturnInventory(outputs);
         }
     }
@@ -1630,9 +1596,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (!this.dataEnergistics$dispatchPulsePending) {
             return;
         }
-        if (!this.baseSendListView.isEmpty()
-                || !this.advancedDirectionalSendList.isEmpty()
-                || !this.ae2ltWirelessSendList.isEmpty()) {
+        if (!this.baseSendListView.isEmpty() || !this.advancedDirectionalSendList.isEmpty() || !this.ae2ltWirelessSendList.isEmpty()) {
             return;
         }
         this.dataEnergistics$dispatchPulsePending = false;
@@ -1649,8 +1613,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         tuningHost.dataEnergistics$scheduleRedstoneInputCheck();
         tuningHost.dataEnergistics$serverTick();
 
-        if (!tuningHost.dataEnergistics$hasRedstoneTuningCard()
-                || tuningHost.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+        if (!tuningHost.dataEnergistics$hasRedstoneTuningCard() || tuningHost.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
             return;
         }
 
@@ -1659,22 +1622,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return;
         }
 
-        if (tuningHost.dataEnergistics$consumeRedstoneInputPulse()
-                && blockEntity.getLevel() instanceof ServerLevel serverLevel) {
+        if (tuningHost.dataEnergistics$consumeRedstoneInputPulse() && blockEntity.getLevel() instanceof ServerLevel serverLevel) {
             RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                     serverLevel,
                     this.host.getGrid(),
                     this.actionSource,
-                    getAvailablePatterns()
-            );
+                    getAvailablePatterns());
         }
     }
 
     @Override
     public boolean dataEnergistics$forcePulseUnlock() {
-        if (!(this.host instanceof RedstoneTuningAwareHost tuningHost)
-                || !tuningHost.dataEnergistics$hasRedstoneTuningCard()
-                || tuningHost.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+        if (!(this.host instanceof RedstoneTuningAwareHost tuningHost) || !tuningHost.dataEnergistics$hasRedstoneTuningCard() || tuningHost.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
             return false;
         }
 
@@ -1687,8 +1646,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 serverLevel,
                 this.host.getGrid(),
                 this.actionSource,
-                getAvailablePatterns()
-        );
+                getAvailablePatterns());
         return true;
     }
 
@@ -1700,8 +1658,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 this.host.getBlockEntity(),
                 adaptive.getConnections(),
                 isAe2LtEjectModeEnabled(),
-                isAe2LtWirelessMode()
-        );
+                isAe2LtWirelessMode());
     }
 
     @Nullable
@@ -1913,8 +1870,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         for (var dir : sides) {
             BlockPos adjacentPos = hostBe.getBlockPos().relative(dir);
             Direction adjacentFace = dir.getOpposite();
-            if (!hostLevel.hasChunkAt(adjacentPos)
-                    || AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
+            if (!hostLevel.hasChunkAt(adjacentPos) || AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
                 continue;
             }
 
@@ -2024,9 +1980,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAdvancedAeFilteredImportEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isAdvancedAeProviderSelected()
-                && adaptivePatternProviderHost.isAdvancedAeFilteredImportEnabled();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAdvancedAeProviderSelected() && adaptivePatternProviderHost.isAdvancedAeFilteredImportEnabled();
     }
 
     private boolean tryConsumeMeteoriteEnergy() {
@@ -2047,14 +2001,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
         try {
             energyService.injectPower(extracted, Actionable.MODULATE);
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
         return false;
     }
 
     private int getMeteoriteSpeedCardCount() {
-        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)
-                || !adaptivePatternProviderHost.isMeteoriteProviderSelected()) {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost) || !adaptivePatternProviderHost.isMeteoriteProviderSelected()) {
             return 0;
         }
 
@@ -2094,8 +2046,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         for (var entry : node.getInWorldConnections().entrySet()) {
             var otherNode = entry.getValue().getOtherSide(node);
             Object owner = otherNode.getOwner();
-            if (owner instanceof PatternProviderLogicHost
-                    || owner instanceof InterfaceLogicHost && otherNode.getGrid() != null && otherNode.getGrid().equals(this.mainNode.getGrid())) {
+            if (owner instanceof PatternProviderLogicHost || owner instanceof InterfaceLogicHost && otherNode.getGrid() != null && otherNode.getGrid().equals(this.mainNode.getGrid())) {
                 sides.remove(entry.getKey());
             }
         }
@@ -2186,32 +2137,25 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         list.addAll(head);
     }
 
-    private record ResolvedTarget(GlobalPos position, Direction face) {
-    }
+    private record ResolvedTarget(GlobalPos position, Direction face) {}
 
-    private record MarkedInput(AEKey key, long amount, ResolvedTarget target) {
-    }
+    private record MarkedInput(AEKey key, long amount, ResolvedTarget target) {}
 
-    private record FallbackTarget(Direction direction, PatternProviderTarget target) {
-    }
+    private record FallbackTarget(Direction direction, PatternProviderTarget target) {}
 
-    private record GridCoord(int x, int y) {
-    }
+    private record GridCoord(int x, int y) {}
 
-    private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {
-    }
+    private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {}
 
-    private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {
-    }
+    private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {}
 
     private final class Ticker implements IGridTickable {
+
         @Override
         public TickingRequest getTickingRequest(IGridNode node) {
             return new TickingRequest(
                     TickRates.Interface,
-                    !invokeBaseHasWorkToDo() && craftedContents.isEmpty() && getReturnInv().isEmpty()
-                            && !isResonatingPullEnabled()
-            );
+                    !invokeBaseHasWorkToDo() && craftedContents.isEmpty() && getReturnInv().isEmpty() && !isResonatingPullEnabled());
         }
 
         @Override
@@ -2231,20 +2175,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             flushCraftedOutputs();
             boolean workedForCrafter = craftedContents.size() != before || before > 0;
             couldDoWork = couldDoWork || workedForCrafter;
-            boolean hasWork = invokeBaseHasWorkToDo()
-                    || isResonatingPullEnabled()
-                    || hasAe2LtWirelessOverflowWork()
-                    || hasAe2LtAutoReturnWork()
-                    || hasAdvancedDirectionalWork()
-                    || !craftedContents.isEmpty()
-                    || !getReturnInv().isEmpty();
-            return hasWork
-                    ? (couldDoWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER)
-                    : TickRateModulation.SLEEP;
+            boolean hasWork = invokeBaseHasWorkToDo() || isResonatingPullEnabled() || hasAe2LtWirelessOverflowWork() || hasAe2LtAutoReturnWork() || hasAdvancedDirectionalWork() || !craftedContents.isEmpty() || !getReturnInv().isEmpty();
+            return hasWork ? (couldDoWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER) : TickRateModulation.SLEEP;
         }
     }
 
     private final class AdaptiveCraftingWatcherNode implements ICraftingWatcherNode {
+
         @Override
         public void updateWatcher(IStackWatcher watcher) {
             craftingWatcher = watcher;
@@ -2265,11 +2202,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         @Override
-        public void onCraftableChange(AEKey what) {
-        }
+        public void onCraftableChange(AEKey what) {}
     }
 
     private static final class ExpandedReturnInventory extends PatternProviderReturnInventory {
+
         private static final ThreadLocal<Integer> PREVIOUS_SLOT_COUNT = new ThreadLocal<>();
 
         private final AdaptivePatternProviderLogic logic;

@@ -1,12 +1,12 @@
 {
-  "parent": "block/cube",
-  "textures": {
-    "particle": "data_energistics:block/adaptive_pattern_provider",
-    "down": "data_energistics:block/adaptive_pattern_provider_alternate",
-    "up": "data_energistics:block/adaptive_pattern_provider_alternate_front",
-    "north": "data_energistics:block/adaptive_pattern_provider_alternate_arrow",
-    "south": "data_energistics:block/adaptive_pattern_provider_alternate_arrow",
-    "east": "data_energistics:block/adaptive_pattern_provider_alternate_arrow",
-    "west": "data_energistics:block/adaptive_pattern_provider_alternate_arrow"
-  }
+	"parent": "block/cube",
+	"textures": {
+		"particle": "data_energistics:block/adaptive_pattern_provider",
+		"down": "data_energistics:block/adaptive_pattern_provider_alternate",
+		"up": "data_energistics:block/adaptive_pattern_provider_alternate_front",
+		"north": "data_energistics:block/adaptive_pattern_provider_alternate_arrow",
+		"south": "data_energistics:block/adaptive_pattern_provider_alternate_arrow",
+		"east": "data_energistics:block/adaptive_pattern_provider_alternate_arrow",
+		"west": "data_energistics:block/adaptive_pattern_provider_alternate_arrow"
+	}
 }

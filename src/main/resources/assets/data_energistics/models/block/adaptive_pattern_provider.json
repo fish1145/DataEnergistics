@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "data_energistics:block/adaptive_pattern_provider"
-  }
+	"parent": "minecraft:block/cube_all",
+	"textures": {
+		"all": "data_energistics:block/adaptive_pattern_provider"
+	}
 }

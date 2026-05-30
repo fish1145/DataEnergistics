@@ -1,21 +1,25 @@
 package com.fish_dan_.data_energistics.datagen;
 
-import appeng.core.definitions.AEItems;
 import com.fish_dan_.data_energistics.Data_Energistics;
+
+import net.minecraft.data.CachedOutput;
+import net.minecraft.data.DataProvider;
+import net.minecraft.data.PackOutput;
+import net.neoforged.neoforge.registries.DeferredItem;
+
+import appeng.core.definitions.AEItems;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.moakiee.ae2lt.api.lightning.LightningTier;
 import com.moakiee.ae2lt.registry.ModItems;
+
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import net.minecraft.data.CachedOutput;
-import net.minecraft.data.DataProvider;
-import net.minecraft.data.PackOutput;
-import net.neoforged.neoforge.registries.DeferredItem;
 
 public class ModAe2LtRecipeProvider implements DataProvider {
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final PackOutput output;
 

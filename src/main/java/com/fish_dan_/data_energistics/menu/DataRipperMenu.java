@@ -1,25 +1,28 @@
 package com.fish_dan_.data_energistics.menu;
 
-import appeng.api.config.YesNo;
-import appeng.api.util.IConfigManager;
-import appeng.core.definitions.AEItems;
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.UpgradeableMenu;
 import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
+import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
+import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
-import it.unimi.dsi.fastutil.shorts.ShortSet;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
-import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import appeng.api.config.YesNo;
+import appeng.api.util.IConfigManager;
+import appeng.core.definitions.AEItems;
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.implementations.UpgradeableMenu;
+import it.unimi.dsi.fastutil.shorts.ShortSet;
 
 public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
+
     private final DataRipperPart logic;
 
     @GuiSync(716)

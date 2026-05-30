@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import appeng.client.gui.Icon;
-import appeng.client.gui.widgets.IconButton;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.widgets.IconButton;
+
 public class OutputSideDisplayButton extends IconButton {
+
     private static final Component TOOLTIP_ON = Component.translatable("gui.data_energistics.set_output_sides.on");
     private static final Component TOOLTIP_OFF = Component.translatable("gui.data_energistics.set_output_sides.off");
 
@@ -51,9 +53,7 @@ public class OutputSideDisplayButton extends IconButton {
             return;
         }
         int yOffset = this.isHovered() ? 1 : 0;
-        Icon bgIcon = this.isHovered()
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : (this.on ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
+        Icon bgIcon = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : (this.on ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
         bgIcon.getBlitter().dest(this.getX() - 1, this.getY() + yOffset, 18, 20).zOffset(2).blit(guiGraphics);
         if (!this.display.isEmpty()) {
             guiGraphics.renderItem(this.display, this.getX(), this.getY() + 1 + yOffset, 0, 3);

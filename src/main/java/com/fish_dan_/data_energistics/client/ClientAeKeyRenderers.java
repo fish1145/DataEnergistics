@@ -1,25 +1,26 @@
 package com.fish_dan_.data_energistics.client;
 
-import appeng.api.client.AEKeyRendering;
-import appeng.api.client.AEKeyRenderHandler;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.ae2.DataKeyType;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.DataKey;
+import com.fish_dan_.data_energistics.ae2.DataKeyType;
+
+import appeng.api.client.AEKeyRenderHandler;
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
 
 import java.lang.reflect.Field;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
 public final class ClientAeKeyRenderers {
+
     private static boolean registered;
     private static final DataFlowKeyRenderHandler DATA_FLOW_RENDER_HANDLER = new DataFlowKeyRenderHandler();
     private static final DataKeyRenderHandler DATA_RENDER_HANDLER = new DataKeyRenderHandler();
 
-    private ClientAeKeyRenderers() {
-    }
+    private ClientAeKeyRenderers() {}
 
     public static void register() {
         if (registered) {
@@ -43,8 +44,7 @@ public final class ClientAeKeyRenderers {
             Field renderersField = AEKeyRendering.class.getDeclaredField("renderers");
             renderersField.setAccessible(true);
 
-            Map<AEKeyType, AEKeyRenderHandler<?>> current =
-                    (Map<AEKeyType, AEKeyRenderHandler<?>>) renderersField.get(null);
+            Map<AEKeyType, AEKeyRenderHandler<?>> current = (Map<AEKeyType, AEKeyRenderHandler<?>>) renderersField.get(null);
             Map<AEKeyType, AEKeyRenderHandler<?>> updated = new IdentityHashMap<>(current);
             updated.put(type, (AEKeyRenderHandler<? extends AEKey>) handler);
             renderersField.set(null, updated);

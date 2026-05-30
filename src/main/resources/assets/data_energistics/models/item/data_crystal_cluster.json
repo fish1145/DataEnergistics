@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "data_energistics:block/data_crystal_cluster"
-  }
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "data_energistics:block/data_crystal_cluster"
+	}
 }

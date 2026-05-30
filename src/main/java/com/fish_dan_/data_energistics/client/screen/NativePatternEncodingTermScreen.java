@@ -1,26 +1,30 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.core.definitions.AEItems;
 import appeng.items.misc.WrappedGenericStack;
-import appeng.menu.slot.FakeSlot;
 import appeng.menu.me.items.PatternEncodingTermMenu;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
+import appeng.menu.slot.FakeSlot;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import org.jetbrains.annotations.Nullable;
 
 public class NativePatternEncodingTermScreen extends PatternEncodingPreviewScreen<PatternEncodingTermMenu>
-        implements GenericStackLookupScreen {
+                                             implements GenericStackLookupScreen {
+
     private static final int AE2_PREVIEW_PANEL_Y_OFFSET = 105;
     private static final int AE2_PREVIEW_SCROLLBAR_SCREEN_X = 309;
     private static final int AE2_PREVIEW_SCROLLBAR_SCREEN_Y = 121;

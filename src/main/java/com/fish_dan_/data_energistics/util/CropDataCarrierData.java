@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -23,9 +24,11 @@ import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.StemBlock;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
+
 import org.jetbrains.annotations.Nullable;
 
 public final class CropDataCarrierData {
+
     private static final String TAG_CROP_ITEM = "crop_item";
     private static final String TAG_SOURCE_BLOCK = "source_block";
     private static final String TAG_LOOT_TABLE = "loot_table";
@@ -36,8 +39,7 @@ public final class CropDataCarrierData {
     private static final TagKey<Item> TAG_COMMON_SEEDS = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:seeds"));
     private static final TagKey<Item> TAG_COMMON_CROPS = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:crops"));
 
-    private CropDataCarrierData() {
-    }
+    private CropDataCarrierData() {}
 
     public static boolean hasRecordedCrop(ItemStack stack) {
         return getCropItemId(stack) != null;
@@ -258,8 +260,7 @@ public final class CropDataCarrierData {
 
         return ResourceLocation.fromNamespaceAndPath(
                 "data_energistics",
-                TREE_LOOT_TABLE_PREFIX + sourceBlockId.getNamespace() + "/" + sourceBlockId.getPath()
-        );
+                TREE_LOOT_TABLE_PREFIX + sourceBlockId.getNamespace() + "/" + sourceBlockId.getPath());
     }
 
     @Nullable
@@ -289,8 +290,7 @@ public final class CropDataCarrierData {
     }
 
     private static boolean isTreeSaplingBlock(Block sourceBlock, ResourceLocation cropItemId) {
-        return sourceBlock.defaultBlockState().is(BlockTags.SAPLINGS)
-                || cropItemId.getPath().endsWith("_propagule");
+        return sourceBlock.defaultBlockState().is(BlockTags.SAPLINGS) || cropItemId.getPath().endsWith("_propagule");
     }
 
     public static boolean isAllowedCropItem(ResourceLocation itemId) {
@@ -311,9 +311,7 @@ public final class CropDataCarrierData {
             return true;
         }
 
-        Block sourceBlock = deriveSourceBlockId(itemId) != null
-                ? BuiltInRegistries.BLOCK.getOptional(deriveSourceBlockId(itemId)).orElse(null)
-                : null;
+        Block sourceBlock = deriveSourceBlockId(itemId) != null ? BuiltInRegistries.BLOCK.getOptional(deriveSourceBlockId(itemId)).orElse(null) : null;
         return isBuiltInSupportedCrop(sourceBlock, itemId);
     }
 
@@ -398,6 +396,5 @@ public final class CropDataCarrierData {
         }
     }
 
-    private record CropInputMapping(ResourceLocation inputItemId, ResourceLocation recordedCropId, float progressPerItem) {
-    }
+    private record CropInputMapping(ResourceLocation inputItemId, ResourceLocation recordedCropId, float progressPerItem) {}
 }

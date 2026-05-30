@@ -1,5 +1,13 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.fluids.FluidStack;
+
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
 import appeng.api.util.IConfigManager;
@@ -10,33 +18,21 @@ import appeng.menu.implementations.UpgradeableMenu;
 import appeng.menu.interfaces.IProgressProvider;
 import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.OutputSlot;
-import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassemblerBlockEntity> implements IProgressProvider {
+
     private static final String ACTION_SET_AUTO_EXPORT = "set_auto_export";
     private static final String ACTION_SET_OUTPUT_SIDE = "set_output_side";
-    public static final SlotSemantic KEY_INPUT =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_KEY_INPUT", false);
-    public static final SlotSemantic KEY_OUTPUT =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_KEY_OUTPUT", false);
-    public static final SlotSemantic FLUID_INPUT_B =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_FLUID_INPUT_B", false);
-    public static final SlotSemantic FLUID_OUTPUT_A =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A", false);
-    public static final SlotSemantic FLUID_OUTPUT_B =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_B", false);
-    public static final SlotSemantic ITEM_OUTPUT_B =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_OUTPUT_B", false);
-    public static final SlotSemantic ITEM_OUTPUT_C =
-            SlotSemantics.register("DATA_RIPPER_REASSEMBLER_OUTPUT_C", false);
+    public static final SlotSemantic KEY_INPUT = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_KEY_INPUT", false);
+    public static final SlotSemantic KEY_OUTPUT = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_KEY_OUTPUT", false);
+    public static final SlotSemantic FLUID_INPUT_B = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_FLUID_INPUT_B", false);
+    public static final SlotSemantic FLUID_OUTPUT_A = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A", false);
+    public static final SlotSemantic FLUID_OUTPUT_B = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_B", false);
+    public static final SlotSemantic ITEM_OUTPUT_B = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_OUTPUT_B", false);
+    public static final SlotSemantic ITEM_OUTPUT_C = SlotSemantics.register("DATA_RIPPER_REASSEMBLER_OUTPUT_C", false);
 
     @GuiSync(840)
     public boolean online;
@@ -128,8 +124,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     }
 
     @Override
-    protected void loadSettingsFromHost(IConfigManager cm) {
-    }
+    protected void loadSettingsFromHost(IConfigManager cm) {}
 
     private void syncFluid(FluidStack stack, int index) {
         String id = stack.isEmpty() ? "" : BuiltInRegistries.FLUID.getKey(stack.getFluid()).toString();

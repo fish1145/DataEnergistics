@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
@@ -7,10 +10,9 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import appeng.api.storage.cells.CellState;
 import appeng.api.storage.cells.StorageCell;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 
 public final class InfiniteDataCellInventory implements StorageCell {
+
     public static final long STORED_AMOUNT = Integer.MAX_VALUE;
 
     private final ItemStack stack;
@@ -63,8 +65,7 @@ public final class InfiniteDataCellInventory implements StorageCell {
     }
 
     @Override
-    public void persist() {
-    }
+    public void persist() {}
 
     private static boolean supports(AEKey key) {
         return DataFlowKey.of().equals(key) || DataKey.of().equals(key);

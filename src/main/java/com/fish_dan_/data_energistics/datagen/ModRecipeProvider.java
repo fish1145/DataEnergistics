@@ -1,17 +1,10 @@
 package com.fish_dan_.data_energistics.datagen;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.GenericStack;
-import appeng.core.definitions.AEItems;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.glodblock.github.appflux.common.AFSingletons;
-import com.mojang.logging.LogUtils;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -26,9 +19,20 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.common.conditions.ModLoadedCondition;
+
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.GenericStack;
+import appeng.core.definitions.AEItems;
+import com.glodblock.github.appflux.common.AFSingletons;
+import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 public class ModRecipeProvider extends RecipeProvider {
+
     private static final Logger LOG = LogUtils.getLogger();
 
     public ModRecipeProvider(PackOutput output, CompletableFuture<HolderLookup.Provider> lookupProvider) {
@@ -118,6 +122,7 @@ public class ModRecipeProvider extends RecipeProvider {
     }
 
     private static class Builder {
+
         private final List<DataRipperReassemblerIngredient> itemInputs = new ArrayList<>();
         private final List<GenericStack> fluidInputs = new ArrayList<>();
         private final List<ItemStack> itemOutputs = new ArrayList<>();
@@ -172,8 +177,7 @@ public class ModRecipeProvider extends RecipeProvider {
                     List.copyOf(fluidOutputs),
                     processTicks,
                     keyInput,
-                    keyOutput
-            );
+                    keyOutput);
             output.accept(id, recipe, null);
         }
     }

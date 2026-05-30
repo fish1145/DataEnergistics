@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import appeng.api.stacks.GenericStack;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
+
+import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdaptivePatternProviderReturnItemHandler implements IItemHandler {
+
     private final Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier;
 
     public AdaptivePatternProviderReturnItemHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {

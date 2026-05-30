@@ -1,16 +1,16 @@
 {
-  "type": "minecraft:smithing_transform",
-  "addition": {
-    "item": "ae2:energy_cell"
-  },
-  "base": {
-    "item": "ae2:fluix_sword"
-  },
-  "result": {
-    "count": 1,
-    "id": "data_energistics:data_crystal_sword"
-  },
-  "template": {
-    "item": "data_energistics:data_processor"
-  }
+	"type": "minecraft:smithing_transform",
+	"addition": {
+		"item": "ae2:energy_cell"
+	},
+	"base": {
+		"item": "ae2:fluix_sword"
+	},
+	"result": {
+		"count": 1,
+		"id": "data_energistics:data_crystal_sword"
+	},
+	"template": {
+		"item": "data_energistics:data_processor"
+	}
 }

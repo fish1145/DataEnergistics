@@ -1,39 +1,16 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import appeng.api.AECapabilities;
-import appeng.api.networking.GridFlags;
-import appeng.api.networking.GridHelper;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridConnection;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IInWorldGridNodeHost;
-import appeng.api.networking.pathing.ChannelMode;
-import appeng.api.networking.pathing.ControllerState;
-import appeng.api.networking.pathing.IPathingService;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
-import appeng.blockentity.grid.AENetworkedBlockEntity;
-import appeng.blockentity.crafting.CraftingBlockEntity;
-import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.core.AEConfig;
-import appeng.core.definitions.AEItems;
-import appeng.parts.CableBusContainer;
-import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.InternalInventoryHost;
-import appeng.util.inv.filter.AEItemDefinitionFilter;
-import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.mojang.logging.LogUtils;
-import net.minecraft.core.registries.BuiltInRegistries;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
@@ -42,12 +19,12 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.ServerLevelAccessor;
@@ -62,6 +39,31 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.level.BlockEvent;
+
+import appeng.api.AECapabilities;
+import appeng.api.networking.GridFlags;
+import appeng.api.networking.GridHelper;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridConnection;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.IInWorldGridNodeHost;
+import appeng.api.networking.pathing.ChannelMode;
+import appeng.api.networking.pathing.ControllerState;
+import appeng.api.networking.pathing.IPathingService;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.blockentity.crafting.CraftingBlockEntity;
+import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.core.AEConfig;
+import appeng.core.definitions.AEItems;
+import appeng.parts.CableBusContainer;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import appeng.util.inv.filter.AEItemDefinitionFilter;
+import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -70,7 +72,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -80,13 +81,13 @@ import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String NEOECOAE_BLOCK_ENTITY_PREFIX = "cn.dancingsnow.neoecoae.blocks.entity.";
     private static final Set<String> PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES = Set.of(
             "cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity",
             "cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity",
-            "cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity"
-    );
+            "cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity");
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
@@ -286,8 +287,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
         return this.cachedEnergyStorageViews.computeIfAbsent(
                 normalizedExcludedPos,
-                pos -> new TowerEnergyStorage(pos)
-        );
+                pos -> new TowerEnergyStorage(pos));
     }
 
     public boolean toggleRangeDisplay() {
@@ -341,8 +341,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 minZ,
                 maxX,
                 Math.min(this.level.getMaxBuildHeight(), maxY),
-                maxZ
-        );
+                maxZ);
     }
 
     public String getChannelDisplayText() {
@@ -389,8 +388,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-    }
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     public int getBoundTargetCount() {
         return getBoundTargetSummaries(Integer.MAX_VALUE).size();
@@ -703,8 +701,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean isFallbackAirName(String displayName) {
-        return displayName.equals(Items.AIR.getDescription().getString())
-                || displayName.equals(Blocks.AIR.getName().getString());
+        return displayName.equals(Items.AIR.getDescription().getString()) || displayName.equals(Blocks.AIR.getName().getString());
     }
 
     @Override
@@ -864,8 +861,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return true;
         }
 
-        if (AE2FluxIntegration.isAvailable()
-                && AE2FluxIntegration.extractEnergyFromOwnNetwork(this, 1, true) > 0) {
+        if (AE2FluxIntegration.isAvailable() && AE2FluxIntegration.extractEnergyFromOwnNetwork(this, 1, true) > 0) {
             return true;
         }
 
@@ -886,9 +882,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (int part = 0; part <= 2; part++) {
             BlockPos partPos = this.worldPosition.above(part);
             BlockState state = this.level.getBlockState(partPos);
-            if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get())
-                    || !state.hasProperty(DataDistributionTowerBlock.ACTIVE)
-                    || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
+            if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) || !state.hasProperty(DataDistributionTowerBlock.ACTIVE) || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
                 continue;
             }
 
@@ -915,8 +909,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private double computeIdlePowerUsage() {
-        return BASE_IDLE_POWER_USAGE
-                + Math.max(0, getCoveredChunkCount() - 1) * IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK;
+        return BASE_IDLE_POWER_USAGE + Math.max(0, getCoveredChunkCount() - 1) * IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK;
     }
 
     private void updateIdlePowerUsage() {
@@ -924,9 +917,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean isWithinTowerCoverage(BlockPos targetPos) {
-        return isWithinChunkRange(this.worldPosition, targetPos, getChunkRadius())
-                && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW
-                && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
+        return isWithinChunkRange(this.worldPosition, targetPos, getChunkRadius()) && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
     }
 
     private int getTransferBudgetPerTick() {
@@ -1158,10 +1149,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         Class<?> type = blockEntity.getClass();
         String className = type.getName();
-        return className.contains("Crafting")
-                && hasZeroArgMethod(type, "isCoreBlock")
-                && hasZeroArgMethod(type, "getStorageBytes")
-                && hasZeroArgMethod(type, "getAcceleratorThreads");
+        return className.contains("Crafting") && hasZeroArgMethod(type, "isCoreBlock") && hasZeroArgMethod(type, "getStorageBytes") && hasZeroArgMethod(type, "getAcceleratorThreads");
     }
 
     private boolean isReflectiveAeCraftingCoreBlock(@Nullable BlockEntity blockEntity) {
@@ -1850,8 +1838,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 } else {
                     ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
                     ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
-                    if (targetControllerState != ControllerState.NO_CONTROLLER
-                            && selfControllerState != ControllerState.NO_CONTROLLER) {
+                    if (targetControllerState != ControllerState.NO_CONTROLLER && selfControllerState != ControllerState.NO_CONTROLLER) {
                         continue;
                     }
                 }
@@ -1859,8 +1846,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
             try {
                 newConnections.add(GridHelper.createConnection(selfNode, targetNode));
-            } catch (IllegalStateException ignored) {
-            }
+            } catch (IllegalStateException ignored) {}
         }
 
         if (newConnections.isEmpty()) {
@@ -1896,8 +1882,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         this.pendingInitialDiscovery = true;
-        this.pendingInitialDiscoveryDelay = INITIAL_PENDING_DELAY
-                + Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
+        this.pendingInitialDiscoveryDelay = INITIAL_PENDING_DELAY + Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
     }
 
     private void processPendingInitialDiscovery() {
@@ -1988,8 +1973,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static boolean isWithinChunkRange(BlockPos source, BlockPos target, int chunkRadius) {
         ChunkPos sourceChunk = new ChunkPos(source);
         ChunkPos targetChunk = new ChunkPos(target);
-        return Math.abs(sourceChunk.x - targetChunk.x) <= chunkRadius
-                && Math.abs(sourceChunk.z - targetChunk.z) <= chunkRadius;
+        return Math.abs(sourceChunk.x - targetChunk.x) <= chunkRadius && Math.abs(sourceChunk.z - targetChunk.z) <= chunkRadius;
     }
 
     private static int compareBlockPos(BlockPos a, BlockPos b) {
@@ -2104,21 +2088,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                     this.diagnosticSimulatedCacheHits,
                     this.diagnosticSimulatedCacheMisses,
                     this.diagnosticMaxExtractEndpoints,
-                    this.diagnosticMaxReceiveEndpoints
-            );
+                    this.diagnosticMaxReceiveEndpoints);
         }
 
         resetDiagnosticCounters(gameTime);
     }
 
     private boolean hasDiagnosticActivity() {
-        return this.diagnosticRealExtractCalls > 0
-                || this.diagnosticSimulatedExtractCalls > 0
-                || this.diagnosticReceiveCalls > 0
-                || this.diagnosticGetStoredCalls > 0
-                || this.diagnosticGetMaxStoredCalls > 0
-                || this.diagnosticCanExtractCalls > 0
-                || this.diagnosticCanReceiveCalls > 0;
+        return this.diagnosticRealExtractCalls > 0 || this.diagnosticSimulatedExtractCalls > 0 || this.diagnosticReceiveCalls > 0 || this.diagnosticGetStoredCalls > 0 || this.diagnosticGetMaxStoredCalls > 0 || this.diagnosticCanExtractCalls > 0 || this.diagnosticCanReceiveCalls > 0;
     }
 
     private void resetDiagnosticCounters(long gameTime) {
@@ -2269,6 +2246,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private record ChunkKey(Object dimension, int x, int z) {
+
         private ChunkKey(Level level, int x, int z) {
             this(level.dimension(), x, z);
         }
@@ -2278,24 +2256,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {
-    }
+    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {}
 
-    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {
-    }
+    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
 
     private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
+
         private static final EnergyQuerySummary EMPTY = new EnergyQuerySummary(Long.MIN_VALUE, 0L, 0L, false);
     }
 
     private record ReceiverQuerySummary(long tick, boolean hasReceiver) {
+
         private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, false);
     }
 
-    public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count, ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {
-    }
+    public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count, ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {}
 
     public enum ConnectionMode {
+
         AE_ONLY("ae"),
         FE_ONLY("fe"),
         AE_AND_FE("af");
@@ -2351,13 +2329,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         FE
     }
 
-    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {
-    }
+    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {}
 
-    private record DisplayTarget(BlockPos pos, TargetKind kind) {
-    }
+    private record DisplayTarget(BlockPos pos, TargetKind kind) {}
 
     private class TowerEnergyStorage implements IEnergyStorage {
+
         @Nullable
         private final BlockPos excludedPos;
 
@@ -2417,5 +2394,4 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return hasAnyReceiver(this.excludedPos);
         }
     }
-
 }

@@ -1,9 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.StorageCells;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.ItemStack;
@@ -11,14 +9,18 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.StorageCells;
+
 import java.util.HashSet;
 import java.util.Set;
 
 public final class PoweredToolSaberEnergyHelper {
+
     public static final long DATA_FLOW_COST = 20L;
 
-    private PoweredToolSaberEnergyHelper() {
-    }
+    private PoweredToolSaberEnergyHelper() {}
 
     public static boolean hasSaberEnergy(ItemStack stack, PoweredEnergyItem item) {
         return item.getSaberEnergyCardCount(stack) > 0;
@@ -92,13 +94,6 @@ public final class PoweredToolSaberEnergyHelper {
     }
 
     private static boolean isOreBlock(BlockState state) {
-        return state.is(BlockTags.COAL_ORES)
-                || state.is(BlockTags.COPPER_ORES)
-                || state.is(BlockTags.DIAMOND_ORES)
-                || state.is(BlockTags.EMERALD_ORES)
-                || state.is(BlockTags.GOLD_ORES)
-                || state.is(BlockTags.IRON_ORES)
-                || state.is(BlockTags.LAPIS_ORES)
-                || state.is(BlockTags.REDSTONE_ORES);
+        return state.is(BlockTags.COAL_ORES) || state.is(BlockTags.COPPER_ORES) || state.is(BlockTags.DIAMOND_ORES) || state.is(BlockTags.EMERALD_ORES) || state.is(BlockTags.GOLD_ORES) || state.is(BlockTags.IRON_ORES) || state.is(BlockTags.LAPIS_ORES) || state.is(BlockTags.REDSTONE_ORES);
     }
 }

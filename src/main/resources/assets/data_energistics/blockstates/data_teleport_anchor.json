@@ -1,514 +1,514 @@
 {
-  "variants": {
-    "color=default,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=default,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=default,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=default,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=default,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on"
-    },
-    "color=default,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on",
-      "y": 90
-    },
-    "color=default,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on",
-      "y": 180
-    },
-    "color=default,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on",
-      "y": 270
-    },
-    "color=black,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=black,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=black,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=black,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=black,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_black"
-    },
-    "color=black,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_black",
-      "y": 90
-    },
-    "color=black,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_black",
-      "y": 180
-    },
-    "color=black,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_black",
-      "y": 270
-    },
-    "color=blue,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=blue,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=blue,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=blue,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=blue,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_blue"
-    },
-    "color=blue,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_blue",
-      "y": 90
-    },
-    "color=blue,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_blue",
-      "y": 180
-    },
-    "color=blue,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_blue",
-      "y": 270
-    },
-    "color=brown,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=brown,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=brown,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=brown,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=brown,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_brown"
-    },
-    "color=brown,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_brown",
-      "y": 90
-    },
-    "color=brown,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_brown",
-      "y": 180
-    },
-    "color=brown,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_brown",
-      "y": 270
-    },
-    "color=cyan,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=cyan,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=cyan,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=cyan,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=cyan,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_cyan"
-    },
-    "color=cyan,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_cyan",
-      "y": 90
-    },
-    "color=cyan,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_cyan",
-      "y": 180
-    },
-    "color=cyan,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_cyan",
-      "y": 270
-    },
-    "color=gray,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=gray,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=gray,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=gray,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=gray,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_gray"
-    },
-    "color=gray,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_gray",
-      "y": 90
-    },
-    "color=gray,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_gray",
-      "y": 180
-    },
-    "color=gray,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_gray",
-      "y": 270
-    },
-    "color=green,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=green,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=green,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=green,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=green,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_green"
-    },
-    "color=green,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_green",
-      "y": 90
-    },
-    "color=green,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_green",
-      "y": 180
-    },
-    "color=green,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_green",
-      "y": 270
-    },
-    "color=light_blue,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=light_blue,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=light_blue,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=light_blue,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=light_blue,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_blue"
-    },
-    "color=light_blue,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_blue",
-      "y": 90
-    },
-    "color=light_blue,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_blue",
-      "y": 180
-    },
-    "color=light_blue,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_blue",
-      "y": 270
-    },
-    "color=light_gray,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=light_gray,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=light_gray,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=light_gray,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=light_gray,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_gray"
-    },
-    "color=light_gray,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_gray",
-      "y": 90
-    },
-    "color=light_gray,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_gray",
-      "y": 180
-    },
-    "color=light_gray,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_light_gray",
-      "y": 270
-    },
-    "color=lime,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=lime,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=lime,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=lime,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=lime,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_lime"
-    },
-    "color=lime,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_lime",
-      "y": 90
-    },
-    "color=lime,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_lime",
-      "y": 180
-    },
-    "color=lime,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_lime",
-      "y": 270
-    },
-    "color=magenta,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=magenta,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=magenta,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=magenta,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=magenta,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_magenta"
-    },
-    "color=magenta,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_magenta",
-      "y": 90
-    },
-    "color=magenta,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_magenta",
-      "y": 180
-    },
-    "color=magenta,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_magenta",
-      "y": 270
-    },
-    "color=orange,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=orange,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=orange,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=orange,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=orange,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_orange"
-    },
-    "color=orange,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_orange",
-      "y": 90
-    },
-    "color=orange,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_orange",
-      "y": 180
-    },
-    "color=orange,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_orange",
-      "y": 270
-    },
-    "color=pink,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=pink,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=pink,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=pink,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=pink,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_pink"
-    },
-    "color=pink,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_pink",
-      "y": 90
-    },
-    "color=pink,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_pink",
-      "y": 180
-    },
-    "color=pink,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_pink",
-      "y": 270
-    },
-    "color=purple,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=purple,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=purple,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=purple,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=purple,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_purple"
-    },
-    "color=purple,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_purple",
-      "y": 90
-    },
-    "color=purple,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_purple",
-      "y": 180
-    },
-    "color=purple,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_purple",
-      "y": 270
-    },
-    "color=red,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=red,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=red,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=red,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=red,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_red"
-    },
-    "color=red,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_red",
-      "y": 90
-    },
-    "color=red,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_red",
-      "y": 180
-    },
-    "color=red,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_red",
-      "y": 270
-    },
-    "color=white,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=white,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=white,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=white,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=white,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_white"
-    },
-    "color=white,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_white",
-      "y": 90
-    },
-    "color=white,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_white",
-      "y": 180
-    },
-    "color=white,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_white",
-      "y": 270
-    },
-    "color=yellow,facing=north,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off"
-    },
-    "color=yellow,facing=east,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 90
-    },
-    "color=yellow,facing=south,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 180
-    },
-    "color=yellow,facing=west,lit=false": {
-      "model": "data_energistics:block/data_teleport_anchor_off",
-      "y": 270
-    },
-    "color=yellow,facing=north,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_yellow"
-    },
-    "color=yellow,facing=east,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_yellow",
-      "y": 90
-    },
-    "color=yellow,facing=south,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_yellow",
-      "y": 180
-    },
-    "color=yellow,facing=west,lit=true": {
-      "model": "data_energistics:block/data_teleport_anchor_on_yellow",
-      "y": 270
-    }
-  }
+	"variants": {
+		"color=default,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=default,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=default,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=default,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=default,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on"
+		},
+		"color=default,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on",
+			"y": 90
+		},
+		"color=default,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on",
+			"y": 180
+		},
+		"color=default,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on",
+			"y": 270
+		},
+		"color=black,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=black,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=black,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=black,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=black,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_black"
+		},
+		"color=black,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_black",
+			"y": 90
+		},
+		"color=black,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_black",
+			"y": 180
+		},
+		"color=black,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_black",
+			"y": 270
+		},
+		"color=blue,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=blue,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=blue,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=blue,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=blue,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_blue"
+		},
+		"color=blue,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_blue",
+			"y": 90
+		},
+		"color=blue,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_blue",
+			"y": 180
+		},
+		"color=blue,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_blue",
+			"y": 270
+		},
+		"color=brown,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=brown,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=brown,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=brown,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=brown,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_brown"
+		},
+		"color=brown,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_brown",
+			"y": 90
+		},
+		"color=brown,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_brown",
+			"y": 180
+		},
+		"color=brown,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_brown",
+			"y": 270
+		},
+		"color=cyan,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=cyan,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=cyan,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=cyan,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=cyan,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_cyan"
+		},
+		"color=cyan,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_cyan",
+			"y": 90
+		},
+		"color=cyan,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_cyan",
+			"y": 180
+		},
+		"color=cyan,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_cyan",
+			"y": 270
+		},
+		"color=gray,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=gray,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=gray,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=gray,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=gray,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_gray"
+		},
+		"color=gray,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_gray",
+			"y": 90
+		},
+		"color=gray,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_gray",
+			"y": 180
+		},
+		"color=gray,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_gray",
+			"y": 270
+		},
+		"color=green,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=green,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=green,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=green,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=green,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_green"
+		},
+		"color=green,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_green",
+			"y": 90
+		},
+		"color=green,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_green",
+			"y": 180
+		},
+		"color=green,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_green",
+			"y": 270
+		},
+		"color=light_blue,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=light_blue,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=light_blue,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=light_blue,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=light_blue,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_blue"
+		},
+		"color=light_blue,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_blue",
+			"y": 90
+		},
+		"color=light_blue,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_blue",
+			"y": 180
+		},
+		"color=light_blue,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_blue",
+			"y": 270
+		},
+		"color=light_gray,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=light_gray,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=light_gray,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=light_gray,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=light_gray,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_gray"
+		},
+		"color=light_gray,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_gray",
+			"y": 90
+		},
+		"color=light_gray,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_gray",
+			"y": 180
+		},
+		"color=light_gray,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_light_gray",
+			"y": 270
+		},
+		"color=lime,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=lime,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=lime,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=lime,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=lime,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_lime"
+		},
+		"color=lime,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_lime",
+			"y": 90
+		},
+		"color=lime,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_lime",
+			"y": 180
+		},
+		"color=lime,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_lime",
+			"y": 270
+		},
+		"color=magenta,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=magenta,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=magenta,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=magenta,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=magenta,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_magenta"
+		},
+		"color=magenta,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_magenta",
+			"y": 90
+		},
+		"color=magenta,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_magenta",
+			"y": 180
+		},
+		"color=magenta,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_magenta",
+			"y": 270
+		},
+		"color=orange,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=orange,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=orange,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=orange,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=orange,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_orange"
+		},
+		"color=orange,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_orange",
+			"y": 90
+		},
+		"color=orange,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_orange",
+			"y": 180
+		},
+		"color=orange,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_orange",
+			"y": 270
+		},
+		"color=pink,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=pink,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=pink,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=pink,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=pink,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_pink"
+		},
+		"color=pink,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_pink",
+			"y": 90
+		},
+		"color=pink,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_pink",
+			"y": 180
+		},
+		"color=pink,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_pink",
+			"y": 270
+		},
+		"color=purple,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=purple,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=purple,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=purple,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=purple,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_purple"
+		},
+		"color=purple,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_purple",
+			"y": 90
+		},
+		"color=purple,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_purple",
+			"y": 180
+		},
+		"color=purple,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_purple",
+			"y": 270
+		},
+		"color=red,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=red,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=red,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=red,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=red,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_red"
+		},
+		"color=red,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_red",
+			"y": 90
+		},
+		"color=red,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_red",
+			"y": 180
+		},
+		"color=red,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_red",
+			"y": 270
+		},
+		"color=white,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=white,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=white,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=white,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=white,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_white"
+		},
+		"color=white,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_white",
+			"y": 90
+		},
+		"color=white,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_white",
+			"y": 180
+		},
+		"color=white,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_white",
+			"y": 270
+		},
+		"color=yellow,facing=north,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off"
+		},
+		"color=yellow,facing=east,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 90
+		},
+		"color=yellow,facing=south,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 180
+		},
+		"color=yellow,facing=west,lit=false": {
+			"model": "data_energistics:block/data_teleport_anchor_off",
+			"y": 270
+		},
+		"color=yellow,facing=north,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_yellow"
+		},
+		"color=yellow,facing=east,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_yellow",
+			"y": 90
+		},
+		"color=yellow,facing=south,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_yellow",
+			"y": 180
+		},
+		"color=yellow,facing=west,lit=true": {
+			"model": "data_energistics:block/data_teleport_anchor_on_yellow",
+			"y": 270
+		}
+	}
 }

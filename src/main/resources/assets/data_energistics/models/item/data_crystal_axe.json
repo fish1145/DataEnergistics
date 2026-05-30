@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/handheld",
-  "textures": {
-    "layer0": "data_energistics:item/tool_weapon/axe"
-  }
+	"parent": "minecraft:item/handheld",
+	"textures": {
+		"layer0": "data_energistics:item/tool_weapon/axe"
+	}
 }

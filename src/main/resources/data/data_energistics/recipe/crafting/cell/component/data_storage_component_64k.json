@@ -1,26 +1,22 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "ABA",
-    "CDC",
-    "ACA"
-  ],
-  "key": {
-    "A": {
-      "item": "minecraft:blaze_powder"
-    },
-    "B": {
-      "item": "ae2:calculation_processor"
-    },
-    "C": {
-      "item": "data_energistics:data_storage_component_16k"
-    },
-    "D": {
-      "item": "ae2:quartz_vibrant_glass"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_storage_component_64k",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "ACA"],
+	"key": {
+		"A": {
+			"item": "minecraft:blaze_powder"
+		},
+		"B": {
+			"item": "ae2:calculation_processor"
+		},
+		"C": {
+			"item": "data_energistics:data_storage_component_16k"
+		},
+		"D": {
+			"item": "ae2:quartz_vibrant_glass"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_storage_component_64k",
+		"count": 1
+	}
 }

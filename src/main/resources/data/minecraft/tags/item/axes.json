@@ -1,6 +1,4 @@
 {
-  "replace": false,
-  "values": [
-    "data_energistics:data_crystal_axe"
-  ]
+	"replace": false,
+	"values": ["data_energistics:data_crystal_axe"]
 }

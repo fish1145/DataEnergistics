@@ -1,11 +1,5 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import appeng.block.misc.MysteriousCubeBlock;
-import appeng.core.AEConfig;
-import appeng.core.definitions.AEBlocks;
-import appeng.decorative.AEDecorativeBlock;
-import appeng.decorative.solid.BuddingCertusQuartzBlock;
-import appeng.decorative.solid.CertusQuartzClusterBlock;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.Fallout;
@@ -13,11 +7,7 @@ import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutCopy;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSand;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSnow;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
@@ -33,7 +23,21 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 
+import appeng.block.misc.MysteriousCubeBlock;
+import appeng.core.AEConfig;
+import appeng.core.definitions.AEBlocks;
+import appeng.decorative.AEDecorativeBlock;
+import appeng.decorative.solid.BuddingCertusQuartzBlock;
+import appeng.decorative.solid.CertusQuartzClusterBlock;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
+
 public final class MeteoritePlacer {
+
     private static final float CRACKED_METEORITE_CHANCE = 0.27F;
     private static final float EXPOSED_METEORITE_CHANCE = 0.12F;
     private static final float SHATTERED_METEORITE_CHANCE = 0.05F;
@@ -107,10 +111,10 @@ public final class MeteoritePlacer {
 
     private List<BlockState> getCertusMotherRocks() {
         return Stream.of(
-                        AEBlocks.DAMAGED_BUDDING_QUARTZ,
-                        AEBlocks.CHIPPED_BUDDING_QUARTZ,
-                        AEBlocks.FLAWED_BUDDING_QUARTZ,
-                        AEBlocks.FLAWLESS_BUDDING_QUARTZ)
+                AEBlocks.DAMAGED_BUDDING_QUARTZ,
+                AEBlocks.CHIPPED_BUDDING_QUARTZ,
+                AEBlocks.FLAWED_BUDDING_QUARTZ,
+                AEBlocks.FLAWLESS_BUDDING_QUARTZ)
                 .map(def -> ((BuddingCertusQuartzBlock) def.block()).defaultBlockState())
                 .toList();
     }
@@ -500,6 +504,5 @@ public final class MeteoritePlacer {
         };
     }
 
-    private record CoreColumnData(BlockState motherRock, BlockState middleLayer) {
-    }
+    private record CoreColumnData(BlockState motherRock, BlockState middleLayer) {}
 }

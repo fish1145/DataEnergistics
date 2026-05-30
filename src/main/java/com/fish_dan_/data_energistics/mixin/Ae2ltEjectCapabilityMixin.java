@@ -13,6 +13,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.IItemHandler;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,6 +24,7 @@ import java.lang.reflect.Method;
 
 @Mixin(BlockCapability.class)
 public abstract class Ae2ltEjectCapabilityMixin<T, C> {
+
     @Unique
     private static final String DE_EJECT_MODE_REGISTRY = "com.moakiee.ae2lt.logic.EjectModeRegistry";
     @Unique
@@ -38,23 +40,75 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
 
     @Unique
     private static final IItemHandler dataEnergistics$REJECTING_ITEM_HANDLER = new IItemHandler() {
-        @Override public int getSlots() { return 1; }
-        @Override public ItemStack getStackInSlot(int slot) { return ItemStack.EMPTY; }
-        @Override public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) { return stack; }
-        @Override public ItemStack extractItem(int slot, int amount, boolean simulate) { return ItemStack.EMPTY; }
-        @Override public int getSlotLimit(int slot) { return 0; }
-        @Override public boolean isItemValid(int slot, ItemStack stack) { return false; }
+
+        @Override
+        public int getSlots() {
+            return 1;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return stack;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 0;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return false;
+        }
     };
 
     @Unique
     private static final IFluidHandler dataEnergistics$REJECTING_FLUID_HANDLER = new IFluidHandler() {
-        @Override public int getTanks() { return 1; }
-        @Override public FluidStack getFluidInTank(int tank) { return FluidStack.EMPTY; }
-        @Override public int getTankCapacity(int tank) { return 0; }
-        @Override public boolean isFluidValid(int tank, FluidStack stack) { return false; }
-        @Override public int fill(FluidStack resource, FluidAction action) { return 0; }
-        @Override public FluidStack drain(FluidStack resource, FluidAction action) { return FluidStack.EMPTY; }
-        @Override public FluidStack drain(int maxDrain, FluidAction action) { return FluidStack.EMPTY; }
+
+        @Override
+        public int getTanks() {
+            return 1;
+        }
+
+        @Override
+        public FluidStack getFluidInTank(int tank) {
+            return FluidStack.EMPTY;
+        }
+
+        @Override
+        public int getTankCapacity(int tank) {
+            return 0;
+        }
+
+        @Override
+        public boolean isFluidValid(int tank, FluidStack stack) {
+            return false;
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return 0;
+        }
+
+        @Override
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            return FluidStack.EMPTY;
+        }
+
+        @Override
+        public FluidStack drain(int maxDrain, FluidAction action) {
+            return FluidStack.EMPTY;
+        }
     };
 
     @SuppressWarnings("unchecked")
@@ -104,9 +158,7 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
         if (!dataEnergistics$ejectReflectionInitialized) {
             dataEnergistics$initEjectReflection();
         }
-        return dataEnergistics$isBypassedMethod != null
-                && dataEnergistics$lookupByFaceMethod != null
-                && dataEnergistics$getHostMethod != null;
+        return dataEnergistics$isBypassedMethod != null && dataEnergistics$lookupByFaceMethod != null && dataEnergistics$getHostMethod != null;
     }
 
     @Unique
@@ -119,8 +171,7 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
                     "lookupByFace",
                     ResourceKey.class,
                     long.class,
-                    Direction.class
-            );
+                    Direction.class);
             Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
             dataEnergistics$getHostMethod = ejectEntryClass.getMethod("getHost");
         } catch (Exception ignored) {

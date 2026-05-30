@@ -1,15 +1,15 @@
 {
-  "animation": {
-    "interpolate": false,
-    "frametime": 2,
-    "frames": [
-      {"index": 0, "time": 10},
-      {"index": 3, "time": 10},
-      {"index": 1, "time": 10},
-      {"index": 0, "time": 10},
-      {"index": 2, "time": 10},
-      {"index": 1, "time": 10},
-      {"index": 3, "time": 10}
-    ]
-  }
+	"animation": {
+		"interpolate": false,
+		"frametime": 2,
+		"frames": [
+			{ "index": 0, "time": 10 },
+			{ "index": 3, "time": 10 },
+			{ "index": 1, "time": 10 },
+			{ "index": 0, "time": 10 },
+			{ "index": 2, "time": 10 },
+			{ "index": 1, "time": 10 },
+			{ "index": 3, "time": 10 }
+		]
+	}
 }

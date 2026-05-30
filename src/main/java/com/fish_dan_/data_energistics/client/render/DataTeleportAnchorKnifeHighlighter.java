@@ -5,14 +5,12 @@ import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.network.DataTeleportAnchorKnifeTeleportPayload;
 import com.fish_dan_.data_energistics.registry.ModItems;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.RenderStateShard;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.AABB;
@@ -25,6 +23,10 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ import java.util.OptionalDouble;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public final class DataTeleportAnchorKnifeHighlighter {
+
     private static final int CHUNK_RADIUS = 9;
     private static final int SABER_ENERGY_CHUNK_RADIUS = 11;
     private static final long RESCAN_INTERVAL_TICKS = 10L;
@@ -65,8 +68,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
     private static List<BlockPos> cachedAnchorPositions = List.of();
     private static BlockPos selectedAnchorPos;
 
-    private DataTeleportAnchorKnifeHighlighter() {
-    }
+    private DataTeleportAnchorKnifeHighlighter() {}
 
     @SubscribeEvent
     public static void onInteractionKeyTriggered(InputEvent.InteractionKeyMappingTriggered event) {
@@ -98,8 +100,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
             return;
         }
 
-        if (tryTriggerRemoteTeleport(minecraft, InteractionHand.MAIN_HAND)
-                || tryTriggerRemoteTeleport(minecraft, InteractionHand.OFF_HAND)) {
+        if (tryTriggerRemoteTeleport(minecraft, InteractionHand.MAIN_HAND) || tryTriggerRemoteTeleport(minecraft, InteractionHand.OFF_HAND)) {
             event.setCanceled(true);
         }
     }
@@ -189,8 +190,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
     }
 
     private static boolean isHoldingCuttingKnife(Minecraft minecraft) {
-        return minecraft.player.getMainHandItem().is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get())
-                || minecraft.player.getOffhandItem().is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
+        return minecraft.player.getMainHandItem().is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get()) || minecraft.player.getOffhandItem().is(ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
     }
 
     private static Optional<BlockPos> findSelectedAnchor(Minecraft minecraft, List<BlockPos> anchors) {
@@ -218,7 +218,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
     }
 
     private static void drawHighlight(AABB box, float[] color, PoseStack poseStack,
-            net.minecraft.client.Camera camera, MultiBufferSource buffer) {
+                                      net.minecraft.client.Camera camera, MultiBufferSource buffer) {
         if (!camera.isInitialized()) {
             return;
         }
@@ -238,8 +238,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
                 pos.getZ() + BASE_BOX_INSET,
                 pos.getX() + 1.0d - BASE_BOX_INSET,
                 pos.getY() + 1.0d - BASE_BOX_INSET,
-                pos.getZ() + 1.0d - BASE_BOX_INSET
-        );
+                pos.getZ() + 1.0d - BASE_BOX_INSET);
     }
 
     private static AABB createSelectedBox(BlockPos pos) {
@@ -249,15 +248,12 @@ public final class DataTeleportAnchorKnifeHighlighter {
                 pos.getZ() - SELECTED_BOX_EXPANSION,
                 pos.getX() + 1.0d + SELECTED_BOX_EXPANSION,
                 pos.getY() + 1.0d + SELECTED_BOX_EXPANSION,
-                pos.getZ() + 1.0d + SELECTED_BOX_EXPANSION
-        );
+                pos.getZ() + 1.0d + SELECTED_BOX_EXPANSION);
     }
 
     private static float[] resolveHighlightColor(Minecraft minecraft, BlockPos anchorPos) {
         var state = minecraft.level.getBlockState(anchorPos);
-        int color = switch (state.hasProperty(DataTeleportAnchorBlock.COLOR)
-                ? state.getValue(DataTeleportAnchorBlock.COLOR)
-                : DataTeleportAnchorBlock.ColorVariant.DEFAULT) {
+        int color = switch (state.hasProperty(DataTeleportAnchorBlock.COLOR) ? state.getValue(DataTeleportAnchorBlock.COLOR) : DataTeleportAnchorBlock.ColorVariant.DEFAULT) {
             case BLACK -> 0xFF303030;
             case BLUE -> 0xFF4066FF;
             case BROWN -> 0xFF7A4D2B;
@@ -295,9 +291,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
         int centerChunkZ = player.blockPosition().getZ() >> 4;
         int chunkRadius = getChunkRadius(player);
         long gameTime = level.getGameTime();
-        if (centerChunkX == cachedCenterChunkX
-                && centerChunkZ == cachedCenterChunkZ
-                && gameTime - cachedScanGameTime < RESCAN_INTERVAL_TICKS) {
+        if (centerChunkX == cachedCenterChunkX && centerChunkZ == cachedCenterChunkZ && gameTime - cachedScanGameTime < RESCAN_INTERVAL_TICKS) {
             return cachedAnchorPositions;
         }
 
@@ -329,11 +323,6 @@ public final class DataTeleportAnchorKnifeHighlighter {
             return CHUNK_RADIUS;
         }
 
-        return player.getMainHandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem knife
-                && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0
-                || player.getOffhandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem offhandKnife
-                && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0
-                ? SABER_ENERGY_CHUNK_RADIUS
-                : CHUNK_RADIUS;
+        return player.getMainHandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem knife && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 || player.getOffhandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem offhandKnife && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_CHUNK_RADIUS : CHUNK_RADIUS;
     }
 }

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.recipe;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class UniversalTerminalCombineRecipe extends CustomRecipe {
+
     public UniversalTerminalCombineRecipe(CraftingBookCategory category) {
         super(category);
     }
@@ -44,15 +46,11 @@ public class UniversalTerminalCombineRecipe extends CustomRecipe {
         }
 
         if (firstUniversal) {
-            return UniversalTerminalData.isSupportedTerminal(second)
-                    ? UniversalTerminalData.upgradeTerminal(first, second, registries)
-                    : ItemStack.EMPTY;
+            return UniversalTerminalData.isSupportedTerminal(second) ? UniversalTerminalData.upgradeTerminal(first, second, registries) : ItemStack.EMPTY;
         }
 
         if (secondUniversal) {
-            return UniversalTerminalData.isSupportedTerminal(first)
-                    ? UniversalTerminalData.upgradeTerminal(second, first, registries)
-                    : ItemStack.EMPTY;
+            return UniversalTerminalData.isSupportedTerminal(first) ? UniversalTerminalData.upgradeTerminal(second, first, registries) : ItemStack.EMPTY;
         }
 
         String firstName = UniversalTerminalData.getTerminalName(first);
@@ -65,8 +63,7 @@ public class UniversalTerminalCombineRecipe extends CustomRecipe {
                 new ItemStack(ModItems.UNIVERSAL_TERMINAL.get()),
                 registries,
                 first,
-                second
-        );
+                second);
     }
 
     @Override

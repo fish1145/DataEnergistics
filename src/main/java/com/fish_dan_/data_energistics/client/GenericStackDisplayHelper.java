@@ -1,20 +1,22 @@
 package com.fish_dan_.data_energistics.client;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AmountFormat;
-import appeng.api.stacks.GenericStack;
-import java.util.Locale;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AmountFormat;
+import appeng.api.stacks.GenericStack;
+
+import java.util.Locale;
+
 public final class GenericStackDisplayHelper {
+
     private static final float SMALL_OVERLAY_SCALE = 0.5F;
 
-    private GenericStackDisplayHelper() {
-    }
+    private GenericStackDisplayHelper() {}
 
     public static String formatCompactAmount(GenericStack stack) {
         if (stack.what() instanceof AEFluidKey) {

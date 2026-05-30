@@ -1,23 +1,23 @@
-﻿{
-  "replace": false,
-  "values": [
-    "data_energistics:data_extractor",
-    "data_energistics:data_distribution_tower",
-    "data_energistics:data_mimetic_field",
-    "data_energistics:adaptive_pattern_provider",
-    "data_energistics:residual_data_ore",
-    "data_energistics:data_meteorite_0",
-    "data_energistics:data_meteorite_1",
-    "data_energistics:data_meteorite_2",
-    "data_energistics:data_crystal_block",
-    "data_energistics:budding_data_crystal_0",
-    "data_energistics:budding_data_crystal_1",
-    "data_energistics:budding_data_crystal_2",
-    "data_energistics:budding_data_crystal_3",
-    "data_energistics:budding_data_crystal_4",
-    "data_energistics:small_data_crystal_bud",
-    "data_energistics:medium_data_crystal_bud",
-    "data_energistics:large_data_crystal_bud",
-    "data_energistics:data_crystal_cluster"
-  ]
+{
+	"replace": false,
+	"values": [
+		"data_energistics:data_extractor",
+		"data_energistics:data_distribution_tower",
+		"data_energistics:data_mimetic_field",
+		"data_energistics:adaptive_pattern_provider",
+		"data_energistics:residual_data_ore",
+		"data_energistics:data_meteorite_0",
+		"data_energistics:data_meteorite_1",
+		"data_energistics:data_meteorite_2",
+		"data_energistics:data_crystal_block",
+		"data_energistics:budding_data_crystal_0",
+		"data_energistics:budding_data_crystal_1",
+		"data_energistics:budding_data_crystal_2",
+		"data_energistics:budding_data_crystal_3",
+		"data_energistics:budding_data_crystal_4",
+		"data_energistics:small_data_crystal_bud",
+		"data_energistics:medium_data_crystal_bud",
+		"data_energistics:large_data_crystal_bud",
+		"data_energistics:data_crystal_cluster"
+	]
 }

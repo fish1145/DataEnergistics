@@ -1,5 +1,55 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.DataExtractorConfig;
+import com.fish_dan_.data_energistics.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.block.DataExtractorBlock;
+import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
+import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.CropDataCarrierData;
+import com.fish_dan_.data_energistics.util.OreDataCarrierData;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
@@ -21,54 +71,6 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import com.fish_dan_.data_energistics.DataExtractorConfig;
-import com.fish_dan_.data_energistics.DataExtractorRuleTable;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.block.DataExtractorBlock;
-import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
-import com.fish_dan_.data_energistics.util.CropDataCarrierData;
-import com.fish_dan_.data_energistics.util.OreDataCarrierData;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.NeutralMob;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -76,7 +78,8 @@ import java.util.List;
 import java.util.Set;
 
 public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
-        implements IActionHost, IUpgradeableObject, InternalInventoryHost {
+                                      implements IActionHost, IUpgradeableObject, InternalInventoryHost {
+
     public static final int BASE_WORK_INTERVAL_SECONDS = 5;
     public static final int MIN_WORK_INTERVAL_SECONDS = 1;
     public static final int DROP_COLLECTION_INTERVAL_TICKS = 5;
@@ -97,7 +100,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private static final int BASE_VERTICAL_RANGE = 3;
     private static final int RANGE_PER_CAPACITY_CARD = 2;
     private static final String ORE_SUFFIX = "_ore";
-    private static final String[] ORE_PREFIXES = {"deepslate_", "nether_", "end_"};
+    private static final String[] ORE_PREFIXES = { "deepslate_", "nether_", "end_" };
     private static final String STORAGE_TAG = "storage";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
@@ -108,12 +111,12 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
     private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
 
-    private final IUpgradeInventory upgrades =
-            UpgradeInventories.forMachine(ModBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
     private final InternalInventory externalInventory = new FilteredInternalInventory(
             this.storage.getSubInventory(CARRIER_SLOT, CROP_SLOT + 1),
             new IAEItemFilter() {
+
                 @Override
                 public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
                     return switch (slot) {
@@ -129,8 +132,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 public boolean allowExtract(InternalInventory inv, int slot, int amount) {
                     return slot == CARRIER_SLOT && isCompletedCarrier(inv.getStackInSlot(slot));
                 }
-            }
-    );
+            });
     private boolean redstoneControlled;
     private boolean showRange;
     private DataExtractorAutoExportMode autoExportMode = DataExtractorAutoExportMode.OFF;
@@ -153,12 +155,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.storage.setMaxStackSize(CARRIER_SLOT, 1);
         this.storage.setMaxStackSize(SWORD_SLOT, 1);
         this.storage.setFilter(new IAEItemFilter() {
+
             @Override
             public boolean allowInsert(appeng.api.inventories.InternalInventory inv, int slot, ItemStack stack) {
-                return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get())
-                        || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS)
-                        || slot == ORE_SLOT && isOreOrRawOre(stack)
-                        || slot == CROP_SLOT && isSupportedCrop(stack);
+                return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get()) || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS) || slot == ORE_SLOT && isOreOrRawOre(stack) || slot == CROP_SLOT && isSupportedCrop(stack);
             }
         });
     }
@@ -198,9 +198,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
-        this.autoExportMode = data.contains(AUTO_EXPORT_MODE_TAG)
-                ? DataExtractorAutoExportMode.fromOrdinal(data.getInt(AUTO_EXPORT_MODE_TAG))
-                : DataExtractorAutoExportMode.OFF;
+        this.autoExportMode = data.contains(AUTO_EXPORT_MODE_TAG) ? DataExtractorAutoExportMode.fromOrdinal(data.getInt(AUTO_EXPORT_MODE_TAG)) : DataExtractorAutoExportMode.OFF;
         this.outputSides.clear();
         if (data.contains(OUTPUT_SIDES_TAG)) {
             for (Tag name : data.getList(OUTPUT_SIDES_TAG, Tag.TAG_STRING)) {
@@ -378,15 +376,11 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeDamagePerCycle(ItemStack sword, @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
-        return Math.round(DataExtractorConfig.baseDamage
-                + getSwordInheritedDamage(sword)
-                + getStaticSwordEnchantmentDamage(sword, registries));
+        return Math.round(DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword) + getStaticSwordEnchantmentDamage(sword, registries));
     }
 
     public static boolean isOreOrRawOre(ItemStack stack) {
-        return matchesConfiguredRule(DataExtractorRuleTable.Slot.ORE, stack)
-                || stack.is(C_ORES_TAG)
-                || stack.is(C_RAW_MATERIALS_TAG);
+        return matchesConfiguredRule(DataExtractorRuleTable.Slot.ORE, stack) || stack.is(C_ORES_TAG) || stack.is(C_RAW_MATERIALS_TAG);
     }
 
     public static boolean isSupportedCrop(ItemStack stack) {
@@ -409,8 +403,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeTargetLimit(IUpgradeInventory upgrades) {
-        return DataExtractorConfig.baseTargetLimit
-                + computeCapacityCardCount(upgrades) * DataExtractorConfig.targetLimitPerCapacityCard;
+        return DataExtractorConfig.baseTargetLimit + computeCapacityCardCount(upgrades) * DataExtractorConfig.targetLimitPerCapacityCard;
     }
 
     public static int computeEnergyCardCount(IUpgradeInventory upgrades) {
@@ -422,9 +415,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static int computeBaseDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle) {
-        return DataExtractorConfig.baseDataFlowPerCycle
-                + computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD
-                + Math.max(0, damagePerCycle) * DataExtractorConfig.dataFlowPerSwordDamage;
+        return DataExtractorConfig.baseDataFlowPerCycle + computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD + Math.max(0, damagePerCycle) * DataExtractorConfig.dataFlowPerSwordDamage;
     }
 
     public static int computeDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle, int targetCount) {
@@ -546,8 +537,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 minZ,
                 maxX,
                 Math.min(this.level.getMaxBuildHeight(), maxY),
-                maxZ
-        );
+                maxZ);
         return this.cachedCoverageAabb;
     }
 
@@ -567,9 +557,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         var energyService = node.getGrid().getEnergyService();
         double localAvailable = this.extractAEPower(AE_POWER_PER_TICK, Actionable.SIMULATE, PowerMultiplier.CONFIG);
         double remaining = Math.max(0.0D, AE_POWER_PER_TICK - localAvailable);
-        double gridAvailable = remaining > 0.0D
-                ? energyService.extractAEPower(remaining, Actionable.SIMULATE, PowerMultiplier.CONFIG)
-                : 0.0D;
+        double gridAvailable = remaining > 0.0D ? energyService.extractAEPower(remaining, Actionable.SIMULATE, PowerMultiplier.CONFIG) : 0.0D;
         if (localAvailable + gridAvailable + 0.0001 < AE_POWER_PER_TICK) {
             resetWorkProgress();
             return;
@@ -648,9 +636,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         ItemStack sword = storedSword.copy();
         boolean useSword = sword.is(ItemTags.SWORDS);
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
-        boolean canCollectBiology = carrier.is(ModItems.DATA_CARRIER.get())
-                && !BiologyDataCarrierData.isComplete(carrier)
-                && !OreDataCarrierData.hasRecordedOre(carrier);
+        boolean canCollectBiology = carrier.is(ModItems.DATA_CARRIER.get()) && !BiologyDataCarrierData.isComplete(carrier) && !OreDataCarrierData.hasRecordedOre(carrier);
         ResourceLocation recordedEntityId = canCollectBiology ? BiologyDataCarrierData.getEntityTypeId(carrier) : null;
         float collectedDamage = 0.0F;
         boolean carrierUpdated = false;
@@ -722,10 +708,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void recordOreSample() {
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
-        if (!carrier.is(ModItems.DATA_CARRIER.get())
-                || BiologyDataCarrierData.hasRecordedEntity(carrier)
-                || OreDataCarrierData.isComplete(carrier)
-                || CropDataCarrierData.hasRecordedCrop(carrier)) {
+        if (!carrier.is(ModItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.isComplete(carrier) || CropDataCarrierData.hasRecordedCrop(carrier)) {
             return;
         }
 
@@ -780,10 +763,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void recordCropSample() {
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
-        if (!carrier.is(ModItems.DATA_CARRIER.get())
-                || BiologyDataCarrierData.hasRecordedEntity(carrier)
-                || OreDataCarrierData.hasRecordedOre(carrier)
-                || CropDataCarrierData.isComplete(carrier)) {
+        if (!carrier.is(ModItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.hasRecordedOre(carrier) || CropDataCarrierData.isComplete(carrier)) {
             return;
         }
 
@@ -1072,9 +1052,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private ItemStack routeAutoExportItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
-        return this.autoExportMode == DataExtractorAutoExportMode.AE
-                ? insertIntoNetwork(stack, networkStorage)
-                : insertIntoAdjacentHandlers(stack, adjacentHandlers);
+        return this.autoExportMode == DataExtractorAutoExportMode.AE ? insertIntoNetwork(stack, networkStorage) : insertIntoAdjacentHandlers(stack, adjacentHandlers);
     }
 
     private ItemStack insertIntoAdjacentHandlers(ItemStack stack, List<IItemHandler> adjacentHandlers) {
@@ -1126,8 +1104,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                     targetPos,
                     targetState,
                     this.level.getBlockEntity(targetPos),
-                    direction.getOpposite()
-            );
+                    direction.getOpposite());
             if (handler != null) {
                 handlers.add(handler);
             }
@@ -1151,13 +1128,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return false;
         }
 
-        return stack.is(ModItems.MOB_DATA_CARRIER.get())
-                || stack.is(ModItems.ORE_DATA_CARRIER.get())
-                || stack.is(ModItems.CROP_DATA_CARRIER.get())
-                || stack.is(ModItems.DATA_CARRIER.get())
-                && (BiologyDataCarrierData.isComplete(stack)
-                || OreDataCarrierData.isComplete(stack)
-                || CropDataCarrierData.isComplete(stack));
+        return stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get()) || stack.is(ModItems.DATA_CARRIER.get()) && (BiologyDataCarrierData.isComplete(stack) || OreDataCarrierData.isComplete(stack) || CropDataCarrierData.isComplete(stack));
     }
 
     private void updateCarrierTypeState() {
@@ -1236,8 +1207,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 this.worldPosition.getY() + 1.0,
                 this.worldPosition.getZ() + 0.5,
                 fakePlayer.getYRot(),
-                fakePlayer.getXRot()
-        );
+                fakePlayer.getXRot());
 
         DamageSource damageSource = level.damageSources().playerAttack(fakePlayer);
         float totalDamage = DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword);
@@ -1270,9 +1240,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         final double playerBaseDamage = 1.0D;
-        final double[] addValue = {0.0D};
-        final double[] addMultipliedBase = {0.0D};
-        final double[] addMultipliedTotal = {0.0D};
+        final double[] addValue = { 0.0D };
+        final double[] addMultipliedBase = { 0.0D };
+        final double[] addMultipliedTotal = { 0.0D };
 
         sword.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
             if (!attribute.equals(Attributes.ATTACK_DAMAGE)) {
@@ -1295,9 +1265,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public static float getStaticSwordEnchantmentDamage(
-            ItemStack sword,
-            @org.jetbrains.annotations.Nullable HolderLookup.Provider registries
-    ) {
+                                                        ItemStack sword,
+                                                        @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
         if (!sword.is(ItemTags.SWORDS) || sword.isEmpty() || registries == null) {
             return 0.0F;
         }
@@ -1311,8 +1280,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return 1.0F + 0.5F * (sharpnessLevel - 1);
     }
 
-    private record SwordAttackResult(boolean damaged, ItemStack updatedSword) {
-    }
+    private record SwordAttackResult(boolean damaged, ItemStack updatedSword) {}
 
     private void onUpgradesChanged() {
         double currentPower = this.getInternalCurrentPower();

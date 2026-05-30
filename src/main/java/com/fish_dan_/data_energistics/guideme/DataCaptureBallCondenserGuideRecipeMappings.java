@@ -1,20 +1,24 @@
 package com.fish_dan_.data_energistics.guideme;
 
-import appeng.core.definitions.AEBlocks;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallCondenserRecipe;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
+import appeng.core.definitions.AEBlocks;
 import guideme.color.SymbolicColor;
 import guideme.compiler.tags.RecipeTypeMappingSupplier;
 import guideme.document.block.LytParagraph;
 import guideme.document.block.LytSlotGrid;
 import guideme.document.block.recipes.LytStandardRecipeBox;
+
 import java.util.List;
 import java.util.Locale;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.crafting.RecipeHolder;
 
 public final class DataCaptureBallCondenserGuideRecipeMappings implements RecipeTypeMappingSupplier {
+
     @Override
     public void collect(RecipeTypeMappings mappings) {
         mappings.add(ModRecipes.DATA_CAPTURE_BALL_CONDENSER_TYPE.get(),
@@ -22,7 +26,7 @@ public final class DataCaptureBallCondenserGuideRecipeMappings implements Recipe
     }
 
     private static LytStandardRecipeBox<DataCaptureBallCondenserRecipe> createRecipe(
-            RecipeHolder<DataCaptureBallCondenserRecipe> holder) {
+                                                                                     RecipeHolder<DataCaptureBallCondenserRecipe> holder) {
         var recipe = holder.value();
         var details = LytParagraph.of(buildDetails(recipe));
         details.modifyStyle(style -> style.color(SymbolicColor.CRAFTING_RECIPE_TYPE));

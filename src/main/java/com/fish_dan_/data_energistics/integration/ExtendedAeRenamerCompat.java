@@ -1,11 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
-import appeng.parts.AEBasePart;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -16,13 +12,19 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
+
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+import appeng.parts.AEBasePart;
 import org.jetbrains.annotations.Nullable;
 
 public final class ExtendedAeRenamerCompat {
+
     private static final ResourceLocation RENAMER_MENU_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "renamer");
 
-    private ExtendedAeRenamerCompat() {
-    }
+    private ExtendedAeRenamerCompat() {}
 
     public static InteractionResult tryOpenRenamer(UseOnContext context) {
         ItemStack stack = context.getItemInHand();

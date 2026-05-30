@@ -1,11 +1,9 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.client.render.overlay.OverlayRenderType;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
 import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
@@ -22,6 +20,10 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+
+import appeng.client.render.overlay.OverlayRenderType;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Mixin;
@@ -38,23 +40,41 @@ import java.util.function.Function;
 
 @Mixin(targets = "com.moakiee.ae2lt.client.WirelessConnectorRenderer", remap = false)
 public abstract class Ae2ltWirelessConnectorRendererMixin {
-    @Unique private static final int DE_COLOR_PREVIEW = 0x60FFFF00;
-    @Unique private static final int DE_COLOR_CONNECTED = 0x600080FF;
-    @Unique private static final int DE_COLOR_PREVIEW_LINE = 0xC0FFFF00;
-    @Unique private static final int DE_COLOR_HOST = 0x800080FF;
-    @Unique private static final int DE_COLOR_HOST_SELECTED = 0x80FFFF00;
-    @Unique private static final int DE_COLOR_LINE = 0xC00080FF;
-    @Unique private static final int DE_SCAN_RANGE = 64;
-    @Unique private static final int DE_SCAN_INTERVAL_TICKS = 10;
-    @Unique private static final String DE_TAG_SELECTED = "SelectedProvider";
-    @Unique private static final String DE_TAG_DIM = "Dim";
-    @Unique private static final String DE_TAG_POS = "Pos";
-    @Unique private static final String DE_TAG_HOST_TYPE = "HostType";
-    @Unique private static ResourceKey<Level> deCachedProviderDimension;
-    @Unique private static int deCachedProviderCenterChunkX = Integer.MIN_VALUE;
-    @Unique private static int deCachedProviderCenterChunkZ = Integer.MIN_VALUE;
-    @Unique private static long deCachedProviderScanTime = Long.MIN_VALUE;
-    @Unique private static List<BlockPos> deCachedProviderPositions = List.of();
+
+    @Unique
+    private static final int DE_COLOR_PREVIEW = 0x60FFFF00;
+    @Unique
+    private static final int DE_COLOR_CONNECTED = 0x600080FF;
+    @Unique
+    private static final int DE_COLOR_PREVIEW_LINE = 0xC0FFFF00;
+    @Unique
+    private static final int DE_COLOR_HOST = 0x800080FF;
+    @Unique
+    private static final int DE_COLOR_HOST_SELECTED = 0x80FFFF00;
+    @Unique
+    private static final int DE_COLOR_LINE = 0xC00080FF;
+    @Unique
+    private static final int DE_SCAN_RANGE = 64;
+    @Unique
+    private static final int DE_SCAN_INTERVAL_TICKS = 10;
+    @Unique
+    private static final String DE_TAG_SELECTED = "SelectedProvider";
+    @Unique
+    private static final String DE_TAG_DIM = "Dim";
+    @Unique
+    private static final String DE_TAG_POS = "Pos";
+    @Unique
+    private static final String DE_TAG_HOST_TYPE = "HostType";
+    @Unique
+    private static ResourceKey<Level> deCachedProviderDimension;
+    @Unique
+    private static int deCachedProviderCenterChunkX = Integer.MIN_VALUE;
+    @Unique
+    private static int deCachedProviderCenterChunkZ = Integer.MIN_VALUE;
+    @Unique
+    private static long deCachedProviderScanTime = Long.MIN_VALUE;
+    @Unique
+    private static List<BlockPos> deCachedProviderPositions = List.of();
 
     @Inject(method = "onRenderLevelStage", at = @At("HEAD"))
     private static void dataEnergistics$renderAdaptiveProviders(RenderLevelStageEvent event, CallbackInfo ci) {
@@ -94,36 +114,25 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         var selectedPos = selectedHost != null ? selectedHost.pos() : null;
         var selectedDim = selectedHost != null ? selectedHost.dimension() : null;
         var selectedHostType = selectedHost != null ? selectedHost.hostType() : null;
-        boolean hasSelection = selectedPos != null
-                && selectedDim != null
-                && selectedHostType != null
-                && mc.level.dimension().equals(selectedDim);
+        boolean hasSelection = selectedPos != null && selectedDim != null && selectedHostType != null && mc.level.dimension().equals(selectedDim);
         boolean selectedRendered = false;
 
         String hostProviderType = Ae2LtWirelessBridge.hostProviderType();
         BlockPos playerPos = player.blockPosition();
         for (var hostPos : dataEnergistics$getCachedProviderPositions(mc.level, playerPos)) {
             var be = mc.level.getBlockEntity(hostPos);
-            if (!(be instanceof AdaptivePatternProviderBlockEntity adaptive)
-                    || !adaptive.isAe2LightningTechOverloadedProviderSelected()
-                    || !adaptive.isAe2LtWirelessMode()) {
+            if (!(be instanceof AdaptivePatternProviderBlockEntity adaptive) || !adaptive.isAe2LightningTechOverloadedProviderSelected() || !adaptive.isAe2LtWirelessMode()) {
                 continue;
             }
 
-            boolean isSelected = hasSelection
-                    && hostProviderType != null
-                    && hostProviderType.equals(selectedHostType)
-                    && hostPos.equals(selectedPos);
+            boolean isSelected = hasSelection && hostProviderType != null && hostProviderType.equals(selectedHostType) && hostPos.equals(selectedPos);
             dataEnergistics$renderAdaptiveProviderHost(poseStack, buffer, mc.level, hostPos, adaptive, isSelected);
             selectedRendered |= isSelected;
         }
 
         if (hasSelection && !selectedRendered && mc.level.isLoaded(selectedPos)) {
             var selectedBe = mc.level.getBlockEntity(selectedPos);
-            if (Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedBe)
-                    && Ae2LtAdaptiveProviderCompat.isWirelessMode(selectedBe)
-                    && hostProviderType != null
-                    && hostProviderType.equals(selectedHostType)) {
+            if (Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedBe) && Ae2LtAdaptiveProviderCompat.isWirelessMode(selectedBe) && hostProviderType != null && hostProviderType.equals(selectedHostType)) {
                 dataEnergistics$renderAdaptiveProviderHost(
                         poseStack, buffer, mc.level, selectedPos, (AdaptivePatternProviderBlockEntity) selectedBe, true);
             }
@@ -131,15 +140,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
 
         if (hasSelection) {
             var selectedBe = mc.level.getBlockEntity(selectedPos);
-            if (hostProviderType != null
-                    && hostProviderType.equals(selectedHostType)
-                    && selectedBe instanceof AdaptivePatternProviderBlockEntity adaptive
-                    && adaptive.isAe2LightningTechOverloadedProviderSelected()
-                    && adaptive.isAe2LtWirelessMode()
-                    && mc.hitResult instanceof BlockHitResult bhr
-                    && bhr.getType() == HitResult.Type.BLOCK
-                    && !bhr.getBlockPos().equals(selectedPos)
-                    && mc.level.getBlockEntity(bhr.getBlockPos()) != null) {
+            if (hostProviderType != null && hostProviderType.equals(selectedHostType) && selectedBe instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LightningTechOverloadedProviderSelected() && adaptive.isAe2LtWirelessMode() && mc.hitResult instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK && !bhr.getBlockPos().equals(selectedPos) && mc.level.getBlockEntity(bhr.getBlockPos()) != null) {
 
                 var previewTargets = Ae2LtWirelessBridge.collectTargets(
                         mc.level,
@@ -185,10 +186,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         int centerChunkX = playerPos.getX() >> 4;
         int centerChunkZ = playerPos.getZ() >> 4;
         long gameTime = level.getGameTime();
-        if (level.dimension().equals(deCachedProviderDimension)
-                && centerChunkX == deCachedProviderCenterChunkX
-                && centerChunkZ == deCachedProviderCenterChunkZ
-                && gameTime - deCachedProviderScanTime < DE_SCAN_INTERVAL_TICKS) {
+        if (level.dimension().equals(deCachedProviderDimension) && centerChunkX == deCachedProviderCenterChunkX && centerChunkZ == deCachedProviderCenterChunkZ && gameTime - deCachedProviderScanTime < DE_SCAN_INTERVAL_TICKS) {
             return deCachedProviderPositions;
         }
 
@@ -206,9 +204,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
                 var chunk = level.getChunk(cx, cz);
                 for (var bePos : chunk.getBlockEntitiesPos()) {
                     var be = chunk.getBlockEntity(bePos);
-                    if (be instanceof AdaptivePatternProviderBlockEntity adaptive
-                            && adaptive.isAe2LightningTechOverloadedProviderSelected()
-                            && adaptive.isAe2LtWirelessMode()) {
+                    if (be instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LightningTechOverloadedProviderSelected() && adaptive.isAe2LtWirelessMode()) {
                         providerPositions.add(bePos.immutable());
                     }
                 }
@@ -253,9 +249,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         return new SelectedHost(
                 BlockPos.of(sel.getLong(DE_TAG_POS)),
                 ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimStr)),
-                sel.contains(DE_TAG_HOST_TYPE, CompoundTag.TAG_STRING)
-                        ? sel.getString(DE_TAG_HOST_TYPE)
-                        : fallbackHostType);
+                sel.contains(DE_TAG_HOST_TYPE, CompoundTag.TAG_STRING) ? sel.getString(DE_TAG_HOST_TYPE) : fallbackHostType);
     }
 
     @Unique
@@ -386,6 +380,5 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
     }
 
     @Unique
-    private record SelectedHost(BlockPos pos, ResourceKey<Level> dimension, String hostType) {
-    }
+    private record SelectedHost(BlockPos pos, ResourceKey<Level> dimension, String hostType) {}
 }

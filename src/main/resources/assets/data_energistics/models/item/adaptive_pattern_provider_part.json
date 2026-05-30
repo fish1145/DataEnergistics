@@ -1,8 +1,8 @@
 {
-  "parent": "ae2:item/cable_interface",
-  "textures": {
-    "sides": "ae2:part/pattern_provider_sides",
-    "back": "data_energistics:part/adaptive_pattern_provider_back",
-    "front": "data_energistics:part/adaptive_pattern_provider"
-  }
+	"parent": "ae2:item/cable_interface",
+	"textures": {
+		"sides": "ae2:part/pattern_provider_sides",
+		"back": "data_energistics:part/adaptive_pattern_provider_back",
+		"front": "data_energistics:part/adaptive_pattern_provider"
+	}
 }

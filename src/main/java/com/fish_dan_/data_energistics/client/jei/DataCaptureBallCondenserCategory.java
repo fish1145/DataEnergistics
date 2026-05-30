@@ -1,10 +1,15 @@
 package com.fish_dan_.data_energistics.client.jei;
 
-import appeng.client.gui.Icon;
-import appeng.core.definitions.AEBlocks;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+
+import appeng.client.gui.Icon;
+import appeng.core.definitions.AEBlocks;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
@@ -15,16 +20,13 @@ import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.AbstractRecipeCategory;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 
 public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<DataCaptureBallCondenserRecipe> {
+
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/condenser.png");
     private static final int REQUIRED_POWER = 131072;
-    public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE =
-            RecipeType.create("data_energistics", "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
+    public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE = RecipeType.create("data_energistics", "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
 
     private final IDrawableAnimated progress;
     private final IDrawable background;

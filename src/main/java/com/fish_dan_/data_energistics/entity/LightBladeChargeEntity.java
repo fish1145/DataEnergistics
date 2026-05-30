@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -28,16 +29,14 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class LightBladeChargeEntity extends ThrowableItemProjectile {
+
     private static final int LIFETIME_TICKS = 120;
     private static final double MAX_TRAVEL_DISTANCE = 128.0D;
     private static final double HOMING_HIT_MARGIN = 0.35D;
     private static final float SIZE_SCALE = 2.0F;
-    private static final EntityDataAccessor<Integer> DATA_COLOR =
-            SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Float> DATA_DAMAGE =
-            SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.FLOAT);
-    private static final EntityDataAccessor<ItemStack> DATA_WEAPON_STACK =
-            SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<Integer> DATA_COLOR = SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Float> DATA_DAMAGE = SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<ItemStack> DATA_WEAPON_STACK = SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.ITEM_STACK);
 
     private double traveledDistance;
 
@@ -91,11 +90,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
     protected void onHitEntity(EntityHitResult result) {
         Entity target = result.getEntity();
         Entity owner = this.getOwner();
-        DamageSource damageSource = owner instanceof Player player
-                ? this.damageSources().playerAttack(player)
-                : owner instanceof LivingEntity livingOwner
-                ? this.damageSources().mobAttack(livingOwner)
-                : this.damageSources().magic();
+        DamageSource damageSource = owner instanceof Player player ? this.damageSources().playerAttack(player) : owner instanceof LivingEntity livingOwner ? this.damageSources().mobAttack(livingOwner) : this.damageSources().magic();
         float damage = this.getDamageAmount();
 
         if (this.level() instanceof ServerLevel serverLevel) {
@@ -122,9 +117,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
         }
 
         Entity owner = this.getOwner();
-        return target != owner
-                && !(target instanceof Player)
-                && !(target instanceof ServerPlayer);
+        return target != owner && !(target instanceof Player) && !(target instanceof ServerPlayer);
     }
 
     @Override

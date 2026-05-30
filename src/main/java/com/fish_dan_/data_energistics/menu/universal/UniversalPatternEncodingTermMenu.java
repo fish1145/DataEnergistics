@@ -1,13 +1,14 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.jetbrains.annotations.Nullable;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
@@ -21,50 +22,42 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.config.Actionable;
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.core.definitions.AEItems;
-import appeng.menu.locator.MenuLocators;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
-import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
+
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
-        implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware {
+                                              implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware {
+
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
     private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
-    private static final Field FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD =
-            resolveInheritedField("dataEnergistics$networkBlankPatternCount");
-    private static final Field FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD =
-            resolveInheritedField("dataEnergistics$syncedPatternProviders");
-    private static final Field FALLBACK_PENDING_PATTERN_SOURCE_FIELD =
-            resolveInheritedField("dataEnergistics$pendingPatternSource");
-    private static final Field FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD =
-            resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
-    private static final Field FALLBACK_PATTERN_SOURCE_ENABLED_FIELD =
-            resolveInheritedField("dataEnergistics$patternSourceEnabled");
+    private static final Field FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD = resolveInheritedField("dataEnergistics$networkBlankPatternCount");
+    private static final Field FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD = resolveInheritedField("dataEnergistics$syncedPatternProviders");
+    private static final Field FALLBACK_PENDING_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$pendingPatternSource");
+    private static final Field FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
+    private static final Field FALLBACK_PATTERN_SOURCE_ENABLED_FIELD = resolveInheritedField("dataEnergistics$patternSourceEnabled");
     private static final String ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;
@@ -143,9 +136,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodeOutput = encodedPatternInv.getStackInSlot(0);
-        if (!encodeOutput.isEmpty()
-                && !PatternDetailsHelper.isEncodedPattern(encodeOutput)
-                && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
+        if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
             return;
         }
 
@@ -466,13 +457,12 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         var blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
-        return blankPatternKey != null
-                && StorageHelper.poweredExtraction(
-                        this.energySource,
-                        this.storage,
-                        blankPatternKey,
-                        1,
-                        this.getActionSource()) > 0;
+        return blankPatternKey != null && StorageHelper.poweredExtraction(
+                this.energySource,
+                this.storage,
+                blankPatternKey,
+                1,
+                this.getActionSource()) > 0;
     }
 
     private void transferEncodedPatternToProviderFromClient(Long providerId) {
@@ -500,8 +490,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             long providerId = Long.parseLong(payload.substring(0, separator));
             String name = payload.substring(separator + 1);
             renamePatternProvider(providerId, name);
-        } catch (NumberFormatException ignored) {
-        }
+        } catch (NumberFormatException ignored) {}
     }
 
     private void renamePatternProvider(appeng.helpers.patternprovider.PatternContainer provider, @Nullable String name) {
@@ -580,8 +569,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         try {
             FALLBACK_PENDING_PATTERN_SOURCE_FIELD.set(this, workstationId);
-        } catch (IllegalAccessException ignored) {
-        }
+        } catch (IllegalAccessException ignored) {}
     }
 
     @Nullable
@@ -605,8 +593,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         try {
             FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD.set(this, workstationId);
-        } catch (IllegalAccessException ignored) {
-        }
+        } catch (IllegalAccessException ignored) {}
     }
 
     @Nullable
@@ -630,8 +617,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         try {
             FALLBACK_PATTERN_SOURCE_ENABLED_FIELD.setBoolean(this, enabled);
-        } catch (IllegalAccessException ignored) {
-        }
+        } catch (IllegalAccessException ignored) {}
     }
 
     private void clearEncodedPatternSlot() {
@@ -770,9 +756,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         PatternEncodingLogic logic = this.host.getLogic();
         ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
 
-        if (!(encodedInputsInv.getKey(0) instanceof AEItemKey template)
-                || !(encodedInputsInv.getKey(1) instanceof AEItemKey base)
-                || !(encodedInputsInv.getKey(2) instanceof AEItemKey addition)) {
+        if (!(encodedInputsInv.getKey(0) instanceof AEItemKey template) || !(encodedInputsInv.getKey(1) instanceof AEItemKey base) || !(encodedInputsInv.getKey(2) instanceof AEItemKey addition)) {
             return null;
         }
 
@@ -824,5 +808,4 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return null;
         }
     }
-
 }

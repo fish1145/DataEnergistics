@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.util;
 
-import appeng.api.util.IConfigManager;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
+
+import appeng.api.util.IConfigManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Function;
@@ -10,53 +11,50 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public record UniversalTerminalDefinition(
-        String name,
-        Predicate<ItemStack> matcher,
-        Supplier<ItemStack> iconSupplier,
-        Supplier<MenuType<?>> menuTypeSupplier,
-        UniversalTerminalConfigProfile configProfile,
-        boolean requiresCustomMenuLocator,
-        @Nullable Function<Runnable, IConfigManager> configManagerFactory
-) implements UniversalTerminalAdapter {
+                                          String name,
+                                          Predicate<ItemStack> matcher,
+                                          Supplier<ItemStack> iconSupplier,
+                                          Supplier<MenuType<?>> menuTypeSupplier,
+                                          UniversalTerminalConfigProfile configProfile,
+                                          boolean requiresCustomMenuLocator,
+                                          @Nullable Function<Runnable, IConfigManager> configManagerFactory)
+        implements UniversalTerminalAdapter {
+
     public UniversalTerminalDefinition(
-            String name,
-            Predicate<ItemStack> matcher,
-            Supplier<ItemStack> iconSupplier,
-            Supplier<MenuType<?>> menuTypeSupplier
-    ) {
+                                       String name,
+                                       Predicate<ItemStack> matcher,
+                                       Supplier<ItemStack> iconSupplier,
+                                       Supplier<MenuType<?>> menuTypeSupplier) {
         this(name, matcher, iconSupplier, menuTypeSupplier, UniversalTerminalConfigProfile.STANDARD, false, null);
     }
 
     public UniversalTerminalDefinition(
-            String name,
-            Predicate<ItemStack> matcher,
-            Supplier<ItemStack> iconSupplier,
-            Supplier<MenuType<?>> menuTypeSupplier,
-            UniversalTerminalConfigProfile configProfile
-    ) {
+                                       String name,
+                                       Predicate<ItemStack> matcher,
+                                       Supplier<ItemStack> iconSupplier,
+                                       Supplier<MenuType<?>> menuTypeSupplier,
+                                       UniversalTerminalConfigProfile configProfile) {
         this(name, matcher, iconSupplier, menuTypeSupplier, configProfile, false, null);
     }
 
     public UniversalTerminalDefinition(
-            String name,
-            Predicate<ItemStack> matcher,
-            Supplier<ItemStack> iconSupplier,
-            Supplier<MenuType<?>> menuTypeSupplier,
-            UniversalTerminalConfigProfile configProfile,
-            boolean requiresCustomMenuLocator
-    ) {
+                                       String name,
+                                       Predicate<ItemStack> matcher,
+                                       Supplier<ItemStack> iconSupplier,
+                                       Supplier<MenuType<?>> menuTypeSupplier,
+                                       UniversalTerminalConfigProfile configProfile,
+                                       boolean requiresCustomMenuLocator) {
         this(name, matcher, iconSupplier, menuTypeSupplier, configProfile, requiresCustomMenuLocator, null);
     }
 
     public UniversalTerminalDefinition(
-            String name,
-            Predicate<ItemStack> matcher,
-            Supplier<ItemStack> iconSupplier,
-            Supplier<MenuType<?>> menuTypeSupplier,
-            UniversalTerminalConfigProfile configProfile,
-            boolean requiresCustomMenuLocator,
-            @Nullable Function<Runnable, IConfigManager> configManagerFactory
-    ) {
+                                       String name,
+                                       Predicate<ItemStack> matcher,
+                                       Supplier<ItemStack> iconSupplier,
+                                       Supplier<MenuType<?>> menuTypeSupplier,
+                                       UniversalTerminalConfigProfile configProfile,
+                                       boolean requiresCustomMenuLocator,
+                                       @Nullable Function<Runnable, IConfigManager> configManagerFactory) {
         this.name = name;
         this.matcher = matcher;
         this.iconSupplier = iconSupplier;

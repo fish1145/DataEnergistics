@@ -1,25 +1,25 @@
 package com.fish_dan_.data_energistics.client;
 
-import appeng.api.client.AEKeyRendering;
-import appeng.api.stacks.AEKey;
-import appeng.client.gui.style.Blitter;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
 
-public final class CustomKeyGuiRenderer {
-    private static final ResourceLocation DATA_FLOW_SPRITE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data_flow");
-    private static final ResourceLocation DATA_SPRITE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data");
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEKey;
+import appeng.client.gui.style.Blitter;
 
-    private CustomKeyGuiRenderer() {
-    }
+public final class CustomKeyGuiRenderer {
+
+    private static final ResourceLocation DATA_FLOW_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data_flow");
+    private static final ResourceLocation DATA_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data");
+
+    private CustomKeyGuiRenderer() {}
 
     public static void draw(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, AEKey key) {
         if (!drawCustom(minecraft, guiGraphics, x, y, key)) {

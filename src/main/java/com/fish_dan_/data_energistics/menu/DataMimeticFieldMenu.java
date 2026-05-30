@@ -1,27 +1,30 @@
 package com.fish_dan_.data_energistics.menu;
 
-import appeng.api.util.IConfigManager;
-import appeng.menu.slot.AppEngSlot;
-import appeng.menu.SlotSemantic;
-import appeng.menu.SlotSemantics;
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.interfaces.IProgressProvider;
-import appeng.menu.implementations.UpgradeableMenu;
-import appeng.menu.slot.IOptionalSlotHost;
-import appeng.menu.slot.OptionalRestrictedInputSlot;
-import appeng.menu.slot.RestrictedInputSlot;
-import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
+import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+
+import appeng.api.util.IConfigManager;
+import appeng.menu.SlotSemantic;
+import appeng.menu.SlotSemantics;
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.implementations.UpgradeableMenu;
+import appeng.menu.interfaces.IProgressProvider;
+import appeng.menu.slot.AppEngSlot;
+import appeng.menu.slot.IOptionalSlotHost;
+import appeng.menu.slot.OptionalRestrictedInputSlot;
+import appeng.menu.slot.RestrictedInputSlot;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockEntity> implements IOptionalSlotHost, IProgressProvider {
+
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
     private static final String ACTION_SET_DROP_ROUTING_MODE = "set_drop_routing_mode";
     private static final String ACTION_SET_OUTPUT_SIDE = "set_output_side";
@@ -201,6 +204,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
     }
 
     private static final class CarrierSlot extends RestrictedInputSlot {
+
         private CarrierSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setIcon(null);
@@ -208,14 +212,12 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return (stack.is(ModItems.MOB_DATA_CARRIER.get())
-                    || stack.is(ModItems.ORE_DATA_CARRIER.get())
-                    || stack.is(ModItems.CROP_DATA_CARRIER.get()))
-                    && super.mayPlace(stack);
+            return (stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get())) && super.mayPlace(stack);
         }
     }
 
     private static final class OptionalCarrierSlot extends OptionalRestrictedInputSlot {
+
         private OptionalCarrierSlot(appeng.api.inventories.InternalInventory inv, IOptionalSlotHost host, int invSlot, int group, Inventory playerInventory) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, host, invSlot, group, playerInventory);
             this.setIcon(null);
@@ -223,10 +225,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return (stack.is(ModItems.MOB_DATA_CARRIER.get())
-                    || stack.is(ModItems.ORE_DATA_CARRIER.get())
-                    || stack.is(ModItems.CROP_DATA_CARRIER.get()))
-                    && super.mayPlace(stack);
+            return (stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get())) && super.mayPlace(stack);
         }
     }
 }

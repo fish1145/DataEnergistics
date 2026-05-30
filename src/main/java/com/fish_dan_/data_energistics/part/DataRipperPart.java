@@ -1,5 +1,25 @@
 package com.fish_dan_.data_energistics.part;
 
+import com.fish_dan_.data_energistics.Config;
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
+import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+
 import appeng.api.config.Actionable;
 import appeng.api.config.Setting;
 import appeng.api.config.YesNo;
@@ -21,32 +41,14 @@ import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.parts.PartModel;
 import appeng.parts.automation.UpgradeablePart;
-import com.fish_dan_.data_energistics.Config;
-import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
-import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 import com.mojang.logging.LogUtils;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 public class DataRipperPart extends UpgradeablePart implements IGridTickable {
+
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final ResourceLocation MODEL_BASE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/data_ripper_base");
+    private static final ResourceLocation MODEL_BASE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/data_ripper_base");
 
     @PartModels
     private static final PartModel MODELS_OFF;
@@ -315,8 +317,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                     LOGGER.warn(
                             "Detected random access conflict while accelerating block entity {} at {}. Stopping this acceleration pass.",
                             blockEntity.getType(),
-                            blockEntity.getBlockPos()
-                    );
+                            blockEntity.getBlockPos());
                     break;
                 }
                 throw e;
@@ -325,8 +326,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                         "Failed while accelerating block entity {} at {}",
                         blockEntity.getType(),
                         blockEntity.getBlockPos(),
-                        e
-                );
+                        e);
                 break;
             }
         }
@@ -348,8 +348,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                         "Failed while accelerating AE grid tick for block entity {} at {}",
                         blockEntity.getType(),
                         blockEntity.getBlockPos(),
-                        e
-                );
+                        e);
                 break;
             }
         }
@@ -368,8 +367,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
                 LOGGER.error(
                         "Failed while accelerating random tick block at {}",
                         randomTickTarget.pos(),
-                        e
-                );
+                        e);
                 break;
             }
         }
@@ -398,16 +396,13 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
             inventory.extract(DataFlowKey.of(), requiredDataFlow, Actionable.MODULATE, IActionSource.ofMachine(this));
             this.setNetworkEnergySufficient(true);
             return true;
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
 
         this.setNetworkEnergySufficient(false);
         return false;
     }
 
-    private record GridTickTarget(IGridNode node, IGridTickable tickable) {
-    }
+    private record GridTickTarget(IGridNode node, IGridTickable tickable) {}
 
-    private record RandomTickTarget(ServerLevel level, BlockPos pos) {
-    }
+    private record RandomTickTarget(ServerLevel level, BlockPos pos) {}
 }

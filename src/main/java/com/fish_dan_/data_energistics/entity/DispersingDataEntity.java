@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -10,23 +11,22 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public class DispersingDataEntity extends Entity {
-    private static final EntityDataAccessor<Integer> TEXTURE_VARIANT =
-            SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
+
+    private static final EntityDataAccessor<Integer> TEXTURE_VARIANT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
     private static final int LIFETIME_TICKS = 1200;
     private static final double DRIFT_STRENGTH = 0.015D;
     private static final double VERTICAL_DRIFT = 0.01D;
@@ -51,8 +51,7 @@ public class DispersingDataEntity extends Entity {
         Vec3 drift = new Vec3(
                 (this.random.nextDouble() - 0.5D) * DRIFT_STRENGTH,
                 (this.random.nextDouble() - 0.5D) * VERTICAL_DRIFT,
-                (this.random.nextDouble() - 0.5D) * DRIFT_STRENGTH
-        );
+                (this.random.nextDouble() - 0.5D) * DRIFT_STRENGTH);
         this.setDeltaMovement(this.getDeltaMovement().scale(0.92D).add(drift));
         this.move(MoverType.SELF, this.getDeltaMovement());
 
@@ -78,8 +77,7 @@ public class DispersingDataEntity extends Entity {
                 this.getZ() - halfWidth,
                 this.getX() + halfWidth,
                 this.getY() - HITBOX_Y_OFFSET + height,
-                this.getZ() + halfWidth
-        );
+                this.getZ() + halfWidth);
     }
 
     @Override

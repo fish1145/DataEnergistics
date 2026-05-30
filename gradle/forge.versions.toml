@@ -1,5 +1,4 @@
 [versions]
-guideme = "21.11.1-beta"
 ae2 = "19.2.8"
 ae2wt = "19.5.0"
 
@@ -26,6 +25,7 @@ iris = "1.8.8+1.21.1-neoforge"
 modernfix = "4SPHwiDB" # 5.24.3+mc1.21.1
 
 ## cursemaven ##
+guideme = "8129788"
 geckolib = "7707149"
 glodium = "5821676"
 ae2ji = "7727898"
@@ -44,10 +44,10 @@ amek = "7096962"
 
 
 ## libs ##
-
+pinyin4j = "2.5.1"
 
 [libraries]
-guideme             = { module = "org.appliedenergistics:guideme", version.ref = "guideme" }
+guideme             = { module = "curse.maven:guideme-1173950", version.ref = "guideme" }
 ae2                 = { module = "org.appliedenergistics:appliedenergistics2", version.ref = "ae2" }
 ae2wt               = { module = "de.mari_023:ae2wtlib", version.ref = "ae2wt"}
 ae2wt_api           = { module = "de.mari_023:ae2wtlib_api", version.ref = "ae2wt"}
@@ -86,6 +86,7 @@ applied-create      = { module = "curse.maven:applied-create-1474758", version.r
 mega-cells          = { module = "curse.maven:mega-cells-622112", version.ref = "mega-cells" }
 cloth-config        = { module = "curse.maven:cloth-config-348521", version.ref = "cloth-config" }
 amek                = { module = "curse.maven:applied-mekanistics-574300", version.ref = "amek" }
+pinyin4j            = { module = "com.belerweb:pinyin4j", version.ref = "pinyin4j" }
 
 [bundles]
 jei = ["jei-common-api", "jei-neoforge-api", "jei-neoforge-impl"]

@@ -1,12 +1,16 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
-import dev.emi.emi.api.EmiExclusionArea;
-import dev.emi.emi.api.widget.Bounds;
-import java.util.function.Consumer;
+
 import net.minecraft.client.gui.screens.Screen;
 
+import dev.emi.emi.api.EmiExclusionArea;
+import dev.emi.emi.api.widget.Bounds;
+
+import java.util.function.Consumer;
+
 final class UniversalTerminalEmiExclusionArea implements EmiExclusionArea<Screen> {
+
     @Override
     public void addExclusionArea(Screen screen, Consumer<Bounds> consumer) {
         var selectorPanel = UniversalTerminalScreenHook.getSelectorPanel(screen);

@@ -1,13 +1,13 @@
 {
-  "type": "ae2:inscriber",
-  "mode": "inscribe",
-  "ingredients": {
-    "middle": {
-      "tag": "c:gems/data_crystal"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_dust",
-    "count": 1
-  }
+	"type": "ae2:inscriber",
+	"mode": "inscribe",
+	"ingredients": {
+		"middle": {
+			"tag": "c:gems/data_crystal"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_dust",
+		"count": 1
+	}
 }

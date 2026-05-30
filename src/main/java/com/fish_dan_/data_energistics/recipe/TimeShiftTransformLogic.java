@@ -1,10 +1,7 @@
 package com.fish_dan_.data_energistics.recipe;
 
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
+
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -15,7 +12,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.item.ItemExpireEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+
 public final class TimeShiftTransformLogic {
+
     private static final int CHECK_INTERVAL_TICKS = 20;
     private static final double SEARCH_RADIUS = 1.0D;
 

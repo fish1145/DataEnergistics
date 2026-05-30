@@ -1,25 +1,11 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.config.FuzzyMode;
-import appeng.api.ids.AEComponents;
-import appeng.api.implementations.items.IAEItemPowerStorage;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.IBasicCellItem;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.api.upgrades.Upgrades;
-import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.ae2.DataKeyType;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.core.localization.Tooltips;
-import appeng.util.ConfigInventory;
+import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -30,9 +16,26 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 
+import appeng.api.config.AccessRestriction;
+import appeng.api.config.Actionable;
+import appeng.api.config.FuzzyMode;
+import appeng.api.ids.AEComponents;
+import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.storage.StorageCells;
+import appeng.api.storage.cells.IBasicCellItem;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.api.upgrades.Upgrades;
+import appeng.core.localization.Tooltips;
+import appeng.util.ConfigInventory;
+
 import java.util.List;
 
 public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IBasicCellItem {
+
     private static final double MAX_POWER = 50_000.0D;
     private static final double CHARGE_RATE = 50_000.0D;
     private static final double INITIAL_POWER = 5_000.0D;
@@ -179,8 +182,7 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     }
 
     @Override
-    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {
-    }
+    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
     public static ItemStack createChargedStack() {
         ItemStack stack = ModItems.DATA_CAPTURE_BALL.toStack();
@@ -266,8 +268,7 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     }
 
     public boolean canRunRightClickRecipe(ItemStack stack, DataCaptureBallRightClickRecipe recipe) {
-        return this.getAECurrentPower(stack) >= recipe.getEnergyCost()
-                && this.getStoredDataAmount(stack) >= recipe.getDataCost();
+        return this.getAECurrentPower(stack) >= recipe.getEnergyCost() && this.getStoredDataAmount(stack) >= recipe.getDataCost();
     }
 
     public boolean runRightClickRecipe(ItemStack stack, Player player, DataCaptureBallRightClickRecipe recipe) {

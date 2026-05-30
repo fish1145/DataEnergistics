@@ -1,59 +1,59 @@
 {
-  "$schema": "schema.json",
-  "includes": ["common/common.json", "common/player_inventory.json"],
-  "background": {
-    "texture": "guis/data_distribution_tower.png",
-    "srcRect": [0, 0, 198, 231]
-  },
-  "text": {
-    "dialog_title": {
-      "position": {
-        "left": 8,
-        "top": 6
-      }
-    },
-    "ae_channels": {
-      "position": {
-        "left": 13,
-        "top": 17
-      }
-    },
-    "available_fe": {
-      "position": {
-        "left": 13,
-        "top": 26
-      }
-    },
-    "bound_title": {
-      "position": {
-        "left": 13,
-        "top": 40
-      }
-    },
-    "range": {
-      "position": {
-        "left": 13,
-        "top": 130
-      }
-    },
-    "range_visible": {
-      "position": {
-        "left": 100,
-        "top": 137
-      }
-    }
-  },
-  "slots": {
-    "STORAGE": {
-      "right": 23,
-      "top": 6
-    }
-  },
-  "widgets": {
-    "scrollbar": {
-      "left": 155,
-      "top": 35,
-      "height": 91
-    }
-  }
+	"$schema": "schema.json",
+	"includes": ["common/common.json", "common/player_inventory.json"],
+	"background": {
+		"texture": "guis/data_distribution_tower.png",
+		"srcRect": [0, 0, 198, 231]
+	},
+	"text": {
+		"dialog_title": {
+			"position": {
+				"left": 8,
+				"top": 6
+			}
+		},
+		"ae_channels": {
+			"position": {
+				"left": 13,
+				"top": 17
+			}
+		},
+		"available_fe": {
+			"position": {
+				"left": 13,
+				"top": 26
+			}
+		},
+		"bound_title": {
+			"position": {
+				"left": 13,
+				"top": 40
+			}
+		},
+		"range": {
+			"position": {
+				"left": 13,
+				"top": 130
+			}
+		},
+		"range_visible": {
+			"position": {
+				"left": 100,
+				"top": 137
+			}
+		}
+	},
+	"slots": {
+		"STORAGE": {
+			"right": 23,
+			"top": 6
+		}
+	},
+	"widgets": {
+		"scrollbar": {
+			"left": 155,
+			"top": 35,
+			"height": 91
+		}
+	}
 }

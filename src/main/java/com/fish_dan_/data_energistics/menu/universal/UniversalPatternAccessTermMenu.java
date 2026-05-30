@@ -1,15 +1,18 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
-import appeng.menu.implementations.PatternAccessTermMenu;
-import appeng.menu.guisync.GuiSync;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.implementations.PatternAccessTermMenu;
+
 public class UniversalPatternAccessTermMenu extends PatternAccessTermMenu implements UniversalTerminalMenuBridge {
+
     private final UniversalTerminalPart host;
     @GuiSync(790)
     public int availableTerminalMask;

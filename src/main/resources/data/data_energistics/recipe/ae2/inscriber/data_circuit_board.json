@@ -1,19 +1,19 @@
 {
-  "type": "ae2:inscriber",
-  "mode": "press",
-  "ingredients": {
-    "top": {
-      "tag": "c:dusts/certus_quartz"
-    },
-    "middle": {
-      "item": "data_energistics:data_inscriber_template"
-    },
-    "bottom": {
-      "tag": "c:dusts/data_dust"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_circuit_board",
-    "count": 1
-  }
+	"type": "ae2:inscriber",
+	"mode": "press",
+	"ingredients": {
+		"top": {
+			"tag": "c:dusts/certus_quartz"
+		},
+		"middle": {
+			"item": "data_energistics:data_inscriber_template"
+		},
+		"bottom": {
+			"tag": "c:dusts/data_dust"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_circuit_board",
+		"count": 1
+	}
 }

@@ -1,6 +1,6 @@
 {
-  "type": "data_energistics:meteorite",
-  "biomes": "#data_energistics:has_meteorites",
-  "spawn_overrides": {},
-  "step": "top_layer_modification"
+	"type": "data_energistics:meteorite",
+	"biomes": "#data_energistics:has_meteorites",
+	"spawn_overrides": {},
+	"step": "top_layer_modification"
 }

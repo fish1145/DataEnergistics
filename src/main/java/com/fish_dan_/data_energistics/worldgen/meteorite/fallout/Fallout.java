@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.worldgen.meteorite.fallout;
 
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.worldgen.meteorite.MeteoriteBlockPutter;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.LevelAccessor;
@@ -9,6 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class Fallout {
+
     private static final float CRACKED_FALLOUT_CHANCE = 0.05F;
     private static final float FRACTURED_FALLOUT_CHANCE = 0.03F;
     private static final float SHATTERED_FALLOUT_CHANCE = 0.01F;

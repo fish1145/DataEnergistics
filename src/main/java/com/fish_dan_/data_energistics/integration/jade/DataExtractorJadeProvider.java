@@ -1,13 +1,15 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
-import appeng.core.localization.InGameTooltip;
-import appeng.util.Platform;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+
+import appeng.core.localization.InGameTooltip;
+import appeng.util.Platform;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.IServerDataProvider;
@@ -15,6 +17,7 @@ import snownee.jade.api.ITooltip;
 import snownee.jade.api.config.IPluginConfig;
 
 public class DataExtractorJadeProvider implements IBlockComponentProvider, IServerDataProvider<BlockAccessor> {
+
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_extractor");
     private static final String TAG_ONLINE = "online";
     private static final String TAG_CURRENT_POWER = "current_power";
@@ -35,13 +38,10 @@ public class DataExtractorJadeProvider implements IBlockComponentProvider, IServ
         if (serverData.contains(TAG_MAX_POWER)) {
             tooltip.add(InGameTooltip.Stored.text(
                     Platform.formatPower(serverData.getDouble(TAG_CURRENT_POWER), false),
-                    Platform.formatPower(serverData.getDouble(TAG_MAX_POWER), false)
-            ));
+                    Platform.formatPower(serverData.getDouble(TAG_MAX_POWER), false)));
         }
 
-        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE)
-                ? "jade.data_energistics.data_extractor.status.online"
-                : "jade.data_energistics.data_extractor.status.offline"));
+        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.data_extractor.status.online" : "jade.data_energistics.data_extractor.status.offline"));
     }
 
     @Override

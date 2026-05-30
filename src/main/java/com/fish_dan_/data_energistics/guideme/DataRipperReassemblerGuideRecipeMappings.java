@@ -1,26 +1,29 @@
 package com.fish_dan_.data_energistics.guideme;
 
-import appeng.api.stacks.GenericStack;
-import appeng.core.AppEng;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import guideme.compiler.tags.RecipeTypeMappingSupplier;
-import guideme.document.block.recipes.LytStandardRecipeBox;
-import guideme.document.interaction.GuideTooltip;
-import guideme.render.RenderContext;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
+import appeng.core.AppEng;
+import guideme.compiler.tags.RecipeTypeMappingSupplier;
+import guideme.document.block.recipes.LytStandardRecipeBox;
+import guideme.document.interaction.GuideTooltip;
+import guideme.render.RenderContext;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
 public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTypeMappingSupplier {
+
     @Override
     public void collect(RecipeTypeMappings mappings) {
         mappings.add(
@@ -29,7 +32,7 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
     }
 
     private static LytStandardRecipeBox<DataRipperReassemblerRecipe> createRecipe(
-            RecipeHolder<DataRipperReassemblerRecipe> holder) {
+                                                                                  RecipeHolder<DataRipperReassemblerRecipe> holder) {
         var recipe = holder.value();
 
         return LytStandardRecipeBox.builder()
@@ -56,6 +59,7 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
     }
 
     private static final class RecipeBody extends AbstractTexturedMachineGuideRecipeBody {
+
         private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
         private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
 

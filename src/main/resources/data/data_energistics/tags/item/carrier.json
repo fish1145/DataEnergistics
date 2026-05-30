@@ -1,9 +1,9 @@
 {
-  "replace": false,
-  "values": [
-    "data_energistics:data_carrier",
-    "data_energistics:mob_data_carrier",
-    "data_energistics:crop_data_carrier",
-    "data_energistics:ore_data_carrier"
-  ]
+	"replace": false,
+	"values": [
+		"data_energistics:data_carrier",
+		"data_energistics:mob_data_carrier",
+		"data_energistics:crop_data_carrier",
+		"data_energistics:ore_data_carrier"
+	]
 }

@@ -4,6 +4,11 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
 import dev.emi.emi.api.recipe.BasicEmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.render.EmiTexture;
@@ -11,12 +16,11 @@ import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.TextWidget;
 import dev.emi.emi.api.widget.WidgetHolder;
+
 import java.util.Locale;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
 
 public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
+
     private static final int WIDTH = 148;
     private static final int HEIGHT = 72;
     private static final int CENTER_Y = 36;
@@ -31,6 +35,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("world_interaction"),
             EmiStack.of(ModItems.DATA_CRYSTAL.get())) {
+
         @Override
         public Component getName() {
             return Component.translatable("recipe.data_energistics.time_shift.category");
@@ -68,11 +73,11 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
         widgets.addTexture(EmiTexture.EMPTY_ARROW, ARROW_X, CENTER_Y - 8);
 
         widgets.addText(
-                        Component.translatable("recipe.data_energistics.time_shift"),
-                        TEXT_X + TEXT_WIDTH / 2,
-                        6,
-                        0x7E7E7E,
-                        false)
+                Component.translatable("recipe.data_energistics.time_shift"),
+                TEXT_X + TEXT_WIDTH / 2,
+                6,
+                0x7E7E7E,
+                false)
                 .horizontalAlign(TextWidget.Alignment.CENTER);
 
         Component conditionText = Component.translatable(

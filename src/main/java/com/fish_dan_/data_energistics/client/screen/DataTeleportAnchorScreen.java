@@ -1,5 +1,14 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+
 import appeng.client.Point;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
@@ -8,20 +17,13 @@ import appeng.client.gui.style.Text;
 import appeng.client.gui.style.TextAlignment;
 import appeng.client.gui.style.WidgetStyle;
 import appeng.client.gui.widgets.Scrollbar;
-import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMenu> {
+
     private static final int ACTION_BUTTON_GAP = 1;
     private static final int VISIBLE_BUTTON_COUNT = 6;
     private static final String ANCHOR_CARDS_WIDGET = "anchor_cards";
@@ -29,10 +31,8 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
     private static final String ANCHOR_CARD_COORDS_TEXT = "anchor_card_coords";
     private static final String ANCHOR_CARD_DIMENSION_TEXT = "anchor_card_dimension";
     private static final String SCROLLBAR_WIDGET = "scrollbar";
-    private static final ResourceLocation AE2_BUTTON_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
-    private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
+    private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
+    private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
     private static final int BUTTON_TEXTURE_WIDTH = 200;
     private static final int BUTTON_TEXTURE_HEIGHT = 20;
     private static final int BUTTON_SLICE_BORDER = 4;
@@ -49,7 +49,7 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
     private final WidgetStyle scrollbarStyle;
 
     public DataTeleportAnchorScreen(DataTeleportAnchorMenu menu, Inventory playerInventory, Component title,
-            ScreenStyle style) {
+                                    ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.redstoneControlButton = new DataExtractorToggleButton(
                 Icon.REDSTONE_ON,
@@ -57,8 +57,7 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
                 "button.data_energistics.data_teleport_anchor.redstone_control",
                 "button.data_energistics.data_teleport_anchor.redstone_control.enabled",
                 "button.data_energistics.data_teleport_anchor.redstone_control.disabled",
-                this.menu::sendSetRedstoneControlled
-        );
+                this.menu::sendSetRedstoneControlled);
         this.addToLeftToolbar(this.redstoneControlButton);
         this.scrollbar = widgets.addScrollBar("scrollbar", Scrollbar.SMALL);
         this.anchorCardsStyle = this.getStyle().getWidget(ANCHOR_CARDS_WIDGET);
@@ -80,18 +79,13 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
         super.updateBeforeRender();
 
         setTextContent("dialog_title", Component.translatable(
-                this.menu.online
-                        ? "screen.data_energistics.data_teleport_anchor.title.online"
-                        : "screen.data_energistics.data_teleport_anchor.title.offline"
-        ));
+                this.menu.online ? "screen.data_energistics.data_teleport_anchor.title.online" : "screen.data_energistics.data_teleport_anchor.title.offline"));
         setTextContent("anchor_position", Component.translatable(
                 "screen.data_energistics.data_teleport_anchor.anchor",
-                formatCoordinates(this.menu.anchorX, this.menu.anchorY, this.menu.anchorZ)
-        ));
+                formatCoordinates(this.menu.anchorX, this.menu.anchorY, this.menu.anchorZ)));
         setTextContent("anchor_dimension", Component.translatable(
                 "screen.data_energistics.data_teleport_anchor.dimension",
-                this.menu.anchorDimension
-        ));
+                this.menu.anchorDimension));
         this.redstoneControlButton.setState(this.menu.redstoneControlled);
         updateFixedScrollbarLayout();
         refreshAnchorEntries();
@@ -126,8 +120,7 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
                     BUTTON_SLICE_BORDER,
                     BUTTON_SLICE_BORDER,
                     BUTTON_SLICE_BORDER,
-                    BUTTON_SLICE_BORDER
-            );
+                    BUTTON_SLICE_BORDER);
         }
     }
 
@@ -172,18 +165,15 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
     }
 
     private boolean isMouseOverCard(int mouseX, int mouseY, Rect2i bounds) {
-        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth()
-                && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
+        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth() && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
     }
 
     private Rect2i getCardBounds(int visibleIndex) {
         return new Rect2i(
                 this.leftPos + getOrZero(this.anchorCardsStyle.getLeft()),
-                this.topPos + getOrZero(this.anchorCardsStyle.getTop())
-                        + visibleIndex * (this.anchorCardsStyle.getHeight() + ACTION_BUTTON_GAP),
+                this.topPos + getOrZero(this.anchorCardsStyle.getTop()) + visibleIndex * (this.anchorCardsStyle.getHeight() + ACTION_BUTTON_GAP),
                 this.anchorCardsStyle.getWidth(),
-                this.anchorCardsStyle.getHeight()
-        );
+                this.anchorCardsStyle.getHeight());
     }
 
     private void updateFixedScrollbarLayout() {
@@ -194,7 +184,7 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
     }
 
     private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds,
-            int textureWidth, int textureHeight, int left, int top, int right, int bottom) {
+                                       int textureWidth, int textureHeight, int left, int top, int right, int bottom) {
         int centerDstWidth = Math.max(0, bounds.getWidth() - left - right);
         int centerDstHeight = Math.max(0, bounds.getHeight() - top - bottom);
         int x = bounds.getX();
@@ -378,6 +368,5 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
         return result.toString();
     }
 
-    private record AnchorEntry(String name, String dimensionId, int x, int y, int z) {
-    }
+    private record AnchorEntry(String name, String dimensionId, int x, int y, int z) {}
 }

@@ -2,22 +2,23 @@ package com.fish_dan_.data_energistics.integration;
 
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public final class Ae2LtAdaptiveProviderCompat {
-    private Ae2LtAdaptiveProviderCompat() {
-    }
+
+    private Ae2LtAdaptiveProviderCompat() {}
 
     public static boolean isAdaptiveOverloadedProvider(@Nullable BlockEntity blockEntity) {
-        return blockEntity instanceof AdaptivePatternProviderBlockEntity adaptive
-                && adaptive.isAe2LightningTechOverloadedProviderSelected();
+        return blockEntity instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LightningTechOverloadedProviderSelected();
     }
 
     @Nullable

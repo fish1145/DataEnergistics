@@ -1,18 +1,18 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    {
-      "item": "ae2:advanced_card"
-    },
-    {
-      "item": "minecraft:lever"
-    },
-    {
-      "item": "ae2:redstone_card"
-    }
-  ],
-  "result": {
-    "id": "data_energistics:redstone_tuning_card",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "ae2:advanced_card"
+		},
+		{
+			"item": "minecraft:lever"
+		},
+		{
+			"item": "ae2:redstone_card"
+		}
+	],
+	"result": {
+		"id": "data_energistics:redstone_tuning_card",
+		"count": 1
+	}
 }

@@ -1,12 +1,15 @@
 package com.fish_dan_.data_energistics.recipe;
 
-import com.mojang.serialization.Codec;
-import java.util.Locale;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.level.Level;
 
+import com.mojang.serialization.Codec;
+
+import java.util.Locale;
+
 public enum TimeShiftTimeCondition {
+
     ALL,
     DAY,
     NIGHT;

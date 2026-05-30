@@ -1,15 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.api.config.AccessRestriction;
-import appeng.api.config.Actionable;
-import appeng.api.ids.AEComponents;
-import appeng.api.implementations.items.IAEItemPowerStorage;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableItem;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.core.definitions.AEItems;
-import appeng.core.localization.Tooltips;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -19,9 +11,20 @@ import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.common.extensions.IItemExtension;
 
+import appeng.api.config.AccessRestriction;
+import appeng.api.config.Actionable;
+import appeng.api.ids.AEComponents;
+import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.IUpgradeableItem;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.core.definitions.AEItems;
+import appeng.core.localization.Tooltips;
+
 import java.util.List;
 
 public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, IUpgradeableItem {
+
     double MAX_POWER = 20_000.0D;
     double CHARGE_RATE = 20_000.0D;
     double ENERGY_PER_ACTION = 100.0D;
@@ -58,9 +61,7 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
     }
 
     default double getActionEnergyCost(ItemStack stack) {
-        return ENERGY_PER_ACTION
-                + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack)
-                + ENERGY_PER_SABER_ENERGY_CARD * this.getSaberEnergyCardCount(stack);
+        return ENERGY_PER_ACTION + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack) + ENERGY_PER_SABER_ENERGY_CARD * this.getSaberEnergyCardCount(stack);
     }
 
     default int getSpeedCardCount(ItemStack stack) {
@@ -93,10 +94,7 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
     }
 
     static boolean isAnvilRepairBlocked(ItemStack baseStack, ItemStack additionStack) {
-        return baseStack.getItem() instanceof PoweredEnergyItem
-                && !additionStack.isEmpty()
-                && additionStack.is(baseStack.getItem())
-                && additionStack.getItem() instanceof PoweredEnergyItem;
+        return baseStack.getItem() instanceof PoweredEnergyItem && !additionStack.isEmpty() && additionStack.is(baseStack.getItem()) && additionStack.getItem() instanceof PoweredEnergyItem;
     }
 
     static boolean canCraftWithEnergy(CraftingInput input) {
@@ -180,5 +178,4 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
     default boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
         return !this.hasSufficientEnergy(stack);
     }
-
 }

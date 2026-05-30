@@ -1,15 +1,17 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-import com.mojang.logging.LogUtils;
+
 import net.minecraft.world.entity.player.Player;
+
+import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
 public final class UniversalTerminalMenuSupport {
+
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private UniversalTerminalMenuSupport() {
-    }
+    private UniversalTerminalMenuSupport() {}
 
     public static void switchTerminal(UniversalTerminalPart host, Player player) {
         if (host.switchToNextTerminal(player, false)) {

@@ -6,6 +6,7 @@ import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.component.Tool;
 
 public abstract class AbstractPoweredTieredItem extends PoweredItem {
+
     private final Tier tier;
 
     protected AbstractPoweredTieredItem(Tier tier, Properties properties, Tool toolComponent) {
@@ -24,8 +25,8 @@ public abstract class AbstractPoweredTieredItem extends PoweredItem {
 
     @Override
     public boolean mineBlock(ItemStack stack, net.minecraft.world.level.Level level,
-            net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.BlockPos pos,
-            net.minecraft.world.entity.LivingEntity miningEntity) {
+                             net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.BlockPos pos,
+                             net.minecraft.world.entity.LivingEntity miningEntity) {
         return stack.has(DataComponents.TOOL);
     }
 }

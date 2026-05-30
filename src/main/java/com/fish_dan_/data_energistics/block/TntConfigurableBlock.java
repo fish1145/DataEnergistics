@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.entity.TntConfigurablePrimedEntity;
-import com.mojang.serialization.MapCodec;
-import javax.annotation.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -14,7 +13,12 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 
+import com.mojang.serialization.MapCodec;
+
+import javax.annotation.Nullable;
+
 public class TntConfigurableBlock extends TntBlock {
+
     public static final MapCodec<TntConfigurableBlock> CODEC = simpleCodec(TntConfigurableBlock::new);
 
     public TntConfigurableBlock(BlockBehaviour.Properties properties) {
@@ -29,7 +33,7 @@ public class TntConfigurableBlock extends TntBlock {
 
     @Override
     public void onCaughtFire(BlockState state, Level level, BlockPos pos, @Nullable net.minecraft.core.Direction face,
-            @Nullable LivingEntity igniter) {
+                             @Nullable LivingEntity igniter) {
         prime(level, pos, igniter, 80);
     }
 

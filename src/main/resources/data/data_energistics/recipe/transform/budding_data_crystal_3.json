@@ -1,20 +1,20 @@
 {
-  "type": "data_energistics:right_click",
-  "ingredients": [
-    {
-      "item": {
-        "item": "data_energistics:data_capture_ball",
-        "data_cost": 16,
-        "energy_cost": 350000.0
-      }
-    },
-    {
-      "block": "data_energistics:budding_data_crystal_0"
-    }
-  ],
-  "results": [
-    {
-      "id": "data_energistics:budding_data_crystal_3"
-    }
-  ]
+	"type": "data_energistics:right_click",
+	"ingredients": [
+		{
+			"item": {
+				"item": "data_energistics:data_capture_ball",
+				"data_cost": 16,
+				"energy_cost": 350000.0
+			}
+		},
+		{
+			"block": "data_energistics:budding_data_crystal_0"
+		}
+	],
+	"results": [
+		{
+			"id": "data_energistics:budding_data_crystal_3"
+		}
+	]
 }

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
-import appeng.core.definitions.AEItems;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
@@ -17,7 +17,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.core.definitions.AEItems;
+
 public class EnderCohesionMeteoriteBlock extends Block {
+
     private static final int TELEPORT_HALF_RANGE = 3;
     private static final float FORTUNE_BONUS_PER_LEVEL = 0.03F;
     private final float dispersingDataChance;
@@ -83,8 +86,7 @@ public class EnderCohesionMeteoriteBlock extends Block {
             entity.setDeltaMovement(
                     (random.nextDouble() - 0.5D) * 0.08D,
                     0.01D + random.nextDouble() * 0.03D,
-                    (random.nextDouble() - 0.5D) * 0.08D
-            );
+                    (random.nextDouble() - 0.5D) * 0.08D);
             level.addFreshEntity(entity);
         }
     }

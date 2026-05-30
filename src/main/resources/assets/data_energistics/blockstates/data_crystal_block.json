@@ -1,7 +1,7 @@
 {
-  "variants": {
-    "": {
-      "model": "data_energistics:block/data_crystal_block"
-    }
-  }
+	"variants": {
+		"": {
+			"model": "data_energistics:block/data_crystal_block"
+		}
+	}
 }

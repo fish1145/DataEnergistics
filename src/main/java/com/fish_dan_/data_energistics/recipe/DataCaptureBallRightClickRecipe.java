@@ -1,22 +1,16 @@
 package com.fish_dan_.data_energistics.recipe;
 
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.mojang.datafixers.util.Either;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Optional;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -24,78 +18,76 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+
+import com.mojang.datafixers.util.Either;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+
 public final class DataCaptureBallRightClickRecipe implements Recipe<DataCaptureBallRightClickRecipeInput> {
+
     private static final Codec<Block> BLOCK_CODEC = ResourceLocation.CODEC.flatXmap(
             id -> BuiltInRegistries.BLOCK.getOptional(id)
                     .map(DataResult::success)
                     .orElseGet(() -> DataResult.error(() -> "Unknown block: " + id)),
             block -> DataResult.success(BuiltInRegistries.BLOCK.getKey(block)));
     private static final Codec<Long> DATA_COST_CODEC = Codec.LONG.flatXmap(
-            amount -> amount < 0L
-                    ? DataResult.error(() -> "data_cost must be >= 0")
-                    : DataResult.success(amount),
+            amount -> amount < 0L ? DataResult.error(() -> "data_cost must be >= 0") : DataResult.success(amount),
             DataResult::success);
     private static final Codec<Double> ENERGY_COST_CODEC = Codec.DOUBLE.flatXmap(
-            amount -> amount < 0.0D
-                    ? DataResult.error(() -> "energy_cost must be >= 0")
-                    : DataResult.success(amount),
+            amount -> amount < 0.0D ? DataResult.error(() -> "energy_cost must be >= 0") : DataResult.success(amount),
             DataResult::success);
     private static final Codec<ResourceLocation> ITEM_ID_CODEC = ResourceLocation.CODEC.flatXmap(
             id -> {
                 var item = BuiltInRegistries.ITEM.getOptional(id).orElse(Items.AIR);
-                return item == Items.AIR
-                        ? DataResult.error(() -> "Unknown item: " + id)
-                        : DataResult.success(id);
+                return item == Items.AIR ? DataResult.error(() -> "Unknown item: " + id) : DataResult.success(id);
             },
             DataResult::success);
     private static final Codec<Ingredient> ITEM_INGREDIENT_CODEC = Codec.either(
             ITEM_ID_CODEC,
-            Ingredient.CODEC_NONEMPTY
-    ).xmap(
-            either -> either.map(id -> Ingredient.of(BuiltInRegistries.ITEM.get(id)), ingredient -> ingredient),
-            ingredient -> {
-                ItemStack[] stacks = ingredient.getItems();
-                if (stacks.length == 1) {
-                    return Either.left(BuiltInRegistries.ITEM.getKey(stacks[0].getItem()));
-                }
-                return Either.right(ingredient);
-            });
+            Ingredient.CODEC_NONEMPTY).xmap(
+                    either -> either.map(id -> Ingredient.of(BuiltInRegistries.ITEM.get(id)), ingredient -> ingredient),
+                    ingredient -> {
+                        ItemStack[] stacks = ingredient.getItems();
+                        if (stacks.length == 1) {
+                            return Either.left(BuiltInRegistries.ITEM.getKey(stacks[0].getItem()));
+                        }
+                        return Either.right(ingredient);
+                    });
     private static final Codec<List<IngredientEntry>> INGREDIENTS_CODEC = IngredientEntry.CODEC.listOf().flatXmap(
             DataCaptureBallRightClickRecipe::validateIngredientEntries,
             DataResult::success);
     private static final Codec<List<ResultEntry>> RESULTS_CODEC = ResultEntry.CODEC.listOf().flatXmap(
-            results -> results.isEmpty()
-                    ? DataResult.error(() -> "results must contain at least one entry")
-                    : DataResult.success(results),
+            results -> results.isEmpty() ? DataResult.error(() -> "results must contain at least one entry") : DataResult.success(results),
             DataResult::success);
 
     public static final MapCodec<DataCaptureBallRightClickRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             INGREDIENTS_CODEC.fieldOf("ingredients").forGetter(DataCaptureBallRightClickRecipe::toIngredientEntries),
             RESULTS_CODEC.fieldOf("results").forGetter(DataCaptureBallRightClickRecipe::toResultEntries),
             DATA_COST_CODEC.optionalFieldOf("data_cost").forGetter(recipe -> Optional.empty()),
-            ENERGY_COST_CODEC.optionalFieldOf("energy_cost").forGetter(recipe -> Optional.empty())
-    ).apply(instance, DataCaptureBallRightClickRecipe::fromEntries));
+            ENERGY_COST_CODEC.optionalFieldOf("energy_cost").forGetter(recipe -> Optional.empty())).apply(instance, DataCaptureBallRightClickRecipe::fromEntries));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, DataCaptureBallRightClickRecipe> STREAM_CODEC =
-            StreamCodec.composite(
-                    Ingredient.CONTENTS_STREAM_CODEC,
-                    DataCaptureBallRightClickRecipe::getItemIngredient,
-                    ResourceLocation.STREAM_CODEC.map(
-                            id -> BuiltInRegistries.BLOCK.get(id),
-                            block -> BuiltInRegistries.BLOCK.getKey(block)),
-                    DataCaptureBallRightClickRecipe::getInputBlock,
-                    ResourceLocation.STREAM_CODEC.map(
-                            id -> BuiltInRegistries.BLOCK.get(id),
-                            block -> BuiltInRegistries.BLOCK.getKey(block)),
-                    DataCaptureBallRightClickRecipe::getResultBlock,
-                    ByteBufCodecs.VAR_LONG,
-                    DataCaptureBallRightClickRecipe::getDataCost,
-                    ByteBufCodecs.DOUBLE,
-                    DataCaptureBallRightClickRecipe::getEnergyCost,
-                    DataCaptureBallRightClickRecipe::new
-            );
+    public static final StreamCodec<RegistryFriendlyByteBuf, DataCaptureBallRightClickRecipe> STREAM_CODEC = StreamCodec.composite(
+            Ingredient.CONTENTS_STREAM_CODEC,
+            DataCaptureBallRightClickRecipe::getItemIngredient,
+            ResourceLocation.STREAM_CODEC.map(
+                    id -> BuiltInRegistries.BLOCK.get(id),
+                    block -> BuiltInRegistries.BLOCK.getKey(block)),
+            DataCaptureBallRightClickRecipe::getInputBlock,
+            ResourceLocation.STREAM_CODEC.map(
+                    id -> BuiltInRegistries.BLOCK.get(id),
+                    block -> BuiltInRegistries.BLOCK.getKey(block)),
+            DataCaptureBallRightClickRecipe::getResultBlock,
+            ByteBufCodecs.VAR_LONG,
+            DataCaptureBallRightClickRecipe::getDataCost,
+            ByteBufCodecs.DOUBLE,
+            DataCaptureBallRightClickRecipe::getEnergyCost,
+            DataCaptureBallRightClickRecipe::new);
 
     private final Ingredient itemIngredient;
     private final Block inputBlock;
@@ -104,7 +96,7 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
     private final double energyCost;
 
     public DataCaptureBallRightClickRecipe(Ingredient itemIngredient, Block inputBlock, Block resultBlock, long dataCost,
-            double energyCost) {
+                                           double energyCost) {
         this.itemIngredient = itemIngredient;
         this.inputBlock = inputBlock;
         this.resultBlock = resultBlock;
@@ -175,7 +167,7 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
     }
 
     private static DataCaptureBallRightClickRecipe fromEntries(List<IngredientEntry> ingredients, List<ResultEntry> results,
-            Optional<Long> topLevelDataCost, Optional<Double> topLevelEnergyCost) {
+                                                               Optional<Long> topLevelDataCost, Optional<Double> topLevelEnergyCost) {
         ItemIngredientEntry itemEntry = findItemEntry(ingredients);
         return new DataCaptureBallRightClickRecipe(
                 itemEntry.ingredient(),
@@ -236,24 +228,24 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
     }
 
     private record IngredientEntry(@Nullable ItemIngredientEntry item, @Nullable Block block) {
+
         private static final Codec<IngredientEntry> CODEC = Codec.either(
                 ItemIngredientEntry.CODEC.fieldOf("item").codec(),
-                BLOCK_CODEC.fieldOf("block").codec()
-        ).xmap(
-                either -> either.map(item -> new IngredientEntry(item, null), block -> new IngredientEntry(null, block)),
-                entry -> entry.item() != null ? Either.left(entry.item()) : Either.right(entry.block())
-        );
+                BLOCK_CODEC.fieldOf("block").codec()).xmap(
+                        either -> either.map(item -> new IngredientEntry(item, null), block -> new IngredientEntry(null, block)),
+                        entry -> entry.item() != null ? Either.left(entry.item()) : Either.right(entry.block()));
     }
 
     private record ItemIngredientEntry(Ingredient ingredient, Optional<Long> dataCost, Optional<Double> energyCost) {
+
         private static final Codec<ItemIngredientEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ITEM_INGREDIENT_CODEC.fieldOf("item").forGetter(ItemIngredientEntry::ingredient),
                 DATA_COST_CODEC.optionalFieldOf("data_cost").forGetter(ItemIngredientEntry::dataCost),
-                ENERGY_COST_CODEC.optionalFieldOf("energy_cost").forGetter(ItemIngredientEntry::energyCost)
-        ).apply(instance, ItemIngredientEntry::new));
+                ENERGY_COST_CODEC.optionalFieldOf("energy_cost").forGetter(ItemIngredientEntry::energyCost)).apply(instance, ItemIngredientEntry::new));
     }
 
     private record ResultEntry(Block block) {
+
         private static final Codec<ResultEntry> CODEC = BLOCK_CODEC.fieldOf("id").codec()
                 .xmap(ResultEntry::new, ResultEntry::block);
     }

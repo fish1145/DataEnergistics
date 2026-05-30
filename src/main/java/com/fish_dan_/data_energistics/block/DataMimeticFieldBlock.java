@@ -1,11 +1,9 @@
 package com.fish_dan_.data_energistics.block;
 
-import appeng.block.AEBaseBlock;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionResult;
@@ -27,9 +25,14 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+
+import appeng.block.AEBaseBlock;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 public class DataMimeticFieldBlock extends AEBaseBlock implements EntityBlock {
+
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
@@ -71,7 +74,7 @@ public class DataMimeticFieldBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
-            BlockHitResult hitResult) {
+                                               BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataMimeticFieldBlockEntity field) {
             MenuOpener.open(ModMenus.DATA_MIMETIC_FIELD.get(), player, MenuLocators.forBlockEntity(field));
         }
@@ -81,7 +84,7 @@ public class DataMimeticFieldBlock extends AEBaseBlock implements EntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
-            BlockEntityType<T> blockEntityType) {
+                                                                  BlockEntityType<T> blockEntityType) {
         if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get()) {
             return null;
         }
@@ -95,8 +98,7 @@ public class DataMimeticFieldBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide()
-                && level.getBlockEntity(pos) instanceof DataMimeticFieldBlockEntity field) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide() && level.getBlockEntity(pos) instanceof DataMimeticFieldBlockEntity field) {
             field.dropContents(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);

@@ -1,24 +1,24 @@
 package com.fish_dan_.data_energistics.util;
 
+import net.minecraft.resources.ResourceLocation;
+
+import appeng.api.stacks.GenericStack;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.jetbrains.annotations.Nullable;
-
-import appeng.api.stacks.GenericStack;
-import net.minecraft.resources.ResourceLocation;
-
 final class PatternEncodingSessionState {
+
     private static final Map<UUID, ResourceLocation> LAST_ENCODED_PATTERN_SOURCES = new ConcurrentHashMap<>();
     private static final Map<UUID, GenericStack> PENDING_TRANSFER_KEY_INPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, GenericStack> PENDING_TRANSFER_KEY_OUTPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<GenericStack>> PENDING_TRANSFER_FLUID_INPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<GenericStack>> PENDING_TRANSFER_FLUID_OUTPUTS = new ConcurrentHashMap<>();
 
-    private PatternEncodingSessionState() {
-    }
+    private PatternEncodingSessionState() {}
 
     @Nullable
     static ResourceLocation getLastEncodedPatternSource(UUID playerId) {

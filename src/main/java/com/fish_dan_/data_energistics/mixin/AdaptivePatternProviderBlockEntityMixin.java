@@ -5,10 +5,11 @@ import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.state.BlockState;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AdaptivePatternProviderBlockEntity.class)
 public abstract class AdaptivePatternProviderBlockEntityMixin implements RedstoneTuningAwareHost {
+
     @Unique
     private static final String DATA_ENERGISTICS_REDSTONE_TUNING_TAG = "data_energistics_redstone_tuning_mode";
     @Unique
@@ -48,8 +50,7 @@ public abstract class AdaptivePatternProviderBlockEntityMixin implements Redston
         }
 
         try {
-            this.dataEnergistics$redstoneTuningMode =
-                    RedstoneTuningMode.valueOf(data.getString(DATA_ENERGISTICS_REDSTONE_TUNING_TAG));
+            this.dataEnergistics$redstoneTuningMode = RedstoneTuningMode.valueOf(data.getString(DATA_ENERGISTICS_REDSTONE_TUNING_TAG));
         } catch (IllegalArgumentException ignored) {
             this.dataEnergistics$redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH;
         }
@@ -94,8 +95,7 @@ public abstract class AdaptivePatternProviderBlockEntityMixin implements Redston
 
     @Override
     public void dataEnergistics$onRedstoneTuningDispatch() {
-        if (!this.dataEnergistics$hasRedstoneTuningCard()
-                || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.EMIT_ON_DISPATCH) {
+        if (!this.dataEnergistics$hasRedstoneTuningCard() || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.EMIT_ON_DISPATCH) {
             return;
         }
         if (this.dataEnergistics$redstonePulseTicks > 0) {
@@ -140,8 +140,7 @@ public abstract class AdaptivePatternProviderBlockEntityMixin implements Redston
 
     @Override
     public boolean dataEnergistics$isRedstoneTuningPulseActive() {
-        return this.dataEnergistics$redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH
-                && this.dataEnergistics$redstonePulseTicks > 0;
+        return this.dataEnergistics$redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH && this.dataEnergistics$redstonePulseTicks > 0;
     }
 
     @Override
@@ -216,13 +215,10 @@ public abstract class AdaptivePatternProviderBlockEntityMixin implements Redston
 
     @Unique
     private void dataEnergistics$tryForcePulseUnlock() {
-        if (!this.dataEnergistics$redstoneInputPulsePending
-                || !this.dataEnergistics$hasRedstoneTuningCard()
-                || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+        if (!this.dataEnergistics$redstoneInputPulsePending || !this.dataEnergistics$hasRedstoneTuningCard() || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
             return;
         }
-        if (((AdaptivePatternProviderBlockEntity) (Object) this).getLogic() instanceof PatternProviderLogicAccessor accessor
-                && accessor.dataEnergistics$forcePulseUnlock()) {
+        if (((AdaptivePatternProviderBlockEntity) (Object) this).getLogic() instanceof PatternProviderLogicAccessor accessor && accessor.dataEnergistics$forcePulseUnlock()) {
             this.dataEnergistics$redstoneInputPulsePending = false;
         }
     }

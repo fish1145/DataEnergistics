@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -12,17 +13,18 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 
 public final class BiologyDataCarrierData {
+
     private static final String TAG_ENTITY_TYPE = "entity_type";
     private static final String TAG_REQUIRED_DAMAGE = "required_damage";
     private static final String TAG_COLLECTED_DAMAGE = "collected_damage";
 
-    private BiologyDataCarrierData() {
-    }
+    private BiologyDataCarrierData() {}
 
     public static boolean hasRecordedEntity(ItemStack stack) {
         return getEntityTypeId(stack) != null;

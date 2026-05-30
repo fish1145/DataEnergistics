@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.ae2;
 import appeng.api.config.CondenserOutput;
 
 public enum CondenserOutputMode {
+
     TRASH,
     MATTER_BALLS,
     SINGULARITY,

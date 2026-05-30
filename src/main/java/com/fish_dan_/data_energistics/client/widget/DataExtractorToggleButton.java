@@ -1,26 +1,27 @@
 package com.fish_dan_.data_energistics.client.widget;
 
+import net.minecraft.network.chat.Component;
+
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ToggleButton;
-import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.function.Consumer;
 
 public class DataExtractorToggleButton extends ToggleButton {
+
     private final String titleKey;
     private final String enabledKey;
     private final String disabledKey;
     private boolean state;
 
     public DataExtractorToggleButton(
-            Icon enabledIcon,
-            Icon disabledIcon,
-            String titleKey,
-            String enabledKey,
-            String disabledKey,
-            Consumer<Boolean> onChange
-    ) {
+                                     Icon enabledIcon,
+                                     Icon disabledIcon,
+                                     String titleKey,
+                                     String enabledKey,
+                                     String disabledKey,
+                                     Consumer<Boolean> onChange) {
         super(enabledIcon, disabledIcon, onChange::accept);
         this.titleKey = titleKey;
         this.enabledKey = enabledKey;
@@ -37,7 +38,6 @@ public class DataExtractorToggleButton extends ToggleButton {
     public List<Component> getTooltipMessage() {
         return List.of(
                 Component.translatable(this.titleKey),
-                Component.translatable(this.state ? this.enabledKey : this.disabledKey)
-        );
+                Component.translatable(this.state ? this.enabledKey : this.disabledKey));
     }
 }

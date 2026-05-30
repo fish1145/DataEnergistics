@@ -1,10 +1,10 @@
 {
-  "$schema": "schema.json",
-  "includes": ["terminals/pattern_access_terminal.json"],
-  "widgets": {
-    "switchTerminal": {
-      "left": 94,
-      "top": 4
-    }
-  }
+	"$schema": "schema.json",
+	"includes": ["terminals/pattern_access_terminal.json"],
+	"widgets": {
+		"switchTerminal": {
+			"left": 94,
+			"top": 4
+		}
+	}
 }

@@ -1,17 +1,19 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.item.InfiniteDataCellItem;
+
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.storage.cells.ICellHandler;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.storage.cells.StorageCell;
-import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 public final class InfiniteDataCellHandler implements ICellHandler {
+
     public static final InfiniteDataCellHandler INSTANCE = new InfiniteDataCellHandler();
 
-    private InfiniteDataCellHandler() {
-    }
+    private InfiniteDataCellHandler() {}
 
     @Override
     public boolean isCell(ItemStack stack) {

@@ -1,20 +1,30 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.ItemStack;
+
+import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
-import appeng.api.config.Actionable;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
-import appeng.api.storage.StorageHelper;
 import appeng.api.storage.ITerminalHost;
+import appeng.api.storage.StorageHelper;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.IPatternTerminalMenuHost;
 import appeng.helpers.patternprovider.PatternContainer;
@@ -25,21 +35,7 @@ import appeng.menu.slot.RestrictedInputSlot;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
-import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.inventory.MenuType;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -50,31 +46,31 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+
 @Mixin(PatternEncodingTermMenu.class)
 public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
-        implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
-        BlankPatternProxyMenu {
+                                                   implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
+                                                   BlankPatternProxyMenu {
+
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER =
-            "dataEnergistics$transferEncodedPatternToProvider";
+    private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "dataEnergistics$transferEncodedPatternToProvider";
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU =
-            "dataEnergistics$openPatternProviderMenu";
+    private static final String DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU = "dataEnergistics$openPatternProviderMenu";
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER =
-            "dataEnergistics$renamePatternProvider";
+    private static final String DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER = "dataEnergistics$renamePatternProvider";
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED =
-            "dataEnergistics$setPatternSourceEnabled";
+    private static final String DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE =
-            "dataEnergistics$clearPatternSourceState";
+    private static final String DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS =
-            "dataEnergistics$depositCarriedBlankPatterns";
+    private static final String DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS = "dataEnergistics$depositCarriedBlankPatterns";
     @Unique
-    private static final String DATA_ENERGISTICS_ACTION_PICKUP_BLANK_PATTERNS =
-            "dataEnergistics$pickupBlankPatterns";
+    private static final String DATA_ENERGISTICS_ACTION_PICKUP_BLANK_PATTERNS = "dataEnergistics$pickupBlankPatterns";
     @Unique
     private static final int DATA_ENERGISTICS_PATTERN_PROVIDER_SYNC_INTERVAL_TICKS = 5;
 
@@ -246,9 +242,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         PatternEncodingSourceHelper.applyPendingTransferKeyInput((PatternEncodingTermMenu) (Object) this);
         PatternEncodingSourceHelper.applyPendingTransferKeyOutput((PatternEncodingTermMenu) (Object) this);
 
-        ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING
-                ? dataEnergistics$encodeProcessingPatternWithGenericStacks()
-                : this.dataEnergistics$invokeEncodePattern();
+        ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING ? dataEnergistics$encodeProcessingPatternWithGenericStacks() : this.dataEnergistics$invokeEncodePattern();
         if (encodedPattern == null) {
             this.dataEnergistics$invokeClearPattern();
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
@@ -258,9 +252,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         ItemStack encodeOutput = this.encodedPatternSlot.getItem();
-        if (!encodeOutput.isEmpty()
-                && !PatternDetailsHelper.isEncodedPattern(encodeOutput)
-                && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
+        if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
@@ -479,8 +471,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public @Nullable GenericStack dataEnergistics$getDisplayedTransferKeyInput() {
-        if (this.dataEnergistics$displayTransferKeyInputSerialized == null
-                || this.dataEnergistics$displayTransferKeyInputSerialized.isEmpty()) {
+        if (this.dataEnergistics$displayTransferKeyInputSerialized == null || this.dataEnergistics$displayTransferKeyInputSerialized.isEmpty()) {
             return PatternEncodingSourceHelper.readPendingTransferKeyInput(this.getPlayer());
         }
         try {
@@ -493,8 +484,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public @Nullable GenericStack dataEnergistics$getDisplayedTransferKeyOutput() {
-        if (this.dataEnergistics$displayTransferKeyOutputSerialized == null
-                || this.dataEnergistics$displayTransferKeyOutputSerialized.isEmpty()) {
+        if (this.dataEnergistics$displayTransferKeyOutputSerialized == null || this.dataEnergistics$displayTransferKeyOutputSerialized.isEmpty()) {
             return PatternEncodingSourceHelper.readPendingTransferKeyOutput(this.getPlayer());
         }
         try {
@@ -595,12 +585,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$pickupBlankPatternsFromClient);
         this.blankPatternSlot.setHideAmount(true);
         if (this.isServerSide()) {
-            this.dataEnergistics$patternSourceEnabled =
-                    PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
-            this.dataEnergistics$pendingPatternSource =
-                    PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
-            this.dataEnergistics$lastEncodedPatternSource =
-                    PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
+            this.dataEnergistics$patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
+            this.dataEnergistics$pendingPatternSource = PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
+            this.dataEnergistics$lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
             PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(),
                     this.dataEnergistics$lastEncodedPatternSource);
             dataEnergistics$flushBlankPatternSlotToNetwork();
@@ -630,9 +617,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Unique
     private void dataEnergistics$setPendingPatternSourceFromClient(String workstationId) {
-        setPendingPatternSource(workstationId == null || workstationId.isEmpty()
-                ? null
-                : ResourceLocation.tryParse(workstationId));
+        setPendingPatternSource(workstationId == null || workstationId.isEmpty() ? null : ResourceLocation.tryParse(workstationId));
     }
 
     @Unique
@@ -663,8 +648,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             long providerId = Long.parseLong(payload.substring(0, separator));
             String name = payload.substring(separator + 1);
             renamePatternProvider(providerId, name);
-        } catch (NumberFormatException ignored) {
-        }
+        } catch (NumberFormatException ignored) {}
     }
 
     @Unique
@@ -709,8 +693,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         int currentTick = this.getPlayer().tickCount;
-        if (currentTick - this.dataEnergistics$lastPatternProviderSyncTick
-                < DATA_ENERGISTICS_PATTERN_PROVIDER_SYNC_INTERVAL_TICKS) {
+        if (currentTick - this.dataEnergistics$lastPatternProviderSyncTick < DATA_ENERGISTICS_PATTERN_PROVIDER_SYNC_INTERVAL_TICKS) {
             return;
         }
 
@@ -783,8 +766,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         var blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
-        return blankPatternKey != null
-                && StorageHelper.poweredExtraction(
+        return blankPatternKey != null && StorageHelper.poweredExtraction(
                 this.energySource,
                 this.storage,
                 blankPatternKey,
@@ -851,5 +833,4 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         this.encodedPatternSlot.set(AEItems.BLANK_PATTERN.stack(encodedPattern.getCount() - (int) inserted));
     }
-
 }

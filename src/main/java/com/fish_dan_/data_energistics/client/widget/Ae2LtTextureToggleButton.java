@@ -1,19 +1,21 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import appeng.client.gui.Icon;
-import appeng.client.gui.style.Blitter;
-import appeng.client.gui.widgets.ITooltip;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.style.Blitter;
+import appeng.client.gui.widgets.ITooltip;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class Ae2LtTextureToggleButton extends Button implements ITooltip {
+
     private final List<ResourceLocation> textures;
     private final List<List<Component>> tooltips;
     private final Listener listener;
@@ -92,8 +94,7 @@ public class Ae2LtTextureToggleButton extends Button implements ITooltip {
         }
 
         int yOffset = isHovered() ? 1 : 0;
-        Icon background = isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+        Icon background = isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
 
         background.getBlitter()
                 .dest(getX() - 1, getY() + yOffset, 18, 20)
@@ -132,6 +133,7 @@ public class Ae2LtTextureToggleButton extends Button implements ITooltip {
     }
 
     public enum ButtonType {
+
         MODE(texture("wired_mode"), texture("wireless_mode")),
         AUTO_RETURN(texture("auto_input_off"), texture("auto_input_on"), texture("auto_input_ejection")),
         WIRELESS_STRATEGY(texture("single_target"), texture("even_distribution")),
@@ -151,6 +153,7 @@ public class Ae2LtTextureToggleButton extends Button implements ITooltip {
 
     @FunctionalInterface
     public interface Listener {
+
         void onChange(int previousStateIndex);
     }
 }

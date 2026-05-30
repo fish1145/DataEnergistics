@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdaptivePatternProviderReturnChemicalHandler implements IChemicalHandler {
+
     private final Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier;
 
     public AdaptivePatternProviderReturnChemicalHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {
@@ -27,8 +28,7 @@ public class AdaptivePatternProviderReturnChemicalHandler implements IChemicalHa
     }
 
     @Override
-    public void setChemicalInTank(int tank, ChemicalStack stack) {
-    }
+    public void setChemicalInTank(int tank, ChemicalStack stack) {}
 
     @Override
     public long getChemicalTankCapacity(int tank) {

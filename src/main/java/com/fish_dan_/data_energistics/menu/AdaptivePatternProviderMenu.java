@@ -1,5 +1,15 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
@@ -21,17 +31,10 @@ import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
 
 public class AdaptivePatternProviderMenu extends AEBaseMenu {
+
     private static final String ACTION_SET_PAGE = "set_page";
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
     private static final String ACTION_SET_RESONATING_PULL = "set_resonating_pull";
@@ -43,12 +46,9 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     private static final int DEFAULT_RETURN_SLOTS = 9;
     private static final int EXPANDED_RETURN_SLOTS = 18;
 
-    public static final SlotSemantic PROVIDER_INPUT =
-            SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PROVIDER", false);
-    public static final SlotSemantic PAGE_PATTERN =
-            SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
-    public static final SlotSemantic STORAGE_ROW_2 =
-            SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
+    public static final SlotSemantic PROVIDER_INPUT = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PROVIDER", false);
+    public static final SlotSemantic PAGE_PATTERN = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
+    public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
 
     private final AdaptivePatternProviderHost host;
     private final PatternProviderLogic logic;
@@ -169,9 +169,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
             return super.quickMoveStack(player, idx);
         }
 
-        if (semantic == SlotSemantics.UPGRADE
-                && !this.isPlayerSideSlot(slot)
-                && Upgrades.isUpgradeCardItem(slot.getItem())) {
+        if (semantic == SlotSemantics.UPGRADE && !this.isPlayerSideSlot(slot) && Upgrades.isUpgradeCardItem(slot.getItem())) {
             moveUpgradeCardIntoToolbox(slot);
             if (!slot.hasItem()) {
                 return ItemStack.EMPTY;
@@ -253,9 +251,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         }
 
         ItemStack providerStack = getProviderStack();
-        return !providerStack.isEmpty()
-                ? providerStack.getHoverName()
-                : Component.translatable("block.data_energistics.adaptive_pattern_provider");
+        return !providerStack.isEmpty() ? providerStack.getHoverName() : Component.translatable("block.data_energistics.adaptive_pattern_provider");
     }
 
     public ToolboxMenu getToolbox() {
@@ -315,8 +311,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     public boolean isAe2LtEvenDistributionMode() {
-        return this.ae2ltWirelessDispatchMode
-                == AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
+        return this.ae2ltWirelessDispatchMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
     }
 
     public boolean isAe2LtFastSpeedMode() {
@@ -473,11 +468,9 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         var providerSlot = new ProviderSuffixSlot(
                 this.host != null ? this.host.getProviderInventory() : new AppEngInternalInventory(1),
                 0,
-                this.host
-        );
+                this.host);
         providerSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(
-                Component.translatable("tooltip.data_energistics.adaptive_pattern_provider.provider_slot")
-        ));
+                Component.translatable("tooltip.data_energistics.adaptive_pattern_provider.provider_slot")));
         this.addSlot(providerSlot, PROVIDER_INPUT);
     }
 
@@ -600,17 +593,15 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     private boolean isPatternLike(ItemStack stack) {
-        return PatternDetailsHelper.isEncodedPattern(stack)
-                || AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack);
+        return PatternDetailsHelper.isEncodedPattern(stack) || AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack);
     }
 
     private boolean shouldAllowLightningTechOverloadPattern(ItemStack stack) {
-        return AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack)
-                && this.host != null
-                && this.host.isAe2LightningTechOverloadedProviderSelected();
+        return AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack) && this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private final class PagedPatternInventory implements InternalInventory {
+
         private final InternalInventory backing;
         private final int slotOnPage;
 
@@ -651,34 +642,27 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
             int backingIndex = getBackingIndex();
-            return backingIndex < this.backing.size()
-                    && (this.backing.isItemValid(backingIndex, stack)
-                    || AdaptivePatternProviderMenu.this.shouldAllowLightningTechOverloadPattern(stack));
+            return backingIndex < this.backing.size() && (this.backing.isItemValid(backingIndex, stack) || AdaptivePatternProviderMenu.this.shouldAllowLightningTechOverloadPattern(stack));
         }
 
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
             int backingIndex = getBackingIndex();
-            return backingIndex < this.backing.size()
-                    ? this.backing.extractItem(backingIndex, amount, simulate)
-                    : ItemStack.EMPTY;
+            return backingIndex < this.backing.size() ? this.backing.extractItem(backingIndex, amount, simulate) : ItemStack.EMPTY;
         }
     }
 
     private final class PagedPatternSlot extends RestrictedInputSlot {
+
         private final int slotOnPage;
 
         private PagedPatternSlot(int slotOnPage) {
             super(
                     PlacableItemType.PROVIDER_PATTERN,
                     new PagedPatternInventory(
-                            AdaptivePatternProviderMenu.this.logic != null
-                                    ? AdaptivePatternProviderMenu.this.logic.getPatternInv()
-                                    : new AppEngInternalInventory(SLOTS_PER_PAGE),
-                            slotOnPage
-                    ),
-                    0
-            );
+                            AdaptivePatternProviderMenu.this.logic != null ? AdaptivePatternProviderMenu.this.logic.getPatternInv() : new AppEngInternalInventory(SLOTS_PER_PAGE),
+                            slotOnPage),
+                    0);
             this.slotOnPage = slotOnPage;
             this.setIcon(null);
         }
@@ -703,6 +687,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     private static final class ProviderSuffixSlot extends AppEngSlot {
+
         private final AdaptivePatternProviderHost host;
 
         private ProviderSuffixSlot(InternalInventory inv, int slot, AdaptivePatternProviderHost host) {

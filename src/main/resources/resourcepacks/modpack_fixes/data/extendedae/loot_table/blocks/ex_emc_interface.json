@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:block",
-  "pools": [],
-  "random_sequence": "extendedae:blocks/ex_emc_interface"
+	"type": "minecraft:block",
+	"pools": [],
+	"random_sequence": "extendedae:blocks/ex_emc_interface"
 }

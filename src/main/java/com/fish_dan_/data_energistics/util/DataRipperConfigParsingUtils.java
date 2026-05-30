@@ -5,8 +5,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 public final class DataRipperConfigParsingUtils {
-    private DataRipperConfigParsingUtils() {
-    }
+
+    private DataRipperConfigParsingUtils() {}
 
     public static boolean isBlockBlacklisted(String blockId, List<String> blacklist) {
         if (blockId == null || blacklist == null || blacklist.isEmpty()) {
@@ -21,8 +21,7 @@ public final class DataRipperConfigParsingUtils {
                 if (Pattern.compile(entry).matcher(blockId).matches()) {
                     return true;
                 }
-            } catch (PatternSyntaxException ignored) {
-            }
+            } catch (PatternSyntaxException ignored) {}
         }
 
         return false;
@@ -50,8 +49,7 @@ public final class DataRipperConfigParsingUtils {
                 if (Pattern.compile(patternText).matcher(blockId).matches()) {
                     maxMultiplier = Math.max(maxMultiplier, Double.parseDouble(valueText));
                 }
-            } catch (NumberFormatException | PatternSyntaxException ignored) {
-            }
+            } catch (NumberFormatException | PatternSyntaxException ignored) {}
         }
 
         return maxMultiplier;

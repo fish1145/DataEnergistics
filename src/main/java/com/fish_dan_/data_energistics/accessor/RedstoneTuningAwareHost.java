@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.accessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 
 public interface RedstoneTuningAwareHost {
+
     boolean dataEnergistics$hasRedstoneTuningCard();
 
     RedstoneTuningMode dataEnergistics$getRedstoneTuningMode();

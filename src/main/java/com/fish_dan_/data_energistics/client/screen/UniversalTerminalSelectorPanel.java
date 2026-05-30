@@ -1,9 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.Icon;
-import appeng.menu.AEBaseMenu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -14,18 +13,18 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.client.gui.Icon;
+import appeng.menu.AEBaseMenu;
+
 import java.util.List;
 import java.util.function.Supplier;
 
 public class UniversalTerminalSelectorPanel extends AbstractWidget {
-    private static final ResourceLocation AE2_PANEL_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/universal_terminal_selector.png");
-    private static final ResourceLocation CUSTOM_PANEL_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/gui/universal_terminal_selector.png");
-    private static final ResourceLocation FALLBACK_PANEL_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/part/entity_speed_ticker_back.png");
-    private static final ResourceLocation SLOT_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/portable_cell_screen.png");
+
+    private static final ResourceLocation AE2_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/universal_terminal_selector.png");
+    private static final ResourceLocation CUSTOM_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/gui/universal_terminal_selector.png");
+    private static final ResourceLocation FALLBACK_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/part/entity_speed_ticker_back.png");
+    private static final ResourceLocation SLOT_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/portable_cell_screen.png");
     private static ResourceLocation resolvedPanelTexture;
     private static final int TEXTURE_SIZE = 16;
     private static final int PANEL_WIDTH = 96;
@@ -151,20 +150,15 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
 
     @Override
     public boolean isMouseOver(double mouseX, double mouseY) {
-        return this.open
-                && mouseX >= this.getX() && mouseX < this.getX() + this.width
-                && mouseY >= this.getY() && mouseY < this.getY() + this.height;
+        return this.open && mouseX >= this.getX() && mouseX < this.getX() + this.width && mouseY >= this.getY() && mouseY < this.getY() + this.height;
     }
 
     @Override
-    protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
-    }
+    protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {}
 
     private void renderCards(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         AEBaseMenu menu = getMenu();
-        List<UniversalTerminalData.TerminalEntry> entries = menu != null
-                ? UniversalTerminalClientHelper.getInstalledTerminalEntries(menu)
-                : List.of();
+        List<UniversalTerminalData.TerminalEntry> entries = menu != null ? UniversalTerminalClientHelper.getInstalledTerminalEntries(menu) : List.of();
         String activeTerminal = menu != null ? UniversalTerminalClientHelper.getActiveTerminalName(menu) : null;
         int startIndex = this.page * PAGE_SIZE;
 
@@ -178,16 +172,12 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
             boolean hovered = contains(mouseX, mouseY, cardX, cardY, CARD_SIZE, CARD_SIZE);
             boolean selected = terminalName != null && terminalName.equals(activeTerminal);
 
-            Icon background = hovered
-                    ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                    : (selected ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
+            Icon background = hovered ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : (selected ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
             background.getBlitter().dest(cardX - 1, cardY - 1, 20, 20).zOffset(18).blit(guiGraphics);
             guiGraphics.blit(SLOT_TEXTURE, cardX, cardY, 0, 0.0F, 0.0F, CARD_SIZE, CARD_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
 
             if (terminalName != null) {
-                ItemStack icon = entry != null && !entry.stack().isEmpty()
-                        ? entry.stack().copy()
-                        : UniversalTerminalData.getMenuIcon(terminalName);
+                ItemStack icon = entry != null && !entry.stack().isEmpty() ? entry.stack().copy() : UniversalTerminalData.getMenuIcon(terminalName);
                 if (!icon.isEmpty()) {
                     guiGraphics.renderItem(icon, cardX + 1, cardY + 1, 0, 20);
                 }
@@ -250,9 +240,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
 
         UniversalTerminalData.TerminalEntry hoveredEntry = getTerminalEntryAt(mouseX, mouseY);
         if (hoveredEntry != null) {
-            ItemStack icon = !hoveredEntry.stack().isEmpty()
-                    ? hoveredEntry.stack().copy()
-                    : UniversalTerminalData.getMenuIcon(hoveredEntry.name());
+            ItemStack icon = !hoveredEntry.stack().isEmpty() ? hoveredEntry.stack().copy() : UniversalTerminalData.getMenuIcon(hoveredEntry.name());
             if (!icon.isEmpty()) {
                 guiGraphics.renderTooltip(Minecraft.getInstance().font, icon, mouseX, mouseY);
             } else {
@@ -292,8 +280,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
                     this.width,
                     this.height,
                     this.width,
-                    this.height
-            );
+                    this.height);
             return;
         }
 
@@ -311,8 +298,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
                         drawWidth,
                         drawHeight,
                         TEXTURE_SIZE,
-                        TEXTURE_SIZE
-                );
+                        TEXTURE_SIZE);
             }
         }
     }
@@ -375,9 +361,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
 
     private UniversalTerminalData.TerminalEntry getTerminalEntryAt(double mouseX, double mouseY) {
         AEBaseMenu menu = getMenu();
-        List<UniversalTerminalData.TerminalEntry> terminals = menu != null
-                ? UniversalTerminalClientHelper.getInstalledTerminalEntries(menu)
-                : List.of();
+        List<UniversalTerminalData.TerminalEntry> terminals = menu != null ? UniversalTerminalClientHelper.getInstalledTerminalEntries(menu) : List.of();
         int startIndex = this.page * PAGE_SIZE;
         for (int i = 0; i < PAGE_SIZE; i++) {
             int index = startIndex + i;

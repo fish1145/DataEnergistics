@@ -5,6 +5,7 @@ import appeng.client.gui.StackWithBounds;
 import org.jetbrains.annotations.Nullable;
 
 public interface GenericStackLookupScreen {
+
     @Nullable
     StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY);
 

@@ -1,30 +1,32 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.menu.AEBaseMenu;
-import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuBridge;
-import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.network.UniversalTerminalSelectPayload;
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
+
+import appeng.menu.AEBaseMenu;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
 public final class UniversalTerminalClientHelper {
+
     private static @Nullable MousePosition pendingMousePosition;
     private static @Nullable TerminalState cachedTerminalState;
     private static @Nullable TerminalState syncedTerminalState;
     private static @Nullable AEBaseMenu syncedTerminalMenu;
 
-    private UniversalTerminalClientHelper() {
-    }
+    private UniversalTerminalClientHelper() {}
 
     public static boolean supportsUniversalTerminal(AEBaseMenu menu) {
         return getTerminalState(menu) != null;
@@ -86,10 +88,7 @@ public final class UniversalTerminalClientHelper {
         return List.of(
                 Component.translatable("gui.data_energistics.universal_terminal.switch_terminal"),
                 Component.translatable("gui.data_energistics.universal_terminal.current",
-                        getActiveTerminalName(menu) == null
-                                ? Component.empty()
-                                : UniversalTerminalData.getTerminalDisplayName(getActiveTerminalName(menu)))
-        );
+                        getActiveTerminalName(menu) == null ? Component.empty() : UniversalTerminalData.getTerminalDisplayName(getActiveTerminalName(menu))));
     }
 
     public static void sendCycleTerminal(boolean reverse) {
@@ -139,8 +138,7 @@ public final class UniversalTerminalClientHelper {
                 List.copyOf(installedTerminalNames),
                 activeTerminalName,
                 availableMask,
-                activeTerminalIndex
-        );
+                activeTerminalIndex);
         syncedTerminalMenu = null;
     }
 
@@ -173,8 +171,7 @@ public final class UniversalTerminalClientHelper {
                     host != null ? host.getInstalledTerminalNames() : List.of(),
                     host != null ? host.getActiveTerminalName() : null,
                     bridge.getAvailableTerminalMask(),
-                    bridge.getActiveTerminalIndex()
-            );
+                    bridge.getActiveTerminalIndex());
         }
 
         Object target = menu.getTarget();
@@ -185,8 +182,7 @@ public final class UniversalTerminalClientHelper {
                     part.getInstalledTerminalNames(),
                     part.getActiveTerminalName(),
                     part.getInstalledTerminalMask(),
-                    part.getActiveTerminalIndex()
-            );
+                    part.getActiveTerminalIndex());
         }
 
         if (!(menu.getLocator() instanceof UniversalTerminalMenuLocator locator)) {
@@ -203,8 +199,7 @@ public final class UniversalTerminalClientHelper {
                 part.getInstalledTerminalNames(),
                 part.getActiveTerminalName(),
                 part.getInstalledTerminalMask(),
-                part.getActiveTerminalIndex()
-        );
+                part.getActiveTerminalIndex());
     }
 
     private static @Nullable TerminalState getCachedTerminalState(AEBaseMenu menu) {
@@ -223,8 +218,7 @@ public final class UniversalTerminalClientHelper {
                 cachedState.installedTerminals(),
                 activeTerminalName,
                 cachedState.availableTerminalMask(),
-                cachedState.activeTerminalIndex()
-        ), menu);
+                cachedState.activeTerminalIndex()), menu);
     }
 
     private static @Nullable TerminalState getSyncedTerminalState(AEBaseMenu menu) {
@@ -252,8 +246,7 @@ public final class UniversalTerminalClientHelper {
                 pendingState.installedTerminals(),
                 activeTerminalName,
                 pendingState.availableTerminalMask(),
-                pendingState.activeTerminalIndex()
-        ), menu);
+                pendingState.activeTerminalIndex()), menu);
     }
 
     private static TerminalState normalizeTerminalState(TerminalState state, AEBaseMenu menu) {
@@ -275,8 +268,7 @@ public final class UniversalTerminalClientHelper {
                 installedTerminals,
                 activeTerminalName,
                 availableMask,
-                activeTerminalIndex
-        );
+                activeTerminalIndex);
     }
 
     private static int buildTerminalMask(List<String> installedTerminals) {
@@ -313,9 +305,7 @@ public final class UniversalTerminalClientHelper {
         int definitionCount = UniversalTerminalData.getDefinitionCount();
         int index = activeIndex;
         for (int i = 0; i < definitionCount; i++) {
-            index = reverse
-                    ? (index - 1 + definitionCount) % definitionCount
-                    : (index + 1) % definitionCount;
+            index = reverse ? (index - 1 + definitionCount) % definitionCount : (index + 1) % definitionCount;
             if ((mask & (1 << index)) != 0) {
                 return UniversalTerminalData.getTerminalNameByIndex(index);
             }
@@ -345,15 +335,12 @@ public final class UniversalTerminalClientHelper {
                 Component.translatable("gui.data_energistics.universal_terminal.next",
                         next == null ? Component.empty() : UniversalTerminalData.getTerminalDisplayName(next)),
                 Component.translatable("gui.data_energistics.universal_terminal.previous",
-                        previous == null ? Component.empty() : UniversalTerminalData.getTerminalDisplayName(previous))
-        );
+                        previous == null ? Component.empty() : UniversalTerminalData.getTerminalDisplayName(previous)));
     }
 
     private record TerminalState(List<UniversalTerminalData.TerminalEntry> installedEntries,
                                  List<String> installedTerminals, @Nullable String activeTerminalName,
-                                 int availableTerminalMask, int activeTerminalIndex) {
-    }
+                                 int availableTerminalMask, int activeTerminalIndex) {}
 
-    private record MousePosition(double x, double y) {
-    }
+    private record MousePosition(double x, double y) {}
 }

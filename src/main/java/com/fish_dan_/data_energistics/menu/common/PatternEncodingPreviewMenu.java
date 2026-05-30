@@ -1,16 +1,18 @@
 package com.fish_dan_.data_energistics.menu.common;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import appeng.parts.encoding.EncodingMode;
-import appeng.menu.guisync.PacketWritable;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.ResourceLocation;
 
+import appeng.menu.guisync.PacketWritable;
+import appeng.parts.encoding.EncodingMode;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public interface PatternEncodingPreviewMenu {
+
     long getNetworkBlankPatternCount();
 
     EncodingMode getEncodingMode();
@@ -24,6 +26,7 @@ public interface PatternEncodingPreviewMenu {
     void renamePatternProvider(long providerId, String name);
 
     record SyncedPatternProviderList(List<SyncedPatternProvider> providers) implements PacketWritable {
+
         public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of());
 
         public SyncedPatternProviderList {
@@ -53,13 +56,13 @@ public interface PatternEncodingPreviewMenu {
     }
 
     record SyncedPatternProvider(
-            long id,
-            Component displayName,
-            ResourceLocation iconItemId,
-            boolean useAeButtonStyle,
-            boolean renameable,
-            int patternSlotCount,
-            int usedPatternSlotCount) {
+                                 long id,
+                                 Component displayName,
+                                 ResourceLocation iconItemId,
+                                 boolean useAeButtonStyle,
+                                 boolean renameable,
+                                 int patternSlotCount,
+                                 int usedPatternSlotCount) {
 
         public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
             this(

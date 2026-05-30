@@ -1,5 +1,23 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
+import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
+import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.network.PacketDistributor;
+
 import appeng.api.client.AEKeyRendering;
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Settings;
@@ -9,8 +27,8 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.Upgrades;
 import appeng.client.Point;
 import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.Icon;
 import appeng.client.gui.ICompositeWidget;
+import appeng.client.gui.Icon;
 import appeng.client.gui.Tooltip;
 import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.style.ScreenStyle;
@@ -24,22 +42,6 @@ import appeng.core.network.ServerboundPacket;
 import appeng.core.network.serverbound.ConfigButtonPacket;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
-import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
-import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
-import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
@@ -49,13 +51,11 @@ import java.util.List;
 import java.util.Map;
 
 public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
+
     private static final int HIDDEN_SLOT_COORD = -9999;
-    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF =
-            List.of(Component.translatable("ae2lt.gui.return_mode.off"));
-    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO =
-            List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
-    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT =
-            List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
+    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF = List.of(Component.translatable("ae2lt.gui.return_mode.off"));
+    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO = List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
+    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT = List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
     private static final Field SLOT_X_FIELD = resolveField(Slot.class, "x");
     private static final Field SLOT_Y_FIELD = resolveField(Slot.class, "y");
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
@@ -89,8 +89,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 Icon.PATTERN_ACCESS_HIDE,
                 GuiText.PatternAccessTerminal.text(),
                 GuiText.PatternAccessTerminalHint.text(),
-                btn -> this.selectNextPatternProviderMode()
-        );
+                btn -> this.selectNextPatternProviderMode());
         this.addToLeftToolbar(this.showInPatternAccessTerminalButton);
         this.lockReason = new AdaptivePatternProviderLockReason(this);
         this.widgets.add("lockReason", this.lockReason);
@@ -110,44 +109,38 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 Icon.BACK,
                 Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.previous"),
                 Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.previous"),
-                this::goPreviousPage
-        );
+                this::goPreviousPage);
         this.nextPageButton = new ToggleButton(
                 Icon.ARROW_RIGHT,
                 Icon.ARROW_RIGHT,
                 Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.next"),
                 Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.next"),
-                this::goNextPage
-        );
+                this::goNextPage);
         this.addToLeftToolbar(this.previousPageButton);
         this.addToLeftToolbar(this.nextPageButton);
 
         this.ae2ltModeButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.MODE,
-                ignored -> this.menu.sendToggleAe2LtMode()
-        );
+                ignored -> this.menu.sendToggleAe2LtMode());
         this.ae2ltModeButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.provider_mode.wireless")));
         this.ae2ltModeButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.provider_mode.normal")));
         this.addToLeftToolbar(this.ae2ltModeButton);
 
         this.ae2ltReturnModeButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.AUTO_RETURN,
-                ignored -> this.menu.sendToggleAe2LtReturnMode()
-        );
+                ignored -> this.menu.sendToggleAe2LtReturnMode());
         this.addToLeftToolbar(this.ae2ltReturnModeButton);
 
         this.ae2ltWirelessStrategyButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.WIRELESS_STRATEGY,
-                ignored -> this.menu.sendToggleAe2LtWirelessDispatchMode()
-        );
+                ignored -> this.menu.sendToggleAe2LtWirelessDispatchMode());
         this.ae2ltWirelessStrategyButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.wireless_strategy.even")));
         this.ae2ltWirelessStrategyButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.wireless_strategy.single")));
         this.addToLeftToolbar(this.ae2ltWirelessStrategyButton);
 
         this.ae2ltWirelessSpeedButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.SPEED,
-                ignored -> this.menu.sendToggleAe2LtWirelessSpeedMode()
-        );
+                ignored -> this.menu.sendToggleAe2LtWirelessSpeedMode());
         this.ae2ltWirelessSpeedButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.wireless_speed.fast")));
         this.ae2ltWirelessSpeedButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.wireless_speed.normal")));
         this.addToLeftToolbar(this.ae2ltWirelessSpeedButton);
@@ -158,16 +151,14 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 "button.data_energistics.adaptive_pattern_provider.filtered_import",
                 "button.data_energistics.adaptive_pattern_provider.filtered_import.enabled",
                 "button.data_energistics.adaptive_pattern_provider.filtered_import.disabled",
-                this::setFilteredImport
-        );
+                this::setFilteredImport);
         this.addToLeftToolbar(this.filteredImportButton);
 
         this.resonatingPullButton = new AecsPullModeButton(
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull",
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull.enabled",
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull.disabled",
-                this::setResonatingPull
-        );
+                this::setResonatingPull);
         this.addToLeftToolbar(this.resonatingPullButton);
     }
 
@@ -226,21 +217,16 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.setTextContent("page_info", Component.translatable(
                 "screen.data_energistics.adaptive_pattern_provider.page",
                 this.menu.totalPages <= 0 ? 1 : this.menu.pageIndex + 1,
-                Math.max(1, this.menu.totalPages)
-        ));
+                Math.max(1, this.menu.totalPages)));
     }
 
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (slot.isActive()
-                && slot.getItem().isEmpty()
-                && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PAGE_PATTERN) {
+        if (slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PAGE_PATTERN) {
             Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
-        } else if (slot.isActive()
-                && slot.getItem().isEmpty()
-                && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PROVIDER_INPUT) {
+        } else if (slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PROVIDER_INPUT) {
             DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
@@ -297,8 +283,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     @SuppressWarnings("unchecked")
     private void installOrReplaceCompositeWidget(String id, Object widget) {
         try {
-            Map<String, Object> compositeWidgets =
-                    (Map<String, Object>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
+            Map<String, Object> compositeWidgets = (Map<String, Object>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
             compositeWidgets.put(id, widget);
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Could not replace AE2 composite widget: " + id, e);
@@ -308,14 +293,12 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     @SuppressWarnings("unchecked")
     private boolean hasWidget(String id) {
         try {
-            Map<String, AbstractWidget> widgets =
-                    (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
+            Map<String, AbstractWidget> widgets = (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
             if (widgets.containsKey(id)) {
                 return true;
             }
 
-            Map<String, ?> compositeWidgets =
-                    (Map<String, ?>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
+            Map<String, ?> compositeWidgets = (Map<String, ?>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
             return compositeWidgets.containsKey(id);
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Could not inspect AE2 widget container", e);
@@ -353,10 +336,10 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         }
     }
 
-    private record SlotBuckets(List<Slot> unique, List<Slot> duplicates) {
-    }
+    private record SlotBuckets(List<Slot> unique, List<Slot> duplicates) {}
 
     private static final class AdaptivePatternProviderLockReason implements ICompositeWidget {
+
         private final AdaptivePatternProviderScreen screen;
         private boolean visible;
         private int x;
@@ -371,8 +354,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
             this.y = position.getY();
         }
 
-        public void setSize(int width, int height) {
-        }
+        public void setSize(int width, int height) {}
 
         public Rect2i getBounds() {
             return new Rect2i(this.x, this.y, 126, 16);

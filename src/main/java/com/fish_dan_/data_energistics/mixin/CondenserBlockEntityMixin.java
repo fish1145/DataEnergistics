@@ -1,12 +1,14 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.blockentity.misc.CondenserBlockEntity;
-import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.accessor.CondenserBlockEntityAccessor;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
+
+import appeng.blockentity.misc.CondenserBlockEntity;
+import appeng.util.inv.AppEngInternalInventory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -18,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(CondenserBlockEntity.class)
 public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityAccessor {
+
     @Unique
     private static final String DATA_ENERGISTICS_DATA_CAPTURE_BALL_MODE = "dataEnergisticsDataCaptureBallMode";
     @Unique
@@ -66,9 +69,7 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
 
     @Unique
     private boolean dataEnergistics$isValidDataCaptureBallStorageComponent(ItemStack stack) {
-        return stack.is(ModItems.DATA_STORAGE_COMPONENT_16K.get())
-                || stack.is(ModItems.DATA_STORAGE_COMPONENT_64K.get())
-                || stack.is(ModItems.DATA_STORAGE_COMPONENT_256K.get());
+        return stack.is(ModItems.DATA_STORAGE_COMPONENT_16K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_64K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_256K.get());
     }
 
     @Inject(method = "saveAdditional", at = @At("TAIL"))

@@ -1,11 +1,11 @@
 {
-  "parent": "data_energistics:item/data_sanctifier_off",
-  "overrides": [
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0
-      },
-      "model": "data_energistics:item/data_sanctifier_on"
-    }
-  ]
+	"parent": "data_energistics:item/data_sanctifier_off",
+	"overrides": [
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0
+			},
+			"model": "data_energistics:item/data_sanctifier_on"
+		}
+	]
 }

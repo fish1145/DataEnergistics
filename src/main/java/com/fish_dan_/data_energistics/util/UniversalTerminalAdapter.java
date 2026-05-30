@@ -1,13 +1,16 @@
 package com.fish_dan_.data_energistics.util;
 
-import appeng.api.util.IConfigManager;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
+
+import appeng.api.util.IConfigManager;
 import org.jetbrains.annotations.Nullable;
 
 public interface UniversalTerminalAdapter {
+
     String name();
 
     boolean matches(ItemStack stack);

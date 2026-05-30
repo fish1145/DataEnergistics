@@ -1,26 +1,22 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "ACA",
-    "C C",
-    "BDB"
-  ],
-  "key": {
-    "A": {
-      "item": "ae2:quartz_glass"
-    },
-    "B": {
-      "tag": "c:ingots/obsidian"
-    },
-    "C": {
-      "tag": "c:dusts/redstone"
-    },
-    "D": {
-      "tag": "c:gems/data_crystal"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_flow_component_housing",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ACA", "C C", "BDB"],
+	"key": {
+		"A": {
+			"item": "ae2:quartz_glass"
+		},
+		"B": {
+			"tag": "c:ingots/obsidian"
+		},
+		"C": {
+			"tag": "c:dusts/redstone"
+		},
+		"D": {
+			"tag": "c:gems/data_crystal"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_flow_component_housing",
+		"count": 1
+	}
 }

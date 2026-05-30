@@ -1,18 +1,19 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import net.minecraft.world.inventory.Slot;
+
 import appeng.client.gui.AEBaseScreen;
 import appeng.menu.SlotSemantics;
-import net.minecraft.world.inventory.Slot;
 
 import java.lang.reflect.Field;
 import java.util.List;
 
 public final class SingleUpgradeSlotRelocator {
+
     private static final Field SLOT_X_FIELD = resolveField("x");
     private static final Field SLOT_Y_FIELD = resolveField("y");
 
-    private SingleUpgradeSlotRelocator() {
-    }
+    private SingleUpgradeSlotRelocator() {}
 
     public static void relocateIfSingle(AEBaseScreen<?> screen, int x, int y) {
         List<Slot> upgradeSlots = screen.getMenu().getSlots(SlotSemantics.UPGRADE);

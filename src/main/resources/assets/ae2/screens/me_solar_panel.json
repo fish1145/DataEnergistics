@@ -1,44 +1,44 @@
 {
-  "$schema": "schema.json",
-  "includes": [
-    "common/common.json",
-    "common/player_inventory.json",
-    "common/toolbox.json"
-  ],
-  "background": {
-    "texture": "guis/me_solar_panel.png",
-    "srcRect": [0, 0, 176, 183]
-  },
-  "text": {
-    "dialog_title": {
-      "text": {
-        "translate": "block.data_energistics.me_solar_panel"
-      },
-      "position": {
-        "left": 88,
-        "top": 6
-      },
-      "align": "CENTER"
-    },
-    "time": {
-      "position": {
-        "left": 88,
-        "top": 32
-      },
-      "align": "CENTER"
-    },
-    "generation": {
-      "position": {
-        "left": 88,
-        "top": 48
-      },
-      "align": "CENTER"
-    }
-  },
-  "widgets": {
-    "upgrades": {
-      "left": 174,
-      "top": 0
-    }
-  }
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/me_solar_panel.png",
+		"srcRect": [0, 0, 176, 183]
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "block.data_energistics.me_solar_panel"
+			},
+			"position": {
+				"left": 88,
+				"top": 6
+			},
+			"align": "CENTER"
+		},
+		"time": {
+			"position": {
+				"left": 88,
+				"top": 32
+			},
+			"align": "CENTER"
+		},
+		"generation": {
+			"position": {
+				"left": 88,
+				"top": 48
+			},
+			"align": "CENTER"
+		}
+	},
+	"widgets": {
+		"upgrades": {
+			"left": 174,
+			"top": 0
+		}
+	}
 }

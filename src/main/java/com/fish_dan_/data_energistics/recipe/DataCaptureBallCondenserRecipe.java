@@ -1,10 +1,7 @@
 package com.fish_dan_.data_energistics.recipe;
 
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -18,28 +15,30 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput> {
+
     private static final Codec<Integer> REQUIRED_POWER_CODEC = Codec.INT.flatXmap(
-            power -> power < 0
-                    ? DataResult.error(() -> "required_power must be >= 0")
-                    : DataResult.success(power),
+            power -> power < 0 ? DataResult.error(() -> "required_power must be >= 0") : DataResult.success(power),
             DataResult::success);
 
     public static final MapCodec<DataCaptureBallCondenserRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Ingredient.CODEC_NONEMPTY.fieldOf("catalyst").forGetter(DataCaptureBallCondenserRecipe::getCatalyst),
             ItemStack.CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
-            REQUIRED_POWER_CODEC.fieldOf("required_power").forGetter(DataCaptureBallCondenserRecipe::getRequiredPower)
-    ).apply(instance, DataCaptureBallCondenserRecipe::new));
+            REQUIRED_POWER_CODEC.fieldOf("required_power").forGetter(DataCaptureBallCondenserRecipe::getRequiredPower)).apply(instance, DataCaptureBallCondenserRecipe::new));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, DataCaptureBallCondenserRecipe> STREAM_CODEC =
-            StreamCodec.composite(
-                    Ingredient.CONTENTS_STREAM_CODEC,
-                    DataCaptureBallCondenserRecipe::getCatalyst,
-                    ItemStack.STREAM_CODEC,
-                    recipe -> recipe.result,
-                    ByteBufCodecs.VAR_INT,
-                    DataCaptureBallCondenserRecipe::getRequiredPower,
-                    DataCaptureBallCondenserRecipe::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, DataCaptureBallCondenserRecipe> STREAM_CODEC = StreamCodec.composite(
+            Ingredient.CONTENTS_STREAM_CODEC,
+            DataCaptureBallCondenserRecipe::getCatalyst,
+            ItemStack.STREAM_CODEC,
+            recipe -> recipe.result,
+            ByteBufCodecs.VAR_INT,
+            DataCaptureBallCondenserRecipe::getRequiredPower,
+            DataCaptureBallCondenserRecipe::new);
 
     private final Ingredient catalyst;
     private final ItemStack result;

@@ -1,20 +1,20 @@
 package com.fish_dan_.data_energistics.util;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-
-import org.jetbrains.annotations.Nullable;
+import net.minecraft.network.chat.Component;
 
 import appeng.blockentity.AEBaseBlockEntity;
 import appeng.parts.AEBasePart;
-import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public final class PatternProviderNameHelper {
+
     private static final Field AE_BASE_PART_CUSTOM_NAME_FIELD = resolveField(AEBasePart.class, "customName");
     private static final Field AE_BASE_BLOCK_ENTITY_CUSTOM_NAME_FIELD = resolveField(AEBaseBlockEntity.class, "customName");
 
-    private PatternProviderNameHelper() {
-    }
+    private PatternProviderNameHelper() {}
 
     public static boolean setCustomName(Object target, @Nullable Component customName) {
         if (target instanceof AEBasePart part) {
@@ -108,7 +108,6 @@ public final class PatternProviderNameHelper {
             Method method = target.getClass().getMethod(methodName);
             method.setAccessible(true);
             method.invoke(target);
-        } catch (ReflectiveOperationException ignored) {
-        }
+        } catch (ReflectiveOperationException ignored) {}
     }
 }

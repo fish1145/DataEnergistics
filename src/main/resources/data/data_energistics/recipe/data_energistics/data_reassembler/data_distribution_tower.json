@@ -1,53 +1,53 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "tag": "c:gems/data_crystal"
-      },
-      "count": 56
-    },
-    {
-      "ingredient": {
-        "item": "ae2:wireless_access_point"
-      },
-      "count": 3
-    },
-    {
-      "ingredient": {
-        "item": "ae2:quantum_ring"
-      },
-      "count": 16
-    },
-    {
-      "ingredient": {
-        "item": "ae2:quantum_link"
-      },
-      "count": 2
-    },
-    {
-      "ingredient": {
-        "tag": "ae2:smart_cable"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "item": "ae2:controller"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_framework"
-      },
-      "count": 3
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "data_energistics:data_distribution_tower",
-      "count": 1
-    }
-  ]
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"tag": "c:gems/data_crystal"
+			},
+			"count": 56
+		},
+		{
+			"ingredient": {
+				"item": "ae2:wireless_access_point"
+			},
+			"count": 3
+		},
+		{
+			"ingredient": {
+				"item": "ae2:quantum_ring"
+			},
+			"count": 16
+		},
+		{
+			"ingredient": {
+				"item": "ae2:quantum_link"
+			},
+			"count": 2
+		},
+		{
+			"ingredient": {
+				"tag": "ae2:smart_cable"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "ae2:controller"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 3
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_distribution_tower",
+			"count": 1
+		}
+	]
 }

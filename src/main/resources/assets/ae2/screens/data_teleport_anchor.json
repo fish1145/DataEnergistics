@@ -1,73 +1,71 @@
 {
-  "$schema": "schema.json",
-  "includes": [
-    "common/common.json"
-  ],
-  "background": {
-    "texture": "guis/data_teleport_anchor.png",
-    "srcRect": [0, 0, 176, 183]
-  },
-  "text": {
-    "dialog_title": {
-      "position": {
-        "left": 88,
-        "top": 6
-      },
-      "align": "CENTER"
-    },
-    "anchor_position": {
-      "position": {
-        "left": 88,
-        "top": 22
-      },
-      "align": "CENTER"
-    },
-    "anchor_dimension": {
-      "position": {
-        "left": 88,
-        "top": 34
-      },
-      "align": "CENTER"
-    },
-    "anchor_card_name": {
-      "position": {
-        "left": 4,
-        "top": 3
-      },
-      "align": "CENTER",
-      "scale": 0.6,
-      "maxWidth": 120
-    },
-    "anchor_card_coords": {
-      "position": {
-        "left": 4,
-        "top": 7
-      },
-      "align": "LEFT",
-      "scale": 0.6,
-      "maxWidth": 120
-    },
-    "anchor_card_dimension": {
-      "position": {
-        "left": 4,
-        "top": 9
-      },
-      "align": "CENTER",
-      "scale": 0.6,
-      "maxWidth": 120
-    }
-  },
-  "widgets": {
-    "anchor_cards": {
-      "left": 15,
-      "top": 48,
-      "width": 128,
-      "height": 20
-    },
-    "scrollbar": {
-      "left": 160,
-      "top": 46,
-      "height": 132
-    }
-  }
+	"$schema": "schema.json",
+	"includes": ["common/common.json"],
+	"background": {
+		"texture": "guis/data_teleport_anchor.png",
+		"srcRect": [0, 0, 176, 183]
+	},
+	"text": {
+		"dialog_title": {
+			"position": {
+				"left": 88,
+				"top": 6
+			},
+			"align": "CENTER"
+		},
+		"anchor_position": {
+			"position": {
+				"left": 88,
+				"top": 22
+			},
+			"align": "CENTER"
+		},
+		"anchor_dimension": {
+			"position": {
+				"left": 88,
+				"top": 34
+			},
+			"align": "CENTER"
+		},
+		"anchor_card_name": {
+			"position": {
+				"left": 4,
+				"top": 3
+			},
+			"align": "CENTER",
+			"scale": 0.6,
+			"maxWidth": 120
+		},
+		"anchor_card_coords": {
+			"position": {
+				"left": 4,
+				"top": 7
+			},
+			"align": "LEFT",
+			"scale": 0.6,
+			"maxWidth": 120
+		},
+		"anchor_card_dimension": {
+			"position": {
+				"left": 4,
+				"top": 9
+			},
+			"align": "CENTER",
+			"scale": 0.6,
+			"maxWidth": 120
+		}
+	},
+	"widgets": {
+		"anchor_cards": {
+			"left": 15,
+			"top": 48,
+			"width": 128,
+			"height": 20
+		},
+		"scrollbar": {
+			"left": 160,
+			"top": 46,
+			"height": 132
+		}
+	}
 }

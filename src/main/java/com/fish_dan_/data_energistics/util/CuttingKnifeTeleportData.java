@@ -1,17 +1,19 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.StorageCells;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import net.minecraft.world.item.ItemStack;
 
 public final class CuttingKnifeTeleportData {
+
     public static final long DATA_FLOW_COST = 20L;
     public static final double AE_POWER_COST = 400.0D;
 
-    private CuttingKnifeTeleportData() {
-    }
+    private CuttingKnifeTeleportData() {}
 
     public static boolean hasEnoughDataFlow(ItemStack stack) {
         return getStoredDataFlow(stack) >= DATA_FLOW_COST;

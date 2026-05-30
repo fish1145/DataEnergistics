@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite.fallout;
 
 import com.fish_dan_.data_energistics.worldgen.meteorite.MeteoriteBlockPutter;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.tags.BiomeTags;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.common.Tags.Biomes;
 
 public class FalloutCopy extends Fallout {
+
     private final BlockState block;
     private final MeteoriteBlockPutter putter;
 
@@ -46,8 +48,7 @@ public class FalloutCopy extends Fallout {
         }
     }
 
-    public void getOther(LevelAccessor level, BlockPos pos, float a) {
-    }
+    public void getOther(LevelAccessor level, BlockPos pos, float a) {}
 
     public void getRandomInset(LevelAccessor level, BlockPos pos) {
         float a = this.random.nextFloat();

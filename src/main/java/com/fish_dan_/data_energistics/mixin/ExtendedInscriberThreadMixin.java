@@ -1,10 +1,12 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.registry.ModItems;
+
+import net.minecraft.world.item.ItemStack;
+
+import appeng.api.networking.ticking.TickRateModulation;
 import appeng.recipes.handlers.InscriberRecipe;
 import appeng.util.inv.AppEngInternalInventory;
-import appeng.api.networking.ticking.TickRateModulation;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Pseudo
 @Mixin(targets = "com.glodblock.github.extendedae.common.me.InscriberThread")
 public abstract class ExtendedInscriberThreadMixin {
+
     @Shadow
     private AppEngInternalInventory sideItemHandler;
 
@@ -43,12 +46,10 @@ public abstract class ExtendedInscriberThreadMixin {
     @Inject(
             method = "tick",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lappeng/util/inv/AppEngInternalInventory;extractItem(IIZ)Lnet/minecraft/world/item/ItemStack;",
-                    ordinal = 2,
-                    shift = At.Shift.AFTER
-            )
-    )
+                     value = "INVOKE",
+                     target = "Lappeng/util/inv/AppEngInternalInventory;extractItem(IIZ)Lnet/minecraft/world/item/ItemStack;",
+                     ordinal = 2,
+                     shift = At.Shift.AFTER))
     private void dataEnergistics$restoreTemplate(CallbackInfoReturnable<TickRateModulation> cir) {
         if (this.dataEnergistics$templateSnapshot.isEmpty()) {
             return;

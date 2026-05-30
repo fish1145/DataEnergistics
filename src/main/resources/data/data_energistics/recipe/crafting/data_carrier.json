@@ -1,29 +1,25 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    " AA",
-    "DBA",
-    "CE "
-  ],
-  "key": {
-    "A": {
-      "tag": "c:gems/quartz"
-    },
-    "B": {
-      "item": "ae2:cell_component_1k"
-    },
-    "C": {
-      "tag": "c:nuggets/iron"
-    },
-    "D": {
-      "item": "ae2:engineering_processor"
-    },
-    "E": {
-      "item": "ae2:calculation_processor"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_carrier",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shaped",
+	"pattern": [" AA", "DBA", "CE "],
+	"key": {
+		"A": {
+			"tag": "c:gems/quartz"
+		},
+		"B": {
+			"item": "ae2:cell_component_1k"
+		},
+		"C": {
+			"tag": "c:nuggets/iron"
+		},
+		"D": {
+			"item": "ae2:engineering_processor"
+		},
+		"E": {
+			"item": "ae2:calculation_processor"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_carrier",
+		"count": 1
+	}
 }

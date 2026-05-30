@@ -1,29 +1,29 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [],
-  "fluid_inputs": [
-    {
-      "#": 500,
-      "#t": "ae2:f",
-      "id": "minecraft:water"
-    },
-    {
-      "#": 2000,
-      "#t": "ae2:f",
-      "id": "minecraft:lava"
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "minecraft:obsidian",
-      "count": 4
-    }
-  ],
-  "fluid_outputs": [
-    {
-      "#": 250,
-      "#t": "ae2:f",
-      "id": "minecraft:lava"
-    }
-  ]
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [],
+	"fluid_inputs": [
+		{
+			"#": 500,
+			"#t": "ae2:f",
+			"id": "minecraft:water"
+		},
+		{
+			"#": 2000,
+			"#t": "ae2:f",
+			"id": "minecraft:lava"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "minecraft:obsidian",
+			"count": 4
+		}
+	],
+	"fluid_outputs": [
+		{
+			"#": 250,
+			"#t": "ae2:f",
+			"id": "minecraft:lava"
+		}
+	]
 }

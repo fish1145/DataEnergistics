@@ -1,7 +1,7 @@
 {
-  "variants": {
-    "": {
-      "model": "data_energistics:block/data_framework"
-    }
-  }
+	"variants": {
+		"": {
+			"model": "data_energistics:block/data_framework"
+		}
+	}
 }

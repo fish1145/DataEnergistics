@@ -3,6 +3,9 @@ dependencies {
 
     testImplementation(libs.testframework)
 
+    // Misc libraries
+    compileOnly(forge.pinyin4j)
+
     // AE2
     compileOnly(forge.ae2)
     compileOnly(forge.guideme)
@@ -15,6 +18,8 @@ dependencies {
     compileOnly(forge.aelt)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
+    compileOnly(forge.aae)
+    compileOnly(forge.amek)
     compileOnly(forge.mek)
 
     // Recipe viewers

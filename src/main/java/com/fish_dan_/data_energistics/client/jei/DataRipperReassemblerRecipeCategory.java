@@ -1,17 +1,26 @@
 package com.fish_dan_.data_energistics.client.jei;
 
-import appeng.core.AppEng;
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.GenericStack;
-import appeng.items.misc.WrappedGenericStack;
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import java.util.Arrays;
-import java.util.List;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.neoforged.neoforge.fluids.FluidStack;
+
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.GenericStack;
+import appeng.core.AppEng;
+import appeng.items.misc.WrappedGenericStack;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
@@ -23,20 +32,14 @@ import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.AbstractRecipeCategory;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.neoforged.neoforge.fluids.FluidStack;
+
+import java.util.Arrays;
+import java.util.List;
 
 public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCategory<DataRipperReassemblerRecipe> {
+
     private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
-    public static final RecipeType<DataRipperReassemblerRecipe> RECIPE_TYPE =
-            RecipeType.create("data_energistics", "data_reassembler", DataRipperReassemblerRecipe.class);
+    public static final RecipeType<DataRipperReassemblerRecipe> RECIPE_TYPE = RecipeType.create("data_energistics", "data_reassembler", DataRipperReassemblerRecipe.class);
 
     private final IDrawable background;
     private final IDrawableAnimated progress;
@@ -149,8 +152,7 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
         slotBuilder
                 .setFluidRenderer(Math.max(1000L, amount), false, 16, 16)
                 .addIngredient(NeoForgeTypes.FLUID_STACK, fluidStack)
-                .addRichTooltipCallback((slotView, tooltip) ->
-                        tooltip.add(GenericStackDisplayHelper.createAmountTooltip(stack)));
+                .addRichTooltipCallback((slotView, tooltip) -> tooltip.add(GenericStackDisplayHelper.createAmountTooltip(stack)));
     }
 
     private record NoCountItemRenderer(GenericStack keyInput) implements IIngredientRenderer<ItemStack> {

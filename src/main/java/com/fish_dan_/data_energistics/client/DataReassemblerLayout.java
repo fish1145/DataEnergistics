@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client;
 
 public final class DataReassemblerLayout {
+
     public static final int RECIPE_WIDTH = 162;
     public static final int RECIPE_HEIGHT = 58;
     public static final int SLOT_SPACING = 18;
@@ -49,8 +50,7 @@ public final class DataReassemblerLayout {
     private static final int TERMINAL_SPECIAL_ROW_SPACING = 18;
     private static final int TERMINAL_SPECIAL_OUTPUT_X_OFFSET = 18;
 
-    private DataReassemblerLayout() {
-    }
+    private DataReassemblerLayout() {}
 
     public static SlotPos jeiItemInput(int index) {
         return new SlotPos(
@@ -143,6 +143,5 @@ public final class DataReassemblerLayout {
         return positions[index];
     }
 
-    public record SlotPos(int x, int y) {
-    }
+    public record SlotPos(int x, int y) {}
 }

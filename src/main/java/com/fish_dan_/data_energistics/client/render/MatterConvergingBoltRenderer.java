@@ -1,9 +1,7 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
+
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -13,18 +11,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
+
 public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergingBoltEntity> {
-    private static final ResourceLocation NORMAL_ARROW_LOCATION =
-            ResourceLocation.withDefaultNamespace("textures/entity/projectiles/arrow.png");
-    private static final ResourceLocation TIPPED_ARROW_LOCATION =
-            ResourceLocation.withDefaultNamespace("textures/entity/projectiles/tipped_arrow.png");
+
+    private static final ResourceLocation NORMAL_ARROW_LOCATION = ResourceLocation.withDefaultNamespace("textures/entity/projectiles/arrow.png");
+    private static final ResourceLocation TIPPED_ARROW_LOCATION = ResourceLocation.withDefaultNamespace("textures/entity/projectiles/tipped_arrow.png");
 
     public MatterConvergingBoltRenderer(EntityRendererProvider.Context context) {
         super(context);
     }
+
     @Override
     public void render(MatterConvergingBoltEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
-            MultiBufferSource buffer, int packedLight) {
+                       MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
         poseStack.mulPose(Axis.YP.rotationDegrees(Mth.lerp(partialTick, entity.yRotO, entity.getYRot()) - 90.0F));
         poseStack.mulPose(Axis.ZP.rotationDegrees(Mth.lerp(partialTick, entity.xRotO, entity.getXRot())));
@@ -58,7 +60,7 @@ public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergin
     }
 
     private void vertex(PoseStack.Pose pose, VertexConsumer consumer, int x, int y, int z, float u, float v,
-            int normalX, int normalY, int normalZ, int packedLight, int color) {
+                        int normalX, int normalY, int normalZ, int packedLight, int color) {
         consumer.addVertex(pose, x, y, z)
                 .setColor(FastColor.ARGB32.red(color), FastColor.ARGB32.green(color), FastColor.ARGB32.blue(color), 255)
                 .setUv(u, v)

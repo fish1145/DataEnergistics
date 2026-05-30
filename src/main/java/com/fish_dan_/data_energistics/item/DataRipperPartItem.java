@@ -1,15 +1,18 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.items.parts.PartItem;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 
+import appeng.items.parts.PartItem;
+
 import java.util.List;
 
 public class DataRipperPartItem extends PartItem<DataRipperPart> {
+
     public DataRipperPartItem(Properties properties) {
         super(properties, DataRipperPart.class, DataRipperPart::new);
     }

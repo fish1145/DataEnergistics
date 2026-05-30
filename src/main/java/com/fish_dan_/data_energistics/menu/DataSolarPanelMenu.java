@@ -1,12 +1,15 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import net.minecraft.world.entity.player.Inventory;
+
 import appeng.api.util.IConfigManager;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import net.minecraft.world.entity.player.Inventory;
 
 public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> {
+
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
 
     @GuiSync(790)
@@ -32,8 +35,7 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> 
     }
 
     @Override
-    protected void setupInventorySlots() {
-    }
+    protected void setupInventorySlots() {}
 
     @Override
     public void broadcastChanges() {

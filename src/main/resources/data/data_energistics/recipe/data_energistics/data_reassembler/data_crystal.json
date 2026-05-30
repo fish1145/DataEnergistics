@@ -1,34 +1,34 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "tag": "c:dusts/data_dust"
-      },
-      "count": 32
-    },
-    {
-      "ingredient": {
-        "tag": "c:gems/data_crystal"
-      },
-      "count": 16
-    }
-  ],
-  "fluid_inputs": [
-    {
-      "#": 100,
-      "#t": "ae2:f",
-      "id": "minecraft:water"
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "data_energistics:data_crystal",
-      "count": 96
-    }
-  ],
-  "key_input": {
-    "#t": "data_energistics:data_flow",
-    "#": 2400
-  }
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"tag": "c:dusts/data_dust"
+			},
+			"count": 32
+		},
+		{
+			"ingredient": {
+				"tag": "c:gems/data_crystal"
+			},
+			"count": 16
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 100,
+			"#t": "ae2:f",
+			"id": "minecraft:water"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_crystal",
+			"count": 96
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 2400
+	}
 }

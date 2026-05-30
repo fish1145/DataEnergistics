@@ -1,26 +1,28 @@
 package com.fish_dan_.data_energistics.client.widget;
 
+import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
+import com.fish_dan_.data_energistics.ae2.CondenserOutputMode;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+
 import appeng.api.config.CondenserOutput;
 import appeng.client.gui.Icon;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.widgets.IconButton;
-import com.fish_dan_.data_energistics.accessor.CondenserMenuAccessor;
-import com.fish_dan_.data_energistics.ae2.CondenserOutputMode;
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
 public class CondenserOutputModeButton extends IconButton {
+
     private static final int DATA_CAPTURE_BALL_REQUIRED_POWER = 131072;
 
     private final CondenserMenuAccessor menu;
     private CondenserOutputMode mode = CondenserOutputMode.TRASH;
 
     public CondenserOutputModeButton(CondenserMenuAccessor menu) {
-        super(btn -> {
-        });
+        super(btn -> {});
         this.menu = menu;
     }
 
@@ -46,9 +48,7 @@ public class CondenserOutputModeButton extends IconButton {
         }
 
         int yOffset = isHovered() ? 1 : 0;
-        Icon background = isHovered()
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+        Icon background = isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
 
         background.getBlitter()
                 .dest(getX() - 1, getY() + yOffset, 18, 20)

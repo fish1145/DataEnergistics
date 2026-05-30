@@ -1,18 +1,18 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "item": "minecraft:ender_pearl"
-      },
-      "count": 1
-    }
-  ],
-  "fluid_outputs": [
-    {
-      "#": 250,
-      "#t": "ae2:f",
-      "id": "data_energistics:ender"
-    }
-  ]
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "minecraft:ender_pearl"
+			},
+			"count": 1
+		}
+	],
+	"fluid_outputs": [
+		{
+			"#": 250,
+			"#t": "ae2:f",
+			"id": "data_energistics:ender"
+		}
+	]
 }

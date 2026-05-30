@@ -1,11 +1,22 @@
 package com.fish_dan_.data_energistics.registry;
 
+import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
+import com.fish_dan_.data_energistics.util.UniversalTerminalConfigProfile;
+import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+import com.fish_dan_.data_energistics.util.UniversalTerminalDefinition;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.config.Setting;
 import appeng.api.config.Settings;
 import appeng.api.config.ShowPatternProviders;
+import appeng.api.parts.IPartItem;
 import appeng.api.storage.IPatternAccessTermMenuHost;
 import appeng.api.storage.ITerminalHost;
-import appeng.api.parts.IPartItem;
 import appeng.api.util.IConfigManager;
 import appeng.core.definitions.AEParts;
 import appeng.helpers.IPatternTerminalMenuHost;
@@ -13,16 +24,7 @@ import appeng.parts.encoding.PatternEncodingTerminalPart;
 import appeng.parts.reporting.AbstractTerminalPart;
 import appeng.parts.reporting.CraftingTerminalPart;
 import appeng.parts.reporting.PatternAccessTerminalPart;
-import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
-import com.fish_dan_.data_energistics.util.UniversalTerminalConfigProfile;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
-import com.fish_dan_.data_energistics.util.UniversalTerminalDefinition;
 import com.mojang.logging.LogUtils;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -32,12 +34,12 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class UniversalTerminalAdapters {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static boolean initialized;
     private static boolean discovered;
 
-    private UniversalTerminalAdapters() {
-    }
+    private UniversalTerminalAdapters() {}
 
     public static void init() {
         if (initialized) {
@@ -50,14 +52,12 @@ public final class UniversalTerminalAdapters {
                 UniversalTerminalData.TERMINAL_ITEM,
                 AEParts.TERMINAL::is,
                 () -> new ItemStack(AEParts.TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_ME_STORAGE::get
-        ));
+                ModMenus.UNIVERSAL_ME_STORAGE::get));
         UniversalTerminalData.registerAdapter(new UniversalTerminalDefinition(
                 UniversalTerminalData.TERMINAL_CRAFTING,
                 AEParts.CRAFTING_TERMINAL::is,
                 () -> new ItemStack(AEParts.CRAFTING_TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_CRAFTING_TERM::get
-        ));
+                ModMenus.UNIVERSAL_CRAFTING_TERM::get));
         UniversalTerminalData.registerAdapter(new UniversalTerminalDefinition(
                 UniversalTerminalData.TERMINAL_PATTERN_ACCESS,
                 AEParts.PATTERN_ACCESS_TERMINAL::is,
@@ -65,14 +65,12 @@ public final class UniversalTerminalAdapters {
                 ModMenus.UNIVERSAL_PATTERN_ACCESS_TERM::get,
                 UniversalTerminalConfigProfile.PATTERN_ACCESS,
                 false,
-                UniversalTerminalAdapters::createPatternAccessConfigManager
-        ));
+                UniversalTerminalAdapters::createPatternAccessConfigManager));
         UniversalTerminalData.registerAdapter(new UniversalTerminalDefinition(
                 UniversalTerminalData.TERMINAL_PATTERN_ENCODING,
                 AEParts.PATTERN_ENCODING_TERMINAL::is,
                 () -> new ItemStack(AEParts.PATTERN_ENCODING_TERMINAL.asItem()),
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM::get
-        ));
+                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM::get));
     }
 
     public static void discoverFromRegisteredItems() {
@@ -112,8 +110,7 @@ public final class UniversalTerminalAdapters {
                         externalMenuTypeSupplier,
                         profile.configProfile(),
                         true,
-                        profile.configManagerFactory()
-                ));
+                        profile.configManagerFactory()));
                 LOGGER.info("Auto-registered external universal terminal adapter for {} using detected menu type", itemId);
                 continue;
             }
@@ -125,8 +122,7 @@ public final class UniversalTerminalAdapters {
                     profile.menuTypeSupplier(),
                     profile.configProfile(),
                     false,
-                    profile.configManagerFactory()
-            ));
+                    profile.configManagerFactory()));
             LOGGER.info("Auto-registered wrapped universal terminal adapter for {}", itemId);
         }
     }
@@ -146,41 +142,35 @@ public final class UniversalTerminalAdapters {
             return new DetectedTerminalProfile(
                     ModMenus.UNIVERSAL_PATTERN_ACCESS_TERM::get,
                     UniversalTerminalConfigProfile.PATTERN_ACCESS,
-                    UniversalTerminalAdapters::createPatternAccessConfigManager
-            );
+                    UniversalTerminalAdapters::createPatternAccessConfigManager);
         }
         if (supportsPatternEncoding(partClass)) {
             return new DetectedTerminalProfile(
                     ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM::get,
                     UniversalTerminalConfigProfile.STANDARD,
-                    null
-            );
+                    null);
         }
         if (supportsCrafting(partClass)) {
             return new DetectedTerminalProfile(
                     ModMenus.UNIVERSAL_CRAFTING_TERM::get,
                     UniversalTerminalConfigProfile.STANDARD,
-                    null
-            );
+                    null);
         }
         if (supportsStorage(partClass)) {
             return new DetectedTerminalProfile(
                     ModMenus.UNIVERSAL_ME_STORAGE::get,
                     UniversalTerminalConfigProfile.STANDARD,
-                    null
-            );
+                    null);
         }
         return null;
     }
 
     private static boolean supportsPatternAccess(Class<?> partClass) {
-        return PatternAccessTerminalPart.class.isAssignableFrom(partClass)
-                || IPatternAccessTermMenuHost.class.isAssignableFrom(partClass);
+        return PatternAccessTerminalPart.class.isAssignableFrom(partClass) || IPatternAccessTermMenuHost.class.isAssignableFrom(partClass);
     }
 
     private static boolean supportsPatternEncoding(Class<?> partClass) {
-        return PatternEncodingTerminalPart.class.isAssignableFrom(partClass)
-                || IPatternTerminalMenuHost.class.isAssignableFrom(partClass);
+        return PatternEncodingTerminalPart.class.isAssignableFrom(partClass) || IPatternTerminalMenuHost.class.isAssignableFrom(partClass);
     }
 
     private static boolean supportsCrafting(Class<?> partClass) {
@@ -188,12 +178,11 @@ public final class UniversalTerminalAdapters {
     }
 
     private static boolean supportsStorage(Class<?> partClass) {
-        return AbstractTerminalPart.class.isAssignableFrom(partClass)
-                || ITerminalHost.class.isAssignableFrom(partClass);
+        return AbstractTerminalPart.class.isAssignableFrom(partClass) || ITerminalHost.class.isAssignableFrom(partClass);
     }
 
     private static @Nullable java.util.function.Supplier<MenuType<?>> findExternalMenuTypeSupplier(
-            ResourceLocation itemId, Class<?> partClass) {
+                                                                                                   ResourceLocation itemId, Class<?> partClass) {
         String itemPath = itemId.getPath();
         String partSimpleName = partClass.getSimpleName();
         if (!looksLikeTerminal(itemPath, partSimpleName)) {
@@ -204,8 +193,7 @@ public final class UniversalTerminalAdapters {
         int bestScore = Integer.MIN_VALUE;
         for (MenuType<?> menuType : BuiltInRegistries.MENU) {
             ResourceLocation menuId = BuiltInRegistries.MENU.getKey(menuType);
-            if (menuId == null
-                    || !itemId.getNamespace().equals(menuId.getNamespace())) {
+            if (menuId == null || !itemId.getNamespace().equals(menuId.getNamespace())) {
                 continue;
             }
 
@@ -227,10 +215,7 @@ public final class UniversalTerminalAdapters {
     private static boolean looksLikeTerminal(String itemPath, String partSimpleName) {
         String lowerPath = itemPath.toLowerCase(Locale.ROOT);
         String lowerName = partSimpleName.toLowerCase(Locale.ROOT);
-        return lowerPath.contains("terminal")
-                || lowerName.contains("terminal")
-                || lowerPath.contains("requester")
-                || lowerName.contains("requester");
+        return lowerPath.contains("terminal") || lowerName.contains("terminal") || lowerPath.contains("requester") || lowerName.contains("requester");
     }
 
     private static int scoreMenuCandidate(String itemPath, String partSimpleName, String menuPath) {
@@ -274,8 +259,8 @@ public final class UniversalTerminalAdapters {
 
     private static boolean sharesTerminalTokens(String left, String right) {
         int matches = 0;
-        for (String token : new String[]{"pattern", "access", "encoding", "craft", "crafting", "request", "requester",
-                "quantum", "storage", "terminal", "wireless"}) {
+        for (String token : new String[] { "pattern", "access", "encoding", "craft", "crafting", "request", "requester",
+                "quantum", "storage", "terminal", "wireless" }) {
             if (left.contains(token) && right.contains(token)) {
                 matches++;
             }
@@ -304,8 +289,7 @@ public final class UniversalTerminalAdapters {
                 UniversalTerminalConfigProfile.PATTERN_ACCESS,
                 true,
                 UniversalTerminalAdapters::createPatternAccessConfigManager,
-                partItemsByClassName
-        );
+                partItemsByClassName);
         registerReflectiveAdapter(
                 "com.almostreliable.merequester.terminal.RequesterTerminalPart",
                 "com.almostreliable.merequester.core.Registration",
@@ -313,8 +297,7 @@ public final class UniversalTerminalAdapters {
                 UniversalTerminalConfigProfile.STANDARD,
                 true,
                 null,
-                partItemsByClassName
-        );
+                partItemsByClassName);
         registerReflectiveAdapter(
                 "net.pedroksl.advanced_ae.common.parts.QuantumCrafterTerminalPart",
                 "net.pedroksl.advanced_ae.common.definitions.AAEMenus",
@@ -322,8 +305,7 @@ public final class UniversalTerminalAdapters {
                 UniversalTerminalConfigProfile.STANDARD,
                 true,
                 UniversalTerminalAdapters::createQuantumCrafterConfigManager,
-                partItemsByClassName
-        );
+                partItemsByClassName);
     }
 
     private static void registerReflectiveAdapter(String partClassName,
@@ -372,13 +354,12 @@ public final class UniversalTerminalAdapters {
                 menuTypeSupplier::get,
                 configProfile,
                 requiresCustomMenuLocator,
-                configManagerFactory
-        ));
+                configManagerFactory));
         LOGGER.info("Registered reflected universal terminal adapter for {} using wrapped menu type", itemId);
     }
 
     private static @Nullable java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> resolveMenuTypeSupplier(
-            String ownerClassName, String fieldName) {
+                                                                                                                            String ownerClassName, String fieldName) {
         try {
             Class<?> ownerClass = Class.forName(ownerClassName);
             Field field = ownerClass.getField(fieldName);
@@ -401,12 +382,11 @@ public final class UniversalTerminalAdapters {
                 .build();
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     private static @Nullable IConfigManager createQuantumCrafterConfigManager(Runnable saveAction) {
         try {
             Class<?> settingsClass = Class.forName("net.pedroksl.advanced_ae.api.AAESettings");
-            Class<? extends Enum> visibleClass =
-                    (Class<? extends Enum>) Class.forName("net.pedroksl.advanced_ae.api.ShowQuantumCrafters");
+            Class<? extends Enum> visibleClass = (Class<? extends Enum>) Class.forName("net.pedroksl.advanced_ae.api.ShowQuantumCrafters");
             Object setting = settingsClass.getField("TERMINAL_SHOW_QUANTUM_CRAFTERS").get(null);
             Enum<?> visible = Enum.valueOf(visibleClass, "VISIBLE");
             var builder = IConfigManager.builder(saveAction);
@@ -419,9 +399,7 @@ public final class UniversalTerminalAdapters {
     }
 
     private record DetectedTerminalProfile(
-            java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> menuTypeSupplier,
-            UniversalTerminalConfigProfile configProfile,
-            @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory
-    ) {
-    }
+                                           java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> menuTypeSupplier,
+                                           UniversalTerminalConfigProfile configProfile,
+                                           @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory) {}
 }

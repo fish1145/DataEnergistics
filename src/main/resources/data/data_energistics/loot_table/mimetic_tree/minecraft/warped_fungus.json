@@ -1,23 +1,23 @@
 {
-  "type": "minecraft:chest",
-  "pools": [
-    {
-      "rolls": 4,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:warped_stem"
-        }
-      ]
-    },
-    {
-      "rolls": 2,
-      "entries": [
-        {
-          "type": "minecraft:item",
-          "name": "minecraft:warped_wart_block"
-        }
-      ]
-    }
-  ]
+	"type": "minecraft:chest",
+	"pools": [
+		{
+			"rolls": 4,
+			"entries": [
+				{
+					"type": "minecraft:item",
+					"name": "minecraft:warped_stem"
+				}
+			]
+		},
+		{
+			"rolls": 2,
+			"entries": [
+				{
+					"type": "minecraft:item",
+					"name": "minecraft:warped_wart_block"
+				}
+			]
+		}
+	]
 }

@@ -1,111 +1,111 @@
 {
-  "$schema": "schema.json",
-  "includes": [
-    "common/common.json",
-    "common/player_inventory.json",
-    "common/toolbox.json"
-  ],
-  "background": {
-    "texture": "guis/data_extractor.png",
-    "srcRect": [0, 0, 176, 176]
-  },
-  "slots": {
-    "MACHINE_INPUT": {
-      "left": 138,
-      "top": 60
-    },
-    "DATA_EXTRACTOR_SWORD": {
-      "left": 112,
-      "top": 59
-    },
-    "DATA_EXTRACTOR_ORE": {
-      "left": 153,
-      "top": 31
-    },
-    "DATA_EXTRACTOR_CROP": {
-      "left": 138,
-      "top": 10
-    },
-    "PLAYER_INVENTORY": {
-      "left": 8,
-      "bottom": 87,
-      "grid": "BREAK_AFTER_9COLS"
-    },
-    "PLAYER_HOTBAR": {
-      "left": 8,
-      "bottom": 29,
-      "grid": "HORIZONTAL"
-    },
-    "TOOLBOX": {
-      "right": -20,
-      "bottom": 170,
-      "grid": "BREAK_AFTER_3COLS"
-    }
-  },
-  "text": {
-    "dialog_title": {
-      "text": {
-        "translate": "block.data_energistics.data_extractor"
-      },
-      "position": {
-        "left": 8,
-        "top": 4
-      }
-    },
-    "status": {
-      "position": {
-        "left": 10,
-        "top": 22
-      }
-    },
-    "damage": {
-      "position": {
-        "left": 10,
-        "top": 38
-      }
-    },
-    "data_flow": {
-      "position": {
-        "left": 10,
-        "top": 54
-      }
-    },
-    "targets": {
-      "position": {
-        "left": 10,
-        "top": 67
-      }
-    },
-    "player_inventory_title": {
-      "text": {
-        "translate": "container.inventory"
-      },
-      "position": {
-        "left": 8,
-        "bottom": 97
-      }
-    }
-  },
-  "images": {
-    "progressBar": {
-      "texture": "guis/data_extractor.png",
-      "srcRect": [176, 0, 6, 18]
-    }
-  },
-  "widgets": {
-    "progressBar": {
-      "left": 136,
-      "top": 31
-    },
-    "toolbox": {
-      "right": -19,
-      "bottom": 176,
-      "width": 59,
-      "height": 66
-    },
-    "upgrades": {
-      "left": 174,
-      "top": 0
-    }
-  }
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/data_extractor.png",
+		"srcRect": [0, 0, 176, 176]
+	},
+	"slots": {
+		"MACHINE_INPUT": {
+			"left": 138,
+			"top": 60
+		},
+		"DATA_EXTRACTOR_SWORD": {
+			"left": 112,
+			"top": 59
+		},
+		"DATA_EXTRACTOR_ORE": {
+			"left": 153,
+			"top": 31
+		},
+		"DATA_EXTRACTOR_CROP": {
+			"left": 138,
+			"top": 10
+		},
+		"PLAYER_INVENTORY": {
+			"left": 8,
+			"bottom": 87,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 8,
+			"bottom": 29,
+			"grid": "HORIZONTAL"
+		},
+		"TOOLBOX": {
+			"right": -20,
+			"bottom": 170,
+			"grid": "BREAK_AFTER_3COLS"
+		}
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "block.data_energistics.data_extractor"
+			},
+			"position": {
+				"left": 8,
+				"top": 4
+			}
+		},
+		"status": {
+			"position": {
+				"left": 10,
+				"top": 22
+			}
+		},
+		"damage": {
+			"position": {
+				"left": 10,
+				"top": 38
+			}
+		},
+		"data_flow": {
+			"position": {
+				"left": 10,
+				"top": 54
+			}
+		},
+		"targets": {
+			"position": {
+				"left": 10,
+				"top": 67
+			}
+		},
+		"player_inventory_title": {
+			"text": {
+				"translate": "container.inventory"
+			},
+			"position": {
+				"left": 8,
+				"bottom": 97
+			}
+		}
+	},
+	"images": {
+		"progressBar": {
+			"texture": "guis/data_extractor.png",
+			"srcRect": [176, 0, 6, 18]
+		}
+	},
+	"widgets": {
+		"progressBar": {
+			"left": 136,
+			"top": 31
+		},
+		"toolbox": {
+			"right": -19,
+			"bottom": 176,
+			"width": 59,
+			"height": 66
+		},
+		"upgrades": {
+			"left": 174,
+			"top": 0
+		}
+	}
 }

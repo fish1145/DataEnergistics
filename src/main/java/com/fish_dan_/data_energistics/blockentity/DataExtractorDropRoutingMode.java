@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 public enum DataExtractorDropRoutingMode {
+
     OFF("off"),
     CONTAINER("container"),
     AE("ae");

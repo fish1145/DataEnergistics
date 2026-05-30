@@ -1,14 +1,17 @@
 package com.fish_dan_.data_energistics.client.widget;
 
+import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
+
+import net.minecraft.network.chat.Component;
+
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.IconButton;
-import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
-import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.function.Consumer;
 
 public class DataExtractorDropRoutingButton extends IconButton {
+
     private final String titleKey;
     private final String modeKeyPrefix;
     private final Consumer<DataExtractorDropRoutingMode> onChange;
@@ -18,8 +21,7 @@ public class DataExtractorDropRoutingButton extends IconButton {
         this(
                 "button.data_energistics.data_extractor.drop_routing",
                 "button.data_energistics.data_extractor.drop_routing.",
-                onChange
-        );
+                onChange);
     }
 
     public DataExtractorDropRoutingButton(String titleKey, String modeKeyPrefix, Consumer<DataExtractorDropRoutingMode> onChange) {
@@ -50,7 +52,6 @@ public class DataExtractorDropRoutingButton extends IconButton {
     public List<Component> getTooltipMessage() {
         return List.of(
                 Component.translatable(this.titleKey),
-                Component.translatable(this.modeKeyPrefix + this.mode.getSerializedName())
-        );
+                Component.translatable(this.modeKeyPrefix + this.mode.getSerializedName()));
     }
 }

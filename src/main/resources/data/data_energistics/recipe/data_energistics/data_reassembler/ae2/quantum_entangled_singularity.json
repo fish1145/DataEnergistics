@@ -1,30 +1,30 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "item": "ae2:tiny_tnt"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "ae2:singularity"
-      },
-      "count": 4
-    }
-  ],
-  "fluid_inputs": [
-    {
-      "#": 250,
-      "#t": "ae2:f",
-      "id": "data_energistics:ender"
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "ae2:quantum_entangled_singularity",
-      "count": 8
-    }
-  ]
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "ae2:tiny_tnt"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:singularity"
+			},
+			"count": 4
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 250,
+			"#t": "ae2:f",
+			"id": "data_energistics:ender"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "ae2:quantum_entangled_singularity",
+			"count": 8
+		}
+	]
 }

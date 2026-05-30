@@ -1,14 +1,14 @@
 {
-  "parent": "data_energistics:item/data_light_saber_off",
-  "textures": {
-    "2": "data_energistics:item/tool_weapon/light_saber/light_pink"
-  },
-  "overrides": [
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0
-      },
-      "model": "data_energistics:item/data_light_saber_pink_on"
-    }
-  ]
+	"parent": "data_energistics:item/data_light_saber_off",
+	"textures": {
+		"2": "data_energistics:item/tool_weapon/light_saber/light_pink"
+	},
+	"overrides": [
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0
+			},
+			"model": "data_energistics:item/data_light_saber_pink_on"
+		}
+	]
 }

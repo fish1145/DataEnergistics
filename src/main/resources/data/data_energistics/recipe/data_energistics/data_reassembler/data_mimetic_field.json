@@ -1,51 +1,51 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "tag": "c:ingots/digisidian_memorize"
-      },
-      "count": 24
-    },
-    {
-      "ingredient": {
-        "item": "ae2:drive"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "ae2:formation_core"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "item": "ae2:annihilation_core"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "item": "ae2:controller"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_framework"
-      },
-      "count": 1
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "data_energistics:data_mimetic_field",
-      "count": 1
-    }
-  ],
-  "key_input": {
-    "#t": "data_energistics:data_flow",
-    "#": 45000
-  }
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"tag": "c:ingots/digisidian_memorize"
+			},
+			"count": 24
+		},
+		{
+			"ingredient": {
+				"item": "ae2:drive"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:formation_core"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "ae2:annihilation_core"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "ae2:controller"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 1
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_mimetic_field",
+			"count": 1
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 45000
+	}
 }

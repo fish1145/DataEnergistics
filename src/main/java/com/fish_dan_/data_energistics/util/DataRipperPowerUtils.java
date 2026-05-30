@@ -1,15 +1,16 @@
 package com.fish_dan_.data_energistics.util;
 
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.core.definitions.AEItems;
 import com.fish_dan_.data_energistics.Config;
 
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.core.definitions.AEItems;
+
 public final class DataRipperPowerUtils {
+
     private static final int DEFAULT_BASE_COST = 512;
     private static final double DATA_FLOW_COST_RATIO = 0.0078125D;
 
-    private DataRipperPowerUtils() {
-    }
+    private DataRipperPowerUtils() {}
 
     public static int computeProductWithCap(IUpgradeInventory upgrades) {
         int speedCardCount = Math.min(upgrades.getInstalledUpgrades(AEItems.SPEED_CARD), 4);
@@ -31,10 +32,7 @@ public final class DataRipperPowerUtils {
             return 0.0D;
         }
 
-        return basePower
-                * getRemainingRatio(energyCardCount)
-                * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST)
-                * DATA_FLOW_COST_RATIO;
+        return basePower * getRemainingRatio(energyCardCount) * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST) * DATA_FLOW_COST_RATIO;
     }
 
     public static double getRemainingRatio(int energyCardCount) {

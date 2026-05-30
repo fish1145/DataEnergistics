@@ -1,30 +1,33 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.Icon;
-import appeng.client.gui.implementations.UpgradeableScreen;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.widgets.ProgressBar;
-import appeng.core.localization.Tooltips;
-import appeng.menu.SlotSemantics;
-import appeng.api.stacks.GenericStack;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorDropRoutingMode;
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.client.widget.DataMimeticFieldOutputRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.client.widget.DataMimeticFieldOutputRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.Icon;
+import appeng.client.gui.implementations.UpgradeableScreen;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ProgressBar;
+import appeng.core.localization.Tooltips;
+import appeng.menu.SlotSemantics;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMenu> {
+
     private final DataExtractorToggleButton redstoneControlButton;
     private final DataMimeticFieldOutputRoutingButton dropRoutingButton;
     private final OutputSideActionButton outputSideButton;
@@ -38,8 +41,7 @@ public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMe
                 "button.data_energistics.data_mimetic_field.redstone_control",
                 "button.data_energistics.data_mimetic_field.redstone_control.enabled",
                 "button.data_energistics.data_mimetic_field.redstone_control.disabled",
-                this.menu::sendSetRedstoneControlled
-        );
+                this.menu::sendSetRedstoneControlled);
         this.addToLeftToolbar(this.redstoneControlButton);
 
         this.dropRoutingButton = new DataMimeticFieldOutputRoutingButton(this.menu::sendSetDropRoutingMode);
@@ -109,10 +111,7 @@ public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMe
             return;
         }
 
-        if (slot.isActive()
-                && slot.getItem().isEmpty()
-                && (this.menu.getSlotSemantic(slot) == SlotSemantics.STORAGE
-                || this.menu.getSlotSemantic(slot) == DataMimeticFieldMenu.EXTRA_STORAGE)) {
+        if (slot.isActive() && slot.getItem().isEmpty() && (this.menu.getSlotSemantic(slot) == SlotSemantics.STORAGE || this.menu.getSlotSemantic(slot) == DataMimeticFieldMenu.EXTRA_STORAGE)) {
             DataEnergisticsIcon.getBlitter("BACKGROUND_DATA_CARRIER_PATTERN")
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);

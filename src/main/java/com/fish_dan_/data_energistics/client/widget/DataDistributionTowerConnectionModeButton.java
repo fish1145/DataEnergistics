@@ -1,18 +1,21 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import appeng.client.gui.Icon;
-import appeng.client.gui.widgets.ITooltip;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.widgets.ITooltip;
+
 import java.util.List;
 import java.util.function.Consumer;
 
 public class DataDistributionTowerConnectionModeButton extends Button implements ITooltip {
+
     private final Consumer<ConnectionMode> onChange;
     private ConnectionMode mode = ConnectionMode.AE_AND_FE;
 
@@ -36,9 +39,7 @@ public class DataDistributionTowerConnectionModeButton extends Button implements
         }
 
         int yOffset = this.isHovered() ? 1 : 0;
-        Icon background = this.isHovered()
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : this.isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+        Icon background = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : this.isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
         background.getBlitter()
                 .dest(this.getX() - 1, this.getY() + yOffset, 18, 20)
                 .zOffset(2)
@@ -63,8 +64,7 @@ public class DataDistributionTowerConnectionModeButton extends Button implements
     public List<Component> getTooltipMessage() {
         return List.of(
                 Component.translatable("button.data_energistics.data_distribution_tower.connection_mode"),
-                Component.translatable("button.data_energistics.data_distribution_tower.connection_mode." + this.mode.getSerializedName())
-        );
+                Component.translatable("button.data_energistics.data_distribution_tower.connection_mode." + this.mode.getSerializedName()));
     }
 
     @Override

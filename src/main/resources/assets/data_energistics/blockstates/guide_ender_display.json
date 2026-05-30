@@ -1,7 +1,7 @@
 {
-  "variants": {
-    "": {
-      "model": "data_energistics:block/guide_ender_display"
-    }
-  }
+	"variants": {
+		"": {
+			"model": "data_energistics:block/guide_ender_display"
+		}
+	}
 }

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
+import net.neoforged.fml.ModList;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
@@ -8,11 +10,11 @@ import appeng.api.networking.storage.IStorageService;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
-import net.neoforged.fml.ModList;
 
 import java.lang.reflect.Method;
 
 public final class AE2FluxIntegration {
+
     private static final boolean APPFLUX_LOADED = ModList.get().isLoaded("appflux");
 
     private static Class<?> fluxKeyClass;
@@ -24,13 +26,11 @@ public final class AE2FluxIntegration {
         if (APPFLUX_LOADED) {
             try {
                 initializeReflection();
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 
-    private AE2FluxIntegration() {
-    }
+    private AE2FluxIntegration() {}
 
     private static void initializeReflection() throws Exception {
         fluxKeyClass = Class.forName("com.glodblock.github.appflux.common.me.key.FluxKey");

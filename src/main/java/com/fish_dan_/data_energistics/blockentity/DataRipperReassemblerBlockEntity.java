@@ -1,6 +1,37 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+
 import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
 import appeng.api.config.Setting;
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
@@ -18,16 +49,14 @@ import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
-import appeng.core.definitions.AEItems;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.api.util.IConfigManager;
 import appeng.api.util.IConfigurableObject;
-import appeng.api.config.PowerMultiplier;
-import appeng.api.config.PowerUnit;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
+import appeng.core.definitions.AEItems;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigManager;
 import appeng.util.ConfigMenuInventory;
@@ -36,43 +65,17 @@ import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
-import org.jetbrains.annotations.Nullable;
 
 public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEntity
-        implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine {
+                                              implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine {
+
     public static final int ITEM_INPUT_START_SLOT = 0;
     public static final int ITEM_INPUT_SLOT_COUNT = 9;
     public static final int ITEM_OUTPUT_START_SLOT = 9;
@@ -100,8 +103,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
 
-    private final IUpgradeInventory upgrades =
-            UpgradeInventories.forMachine(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
@@ -111,14 +113,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final FluidTank fluidInputTankB = new SyncFluidTank(FLUID_INPUT_CAPACITY);
     private final FluidTank fluidOutputTankA = new SyncFluidTank(FLUID_OUTPUT_CAPACITY);
     private final FluidTank fluidOutputTankB = new SyncFluidTank(FLUID_OUTPUT_CAPACITY);
-    private final GenericStackInv fluidMenuInventoryA =
-            createFluidMenuInventory(this::syncTankAFromMenuFluid, FLUID_INPUT_CAPACITY, () -> this.fluidInputTankB.getFluid());
-    private final GenericStackInv fluidMenuInventoryB =
-            createFluidMenuInventory(this::syncTankBFromMenuFluid, FLUID_INPUT_CAPACITY, () -> this.fluidInputTankA.getFluid());
-    private final GenericStackInv fluidOutputMenuInventoryA =
-            createFluidMenuInventory(this::syncOutputTankAFromMenuFluid, FLUID_OUTPUT_CAPACITY, () -> this.fluidOutputTankB.getFluid());
-    private final GenericStackInv fluidOutputMenuInventoryB =
-            createFluidMenuInventory(this::syncOutputTankBFromMenuFluid, FLUID_OUTPUT_CAPACITY, () -> this.fluidOutputTankA.getFluid());
+    private final GenericStackInv fluidMenuInventoryA = createFluidMenuInventory(this::syncTankAFromMenuFluid, FLUID_INPUT_CAPACITY, () -> this.fluidInputTankB.getFluid());
+    private final GenericStackInv fluidMenuInventoryB = createFluidMenuInventory(this::syncTankBFromMenuFluid, FLUID_INPUT_CAPACITY, () -> this.fluidInputTankA.getFluid());
+    private final GenericStackInv fluidOutputMenuInventoryA = createFluidMenuInventory(this::syncOutputTankAFromMenuFluid, FLUID_OUTPUT_CAPACITY, () -> this.fluidOutputTankB.getFluid());
+    private final GenericStackInv fluidOutputMenuInventoryB = createFluidMenuInventory(this::syncOutputTankBFromMenuFluid, FLUID_OUTPUT_CAPACITY, () -> this.fluidOutputTankA.getFluid());
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     private final GenericStackInv keyOutputMenuInventory = createKeyOutputMenuInventory();
     private final IFluidHandler externalFluidHandler = new ReassemblerFluidHandler();
@@ -142,6 +140,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
         this.storage.setFilter(new IAEItemFilter() {
+
             @Override
             public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
                 return slot >= ITEM_INPUT_START_SLOT && slot < ITEM_INPUT_START_SLOT + ITEM_INPUT_SLOT_COUNT;
@@ -637,9 +636,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         GenericStack requiredKey = recipe.getKeyInput();
         if (requiredKey != null) {
-            if (this.keyInputStack == null
-                    || !requiredKey.what().equals(this.keyInputStack.what())
-                    || this.keyInputStack.amount() < requiredKey.amount()) {
+            if (this.keyInputStack == null || !requiredKey.what().equals(this.keyInputStack.what()) || this.keyInputStack.amount() < requiredKey.amount()) {
                 return false;
             }
 
@@ -936,8 +933,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     targetPos,
                     targetState,
                     this.level.getBlockEntity(targetPos),
-                    direction.getOpposite()
-            );
+                    direction.getOpposite());
             if (handler != null) {
                 handlers.add(handler);
             }
@@ -963,8 +959,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     targetPos,
                     targetState,
                     this.level.getBlockEntity(targetPos),
-                    direction.getOpposite()
-            );
+                    direction.getOpposite());
             if (handler != null) {
                 handlers.add(handler);
             }
@@ -1167,6 +1162,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static final class SlotFilter implements IAEItemFilter {
+
         private final java.util.function.Predicate<ItemStack> insertPredicate;
         private final boolean allowExtract;
 
@@ -1191,8 +1187,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
             inputs[i] = new FilteredInternalInventory(
                     this.storage.getSlotInv(ITEM_INPUT_START_SLOT + i),
-                    new SlotFilter(stack -> true, false)
-            );
+                    new SlotFilter(stack -> true, false));
         }
         return new CombinedInternalInventory(inputs);
     }
@@ -1202,14 +1197,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
             outputs[i] = new FilteredInternalInventory(
                     this.storage.getSlotInv(ITEM_OUTPUT_START_SLOT + i),
-                    new SlotFilter(stack -> false, true)
-            );
+                    new SlotFilter(stack -> false, true));
         }
         return new CombinedInternalInventory(outputs);
     }
 
     private GenericStackInv createFluidMenuInventory(Runnable syncAction, int capacity, Supplier<FluidStack> pairedFluidSupplier) {
         var inv = new GenericStackInv(java.util.Set.of(AEKeyType.fluids()), syncAction, GenericStackInv.Mode.STORAGE, 1) {
+
             {
                 this.setFilter((slot, what) -> {
                     if (!(what instanceof AEFluidKey fluidKey)) {
@@ -1233,6 +1228,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private GenericStackInv createKeyMenuInventory() {
         var inv = new GenericStackInv(AEKeyTypes.getAll(), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
+
             {
                 this.setFilter((slot, what) -> {
                     if (!isAllowedMenuKey(what)) {
@@ -1249,6 +1245,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private GenericStackInv createKeyOutputMenuInventory() {
         var inv = new GenericStackInv(AEKeyTypes.getAll(), this::syncStackFromKeyOutputMenu, GenericStackInv.Mode.STORAGE, 1) {
+
             {
                 this.setFilter((slot, what) -> {
                     if (!isAllowedMenuKey(what)) {
@@ -1461,6 +1458,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private final class PatternInputStorage implements MEStorage {
+
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
@@ -1499,6 +1497,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private final class SyncFluidTank extends FluidTank {
+
         private SyncFluidTank(int capacity) {
             super(capacity);
         }
@@ -1533,6 +1532,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private final class ReassemblerFluidHandler implements IFluidHandler {
+
         @Override
         public int getTanks() {
             return 4;
@@ -1599,6 +1599,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static final class PatternPushState {
+
         private final ItemStack[] itemInputs;
         private FluidStack fluidInputA;
         private FluidStack fluidInputB;

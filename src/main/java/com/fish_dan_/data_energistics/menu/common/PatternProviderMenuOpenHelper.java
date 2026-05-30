@@ -1,13 +1,8 @@
 package com.fish_dan_.data_energistics.menu.common;
 
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.helpers.patternprovider.PatternContainer;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
-import appeng.parts.crafting.PatternProviderPart;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,6 +10,13 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.entity.BlockEntity;
+
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.helpers.patternprovider.PatternContainer;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
@@ -27,8 +29,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 public final class PatternProviderMenuOpenHelper {
-    private static final String APPLIED_PNEUMATICS_MENUS_CLASS =
-            "com.wintercogs.appliedpneumatics.common.init.APMenus";
+
+    private static final String APPLIED_PNEUMATICS_MENUS_CLASS = "com.wintercogs.appliedpneumatics.common.init.APMenus";
     private static final Map<String, String> APPLIED_PNEUMATICS_MENU_FIELDS = Map.of(
             "com.wintercogs.appliedpneumatics.common.blocks.entitis.MEAmadronProcessStationBlockEntity",
             "ME_AMADRON_PROCESS_STATION_MENU",
@@ -43,8 +45,7 @@ public final class PatternProviderMenuOpenHelper {
             "openUi",
             "openUI");
 
-    private PatternProviderMenuOpenHelper() {
-    }
+    private PatternProviderMenuOpenHelper() {}
 
     public static boolean openProviderGroup(@Nullable List<PatternContainer> providers, @Nullable Player player) {
         if (player == null || providers == null || providers.isEmpty() || player.level().isClientSide()) {
@@ -69,14 +70,7 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        return openAssemblerMatrixMainMenu(provider, player)
-                || openAppliedPneumaticsMenu(provider, player)
-                || openViaPatternProviderLogicHost(provider, player)
-                || openViaMenuProvider(provider, player)
-                || openViaReflectiveMenuProvider(provider, player)
-                || openViaBlockUi(provider, player)
-                || openViaReflectiveMenuType(provider, player)
-                || openViaReflectiveOpenMethod(provider, player);
+        return openAssemblerMatrixMainMenu(provider, player) || openAppliedPneumaticsMenu(provider, player) || openViaPatternProviderLogicHost(provider, player) || openViaMenuProvider(provider, player) || openViaReflectiveMenuProvider(provider, player) || openViaBlockUi(provider, player) || openViaReflectiveMenuType(provider, player) || openViaReflectiveOpenMethod(provider, player);
     }
 
     private static boolean openAppliedPneumaticsMenu(PatternContainer provider, Player player) {
@@ -124,8 +118,7 @@ public final class PatternProviderMenuOpenHelper {
                 providerHost.openMenu(player, MenuLocators.forBlockEntity(providerBlockEntity));
                 return true;
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         return false;
     }
@@ -206,8 +199,7 @@ public final class PatternProviderMenuOpenHelper {
                 } else {
                     return true;
                 }
-            } catch (ReflectiveOperationException ignored) {
-            }
+            } catch (ReflectiveOperationException ignored) {}
         }
 
         return false;
@@ -234,9 +226,7 @@ public final class PatternProviderMenuOpenHelper {
         }
 
         var key = BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType());
-        return key != null
-                && "neoecoae".equals(key.getNamespace())
-                && "crafting_pattern_bus".equals(key.getPath());
+        return key != null && "neoecoae".equals(key.getNamespace()) && "crafting_pattern_bus".equals(key.getPath());
     }
 
     private static boolean isPatternInventoryFull(PatternContainer provider) {
@@ -308,8 +298,7 @@ public final class PatternProviderMenuOpenHelper {
             if (type instanceof MenuType<?> menuType) {
                 return MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(coreBlockEntity));
             }
-        } catch (ReflectiveOperationException ignored) {
-        }
+        } catch (ReflectiveOperationException ignored) {}
 
         return false;
     }
@@ -340,8 +329,7 @@ public final class PatternProviderMenuOpenHelper {
                     if (fieldValue instanceof MenuType<?> menuType) {
                         return menuType;
                     }
-                } catch (ReflectiveOperationException ignored) {
-                }
+                } catch (ReflectiveOperationException ignored) {}
             }
             type = type.getSuperclass();
         }
@@ -353,7 +341,7 @@ public final class PatternProviderMenuOpenHelper {
     private static Object[] buildOpenArgs(Class<?>[] parameterTypes, Player player, @Nullable Object locator) {
         if (parameterTypes.length == 1) {
             if (parameterTypes[0].isInstance(player)) {
-                return new Object[]{player};
+                return new Object[] { player };
             }
             return null;
         }
@@ -365,10 +353,10 @@ public final class PatternProviderMenuOpenHelper {
             boolean secondLocator = parameterTypes[1].isInstance(locator);
 
             if (firstPlayer && secondLocator) {
-                return new Object[]{player, locator};
+                return new Object[] { player, locator };
             }
             if (firstLocator && secondPlayer) {
-                return new Object[]{locator, player};
+                return new Object[] { locator, player };
             }
         }
 

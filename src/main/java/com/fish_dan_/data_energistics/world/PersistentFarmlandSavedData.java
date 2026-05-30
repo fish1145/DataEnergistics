@@ -14,14 +14,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class PersistentFarmlandSavedData extends SavedData {
+
     private static final String DATA_NAME = "data_energistics_persistent_farmland";
     private static final String POSITIONS_TAG = "Positions";
     private final Set<Long> farmlandPositions = new HashSet<>();
 
     public static final Factory<PersistentFarmlandSavedData> FACTORY = new Factory<>(
             PersistentFarmlandSavedData::new,
-            PersistentFarmlandSavedData::load
-    );
+            PersistentFarmlandSavedData::load);
 
     public static PersistentFarmlandSavedData get(ServerLevel level) {
         MinecraftServer server = level.getServer();

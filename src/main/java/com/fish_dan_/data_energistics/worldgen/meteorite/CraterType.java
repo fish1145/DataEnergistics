@@ -4,6 +4,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
 public enum CraterType {
+
     NONE((Block) null),
     NORMAL(Blocks.AIR),
     LAVA(Blocks.LAVA),

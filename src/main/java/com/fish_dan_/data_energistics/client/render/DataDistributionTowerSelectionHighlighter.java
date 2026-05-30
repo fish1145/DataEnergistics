@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.mojang.blaze3d.vertex.PoseStack;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
@@ -14,14 +14,16 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public class DataDistributionTowerSelectionHighlighter {
+
     private static ResourceKey<Level> highlightedDimension;
     private static BlockPos highlightedPos;
     private static long expiresAtGameTime;
 
-    private DataDistributionTowerSelectionHighlighter() {
-    }
+    private DataDistributionTowerSelectionHighlighter() {}
 
     public static void highlight(ResourceKey<Level> dimension, BlockPos pos) {
         Minecraft minecraft = Minecraft.getInstance();
@@ -57,8 +59,7 @@ public class DataDistributionTowerSelectionHighlighter {
         poseStack.translate(
                 highlightedPos.getX() - cameraPos.x,
                 highlightedPos.getY() - cameraPos.y,
-                highlightedPos.getZ() - cameraPos.z
-        );
+                highlightedPos.getZ() - cameraPos.z);
 
         var consumer = minecraft.renderBuffers().bufferSource().getBuffer(RenderType.lines());
         LevelRenderer.renderLineBox(poseStack, consumer, new AABB(0, 0, 0, 1, 1, 1), 1.0f, 0.85f, 0.2f, 1.0f);

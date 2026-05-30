@@ -1,5 +1,27 @@
 package com.fish_dan_.data_energistics.menu.common;
 
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.networking.IGrid;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.helpers.patternprovider.PatternContainer;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.parts.crafting.PatternProviderPart;
+import appeng.parts.encoding.EncodingMode;
+import org.jetbrains.annotations.Nullable;
+
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,28 +38,8 @@ import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.jetbrains.annotations.Nullable;
-
-import appeng.api.networking.IGrid;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.api.crafting.PatternDetailsHelper;
-import appeng.helpers.patternprovider.PatternContainer;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.parts.encoding.EncodingMode;
-import appeng.parts.crafting.PatternProviderPart;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
-import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.entity.BlockEntity;
-
 public final class PatternProviderSyncHelper {
+
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
     private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
     private static final Map<Class<?>, Map<String, Optional<Method>>> NO_ARG_METHOD_CACHE = new ConcurrentHashMap<>();
@@ -51,8 +53,7 @@ public final class PatternProviderSyncHelper {
     private static final String NEOECOAE_CRAFTING_PATTERN_BUS_PATH = "crafting_pattern_bus";
     private static final String NEOECOAE_ECO_CRAFTING_WORKER_PATH = "eco_crafting_worker";
     private static final String APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH = "me_amadron_process_station";
-    private static final String APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH =
-            "me_amadron_extended_process_station";
+    private static final String APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH = "me_amadron_extended_process_station";
     private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
     private static final ResourceLocation FURNACE_ID = ResourceLocation.withDefaultNamespace("furnace");
     private static final ResourceLocation BLAST_FURNACE_ID = ResourceLocation.withDefaultNamespace("blast_furnace");
@@ -60,52 +61,36 @@ public final class PatternProviderSyncHelper {
     private static final ResourceLocation CAMPFIRE_ID = ResourceLocation.withDefaultNamespace("campfire");
     private static final ResourceLocation STONECUTTER_ID = ResourceLocation.withDefaultNamespace("stonecutter");
     private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
-    private static final ResourceLocation AE2_CRAFTING_PATTERN_ITEM_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2", "crafting_pattern");
-    private static final ResourceLocation AE2_STONECUTTING_PATTERN_ITEM_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2", "stonecutting_pattern");
-    private static final ResourceLocation AE2_SMITHING_TABLE_PATTERN_ITEM_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2", "smithing_table_pattern");
-    private static final ResourceLocation AE2_MOLECULAR_ASSEMBLER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
-    private static final ResourceLocation AE2_INSCRIBER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
-    private static final ResourceLocation AE2_CHARGER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2", "charger");
-    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID =
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
-    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
-    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
-    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID =
-            ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
-    private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID =
-            ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
-    private static final ResourceLocation AE2CS_RESONATING_PATTERN_PROVIDER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2cs", "resonating_pattern_provider");
-    private static final ResourceLocation AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2cs", "extended_resonating_pattern_provider");
-    private static final ResourceLocation AE2CS_EX_RESONATING_PATTERN_PROVIDER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2cs", "ex_resonating_pattern_provider");
-    private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID =
-            ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
+    private static final ResourceLocation AE2_CRAFTING_PATTERN_ITEM_ID = ResourceLocation.fromNamespaceAndPath("ae2", "crafting_pattern");
+    private static final ResourceLocation AE2_STONECUTTING_PATTERN_ITEM_ID = ResourceLocation.fromNamespaceAndPath("ae2", "stonecutting_pattern");
+    private static final ResourceLocation AE2_SMITHING_TABLE_PATTERN_ITEM_ID = ResourceLocation.fromNamespaceAndPath("ae2", "smithing_table_pattern");
+    private static final ResourceLocation AE2_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
+    private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
+    private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
+    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
+    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
+    private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
+    private static final ResourceLocation AE2CS_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "resonating_pattern_provider");
+    private static final ResourceLocation AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "extended_resonating_pattern_provider");
+    private static final ResourceLocation AE2CS_EX_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "ex_resonating_pattern_provider");
+    private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
     private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS = Set.of(
             "assembler_matrix_crafter_plus",
             "assembler_matrix_pattern_plus",
             "assembler_matrix_speed_plus");
 
-    private PatternProviderSyncHelper() {
-    }
+    private PatternProviderSyncHelper() {}
 
     public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
-            @Nullable IGrid grid,
-            Map<PatternContainer, Long> syncedPatternProviderIds,
-            Map<Long, List<PatternContainer>> syncedProviderTargetsById,
-            LongSupplier nextIdSupplier,
-            @Nullable ResourceLocation preferredWorkstationId,
-            @Nullable EncodingMode encodingMode,
-            ItemStack currentEncodedPattern) {
+                                                                                                     @Nullable IGrid grid,
+                                                                                                     Map<PatternContainer, Long> syncedPatternProviderIds,
+                                                                                                     Map<Long, List<PatternContainer>> syncedProviderTargetsById,
+                                                                                                     LongSupplier nextIdSupplier,
+                                                                                                     @Nullable ResourceLocation preferredWorkstationId,
+                                                                                                     @Nullable EncodingMode encodingMode,
+                                                                                                     ItemStack currentEncodedPattern) {
         syncedProviderTargetsById.clear();
         if (grid == null) {
             syncedPatternProviderIds.clear();
@@ -137,8 +122,7 @@ public final class PatternProviderSyncHelper {
 
         syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.containsKey(provider));
 
-        List<AggregatedPatternProvider> aggregatedProviders =
-                aggregateDiscoveredProviders(discoveredProviders, primaryWorkbenchOrdering);
+        List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(discoveredProviders, primaryWorkbenchOrdering);
         aggregatedProviders.sort(createAggregatedProviderComparator(primaryWorkbenchOrdering));
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ArrayList<>(aggregatedProviders.size());
@@ -154,9 +138,7 @@ public final class PatternProviderSyncHelper {
                     provider.usedPatternSlotCount()));
         }
 
-        return providers.isEmpty()
-                ? PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY
-                : new PatternEncodingPreviewMenu.SyncedPatternProviderList(providers);
+        return providers.isEmpty() ? PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY : new PatternEncodingPreviewMenu.SyncedPatternProviderList(providers);
     }
 
     @Nullable
@@ -295,41 +277,39 @@ public final class PatternProviderSyncHelper {
         return false;
     }
 
-    public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound) {
-    }
+    public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound) {}
 
     private static void collectDirectPatternProviders(
-            IGrid grid,
-            Map<PatternContainer, Long> syncedPatternProviderIds,
-            LongSupplier nextIdSupplier,
-            List<DiscoveredPatternProvider> discoveredProviders,
-            Map<PatternContainer, Boolean> activeProviders,
-            Map<PatternContainer, Boolean> discoveredProviderSet,
-            @Nullable ResourceLocation preferredWorkstationId,
-            @Nullable EncodingMode encodingMode,
-            ItemStack currentEncodedPattern,
-            boolean primaryWorkbenchOrdering) {
+                                                      IGrid grid,
+                                                      Map<PatternContainer, Long> syncedPatternProviderIds,
+                                                      LongSupplier nextIdSupplier,
+                                                      List<DiscoveredPatternProvider> discoveredProviders,
+                                                      Map<PatternContainer, Boolean> activeProviders,
+                                                      Map<PatternContainer, Boolean> discoveredProviderSet,
+                                                      @Nullable ResourceLocation preferredWorkstationId,
+                                                      @Nullable EncodingMode encodingMode,
+                                                      ItemStack currentEncodedPattern,
+                                                      boolean primaryWorkbenchOrdering) {
         try {
             for (var providerHost : grid.getMachines(PatternProviderLogicHost.class)) {
                 addProviderIfVisible(providerHost, syncedPatternProviderIds, nextIdSupplier, discoveredProviders,
                         activeProviders, discoveredProviderSet, preferredWorkstationId, encodingMode, currentEncodedPattern,
                         primaryWorkbenchOrdering);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private static void addProviderIfVisible(
-            PatternContainer container,
-            Map<PatternContainer, Long> syncedPatternProviderIds,
-            LongSupplier nextIdSupplier,
-            List<DiscoveredPatternProvider> discoveredProviders,
-            Map<PatternContainer, Boolean> activeProviders,
-            Map<PatternContainer, Boolean> discoveredProviderSet,
-            @Nullable ResourceLocation preferredWorkstationId,
-            @Nullable EncodingMode encodingMode,
-            ItemStack currentEncodedPattern,
-            boolean primaryWorkbenchOrdering) {
+                                             PatternContainer container,
+                                             Map<PatternContainer, Long> syncedPatternProviderIds,
+                                             LongSupplier nextIdSupplier,
+                                             List<DiscoveredPatternProvider> discoveredProviders,
+                                             Map<PatternContainer, Boolean> activeProviders,
+                                             Map<PatternContainer, Boolean> discoveredProviderSet,
+                                             @Nullable ResourceLocation preferredWorkstationId,
+                                             @Nullable EncodingMode encodingMode,
+                                             ItemStack currentEncodedPattern,
+                                             boolean primaryWorkbenchOrdering) {
         if (!isProviderContainer(container) || discoveredProviderSet.containsKey(container)) {
             return;
         }
@@ -369,16 +349,12 @@ public final class PatternProviderSyncHelper {
         }
 
         String className = container.getClass().getSimpleName().toLowerCase(Locale.ROOT);
-        if (className.contains("provider")
-                || className.contains("pattern")
-                || className.contains("crafting")) {
+        if (className.contains("provider") || className.contains("pattern") || className.contains("crafting")) {
             return true;
         }
 
         ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
-        return isNeoEcoCraftingSubsystemIcon(terminalIconItemId)
-                || !resolveTerminalGroupIcon(container).isEmpty()
-                || !resolveMainMenuIconReflectively(container).isEmpty();
+        return isNeoEcoCraftingSubsystemIcon(terminalIconItemId) || !resolveTerminalGroupIcon(container).isEmpty() || !resolveMainMenuIconReflectively(container).isEmpty();
     }
 
     private static boolean shouldUseAeButtonStyle(PatternContainer container) {
@@ -401,8 +377,7 @@ public final class PatternProviderSyncHelper {
             return false;
         }
 
-        return PatternProviderNameHelper.canRename(container)
-                || PatternProviderNameHelper.getCustomName(container) != null;
+        return PatternProviderNameHelper.canRename(container) || PatternProviderNameHelper.getCustomName(container) != null;
     }
 
     private static boolean isAssemblerMatrixPatternContainer(PatternContainer container) {
@@ -420,27 +395,20 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean isAssemblerMatrixPlusIcon(@Nullable ResourceLocation iconItemId) {
-        return iconItemId != null
-                && EXTENDEDAE_PLUS_NAMESPACE.equals(iconItemId.getNamespace())
-                && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS.contains(iconItemId.getPath());
+        return iconItemId != null && EXTENDEDAE_PLUS_NAMESPACE.equals(iconItemId.getNamespace()) && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS.contains(iconItemId.getPath());
     }
 
     private static boolean isNeoEcoCraftingSubsystemContainer(DiscoveredPatternProvider provider) {
-        return isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
-                || isNeoEcoCraftingSubsystemClassName(provider.container())
-                || isNeoEcoCraftingSubsystemName(provider.displayName().getString());
+        return isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) || isNeoEcoCraftingSubsystemClassName(provider.container()) || isNeoEcoCraftingSubsystemName(provider.displayName().getString());
     }
 
     private static boolean isNeoEcoCraftingSubsystemContainer(PatternContainer container) {
-        return isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container))
-                || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container))
-                || isNeoEcoCraftingSubsystemClassName(container)
-                || isNeoEcoCraftingSubsystemName(resolveProviderDisplayName(container).getString());
+        return isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container)) || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container)) || isNeoEcoCraftingSubsystemClassName(container) || isNeoEcoCraftingSubsystemName(resolveProviderDisplayName(container).getString());
     }
 
     private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
-            List<DiscoveredPatternProvider> discoveredProviders,
-            boolean primaryWorkbenchOrdering) {
+                                                                                List<DiscoveredPatternProvider> discoveredProviders,
+                                                                                boolean primaryWorkbenchOrdering) {
         List<DiscoveredPatternProvider> sortedProviders = new ArrayList<>(discoveredProviders);
         sortedProviders.sort(createDiscoveredProviderComparator(primaryWorkbenchOrdering));
 
@@ -468,7 +436,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<AggregatedPatternProvider> createAggregatedProviderComparator(
-            boolean primaryWorkbenchOrdering) {
+                                                                                            boolean primaryWorkbenchOrdering) {
         Comparator<AggregatedPatternProvider> comparator;
         if (primaryWorkbenchOrdering) {
             comparator = Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::preferredScore)
@@ -485,7 +453,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<DiscoveredPatternProvider> createDiscoveredProviderComparator(
-            boolean primaryWorkbenchOrdering) {
+                                                                                            boolean primaryWorkbenchOrdering) {
         Comparator<DiscoveredPatternProvider> comparator;
         if (primaryWorkbenchOrdering) {
             comparator = Comparator.<DiscoveredPatternProvider>comparingInt(DiscoveredPatternProvider::preferredScore)
@@ -502,8 +470,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean shouldAggregateSpecialProvider(DiscoveredPatternProvider provider) {
-        return isAssemblerMatrixPatternContainer(provider.container())
-                || isNeoEcoCraftingSubsystemContainer(provider);
+        return isAssemblerMatrixPatternContainer(provider.container()) || isNeoEcoCraftingSubsystemContainer(provider);
     }
 
     private static String getAggregationKey(DiscoveredPatternProvider provider) {
@@ -512,18 +479,14 @@ public final class PatternProviderSyncHelper {
         }
         if (isNeoEcoCraftingSubsystemContainer(provider)) {
             String tierKey = resolveNeoEcoCraftingSubsystemTierKey(provider);
-            return tierKey == null
-                    ? "neoecoae:crafting_system"
-                    : "neoecoae:crafting_system:" + tierKey;
+            return tierKey == null ? "neoecoae:crafting_system" : "neoecoae:crafting_system:" + tierKey;
         }
         return provider.iconItemId() + "|" + provider.displayName().getString();
     }
 
     @Nullable
     private static Class<? extends PatternContainer> asPatternContainerClass(Class<?> machineClass) {
-        return PatternContainer.class.isAssignableFrom(machineClass)
-                ? machineClass.asSubclass(PatternContainer.class)
-                : null;
+        return PatternContainer.class.isAssignableFrom(machineClass) ? machineClass.asSubclass(PatternContainer.class) : null;
     }
 
     private static Component resolveProviderDisplayName(PatternContainer container) {
@@ -715,8 +678,7 @@ public final class PatternProviderSyncHelper {
 
     private static boolean isAe2CsResonatingProviderContainer(PatternContainer container) {
         String className = container.getClass().getName().toLowerCase(Locale.ROOT);
-        return className.contains("io.github.lounode.ae2cs")
-                && className.contains("resonatingpatternprovider");
+        return className.contains("io.github.lounode.ae2cs") && className.contains("resonatingpatternprovider");
     }
 
     private static int getProviderPatternSlotCapacity(PatternContainer container) {
@@ -750,8 +712,7 @@ public final class PatternProviderSyncHelper {
         }
 
         String path = iconItemId.getPath();
-        if (!APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(path)
-                && !APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(path)) {
+        if (!APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(path) && !APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(path)) {
             return ItemStack.EMPTY;
         }
 
@@ -769,11 +730,11 @@ public final class PatternProviderSyncHelper {
     }
 
     private static int getPreferredProviderScore(PatternContainer container, Component displayName, ResourceLocation iconItemId,
-                                                  int patternSlotCount, int usedPatternSlotCount,
-                                                  @Nullable ResourceLocation preferredWorkstationId,
-                                                  @Nullable EncodingMode encodingMode,
-                                                  ItemStack currentEncodedPattern,
-                                                  boolean primaryWorkbenchEncoding) {
+                                                 int patternSlotCount, int usedPatternSlotCount,
+                                                 @Nullable ResourceLocation preferredWorkstationId,
+                                                 @Nullable EncodingMode encodingMode,
+                                                 ItemStack currentEncodedPattern,
+                                                 boolean primaryWorkbenchEncoding) {
         if (patternSlotCount <= 0 || usedPatternSlotCount >= patternSlotCount) {
             return 0;
         }
@@ -822,13 +783,11 @@ public final class PatternProviderSyncHelper {
             fallbackScore = Math.max(fallbackScore, computeRegistryIdFallbackPriority(providerIconName, workstationId) / 2);
         }
 
-        if (containsSimilarText(providerName, workstationName)
-                || containsSimilarText(providerIconName, workstationName)) {
+        if (containsSimilarText(providerName, workstationName) || containsSimilarText(providerIconName, workstationName)) {
             fallbackScore += 8;
         }
 
-        if (sharesKeyword(providerName, workstationName)
-                || sharesKeyword(providerIconName, workstationName)) {
+        if (sharesKeyword(providerName, workstationName) || sharesKeyword(providerIconName, workstationName)) {
             fallbackScore += 5;
         }
 
@@ -850,9 +809,7 @@ public final class PatternProviderSyncHelper {
             return true;
         }
 
-        return matchesActualPrimaryWorkbench(displayName, iconItemId, CRAFTING_TABLE_ID)
-                || matchesActualPrimaryWorkbench(displayName, iconItemId, STONECUTTER_ID)
-                || matchesActualPrimaryWorkbench(displayName, iconItemId, SMITHING_TABLE_ID);
+        return matchesActualPrimaryWorkbench(displayName, iconItemId, CRAFTING_TABLE_ID) || matchesActualPrimaryWorkbench(displayName, iconItemId, STONECUTTER_ID) || matchesActualPrimaryWorkbench(displayName, iconItemId, SMITHING_TABLE_ID);
     }
 
     private static boolean matchesActualPrimaryWorkbench(Component displayName, ResourceLocation iconItemId,
@@ -865,33 +822,21 @@ public final class PatternProviderSyncHelper {
         String workstationName = normalizeForMatch(resolveWorkstationDisplayName(workstationId).getString());
         String workstationKey = normalizeForMatch(workstationId.toString());
 
-        return containsSimilarText(providerName, workstationName)
-                || containsSimilarText(providerName, workstationKey)
-                || sharesKeyword(providerName, workstationName)
-                || sharesKeyword(providerName, workstationKey);
+        return containsSimilarText(providerName, workstationName) || containsSimilarText(providerName, workstationKey) || sharesKeyword(providerName, workstationName) || sharesKeyword(providerName, workstationKey);
     }
 
     private static boolean shouldUsePrimaryWorkbenchPriorityLine(@Nullable EncodingMode encodingMode,
                                                                  ItemStack currentEncodedPattern) {
         ResourceLocation patternItemId = resolveItemId(currentEncodedPattern);
-        if (AE2_CRAFTING_PATTERN_ITEM_ID.equals(patternItemId)
-                || AE2_STONECUTTING_PATTERN_ITEM_ID.equals(patternItemId)
-                || AE2_SMITHING_TABLE_PATTERN_ITEM_ID.equals(patternItemId)) {
+        if (AE2_CRAFTING_PATTERN_ITEM_ID.equals(patternItemId) || AE2_STONECUTTING_PATTERN_ITEM_ID.equals(patternItemId) || AE2_SMITHING_TABLE_PATTERN_ITEM_ID.equals(patternItemId)) {
             return true;
         }
 
-        return encodingMode == EncodingMode.CRAFTING
-                || encodingMode == EncodingMode.STONECUTTING
-                || encodingMode == EncodingMode.SMITHING_TABLE;
+        return encodingMode == EncodingMode.CRAFTING || encodingMode == EncodingMode.STONECUTTING || encodingMode == EncodingMode.SMITHING_TABLE;
     }
 
     private static boolean isStrictWorkstationMatch(ResourceLocation workstationId) {
-        return FURNACE_ID.equals(workstationId)
-                || BLAST_FURNACE_ID.equals(workstationId)
-                || SMOKER_ID.equals(workstationId)
-                || CAMPFIRE_ID.equals(workstationId)
-                || AE2_INSCRIBER_ID.equals(workstationId)
-                || AE2_CHARGER_ID.equals(workstationId);
+        return FURNACE_ID.equals(workstationId) || BLAST_FURNACE_ID.equals(workstationId) || SMOKER_ID.equals(workstationId) || CAMPFIRE_ID.equals(workstationId) || AE2_INSCRIBER_ID.equals(workstationId) || AE2_CHARGER_ID.equals(workstationId);
     }
 
     private static int computeRecordedDeviceTextScore(String providerText, String workstationText) {
@@ -1007,11 +952,7 @@ public final class PatternProviderSyncHelper {
         String workstationName = normalizeForMatch(resolveWorkstationDisplayName(preferredWorkstationId).getString());
         String workstationId = normalizeForMatch(preferredWorkstationId.toString());
 
-        boolean matched = providerName.contains(workstationName)
-                || providerName.contains(workstationId)
-                || providerIconName.contains(workstationName)
-                || providerIconName.contains(workstationId)
-                || providerIconId.contains(workstationId);
+        boolean matched = providerName.contains(workstationName) || providerName.contains(workstationId) || providerIconName.contains(workstationName) || providerIconName.contains(workstationId) || providerIconId.contains(workstationId);
 
         if (!matched) {
             return 0;
@@ -1021,19 +962,11 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean isWorkbenchFamily(ResourceLocation workstationId) {
-        return CRAFTING_TABLE_ID.equals(workstationId)
-                || STONECUTTER_ID.equals(workstationId)
-                || SMITHING_TABLE_ID.equals(workstationId)
-                || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId)
-                || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)
-                || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId)
-                || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId);
+        return CRAFTING_TABLE_ID.equals(workstationId) || STONECUTTER_ID.equals(workstationId) || SMITHING_TABLE_ID.equals(workstationId) || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId) || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId);
     }
 
     private static boolean isPrimaryWorkbenchFamily(ResourceLocation workstationId) {
-        return CRAFTING_TABLE_ID.equals(workstationId)
-                || STONECUTTER_ID.equals(workstationId)
-                || SMITHING_TABLE_ID.equals(workstationId);
+        return CRAFTING_TABLE_ID.equals(workstationId) || STONECUTTER_ID.equals(workstationId) || SMITHING_TABLE_ID.equals(workstationId);
     }
 
     private static boolean isPrimaryWorkbenchFamilyMode(@Nullable EncodingMode encodingMode,
@@ -1084,8 +1017,7 @@ public final class PatternProviderSyncHelper {
             return true;
         }
 
-        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID)
-                || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID)) {
+        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID) || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID)) {
             return true;
         }
 
@@ -1140,13 +1072,11 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean isAppliedPneumaticsAmadronStation(ResourceLocation workstationId) {
-        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace())
-                && APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(workstationId.getPath());
+        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace()) && APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(workstationId.getPath());
     }
 
     private static boolean isAppliedPneumaticsAmadronExtendedStation(ResourceLocation workstationId) {
-        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace())
-                && APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(workstationId.getPath());
+        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace()) && APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(workstationId.getPath());
     }
 
     private static boolean isAppliedPneumaticsAmadronStation(PatternContainer container, Component displayName,
@@ -1164,8 +1094,7 @@ public final class PatternProviderSyncHelper {
     private static boolean matchesAppliedPneumaticsMachine(PatternContainer container, Component displayName,
                                                            ResourceLocation iconItemId, String expectedPath,
                                                            String normalizedNameToken) {
-        if (APPLIED_PNEUMATICS_NAMESPACE.equals(iconItemId.getNamespace())
-                && expectedPath.equals(iconItemId.getPath())) {
+        if (APPLIED_PNEUMATICS_NAMESPACE.equals(iconItemId.getNamespace()) && expectedPath.equals(iconItemId.getPath())) {
             return true;
         }
 
@@ -1184,37 +1113,22 @@ public final class PatternProviderSyncHelper {
         }
 
         String path = iconItemId.getPath();
-        return path.equals(NEOECOAE_CRAFTING_SYSTEM_PATH)
-                || path.startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)
-                || path.equals(NEOECOAE_CRAFTING_WORKER_PATH)
-                || path.equals(NEOECOAE_CRAFTING_PATTERN_BUS_PATH)
-                || path.equals(NEOECOAE_ECO_CRAFTING_WORKER_PATH);
+        return path.equals(NEOECOAE_CRAFTING_SYSTEM_PATH) || path.startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX) || path.equals(NEOECOAE_CRAFTING_WORKER_PATH) || path.equals(NEOECOAE_CRAFTING_PATTERN_BUS_PATH) || path.equals(NEOECOAE_ECO_CRAFTING_WORKER_PATH);
     }
 
     private static boolean isNeoEcoCraftingSubsystemClassName(PatternContainer container) {
         String className = container.getClass().getName().toLowerCase(Locale.ROOT);
-        return className.contains("neoeco")
-                && (className.contains("crafting")
-                || className.contains("patternbus")
-                || className.contains("worker"));
+        return className.contains("neoeco") && (className.contains("crafting") || className.contains("patternbus") || className.contains("worker"));
     }
 
     private static boolean isNeoEcoCraftingSubsystemName(String displayName) {
         String normalizedName = normalizeForMatch(displayName);
-        return normalizedName.contains("可拓展合成子系统")
-                || normalizedName.contains("ecocraftingsystem")
-                || normalizedName.contains("craftingsystem");
+        return normalizedName.contains("可拓展合成子系统") || normalizedName.contains("ecocraftingsystem") || normalizedName.contains("craftingsystem");
     }
 
     private static boolean isNeoEcoCraftingSubsystemIdentity(PatternContainer container, Component displayName,
                                                              ResourceLocation iconItemId) {
-        return isNeoEcoCraftingSubsystemIcon(iconItemId)
-                || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container))
-                || isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container))
-                || isNeoEcoCraftingSubsystemIcon(resolveAdaptiveInternalProviderIconItemId(container))
-                || isNeoEcoCraftingSubsystemClassName(container)
-                || isNeoEcoCraftingSubsystemName(displayName.getString())
-                || matchesIdentityTokens(container, displayName, iconItemId,
+        return isNeoEcoCraftingSubsystemIcon(iconItemId) || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container)) || isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container)) || isNeoEcoCraftingSubsystemIcon(resolveAdaptiveInternalProviderIconItemId(container)) || isNeoEcoCraftingSubsystemClassName(container) || isNeoEcoCraftingSubsystemName(displayName.getString()) || matchesIdentityTokens(container, displayName, iconItemId,
                 "可拓展合成子系统",
                 "ecocraftingsystem",
                 "craftingsystem",
@@ -1270,12 +1184,7 @@ public final class PatternProviderSyncHelper {
 
     private static boolean hasIdentityIconId(PatternContainer container, ResourceLocation iconItemId,
                                              ResourceLocation expectedId) {
-        if (expectedId.equals(iconItemId)
-                || expectedId.equals(resolveBaseProviderIconItemId(container))
-                || expectedId.equals(resolveTerminalIconItemId(container))
-                || expectedId.equals(resolveAdaptiveInternalProviderIconItemId(container))
-                || expectedId.equals(resolveBlockEntityTypeId(container))
-                || expectedId.equals(resolveBlockId(container))) {
+        if (expectedId.equals(iconItemId) || expectedId.equals(resolveBaseProviderIconItemId(container)) || expectedId.equals(resolveTerminalIconItemId(container)) || expectedId.equals(resolveAdaptiveInternalProviderIconItemId(container)) || expectedId.equals(resolveBlockEntityTypeId(container)) || expectedId.equals(resolveBlockId(container))) {
             return true;
         }
 
@@ -1491,9 +1400,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean containsSimilarText(String providerText, String workstationText) {
-        return !providerText.isEmpty()
-                && !workstationText.isEmpty()
-                && (providerText.contains(workstationText) || workstationText.contains(providerText));
+        return !providerText.isEmpty() && !workstationText.isEmpty() && (providerText.contains(workstationText) || workstationText.contains(providerText));
     }
 
     private static boolean sharesKeyword(String providerText, String workstationText) {
@@ -1559,20 +1466,20 @@ public final class PatternProviderSyncHelper {
     }
 
     private record DiscoveredPatternProvider(
-            PatternContainer container,
-            long id,
-            long sortOrder,
-            Component displayName,
-            ResourceLocation iconItemId,
-            boolean useAeButtonStyle,
-            boolean renameable,
-            int patternSlotCount,
-            int usedPatternSlotCount,
-            int workbenchLinePriority,
-            int preferredScore) {
-    }
+                                             PatternContainer container,
+                                             long id,
+                                             long sortOrder,
+                                             Component displayName,
+                                             ResourceLocation iconItemId,
+                                             boolean useAeButtonStyle,
+                                             boolean renameable,
+                                             int patternSlotCount,
+                                             int usedPatternSlotCount,
+                                             int workbenchLinePriority,
+                                             int preferredScore) {}
 
     private static final class AggregatedPatternProvider {
+
         private long id;
         private long sortOrder;
         private Component displayName;
@@ -1662,12 +1569,10 @@ public final class PatternProviderSyncHelper {
             if (isAssemblerMatrixPatternContainer(provider.container())) {
                 return 3;
             }
-            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
-                    && provider.iconItemId().getPath().startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)) {
+            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) && provider.iconItemId().getPath().startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)) {
                 return 3;
             }
-            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
-                    && provider.iconItemId().getPath().equals(NEOECOAE_CRAFTING_SYSTEM_PATH)) {
+            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) && provider.iconItemId().getPath().equals(NEOECOAE_CRAFTING_SYSTEM_PATH)) {
                 return 2;
             }
             if (isNeoEcoCraftingSubsystemContainer(provider)) {

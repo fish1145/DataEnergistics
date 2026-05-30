@@ -4,11 +4,13 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
 @Mixin(AdaptivePatternProviderMenu.class)
 public abstract class AdaptivePatternProviderMenuMixin implements PatternProviderMenuAccessor {
+
     @Unique
     private AdaptivePatternProviderMenu dataEnergistics$self() {
         return (AdaptivePatternProviderMenu) (Object) this;

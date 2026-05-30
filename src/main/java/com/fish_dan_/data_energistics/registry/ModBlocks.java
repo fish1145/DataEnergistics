@@ -1,18 +1,19 @@
 package com.fish_dan_.data_energistics.registry;
 
-import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
+import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
+import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
-import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
-import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
+import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
+
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -22,6 +23,7 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModBlocks {
+
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Data_Energistics.MODID);
 
     public static final DeferredBlock<Block> DATA_SOLAR_PANEL = BLOCKS.registerBlock(
@@ -50,8 +52,7 @@ public final class ModBlocks {
             DataDistributionTowerBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK)
                     .noOcclusion()
-                    .lightLevel(state -> state.getValue(DataDistributionTowerBlock.PART) == 2
-                            && state.getValue(DataDistributionTowerBlock.ACTIVE) ? 15 : 0));
+                    .lightLevel(state -> state.getValue(DataDistributionTowerBlock.PART) == 2 && state.getValue(DataDistributionTowerBlock.ACTIVE) ? 15 : 0));
 
     public static final DeferredBlock<Block> DATA_MIMETIC_FIELD = BLOCKS.registerBlock(
             "data_mimetic_field",
@@ -170,8 +171,7 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.AMETHYST_CLUSTER)
                     .requiresCorrectToolForDrops());
 
-    private ModBlocks() {
-    }
+    private ModBlocks() {}
 
     public static void register(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);

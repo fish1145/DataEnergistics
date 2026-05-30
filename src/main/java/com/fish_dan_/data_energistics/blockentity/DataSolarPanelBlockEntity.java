@@ -1,5 +1,19 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.SolarPanelConfig;
+import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
+import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
+import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
@@ -13,37 +27,22 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
-import appeng.util.inv.AppEngInternalInventory;
-import com.fish_dan_.data_energistics.SolarPanelConfig;
-import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
-import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.EnumSet;
 import java.util.List;
 
 public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject, DataSolarPanelMenuHost {
+
     public static final double ENERGY_CAPACITY = 160_000.0D;
     public static final int UPGRADE_SLOTS = 3;
     public static final int MAX_SPEED_CARDS = 3;
     public static final int MAX_ENERGY_CARDS = 3;
-    private static final ResourceLocation SPATIAL_STORAGE_DIMENSION =
-            ResourceLocation.fromNamespaceAndPath("ae2", "spatial_storage");
-    private static final ResourceLocation THE_END_DIMENSION =
-            ResourceLocation.withDefaultNamespace("the_end");
+    private static final ResourceLocation SPATIAL_STORAGE_DIMENSION = ResourceLocation.fromNamespaceAndPath("ae2", "spatial_storage");
+    private static final ResourceLocation THE_END_DIMENSION = ResourceLocation.withDefaultNamespace("the_end");
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
 
-    private final IUpgradeInventory upgrades =
-            UpgradeInventories.forMachine(ModBlocks.DATA_SOLAR_PANEL.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_SOLAR_PANEL.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
 
     public DataSolarPanelBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -116,15 +115,12 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         }
 
         ResourceLocation dimensionId = this.level.dimension().location();
-        boolean specialNightGenerationDimension = dimensionId.equals(SPATIAL_STORAGE_DIMENSION)
-                || dimensionId.equals(THE_END_DIMENSION);
+        boolean specialNightGenerationDimension = dimensionId.equals(SPATIAL_STORAGE_DIMENSION) || dimensionId.equals(THE_END_DIMENSION);
         if (!specialNightGenerationDimension && !this.level.canSeeSky(this.worldPosition.above())) {
             return 0.0D;
         }
 
-        double baseGeneration = specialNightGenerationDimension || !this.level.isDay()
-                ? SolarPanelConfig.nightGenerationAEPerTick
-                : SolarPanelConfig.dayGenerationAEPerTick;
+        double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? SolarPanelConfig.nightGenerationAEPerTick : SolarPanelConfig.dayGenerationAEPerTick;
         return applySpeedUpgrades(baseGeneration, this.upgrades);
     }
 

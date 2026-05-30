@@ -1,23 +1,23 @@
 {
-  "parent": "data_energistics:item/matter_converging_crossbow_0",
-  "overrides": [
-    {
-      "predicate": {
-        "data_energistics:load_stage": 0.2
-      },
-      "model": "data_energistics:item/matter_converging_crossbow_1"
-    },
-    {
-      "predicate": {
-        "data_energistics:load_stage": 0.6
-      },
-      "model": "data_energistics:item/matter_converging_crossbow_2"
-    },
-    {
-      "predicate": {
-        "data_energistics:loaded_special_light_saber": 0.5
-      },
-      "model": "data_energistics:item/matter_converging_crossbow_light_purple"
-    }
-  ]
+	"parent": "data_energistics:item/matter_converging_crossbow_0",
+	"overrides": [
+		{
+			"predicate": {
+				"data_energistics:load_stage": 0.2
+			},
+			"model": "data_energistics:item/matter_converging_crossbow_1"
+		},
+		{
+			"predicate": {
+				"data_energistics:load_stage": 0.6
+			},
+			"model": "data_energistics:item/matter_converging_crossbow_2"
+		},
+		{
+			"predicate": {
+				"data_energistics:loaded_special_light_saber": 0.5
+			},
+			"model": "data_energistics:item/matter_converging_crossbow_light_purple"
+		}
+	]
 }

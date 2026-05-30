@@ -1,60 +1,60 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "item": "ae2:terminal"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_framework"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_processor"
-      },
-      "count": 8
-    },
-    {
-      "ingredient": {
-        "item": "ae2:wireless_access_point"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "ae2:spatial_anchor"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "ae2:quantum_entangled_singularity"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_crystal_cutting_knife"
-      },
-      "count": 1
-    }
-  ],
-  "fluid_inputs": [
-    {
-      "#": 1250,
-      "#t": "ae2:f",
-      "id": "data_energistics:ender"
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "data_energistics:data_teleport_anchor",
-      "count": 1
-    }
-  ]
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "ae2:terminal"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_processor"
+			},
+			"count": 8
+		},
+		{
+			"ingredient": {
+				"item": "ae2:wireless_access_point"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:spatial_anchor"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:quantum_entangled_singularity"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_crystal_cutting_knife"
+			},
+			"count": 1
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 1250,
+			"#t": "ae2:f",
+			"id": "data_energistics:ender"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_teleport_anchor",
+			"count": 1
+		}
+	]
 }

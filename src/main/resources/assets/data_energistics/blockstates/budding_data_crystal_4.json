@@ -1,7 +1,7 @@
 {
-  "variants": {
-    "": {
-      "model": "data_energistics:block/budding_data_crystal_4"
-    }
-  }
+	"variants": {
+		"": {
+			"model": "data_energistics:block/budding_data_crystal_4"
+		}
+	}
 }

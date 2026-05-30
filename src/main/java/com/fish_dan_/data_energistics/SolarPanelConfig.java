@@ -8,6 +8,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 @SuppressWarnings("removal")
 @EventBusSubscriber(modid = Data_Energistics.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class SolarPanelConfig {
+
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     private static final ModConfigSpec.DoubleValue DAY_GENERATION_AE_PER_TICK = BUILDER
@@ -32,8 +33,8 @@ public final class SolarPanelConfig {
     public static double nightGenerationAEPerTick = 1_000.0D;
     public static double speedCardBonusRatio = 0.75D;
     public static double energyCardCapacityBonusAE = 80_000.0D;
-    private SolarPanelConfig() {
-    }
+
+    private SolarPanelConfig() {}
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {

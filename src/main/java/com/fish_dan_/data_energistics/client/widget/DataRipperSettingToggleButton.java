@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.client.widget;
 
+import net.minecraft.network.chat.Component;
+
 import appeng.api.config.Setting;
 import appeng.api.config.YesNo;
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
-import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
 public class DataRipperSettingToggleButton extends ServerSettingToggleButton<YesNo> {
+
     private final Icon enabledIcon;
     private final Icon disabledIcon;
     private final String titleKey;
@@ -17,15 +19,14 @@ public class DataRipperSettingToggleButton extends ServerSettingToggleButton<Yes
     private final String blockedKey;
 
     public DataRipperSettingToggleButton(
-            Setting<YesNo> setting,
-            YesNo value,
-            Icon enabledIcon,
-            Icon disabledIcon,
-            String titleKey,
-            String enabledKey,
-            String disabledKey,
-            String blockedKey
-    ) {
+                                         Setting<YesNo> setting,
+                                         YesNo value,
+                                         Icon enabledIcon,
+                                         Icon disabledIcon,
+                                         String titleKey,
+                                         String enabledKey,
+                                         String disabledKey,
+                                         String blockedKey) {
         super(setting, value);
         this.enabledIcon = enabledIcon;
         this.disabledIcon = disabledIcon;

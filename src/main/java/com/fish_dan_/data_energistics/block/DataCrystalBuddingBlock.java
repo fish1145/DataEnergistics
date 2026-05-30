@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 
 public class DataCrystalBuddingBlock extends BuddingAmethystBlock {
+
     private static final Direction[] DIRECTIONS = Direction.values();
     private static final int DECAY_CHANCE = 12;
 
@@ -33,14 +35,11 @@ public class DataCrystalBuddingBlock extends BuddingAmethystBlock {
 
         if (canClusterGrowAtState(targetState)) {
             block = ModBlocks.SMALL_DATA_CRYSTAL_BUD.get();
-        } else if (targetState.is(ModBlocks.SMALL_DATA_CRYSTAL_BUD.get())
-                && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
+        } else if (targetState.is(ModBlocks.SMALL_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
             block = ModBlocks.MEDIUM_DATA_CRYSTAL_BUD.get();
-        } else if (targetState.is(ModBlocks.MEDIUM_DATA_CRYSTAL_BUD.get())
-                && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
+        } else if (targetState.is(ModBlocks.MEDIUM_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
             block = ModBlocks.LARGE_DATA_CRYSTAL_BUD.get();
-        } else if (targetState.is(ModBlocks.LARGE_DATA_CRYSTAL_BUD.get())
-                && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
+        } else if (targetState.is(ModBlocks.LARGE_DATA_CRYSTAL_BUD.get()) && targetState.getValue(AmethystClusterBlock.FACING) == direction) {
             block = ModBlocks.DATA_CRYSTAL_CLUSTER.get();
         }
 

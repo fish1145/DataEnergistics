@@ -1,7 +1,7 @@
 {
-  "parent": "data_energistics:block/data_teleport_anchor_off",
-  "textures": {
-    "1": "data_energistics:block/data_teleport_anchor/side_on_yellow",
-    "2": "data_energistics:block/data_teleport_anchor/top_on_yellow"
-  }
+	"parent": "data_energistics:block/data_teleport_anchor_off",
+	"textures": {
+		"1": "data_energistics:block/data_teleport_anchor/side_on_yellow",
+		"2": "data_energistics:block/data_teleport_anchor/top_on_yellow"
+	}
 }

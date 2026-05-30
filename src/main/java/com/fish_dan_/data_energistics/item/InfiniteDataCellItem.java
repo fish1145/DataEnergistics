@@ -3,28 +3,30 @@ package com.fish_dan_.data_energistics.item;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellInventory;
+
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
+
 import appeng.api.config.FuzzyMode;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.cells.ICellWorkbenchItem;
 import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.util.ConfigInventory;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.item.component.CustomData;
 
 import java.util.List;
 import java.util.Optional;
 
 public class InfiniteDataCellItem extends Item implements ICellWorkbenchItem {
+
     private static final String TAG_OBTAINED_CHECKED = "ObtainedChecked";
     private static final double DEATH_CHANCE = 0.05D;
 
@@ -77,8 +79,7 @@ public class InfiniteDataCellItem extends Item implements ICellWorkbenchItem {
     }
 
     @Override
-    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {
-    }
+    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
     private static boolean wasObtainedChecked(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean(TAG_OBTAINED_CHECKED);

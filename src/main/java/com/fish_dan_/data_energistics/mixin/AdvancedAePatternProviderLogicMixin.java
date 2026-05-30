@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.api.config.LockCraftingMode;
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogic;
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogicHost;
+
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -18,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AdvPatternProviderLogic.class)
 public abstract class AdvancedAePatternProviderLogicMixin implements PatternProviderLogicAccessor {
+
     @Shadow
     @Final
     private AdvPatternProviderLogicHost host;
@@ -62,15 +64,12 @@ public abstract class AdvancedAePatternProviderLogicMixin implements PatternProv
 
     @Override
     public boolean dataEnergistics$forcePulseUnlock() {
-        if (this.host instanceof PatternProviderHostAccessor accessor
-                && accessor.dataEnergistics$getRedstoneTuningMode() == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE
-                && this.host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        if (this.host instanceof PatternProviderHostAccessor accessor && accessor.dataEnergistics$getRedstoneTuningMode() == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE && this.host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
             RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                     serverLevel,
                     this.host.getGrid(),
                     ((AdvancedAePatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
-                    ((AdvPatternProviderLogic) (Object) this).getAvailablePatterns()
-            );
+                    ((AdvPatternProviderLogic) (Object) this).getAvailablePatterns());
             return true;
         }
         return false;
@@ -92,17 +91,13 @@ public abstract class AdvancedAePatternProviderLogicMixin implements PatternProv
 
     @Unique
     private void dataEnergistics$tryConsumePulseUnlock(PatternProviderHostAccessor accessor) {
-        if (!accessor.dataEnergistics$hasRedstoneTuningCard()
-                || accessor.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE
-                || !accessor.dataEnergistics$consumeRedstoneInputPulse()
-                || !(this.host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+        if (!accessor.dataEnergistics$hasRedstoneTuningCard() || accessor.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE || !accessor.dataEnergistics$consumeRedstoneInputPulse() || !(this.host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
             return;
         }
         RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                 serverLevel,
                 this.host.getGrid(),
                 ((AdvancedAePatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
-                ((AdvPatternProviderLogic) (Object) this).getAvailablePatterns()
-        );
+                ((AdvPatternProviderLogic) (Object) this).getAvailablePatterns());
     }
 }

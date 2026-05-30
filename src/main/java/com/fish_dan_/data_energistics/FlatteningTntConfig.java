@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -10,11 +9,14 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
+
+import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
 @SuppressWarnings("removal")
 @EventBusSubscriber(modid = Data_Energistics.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class FlatteningTntConfig {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
     private static final String DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME = "自定义平地TNT";
@@ -44,8 +46,7 @@ public final class FlatteningTntConfig {
         configurableTntDisplayName = DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME;
     }
 
-    private FlatteningTntConfig() {
-    }
+    private FlatteningTntConfig() {}
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -58,19 +59,18 @@ public final class FlatteningTntConfig {
     }
 
     public record Definition(
-            int clearChunkRadius,
-            int clearStartYOffset,
-            int clearHeight,
-            int fillChunkRadius,
-            int fillYOffset,
-            BlockState fillBlockState,
-            BlockPos explosionCenterOffset,
-            boolean preserveFluids,
-            boolean replaceUnbreakableBlocks
-    ) {
-    }
+                             int clearChunkRadius,
+                             int clearStartYOffset,
+                             int clearHeight,
+                             int fillChunkRadius,
+                             int fillYOffset,
+                             BlockState fillBlockState,
+                             BlockPos explosionCenterOffset,
+                             boolean preserveFluids,
+                             boolean replaceUnbreakableBlocks) {}
 
     private static final class Entry {
+
         private final ModConfigSpec.IntValue clearChunkRadius;
         private final ModConfigSpec.IntValue clearStartYOffset;
         private final ModConfigSpec.IntValue clearHeight;
@@ -95,9 +95,9 @@ public final class FlatteningTntConfig {
         private final boolean defaultReplaceUnbreakableBlocks;
 
         private Entry(ModConfigSpec.Builder builder, String key, String comment, int clearChunkRadius,
-                int clearStartYOffset, int clearHeight, int fillChunkRadius, int fillYOffset, String fillBlockId,
-                int centerOffsetX, int centerOffsetY, int centerOffsetZ, boolean preserveFluids,
-                boolean replaceUnbreakableBlocks) {
+                      int clearStartYOffset, int clearHeight, int fillChunkRadius, int fillYOffset, String fillBlockId,
+                      int centerOffsetX, int centerOffsetY, int centerOffsetZ, boolean preserveFluids,
+                      boolean replaceUnbreakableBlocks) {
             this.defaultClearChunkRadius = clearChunkRadius;
             this.defaultClearStartYOffset = clearStartYOffset;
             this.defaultClearHeight = clearHeight;

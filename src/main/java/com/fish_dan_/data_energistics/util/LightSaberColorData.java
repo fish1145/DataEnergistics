@@ -1,17 +1,20 @@
 package com.fish_dan_.data_energistics.util;
 
-import appeng.api.util.AEColor;
-import appeng.items.tools.powered.ColorApplicatorItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+
+import appeng.api.util.AEColor;
+import appeng.items.tools.powered.ColorApplicatorItem;
 import org.jetbrains.annotations.Nullable;
 
 public final class LightSaberColorData {
+
     private static final String TAG_LIGHT_SABER_COLOR = "light_saber_color";
     private static final int DEFAULT_LIGHT_SABER_BLADE_COLOR = 0x31F7D3;
     private static final int SANCTIFIER_BLADE_COLOR = 0xFFE359;
@@ -31,8 +34,7 @@ public final class LightSaberColorData {
             0x60D988
     };
 
-    private LightSaberColorData() {
-    }
+    private LightSaberColorData() {}
 
     public static boolean isColorableLightSaber(ItemStack stack) {
         return stack.is(ModItems.DATA_LIGHT_SABER.get());

@@ -1,30 +1,10 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import appeng.api.parts.IPart;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.api.parts.IPartItem;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.core.definitions.AEItems;
-import appeng.core.definitions.AEParts;
-import appeng.core.definitions.AEBlocks;
-import appeng.core.localization.GuiText;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.helpers.patternprovider.PatternContainer;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import appeng.menu.ISubMenu;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuHostLocator;
-import appeng.util.inv.AppEngInternalInventory;
-import appeng.api.inventories.InternalInventory;
-import appeng.util.inv.InternalInventoryHost;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.integration.Ae2LtCompat;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
@@ -32,6 +12,7 @@ import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -41,31 +22,52 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.items.IItemHandler;
+
+import appeng.api.inventories.InternalInventory;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.IUpgradeableObject;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.core.definitions.AEBlocks;
+import appeng.core.definitions.AEItems;
+import appeng.core.definitions.AEParts;
+import appeng.core.localization.GuiText;
+import appeng.helpers.patternprovider.PatternContainer;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.menu.ISubMenu;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuHostLocator;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import org.jetbrains.annotations.Nullable;
 
 public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
+
     protected static final String ADAPTIVE_PATTERN_PROVIDER_KEY = "adaptive_pattern_provider";
     private static final int BASE_PATTERN_SLOTS = 9;
     private static final int SIMPLE_PATTERN_SLOTS = 5;
@@ -77,10 +79,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private static final String APPLIED_CREATE_NAMESPACE = "appliedcreate";
     private static final String EXTENDEDAE_NAMESPACE = "extendedae";
     private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
-    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_NAMESPACE, "assembler_matrix_speed");
-    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
+    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_NAMESPACE, "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
     private static final Set<String> EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
             "assembler_matrix_wall",
@@ -93,8 +93,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             "assembler_matrix_crafter_plus",
             "assembler_matrix_pattern_plus",
             "assembler_matrix_speed_plus");
-    private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID =
-            ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
+    private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID = ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
     private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
 
     @Nullable
@@ -188,9 +187,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         ProviderProfile profile = getProviderProfile();
-        return profile != null
-                ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName())
-                : this.getMainMenuIcon().getHoverName();
+        return profile != null ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : this.getMainMenuIcon().getHoverName();
     }
 
     @Override
@@ -242,8 +239,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return false;
         }
         ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == ProviderKind.APPLIED_CREATE_ANDESITE
-                || profile.kind() == ProviderKind.APPLIED_CREATE_BRASS);
+        return profile != null && (profile.kind() == ProviderKind.APPLIED_CREATE_ANDESITE || profile.kind() == ProviderKind.APPLIED_CREATE_BRASS);
     }
 
     @Override
@@ -253,15 +249,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return false;
         }
 
-        return profile.kind() == ProviderKind.RESONATING
-                || profile.kind() == ProviderKind.EXTENDED_RESONATING;
+        return profile.kind() == ProviderKind.RESONATING || profile.kind() == ProviderKind.EXTENDED_RESONATING;
     }
 
     public boolean supportsFilteredImportToggle() {
         ProviderProfile profile = getProviderProfile();
-        return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL
-                || profile.kind() == ProviderKind.ADVANCED_EXTENDED
-                || profile.kind() == ProviderKind.AE2LT_OVERLOADED);
+        return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL || profile.kind() == ProviderKind.ADVANCED_EXTENDED || profile.kind() == ProviderKind.AE2LT_OVERLOADED);
     }
 
     public Ae2LtProviderMode getAe2LtProviderMode() {
@@ -463,18 +456,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             tooltip.add(Component.translatable(
                     getTerminalGroupLockedSlotsKey(),
                     unlockedSlots,
-                    totalSlots
-            ));
+                    totalSlots));
         }
 
-        Component displayName = this instanceof Nameable nameable && nameable.hasCustomName()
-                ? baseGroup.name()
-                : getTerminalDisplayName();
+        Component displayName = this instanceof Nameable nameable && nameable.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
         return new appeng.api.implementations.blockentities.PatternContainerGroup(
                 baseGroup.icon(),
                 displayName,
-                List.copyOf(tooltip)
-        );
+                List.copyOf(tooltip));
     }
 
     @Override
@@ -493,8 +482,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-    }
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     private int getConfiguredPatternSlotCount() {
         ProviderProfile profile = getProviderProfile();
@@ -519,8 +507,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         if (this.upgrades == null) {
             return 0;
         }
-        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD))
-                * AdaptivePatternProviderState.EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
+        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD)) * AdaptivePatternProviderState.EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
     }
 
     @Nullable
@@ -581,9 +568,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return itemId != null
-                && AE2LT_NAMESPACE.equals(itemId.getNamespace())
-                && AE2LT_OVERLOAD_PATTERN.equals(itemId.getPath());
+        return itemId != null && AE2LT_NAMESPACE.equals(itemId.getNamespace()) && AE2LT_OVERLOAD_PATTERN.equals(itemId.getPath());
     }
 
     @Nullable
@@ -634,16 +619,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
         String path = itemId.getPath();
         int slotCount = switch (path) {
-            case "resonating_pattern_provider",
-                 "resonating_pattern_provider_part" -> BASE_PATTERN_SLOTS;
-            case "simple_pattern_provider",
-                 "simple_pattern_provider_part" -> SIMPLE_PATTERN_SLOTS;
-            case "extended_resonating_pattern_provider",
-                 "extended_resonating_pattern_provider_part",
-                 "ex_resonating_pattern_provider",
-                 "ex_resonating_pattern_provider_part" -> EXTENDED_PATTERN_SLOTS;
-            case "meteorite_pattern_provider",
-                 "meteorite_pattern_provider_part" -> METEORITE_PATTERN_SLOTS;
+            case "resonating_pattern_provider", "resonating_pattern_provider_part" -> BASE_PATTERN_SLOTS;
+            case "simple_pattern_provider", "simple_pattern_provider_part" -> SIMPLE_PATTERN_SLOTS;
+            case "extended_resonating_pattern_provider", "extended_resonating_pattern_provider_part", "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> EXTENDED_PATTERN_SLOTS;
+            case "meteorite_pattern_provider", "meteorite_pattern_provider_part" -> METEORITE_PATTERN_SLOTS;
             default -> -1;
         };
 
@@ -655,8 +634,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         ProviderKind kind = switch (path) {
             case "resonating_pattern_provider", "resonating_pattern_provider_part" -> ProviderKind.RESONATING;
             case "simple_pattern_provider", "simple_pattern_provider_part" -> ProviderKind.SIMPLE;
-            case "extended_resonating_pattern_provider", "extended_resonating_pattern_provider_part",
-                    "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> ProviderKind.EXTENDED_RESONATING;
+            case "extended_resonating_pattern_provider", "extended_resonating_pattern_provider_part", "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> ProviderKind.EXTENDED_RESONATING;
             case "meteorite_pattern_provider", "meteorite_pattern_provider_part" -> ProviderKind.METEORITE;
             default -> ProviderKind.UNKNOWN;
         };
@@ -796,10 +774,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId != null && "extendedae".equals(itemId.getNamespace())
-                && ("ex_pattern_provider".equals(itemId.getPath())
-                || "ex_pattern_provider_part".equals(itemId.getPath())
-                || "wireless_ex_pat".equals(itemId.getPath()))) {
+        if (itemId != null && "extendedae".equals(itemId.getNamespace()) && ("ex_pattern_provider".equals(itemId.getPath()) || "ex_pattern_provider_part".equals(itemId.getPath()) || "wireless_ex_pat".equals(itemId.getPath()))) {
             ItemStack icon = new ItemStack(stack.getItem());
             return new ProviderProfile(ProviderKind.EXTENDED, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
         }
@@ -830,8 +805,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             if (result instanceof ItemStack stack && !stack.isEmpty()) {
                 return stack.copy();
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
         return fallback.copy();
     }
 
@@ -848,8 +822,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return UpgradeInventories.forMachine(
                 getProviderBlock().get(),
                 AdaptivePatternProviderState.BASE_UPGRADE_SLOTS,
-                this::onUpgradesChanged
-        );
+                this::onUpgradesChanged);
     }
 
     private void onUpgradesChanged() {
@@ -873,8 +846,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return new appeng.api.implementations.blockentities.PatternContainerGroup(
                     this.getTerminalIcon(),
                     nameable.getCustomName(),
-                    List.of()
-            );
+                    List.of());
         }
 
         var logic = this.getLogic();
@@ -883,8 +855,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return new appeng.api.implementations.blockentities.PatternContainerGroup(
                     icon,
                     icon.getDisplayName(),
-                    List.of()
-            );
+                    List.of());
         }
 
         var groups = getAdjacentMachineGroups();
@@ -909,8 +880,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return new appeng.api.implementations.blockentities.PatternContainerGroup(
                 icon,
                 icon.getDisplayName(),
-                tooltip
-        );
+                tooltip);
     }
 
     @Nullable
@@ -938,8 +908,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 group = appeng.api.implementations.blockentities.PatternContainerGroup.fromMachine(
                         hostLevel,
                         sidePos,
-                        side.getOpposite()
-                );
+                        side.getOpposite());
             }
             if (group != null) {
                 groups.add(group);
@@ -952,22 +921,19 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return Component.translatable(
                 "screen.data_energistics.adaptive_pattern_provider.attached_machine",
                 machineName,
-                providerName
-        );
+                providerName);
     }
 
     public static Component decorateAdaptiveProviderName(Component providerName) {
         return decorateAdaptiveProviderName(
                 "screen.data_energistics.adaptive_pattern_provider.provider_variant",
-                providerName
-        );
+                providerName);
     }
 
     public static Component decorateAdaptiveProviderName(String translationKey, Component providerName) {
         return Component.translatable(
                 translationKey,
-                providerName
-        );
+                providerName);
     }
 
     private Component getResolvedProviderNameForGui() {
@@ -976,9 +942,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         ProviderProfile profile = getProviderProfile();
-        return profile != null
-                ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName())
-                : Component.translatable(getProviderTranslationKey());
+        return profile != null ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : Component.translatable(getProviderTranslationKey());
     }
 
     private Component getResolvedProviderNameForTerminal() {
@@ -987,9 +951,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         ProviderProfile profile = getProviderProfile();
-        return profile != null
-                ? decorateAdaptiveProviderName(profile.displayName())
-                : Component.translatable(getProviderTranslationKey());
+        return profile != null ? decorateAdaptiveProviderName(profile.displayName()) : Component.translatable(getProviderTranslationKey());
     }
 
     private Component getResolvedInternalProviderName() {
@@ -1019,8 +981,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             Class<?> updateHelper = Class.forName("appeng.api.networking.crafting.ICraftingProvider");
             Method requestUpdate = updateHelper.getMethod("requestUpdate", appeng.api.networking.IManagedGridNode.class);
             requestUpdate.invoke(null, this.getMainNode());
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         try {
             for (Class<?> machineClass : grid.getMachineClasses()) {
@@ -1034,8 +995,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                     }
                 }
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     protected String getProviderTranslationKey() {
@@ -1060,11 +1020,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Nullable
     public static appeng.api.implementations.blockentities.PatternContainerGroup resolveSpecialAdjacentMachineGroup(
-            Level level,
-            BlockPos pos) {
+                                                                                                                    Level level,
+                                                                                                                    BlockPos pos) {
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
-        if (blockId == null
-                || !isAssemblerMatrixComponent(blockId)) {
+        if (blockId == null || !isAssemblerMatrixComponent(blockId)) {
             return null;
         }
 
@@ -1088,10 +1047,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     private static boolean isAssemblerMatrixComponent(ResourceLocation blockId) {
-        return (EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace())
-                && EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()))
-                || (EXTENDEDAE_PLUS_NAMESPACE.equals(blockId.getNamespace())
-                && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()));
+        return (EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath())) || (EXTENDEDAE_PLUS_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()));
     }
 
     public static boolean isPatternProviderAttachment(Level level, BlockPos pos, @Nullable Direction side) {
@@ -1137,6 +1093,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public enum Ae2LtProviderMode {
+
         NORMAL,
         WIRELESS;
 
@@ -1146,6 +1103,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public enum Ae2LtReturnMode {
+
         OFF,
         AUTO,
         EJECT;
@@ -1160,6 +1118,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public enum Ae2LtWirelessDispatchMode {
+
         EVEN_DISTRIBUTION,
         SINGLE_TARGET;
 
@@ -1169,6 +1128,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public enum Ae2LtWirelessSpeedMode {
+
         NORMAL,
         FAST;
 
@@ -1177,6 +1137,5 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
     }
 
-    private record ProviderProfile(ProviderKind kind, int slotsPerProvider, ItemStack mainMenuIcon, AEItemKey terminalIcon, Component displayName) {
-    }
+    private record ProviderProfile(ProviderKind kind, int slotsPerProvider, ItemStack mainMenuIcon, AEItemKey terminalIcon, Component displayName) {}
 }

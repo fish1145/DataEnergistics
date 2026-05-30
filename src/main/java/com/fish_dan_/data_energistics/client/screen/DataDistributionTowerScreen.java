@@ -1,20 +1,11 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.Icon;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.widgets.AETextField;
-import appeng.client.gui.widgets.Scrollbar;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
-import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
-import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
+import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
+import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
-import net.sourceforge.pinyin4j.PinyinHelper;
-import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
-import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -25,6 +16,17 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.sourceforge.pinyin4j.PinyinHelper;
+import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
+import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
+import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
+import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
+
+import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.Icon;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.AETextField;
+import appeng.client.gui.widgets.Scrollbar;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTowerMenu> {
+
     private static final HanyuPinyinOutputFormat PINYIN_FORMAT = createPinyinFormat();
     private static final int LIST_X = 13;
     private static final int LIST_Y = 52;
@@ -42,8 +45,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int SEARCH_Y = 4;
     private static final int SEARCH_WIDTH = 70;
     private static final int SEARCH_HEIGHT = 12;
-    private static final Component SEARCH_HINT =
-            Component.translatable("screen.data_energistics.data_distribution_tower.search_hint");
+    private static final Component SEARCH_HINT = Component.translatable("screen.data_energistics.data_distribution_tower.search_hint");
 
     private final Scrollbar scrollbar;
     private final DataExtractorToggleButton rangeVisibleButton;
@@ -62,8 +64,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                 "button.data_energistics.data_distribution_tower.range_visible",
                 "button.data_energistics.data_distribution_tower.range_visible.enabled",
                 "button.data_energistics.data_distribution_tower.range_visible.disabled",
-                this.menu::sendSetRangeVisible
-        );
+                this.menu::sendSetRangeVisible);
         this.addToLeftToolbar(this.rangeVisibleButton);
         this.connectionModeButton = new DataDistributionTowerConnectionModeButton(this.menu::sendSetConnectionMode);
         this.addToLeftToolbar(this.connectionModeButton);
@@ -98,34 +99,24 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         super.updateBeforeRender();
 
         setTextContent("dialog_title", Component.translatable(
-                this.menu.online
-                        ? "screen.data_energistics.data_distribution_tower.title.online"
-                        : "screen.data_energistics.data_distribution_tower.title.offline"
-        ));
+                this.menu.online ? "screen.data_energistics.data_distribution_tower.title.online" : "screen.data_energistics.data_distribution_tower.title.offline"));
         setTextContent("ae_channels", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.ae_channels",
                 this.menu.usedChannels,
-                this.menu.maxChannels
-        ));
+                this.menu.maxChannels));
         setTextContent("available_fe", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.available_fe",
-                formatFeAmount(this.menu.availableFe)
-        ));
+                formatFeAmount(this.menu.availableFe)));
         setTextContent("range", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.range",
-                formatRangeText(this.menu.chunkRadius)
-        ));
+                formatRangeText(this.menu.chunkRadius)));
         setTextContent("range_visible", Component.translatable(
-                this.menu.rangeVisible
-                        ? "screen.data_energistics.data_distribution_tower.range_visible.on"
-                        : "screen.data_energistics.data_distribution_tower.range_visible.off"
-        ));
+                this.menu.rangeVisible ? "screen.data_energistics.data_distribution_tower.range_visible.on" : "screen.data_energistics.data_distribution_tower.range_visible.off"));
         this.rangeVisibleButton.setState(this.menu.rangeVisible);
         this.connectionModeButton.setMode(ConnectionMode.fromOrdinal(this.menu.connectionMode));
         setTextContent("bound_title", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.bound_title",
-                this.menu.boundTargetCount
-        ));
+                this.menu.boundTargetCount));
         setTextContent("player_inventory_title", Component.empty());
     }
 
@@ -171,8 +162,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                         hoveredRow.pos().getX(),
                         hoveredRow.pos().getY(),
                         hoveredRow.pos().getZ(),
-                        hasShiftDown()
-                );
+                        hasShiftDown());
                 if (hasShiftDown()) {
                     this.onClose();
                 }
@@ -188,8 +178,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.searchBox != null && this.searchBox.isFocused()
-                && Minecraft.getInstance().options.keyInventory.matches(keyCode, scanCode)) {
+        if (this.searchBox != null && this.searchBox.isFocused() && Minecraft.getInstance().options.keyInventory.matches(keyCode, scanCode)) {
             return true;
         }
         if (this.searchBox != null && this.searchBox.keyPressed(keyCode, scanCode, modifiers)) {
@@ -239,15 +228,9 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         }
 
         String[] names = this.menu.boundTargets.split("\\n");
-        String[] icons = this.menu.boundTargetIcons == null || this.menu.boundTargetIcons.isBlank()
-                ? new String[0]
-                : this.menu.boundTargetIcons.split("\\n");
-        String[] metas = this.menu.boundTargetMeta == null || this.menu.boundTargetMeta.isBlank()
-                ? new String[0]
-                : this.menu.boundTargetMeta.split("\\n");
-        String[] kinds = this.menu.boundTargetKinds == null || this.menu.boundTargetKinds.isBlank()
-                ? new String[0]
-                : this.menu.boundTargetKinds.split("\\n");
+        String[] icons = this.menu.boundTargetIcons == null || this.menu.boundTargetIcons.isBlank() ? new String[0] : this.menu.boundTargetIcons.split("\\n");
+        String[] metas = this.menu.boundTargetMeta == null || this.menu.boundTargetMeta.isBlank() ? new String[0] : this.menu.boundTargetMeta.split("\\n");
+        String[] kinds = this.menu.boundTargetKinds == null || this.menu.boundTargetKinds.isBlank() ? new String[0] : this.menu.boundTargetKinds.split("\\n");
 
         ArrayList<BoundRow> rows = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
@@ -256,8 +239,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     names[i],
                     buildSearchIndex(names[i]),
                     i < metas.length ? parseMeta(metas[i]) : new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0)),
-                    i < kinds.length ? parseKind(kinds[i]) : RowKind.FE
-            ));
+                    i < kinds.length ? parseKind(kinds[i]) : RowKind.FE));
         }
         return rows;
     }
@@ -389,18 +371,13 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             if (values != null && values.length > 0 && values[0] != null) {
                 return values[0];
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
         return "";
     }
 
     private boolean isCjk(char ch) {
         Character.UnicodeBlock block = Character.UnicodeBlock.of(ch);
-        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
-                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B
-                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT;
+        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT;
     }
 
     private static HanyuPinyinOutputFormat createPinyinFormat() {
@@ -433,8 +410,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         int end = Math.min(rows.size(), start + LIST_VISIBLE_ROWS);
         for (int i = start; i < end; i++) {
             int y = LIST_Y + (i - start) * LIST_ROW_HEIGHT;
-            if (localX >= LIST_X && localX <= LIST_X + LIST_WIDTH
-                    && localY >= y - 2 && localY <= y + LIST_ROW_HEIGHT) {
+            if (localX >= LIST_X && localX <= LIST_X + LIST_WIDTH && localY >= y - 2 && localY <= y + LIST_ROW_HEIGHT) {
                 return rows.get(i);
             }
         }
@@ -449,8 +425,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             net.minecraft.core.BlockPos pos = new net.minecraft.core.BlockPos(
                     Integer.parseInt(parts[1]),
                     Integer.parseInt(parts[2]),
-                    Integer.parseInt(parts[3])
-            );
+                    Integer.parseInt(parts[3]));
             return new TargetRef(dimension, pos);
         } catch (Exception ignored) {
             return new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0));
@@ -462,6 +437,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     }
 
     private record BoundRow(ItemStack iconStack, String displayText, String searchIndex, TargetRef target, RowKind kind) {
+
         private ResourceKey<Level> dimension() {
             return target.dimension();
         }
@@ -471,8 +447,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         }
     }
 
-    private record TargetRef(ResourceKey<Level> dimension, net.minecraft.core.BlockPos pos) {
-    }
+    private record TargetRef(ResourceKey<Level> dimension, net.minecraft.core.BlockPos pos) {}
 
     private enum RowKind {
         AE,

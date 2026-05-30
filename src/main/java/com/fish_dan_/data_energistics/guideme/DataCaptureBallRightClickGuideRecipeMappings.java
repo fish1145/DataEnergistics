@@ -4,18 +4,22 @@ import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
+
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
 import guideme.color.SymbolicColor;
 import guideme.compiler.tags.RecipeTypeMappingSupplier;
 import guideme.document.block.LytParagraph;
 import guideme.document.block.LytSlotGrid;
 import guideme.document.block.recipes.LytStandardRecipeBox;
+
 import java.util.List;
 import java.util.Locale;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeHolder;
 
 public final class DataCaptureBallRightClickGuideRecipeMappings implements RecipeTypeMappingSupplier {
+
     @Override
     public void collect(RecipeTypeMappings mappings) {
         mappings.add(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get(),
@@ -23,7 +27,7 @@ public final class DataCaptureBallRightClickGuideRecipeMappings implements Recip
     }
 
     private static LytStandardRecipeBox<DataCaptureBallRightClickRecipe> createRecipe(
-            RecipeHolder<DataCaptureBallRightClickRecipe> holder) {
+                                                                                      RecipeHolder<DataCaptureBallRightClickRecipe> holder) {
         var recipe = holder.value();
         var details = LytParagraph.of(buildDetails(recipe));
         details.modifyStyle(style -> style.color(SymbolicColor.CRAFTING_RECIPE_TYPE));
@@ -33,8 +37,7 @@ public final class DataCaptureBallRightClickGuideRecipeMappings implements Recip
                 .icon(ModItems.DATA_CAPTURE_BALL.get())
                 .input(LytSlotGrid.row(List.of(
                         Ingredient.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost())),
-                        Ingredient.of(new ItemStack(recipe.getInputBlock()))
-                ), true))
+                        Ingredient.of(new ItemStack(recipe.getInputBlock()))), true))
                 .output(LytSlotGrid.rowFromStacks(List.of(new ItemStack(recipe.getResultBlock())), true))
                 .addBottom(details)
                 .build(holder);

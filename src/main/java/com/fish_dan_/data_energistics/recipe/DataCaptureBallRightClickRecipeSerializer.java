@@ -1,12 +1,14 @@
 package com.fish_dan_.data_energistics.recipe;
 
-import com.mojang.serialization.MapCodec;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 
+import com.mojang.serialization.MapCodec;
+
 public final class DataCaptureBallRightClickRecipeSerializer
-        implements RecipeSerializer<DataCaptureBallRightClickRecipe> {
+                                                             implements RecipeSerializer<DataCaptureBallRightClickRecipe> {
+
     @Override
     public MapCodec<DataCaptureBallRightClickRecipe> codec() {
         return DataCaptureBallRightClickRecipe.CODEC;

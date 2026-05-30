@@ -3,10 +3,12 @@ package com.fish_dan_.data_energistics.integration.jade;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BlockEntity;
+
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.IServerDataProvider;
@@ -14,6 +16,7 @@ import snownee.jade.api.ITooltip;
 import snownee.jade.api.config.IPluginConfig;
 
 public class DataDistributionTowerJadeProvider implements IBlockComponentProvider, IServerDataProvider<BlockAccessor> {
+
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_distribution_tower");
     private static final String TAG_AE_USED = "ae_used";
     private static final String TAG_AE_MAX = "ae_max";
@@ -34,24 +37,18 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
         }
 
         Component statusLine = Component.translatable(
-                serverData.getBoolean(TAG_ONLINE)
-                        ? "jade.data_energistics.data_distribution_tower.status.online"
-                        : "jade.data_energistics.data_distribution_tower.status.offline"
-        );
+                serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.data_distribution_tower.status.online" : "jade.data_energistics.data_distribution_tower.status.offline");
         tooltip.add(Math.min(1, tooltip.size()), statusLine);
         tooltip.add(Component.translatable(
                 "jade.data_energistics.data_distribution_tower.ae",
                 serverData.getInt(TAG_AE_USED),
-                serverData.getInt(TAG_AE_MAX)
-        ));
+                serverData.getInt(TAG_AE_MAX)));
         tooltip.add(Component.translatable(
                 "jade.data_energistics.data_distribution_tower.fe",
-                serverData.getString(TAG_FE)
-        ));
+                serverData.getString(TAG_FE)));
         tooltip.add(Component.translatable(
                 "jade.data_energistics.data_distribution_tower.range",
-                formatRangeText(serverData.getInt(TAG_RANGE))
-        ));
+                formatRangeText(serverData.getInt(TAG_RANGE))));
     }
 
     @Override
@@ -79,8 +76,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
         }
 
         BlockEntity blockEntity = accessor.getLevel().getBlockEntity(
-                DataDistributionTowerBlock.getBasePos(accessor.getPosition(), accessor.getBlockState())
-        );
+                DataDistributionTowerBlock.getBasePos(accessor.getPosition(), accessor.getBlockState()));
         return blockEntity instanceof DataDistributionTowerBlockEntity tower ? tower : null;
     }
 }

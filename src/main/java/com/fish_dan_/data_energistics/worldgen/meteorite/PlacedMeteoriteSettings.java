@@ -1,10 +1,12 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 
 public final class PlacedMeteoriteSettings {
+
     private final BlockPos pos;
     private final float meteoriteRadius;
     private final CraterType craterType;

@@ -1,14 +1,14 @@
-﻿{
-  "replace": false,
-  "values": [
-    "data_energistics:data_meteorite_0",
-    "data_energistics:data_meteorite_1",
-    "data_energistics:data_meteorite_2",
-    "data_energistics:data_crystal_block",
-    "data_energistics:budding_data_crystal_0",
-    "data_energistics:budding_data_crystal_1",
-    "data_energistics:budding_data_crystal_2",
-    "data_energistics:budding_data_crystal_3",
-    "data_energistics:budding_data_crystal_4"
-  ]
+{
+	"replace": false,
+	"values": [
+		"data_energistics:data_meteorite_0",
+		"data_energistics:data_meteorite_1",
+		"data_energistics:data_meteorite_2",
+		"data_energistics:data_crystal_block",
+		"data_energistics:budding_data_crystal_0",
+		"data_energistics:budding_data_crystal_1",
+		"data_energistics:budding_data_crystal_2",
+		"data_energistics:budding_data_crystal_3",
+		"data_energistics:budding_data_crystal_4"
+	]
 }

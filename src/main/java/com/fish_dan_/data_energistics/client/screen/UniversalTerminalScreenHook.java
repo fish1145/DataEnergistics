@@ -1,13 +1,14 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.widgets.VerticalButtonBar;
-import appeng.menu.AEBaseMenu;
-import com.mojang.logging.LogUtils;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+
+import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.widgets.VerticalButtonBar;
+import appeng.menu.AEBaseMenu;
+import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
 import java.lang.reflect.Field;
@@ -19,6 +20,7 @@ import java.util.WeakHashMap;
 import java.util.function.Supplier;
 
 public final class UniversalTerminalScreenHook {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Method ADD_TO_LEFT_TOOLBAR = resolveMethod(AEBaseScreen.class, "addToLeftToolbar", Button.class);
     private static final Method ADD_RENDERABLE_WIDGET = resolveMethod(Screen.class, "addRenderableWidget", GuiEventListener.class);
@@ -30,8 +32,7 @@ public final class UniversalTerminalScreenHook {
     private static boolean rememberedSelectorOpen;
     private static int rememberedSelectorPage;
 
-    private UniversalTerminalScreenHook() {
-    }
+    private UniversalTerminalScreenHook() {}
 
     public static UniversalTerminalSelectorPanel getSelectorPanel(Screen screen) {
         return SELECTOR_PANELS.get(screen);
@@ -77,9 +78,7 @@ public final class UniversalTerminalScreenHook {
     private static void ensureControlsPresent(AEBaseScreen<?> screen) {
         UniversalTerminalCycleButton mappedButton = CYCLE_BUTTONS.get(screen);
         UniversalTerminalSelectorPanel mappedPanel = SELECTOR_PANELS.get(screen);
-        boolean missingButton = mappedButton == null
-                || !isRenderableAttached(screen, mappedButton)
-                || !isToolbarButtonAttached(screen, mappedButton);
+        boolean missingButton = mappedButton == null || !isRenderableAttached(screen, mappedButton) || !isToolbarButtonAttached(screen, mappedButton);
         boolean missingPanel = mappedPanel == null || !isRenderableAttached(screen, mappedPanel);
 
         if (!missingButton && !missingPanel) {
@@ -98,19 +97,14 @@ public final class UniversalTerminalScreenHook {
                 btn -> selectorPanel.toggleOpen(),
                 () -> {
                     AEBaseMenu currentMenu = menuSupplier.get();
-                    return currentMenu != null
-                            ? UniversalTerminalClientHelper.getActiveTerminalIcon(currentMenu)
-                            : net.minecraft.world.item.ItemStack.EMPTY;
+                    return currentMenu != null ? UniversalTerminalClientHelper.getActiveTerminalIcon(currentMenu) : net.minecraft.world.item.ItemStack.EMPTY;
                 },
                 () -> {
                     AEBaseMenu currentMenu = menuSupplier.get();
-                    return currentMenu != null
-                            ? UniversalTerminalClientHelper.getSelectorTooltip(currentMenu)
-                            : java.util.List.of();
+                    return currentMenu != null ? UniversalTerminalClientHelper.getSelectorTooltip(currentMenu) : java.util.List.of();
                 },
                 selectorPanel::isOpen,
-                () -> new int[]{screen.getGuiLeft() - 18, screen.getGuiTop() + 2}
-        );
+                () -> new int[] { screen.getGuiLeft() - 18, screen.getGuiTop() + 2 });
         selectorPanel.setAnchorButton(button);
         selectorPanel.restoreState(rememberedSelectorOpen, rememberedSelectorPage);
 

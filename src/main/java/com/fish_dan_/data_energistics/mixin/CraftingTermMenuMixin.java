@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(CraftingTermMenu.class)
 public abstract class CraftingTermMenuMixin {
+
     @Inject(method = "updateCurrentRecipeAndOutput", at = @At("TAIL"), remap = false)
-    private void dataEnergistics$clearTerminalCraftResultWithoutEnergy(boolean forceUpdate, CallbackInfo ci) {
-    }
+    private void dataEnergistics$clearTerminalCraftResultWithoutEnergy(boolean forceUpdate, CallbackInfo ci) {}
 }

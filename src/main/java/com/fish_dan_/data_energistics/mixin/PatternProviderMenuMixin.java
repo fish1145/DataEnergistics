@@ -1,16 +1,18 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
+import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
-import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
-import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,6 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PatternProviderMenu.class)
 public abstract class PatternProviderMenuMixin extends AEBaseMenu implements PatternProviderMenuAccessor {
+
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_SET_REDSTONE_TUNING_MODE = "dataEnergistics$setRedstoneTuningMode";
     @Shadow
@@ -54,8 +57,7 @@ public abstract class PatternProviderMenuMixin extends AEBaseMenu implements Pat
             this.addSlot(new RestrictedInputSlot(
                     PlacableItemType.UPGRADES,
                     accessor.dataEnergistics$getRedstoneTuningUpgrades(),
-                    0
-            ), SlotSemantics.UPGRADE);
+                    0), SlotSemantics.UPGRADE);
         }
     }
 

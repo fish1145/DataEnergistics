@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import appeng.api.stacks.AEFluidKey;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+
+import appeng.api.stacks.AEFluidKey;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdaptivePatternProviderReturnFluidHandler implements IFluidHandler {
+
     private final Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier;
 
     public AdaptivePatternProviderReturnFluidHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {

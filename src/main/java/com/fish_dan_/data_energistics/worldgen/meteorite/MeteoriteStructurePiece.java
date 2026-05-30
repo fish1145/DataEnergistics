@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import appeng.server.services.compass.ServerCompassService;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.RandomSource;
@@ -14,7 +14,10 @@ import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
 
+import appeng.server.services.compass.ServerCompassService;
+
 public class MeteoriteStructurePiece extends StructurePiece {
+
     public static final StructurePieceType.ContextlessType TYPE = MeteoriteStructurePiece::new;
     private final PlacedMeteoriteSettings settings;
 
@@ -32,8 +35,7 @@ public class MeteoriteStructurePiece extends StructurePiece {
                 chunkPos.getMinBlockZ() - range,
                 chunkPos.getMaxBlockX() + range,
                 origin.getY(),
-                chunkPos.getMaxBlockZ() + range
-        );
+                chunkPos.getMaxBlockZ() + range);
     }
 
     public MeteoriteStructurePiece(CompoundTag tag) {

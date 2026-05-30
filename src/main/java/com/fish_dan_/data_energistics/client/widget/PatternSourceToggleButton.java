@@ -1,23 +1,25 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import appeng.client.gui.widgets.ITooltip;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 
+import appeng.client.gui.widgets.ITooltip;
+
 import java.util.List;
 import java.util.function.Consumer;
 
 public class PatternSourceToggleButton extends Button implements ITooltip {
+
     private final Consumer<Boolean> onChange;
     private boolean enabledState = true;
     private Component detailLine = Component.empty();
 
     public PatternSourceToggleButton(Consumer<Boolean> onChange) {
-        super(0, 0, 8, 8, Component.empty(), btn -> {
-        }, DEFAULT_NARRATION);
+        super(0, 0, 8, 8, Component.empty(), btn -> {}, DEFAULT_NARRATION);
         this.onChange = onChange;
     }
 
@@ -41,9 +43,7 @@ public class PatternSourceToggleButton extends Button implements ITooltip {
             return;
         }
 
-        DataEnergisticsIcon.getBlitter(this.enabledState
-                        ? "S_PATTERN_ENCODING_ENABLED"
-                        : "S_PATTERN_ENCODING_DISABLED")
+        DataEnergisticsIcon.getBlitter(this.enabledState ? "S_PATTERN_ENCODING_ENABLED" : "S_PATTERN_ENCODING_DISABLED")
                 .dest(getX(), getY())
                 .blit(guiGraphics);
     }
@@ -51,9 +51,7 @@ public class PatternSourceToggleButton extends Button implements ITooltip {
     @Override
     public List<Component> getTooltipMessage() {
         return List.of(
-                Component.translatable(this.enabledState
-                        ? "button.data_energistics.pattern_encoding_source_toggle.enabled"
-                        : "button.data_energistics.pattern_encoding_source_toggle.disabled"),
+                Component.translatable(this.enabledState ? "button.data_energistics.pattern_encoding_source_toggle.enabled" : "button.data_energistics.pattern_encoding_source_toggle.disabled"),
                 this.detailLine);
     }
 

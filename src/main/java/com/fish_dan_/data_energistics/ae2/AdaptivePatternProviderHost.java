@@ -1,10 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.api.implementations.blockentities.PatternContainerGroup;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -12,11 +9,16 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-import java.util.List;
-
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.upgrades.IUpgradeableObject;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.util.inv.AppEngInternalInventory;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, IUpgradeableObject {
+
     AppEngInternalInventory getProviderInventory();
 
     int getProviderSlotLimit();

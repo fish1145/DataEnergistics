@@ -5,6 +5,7 @@ import net.minecraft.world.item.crafting.RecipeInput;
 import net.minecraft.world.level.block.state.BlockState;
 
 public record DataCaptureBallRightClickRecipeInput(ItemStack stack, BlockState state) implements RecipeInput {
+
     @Override
     public ItemStack getItem(int index) {
         return index == 0 ? this.stack : ItemStack.EMPTY;

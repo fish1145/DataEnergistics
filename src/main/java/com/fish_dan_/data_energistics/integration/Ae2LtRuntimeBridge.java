@@ -1,16 +1,18 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
-import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 public final class Ae2LtRuntimeBridge {
+
     private static final String MACHINE_ADAPTER_REGISTRY_CLASS = "com.moakiee.ae2lt.logic.MachineAdapterRegistry";
     private static final String EJECT_MODE_REGISTRY_CLASS = "com.moakiee.ae2lt.logic.EjectModeRegistry";
     private static final String GHOST_OUTPUT_BLOCK_ENTITY_CLASS = "com.moakiee.ae2lt.blockentity.GhostOutputBlockEntity";
@@ -43,8 +46,7 @@ public final class Ae2LtRuntimeBridge {
     private static @Nullable Constructor<?> ejectEntryConstructor;
     private static boolean initialized;
 
-    private Ae2LtRuntimeBridge() {
-    }
+    private Ae2LtRuntimeBridge() {}
 
     public static boolean isAvailable() {
         if (!Ae2LtCompat.isLoaded()) {
@@ -80,8 +82,7 @@ public final class Ae2LtRuntimeBridge {
                     targetLevel,
                     connection.pos(),
                     connection.boundFace(),
-                    patternDetails
-            );
+                    patternDetails);
             if (!Boolean.TRUE.equals(canAccept)) {
                 return null;
             }
@@ -96,8 +97,7 @@ public final class Ae2LtRuntimeBridge {
                     1,
                     blocking,
                     patternInputs,
-                    actionSource
-            );
+                    actionSource);
             if (result == null) {
                 return null;
             }
@@ -140,8 +140,7 @@ public final class Ae2LtRuntimeBridge {
                     connection.pos(),
                     connection.boundFace(),
                     overflow,
-                    actionSource
-            ));
+                    actionSource));
         } catch (Exception ignored) {
             return false;
         }
@@ -199,8 +198,7 @@ public final class Ae2LtRuntimeBridge {
 
         try {
             powerCostConsumeMethod.invoke(null, grid, key, amount);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     public static void refreshEjectRegistrations(BlockEntity host,
@@ -238,14 +236,12 @@ public final class Ae2LtRuntimeBridge {
                         new WeakReference<>(host),
                         ghostBlockEntity,
                         level.dimension(),
-                        host.getBlockPos()
-                );
+                        host.getBlockPos());
 
                 ejectRegisterMethod.invoke(null, targetLevel.dimension(), adjacentPos.asLong(), queryFace, entry);
                 targetLevel.invalidateCapabilities(adjacentPos);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     private static void invalidateCapabilities(@Nullable Object positions, ServerLevel sourceLevel) {
@@ -258,8 +254,7 @@ public final class Ae2LtRuntimeBridge {
             try {
                 Object dimension = dimPosDimensionMethod.invoke(dimPos);
                 Object pos = dimPosPosMethod.invoke(dimPos);
-                if (!(dimension instanceof net.minecraft.resources.ResourceKey<?> key)
-                        || !(pos instanceof BlockPos blockPos)) {
+                if (!(dimension instanceof net.minecraft.resources.ResourceKey<?> key) || !(pos instanceof BlockPos blockPos)) {
                     continue;
                 }
 
@@ -268,8 +263,7 @@ public final class Ae2LtRuntimeBridge {
                 if (targetLevel != null) {
                     targetLevel.invalidateCapabilities(blockPos);
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 
@@ -285,8 +279,7 @@ public final class Ae2LtRuntimeBridge {
                     ServerLevel.class,
                     BlockPos.class,
                     Direction.class,
-                    IPatternDetails.class
-            );
+                    IPatternDetails.class);
             adapterPushCopiesMethod = machineAdapterClass.getMethod(
                     "pushCopies",
                     ServerLevel.class,
@@ -297,16 +290,14 @@ public final class Ae2LtRuntimeBridge {
                     int.class,
                     boolean.class,
                     Set.class,
-                    IActionSource.class
-            );
+                    IActionSource.class);
             adapterFlushOverflowMethod = machineAdapterClass.getMethod(
                     "flushOverflow",
                     ServerLevel.class,
                     BlockPos.class,
                     Direction.class,
                     List.class,
-                    IActionSource.class
-            );
+                    IActionSource.class);
             Class<?> allowedOutputFilterClass = Class.forName("com.moakiee.ae2lt.logic.AllowedOutputFilter");
             adapterExtractOutputsMethod = machineAdapterClass.getMethod(
                     "extractOutputs",
@@ -314,8 +305,7 @@ public final class Ae2LtRuntimeBridge {
                     BlockPos.class,
                     Direction.class,
                     allowedOutputFilterClass,
-                    IActionSource.class
-            );
+                    IActionSource.class);
 
             Class<?> pushResultClass = Class.forName("com.moakiee.ae2lt.logic.PushResult");
             pushResultAcceptedCopiesMethod = pushResultClass.getMethod("acceptedCopies");
@@ -332,15 +322,13 @@ public final class Ae2LtRuntimeBridge {
                     WeakReference.class,
                     BlockEntity.class,
                     net.minecraft.resources.ResourceKey.class,
-                    BlockPos.class
-            );
+                    BlockPos.class);
             ejectRegisterMethod = ejectRegistryClass.getMethod(
                     "register",
                     net.minecraft.resources.ResourceKey.class,
                     long.class,
                     Direction.class,
-                    ejectEntryClass
-            );
+                    ejectEntryClass);
 
             Class<?> dimPosClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$DimPos");
             dimPosDimensionMethod = dimPosClass.getMethod("dimension");

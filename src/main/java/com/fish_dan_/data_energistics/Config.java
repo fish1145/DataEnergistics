@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
@@ -12,6 +10,7 @@ import java.util.List;
 @SuppressWarnings("removal")
 @EventBusSubscriber(modid = Data_Energistics.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class Config {
+
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     private static final ModConfigSpec.IntValue DATA_RIPPER_BASE_COST = BUILDER.comment("Base power cost for the data ripper power curve.")

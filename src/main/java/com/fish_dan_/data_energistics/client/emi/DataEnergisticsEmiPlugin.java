@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import appeng.integration.modules.emi.EmiEncodePatternHandler;
-import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
@@ -11,6 +9,13 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantments;
+
+import appeng.integration.modules.emi.EmiEncodePatternHandler;
+import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiPlugin;
@@ -19,15 +24,14 @@ import dev.emi.emi.api.recipe.EmiCraftingRecipe;
 import dev.emi.emi.api.recipe.EmiInfoRecipe;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantments;
 
 @EmiEntrypoint
 public final class DataEnergisticsEmiPlugin implements EmiPlugin {
+
     @Override
     public void register(EmiRegistry registry) {
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
@@ -98,5 +102,4 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     private static String sanitize(String terminalName) {
         return terminalName.replace(':', '_').replace('/', '_');
     }
-
 }

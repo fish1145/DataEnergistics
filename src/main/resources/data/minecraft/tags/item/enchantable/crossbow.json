@@ -1,6 +1,4 @@
 {
-  "replace": false,
-  "values": [
-    "data_energistics:matter_converging_crossbow"
-  ]
+	"replace": false,
+	"values": ["data_energistics:matter_converging_crossbow"]
 }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -8,8 +9,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TeleportAnchorSavedData extends SavedData {
+
     private static final String DATA_NAME = "data_energistics_teleport_anchors";
     private static final String ENTRIES_TAG = "entries";
     private static final String DIMENSION_TAG = "dimension";
@@ -138,9 +140,7 @@ public class TeleportAnchorSavedData extends SavedData {
         return tag;
     }
 
-    private record AnchorKey(ResourceLocation dimensionId, BlockPos pos) {
-    }
+    private record AnchorKey(ResourceLocation dimensionId, BlockPos pos) {}
 
-    public record AnchorRecord(ResourceLocation dimensionId, BlockPos pos, String name, String channel) {
-    }
+    public record AnchorRecord(ResourceLocation dimensionId, BlockPos pos, String name, String channel) {}
 }

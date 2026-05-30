@@ -1,21 +1,24 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
 import com.fish_dan_.data_energistics.registry.ModItems;
-import dev.emi.emi.api.recipe.EmiRecipe;
-import dev.emi.emi.api.recipe.VanillaEmiRecipeCategories;
-import dev.emi.emi.api.stack.EmiIngredient;
-import dev.emi.emi.api.stack.EmiStack;
-import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
+
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
+import dev.emi.emi.api.recipe.EmiRecipe;
+import dev.emi.emi.api.recipe.VanillaEmiRecipeCategories;
+import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.EmiStack;
+import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
+
 import java.util.List;
 import java.util.Set;
 
 public final class PoweredRepairRecipeFilter {
+
     private static final Set<Item> HIDDEN_REPAIR_ITEMS = Set.of(
             ModItems.DATA_CRYSTAL_SWORD.get(),
             ModItems.DATA_CRYSTAL_AXE.get(),
@@ -24,11 +27,9 @@ public final class PoweredRepairRecipeFilter {
             ModItems.DATA_CRYSTAL_SHOVEL.get(),
             ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get(),
             ModItems.DATA_LIGHT_SABER.get(),
-            ModItems.DATA_SANCTIFIER.get()
-    );
+            ModItems.DATA_SANCTIFIER.get());
 
-    private PoweredRepairRecipeFilter() {
-    }
+    private PoweredRepairRecipeFilter() {}
 
     public static boolean shouldHideEmiRepairRecipe(EmiRecipe recipe) {
         if (recipe == null) {

@@ -1,6 +1,4 @@
 {
-  "replace": false,
-  "values": [
-    "data_energistics:residual_data_ore"
-  ]
+	"replace": false,
+	"values": ["data_energistics:residual_data_ore"]
 }

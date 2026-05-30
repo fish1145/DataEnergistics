@@ -1,7 +1,21 @@
 package com.fish_dan_.data_energistics.part;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+
 import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.ticking.IGridTickable;
@@ -15,28 +29,13 @@ import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.parts.PartModel;
 import appeng.parts.automation.UpgradeablePart;
-import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.SolarPanelConfig;
-import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
-import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, DataSolarPanelMenuHost {
+
     private static final double DAY_GENERATION_AE_PER_TICK = 2500.0D;
     private static final double NIGHT_GENERATION_AE_PER_TICK = 750.0D;
-    private static final ResourceLocation MODEL_OFF =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_off");
-    private static final ResourceLocation MODEL_ON =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_on");
+    private static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_off");
+    private static final ResourceLocation MODEL_ON = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_on");
     private static final String STORED_POWER_TAG = "storedPower";
     private static final String REDSTONE_CONTROLLED_TAG = "redstoneControlled";
     private static final TickingRequest TICKING_REQUEST = new TickingRequest(1, 1, false);
@@ -169,17 +168,14 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
 
         ResourceLocation dimensionId = level.dimension().location();
         boolean specialNightGenerationDimension = dimensionId.equals(
-                ResourceLocation.fromNamespaceAndPath("ae2", "spatial_storage"))
-                || dimensionId.equals(ResourceLocation.withDefaultNamespace("the_end"));
+                ResourceLocation.fromNamespaceAndPath("ae2", "spatial_storage")) || dimensionId.equals(ResourceLocation.withDefaultNamespace("the_end"));
 
         BlockPos samplePos = getSkyAccessCheckPos();
         if (!specialNightGenerationDimension && (samplePos == null || !level.canSeeSky(samplePos))) {
             return 0.0D;
         }
 
-        double baseGeneration = specialNightGenerationDimension || !level.isDay()
-                ? NIGHT_GENERATION_AE_PER_TICK
-                : DAY_GENERATION_AE_PER_TICK;
+        double baseGeneration = specialNightGenerationDimension || !level.isDay() ? NIGHT_GENERATION_AE_PER_TICK : DAY_GENERATION_AE_PER_TICK;
         double adjustedGeneration = DataSolarPanelBlockEntity.applySpeedUpgrades(baseGeneration, this.getUpgrades());
         return adjustedGeneration * getFacingGenerationMultiplier();
     }

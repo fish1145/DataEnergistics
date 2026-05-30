@@ -1,19 +1,22 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.PartHelper;
-import appeng.menu.locator.MenuHostLocator;
-import appeng.menu.locator.MenuLocators;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
+
+import appeng.api.parts.IPart;
+import appeng.api.parts.PartHelper;
+import appeng.menu.locator.MenuHostLocator;
+import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 public record UniversalTerminalMenuLocator(BlockPos pos, @Nullable Direction side, String terminalName)
         implements MenuHostLocator {
+
     private static boolean initialized;
 
     public static void init() {
@@ -22,8 +25,7 @@ public record UniversalTerminalMenuLocator(BlockPos pos, @Nullable Direction sid
             MenuLocators.register(
                     UniversalTerminalMenuLocator.class,
                     UniversalTerminalMenuLocator::writeToPacket,
-                    UniversalTerminalMenuLocator::readFromPacket
-            );
+                    UniversalTerminalMenuLocator::readFromPacket);
         }
     }
 

@@ -1,19 +1,16 @@
 package com.fish_dan_.data_energistics.block;
 
-import appeng.api.util.AEColor;
-import appeng.block.AEBaseBlock;
-import appeng.items.tools.powered.ColorApplicatorItem;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.CuttingKnifeTeleportData;
-import appeng.api.config.Actionable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -36,12 +33,18 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.server.level.ServerPlayer;
+
+import appeng.api.config.Actionable;
+import appeng.api.util.AEColor;
+import appeng.block.AEBaseBlock;
+import appeng.items.tools.powered.ColorApplicatorItem;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock {
+
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final EnumProperty<ColorVariant> COLOR = EnumProperty.create("color", ColorVariant.class);
@@ -86,7 +89,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
-            BlockHitResult hitResult) {
+                                               BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
             MenuOpener.open(ModMenus.DATA_TELEPORT_ANCHOR.get(), player, MenuLocators.forBlockEntity(anchor));
         }
@@ -95,7 +98,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
-            Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+                                              Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
         if (stack.getItem() instanceof PoweredCuttingKnifeItem && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
             return tryHandleCuttingKnifeTeleportToAnchor(stack, level, pos, player, anchor);
         }
@@ -115,7 +118,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     }
 
     public static ItemInteractionResult tryHandleCuttingKnifeTeleportToAnchor(ItemStack stack, Level level, BlockPos pos, Player player,
-            DataTeleportAnchorBlockEntity anchor) {
+                                                                              DataTeleportAnchorBlockEntity anchor) {
         if (level.isClientSide()) {
             return ItemInteractionResult.sidedSuccess(true);
         }
@@ -133,8 +136,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
         if (!(stack.getItem() instanceof PoweredCuttingKnifeItem poweredCuttingKnifeItem)) {
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
-        if (poweredCuttingKnifeItem.extractAEPower(stack, CuttingKnifeTeleportData.AE_POWER_COST, Actionable.SIMULATE)
-                < CuttingKnifeTeleportData.AE_POWER_COST) {
+        if (poweredCuttingKnifeItem.extractAEPower(stack, CuttingKnifeTeleportData.AE_POWER_COST, Actionable.SIMULATE) < CuttingKnifeTeleportData.AE_POWER_COST) {
             player.displayClientMessage(Component.translatable(
                     "message.data_energistics.data_teleport_anchor.knife_insufficient_power"), true);
             return ItemInteractionResult.CONSUME;
@@ -169,7 +171,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     }
 
     private ItemInteractionResult applyColor(BlockState state, Level level, BlockPos pos, Player player, ItemStack stack,
-            ColorVariant variant, boolean fromApplicator) {
+                                             ColorVariant variant, boolean fromApplicator) {
         if (variant == null || state.getValue(COLOR) == variant) {
             return ItemInteractionResult.CONSUME;
         }
@@ -201,7 +203,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
-            BlockEntityType<T> blockEntityType) {
+                                                                  BlockEntityType<T> blockEntityType) {
         if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get()) {
             return null;
         }
@@ -214,6 +216,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     }
 
     public enum ColorVariant implements StringRepresentable {
+
         DEFAULT("default", null),
         BLACK("black", net.minecraft.world.item.DyeColor.BLACK),
         BLUE("blue", net.minecraft.world.item.DyeColor.BLUE),

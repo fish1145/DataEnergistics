@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin;
 
 import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
 import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -11,6 +12,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 
 @Mixin(targets = "com.moakiee.ae2lt.network.WirelessConnectorUsePacket", remap = false)
 public abstract class Ae2ltWirelessConnectorUsePacketMixin {
+
     @Unique
     private static Method dataEnergistics$handMethod;
     @Unique
@@ -57,10 +60,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         boolean hasSelection = Ae2LtWirelessBridge.hasSelection(stack);
         String hostType = hasSelection ? Ae2LtWirelessBridge.getSelectedHostType(stack) : null;
         String hostProviderType = Ae2LtWirelessBridge.hostProviderType();
-        boolean selectedAdaptiveProvider = hasSelection
-                && hostProviderType != null
-                && hostProviderType.equals(hostType)
-                && Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(
+        boolean selectedAdaptiveProvider = hasSelection && hostProviderType != null && hostProviderType.equals(hostType) && Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(
                 dataEnergistics$getSelectedAdaptiveOrVanillaProvider(level, stack));
 
         if (isAdaptiveProvider && !hasSelection) {
@@ -74,7 +74,8 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             Ae2LtWirelessBridge.selectHost(stack, level, this.pos, hostProviderType);
             player.displayClientMessage(
                     Component.translatable("ae2lt.connector.selected", this.pos.getX(), this.pos.getY(), this.pos.getZ())
-                            .withStyle(ChatFormatting.GREEN), true);
+                            .withStyle(ChatFormatting.GREEN),
+                    true);
             ci.cancel();
             return;
         }
@@ -91,8 +92,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             return;
         }
 
-        if (Ae2LtWirelessBridge.isVanillaOverloadedProvider(targetBe)
-                || Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(targetBe)) {
+        if (Ae2LtWirelessBridge.isVanillaOverloadedProvider(targetBe) || Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(targetBe)) {
             player.displayClientMessage(
                     Component.translatable("ae2lt.connector.cannot_bind_provider").withStyle(ChatFormatting.RED), true);
             ci.cancel();
@@ -120,9 +120,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
 
             if (existing != null) {
                 if (existing.boundFace() == this.face) {
-                    boolean removed = Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedHost)
-                            ? Ae2LtAdaptiveProviderCompat.removeConnection(selectedHost, targetDim, targetPos)
-                            : Ae2LtWirelessBridge.removeConnection(selectedHost, targetDim, targetPos);
+                    boolean removed = Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedHost) ? Ae2LtAdaptiveProviderCompat.removeConnection(selectedHost, targetDim, targetPos) : Ae2LtWirelessBridge.removeConnection(selectedHost, targetDim, targetPos);
                     if (removed) {
                         disconnected.add(targetPos.immutable());
                     }

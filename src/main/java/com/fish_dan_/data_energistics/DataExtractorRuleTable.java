@@ -1,5 +1,13 @@
 package com.fish_dan_.data_energistics;
 
+import com.fish_dan_.data_energistics.registry.ModItems;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.neoforged.fml.loading.FMLPaths;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -7,12 +15,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.neoforged.fml.loading.FMLPaths;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -26,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class DataExtractorRuleTable {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private static final Path FILE_PATH = FMLPaths.CONFIGDIR.get().resolve("data_energistics-data_extractor_rules.json");
@@ -33,8 +36,7 @@ public final class DataExtractorRuleTable {
     private static volatile List<ItemRule> rules = List.of();
     private static volatile List<OutputRule> outputRules = List.of();
 
-    private DataExtractorRuleTable() {
-    }
+    private DataExtractorRuleTable() {}
 
     public static void load() {
         try {
@@ -184,8 +186,7 @@ public final class DataExtractorRuleTable {
         float progressPerItem = getAsFloat(object, "progress_per_item", 0.0F);
         float requiredAmount = getAsFloat(object, "required_amount", 0.0F);
 
-        if (slot == null || dataType == null || inputItemId == null || recordedItemId == null
-                || progressPerItem <= 0.0F || requiredAmount <= 0.0F) {
+        if (slot == null || dataType == null || inputItemId == null || recordedItemId == null || progressPerItem <= 0.0F || requiredAmount <= 0.0F) {
             return null;
         }
 
@@ -212,8 +213,7 @@ public final class DataExtractorRuleTable {
         float progressPerItem = getAsFloat(object, "progress_per_item", 0.0F);
         float requiredAmount = getAsFloat(object, "required_amount", 0.0F);
 
-        if (slot == null || dataType == null || inputItemId == null || recordedItemId == null
-                || progressPerItem <= 0.0F || requiredAmount <= 0.0F) {
+        if (slot == null || dataType == null || inputItemId == null || recordedItemId == null || progressPerItem <= 0.0F || requiredAmount <= 0.0F) {
             return null;
         }
 
@@ -409,8 +409,7 @@ public final class DataExtractorRuleTable {
             return null;
         }
 
-        if (itemId.equals(BuiltInRegistries.ITEM.getKey(ModItems.MOB_DATA_CARRIER.get()))
-                || itemId.equals(BuiltInRegistries.ITEM.getKey(ModItems.DATA_CARRIER.get()))) {
+        if (itemId.equals(BuiltInRegistries.ITEM.getKey(ModItems.MOB_DATA_CARRIER.get())) || itemId.equals(BuiltInRegistries.ITEM.getKey(ModItems.DATA_CARRIER.get()))) {
             return DataType.MOB;
         }
         if (itemId.equals(BuiltInRegistries.ITEM.getKey(ModItems.ORE_DATA_CARRIER.get()))) {
@@ -431,6 +430,7 @@ public final class DataExtractorRuleTable {
     }
 
     public enum Slot {
+
         ORE("ore"),
         CROP("crop");
 
@@ -452,6 +452,7 @@ public final class DataExtractorRuleTable {
     }
 
     public enum DataType {
+
         MOB("mob"),
         ORE("ore"),
         CROP("crop");
@@ -479,18 +480,17 @@ public final class DataExtractorRuleTable {
     }
 
     public record ItemRule(
-            Slot slot,
-            DataType dataType,
-            ResourceLocation inputItemId,
-            ResourceLocation recordedItemId,
-            float progressPerItem,
-            float requiredAmount) {
-    }
+                           Slot slot,
+                           DataType dataType,
+                           ResourceLocation inputItemId,
+                           ResourceLocation recordedItemId,
+                           float progressPerItem,
+                           float requiredAmount) {}
 
     public record OutputRule(
-            DataType dataType,
-            ResourceLocation recordedId,
-            List<ConfiguredStack> outputs) {
+                             DataType dataType,
+                             ResourceLocation recordedId,
+                             List<ConfiguredStack> outputs) {
 
         public List<ItemStack> createStacks() {
             List<ItemStack> stacks = new ArrayList<>();
@@ -504,9 +504,7 @@ public final class DataExtractorRuleTable {
         }
     }
 
-    public record ConfiguredStack(ResourceLocation itemId, int count) {
-    }
+    public record ConfiguredStack(ResourceLocation itemId, int count) {}
 
-    private record LoadedRules(List<ItemRule> inputRules, List<OutputRule> outputRules) {
-    }
+    private record LoadedRules(List<ItemRule> inputRules, List<OutputRule> outputRules) {}
 }

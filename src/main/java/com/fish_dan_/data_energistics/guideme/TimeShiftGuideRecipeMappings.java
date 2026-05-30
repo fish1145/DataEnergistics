@@ -1,22 +1,26 @@
 package com.fish_dan_.data_energistics.guideme;
 
+import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
 import com.fish_dan_.data_energistics.recipe.TimeShiftTimeCondition;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
+
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
 import guideme.color.SymbolicColor;
 import guideme.compiler.tags.RecipeTypeMappingSupplier;
 import guideme.document.block.LytParagraph;
 import guideme.document.block.LytSlotGrid;
 import guideme.document.block.recipes.LytStandardRecipeBox;
+
 import java.util.Arrays;
 import java.util.Locale;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeHolder;
 
 public final class TimeShiftGuideRecipeMappings implements RecipeTypeMappingSupplier {
+
     @Override
     public void collect(RecipeTypeMappings mappings) {
         mappings.add(ModRecipes.TIME_SHIFT_TYPE.get(), TimeShiftGuideRecipeMappings::createTimeShiftRecipe);

@@ -1,21 +1,24 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.config.FuzzyMode;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.storage.cells.ICellWorkbenchItem;
 import appeng.util.ConfigInventory;
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface ConditionalDataFlowCellItem extends PoweredEnergyItem, IBasicCellItem, ICellWorkbenchItem {
+
     int DATA_FLOW_BYTES = 256;
     int DATA_FLOW_BYTES_PER_TYPE = 1;
     int DATA_FLOW_TOTAL_TYPES = 1;
@@ -75,6 +78,5 @@ public interface ConditionalDataFlowCellItem extends PoweredEnergyItem, IBasicCe
     }
 
     @Override
-    default void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {
-    }
+    default void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 }

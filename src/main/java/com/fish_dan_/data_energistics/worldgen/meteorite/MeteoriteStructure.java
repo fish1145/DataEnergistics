@@ -2,14 +2,9 @@ package com.fish_dan_.data_energistics.worldgen.meteorite;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
-import com.google.common.math.StatsAccumulator;
-import com.mojang.serialization.MapCodec;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderGetter;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
@@ -19,14 +14,19 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
-import net.minecraft.world.level.levelgen.GenerationStep.Decoration;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.StructureType;
-import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
 
+import com.google.common.math.StatsAccumulator;
+import com.mojang.serialization.MapCodec;
+
+import java.util.Optional;
+import java.util.Set;
+
 public class MeteoriteStructure extends Structure {
+
     public static final MapCodec<MeteoriteStructure> CODEC;
     public static final ResourceKey<Structure> KEY;
     public static final ResourceKey<StructureSet> STRUCTURE_SET_KEY;
@@ -44,9 +44,7 @@ public class MeteoriteStructure extends Structure {
     public Optional<Structure.GenerationStub> findGenerationPoint(Structure.GenerationContext context) {
         WorldgenRandom worldgenRandom = new WorldgenRandom(new LegacyRandomSource(0L));
         worldgenRandom.setLargeFeatureSeed(context.seed(), context.chunkPos().x, context.chunkPos().z);
-        return !worldgenRandom.nextBoolean()
-                ? Optional.empty()
-                : onTopOfChunkCenter(context, Heightmap.Types.OCEAN_FLOOR_WG,
+        return !worldgenRandom.nextBoolean() ? Optional.empty() : onTopOfChunkCenter(context, Heightmap.Types.OCEAN_FLOOR_WG,
                 structurePiecesBuilder -> generatePieces(structurePiecesBuilder, context));
     }
 

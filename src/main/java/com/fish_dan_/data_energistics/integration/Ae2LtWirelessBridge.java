@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
+
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -8,6 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Ae2LtWirelessBridge {
+
     private static final String CONNECTOR_ITEM_CLASS = "com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem";
     private static final String TARGET_HELPER_CLASS = "com.moakiee.ae2lt.logic.WirelessConnectorTargetHelper";
     private static final String PROVIDER_CLASS = "com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity";
@@ -36,8 +39,7 @@ public final class Ae2LtWirelessBridge {
     private static @Nullable Method renderFaceSeeThroughMethod;
     private static @Nullable String hostProviderType;
 
-    private Ae2LtWirelessBridge() {
-    }
+    private Ae2LtWirelessBridge() {}
 
     public static boolean isAvailable() {
         if (!Ae2LtCompat.isLoaded()) {
@@ -79,8 +81,7 @@ public final class Ae2LtWirelessBridge {
             if (isAvailable()) {
                 selectHostMethod.invoke(null, stack, level, pos, hostType);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     public static boolean isSelectionInCurrentDimension(Level level, ItemStack stack) {
@@ -158,8 +159,7 @@ public final class Ae2LtWirelessBridge {
         }
         try {
             addOrUpdateConnectionMethod.invoke(blockEntity, dimension, pos, face);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     public static RenderType getFaceSeeThroughRenderType() {
@@ -187,15 +187,12 @@ public final class Ae2LtWirelessBridge {
                 Object dimension = dimensionMethod.invoke(connection);
                 Object pos = posMethod.invoke(connection);
                 Object face = boundFaceMethod.invoke(connection);
-                if (dimension instanceof ResourceKey<?> key
-                        && pos instanceof BlockPos blockPos
-                        && face instanceof Direction direction) {
+                if (dimension instanceof ResourceKey<?> key && pos instanceof BlockPos blockPos && face instanceof Direction direction) {
                     @SuppressWarnings("unchecked")
                     ResourceKey<Level> levelKey = (ResourceKey<Level>) key;
                     converted.add(new AdaptiveWirelessConnection(levelKey, blockPos, direction));
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
         return converted;
     }

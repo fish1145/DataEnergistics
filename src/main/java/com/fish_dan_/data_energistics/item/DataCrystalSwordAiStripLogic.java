@@ -7,6 +7,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public final class DataCrystalSwordAiStripLogic {
+
     public static final String TAG_EXPIRE_TICK = "data_energistics:ai_strip_expire_tick";
     public static final String TAG_ORIGINAL_NO_AI = "data_energistics:ai_strip_original_no_ai";
 

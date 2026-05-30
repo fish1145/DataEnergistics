@@ -1,23 +1,19 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "SZS",
-    "ZXZ",
-    "SZS"
-  ],
-  "key": {
-    "S": {
-      "tag": "c:gems/data_crystal"
-    },
-    "Z": {
-      "tag": "c:ingots/iron"
-    },
-    "X": {
-      "item": "ae2:quartz_glass"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_framework",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["SZS", "ZXZ", "SZS"],
+	"key": {
+		"S": {
+			"tag": "c:gems/data_crystal"
+		},
+		"Z": {
+			"tag": "c:ingots/iron"
+		},
+		"X": {
+			"item": "ae2:quartz_glass"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_framework",
+		"count": 1
+	}
 }

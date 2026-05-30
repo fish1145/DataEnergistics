@@ -1,10 +1,42 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import appeng.core.definitions.AEItems;
+import appeng.helpers.IPatternTerminalMenuHost;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+import appeng.parts.encoding.PatternEncodingLogic;
+import appeng.util.ConfigInventory;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -14,49 +46,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.jetbrains.annotations.Nullable;
-
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
-import appeng.core.definitions.AEItems;
-import appeng.helpers.IPatternTerminalMenuHost;
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.menu.slot.FakeSlot;
-import appeng.parts.encoding.EncodingMode;
-import appeng.parts.encoding.PatternEncodingLogic;
-import appeng.util.ConfigInventory;
-import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
-import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
-import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import org.slf4j.Logger;
 public final class PatternEncodingSourceHelper {
+
     private static final Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
     private static final int PROCESSING_INPUT_SLOT_BASE = 10;
     private static final int DATA_RIPPER_KEY_INPUT_SLOT = DataRipperReassemblerRecipe.KEY_INPUT_SLOT_INDEX;
-    private static final int DATA_RIPPER_FLUID_INPUT_SLOT_BASE =
-            DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS + DataRipperReassemblerRecipe.KEY_INPUT_SLOTS;
+    private static final int DATA_RIPPER_FLUID_INPUT_SLOT_BASE = DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS + DataRipperReassemblerRecipe.KEY_INPUT_SLOTS;
     private static final int DATA_RIPPER_ITEM_OUTPUT_SLOT_BASE = 0;
-    private static final int DATA_RIPPER_KEY_OUTPUT_SLOT =
-            DATA_RIPPER_ITEM_OUTPUT_SLOT_BASE + DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS;
-    private static final int DATA_RIPPER_FLUID_OUTPUT_SLOT_BASE =
-            DATA_RIPPER_KEY_OUTPUT_SLOT + DataRipperReassemblerRecipe.KEY_OUTPUT_SLOTS;
+    private static final int DATA_RIPPER_KEY_OUTPUT_SLOT = DATA_RIPPER_ITEM_OUTPUT_SLOT_BASE + DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS;
+    private static final int DATA_RIPPER_FLUID_OUTPUT_SLOT_BASE = DATA_RIPPER_KEY_OUTPUT_SLOT + DataRipperReassemblerRecipe.KEY_OUTPUT_SLOTS;
     public static final String ACTION_SET_PATTERN_SOURCE = "dataEnergisticsSetPatternSource";
     public static final String ACTION_SET_TRANSFER_KEY_INPUT = "dataEnergisticsSetTransferKeyInput";
     public static final String ACTION_SET_TRANSFER_KEY_OUTPUT = "dataEnergisticsSetTransferKeyOutput";
@@ -82,78 +80,42 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
     private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
-    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID =
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
-    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
-    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID =
-            ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
-    private static final ResourceLocation MEKANISM_COMBINER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "combiner");
-    private static final ResourceLocation MEKANISM_OSMIUM_COMPRESSOR_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "osmium_compressor");
-    private static final ResourceLocation MEKANISM_CRUSHER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "crusher");
-    private static final ResourceLocation MEKANISM_ENRICHMENT_CHAMBER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "enrichment_chamber");
-    private static final ResourceLocation MEKANISM_CHEMICAL_INJECTION_CHAMBER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_injection_chamber");
-    private static final ResourceLocation MEKANISM_PURIFICATION_CHAMBER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "purification_chamber");
-    private static final ResourceLocation MEKANISM_METALLURGIC_INFUSER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "metallurgic_infuser");
-    private static final ResourceLocation MEKANISM_PAINTING_MACHINE_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "painting_machine");
-    private static final ResourceLocation MEKANISM_PRECISION_SAWMILL_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "precision_sawmill");
-    private static final ResourceLocation MEKANISM_ENERGIZED_SMELTER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "energized_smelter");
-    private static final ResourceLocation MEKANISM_ELECTROLYTIC_SEPARATOR_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "electrolytic_separator");
-    private static final ResourceLocation MEKANISM_CHEMICAL_WASHER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_washer");
-    private static final ResourceLocation MEKANISM_SOLAR_NEUTRON_ACTIVATOR_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "solar_neutron_activator");
-    private static final ResourceLocation MEKANISM_CHEMICAL_CRYSTALLIZER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_crystallizer");
-    private static final ResourceLocation MEKANISM_CHEMICAL_DISSOLUTION_CHAMBER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_dissolution_chamber");
-    private static final ResourceLocation MEKANISM_CHEMICAL_OXIDIZER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_oxidizer");
-    private static final ResourceLocation MEKANISM_PIGMENT_EXTRACTOR_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "pigment_extractor");
-    private static final ResourceLocation MEKANISM_PIGMENT_MIXER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "pigment_mixer");
-    private static final ResourceLocation MEKANISM_ROTARY_CONDENSENTRATOR_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "rotary_condensentrator");
-    private static final ResourceLocation MEKANISM_THERMAL_EVAPORATION_CONTROLLER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "thermal_evaporation_controller");
-    private static final ResourceLocation MEKANISM_CHEMICAL_INFUSER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_infuser");
-    private static final ResourceLocation MEKANISM_ANTIPROTONIC_NUCLEOSYNTHESIZER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "antiprotonic_nucleosynthesizer");
-    private static final ResourceLocation MEKANISM_PRESSURIZED_REACTION_CHAMBER_ID =
-            ResourceLocation.fromNamespaceAndPath("mekanism", "pressurized_reaction_chamber");
-    private static final ResourceLocation CREATE_MECHANICAL_MIXER_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "mechanical_mixer");
-    private static final ResourceLocation CREATE_MECHANICAL_SAW_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "mechanical_saw");
-    private static final ResourceLocation CREATE_MECHANICAL_PRESS_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "mechanical_press");
-    private static final ResourceLocation CREATE_DEPLOYER_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "deployer");
-    private static final ResourceLocation CREATE_SPOUT_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "spout");
-    private static final ResourceLocation CREATE_MECHANICAL_CRAFTER_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "mechanical_crafter");
-    private static final ResourceLocation CREATE_MILLSTONE_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "millstone");
-    private static final ResourceLocation CREATE_CRUSHING_WHEEL_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "crushing_wheel");
-    private static final ResourceLocation CREATE_ENCASED_FAN_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "encased_fan");
-    private static final ResourceLocation CREATE_BASIN_ID =
-            ResourceLocation.fromNamespaceAndPath("create", "basin");
+    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
+    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
+    private static final ResourceLocation MEKANISM_COMBINER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "combiner");
+    private static final ResourceLocation MEKANISM_OSMIUM_COMPRESSOR_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "osmium_compressor");
+    private static final ResourceLocation MEKANISM_CRUSHER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "crusher");
+    private static final ResourceLocation MEKANISM_ENRICHMENT_CHAMBER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "enrichment_chamber");
+    private static final ResourceLocation MEKANISM_CHEMICAL_INJECTION_CHAMBER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_injection_chamber");
+    private static final ResourceLocation MEKANISM_PURIFICATION_CHAMBER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "purification_chamber");
+    private static final ResourceLocation MEKANISM_METALLURGIC_INFUSER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "metallurgic_infuser");
+    private static final ResourceLocation MEKANISM_PAINTING_MACHINE_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "painting_machine");
+    private static final ResourceLocation MEKANISM_PRECISION_SAWMILL_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "precision_sawmill");
+    private static final ResourceLocation MEKANISM_ENERGIZED_SMELTER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "energized_smelter");
+    private static final ResourceLocation MEKANISM_ELECTROLYTIC_SEPARATOR_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "electrolytic_separator");
+    private static final ResourceLocation MEKANISM_CHEMICAL_WASHER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_washer");
+    private static final ResourceLocation MEKANISM_SOLAR_NEUTRON_ACTIVATOR_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "solar_neutron_activator");
+    private static final ResourceLocation MEKANISM_CHEMICAL_CRYSTALLIZER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_crystallizer");
+    private static final ResourceLocation MEKANISM_CHEMICAL_DISSOLUTION_CHAMBER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_dissolution_chamber");
+    private static final ResourceLocation MEKANISM_CHEMICAL_OXIDIZER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_oxidizer");
+    private static final ResourceLocation MEKANISM_PIGMENT_EXTRACTOR_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "pigment_extractor");
+    private static final ResourceLocation MEKANISM_PIGMENT_MIXER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "pigment_mixer");
+    private static final ResourceLocation MEKANISM_ROTARY_CONDENSENTRATOR_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "rotary_condensentrator");
+    private static final ResourceLocation MEKANISM_THERMAL_EVAPORATION_CONTROLLER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "thermal_evaporation_controller");
+    private static final ResourceLocation MEKANISM_CHEMICAL_INFUSER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_infuser");
+    private static final ResourceLocation MEKANISM_ANTIPROTONIC_NUCLEOSYNTHESIZER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "antiprotonic_nucleosynthesizer");
+    private static final ResourceLocation MEKANISM_PRESSURIZED_REACTION_CHAMBER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "pressurized_reaction_chamber");
+    private static final ResourceLocation CREATE_MECHANICAL_MIXER_ID = ResourceLocation.fromNamespaceAndPath("create", "mechanical_mixer");
+    private static final ResourceLocation CREATE_MECHANICAL_SAW_ID = ResourceLocation.fromNamespaceAndPath("create", "mechanical_saw");
+    private static final ResourceLocation CREATE_MECHANICAL_PRESS_ID = ResourceLocation.fromNamespaceAndPath("create", "mechanical_press");
+    private static final ResourceLocation CREATE_DEPLOYER_ID = ResourceLocation.fromNamespaceAndPath("create", "deployer");
+    private static final ResourceLocation CREATE_SPOUT_ID = ResourceLocation.fromNamespaceAndPath("create", "spout");
+    private static final ResourceLocation CREATE_MECHANICAL_CRAFTER_ID = ResourceLocation.fromNamespaceAndPath("create", "mechanical_crafter");
+    private static final ResourceLocation CREATE_MILLSTONE_ID = ResourceLocation.fromNamespaceAndPath("create", "millstone");
+    private static final ResourceLocation CREATE_CRUSHING_WHEEL_ID = ResourceLocation.fromNamespaceAndPath("create", "crushing_wheel");
+    private static final ResourceLocation CREATE_ENCASED_FAN_ID = ResourceLocation.fromNamespaceAndPath("create", "encased_fan");
+    private static final ResourceLocation CREATE_BASIN_ID = ResourceLocation.fromNamespaceAndPath("create", "basin");
     private static final ExternalMappings EXTERNAL_MAPPINGS = loadExternalMappings();
     private static final Map<String, ResourceLocation> RECIPE_TYPE_TO_WORKSTATION = createRecipeTypeToWorkstationMap();
     private static final Map<String, String> WORKSTATION_PATH_HINTS = createWorkstationPathHints();
@@ -169,8 +131,7 @@ public final class PatternEncodingSourceHelper {
             "mixing", "pressing", "reaction", "crafting", "process", "processing",
             "机器", "装配", "工作站", "处理站", "处理器", "压印", "充能", "切石", "锻造", "编译", "合成");
 
-    private PatternEncodingSourceHelper() {
-    }
+    private PatternEncodingSourceHelper() {}
 
     @Nullable
     public static ResourceLocation resolveWorkstationForTransferRecipe(@Nullable Object recipe) {
@@ -256,7 +217,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void rememberTransferSource(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                               @Nullable Object transferContext) {
+                                              @Nullable Object transferContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
             if (shouldIgnoreWorkstationMemory(sourceAware)) {
                 sourceAware.setPendingPatternSource(null);
@@ -286,7 +247,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void rememberTransferFluidInputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                    @Nullable Object transferContext) {
+                                                   @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             syncPendingTransferFluidInputs(menu, List.of());
             return;
@@ -299,7 +260,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void rememberTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                  @Nullable Object transferContext) {
+                                                 @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             syncPendingTransferKeyOutput(menu, null);
             return;
@@ -312,7 +273,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void rememberTransferFluidOutputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                     @Nullable Object transferContext) {
+                                                    @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             syncPendingTransferFluidOutputs(menu, List.of());
             return;
@@ -519,9 +480,7 @@ public final class PatternEncodingSourceHelper {
         }
 
         EncodingMode mode = previewMenuHost.getEncodingMode();
-        return mode == EncodingMode.CRAFTING
-                || mode == EncodingMode.STONECUTTING
-                || mode == EncodingMode.SMITHING_TABLE;
+        return mode == EncodingMode.CRAFTING || mode == EncodingMode.STONECUTTING || mode == EncodingMode.SMITHING_TABLE;
     }
 
     @Nullable
@@ -592,12 +551,8 @@ public final class PatternEncodingSourceHelper {
                                                @Nullable GenericStack overrideKeyInput,
                                                @Nullable List<GenericStack> overrideFluidInputs) {
         List<GenericStack> plainItems = collectPlainItemStacks(encodedInputsInv);
-        GenericStack keyInput = overrideKeyInput != null
-                ? copyGenericStack(overrideKeyInput)
-                : extractDataRipperKeyStack(encodedInputsInv);
-        List<GenericStack> fluidInputs = overrideFluidInputs != null
-                ? copyGenericStacks(overrideFluidInputs)
-                : extractFluidStacks(encodedInputsInv);
+        GenericStack keyInput = overrideKeyInput != null ? copyGenericStack(overrideKeyInput) : extractDataRipperKeyStack(encodedInputsInv);
+        List<GenericStack> fluidInputs = overrideFluidInputs != null ? copyGenericStacks(overrideFluidInputs) : extractFluidStacks(encodedInputsInv);
 
         rewriteStacks(encodedInputsInv, plainItems, keyInput, fluidInputs);
     }
@@ -606,12 +561,8 @@ public final class PatternEncodingSourceHelper {
                                                 @Nullable GenericStack overrideKeyOutput,
                                                 @Nullable List<GenericStack> overrideFluidOutputs) {
         List<GenericStack> plainItems = collectPlainItemStacks(encodedOutputsInv);
-        GenericStack keyOutput = overrideKeyOutput != null
-                ? copyGenericStack(overrideKeyOutput)
-                : extractDataRipperKeyStack(encodedOutputsInv);
-        List<GenericStack> fluidOutputs = overrideFluidOutputs != null
-                ? copyGenericStacks(overrideFluidOutputs)
-                : extractFluidStacks(encodedOutputsInv);
+        GenericStack keyOutput = overrideKeyOutput != null ? copyGenericStack(overrideKeyOutput) : extractDataRipperKeyStack(encodedOutputsInv);
+        List<GenericStack> fluidOutputs = overrideFluidOutputs != null ? copyGenericStacks(overrideFluidOutputs) : extractFluidStacks(encodedOutputsInv);
 
         rewriteStacks(encodedOutputsInv, plainItems, keyOutput, fluidOutputs);
     }
@@ -790,7 +741,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void applyTransferFluidInputsAction(PatternEncodingTermMenu menu,
-                                                       @Nullable String serializedFluidInputs) {
+                                                      @Nullable String serializedFluidInputs) {
         List<GenericStack> fluidInputs = deserializeTransferFluidStacks(menu, serializedFluidInputs);
         writePendingTransferFluidInputs(menu.getPlayer(), fluidInputs);
 
@@ -812,7 +763,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void applyTransferFluidOutputsAction(PatternEncodingTermMenu menu,
-                                                        @Nullable String serializedFluidOutputs) {
+                                                       @Nullable String serializedFluidOutputs) {
         List<GenericStack> fluidOutputs = deserializeTransferFluidStacks(menu, serializedFluidOutputs);
         writePendingTransferFluidOutputs(menu.getPlayer(), fluidOutputs);
 
@@ -948,8 +899,7 @@ public final class PatternEncodingSourceHelper {
             for (String key : root.getAllKeys()) {
                 try {
                     maxIndex = Math.max(maxIndex, Integer.parseInt(key));
-                } catch (NumberFormatException ignored) {
-                }
+                } catch (NumberFormatException ignored) {}
             }
             if (maxIndex < 0) {
                 return List.of();
@@ -1308,8 +1258,7 @@ public final class PatternEncodingSourceHelper {
         }
 
         Object displayedItemStack = invokeNoArg(catalyst, "getDisplayedItemStack");
-        if (displayedItemStack instanceof java.util.Optional<?> optional && optional.orElse(null) instanceof ItemStack stack
-                && !stack.isEmpty()) {
+        if (displayedItemStack instanceof java.util.Optional<?> optional && optional.orElse(null) instanceof ItemStack stack && !stack.isEmpty()) {
             appendWorkstationCandidate(candidates, BuiltInRegistries.ITEM.getKey(stack.getItem()));
         }
 
@@ -1621,8 +1570,7 @@ public final class PatternEncodingSourceHelper {
         boolean hintWantsExtended = hints.stream()
                 .map(PatternEncodingSourceHelper::normalizeHintText)
                 .anyMatch(text -> containsAny(text, EXTENDED_HINT_TOKENS));
-        boolean candidateIsExtended = containsAny(normalizedPath, EXTENDED_HINT_TOKENS)
-                || candidateTexts.stream().anyMatch(text -> containsAny(text, EXTENDED_HINT_TOKENS));
+        boolean candidateIsExtended = containsAny(normalizedPath, EXTENDED_HINT_TOKENS) || candidateTexts.stream().anyMatch(text -> containsAny(text, EXTENDED_HINT_TOKENS));
         if (hintWantsExtended == candidateIsExtended) {
             score += 22;
         } else if (hintWantsExtended) {
@@ -1658,8 +1606,7 @@ public final class PatternEncodingSourceHelper {
         StringBuilder normalized = new StringBuilder(text.length());
         text.codePoints()
                 .map(Character::toLowerCase)
-                .filter(codePoint -> Character.isLetterOrDigit(codePoint)
-                        || Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN)
+                .filter(codePoint -> Character.isLetterOrDigit(codePoint) || Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN)
                 .forEach(normalized::appendCodePoint);
         return normalized.toString();
     }
@@ -1971,7 +1918,7 @@ public final class PatternEncodingSourceHelper {
                 }
 
                 try {
-                    @SuppressWarnings({"rawtypes", "unchecked"})
+                    @SuppressWarnings({ "rawtypes", "unchecked" })
                     Object enumValue = Enum.valueOf((Class<? extends Enum>) parameterType.asSubclass(Enum.class), roleName);
                     method.setAccessible(true);
                     return method.invoke(target, enumValue);
@@ -2008,6 +1955,7 @@ public final class PatternEncodingSourceHelper {
     private record ExternalMappings(Map<String, ResourceLocation> identifierToWorkstation,
                                     Map<String, String> pathHints,
                                     Map<String, List<String>> namespaceAliases) {
+
         private static final ExternalMappings EMPTY = new ExternalMappings(Map.of(), Map.of(), Map.of());
     }
 }

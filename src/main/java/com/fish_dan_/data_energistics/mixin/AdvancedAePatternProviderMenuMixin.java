@@ -1,17 +1,19 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
+import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogicHost;
+import net.pedroksl.advanced_ae.gui.advpatternprovider.AdvPatternProviderMenu;
+
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
-import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
-import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
-import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogicHost;
-import net.pedroksl.advanced_ae.gui.advpatternprovider.AdvPatternProviderMenu;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AdvPatternProviderMenu.class)
 public abstract class AdvancedAePatternProviderMenuMixin extends AEBaseMenu implements PatternProviderMenuAccessor {
+
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_SET_REDSTONE_TUNING_MODE = "dataEnergistics$setRedstoneTuningMode";
     @Unique
@@ -48,8 +51,7 @@ public abstract class AdvancedAePatternProviderMenuMixin extends AEBaseMenu impl
             this.addSlot(new RestrictedInputSlot(
                     PlacableItemType.UPGRADES,
                     accessor.dataEnergistics$getRedstoneTuningUpgrades(),
-                    0
-            ), SlotSemantics.UPGRADE);
+                    0), SlotSemantics.UPGRADE);
         }
     }
 

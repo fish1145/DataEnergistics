@@ -1,16 +1,19 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.items.parts.PartItem;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 
+import appeng.items.parts.PartItem;
+
 import java.util.List;
 
 public class UniversalTerminalPartItem extends PartItem<UniversalTerminalPart> {
+
     public UniversalTerminalPartItem(Properties properties) {
         super(properties, UniversalTerminalPart.class, UniversalTerminalPart::new);
     }

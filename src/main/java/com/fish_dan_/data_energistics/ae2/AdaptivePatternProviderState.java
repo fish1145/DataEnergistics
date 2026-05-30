@@ -1,11 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import appeng.api.inventories.InternalInventory;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.InternalInventoryHost;
-import appeng.util.inv.filter.IAEItemFilter;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -13,9 +9,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+
+import appeng.api.inventories.InternalInventory;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import appeng.util.inv.filter.IAEItemFilter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.function.IntSupplier;
 
 public final class AdaptivePatternProviderState {
+
     private static final String PROVIDER_SLOT_TAG = "provider_slot";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String ADVANCED_AE_FILTERED_IMPORT_TAG = "advanced_ae_filtered_import";
@@ -42,22 +44,17 @@ public final class AdaptivePatternProviderState {
     // The adaptive menu now pages against proxy slots instead of registering one GUI slot for every backing slot.
     private static final int FIXED_MENU_SLOT_OVERHEAD = 36 + 18 + 1 + 36 + (BASE_UPGRADE_SLOTS * 2) + 3;
     private static final int MENU_SLOT_SAFETY_MARGIN = 64;
-    public static final int MAX_PATTERN_SLOTS =
-            MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD - MENU_SLOT_SAFETY_MARGIN;
+    public static final int MAX_PATTERN_SLOTS = MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD - MENU_SLOT_SAFETY_MARGIN;
 
     private final AppEngInternalInventory providerInventory;
     private final IntSupplier providerSlotLimit;
     private final List<AdaptiveWirelessConnection> ae2LtConnections = new ArrayList<>();
     private boolean advancedAeFilteredImport;
     private boolean resonatingPullEnabled;
-    private AdaptivePatternProviderBlockEntity.Ae2LtProviderMode ae2LtProviderMode =
-            AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.NORMAL;
-    private AdaptivePatternProviderBlockEntity.Ae2LtReturnMode ae2LtReturnMode =
-            AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.OFF;
-    private AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode =
-            AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION;
-    private AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode =
-            AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.NORMAL;
+    private AdaptivePatternProviderBlockEntity.Ae2LtProviderMode ae2LtProviderMode = AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.NORMAL;
+    private AdaptivePatternProviderBlockEntity.Ae2LtReturnMode ae2LtReturnMode = AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.OFF;
+    private AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode = AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION;
+    private AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode = AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.NORMAL;
 
     public AdaptivePatternProviderState(InternalInventoryHost inventoryHost, IntSupplier providerSlotLimit) {
         this.providerSlotLimit = providerSlotLimit;
@@ -247,9 +244,7 @@ public final class AdaptivePatternProviderState {
         boolean changed = false;
 
         CompoundTag providerStackTag = data.readNbt();
-        ItemStack providerStack = providerStackTag == null
-                ? ItemStack.EMPTY
-                : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
+        ItemStack providerStack = providerStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
         if (!ItemStack.matches(getProviderStack(), providerStack)) {
             this.providerInventory.setItemDirect(0, providerStack);
             changed = true;
@@ -327,6 +322,7 @@ public final class AdaptivePatternProviderState {
     }
 
     private static final class ProviderFilter implements IAEItemFilter {
+
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
             return AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack);

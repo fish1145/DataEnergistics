@@ -1,10 +1,10 @@
 {
-  "type": "ae2:charger",
-  "ingredient": {
-    "tag": "c:dusts/data_dust"
-  },
-  "result": {
-    "count": 1,
-    "id": "data_energistics:data_crystal"
-  }
+	"type": "ae2:charger",
+	"ingredient": {
+		"tag": "c:dusts/data_dust"
+	},
+	"result": {
+		"count": 1,
+		"id": "data_energistics:data_crystal"
+	}
 }

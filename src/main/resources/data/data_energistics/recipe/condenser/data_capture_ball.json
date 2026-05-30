@@ -1,19 +1,19 @@
 {
-  "type": "data_energistics:data_capture_ball_condenser",
-  "catalyst": [
-    {
-      "item": "data_energistics:data_storage_component_16k"
-    },
-    {
-      "item": "data_energistics:data_storage_component_64k"
-    },
-    {
-      "item": "data_energistics:data_storage_component_256k"
-    }
-  ],
-  "result": {
-    "id": "data_energistics:data_capture_ball",
-    "count": 1
-  },
-  "required_power": 131072
+	"type": "data_energistics:data_capture_ball_condenser",
+	"catalyst": [
+		{
+			"item": "data_energistics:data_storage_component_16k"
+		},
+		{
+			"item": "data_energistics:data_storage_component_64k"
+		},
+		{
+			"item": "data_energistics:data_storage_component_256k"
+		}
+	],
+	"result": {
+		"id": "data_energistics:data_capture_ball",
+		"count": 1
+	},
+	"required_power": 131072
 }

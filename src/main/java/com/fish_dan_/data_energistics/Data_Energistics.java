@@ -1,67 +1,50 @@
 package com.fish_dan_.data_energistics;
 
-import appeng.api.AECapabilities;
-import appeng.api.storage.StorageCells;
-import appeng.api.upgrades.Upgrades;
-import appeng.core.definitions.AEBlocks;
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.blockentity.networking.ControllerBlockEntity;
-import appeng.client.gui.me.items.PatternEncodingTermScreen;
-import appeng.client.gui.style.StyleManager;
-import appeng.core.definitions.AEBlockEntities;
-import appeng.core.definitions.AEBlockEntities;
-import appeng.core.definitions.AEItems;
-import appeng.init.client.InitScreens;
-import appeng.items.parts.PartModelsHelper;
-import appeng.items.misc.PaintBallItem;
-import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
+import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
 import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
-import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
-import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
-import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
+import com.fish_dan_.data_energistics.client.ModItemColors;
+import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
-import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.LightBladeChargeRenderer;
 import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
 import com.fish_dan_.data_energistics.client.render.ThrownLightSaberRenderer;
+import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
+import com.fish_dan_.data_energistics.client.screen.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
+import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
-import com.fish_dan_.data_energistics.client.screen.Ae2TerminalKeyOverlay;
-import com.fish_dan_.data_energistics.client.ModItemColors;
-import com.fish_dan_.data_energistics.client.ModKeyMappings;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
-import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
-import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
-import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
+import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
-import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
+import com.fish_dan_.data_energistics.integration.AppMekCompat;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
+import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.network.ModPayloads;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
-import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeLogic;
+import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
@@ -70,41 +53,39 @@ import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.fish_dan_.data_energistics.registry.ModStructures;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
+import com.fish_dan_.data_energistics.registry.ModStructures;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
-import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeLogic;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
-import com.mojang.logging.LogUtils;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.entity.TntRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -118,39 +99,53 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
-import org.joml.Vector3f;
 import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
+
+import appeng.api.AECapabilities;
+import appeng.api.storage.StorageCells;
+import appeng.api.upgrades.Upgrades;
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.blockentity.networking.ControllerBlockEntity;
+import appeng.client.gui.me.items.PatternEncodingTermScreen;
+import appeng.client.gui.style.StyleManager;
+import appeng.core.definitions.AEBlockEntities;
+import appeng.core.definitions.AEBlocks;
+import appeng.core.definitions.AEItems;
+import appeng.init.client.InitScreens;
+import appeng.items.misc.PaintBallItem;
+import appeng.items.parts.PartModelsHelper;
+import com.mojang.logging.LogUtils;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(Data_Energistics.MODID)
 public class Data_Energistics {
+
     // Define mod id in a common place for everything to reference
     public static final String MODID = "data_energistics";
-    private static final String ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP =
-            "block.data_energistics.adaptive_pattern_provider";
-    private static final ResourceLocation MODPACK_FIXES_PACK =
-            ResourceLocation.fromNamespaceAndPath(MODID, "resourcepacks/modpack_fixes");
-    private static final ResourceLocation POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_speed_card_attack_speed");
-    private static final ResourceLocation POWERED_TOOL_SABER_ENERGY_ATTACK_DAMAGE_ID =
-            ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_saber_energy_attack_damage");
+    private static final String ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP = "block.data_energistics.adaptive_pattern_provider";
+    private static final ResourceLocation MODPACK_FIXES_PACK = ResourceLocation.fromNamespaceAndPath(MODID, "resourcepacks/modpack_fixes");
+    private static final ResourceLocation POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID = ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_speed_card_attack_speed");
+    private static final ResourceLocation POWERED_TOOL_SABER_ENERGY_ATTACK_DAMAGE_ID = ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_saber_energy_attack_damage");
     private static final String[][] STARTUP_SHUTDOWN_LOG_PAIRS = {
-            {"Ciallo～(∠・ω< )⌒☆", "柚子厨真恶心！"},
-            {"原神启动！", "前面的区域以后再探索吧"}
+            { "Ciallo～(∠・ω< )⌒☆", "柚子厨真恶心！" },
+            { "原神启动！", "前面的区域以后再探索吧" }
     };
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -181,8 +176,7 @@ public class Data_Energistics {
         modContainer.registerConfig(ModConfig.Type.COMMON, FlatteningTntConfig.SPEC, "data_energistics-tnt.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, DataExtractorConfig.SPEC, "data_energistics-data_extractor.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SolarPanelConfig.SPEC, "data_energistics-solar_panel.toml");
-        String[] selectedLogPair =
-                STARTUP_SHUTDOWN_LOG_PAIRS[net.minecraft.util.RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
+        String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[net.minecraft.util.RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
         LOGGER.info(selectedLogPair[0]);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.info(selectedLogPair[1]),
                 "data-energistics-shutdown-log"));
@@ -195,8 +189,7 @@ public class Data_Energistics {
                 Component.literal("Data Energistics Modpack Fixes"),
                 PackSource.BUILT_IN,
                 true,
-                Pack.Position.TOP
-        );
+                Pack.Position.TOP);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -309,17 +302,13 @@ public class Data_Energistics {
             registerAppliedFluxAdaptivePatternProviderCompat();
             registerAe2CrystalScienceAdaptivePatternProviderCompat();
             appeng.api.parts.PartModels.registerModels(
-                    PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
-            );
+                    PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass()));
             appeng.api.parts.PartModels.registerModels(
-                    PartModelsHelper.createModels(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get().getPartClass())
-            );
+                    PartModelsHelper.createModels(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get().getPartClass()));
             appeng.api.parts.PartModels.registerModels(
-                    PartModelsHelper.createModels(ModItems.ME_SOLAR_PANEL_PART.get().getPartClass())
-            );
+                    PartModelsHelper.createModels(ModItems.ME_SOLAR_PANEL_PART.get().getPartClass()));
             appeng.api.parts.PartModels.registerModels(
-                    PartModelsHelper.createModels(ModItems.UNIVERSAL_TERMINAL.get().getPartClass())
-            );
+                    PartModelsHelper.createModels(ModItems.UNIVERSAL_TERMINAL.get().getPartClass()));
             StorageCells.addCellHandler(InfiniteDataCellHandler.INSTANCE);
         });
     }
@@ -335,8 +324,7 @@ public class Data_Energistics {
     }
 
     private void registerAe2CrystalScienceAdaptivePatternProviderCompat() {
-        Item crystalGrowthCard =
-                BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("ae2cs", "crystal_growth_card"));
+        Item crystalGrowthCard = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("ae2cs", "crystal_growth_card"));
         if (crystalGrowthCard == null || crystalGrowthCard == Items.AIR) {
             return;
         }
@@ -409,86 +397,70 @@ public class Data_Energistics {
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.CRAFTING_MACHINE,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.ME_STORAGE,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalPatternInputStorage()
-        );
+                (blockEntity, context) -> blockEntity.getExternalPatternInputStorage());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler()
-        );
+                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler()
-        );
+                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalFluidHandler()
-        );
+                (blockEntity, context) -> blockEntity.getExternalFluidHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getInternalInventory().toItemHandler()
-        );
+                (blockEntity, context) -> blockEntity.getInternalInventory().toItemHandler());
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> {
                     var logic = blockEntity.getLogic();
                     return logic != null ? logic.getReturnInv() : null;
-                }
-        );
+                });
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity
-        );
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalReturnItemHandler(context)
-        );
+                (blockEntity, context) -> blockEntity.getExternalReturnItemHandler(context));
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalReturnFluidHandler(context)
-        );
+                (blockEntity, context) -> blockEntity.getExternalReturnFluidHandler(context));
         AppMekCompat.registerChemicalBlockEntityCapabilities(event);
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
@@ -504,8 +476,7 @@ public class Data_Energistics {
                     }
 
                     return null;
-                }
-        );
+                });
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
                 AEBlockEntities.CABLE_BUS.get(),
@@ -520,15 +491,12 @@ public class Data_Energistics {
                     }
 
                     return null;
-                }
-        );
+                });
         AppMekCompat.registerChemicalCableBusCapabilities(event);
         event.registerBlockEntity(
                 AECapabilities.CRANKABLE,
                 AEBlockEntities.CONTROLLER.get(),
-                (ControllerBlockEntity blockEntity, Direction context) ->
-                        context != null ? ((AENetworkedPoweredBlockEntity) blockEntity).new Crankable() : null
-        );
+                (ControllerBlockEntity blockEntity, Direction context) -> context != null ? ((AENetworkedPoweredBlockEntity) blockEntity).new Crankable() : null);
         event.registerBlock(
                 Capabilities.EnergyStorage.BLOCK,
                 (level, pos, state, blockEntity, context) -> {
@@ -538,16 +506,13 @@ public class Data_Energistics {
 
                     BlockPos basePos = DataDistributionTowerBlock.getBasePos(pos, state);
                     BlockState baseState = level.getBlockState(basePos);
-                    if (!(baseState.getBlock() instanceof DataDistributionTowerBlock)
-                            || !(level.getBlockEntity(basePos) instanceof DataDistributionTowerBlockEntity tower)) {
+                    if (!(baseState.getBlock() instanceof DataDistributionTowerBlock) || !(level.getBlockEntity(basePos) instanceof DataDistributionTowerBlockEntity tower)) {
                         return null;
                     }
 
                     return tower.getEnergyStorageForQuery(pos, context);
                 },
-                ModBlocks.DATA_DISTRIBUTION_TOWER.get()
-        );
-
+                ModBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
     private void registerPayloadHandlers(final RegisterPayloadHandlersEvent event) {
@@ -560,8 +525,7 @@ public class Data_Energistics {
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-    }
+    public void onServerStarting(ServerStartingEvent event) {}
 
     @SubscribeEvent
     public void onItemAttributeModifiers(ItemAttributeModifierEvent event) {
@@ -570,11 +534,7 @@ public class Data_Energistics {
             return;
         }
 
-        if (!(stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredSwordItem
-                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredAxeItem
-                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredPickaxeItem
-                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredHoeItem
-                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredShovelItem)) {
+        if (!(stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredSwordItem || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredAxeItem || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredPickaxeItem || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredHoeItem || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredShovelItem)) {
             return;
         }
 
@@ -585,10 +545,8 @@ public class Data_Energistics {
                     new AttributeModifier(
                             POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID,
                             attackSpeedBonus,
-                            AttributeModifier.Operation.ADD_VALUE
-                    ),
-                    EquipmentSlotGroup.MAINHAND
-            );
+                            AttributeModifier.Operation.ADD_VALUE),
+                    EquipmentSlotGroup.MAINHAND);
         }
 
         double baseAttackDamage = event.getModifiers().stream()
@@ -603,17 +561,17 @@ public class Data_Energistics {
                     new AttributeModifier(
                             POWERED_TOOL_SABER_ENERGY_ATTACK_DAMAGE_ID,
                             saberEnergyAttackDamageBonus,
-                            AttributeModifier.Operation.ADD_VALUE
-                    ),
-                    EquipmentSlotGroup.MAINHAND
-            );
+                            AttributeModifier.Operation.ADD_VALUE),
+                    EquipmentSlotGroup.MAINHAND);
         }
     }
 
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
+    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with
+    // @SubscribeEvent
     @SuppressWarnings("removal")
     @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
+
         @SubscribeEvent
         public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {
             ModItemColors.register(event);
@@ -692,10 +650,7 @@ public class Data_Energistics {
             ItemProperties.register(item, Data_Energistics.id("loaded_special_light_saber"),
                     (stack, level, entity, seed) -> {
                         ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
-                        return !charged.isEmpty()
-                                && MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(charged.getItems().getFirst())
-                                        ? 1.0F
-                                        : 0.0F;
+                        return !charged.isEmpty() && MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(charged.getItems().getFirst()) ? 1.0F : 0.0F;
                     });
             ItemProperties.register(item, Data_Energistics.id("load_stage"),
                     (stack, level, entity, seed) -> {
@@ -706,8 +661,7 @@ public class Data_Energistics {
                             return 0.0F;
                         }
 
-                        float progress = (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks())
-                                / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
+                        float progress = (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
                         progress = Mth.clamp(progress, 0.0F, 1.0F);
                         if (progress < 1.0F / 3.0F) {
                             return 0.0F;
@@ -725,18 +679,10 @@ public class Data_Energistics {
                         if (net.minecraft.world.item.CrossbowItem.isCharged(stack)) {
                             return 0.0F;
                         }
-                        return entity.getUseItem() != stack
-                                ? 0.0F
-                                : (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks())
-                                        / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
+                        return entity.getUseItem() != stack ? 0.0F : (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
                     });
             ItemProperties.register(item, ResourceLocation.withDefaultNamespace("pulling"),
-                    (stack, level, entity, seed) -> entity != null
-                            && entity.isUsingItem()
-                            && entity.getUseItem() == stack
-                            && !net.minecraft.world.item.CrossbowItem.isCharged(stack)
-                                    ? 1.0F
-                                    : 0.0F);
+                    (stack, level, entity, seed) -> entity != null && entity.isUsingItem() && entity.getUseItem() == stack && !net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
             ItemProperties.register(item, ResourceLocation.withDefaultNamespace("charged"),
                     (stack, level, entity, seed) -> net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
             ItemProperties.register(item, ResourceLocation.withDefaultNamespace("firework"),
@@ -761,8 +707,7 @@ public class Data_Energistics {
         }
 
         private static boolean isPowered(ItemStack stack) {
-            return stack.getItem() instanceof PoweredEnergyItem poweredEnergyItem
-                    && poweredEnergyItem.getAECurrentPower(stack) > 0.0D;
+            return stack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getAECurrentPower(stack) > 0.0D;
         }
 
         public static void onClientTickPost(ClientTickEvent.Post event) {

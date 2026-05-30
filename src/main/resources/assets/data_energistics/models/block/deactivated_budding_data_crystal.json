@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "data_energistics:block/deactivated_budding_data_crystal"
-  }
+	"parent": "minecraft:block/cube_all",
+	"textures": {
+		"all": "data_energistics:block/deactivated_budding_data_crystal"
+	}
 }

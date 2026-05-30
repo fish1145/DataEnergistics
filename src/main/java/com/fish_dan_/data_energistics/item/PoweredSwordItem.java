@@ -1,19 +1,11 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.ICellWorkbenchItem;
-import appeng.api.config.FuzzyMode;
-import appeng.items.storage.StorageCellTooltipComponent;
-import appeng.util.ConfigInventory;
-import appeng.api.util.AEColor;
-import appeng.items.tools.powered.ColorApplicatorItem;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
-import com.mojang.logging.LogUtils;
+
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Position;
@@ -31,12 +23,13 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ClickAction;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ProjectileItem;
 import net.minecraft.world.item.Tier;
@@ -46,18 +39,25 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
-import com.fish_dan_.data_energistics.registry.ModItems;
+
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.StorageCells;
+import appeng.api.util.AEColor;
+import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.items.tools.powered.ColorApplicatorItem;
+import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
 
 public class PoweredSwordItem extends AbstractPoweredTieredItem implements ProjectileItem, ConditionalDataFlowCellItem {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int THROW_THRESHOLD_TIME = 10;
     private static final float THROW_POWER = 2.5F;
@@ -135,13 +135,12 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
 
     @Override
     public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
-        return ItemAbilities.DEFAULT_SWORD_ACTIONS.contains(itemAbility)
-                || this.throwable && ItemAbilities.DEFAULT_TRIDENT_ACTIONS.contains(itemAbility);
+        return ItemAbilities.DEFAULT_SWORD_ACTIONS.contains(itemAbility) || this.throwable && ItemAbilities.DEFAULT_TRIDENT_ACTIONS.contains(itemAbility);
     }
 
     @Override
     public boolean canAttackBlock(net.minecraft.world.level.block.state.BlockState state, Level level,
-            net.minecraft.core.BlockPos pos, Player player) {
+                                  net.minecraft.core.BlockPos pos, Player player) {
         return !player.isCreative();
     }
 
@@ -178,8 +177,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     @Override
-    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
-    }
+    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {}
 
     @Override
     public boolean onEntitySwing(ItemStack stack, LivingEntity entity, InteractionHand hand) {
@@ -204,7 +202,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
 
     @Override
     public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack carriedStack, Slot slot,
-            ClickAction clickAction, Player player, SlotAccess carriedSlotAccess) {
+                                            ClickAction clickAction, Player player, SlotAccess carriedSlotAccess) {
         if (clickAction != ClickAction.SECONDARY || !LightSaberColorData.isColorableLightSaber(stack)) {
             return false;
         }
@@ -340,8 +338,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
                 level,
                 attacker,
                 getLightBladeColor(level, stack),
-                damage
-        );
+                damage);
         lightBlade.setWeaponStack(stack);
         lightBlade.setPos(attacker.getX(), attacker.getEyeY() - 0.15D, attacker.getZ());
         lightBlade.shootFromRotation(attacker, attacker.getXRot(), attacker.getYRot(), 0.0F, LIGHT_BLADE_SPEED, 0.0F);
@@ -349,9 +346,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     private boolean canFireLightBlade(ItemStack stack) {
-        return isLightBladeEmitter(stack)
-                && this.getSaberEnergyCardCount(stack) > 0
-                && this.getAECurrentPower(stack) >= this.getActionEnergyCost(stack) * 2.0D;
+        return isLightBladeEmitter(stack) && this.getSaberEnergyCardCount(stack) > 0 && this.getAECurrentPower(stack) >= this.getActionEnergyCost(stack) * 2.0D;
     }
 
     private static boolean isLightBladeEmitter(ItemStack stack) {
@@ -376,9 +371,9 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
 
     public static double getPanelAttackDamage(ItemStack stack) {
         final double playerBaseDamage = 1.0D;
-        final double[] addValue = {0.0D};
-        final double[] addMultipliedBase = {0.0D};
-        final double[] addMultipliedTotal = {0.0D};
+        final double[] addValue = { 0.0D };
+        final double[] addMultipliedBase = { 0.0D };
+        final double[] addMultipliedTotal = { 0.0D };
 
         stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
                 (Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, net.minecraft.world.entity.ai.attributes.AttributeModifier modifier) -> {
@@ -402,9 +397,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     private void tryStripTargetAi(ItemStack stack, LivingEntity target) {
-        if (!stack.is(ModItems.DATA_CRYSTAL_SWORD.get())
-                || this.getSaberEnergyCardCount(stack) <= 0
-                || !(target instanceof Mob mob)) {
+        if (!stack.is(ModItems.DATA_CRYSTAL_SWORD.get()) || this.getSaberEnergyCardCount(stack) <= 0 || !(target instanceof Mob mob)) {
             return;
         }
 
@@ -449,8 +442,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
                 pos.x(),
                 pos.y(),
                 pos.z(),
-                stack.copyWithCount(1)
-        );
+                stack.copyWithCount(1));
         thrownLightSaber.pickup = Pickup.ALLOWED;
         return thrownLightSaber;
     }

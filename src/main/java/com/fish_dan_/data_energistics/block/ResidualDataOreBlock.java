@@ -2,13 +2,14 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.valueproviders.UniformInt;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodData;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class ResidualDataOreBlock extends DropExperienceBlock {
+
     private static final UniformInt EXPERIENCE_RANGE = UniformInt.of(50, 75);
     private static final int EFFECT_DURATION_TICKS = 200;
     private static final Holder<MobEffect>[] RANDOM_BUFFS = new Holder[] {
@@ -63,8 +65,7 @@ public class ResidualDataOreBlock extends DropExperienceBlock {
             case 2 -> reduceFood(player, amount);
             case 3 -> restoreFood(player, amount);
             case 4 -> applyRandomBuff(player, random);
-            default -> {
-            }
+            default -> {}
         }
 
         spawnDispersingData(serverLevel, pos, random, tool);
@@ -106,8 +107,7 @@ public class ResidualDataOreBlock extends DropExperienceBlock {
             entity.setDeltaMovement(
                     (random.nextDouble() - 0.5D) * 0.08D,
                     0.01D + random.nextDouble() * 0.03D,
-                    (random.nextDouble() - 0.5D) * 0.08D
-            );
+                    (random.nextDouble() - 0.5D) * 0.08D);
             level.addFreshEntity(entity);
         }
     }

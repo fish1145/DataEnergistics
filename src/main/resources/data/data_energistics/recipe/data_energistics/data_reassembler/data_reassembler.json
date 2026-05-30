@@ -1,51 +1,51 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "item": "data_energistics:time_core"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "item": "ae2:speed_card"
-      },
-      "count": 16
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_dust"
-      },
-      "count": 8
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_storage_component_64k"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "ae2:spatial_cell_component_128"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "tag": "ae2:interface"
-      },
-      "count": 1
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "data_energistics:data_ripper",
-      "count": 1
-    }
-  ],
-  "key_input": {
-    "#t": "data_energistics:data_flow",
-    "#": 120000
-  }
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "data_energistics:time_core"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "ae2:speed_card"
+			},
+			"count": 16
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_dust"
+			},
+			"count": 8
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_storage_component_64k"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:spatial_cell_component_128"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"tag": "ae2:interface"
+			},
+			"count": 1
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_ripper",
+			"count": 1
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 120000
+	}
 }

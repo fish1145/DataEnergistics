@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "data_energistics:block/data_meteorite/data_meteorite_0"
-  }
+	"parent": "minecraft:block/cube_all",
+	"textures": {
+		"all": "data_energistics:block/data_meteorite/data_meteorite_0"
+	}
 }

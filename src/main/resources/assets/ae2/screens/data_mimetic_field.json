@@ -1,55 +1,55 @@
 {
-  "$schema": "schema.json",
-  "includes": [
-    "common/common.json",
-    "common/player_inventory.json",
-    "common/toolbox.json"
-  ],
-  "background": {
-    "texture": "guis/data_mimetic_field.png",
-    "srcRect": [0, 0, 176, 149]
-  },
-  "slots": {
-    "DATA_MIMETIC_FIELD_KEY_INPUT": {
-      "left": 26,
-      "top": 25
-    },
-    "STORAGE": {
-      "left": 61,
-      "top": 15,
-      "grid": "HORIZONTAL"
-    },
-    "DATA_MIMETIC_FIELD_EXTRA": {
-      "left": 61,
-      "top": 33,
-      "grid": "HORIZONTAL"
-    }
-  },
-  "text": {
-    "dialog_title": {
-      "text": {
-        "translate": "block.data_energistics.data_mimetic_field"
-      },
-      "position": {
-        "left": 8,
-        "top": 6
-      }
-    }
-  },
-  "images": {
-    "powerBar": {
-      "texture": "guis/data_mimetic_field.png",
-      "srcRect": [176, 0, 6, 18]
-    }
-  },
-  "widgets": {
-    "powerBar": {
-      "left": 144,
-      "top": 23
-    },
-    "upgrades": {
-      "left": 174,
-      "top": 0
-    }
-  }
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/data_mimetic_field.png",
+		"srcRect": [0, 0, 176, 149]
+	},
+	"slots": {
+		"DATA_MIMETIC_FIELD_KEY_INPUT": {
+			"left": 26,
+			"top": 25
+		},
+		"STORAGE": {
+			"left": 61,
+			"top": 15,
+			"grid": "HORIZONTAL"
+		},
+		"DATA_MIMETIC_FIELD_EXTRA": {
+			"left": 61,
+			"top": 33,
+			"grid": "HORIZONTAL"
+		}
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "block.data_energistics.data_mimetic_field"
+			},
+			"position": {
+				"left": 8,
+				"top": 6
+			}
+		}
+	},
+	"images": {
+		"powerBar": {
+			"texture": "guis/data_mimetic_field.png",
+			"srcRect": [176, 0, 6, 18]
+		}
+	},
+	"widgets": {
+		"powerBar": {
+			"left": 144,
+			"top": 23
+		},
+		"upgrades": {
+			"left": 174,
+			"top": 0
+		}
+	}
 }

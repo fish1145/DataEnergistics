@@ -1,13 +1,9 @@
 package com.fish_dan_.data_energistics.block;
 
-import appeng.block.AEBaseEntityBlock;
-import appeng.block.crafting.PatternProviderBlock;
-import appeng.block.crafting.PushDirection;
-import appeng.menu.locator.MenuLocators;
-import appeng.util.InteractionUtil;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -23,7 +19,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 
+import appeng.block.AEBaseEntityBlock;
+import appeng.block.crafting.PatternProviderBlock;
+import appeng.block.crafting.PushDirection;
+import appeng.menu.locator.MenuLocators;
+import appeng.util.InteractionUtil;
+
 public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlockEntity> extends AEBaseEntityBlock<T> {
+
     public AdaptivePatternProviderBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState().setValue(PatternProviderBlock.PUSH_DIRECTION, PushDirection.ALL));
@@ -34,9 +37,8 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     }
 
     protected void bindBlockEntity(
-            Class<T> blockEntityClass,
-            net.minecraft.world.level.block.entity.BlockEntityType<T> blockEntityType
-    ) {
+                                   Class<T> blockEntityClass,
+                                   net.minecraft.world.level.block.entity.BlockEntityType<T> blockEntityType) {
         this.setBlockEntity(blockEntityClass, blockEntityType, null, null);
     }
 
@@ -53,8 +55,7 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
 
     @Override
     public int getSignal(BlockState state, BlockGetter level, BlockPos pos, Direction direction) {
-        return level.getBlockEntity(pos) instanceof RedstoneTuningAwareHost host
-                && host.dataEnergistics$isRedstoneTuningPulseActive() ? 15 : 0;
+        return level.getBlockEntity(pos) instanceof RedstoneTuningAwareHost host && host.dataEnergistics$isRedstoneTuningPulseActive() ? 15 : 0;
     }
 
     @Override

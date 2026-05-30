@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.item;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -11,6 +12,7 @@ import net.minecraft.world.item.TooltipFlag;
 import java.util.List;
 
 public class BiologyDataCarrierItem extends Item {
+
     private final boolean completedCarrier;
 
     public BiologyDataCarrierItem(Properties properties, boolean completedCarrier) {
@@ -25,39 +27,30 @@ public class BiologyDataCarrierItem extends Item {
         if (BiologyDataCarrierData.hasRecordedEntity(stack)) {
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.target",
-                    BiologyDataCarrierData.getEntityDisplayName(stack).copy()
-            ));
+                    BiologyDataCarrierData.getEntityDisplayName(stack).copy()));
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.progress",
                     BiologyDataCarrierData.formatAmount(BiologyDataCarrierData.getCollectedDamage(stack)),
-                    BiologyDataCarrierData.formatAmount(BiologyDataCarrierData.getRequiredDamage(stack))
-            ));
+                    BiologyDataCarrierData.formatAmount(BiologyDataCarrierData.getRequiredDamage(stack))));
         } else if (OreDataCarrierData.hasRecordedOre(stack)) {
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.target",
-                    OreDataCarrierData.getOreDisplayName(stack).copy()
-            ));
+                    OreDataCarrierData.getOreDisplayName(stack).copy()));
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.progress",
                     BiologyDataCarrierData.formatAmount(OreDataCarrierData.getCollectedAmount(stack)),
-                    BiologyDataCarrierData.formatAmount(OreDataCarrierData.getRequiredAmount(stack))
-            ));
+                    BiologyDataCarrierData.formatAmount(OreDataCarrierData.getRequiredAmount(stack))));
         } else if (CropDataCarrierData.hasRecordedCrop(stack)) {
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.target",
-                    CropDataCarrierData.getCropDisplayName(stack).copy()
-            ));
+                    CropDataCarrierData.getCropDisplayName(stack).copy()));
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.progress",
                     BiologyDataCarrierData.formatAmount(CropDataCarrierData.getCollectedAmount(stack)),
-                    BiologyDataCarrierData.formatAmount(CropDataCarrierData.getRequiredAmount(stack))
-            ));
+                    BiologyDataCarrierData.formatAmount(CropDataCarrierData.getRequiredAmount(stack))));
         }
 
-        if (this.completedCarrier
-                && (BiologyDataCarrierData.hasRecordedEntity(stack)
-                || OreDataCarrierData.hasRecordedOre(stack)
-                || CropDataCarrierData.hasRecordedCrop(stack))) {
+        if (this.completedCarrier && (BiologyDataCarrierData.hasRecordedEntity(stack) || OreDataCarrierData.hasRecordedOre(stack) || CropDataCarrierData.hasRecordedCrop(stack))) {
             tooltip.add(Component.translatable("item.data_energistics.carrier.completed"));
         }
     }

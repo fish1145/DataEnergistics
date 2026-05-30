@@ -1,12 +1,10 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.UpgradeInventories;
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -14,6 +12,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.pedroksl.advanced_ae.common.entities.AdvPatternProviderEntity;
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogicHost;
+
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,6 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AdvPatternProviderEntity.class)
 public abstract class AdvancedAePatternProviderEntityMixin implements PatternProviderHostAccessor {
+
     @Unique
     private static final String DATA_ENERGISTICS_REDSTONE_TUNING_TAG = "data_energistics_redstone_tuning_mode";
     @Unique
@@ -55,8 +57,7 @@ public abstract class AdvancedAePatternProviderEntityMixin implements PatternPro
         this.dataEnergistics$ensureUpgradeInventory().readFromNBT(data, DATA_ENERGISTICS_REDSTONE_UPGRADES_TAG, registries);
         if (data.contains(DATA_ENERGISTICS_REDSTONE_TUNING_TAG)) {
             try {
-                this.dataEnergistics$redstoneTuningMode =
-                        RedstoneTuningMode.valueOf(data.getString(DATA_ENERGISTICS_REDSTONE_TUNING_TAG));
+                this.dataEnergistics$redstoneTuningMode = RedstoneTuningMode.valueOf(data.getString(DATA_ENERGISTICS_REDSTONE_TUNING_TAG));
             } catch (IllegalArgumentException ignored) {
                 this.dataEnergistics$redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH;
             }
@@ -105,8 +106,7 @@ public abstract class AdvancedAePatternProviderEntityMixin implements PatternPro
 
     @Override
     public void dataEnergistics$onRedstoneTuningDispatch() {
-        if (!this.dataEnergistics$hasRedstoneTuningCard()
-                || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.EMIT_ON_DISPATCH) {
+        if (!this.dataEnergistics$hasRedstoneTuningCard() || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.EMIT_ON_DISPATCH) {
             return;
         }
         if (this.dataEnergistics$redstonePulseTicks > 0) {
@@ -151,8 +151,7 @@ public abstract class AdvancedAePatternProviderEntityMixin implements PatternPro
 
     @Override
     public boolean dataEnergistics$isRedstoneTuningPulseActive() {
-        return this.dataEnergistics$redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH
-                && this.dataEnergistics$redstonePulseTicks > 0;
+        return this.dataEnergistics$redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH && this.dataEnergistics$redstonePulseTicks > 0;
     }
 
     @Override
@@ -238,13 +237,10 @@ public abstract class AdvancedAePatternProviderEntityMixin implements PatternPro
 
     @Unique
     private void dataEnergistics$tryForcePulseUnlock() {
-        if (!this.dataEnergistics$redstoneInputPulsePending
-                || !this.dataEnergistics$hasRedstoneTuningCard()
-                || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+        if (!this.dataEnergistics$redstoneInputPulsePending || !this.dataEnergistics$hasRedstoneTuningCard() || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
             return;
         }
-        if (((AdvPatternProviderEntity) (Object) this).getLogic() instanceof PatternProviderLogicAccessor accessor
-                && accessor.dataEnergistics$forcePulseUnlock()) {
+        if (((AdvPatternProviderEntity) (Object) this).getLogic() instanceof PatternProviderLogicAccessor accessor && accessor.dataEnergistics$forcePulseUnlock()) {
             this.dataEnergistics$redstoneInputPulsePending = false;
         }
     }
@@ -256,8 +252,7 @@ public abstract class AdvancedAePatternProviderEntityMixin implements PatternPro
             this.dataEnergistics$redstoneTuningUpgrades = UpgradeInventories.forMachine(
                     self.getBlockState().getBlock().asItem(),
                     1,
-                    this::dataEnergistics$saveAndUpdate
-            );
+                    this::dataEnergistics$saveAndUpdate);
         }
         return this.dataEnergistics$redstoneTuningUpgrades;
     }

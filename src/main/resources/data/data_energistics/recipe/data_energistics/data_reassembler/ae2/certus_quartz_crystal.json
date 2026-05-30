@@ -1,34 +1,34 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "item": "ae2:charged_certus_quartz_crystal"
-      },
-      "count": 16
-    },
-    {
-      "ingredient": {
-        "item": "ae2:certus_quartz_dust"
-      },
-      "count": 16
-    }
-  ],
-  "fluid_inputs": [
-    {
-      "#": 250,
-      "#t": "ae2:f",
-      "id": "data_energistics:data_corrosion_liquid"
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "ae2:certus_quartz_crystal",
-      "count": 72
-    }
-  ],
-  "key_input": {
-    "#t": "data_energistics:data_flow",
-    "#": 2400
-  }
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "ae2:charged_certus_quartz_crystal"
+			},
+			"count": 16
+		},
+		{
+			"ingredient": {
+				"item": "ae2:certus_quartz_dust"
+			},
+			"count": 16
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 250,
+			"#t": "ae2:f",
+			"id": "data_energistics:data_corrosion_liquid"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "ae2:certus_quartz_crystal",
+			"count": 72
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 2400
+	}
 }

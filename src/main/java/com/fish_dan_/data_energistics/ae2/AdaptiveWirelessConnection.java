@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 public record AdaptiveWirelessConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
+
     private static final String TAG_DIM = "Dim";
     private static final String TAG_POS = "Pos";
     private static final String TAG_FACE = "Face";
@@ -27,8 +28,7 @@ public record AdaptiveWirelessConnection(ResourceKey<Level> dimension, BlockPos 
     public static AdaptiveWirelessConnection fromTag(CompoundTag tag) {
         ResourceKey<Level> dimension = ResourceKey.create(
                 net.minecraft.core.registries.Registries.DIMENSION,
-                ResourceLocation.parse(tag.getString(TAG_DIM))
-        );
+                ResourceLocation.parse(tag.getString(TAG_DIM)));
         BlockPos pos = BlockPos.of(tag.getLong(TAG_POS));
         Direction face = Direction.from3DDataValue(tag.getInt(TAG_FACE));
         return new AdaptiveWirelessConnection(dimension, pos, face);

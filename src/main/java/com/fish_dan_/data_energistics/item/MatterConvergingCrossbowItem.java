@@ -1,5 +1,40 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.registry.ModItems;
+
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.stats.Stats;
+import net.minecraft.util.Mth;
+import net.minecraft.util.Unit;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.ChargedProjectiles;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.event.EventHooks;
+
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
@@ -22,39 +57,6 @@ import appeng.items.misc.PaintBallItem;
 import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.ConfigInventory;
-import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
-import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.Holder;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.stats.Stats;
-import net.minecraft.util.Mth;
-import net.minecraft.util.Unit;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
-import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.item.CrossbowItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.ChargedProjectiles;
-import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
-import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.event.EventHooks;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -62,6 +64,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEItemPowerStorage, IBasicCellItem, IUpgradeableItem {
+
     private static final double MAX_POWER = 200_000.0D;
     private static final double CHARGE_RATE = 200_000.0D;
     private static final double ENERGY_PER_SHOT = 200.0D;
@@ -102,8 +105,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         }
 
         Optional<net.minecraft.core.HolderSet<Item>> primaryItems = enchantment.value().definition().primaryItems();
-        return this.supportsEnchantment(stack, enchantment)
-                && (primaryItems.isEmpty() || stack.is(primaryItems.get()));
+        return this.supportsEnchantment(stack, enchantment) && (primaryItems.isEmpty() || stack.is(primaryItems.get()));
     }
 
     @Override
@@ -157,8 +159,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     @Override
     public void onUseTick(Level level, LivingEntity livingEntity, ItemStack stack, int remainingUseTicks) {
         if (!level.isClientSide) {
-            float progress = (float) (stack.getUseDuration(livingEntity) - remainingUseTicks)
-                    / (float) getChargeDuration(stack, livingEntity);
+            float progress = (float) (stack.getUseDuration(livingEntity) - remainingUseTicks) / (float) getChargeDuration(stack, livingEntity);
             if (this.hasMaxSpeedCards(stack) && progress >= 1.0F && !isCharged(stack) && this.tryLoadProjectile(livingEntity, stack)) {
                 ItemStack loadedAmmo = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY).getItems().getFirst();
                 this.performShooting(level, livingEntity, livingEntity.getUsedItemHand(), stack,
@@ -203,7 +204,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> lines,
-            TooltipFlag tooltipFlag) {
+                                TooltipFlag tooltipFlag) {
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
         this.addCellInformationToTooltip(stack, lines);
         lines.add(Component.translatable("item.data_energistics.matter_converging_crossbow.projectile",
@@ -245,7 +246,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     @Override
     public void performShooting(Level level, LivingEntity shooter, InteractionHand hand, ItemStack stack, float power,
-            float inaccuracy, @Nullable LivingEntity target) {
+                                float inaccuracy, @Nullable LivingEntity target) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -289,7 +290,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     @Override
     protected Projectile createProjectile(Level level, LivingEntity shooter, ItemStack weaponStack, ItemStack ammoStack,
-            boolean isCrit) {
+                                          boolean isCrit) {
         if (this.isDataDustAmmo(ammoStack)) {
             ItemStack thrownStack = new ItemStack(ModItems.DATA_LIGHT_SABER.get());
             ThrownLightSaberEntity projectile = new ThrownLightSaberEntity(level, shooter, thrownStack);
@@ -363,10 +364,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return false;
         }
         var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        return firstEntry != null
-                && firstEntry.getLongValue() > 0
-                && firstEntry.getKey() instanceof AEItemKey itemKey
-                && this.isSupportedAmmo(itemKey.toStack(1));
+        return firstEntry != null && firstEntry.getLongValue() > 0 && firstEntry.getKey() instanceof AEItemKey itemKey && this.isSupportedAmmo(itemKey.toStack(1));
     }
 
     private boolean tryStoreAmmoFromPlayer(ItemStack weaponStack, Player player) {
@@ -492,10 +490,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         }
 
         Item item = itemKey.getItem();
-        return item != AEItems.MATTER_BALL.asItem()
-                && item != AEItems.SINGULARITY.asItem()
-                && !(item instanceof PaintBallItem)
-                && item != ModItems.DATA_LIGHT_SABER.get();
+        return item != AEItems.MATTER_BALL.asItem() && item != AEItems.SINGULARITY.asItem() && !(item instanceof PaintBallItem) && item != ModItems.DATA_LIGHT_SABER.get();
     }
 
     @Override
@@ -567,9 +562,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     public static boolean isSpecialLightSaberAmmo(ItemStack ammoStack) {
-        return !ammoStack.isEmpty()
-                && ammoStack.is(ModItems.DATA_LIGHT_SABER.get())
-                && Math.abs(ammoStack.getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
+        return !ammoStack.isEmpty() && ammoStack.is(ModItems.DATA_LIGHT_SABER.get()) && Math.abs(ammoStack.getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
     }
 
     private boolean isDataDustAmmo(ItemStack ammoStack) {
@@ -581,10 +574,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return false;
         }
         Item item = ammoStack.getItem();
-        return item == AEItems.MATTER_BALL.asItem()
-                || item == AEItems.SINGULARITY.asItem()
-                || item instanceof PaintBallItem
-                || this.isDataDustAmmo(ammoStack);
+        return item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || this.isDataDustAmmo(ammoStack);
     }
 
     private double getDataDustEnergyPerShot(ItemStack stack) {
@@ -643,8 +633,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     @Override
-    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {
-    }
+    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
     private static List<ItemStack> collectUpgradeItems(IUpgradeInventory upgrades) {
         List<ItemStack> upgradeItems = new ArrayList<>(upgrades.size());

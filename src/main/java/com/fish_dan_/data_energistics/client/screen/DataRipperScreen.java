@@ -1,17 +1,20 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.api.config.YesNo;
-import appeng.client.gui.Icon;
-import appeng.client.gui.implementations.UpgradeableScreen;
-import appeng.client.gui.style.ScreenStyle;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
 import com.fish_dan_.data_energistics.client.widget.DataRipperSettingToggleButton;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
+import appeng.api.config.YesNo;
+import appeng.client.gui.Icon;
+import appeng.client.gui.implementations.UpgradeableScreen;
+import appeng.client.gui.style.ScreenStyle;
+
 public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
+
     private final DataRipperSettingToggleButton accelerateButton;
     private final DataRipperSettingToggleButton redstoneControlButton;
     private final TextUpdater textUpdater = new TextUpdater();
@@ -27,8 +30,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
                 "button.data_energistics.data_ripper.redstone_control",
                 "button.data_energistics.data_ripper.redstone_control.enabled",
                 "button.data_energistics.data_ripper.redstone_control.disabled",
-                "button.data_energistics.data_ripper.redstone_control.blocked"
-        );
+                "button.data_energistics.data_ripper.redstone_control.blocked");
         this.addToLeftToolbar(this.redstoneControlButton);
 
         this.accelerateButton = new DataRipperSettingToggleButton(
@@ -39,8 +41,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
                 "button.data_energistics.data_ripper.accelerate",
                 "button.data_energistics.data_ripper.accelerate.enabled",
                 "button.data_energistics.data_ripper.accelerate.disabled",
-                "button.data_energistics.data_ripper.accelerate.blocked"
-        );
+                "button.data_energistics.data_ripper.accelerate.blocked");
         this.addToLeftToolbar(this.accelerateButton);
     }
 
@@ -65,6 +66,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
     }
 
     private class TextUpdater {
+
         void update() {
             if (DataRipperScreen.this.menu.targetBlacklisted) {
                 this.updateBlacklisted();
@@ -90,10 +92,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
 
             this.set(
                     "enable",
-                    DataRipperScreen.this.menu.networkEnergySufficient == YesNo.YES
-                            ? null
-                            : this.translatable("warning_network_energy_insufficient")
-            );
+                    DataRipperScreen.this.menu.networkEnergySufficient == YesNo.YES ? null : this.translatable("warning_network_energy_insufficient"));
             this.set("speed", this.translatable("speed", effectiveSpeed));
             this.set("energy", this.translatable("energy", DataRipperPowerUtils.formatDataFlowCost(finalPower)));
             this.set("power_ratio", this.translatable("power_ratio", DataRipperPowerUtils.formatPercentage(powerRatio)));

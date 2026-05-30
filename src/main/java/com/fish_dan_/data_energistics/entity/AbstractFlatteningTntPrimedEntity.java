@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.FlatteningTntConfig;
-import javax.annotation.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.EntityType;
@@ -11,17 +11,20 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 
+import javax.annotation.Nullable;
+
 public abstract class AbstractFlatteningTntPrimedEntity extends PrimedTnt {
+
     private static final String TAG_ORIGIN = "Origin";
     private BlockPos origin = BlockPos.ZERO;
 
     protected AbstractFlatteningTntPrimedEntity(EntityType<? extends AbstractFlatteningTntPrimedEntity> entityType,
-            Level level) {
+                                                Level level) {
         super(entityType, level);
     }
 
     protected AbstractFlatteningTntPrimedEntity(EntityType<? extends AbstractFlatteningTntPrimedEntity> entityType,
-            Level level, BlockPos origin, @Nullable LivingEntity owner, BlockState displayBlockState) {
+                                                Level level, BlockPos origin, @Nullable LivingEntity owner, BlockState displayBlockState) {
         super(entityType, level);
         this.origin = origin.immutable();
         this.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);

@@ -1,5 +1,5 @@
 {
-  "loader": "neoforge:fluid_container",
-  "parent": "neoforge:item/bucket",
-  "fluid": "data_energistics:ender"
+	"loader": "neoforge:fluid_container",
+	"parent": "neoforge:item/bucket",
+	"fluid": "data_energistics:ender"
 }

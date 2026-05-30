@@ -1,16 +1,16 @@
 {
-  "type": "minecraft:smithing_transform",
-  "addition": {
-    "item": "ae2:energy_cell"
-  },
-  "base": {
-    "item": "ae2:fluix_axe"
-  },
-  "result": {
-    "count": 1,
-    "id": "data_energistics:data_crystal_axe"
-  },
-  "template": {
-    "item": "data_energistics:data_processor"
-  }
+	"type": "minecraft:smithing_transform",
+	"addition": {
+		"item": "ae2:energy_cell"
+	},
+	"base": {
+		"item": "ae2:fluix_axe"
+	},
+	"result": {
+		"count": 1,
+		"id": "data_energistics:data_crystal_axe"
+	},
+	"template": {
+		"item": "data_energistics:data_processor"
+	}
 }

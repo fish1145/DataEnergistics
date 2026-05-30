@@ -1,6 +1,6 @@
 {
-  "parent": "data_energistics:item/data_light_saber_on",
-  "textures": {
-    "light": "data_energistics:item/tool_weapon/light_saber/light_light_gray"
-  }
+	"parent": "data_energistics:item/data_light_saber_on",
+	"textures": {
+		"light": "data_energistics:item/tool_weapon/light_saber/light_light_gray"
+	}
 }

@@ -1,20 +1,21 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+
 import appeng.api.networking.security.IActionHost;
 import appeng.api.parts.IPart;
-import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandles;
-import java.util.LinkedHashSet;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 final class UniversalTerminalMenuHostResolver {
-    private UniversalTerminalMenuHostResolver() {
-    }
+
+    private UniversalTerminalMenuHostResolver() {}
 
     static <T> @Nullable T resolve(UniversalTerminalPart part, Class<T> hostInterface) {
         if (hostInterface.isInstance(part)) {
@@ -30,8 +31,7 @@ final class UniversalTerminalMenuHostResolver {
         Object proxy = Proxy.newProxyInstance(
                 hostInterface.getClassLoader(),
                 proxyInterfaces.toArray(Class[]::new),
-                handler
-        );
+                handler);
         return hostInterface.cast(proxy);
     }
 
@@ -68,6 +68,7 @@ final class UniversalTerminalMenuHostResolver {
     }
 
     private record MenuHostInvocationHandler(UniversalTerminalPart part) implements InvocationHandler {
+
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             if (method.getDeclaringClass() == Object.class) {
@@ -86,9 +87,7 @@ final class UniversalTerminalMenuHostResolver {
                         .invokeWithArguments(args == null ? new Object[0] : args);
             }
 
-            if (method.getDeclaringClass() == UniversalTerminalHostAccessor.class
-                    && method.getName().equals("getUniversalTerminalPart")
-                    && method.getParameterCount() == 0) {
+            if (method.getDeclaringClass() == UniversalTerminalHostAccessor.class && method.getName().equals("getUniversalTerminalPart") && method.getParameterCount() == 0) {
                 return this.part;
             }
 

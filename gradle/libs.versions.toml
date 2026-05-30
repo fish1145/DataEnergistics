@@ -1,6 +1,6 @@
 [versions]
 minecraft = "1.21.1"
-neoForge = "21.1.215"
+neoForge = "21.1.216"
 loader = "4"
 parchment = "2024.11.17" # https://parchmentmc.org/docs/getting-started
 shadow = "9.4.0"

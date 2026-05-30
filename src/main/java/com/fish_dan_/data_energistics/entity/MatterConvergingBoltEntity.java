@@ -1,15 +1,14 @@
 package com.fish_dan_.data_energistics.entity;
 
-import appeng.core.definitions.AEItems;
-import appeng.items.misc.PaintBallItem;
 import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
-import net.minecraft.nbt.CompoundTag;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -34,6 +33,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
+
+import appeng.core.definitions.AEItems;
+import appeng.items.misc.PaintBallItem;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
@@ -41,6 +43,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
+
     private static final float MATTER_BALL_DAMAGE = 10.0F;
     private static final float SINGULARITY_DAMAGE = 25.0F;
     private static final float DEFAULT_DATA_DUST_DAMAGE_RATIO = 0.01F;
@@ -54,16 +57,11 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private static final double HOMING_MAX_STRENGTH = 0.85D;
     private static final double HOMING_CLOSE_RANGE = 8.0D;
     private static final double HOMING_HIT_MARGIN = 0.75D;
-    private static final DustParticleOptions SINGULARITY_TRAIL_PARTICLE =
-            new DustParticleOptions(new Vector3f(0.48F, 0.24F, 1.0F), 1.2F);
-    private static final EntityDataAccessor<Integer> DATA_COLOR =
-            SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Integer> DATA_PIERCE_LEVEL =
-            SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
-    private static final EntityDataAccessor<Boolean> DATA_HOMING =
-            SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final EntityDataAccessor<Integer> DATA_SABER_ENERGY_CARD_COUNT =
-            SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
+    private static final DustParticleOptions SINGULARITY_TRAIL_PARTICLE = new DustParticleOptions(new Vector3f(0.48F, 0.24F, 1.0F), 1.2F);
+    private static final EntityDataAccessor<Integer> DATA_COLOR = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PIERCE_LEVEL = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_HOMING = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_SABER_ENERGY_CARD_COUNT = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
 
     private double traveledDistance;
@@ -195,9 +193,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         Entity target = result.getEntity();
         LivingEntity livingTarget = this.resolveLivingTarget(target);
         if (this.isDataDustAmmo() && livingTarget != null) {
-            DamageSource damageSource = owner instanceof LivingEntity livingOwner
-                    ? this.damageSources().mobProjectile(this, livingOwner)
-                    : this.damageSources().thrown(this, owner);
+            DamageSource damageSource = owner instanceof LivingEntity livingOwner ? this.damageSources().mobProjectile(this, livingOwner) : this.damageSources().thrown(this, owner);
             float baseDamage = this.getDataDustBaseDamage();
             this.resetTargetInvulnerability(target);
             if (livingTarget != target) {
@@ -211,9 +207,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             this.discardWithEffects();
             return;
         }
-        DamageSource damageSource = owner instanceof LivingEntity livingOwner
-                ? this.damageSources().mobProjectile(this, livingOwner)
-                : this.damageSources().thrown(this, owner);
+        DamageSource damageSource = owner instanceof LivingEntity livingOwner ? this.damageSources().mobProjectile(this, livingOwner) : this.damageSources().thrown(this, owner);
         float damage = this.getImpactDamage();
         if (this.level() instanceof ServerLevel serverLevel && !this.weaponStack.isEmpty()) {
             damage = EnchantmentHelper.modifyDamage(serverLevel, this.weaponStack, target, damageSource, damage);
@@ -258,8 +252,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private boolean isDataDustAmmo() {
-        return this.getItem().is(ModItems.DATA_LIGHT_SABER.get())
-                && Math.abs(this.getItem().getOrDefault(appeng.api.ids.AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
+        return this.getItem().is(ModItems.DATA_LIGHT_SABER.get()) && Math.abs(this.getItem().getOrDefault(appeng.api.ids.AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
     }
 
     public int getColor() {
@@ -388,12 +381,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private LivingEntity findNearestHomingTarget() {
         Entity owner = this.getOwner();
         return this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(HOMING_RANGE),
-                        entity -> entity.isAlive()
-                                && !entity.isRemoved()
-                                && !(entity instanceof Player)
-                                && !(entity instanceof ServerPlayer)
-                                && entity != owner
-                                && !this.piercedEntityIds.contains(entity.getId()))
+                entity -> entity.isAlive() && !entity.isRemoved() && !(entity instanceof Player) && !(entity instanceof ServerPlayer) && entity != owner && !this.piercedEntityIds.contains(entity.getId()))
                 .stream()
                 .min((left, right) -> Double.compare(this.distanceToSqr(left), this.distanceToSqr(right)))
                 .orElse(null);
@@ -405,11 +393,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             return;
         }
 
-        DamageSource damageSource = owner instanceof Player player
-                ? this.damageSources().playerAttack(player)
-                : owner instanceof LivingEntity livingOwner
-                ? this.damageSources().mobAttack(livingOwner)
-                : this.damageSources().magic();
+        DamageSource damageSource = owner instanceof Player player ? this.damageSources().playerAttack(player) : owner instanceof LivingEntity livingOwner ? this.damageSources().mobAttack(livingOwner) : this.damageSources().magic();
         target.invulnerableTime = 0;
         target.hurtTime = 0;
         target.hurtDuration = 0;
@@ -497,5 +481,4 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         }
         this.discard();
     }
-
 }

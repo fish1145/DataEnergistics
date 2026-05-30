@@ -1,18 +1,20 @@
 package com.fish_dan_.data_energistics.client;
 
-import appeng.items.storage.BasicStorageCell;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModFluids;
-import appeng.items.tools.powered.AbstractPortableCell;
+import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.client.color.item.ItemColor;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.model.DynamicFluidContainerModel;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.model.DynamicFluidContainerModel;
+
+import appeng.items.storage.BasicStorageCell;
+import appeng.items.tools.powered.AbstractPortableCell;
 
 public final class ModItemColors {
-    private ModItemColors() {
-    }
+
+    private ModItemColors() {}
 
     public static void register(RegisterColorHandlersEvent.Item event) {
         event.register(makeOpaque(ModItemColors::getPortableCellColor),

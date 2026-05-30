@@ -1,11 +1,25 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
+import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.fluids.FluidStack;
+
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
@@ -13,24 +27,13 @@ import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.core.AppEng;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantics;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
-import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.fluids.FluidStack;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.jetbrains.annotations.Nullable;
 
 public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperReassemblerMenu> {
+
     private static final ResourceLocation MISSING_FLUID = AppEng.makeId("block/missing");
     private final ProgressBar progressBar;
     private final ServerSettingToggleButton<YesNo> autoExportButton;
@@ -94,9 +97,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
 
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (slot.isActive()
-                && slot.getItem().isEmpty()
-                && this.menu.getSlotSemantic(slot) == SlotSemantics.UPGRADE) {
+        if (slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == SlotSemantics.UPGRADE) {
             DataEnergisticsIcon.getBlitter("PLACEMENT_TOOLBOX")
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
@@ -117,12 +118,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         }
 
         var semantic = this.menu.getSlotSemantic(slot);
-        return semantic == SlotSemantics.STORAGE
-                || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B
-                || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A
-                || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B
-                || semantic == DataRipperReassemblerMenu.KEY_INPUT
-                || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
+        return semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B || semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
     }
 
     private boolean isGenericStorageSlot(Slot slot) {
@@ -131,12 +127,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         }
 
         var semantic = this.menu.getSlotSemantic(slot);
-        return semantic == SlotSemantics.STORAGE
-                || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B
-                || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A
-                || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B
-                || semantic == DataRipperReassemblerMenu.KEY_INPUT
-                || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
+        return semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B || semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
     }
 
     private Component getEmptySlotTooltip(appeng.menu.SlotSemantic semantic) {
@@ -151,8 +142,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
             return Component.literal(amount + " mB / " + this.menu.getFluidInputCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
         }
-        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A
-                || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B) {
+        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B) {
             return Component.literal(amount + " mB / " + this.menu.getFluidOutputCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
         }

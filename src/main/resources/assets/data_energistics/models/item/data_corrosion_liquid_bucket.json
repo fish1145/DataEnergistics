@@ -1,5 +1,5 @@
 {
-  "loader": "neoforge:fluid_container",
-  "parent": "neoforge:item/bucket",
-  "fluid": "data_energistics:data_corrosion_liquid"
+	"loader": "neoforge:fluid_container",
+	"parent": "neoforge:item/bucket",
+	"fluid": "data_energistics:data_corrosion_liquid"
 }

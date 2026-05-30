@@ -1,26 +1,5 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
-import appeng.api.config.PowerUnit;
-import appeng.api.inventories.ISegmentedInventory;
-import appeng.api.inventories.InternalInventory;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.MEStorage;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.api.util.AECableType;
-import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
-import appeng.core.definitions.AEItems;
-import appeng.helpers.externalstorage.GenericStackInv;
-import appeng.util.Platform;
-import appeng.util.ConfigMenuInventory;
-import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.filter.IAEItemFilter;
 import com.fish_dan_.data_energistics.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
@@ -31,19 +10,19 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -52,7 +31,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -72,6 +50,28 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
+
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
+import appeng.api.inventories.ISegmentedInventory;
+import appeng.api.inventories.InternalInventory;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.storage.MEStorage;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.IUpgradeableObject;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.api.util.AECableType;
+import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
+import appeng.core.definitions.AEItems;
+import appeng.helpers.externalstorage.GenericStackInv;
+import appeng.util.ConfigMenuInventory;
+import appeng.util.Platform;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.filter.IAEItemFilter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -82,6 +82,7 @@ import java.util.List;
 import java.util.Set;
 
 public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject {
+
     public static final int BASE_ACTIVE_SLOTS = 4;
     public static final int EXTRA_SLOTS_PER_CAPACITY_CARD = 4;
     public static final int MAX_CAPACITY_CARDS = 1;
@@ -107,8 +108,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
-    private final IUpgradeInventory upgrades =
-            UpgradeInventories.forMachine(ModBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
     private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
     private int workTicks;
@@ -411,11 +411,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private static final class CarrierOnlyFilter implements IAEItemFilter {
+
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            return stack.is(ModItems.MOB_DATA_CARRIER.get())
-                    || stack.is(ModItems.ORE_DATA_CARRIER.get())
-                    || stack.is(ModItems.CROP_DATA_CARRIER.get());
+            return stack.is(ModItems.MOB_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get()) || stack.is(ModItems.CROP_DATA_CARRIER.get());
         }
     }
 
@@ -494,10 +493,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private boolean hasRecordedData(ItemStack stack) {
-        return !stack.isEmpty()
-                && (BiologyDataCarrierData.isComplete(stack)
-                        || OreDataCarrierData.isComplete(stack)
-                        || CropDataCarrierData.isComplete(stack));
+        return !stack.isEmpty() && (BiologyDataCarrierData.isComplete(stack) || OreDataCarrierData.isComplete(stack) || CropDataCarrierData.isComplete(stack));
     }
 
     private void performBiologyMimeticWork() {
@@ -650,8 +646,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                     targetPos,
                     targetState,
                     this.level.getBlockEntity(targetPos),
-                    direction.getOpposite()
-            );
+                    direction.getOpposite());
             if (handler != null) {
                 handlers.add(handler);
             }
@@ -698,8 +693,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                     serverLevel,
                     serverLevel.getCurrentDifficultyAt(this.worldPosition),
                     MobSpawnType.COMMAND,
-                    null
-            );
+                    null);
             mob.setNoAi(true);
         }
 
@@ -709,8 +703,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 this.worldPosition.getY() + 1.0,
                 this.worldPosition.getZ() + 0.5,
                 fakePlayer.getYRot(),
-                fakePlayer.getXRot()
-        );
+                fakePlayer.getXRot());
 
         List<LivingEntity> simulatedEntities = collectSimulatedLivingEntities(livingEntity);
         ArrayList<ItemStack> drops = new ArrayList<>();
@@ -1068,9 +1061,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         long required = getDataFlowCostPerWorkCycle(activeCarrierCount);
-        return this.keyInputStack != null
-                && this.keyInputStack.what() instanceof DataFlowKey
-                && this.keyInputStack.amount() >= required;
+        return this.keyInputStack != null && this.keyInputStack.what() instanceof DataFlowKey && this.keyInputStack.amount() >= required;
     }
 
     private boolean consumeDataFlowPerWorkCycle() {
@@ -1080,9 +1071,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         long required = getDataFlowCostPerWorkCycle(activeCarrierCount);
-        if (this.keyInputStack == null
-                || !(this.keyInputStack.what() instanceof DataFlowKey)
-                || this.keyInputStack.amount() < required) {
+        if (this.keyInputStack == null || !(this.keyInputStack.what() instanceof DataFlowKey) || this.keyInputStack.amount() < required) {
             return false;
         }
 
@@ -1125,9 +1114,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
 
-        long stored = this.keyInputStack != null && this.keyInputStack.what() instanceof DataFlowKey
-                ? this.keyInputStack.amount()
-                : 0L;
+        long stored = this.keyInputStack != null && this.keyInputStack.what() instanceof DataFlowKey ? this.keyInputStack.amount() : 0L;
         long missing = KEY_INPUT_CAPACITY - stored;
         if (missing <= 0) {
             return;
@@ -1152,6 +1139,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     private GenericStackInv createKeyMenuInventory() {
         var inv = new GenericStackInv(java.util.Set.of(DataFlowKeyType.TYPE), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
+
             {
                 this.setFilter((slot, what) -> what instanceof DataFlowKey);
             }

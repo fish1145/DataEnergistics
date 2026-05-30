@@ -4,8 +4,9 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.moakiee.ae2lt.logic.OverloadedPatternProviderLogic;
+
 import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
+import com.moakiee.ae2lt.logic.OverloadedPatternProviderLogic;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,6 +22,7 @@ import java.util.Map;
 
 @Mixin(OverloadedPatternProviderLogic.class)
 public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements PatternProviderLogicAccessor {
+
     @Shadow
     @Final
     private OverloadedPatternProviderBlockEntity overloadedHost;
@@ -58,15 +60,12 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
 
     @Override
     public boolean dataEnergistics$forcePulseUnlock() {
-        if (this.overloadedHost instanceof PatternProviderHostAccessor accessor
-                && accessor.dataEnergistics$getRedstoneTuningMode() == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE
-                && this.overloadedHost.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        if (this.overloadedHost instanceof PatternProviderHostAccessor accessor && accessor.dataEnergistics$getRedstoneTuningMode() == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE && this.overloadedHost.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
             RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                     serverLevel,
                     this.overloadedHost.getGrid(),
                     ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
-                    ((OverloadedPatternProviderLogic) (Object) this).getAvailablePatterns()
-            );
+                    ((OverloadedPatternProviderLogic) (Object) this).getAvailablePatterns());
             return true;
         }
         return false;
@@ -77,8 +76,7 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
         if (!this.dataEnergistics$dispatchPulsePending) {
             return;
         }
-        if (!((PatternProviderLogicFieldAccessor) this).dataEnergistics$getSendList().isEmpty()
-                || this.dataEnergistics$hasAe2LtWirelessOverflow()) {
+        if (!((PatternProviderLogicFieldAccessor) this).dataEnergistics$getSendList().isEmpty() || this.dataEnergistics$hasAe2LtWirelessOverflow()) {
             return;
         }
         this.dataEnergistics$dispatchPulsePending = false;
@@ -89,18 +87,14 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
 
     @Unique
     private void dataEnergistics$tryConsumePulseUnlock(PatternProviderHostAccessor accessor) {
-        if (!accessor.dataEnergistics$hasRedstoneTuningCard()
-                || accessor.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE
-                || !accessor.dataEnergistics$consumeRedstoneInputPulse()
-                || !(this.overloadedHost.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+        if (!accessor.dataEnergistics$hasRedstoneTuningCard() || accessor.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE || !accessor.dataEnergistics$consumeRedstoneInputPulse() || !(this.overloadedHost.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
             return;
         }
         RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                 serverLevel,
                 this.overloadedHost.getGrid(),
                 ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
-                ((OverloadedPatternProviderLogic) (Object) this).getAvailablePatterns()
-        );
+                ((OverloadedPatternProviderLogic) (Object) this).getAvailablePatterns());
     }
 
     @Unique

@@ -1,13 +1,7 @@
 package com.fish_dan_.data_energistics.recipe;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
@@ -16,9 +10,19 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
+
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReassemblerRecipeInput> {
+
     public static final int PROCESS_TICKS = 200;
     public static final int ITEM_INPUT_SLOTS = 9;
     public static final int KEY_INPUT_SLOTS = 1;

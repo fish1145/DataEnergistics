@@ -1,18 +1,19 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PatternProviderBlockEntity.class)
 public abstract class PatternProviderBlockEntityMixin implements PatternProviderHostAccessor {
+
     @Unique
     private static final String DATA_ENERGISTICS_REDSTONE_TUNING_TAG = "data_energistics_redstone_tuning_mode";
     @Unique
@@ -155,8 +157,7 @@ public abstract class PatternProviderBlockEntityMixin implements PatternProvider
 
     @Override
     public boolean dataEnergistics$isRedstoneTuningPulseActive() {
-        return this.dataEnergistics$redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH
-                && this.dataEnergistics$redstonePulseTicks > 0;
+        return this.dataEnergistics$redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH && this.dataEnergistics$redstonePulseTicks > 0;
     }
 
     @Override
@@ -242,13 +243,10 @@ public abstract class PatternProviderBlockEntityMixin implements PatternProvider
 
     @Unique
     private void dataEnergistics$tryForcePulseUnlock() {
-        if (!this.dataEnergistics$redstoneInputPulsePending
-                || !this.dataEnergistics$hasRedstoneTuningCard()
-                || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+        if (!this.dataEnergistics$redstoneInputPulsePending || !this.dataEnergistics$hasRedstoneTuningCard() || this.dataEnergistics$redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
             return;
         }
-        if (((PatternProviderBlockEntity) (Object) this).getLogic() instanceof PatternProviderLogicAccessor accessor
-                && accessor.dataEnergistics$forcePulseUnlock()) {
+        if (((PatternProviderBlockEntity) (Object) this).getLogic() instanceof PatternProviderLogicAccessor accessor && accessor.dataEnergistics$forcePulseUnlock()) {
             this.dataEnergistics$redstoneInputPulsePending = false;
         }
     }
@@ -260,8 +258,7 @@ public abstract class PatternProviderBlockEntityMixin implements PatternProvider
             this.dataEnergistics$redstoneTuningUpgrades = UpgradeInventories.forMachine(
                     self.getBlockState().getBlock().asItem(),
                     1,
-                    this::dataEnergistics$saveAndUpdate
-            );
+                    this::dataEnergistics$saveAndUpdate);
         }
         return this.dataEnergistics$redstoneTuningUpgrades;
     }

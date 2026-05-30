@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AESubScreen;
 import appeng.client.gui.Icon;
@@ -13,20 +15,20 @@ import appeng.menu.SlotSemantics;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+
 import java.util.function.Consumer;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.item.ItemStack;
 
 public class SetIntProcessingPatternAmountScreen
-        extends AESubScreen<PatternEncodingTermMenu, PatternEncodingTermScreen<PatternEncodingTermMenu>> {
+                                                 extends AESubScreen<PatternEncodingTermMenu, PatternEncodingTermScreen<PatternEncodingTermMenu>> {
+
     private final NumberEntryWidget amount;
     private final GenericStack currentStack;
     private final Consumer<GenericStack> setter;
 
     public SetIntProcessingPatternAmountScreen(
-            PatternEncodingTermScreen<PatternEncodingTermMenu> parentScreen,
-            GenericStack currentStack,
-            Consumer<GenericStack> setter) {
+                                               PatternEncodingTermScreen<PatternEncodingTermMenu> parentScreen,
+                                               GenericStack currentStack,
+                                               Consumer<GenericStack> setter) {
         super(parentScreen, "/screens/set_processing_pattern_amount.json");
         this.currentStack = currentStack;
         this.setter = setter;

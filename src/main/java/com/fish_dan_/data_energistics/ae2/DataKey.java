@@ -1,11 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.api.stacks.GenericStack;
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.MapCodec;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -15,16 +11,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+
 import java.util.List;
 
 public final class DataKey extends AEKey {
+
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data");
     public static final DataKey INSTANCE = new DataKey();
     public static final MapCodec<DataKey> MAP_CODEC = MapCodec.unit(INSTANCE);
     public static final Codec<DataKey> CODEC = MAP_CODEC.codec();
 
-    private DataKey() {
-    }
+    private DataKey() {}
 
     public static DataKey of() {
         return INSTANCE;
@@ -56,8 +58,7 @@ public final class DataKey extends AEKey {
     }
 
     @Override
-    public void writeToPacket(RegistryFriendlyByteBuf buffer) {
-    }
+    public void writeToPacket(RegistryFriendlyByteBuf buffer) {}
 
     @Override
     protected Component computeDisplayName() {

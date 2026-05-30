@@ -1,11 +1,9 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import com.mojang.logging.LogUtils;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.core.BlockPos;
 import net.neoforged.neoforge.client.event.AddSectionGeometryEvent;
+
+import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -13,14 +11,18 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Pseudo
 @Mixin(targets = "cn.dancingsnow.neoecoae.client.NeoECOAEClient", remap = false)
 public class NeoECOAEClientMixin {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int MAX_WARNINGS = 5;
     private static final AtomicInteger SAFE_RENDER_FAILURES = new AtomicInteger();
-    private static final String FIXED_BLOCK_ENTITY_RENDERERS =
-            "cn.dancingsnow.neoecoae.api.rendering.FixedBlockEntityRenderers";
+    private static final String FIXED_BLOCK_ENTITY_RENDERERS = "cn.dancingsnow.neoecoae.api.rendering.FixedBlockEntityRenderers";
     private static volatile Method fixedRendererMethod;
     private static volatile boolean fixedRendererLookupAttempted;
 

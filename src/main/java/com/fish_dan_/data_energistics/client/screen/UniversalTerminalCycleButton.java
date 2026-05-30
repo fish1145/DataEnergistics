@@ -1,17 +1,19 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.Icon;
-import appeng.client.gui.widgets.ITooltip;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.widgets.ITooltip;
+
 import java.util.List;
 import java.util.function.Supplier;
 
 public class UniversalTerminalCycleButton extends Button implements ITooltip {
+
     private final Supplier<ItemStack> iconSupplier;
     private final Supplier<List<Component>> tooltipSupplier;
     private final java.util.function.BooleanSupplier selectedSupplier;
@@ -54,9 +56,7 @@ public class UniversalTerminalCycleButton extends Button implements ITooltip {
 
         int yOffset = this.isHovered() ? 1 : 0;
         boolean selected = this.selectedSupplier.getAsBoolean();
-        Icon background = this.isHovered()
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : ((selected || this.isFocused()) ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
+        Icon background = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : ((selected || this.isFocused()) ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
 
         background.getBlitter().dest(this.getX() - 1, this.getY() + yOffset, 18, 20).zOffset(2).blit(guiGraphics);
 

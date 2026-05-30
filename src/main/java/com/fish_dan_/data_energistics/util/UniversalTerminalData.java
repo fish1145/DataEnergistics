@@ -1,18 +1,20 @@
 package com.fish_dan_.data_energistics.util;
 
-import appeng.api.util.IConfigManager;
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+
+import appeng.api.util.IConfigManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class UniversalTerminalData {
+
     private static final String TAG_TERMINALS = "installed_terminals";
     private static final String TAG_NAME = "name";
     private static final String TAG_STACK = "stack";
@@ -34,8 +37,7 @@ public final class UniversalTerminalData {
 
     private static final List<UniversalTerminalAdapter> TERMINAL_DEFINITIONS = new ArrayList<>();
 
-    private UniversalTerminalData() {
-    }
+    private UniversalTerminalData() {}
 
     public static List<UniversalTerminalAdapter> getDefinitions() {
         return List.copyOf(TERMINAL_DEFINITIONS);
@@ -53,8 +55,7 @@ public final class UniversalTerminalData {
         ItemStack result = resultTemplate.copyWithCount(1);
         List<TerminalEntry> entries = mergeEntries(
                 List.of(),
-                List.of(terminalEntryFromStack(firstTerminal), terminalEntryFromStack(secondTerminal))
-        );
+                List.of(terminalEntryFromStack(firstTerminal), terminalEntryFromStack(secondTerminal)));
         if (entries.size() < 2) {
             return ItemStack.EMPTY;
         }
@@ -141,9 +142,7 @@ public final class UniversalTerminalData {
 
     public static MenuType<?> getMenuType(String terminalName) {
         Optional<UniversalTerminalAdapter> definition = getDefinition(terminalName);
-        return definition.isPresent()
-                ? definition.get().getMenuType()
-                : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
+        return definition.isPresent() ? definition.get().getMenuType() : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
     }
 
     public static UniversalTerminalConfigProfile getConfigProfile(@Nullable String terminalName) {
@@ -172,9 +171,7 @@ public final class UniversalTerminalData {
     }
 
     public static @Nullable String getTerminalNameByIndex(int index) {
-        return index >= 0 && index < TERMINAL_DEFINITIONS.size()
-                ? TERMINAL_DEFINITIONS.get(index).name()
-                : null;
+        return index >= 0 && index < TERMINAL_DEFINITIONS.size() ? TERMINAL_DEFINITIONS.get(index).name() : null;
     }
 
     public static int getDefinitionCount() {
@@ -257,6 +254,5 @@ public final class UniversalTerminalData {
         return List.copyOf(merged.values());
     }
 
-    public record TerminalEntry(String name, ItemStack stack) {
-    }
+    public record TerminalEntry(String name, ItemStack stack) {}
 }

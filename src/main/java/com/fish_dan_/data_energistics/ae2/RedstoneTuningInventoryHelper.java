@@ -1,15 +1,16 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.registry.ModItems;
+
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
 
 public final class RedstoneTuningInventoryHelper {
-    private RedstoneTuningInventoryHelper() {
-    }
+
+    private RedstoneTuningInventoryHelper() {}
 
     public static boolean hasRedstoneTuningCard(Object host, @Nullable IUpgradeInventory fallbackInventory) {
         if (containsCard(fallbackInventory)) {

@@ -1,15 +1,10 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
-import appeng.api.config.PowerUnit;
-import appeng.api.inventories.InternalInventory;
-import appeng.api.util.AECableType;
-import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TeleportAnchorSavedData;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -17,17 +12,23 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
+import appeng.api.inventories.InternalInventory;
+import appeng.api.util.AECableType;
+import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity {
+
     public static final double ENERGY_CAPACITY = 40_000.0D;
     public static final double TELEPORT_ENERGY_COST = 10_000.0D;
     private static final long ANCHOR_PRUNE_INTERVAL_TICKS = 100L;
@@ -153,8 +155,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public String getAnchorDimensionId() {
-        return this.level == null ? net.minecraft.world.level.Level.OVERWORLD.location().toString()
-                : this.level.dimension().location().toString();
+        return this.level == null ? net.minecraft.world.level.Level.OVERWORLD.location().toString() : this.level.dimension().location().toString();
     }
 
     public String getAnchorDisplayName() {
@@ -165,8 +166,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
 
     public String getChannelId() {
         BlockState state = this.getBlockState();
-        if (state.getBlock() instanceof DataTeleportAnchorBlock
-                && state.hasProperty(DataTeleportAnchorBlock.COLOR)) {
+        if (state.getBlock() instanceof DataTeleportAnchorBlock && state.hasProperty(DataTeleportAnchorBlock.COLOR)) {
             return state.getValue(DataTeleportAnchorBlock.COLOR).getSerializedName();
         }
         return "default";
@@ -211,7 +211,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private TeleportResult teleportEntitiesTo(ResourceLocation targetDimensionId, BlockPos targetAnchorPos,
-            boolean requireSourcePower) {
+                                              boolean requireSourcePower) {
         if (!(this.level instanceof ServerLevel sourceLevel)) {
             return new TeleportResult(TeleportStatus.TARGET_NOT_FOUND, 0);
         }
@@ -285,7 +285,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
 
         if (teleportedCount > 0) {
             if (requireSourcePower) {
-            consumeAllStoredEnergy();
+                consumeAllStoredEnergy();
             }
             return new TeleportResult(TeleportStatus.SUCCESS, teleportedCount);
         }
@@ -332,9 +332,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private boolean isSelfAnchor(ResourceLocation dimensionId, BlockPos pos) {
-        return this.level != null
-                && this.level.dimension().location().equals(dimensionId)
-                && this.worldPosition.equals(pos);
+        return this.level != null && this.level.dimension().location().equals(dimensionId) && this.worldPosition.equals(pos);
     }
 
     private static boolean channelsCanConnect(String sourceChannel, String targetChannel) {
@@ -380,8 +378,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void pruneInvalidAnchorsIfNeeded(ServerLevel serverLevel) {
         long gameTime = serverLevel.getGameTime();
-        if (this.lastAnchorPruneGameTime != Long.MIN_VALUE
-                && gameTime - this.lastAnchorPruneGameTime < ANCHOR_PRUNE_INTERVAL_TICKS) {
+        if (this.lastAnchorPruneGameTime != Long.MIN_VALUE && gameTime - this.lastAnchorPruneGameTime < ANCHOR_PRUNE_INTERVAL_TICKS) {
             return;
         }
 
@@ -500,11 +497,9 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
-    public record AnchorSummary(String name, String dimensionId, BlockPos pos, String channelId) {
-    }
+    public record AnchorSummary(String name, String dimensionId, BlockPos pos, String channelId) {}
 
-    public record TeleportResult(TeleportStatus status, int entityCount) {
-    }
+    public record TeleportResult(TeleportStatus status, int entityCount) {}
 
     public enum TeleportStatus {
         SUCCESS,

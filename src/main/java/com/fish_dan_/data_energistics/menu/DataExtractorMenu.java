@@ -1,5 +1,19 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.DataExtractorConfig;
+import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
+import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
+import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.CropDataCarrierData;
+import com.fish_dan_.data_energistics.util.OreDataCarrierData;
+
+import net.minecraft.core.Direction;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.util.IConfigManager;
 import appeng.core.definitions.AEItems;
 import appeng.menu.SlotSemantic;
@@ -8,23 +22,12 @@ import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
 import appeng.menu.interfaces.IProgressProvider;
 import appeng.menu.slot.RestrictedInputSlot;
-import com.fish_dan_.data_energistics.DataExtractorConfig;
-import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
-import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
-import com.fish_dan_.data_energistics.util.CropDataCarrierData;
-import com.fish_dan_.data_energistics.util.OreDataCarrierData;
-import net.minecraft.core.Direction;
-import net.minecraft.tags.ItemTags;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity> implements IProgressProvider {
+
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
     private static final String ACTION_SET_AUTO_EXPORT = "set_auto_export";
@@ -84,13 +87,11 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
             this.targetLimit = DataExtractorBlockEntity.computeTargetLimit(this.getUpgrades());
             this.damagePerCycle = DataExtractorBlockEntity.computeDamagePerCycle(
                     this.getHost().getStorageInventory().getStackInSlot(2),
-                    this.getHost().getLevel() != null ? this.getHost().getLevel().registryAccess() : null
-            );
+                    this.getHost().getLevel() != null ? this.getHost().getLevel().registryAccess() : null);
             this.dataFlowPerCycle = DataExtractorBlockEntity.computeDataFlowPerCycle(
                     this.getUpgrades(),
                     this.damagePerCycle,
-                    this.targetCount
-            );
+                    this.targetCount);
         }
     }
 
@@ -231,6 +232,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     }
 
     private static final class DataCarrierInputSlot extends RestrictedInputSlot {
+
         private DataCarrierInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(1);
@@ -244,6 +246,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     }
 
     private static final class SwordInputSlot extends RestrictedInputSlot {
+
         private SwordInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(1);
@@ -257,6 +260,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     }
 
     private static final class OreInputSlot extends RestrictedInputSlot {
+
         private OreInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(64);
@@ -270,6 +274,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     }
 
     private static final class CropInputSlot extends RestrictedInputSlot {
+
         private CropInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(64);

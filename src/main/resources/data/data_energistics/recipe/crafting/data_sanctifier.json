@@ -1,53 +1,43 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    " A ",
-    "BEC",
-    " I "
-  ],
-  "key": {
-    "A": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "red"
-        }
-      }
-    },
-    "B": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "orange"
-        }
-      }
-    },
-    "C": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "blue"
-        }
-      }
-    },
-    "E": {
-      "item": "data_energistics:data_processor"
-    },
-    "I": {
-      "item": "data_energistics:solidified_obsidian"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_sanctifier",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shaped",
+	"pattern": [" A ", "BEC", " I "],
+	"key": {
+		"A": {
+			"type": "neoforge:components",
+			"items": ["data_energistics:data_light_saber"],
+			"components": {
+				"minecraft:custom_data": {
+					"light_saber_color": "red"
+				}
+			}
+		},
+		"B": {
+			"type": "neoforge:components",
+			"items": ["data_energistics:data_light_saber"],
+			"components": {
+				"minecraft:custom_data": {
+					"light_saber_color": "orange"
+				}
+			}
+		},
+		"C": {
+			"type": "neoforge:components",
+			"items": ["data_energistics:data_light_saber"],
+			"components": {
+				"minecraft:custom_data": {
+					"light_saber_color": "blue"
+				}
+			}
+		},
+		"E": {
+			"item": "data_energistics:data_processor"
+		},
+		"I": {
+			"item": "data_energistics:solidified_obsidian"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_sanctifier",
+		"count": 1
+	}
 }

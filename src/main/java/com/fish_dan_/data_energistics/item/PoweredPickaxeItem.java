@@ -8,12 +8,12 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
+
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
     public PoweredPickaxeItem(Tier tier, Properties properties) {
@@ -45,8 +46,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get())
-                && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -72,9 +72,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
     @Override
     public float getDestroySpeed(ItemStack stack, BlockState state) {
         float base = super.getDestroySpeed(stack, state);
-        return this.hasSufficientEnergy(stack)
-                ? base + this.getSpeedCardDestroySpeedBonus(stack) + this.getSaberEnergyDestroySpeedBonus(stack)
-                : this.getUnpoweredDestroySpeed(stack, state);
+        return this.hasSufficientEnergy(stack) ? base + this.getSpeedCardDestroySpeedBonus(stack) + this.getSaberEnergyDestroySpeedBonus(stack) : this.getUnpoweredDestroySpeed(stack, state);
     }
 
     @Override
@@ -108,8 +106,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
     }
 
     @Override
-    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
-    }
+    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {}
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
@@ -150,9 +147,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
     }
 
     private void tryChainMineOre(ItemStack stack, ServerLevel level, BlockPos origin, BlockState originState, LivingEntity miner) {
-        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get())
-                || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)
-                || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 

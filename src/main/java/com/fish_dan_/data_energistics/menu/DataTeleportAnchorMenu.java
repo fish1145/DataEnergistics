@@ -1,16 +1,19 @@
 package com.fish_dan_.data_energistics.menu;
 
-import appeng.menu.AEBaseMenu;
-import appeng.menu.guisync.GuiSync;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
+import appeng.menu.AEBaseMenu;
+import appeng.menu.guisync.GuiSync;
+
 import java.util.List;
 
 public class DataTeleportAnchorMenu extends AEBaseMenu {
+
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
     private static final String ACTION_RECORD_CURRENT_TARGET = "record_current_target";
     private static final String ACTION_TELEPORT_TO_ANCHOR = "teleport_to_anchor";
@@ -75,11 +78,7 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
         List<DataTeleportAnchorBlockEntity.AnchorSummary> anchors = this.host.getAvailableAnchors();
         this.availableAnchorCount = anchors.size();
         this.availableAnchors = String.join("\n", anchors.stream()
-                .map(summary -> escape(summary.name())
-                        + "|" + escape(summary.dimensionId())
-                        + "|" + summary.pos().getX()
-                        + "|" + summary.pos().getY()
-                        + "|" + summary.pos().getZ())
+                .map(summary -> escape(summary.name()) + "|" + escape(summary.dimensionId()) + "|" + summary.pos().getX() + "|" + summary.pos().getY() + "|" + summary.pos().getZ())
                 .toList());
         super.broadcastChanges();
     }
@@ -164,6 +163,5 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
                 .replace("\n", "\\n");
     }
 
-    private record AnchorAction(String dimensionId, int x, int y, int z) {
-    }
+    private record AnchorAction(String dimensionId, int x, int y, int z) {}
 }

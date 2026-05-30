@@ -1,5 +1,31 @@
 package com.fish_dan_.data_energistics.part;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
+import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.integration.AppMekCompat;
+import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
+import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.items.IItemHandler;
+
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.parts.IPartItem;
@@ -8,7 +34,6 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
-import appeng.helpers.patternprovider.PatternContainer;
 import appeng.items.parts.PartModels;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -18,39 +43,14 @@ import appeng.parts.PartModel;
 import appeng.parts.crafting.PatternProviderPart;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
-import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.integration.AppMekCompat;
-import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.Nameable;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class AdaptivePatternProviderPart extends PatternProviderPart implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
-    private static final ResourceLocation MODEL_BASE =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/adaptive_pattern_provider_base");
+
+    private static final ResourceLocation MODEL_BASE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/adaptive_pattern_provider_base");
 
     @PartModels
     private static final PartModel MODELS_OFF;
@@ -145,18 +145,14 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         if (adjacentGroup != null) {
             return AdaptivePatternProviderBlockEntity.decorateAttachedMachineName(
                     adjacentGroup.name(),
-                    getResolvedProviderNameForGui()
-            );
+                    getResolvedProviderNameForGui());
         }
 
         ItemStack providerStack = getProviderStack();
         Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
-        return displayName != null
-                ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(
+        return displayName != null ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(
                 getAdaptiveProviderVariantTranslationKey(),
-                displayName
-        )
-                : this.getMainMenuIcon().getHoverName();
+                displayName) : this.getMainMenuIcon().getHoverName();
     }
 
     @Override
@@ -165,8 +161,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         if (adjacentGroup != null) {
             return AdaptivePatternProviderBlockEntity.decorateAttachedMachineName(
                     adjacentGroup.name(),
-                    getResolvedInternalProviderName()
-            );
+                    getResolvedInternalProviderName());
         }
         return getResolvedProviderNameForTerminal();
     }
@@ -181,8 +176,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-        PatternContainerGroup specialGroup =
-                AdaptivePatternProviderBlockEntity.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
+        PatternContainerGroup specialGroup = AdaptivePatternProviderBlockEntity.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
         if (specialGroup != null) {
             return specialGroup;
         }
@@ -192,21 +186,18 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public boolean isMeteoriteProviderSelected() {
-        return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack())
-                == AdaptivePatternProviderBlockEntity.ProviderKind.METEORITE;
+        return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderBlockEntity.ProviderKind.METEORITE;
     }
 
     @Override
     public boolean isAdvancedAeProviderSelected() {
         var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_SMALL
-                || kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_EXTENDED;
+        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_EXTENDED;
     }
 
     @Override
     public boolean isAe2LightningTechOverloadedProviderSelected() {
-        return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack())
-                == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
+        return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
     }
 
     @Override
@@ -215,23 +206,19 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return false;
         }
         var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_ANDESITE
-                || kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_BRASS;
+        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_ANDESITE || kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_BRASS;
     }
 
     @Override
     public boolean isResonatingProviderSelected() {
         var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.RESONATING
-                || kind == AdaptivePatternProviderBlockEntity.ProviderKind.EXTENDED_RESONATING;
+        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.RESONATING || kind == AdaptivePatternProviderBlockEntity.ProviderKind.EXTENDED_RESONATING;
     }
 
     @Override
     public boolean supportsFilteredImportToggle() {
         var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_SMALL
-                || kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_EXTENDED
-                || kind == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
+        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_EXTENDED || kind == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
     }
 
     @Override
@@ -437,15 +424,13 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             tooltip.add(Component.translatable(
                     "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots",
                     unlockedSlots,
-                    totalSlots
-            ));
+                    totalSlots));
         }
 
         return new PatternContainerGroup(
                 adjacentGroup != null ? adjacentGroup.icon() : this.getTerminalIcon(),
                 getTerminalDisplayName(),
-                List.copyOf(tooltip)
-        );
+                List.copyOf(tooltip));
     }
 
     @Override
@@ -460,8 +445,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-    }
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     private int getConfiguredPatternSlotCount() {
         ItemStack providerStack = getProviderStack();
@@ -487,8 +471,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         if (this.upgrades == null) {
             return 0;
         }
-        return Math.max(0, this.upgrades.getInstalledUpgrades(appeng.core.definitions.AEItems.CAPACITY_CARD))
-                * AdaptivePatternProviderState.EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
+        return Math.max(0, this.upgrades.getInstalledUpgrades(appeng.core.definitions.AEItems.CAPACITY_CARD)) * AdaptivePatternProviderState.EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
     }
 
     private void onAdaptiveStateChanged() {
@@ -498,16 +481,14 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         this.getLogic().onHostStateChanged();
         try {
             appeng.api.networking.crafting.ICraftingProvider.requestUpdate(this.getMainNode());
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
     }
 
     private IUpgradeInventory createUpgradeInventory() {
         return UpgradeInventories.forMachine(
                 this.getPartItem().asItem(),
                 AdaptivePatternProviderState.BASE_UPGRADE_SLOTS,
-                this::onAdaptiveStateChanged
-        );
+                this::onAdaptiveStateChanged);
     }
 
     @Nullable
@@ -532,8 +513,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             group = PatternContainerGroup.fromMachine(
                     level,
                     adjacentPos,
-                    side.getOpposite()
-            );
+                    side.getOpposite());
         }
         return group;
     }
@@ -549,12 +529,9 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
-        return displayName != null
-                ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(
+        return displayName != null ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(
                 getAdaptiveProviderVariantTranslationKey(),
-                displayName
-        )
-                : Component.translatable(getProviderTranslationKey());
+                displayName) : Component.translatable(getProviderTranslationKey());
     }
 
     private Component getResolvedProviderNameForTerminal() {
@@ -564,9 +541,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
-        return displayName != null
-                ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(displayName)
-                : Component.translatable(getProviderTranslationKey());
+        return displayName != null ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(displayName) : Component.translatable(getProviderTranslationKey());
     }
 
     private Component getResolvedInternalProviderName() {
@@ -593,5 +568,4 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
         return this.adaptiveState;
     }
-
 }

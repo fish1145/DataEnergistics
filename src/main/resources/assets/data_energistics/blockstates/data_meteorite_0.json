@@ -1,7 +1,7 @@
 {
-  "variants": {
-    "": {
-      "model": "data_energistics:block/data_meteorite_0"
-    }
-  }
+	"variants": {
+		"": {
+			"model": "data_energistics:block/data_meteorite_0"
+		}
+	}
 }

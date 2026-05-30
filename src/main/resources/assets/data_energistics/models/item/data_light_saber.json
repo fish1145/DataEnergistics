@@ -1,219 +1,219 @@
 {
-  "parent": "data_energistics:item/data_light_saber_off",
-  "overrides": [
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0
-      },
-      "model": "data_energistics:item/data_light_saber_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.0625
-      },
-      "model": "data_energistics:item/data_light_saber_white_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.125
-      },
-      "model": "data_energistics:item/data_light_saber_orange_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.1875
-      },
-      "model": "data_energistics:item/data_light_saber_magenta_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.25
-      },
-      "model": "data_energistics:item/data_light_saber_light_blue_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.3125
-      },
-      "model": "data_energistics:item/data_light_saber_yellow_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.375
-      },
-      "model": "data_energistics:item/data_light_saber_lime_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.4375
-      },
-      "model": "data_energistics:item/data_light_saber_pink_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.5
-      },
-      "model": "data_energistics:item/data_light_saber_gray_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.5625
-      },
-      "model": "data_energistics:item/data_light_saber_light_gray_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.625
-      },
-      "model": "data_energistics:item/data_light_saber_cyan_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.6875
-      },
-      "model": "data_energistics:item/data_light_saber_purple_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.75
-      },
-      "model": "data_energistics:item/data_light_saber_blue_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.8125
-      },
-      "model": "data_energistics:item/data_light_saber_brown_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.875
-      },
-      "model": "data_energistics:item/data_light_saber_green_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 0.9375
-      },
-      "model": "data_energistics:item/data_light_saber_red_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:light_saber_color": 1.0
-      },
-      "model": "data_energistics:item/data_light_saber_black_off"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.0625
-      },
-      "model": "data_energistics:item/data_light_saber_white_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.125
-      },
-      "model": "data_energistics:item/data_light_saber_orange_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.1875
-      },
-      "model": "data_energistics:item/data_light_saber_magenta_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.25
-      },
-      "model": "data_energistics:item/data_light_saber_light_blue_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.3125
-      },
-      "model": "data_energistics:item/data_light_saber_yellow_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.375
-      },
-      "model": "data_energistics:item/data_light_saber_lime_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.4375
-      },
-      "model": "data_energistics:item/data_light_saber_pink_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.5
-      },
-      "model": "data_energistics:item/data_light_saber_gray_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.5625
-      },
-      "model": "data_energistics:item/data_light_saber_light_gray_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.625
-      },
-      "model": "data_energistics:item/data_light_saber_cyan_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.6875
-      },
-      "model": "data_energistics:item/data_light_saber_purple_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.75
-      },
-      "model": "data_energistics:item/data_light_saber_blue_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.8125
-      },
-      "model": "data_energistics:item/data_light_saber_brown_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.875
-      },
-      "model": "data_energistics:item/data_light_saber_green_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 0.9375
-      },
-      "model": "data_energistics:item/data_light_saber_red_on"
-    },
-    {
-      "predicate": {
-        "data_energistics:powered": 1.0,
-        "data_energistics:light_saber_color": 1.0
-      },
-      "model": "data_energistics:item/data_light_saber_black_on"
-    }
-  ]
+	"parent": "data_energistics:item/data_light_saber_off",
+	"overrides": [
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0
+			},
+			"model": "data_energistics:item/data_light_saber_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.0625
+			},
+			"model": "data_energistics:item/data_light_saber_white_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.125
+			},
+			"model": "data_energistics:item/data_light_saber_orange_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.1875
+			},
+			"model": "data_energistics:item/data_light_saber_magenta_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.25
+			},
+			"model": "data_energistics:item/data_light_saber_light_blue_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.3125
+			},
+			"model": "data_energistics:item/data_light_saber_yellow_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.375
+			},
+			"model": "data_energistics:item/data_light_saber_lime_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.4375
+			},
+			"model": "data_energistics:item/data_light_saber_pink_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.5
+			},
+			"model": "data_energistics:item/data_light_saber_gray_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.5625
+			},
+			"model": "data_energistics:item/data_light_saber_light_gray_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.625
+			},
+			"model": "data_energistics:item/data_light_saber_cyan_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.6875
+			},
+			"model": "data_energistics:item/data_light_saber_purple_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.75
+			},
+			"model": "data_energistics:item/data_light_saber_blue_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.8125
+			},
+			"model": "data_energistics:item/data_light_saber_brown_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.875
+			},
+			"model": "data_energistics:item/data_light_saber_green_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 0.9375
+			},
+			"model": "data_energistics:item/data_light_saber_red_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:light_saber_color": 1.0
+			},
+			"model": "data_energistics:item/data_light_saber_black_off"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.0625
+			},
+			"model": "data_energistics:item/data_light_saber_white_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.125
+			},
+			"model": "data_energistics:item/data_light_saber_orange_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.1875
+			},
+			"model": "data_energistics:item/data_light_saber_magenta_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.25
+			},
+			"model": "data_energistics:item/data_light_saber_light_blue_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.3125
+			},
+			"model": "data_energistics:item/data_light_saber_yellow_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.375
+			},
+			"model": "data_energistics:item/data_light_saber_lime_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.4375
+			},
+			"model": "data_energistics:item/data_light_saber_pink_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.5
+			},
+			"model": "data_energistics:item/data_light_saber_gray_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.5625
+			},
+			"model": "data_energistics:item/data_light_saber_light_gray_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.625
+			},
+			"model": "data_energistics:item/data_light_saber_cyan_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.6875
+			},
+			"model": "data_energistics:item/data_light_saber_purple_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.75
+			},
+			"model": "data_energistics:item/data_light_saber_blue_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.8125
+			},
+			"model": "data_energistics:item/data_light_saber_brown_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.875
+			},
+			"model": "data_energistics:item/data_light_saber_green_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 0.9375
+			},
+			"model": "data_energistics:item/data_light_saber_red_on"
+		},
+		{
+			"predicate": {
+				"data_energistics:powered": 1.0,
+				"data_energistics:light_saber_color": 1.0
+			},
+			"model": "data_energistics:item/data_light_saber_black_on"
+		}
+	]
 }

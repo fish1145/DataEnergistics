@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
+
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.me.service.PathingService;
-import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,16 +14,15 @@ import java.util.Set;
 
 @Mixin(PathingService.class)
 public abstract class PathingServiceMixin {
+
     @Shadow
     private Set<IGridNode> nodesNeedingChannels;
 
     @Redirect(
-            method = "calculateAdHocChannels",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lappeng/api/networking/pathing/ChannelMode;getAdHocNetworkChannels()I"
-            )
-    )
+              method = "calculateAdHocChannels",
+              at = @At(
+                       value = "INVOKE",
+                       target = "Lappeng/api/networking/pathing/ChannelMode;getAdHocNetworkChannels()I"))
     private int dataEnergistics$expandAdHocChannels(ChannelMode mode) {
         int maxChannels = mode.getAdHocNetworkChannels();
         for (IGridNode node : this.nodesNeedingChannels) {

@@ -1,16 +1,17 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import net.minecraft.server.level.ServerLevel;
+
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.networking.security.IActionSource;
-import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 
 public final class RedstoneTuningAutoRequestHelper {
-    private RedstoneTuningAutoRequestHelper() {
-    }
+
+    private RedstoneTuningAutoRequestHelper() {}
 
     public static void requestPrimaryOutputs(ServerLevel level,
                                              IGrid grid,
@@ -37,8 +38,7 @@ public final class RedstoneTuningAutoRequestHelper {
                         () -> actionSource,
                         primaryOutput.what(),
                         Math.max(1L, primaryOutput.amount()),
-                        CalculationStrategy.CRAFT_LESS
-                );
+                        CalculationStrategy.CRAFT_LESS);
                 var server = level.getServer();
                 if (server == null) {
                     continue;
@@ -52,11 +52,9 @@ public final class RedstoneTuningAutoRequestHelper {
                         }
 
                         server.execute(() -> craftingService.submitJob(plan, null, null, true, actionSource));
-                    } catch (Exception ignored) {
-                    }
+                    } catch (Exception ignored) {}
                 });
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 }

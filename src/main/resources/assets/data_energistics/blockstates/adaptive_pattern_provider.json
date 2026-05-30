@@ -1,33 +1,33 @@
 {
-  "variants": {
-    "push_direction=all": {
-      "model": "data_energistics:block/adaptive_pattern_provider"
-    },
-    "push_direction=down": {
-      "model": "data_energistics:block/adaptive_pattern_provider_oriented",
-      "x": 180
-    },
-    "push_direction=east": {
-      "model": "data_energistics:block/adaptive_pattern_provider_oriented",
-      "x": 90,
-      "y": 90
-    },
-    "push_direction=north": {
-      "model": "data_energistics:block/adaptive_pattern_provider_oriented",
-      "x": 90
-    },
-    "push_direction=south": {
-      "model": "data_energistics:block/adaptive_pattern_provider_oriented",
-      "x": 90,
-      "y": 180
-    },
-    "push_direction=up": {
-      "model": "data_energistics:block/adaptive_pattern_provider_oriented"
-    },
-    "push_direction=west": {
-      "model": "data_energistics:block/adaptive_pattern_provider_oriented",
-      "x": 90,
-      "y": 270
-    }
-  }
+	"variants": {
+		"push_direction=all": {
+			"model": "data_energistics:block/adaptive_pattern_provider"
+		},
+		"push_direction=down": {
+			"model": "data_energistics:block/adaptive_pattern_provider_oriented",
+			"x": 180
+		},
+		"push_direction=east": {
+			"model": "data_energistics:block/adaptive_pattern_provider_oriented",
+			"x": 90,
+			"y": 90
+		},
+		"push_direction=north": {
+			"model": "data_energistics:block/adaptive_pattern_provider_oriented",
+			"x": 90
+		},
+		"push_direction=south": {
+			"model": "data_energistics:block/adaptive_pattern_provider_oriented",
+			"x": 90,
+			"y": 180
+		},
+		"push_direction=up": {
+			"model": "data_energistics:block/adaptive_pattern_provider_oriented"
+		},
+		"push_direction=west": {
+			"model": "data_energistics:block/adaptive_pattern_provider_oriented",
+			"x": 90,
+			"y": 270
+		}
+	}
 }

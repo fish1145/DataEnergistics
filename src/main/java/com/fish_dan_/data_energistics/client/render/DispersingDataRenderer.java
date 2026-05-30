@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -12,7 +11,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+
 public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity> {
+
     private static final float DISPLAY_HALF_SIZE = 0.125F;
     private static final ResourceLocation[] ORB_TEXTURES = new ResourceLocation[] {
             ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_0.png"),
@@ -34,7 +37,7 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
 
     @Override
     public void render(DispersingDataEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
-            MultiBufferSource buffer, int packedLight) {
+                       MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
         float bob = Mth.sin((entity.tickCount + partialTick) * 0.15F) * 0.03F;
         float pulse = 1.0F + Mth.sin((entity.tickCount + partialTick) * 0.25F) * 0.05F;
@@ -54,7 +57,7 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
     }
 
     private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, float x, float y, float u, float v,
-            int packedLight) {
+                               int packedLight) {
         consumer.addVertex(pose, x, y, 0.0F)
                 .setColor(255, 255, 255, 255)
                 .setUv(u, v)

@@ -1,5 +1,16 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
+import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
 import appeng.api.config.ActionItems;
 import appeng.api.orientation.RelativeSide;
 import appeng.api.parts.IPart;
@@ -10,15 +21,6 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ActionButton;
 import appeng.client.gui.widgets.TabButton;
 import appeng.menu.SlotSemantics;
-import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
-import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.EnumMap;
 import java.util.List;
@@ -26,14 +28,15 @@ import java.util.Locale;
 import java.util.function.BiConsumer;
 
 public class DataRipperReassemblerOutputSideScreen
-        extends AESubScreen<DataRipperReassemblerMenu, DataRipperReassemblerScreen> {
+                                                   extends AESubScreen<DataRipperReassemblerMenu, DataRipperReassemblerScreen> {
+
     private final EnumMap<Direction, OutputSideDisplayButton> buttons = new EnumMap<>(Direction.class);
 
     public DataRipperReassemblerOutputSideScreen(
-            DataRipperReassemblerScreen parent,
-            AEBaseBlockEntity host,
-            List<Direction> selectedSides,
-            BiConsumer<Direction, Boolean> setter) {
+                                                 DataRipperReassemblerScreen parent,
+                                                 AEBaseBlockEntity host,
+                                                 List<Direction> selectedSides,
+                                                 BiConsumer<Direction, Boolean> setter) {
         super(parent, "/screens/data_ripper_output_sides.json");
 
         ItemStack icon = new ItemStack(host.getBlockState().getBlock());

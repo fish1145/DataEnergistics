@@ -1,16 +1,16 @@
 {
-  "type": "minecraft:smithing_transform",
-  "addition": {
-    "item": "ae2:energy_cell"
-  },
-  "base": {
-    "item": "ae2:certus_quartz_cutting_knife"
-  },
-  "result": {
-    "count": 1,
-    "id": "data_energistics:data_crystal_cutting_knife"
-  },
-  "template": {
-    "item": "data_energistics:data_processor"
-  }
+	"type": "minecraft:smithing_transform",
+	"addition": {
+		"item": "ae2:energy_cell"
+	},
+	"base": {
+		"item": "ae2:certus_quartz_cutting_knife"
+	},
+	"result": {
+		"count": 1,
+		"id": "data_energistics:data_crystal_cutting_knife"
+	},
+	"template": {
+		"item": "data_energistics:data_processor"
+	}
 }

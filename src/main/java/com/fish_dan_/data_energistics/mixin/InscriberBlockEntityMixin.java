@@ -1,11 +1,14 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.registry.ModItems;
+
+import net.minecraft.world.item.ItemStack;
+
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.ticking.TickRateModulation;
 import appeng.blockentity.misc.InscriberBlockEntity;
 import appeng.recipes.handlers.InscriberRecipe;
 import appeng.util.inv.AppEngInternalInventory;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -13,10 +16,10 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import appeng.api.networking.ticking.TickRateModulation;
 
 @Mixin(InscriberBlockEntity.class)
 public abstract class InscriberBlockEntityMixin {
+
     @Shadow
     private AppEngInternalInventory sideItemHandler;
 
@@ -45,12 +48,10 @@ public abstract class InscriberBlockEntityMixin {
     @Inject(
             method = "tickingRequest",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lappeng/util/inv/AppEngInternalInventory;extractItem(IIZ)Lnet/minecraft/world/item/ItemStack;",
-                    ordinal = 2,
-                    shift = At.Shift.AFTER
-            )
-    )
+                     value = "INVOKE",
+                     target = "Lappeng/util/inv/AppEngInternalInventory;extractItem(IIZ)Lnet/minecraft/world/item/ItemStack;",
+                     ordinal = 2,
+                     shift = At.Shift.AFTER))
     private void dataEnergistics$restoreTemplate(IGridNode node, int ticksSinceLastCall, CallbackInfoReturnable<TickRateModulation> cir) {
         if (this.dataEnergistics$templateSnapshot.isEmpty()) {
             return;

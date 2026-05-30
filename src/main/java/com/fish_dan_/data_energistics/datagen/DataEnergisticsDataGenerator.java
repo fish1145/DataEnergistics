@@ -1,13 +1,15 @@
 package com.fish_dan_.data_energistics.datagen;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 
-@EventBusSubscriber(modid = Data_Energistics.MODID,value = Dist.CLIENT)
+@EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public final class DataEnergisticsDataGenerator {
+
     private DataEnergisticsDataGenerator() {}
 
     @SubscribeEvent
@@ -18,11 +20,9 @@ public final class DataEnergisticsDataGenerator {
 
         generator.addProvider(
                 event.includeServer(),
-                new ModRecipeProvider(packOutput, lookupProvider)
-        );
+                new ModRecipeProvider(packOutput, lookupProvider));
         generator.addProvider(
                 event.includeServer(),
-                new ModAe2LtRecipeProvider(packOutput)
-        );
+                new ModAe2LtRecipeProvider(packOutput));
     }
 }

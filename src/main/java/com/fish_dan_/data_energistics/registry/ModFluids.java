@@ -1,14 +1,14 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import java.util.function.Supplier;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
@@ -21,9 +21,9 @@ import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.SoundActions;
@@ -35,7 +35,10 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
+import java.util.function.Supplier;
+
 public final class ModFluids {
+
     private static final String ENDER_TELEPORT_TAG = "data_energistics.ender_fluid_teleport_time";
     private static final String DATA_CORROSION_DEATH_MESSAGE_KEY = "death.attack.data_energistics.data_corrosion_liquid";
     private static final long ENDER_TELEPORT_COOLDOWN_TICKS = 20L;
@@ -45,13 +48,10 @@ public final class ModFluids {
     private static final long DATA_CORROSION_LIQUID_DAMAGE_COOLDOWN_TICKS = 20L;
     private static final float VANILLA_DRAGON_BREATH_DAMAGE = 6.0F;
     private static final float DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER = 2.0F;
-    private static final float DATA_CORROSION_LIQUID_FLUID_DAMAGE =
-            VANILLA_DRAGON_BREATH_DAMAGE * DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER;
+    private static final float DATA_CORROSION_LIQUID_FLUID_DAMAGE = VANILLA_DRAGON_BREATH_DAMAGE * DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER;
 
-    public static final DeferredRegister<FluidType> FLUID_TYPES =
-            DeferredRegister.create(NeoForgeRegistries.Keys.FLUID_TYPES, Data_Energistics.MODID);
-    public static final DeferredRegister<Fluid> FLUIDS =
-            DeferredRegister.create(BuiltInRegistries.FLUID, Data_Energistics.MODID);
+    public static final DeferredRegister<FluidType> FLUID_TYPES = DeferredRegister.create(NeoForgeRegistries.Keys.FLUID_TYPES, Data_Energistics.MODID);
+    public static final DeferredRegister<Fluid> FLUIDS = DeferredRegister.create(BuiltInRegistries.FLUID, Data_Energistics.MODID);
 
     public static final DeferredHolder<FluidType, FluidType> ENDER_TYPE = FLUID_TYPES.register(
             "ender",
@@ -89,9 +89,8 @@ public final class ModFluids {
             () -> new BaseFlowingFluid.Flowing(enderProperties()));
     public static final DeferredHolder<Fluid, FlowingFluid> DATA_CORROSION_LIQUID = FLUIDS.register("data_corrosion_liquid",
             () -> new BaseFlowingFluid.Source(dataCorrosionLiquidProperties()));
-    public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_DATA_CORROSION_LIQUID =
-            FLUIDS.register("flowing_data_corrosion_liquid",
-                    () -> new BaseFlowingFluid.Flowing(dataCorrosionLiquidProperties()));
+    public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_DATA_CORROSION_LIQUID = FLUIDS.register("flowing_data_corrosion_liquid",
+            () -> new BaseFlowingFluid.Flowing(dataCorrosionLiquidProperties()));
 
     public static final DeferredBlock<LiquidBlock> ENDER_BLOCK = ModBlocks.BLOCKS.register(
             "ender",
@@ -119,8 +118,7 @@ public final class ModFluids {
             () -> new BucketItem(DATA_CORROSION_LIQUID.get(),
                     new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET).rarity(Rarity.RARE)));
 
-    private ModFluids() {
-    }
+    private ModFluids() {}
 
     public static void register(IEventBus modEventBus) {
         FLUID_TYPES.register(modEventBus);
@@ -137,14 +135,14 @@ public final class ModFluids {
     }
 
     private static BaseFlowingFluid.Properties baseProperties(
-            Supplier<? extends FluidType> fluidType,
-            Supplier<? extends Fluid> still,
-            Supplier<? extends Fluid> flowing,
-            Supplier<? extends Item> bucket,
-            Supplier<? extends LiquidBlock> block,
-            int tickRate,
-            int levelDecreasePerBlock,
-            float explosionResistance) {
+                                                              Supplier<? extends FluidType> fluidType,
+                                                              Supplier<? extends Fluid> still,
+                                                              Supplier<? extends Fluid> flowing,
+                                                              Supplier<? extends Item> bucket,
+                                                              Supplier<? extends LiquidBlock> block,
+                                                              int tickRate,
+                                                              int levelDecreasePerBlock,
+                                                              float explosionResistance) {
         return new BaseFlowingFluid.Properties(fluidType, still, flowing)
                 .bucket(bucket)
                 .block(block)
@@ -155,6 +153,7 @@ public final class ModFluids {
     }
 
     private static final class EnderTeleportFluidType extends FluidType {
+
         private EnderTeleportFluidType(Properties properties) {
             super(properties);
         }
@@ -213,6 +212,7 @@ public final class ModFluids {
     }
 
     private static final class DragonBreathDamageFluidType extends FluidType {
+
         private DragonBreathDamageFluidType(Properties properties) {
             super(properties);
         }
@@ -239,6 +239,7 @@ public final class ModFluids {
     }
 
     private static final class DataCorrosionDamageSource extends DamageSource {
+
         private DataCorrosionDamageSource(Holder<DamageType> type) {
             super(type);
         }

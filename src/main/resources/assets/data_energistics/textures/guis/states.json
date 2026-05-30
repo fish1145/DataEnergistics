@@ -1,79 +1,79 @@
 {
-  "texture": "data_energistics:textures/guis/states.png",
-  "width": 128,
-  "height": 128,
-  "icons": {
-    "BACKGROUND_BLOCK": {
-      "x": 0,
-      "y": 0,
-      "width": 16,
-      "height": 16
-    },
-    "BACKGROUND_ORE": {
-      "x": 16,
-      "y": 0,
-      "width": 16,
-      "height": 16
-    },
-    "BACKGROUND_CROP": {
-      "x": 0,
-      "y": 32,
-      "width": 16,
-      "height": 16
-    },
-    "BACKGROUND_SWORD": {
-      "x": 0,
-      "y": 16,
-      "width": 16,
-      "height": 16
-    },
-    "BACKGROUND_DATA_CARRIER": {
-      "x": 16,
-      "y": 16,
-      "width": 16,
-      "height": 16
-    },
-    "BACKGROUND_DATA_CARRIER_PATTERN": {
-      "x": 48,
-      "y": 16,
-      "width": 16,
-      "height": 16
-    },
-    "S_PATTERN_ENCODING_ENABLED": {
-      "x": 0,
-      "y": 56,
-      "width": 8,
-      "height": 8
-    },
-    "S_PATTERN_ENCODING_DISABLED": {
-      "x": 8,
-      "y": 56,
-      "width": 8,
-      "height": 8
-    },
-    "CONDENSER_OUTPUT_DATA_CAPTURE_BALL": {
-      "x": 48,
-      "y": 48,
-      "width": 16,
-      "height": 16
-    },
-    "PLACEMENT_TOOLBOX": {
-      "x": 112,
-      "y": 0,
-      "width": 16,
-      "height": 16
-    },
-    "AUTO_EXPORT_AE": {
-      "x": 112,
-      "y": 16,
-      "width": 16,
-      "height": 16
-    },
-    "POWER_UNIT_AF": {
-      "x": 96,
-      "y": 0,
-      "width": 16,
-      "height": 16
-    }
-  }
+	"texture": "data_energistics:textures/guis/states.png",
+	"width": 128,
+	"height": 128,
+	"icons": {
+		"BACKGROUND_BLOCK": {
+			"x": 0,
+			"y": 0,
+			"width": 16,
+			"height": 16
+		},
+		"BACKGROUND_ORE": {
+			"x": 16,
+			"y": 0,
+			"width": 16,
+			"height": 16
+		},
+		"BACKGROUND_CROP": {
+			"x": 0,
+			"y": 32,
+			"width": 16,
+			"height": 16
+		},
+		"BACKGROUND_SWORD": {
+			"x": 0,
+			"y": 16,
+			"width": 16,
+			"height": 16
+		},
+		"BACKGROUND_DATA_CARRIER": {
+			"x": 16,
+			"y": 16,
+			"width": 16,
+			"height": 16
+		},
+		"BACKGROUND_DATA_CARRIER_PATTERN": {
+			"x": 48,
+			"y": 16,
+			"width": 16,
+			"height": 16
+		},
+		"S_PATTERN_ENCODING_ENABLED": {
+			"x": 0,
+			"y": 56,
+			"width": 8,
+			"height": 8
+		},
+		"S_PATTERN_ENCODING_DISABLED": {
+			"x": 8,
+			"y": 56,
+			"width": 8,
+			"height": 8
+		},
+		"CONDENSER_OUTPUT_DATA_CAPTURE_BALL": {
+			"x": 48,
+			"y": 48,
+			"width": 16,
+			"height": 16
+		},
+		"PLACEMENT_TOOLBOX": {
+			"x": 112,
+			"y": 0,
+			"width": 16,
+			"height": 16
+		},
+		"AUTO_EXPORT_AE": {
+			"x": 112,
+			"y": 16,
+			"width": 16,
+			"height": 16
+		},
+		"POWER_UNIT_AF": {
+			"x": 96,
+			"y": 0,
+			"width": 16,
+			"height": 16
+		}
+	}
 }

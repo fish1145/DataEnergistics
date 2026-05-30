@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -11,14 +12,16 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+
 import org.jetbrains.annotations.Nullable;
 
 public final class OreDataCarrierData {
+
     private static final String TAG_ORE_ITEM = "ore_item";
     private static final String TAG_REQUIRED_AMOUNT = "required_amount";
     private static final String TAG_COLLECTED_AMOUNT = "collected_amount";
-    private OreDataCarrierData() {
-    }
+
+    private OreDataCarrierData() {}
 
     public static boolean hasRecordedOre(ItemStack stack) {
         return getOreItemId(stack) != null;

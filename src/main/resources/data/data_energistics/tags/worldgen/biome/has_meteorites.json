@@ -1,8 +1,8 @@
 {
-  "values": [
-    {
-      "id": "#minecraft:is_overworld",
-      "required": false
-    }
-  ]
+	"values": [
+		{
+			"id": "#minecraft:is_overworld",
+			"required": false
+		}
+	]
 }

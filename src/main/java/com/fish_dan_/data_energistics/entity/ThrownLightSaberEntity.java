@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.entity;
 import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -18,10 +19,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.ItemSupplier;
@@ -33,11 +34,13 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import appeng.api.upgrades.UpgradeInventories;
 import net.neoforged.neoforge.entity.PartEntity;
+
+import appeng.api.upgrades.UpgradeInventories;
 import org.jetbrains.annotations.Nullable;
 
 public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplier {
+
     private static final int DESPAWN_TICKS = 20 * 60 * 5;
     private static final float BASE_DATA_DUST_DAMAGE_RATIO = 0.05F;
     private static final float DATA_DUST_DAMAGE_RATIO_PER_CARD = 0.05F;
@@ -48,16 +51,11 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     private static final double HOMING_HIT_MARGIN = 0.75D;
     private static final String TAG_DEALT_DAMAGE = "DealtDamage";
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
-    private static final EntityDataAccessor<ItemStack> DATA_SABER_STACK =
-            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.ITEM_STACK);
-    private static final EntityDataAccessor<Byte> ID_LOYALTY =
-            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BYTE);
-    private static final EntityDataAccessor<Boolean> ID_FOIL =
-            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final EntityDataAccessor<Boolean> ID_HOMING =
-            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final EntityDataAccessor<Integer> ID_SABER_ENERGY_CARD_COUNT =
-            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<ItemStack> DATA_SABER_STACK = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<Byte> ID_LOYALTY = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Boolean> ID_FOIL = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> ID_HOMING = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> ID_SABER_ENERGY_CARD_COUNT = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.INT);
 
     private boolean dealtDamage;
     public int clientSideReturnTridentTickCount;
@@ -150,9 +148,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         LivingEntity livingTarget = this.resolveLivingTarget(target);
         float damage = this.getBaseThrownDamage() * this.getSpeedDamageMultiplier();
         Entity owner = this.getOwner();
-        DamageSource damageSource = owner instanceof LivingEntity livingOwner
-                ? this.damageSources().mobProjectile(this, livingOwner)
-                : this.damageSources().thrown(this, owner);
+        DamageSource damageSource = owner instanceof LivingEntity livingOwner ? this.damageSources().mobProjectile(this, livingOwner) : this.damageSources().thrown(this, owner);
         if (this.level() instanceof ServerLevel serverLevel) {
             damage = EnchantmentHelper.modifyDamage(serverLevel, this.getWeaponItem(),
                     livingTarget != null ? livingTarget : target, damageSource, damage);
@@ -196,22 +192,20 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         this.playSound(SoundEvents.TRIDENT_HIT, 1.0F, 1.0F);
     }
 
-     @Override
-     protected void hitBlockEnchantmentEffects(ServerLevel serverLevel, BlockHitResult blockHitResult, ItemStack stack) {
-         Vec3 impact = blockHitResult.getBlockPos().clampLocationWithin(blockHitResult.getLocation());
-         LivingEntity attacker = this.getOwner() instanceof LivingEntity livingOwner ? livingOwner : null;
-         EnchantmentHelper.onHitBlock(
+    @Override
+    protected void hitBlockEnchantmentEffects(ServerLevel serverLevel, BlockHitResult blockHitResult, ItemStack stack) {
+        Vec3 impact = blockHitResult.getBlockPos().clampLocationWithin(blockHitResult.getLocation());
+        LivingEntity attacker = this.getOwner() instanceof LivingEntity livingOwner ? livingOwner : null;
+        EnchantmentHelper.onHitBlock(
                 serverLevel,
                 stack,
-                 attacker,
-                 this,
-                 (EquipmentSlot) null,
-                 impact,
-                 serverLevel.getBlockState(blockHitResult.getBlockPos()),
-                ignored -> {
-                }
-         );
-     }
+                attacker,
+                this,
+                (EquipmentSlot) null,
+                impact,
+                serverLevel.getBlockState(blockHitResult.getBlockPos()),
+                ignored -> {});
+    }
 
     @Override
     public ItemStack getItem() {
@@ -376,9 +370,9 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         }
 
         final double playerBaseDamage = 1.0D;
-        final double[] addValue = {0.0D};
-        final double[] addMultipliedBase = {0.0D};
-        final double[] addMultipliedTotal = {0.0D};
+        final double[] addValue = { 0.0D };
+        final double[] addMultipliedBase = { 0.0D };
+        final double[] addMultipliedTotal = { 0.0D };
 
         weapon.forEachModifier(EquipmentSlot.MAINHAND, (Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, AttributeModifier modifier) -> {
             if (!attribute.equals(Attributes.ATTACK_DAMAGE)) {
@@ -419,9 +413,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     private static boolean shouldUseExpandedDimensions(ItemStack stack, int saberEnergyCardCount) {
-        return !stack.isEmpty()
-                && stack.is(ModItems.DATA_SANCTIFIER.get())
-                && saberEnergyCardCount > 0;
+        return !stack.isEmpty() && stack.is(ModItems.DATA_SANCTIFIER.get()) && saberEnergyCardCount > 0;
     }
 
     private ItemStack getExpansionSourceStack() {
@@ -451,11 +443,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
             return;
         }
 
-        DamageSource damageSource = owner instanceof Player player
-                ? this.damageSources().playerAttack(player)
-                : owner instanceof LivingEntity livingOwner
-                ? this.damageSources().mobAttack(livingOwner)
-                : this.damageSources().magic();
+        DamageSource damageSource = owner instanceof Player player ? this.damageSources().playerAttack(player) : owner instanceof LivingEntity livingOwner ? this.damageSources().mobAttack(livingOwner) : this.damageSources().magic();
         target.invulnerableTime = 0;
         target.hurtTime = 0;
         target.hurtDuration = 0;
@@ -528,11 +516,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     private LivingEntity findNearestHomingTarget() {
         Entity owner = this.getOwner();
         return this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(HOMING_RANGE),
-                        entity -> entity.isAlive()
-                                && !entity.isRemoved()
-                                && !(entity instanceof Player)
-                                && !(entity instanceof ServerPlayer)
-                                && entity != owner)
+                entity -> entity.isAlive() && !entity.isRemoved() && !(entity instanceof Player) && !(entity instanceof ServerPlayer) && entity != owner)
                 .stream()
                 .min((left, right) -> Double.compare(this.distanceToSqr(left), this.distanceToSqr(right)))
                 .orElse(null);
@@ -557,5 +541,4 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         this.onHitEntity(hitResult);
         return true;
     }
-
 }

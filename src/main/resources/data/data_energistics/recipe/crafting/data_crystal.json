@@ -1,17 +1,13 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "AA ",
-    "AA ",
-    "   "
-  ],
-  "key": {
-    "A": {
-      "tag": "c:gems/data_crystal"
-    }
-  },
-  "result": {
-    "id": "data_energistics:data_crystal_block",
-    "count": 1
-  }
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["AA ", "AA ", "   "],
+	"key": {
+		"A": {
+			"tag": "c:gems/data_crystal"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_crystal_block",
+		"count": 1
+	}
 }

@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.helpers.patternprovider.PatternProviderLogic;
 import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
+
+import appeng.helpers.patternprovider.PatternProviderLogic;
 import com.loliball.appliedcreate.patternprovider.MechanicalCraftingPatternLogic;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -12,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MechanicalCraftingPatternLogic.class)
 public abstract class AppliedCreatePatternProviderLogicMixin {
+
     @Unique
     private boolean dataEnergistics$dispatchPulsePending;
 
@@ -48,14 +50,12 @@ public abstract class AppliedCreatePatternProviderLogicMixin {
         this.dataEnergistics$dispatchPulsePending = false;
         var host = ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getHost();
         if (host instanceof PatternProviderHostAccessor accessor) {
-            if (accessor.dataEnergistics$consumeRedstoneInputPulse()
-                    && host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            if (accessor.dataEnergistics$consumeRedstoneInputPulse() && host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
                 RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                         serverLevel,
                         host.getGrid(),
                         ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
-                        ((PatternProviderLogic) (Object) this).getAvailablePatterns()
-                );
+                        ((PatternProviderLogic) (Object) this).getAvailablePatterns());
             }
             accessor.dataEnergistics$onRedstoneTuningDispatch();
         }

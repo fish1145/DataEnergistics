@@ -1,59 +1,59 @@
 {
-  "type": "data_energistics:data_reassembler",
-  "item_inputs": [
-    {
-      "ingredient": {
-        "tag": "ae2:pattern_provider"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "tag": "ae2:interface"
-      },
-      "count": 1
-    },
-    {
-      "ingredient": {
-        "item": "ae2:capacity_card"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_processor"
-      },
-      "count": 4
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_framework"
-      },
-      "count": 2
-    },
-    {
-      "ingredient": {
-        "item": "data_energistics:data_carrier"
-      },
-      "count": 1
-    }
-  ],
-  "fluid_inputs": [
-    {
-      "#": 250,
-      "#t": "ae2:f",
-      "id": "data_energistics:ender"
-    },
-    {
-      "#": 4000,
-      "#t": "ae2:f",
-      "id": "data_energistics:data_corrosion_liquid"
-    }
-  ],
-  "item_outputs": [
-    {
-      "id": "data_energistics:adaptive_pattern_provider",
-      "count": 2
-    }
-  ]
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"tag": "ae2:pattern_provider"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"tag": "ae2:interface"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:capacity_card"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_processor"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 2
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_carrier"
+			},
+			"count": 1
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 250,
+			"#t": "ae2:f",
+			"id": "data_energistics:ender"
+		},
+		{
+			"#": 4000,
+			"#t": "ae2:f",
+			"id": "data_energistics:data_corrosion_liquid"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:adaptive_pattern_provider",
+			"count": 2
+		}
+	]
 }

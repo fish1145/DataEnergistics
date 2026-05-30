@@ -1,23 +1,26 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.gui.Icon;
-import appeng.client.gui.implementations.UpgradeableScreen;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.widgets.ProgressBar;
-import appeng.client.gui.widgets.ProgressBar.Direction;
-import appeng.menu.SlotSemantics;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorAutoExportButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.implementations.UpgradeableScreen;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ProgressBar;
+import appeng.client.gui.widgets.ProgressBar.Direction;
+import appeng.menu.SlotSemantics;
+
 public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
+
     private final DataExtractorToggleButton redstoneControlButton;
     private final DataExtractorToggleButton rangeVisibleButton;
     private final DataExtractorAutoExportButton autoExportButton;
@@ -32,8 +35,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
                 "button.data_energistics.data_extractor.redstone_control",
                 "button.data_energistics.data_extractor.redstone_control.enabled",
                 "button.data_energistics.data_extractor.redstone_control.disabled",
-                this.menu::sendSetRedstoneControlled
-        );
+                this.menu::sendSetRedstoneControlled);
         this.addToLeftToolbar(this.redstoneControlButton);
 
         this.rangeVisibleButton = new DataExtractorToggleButton(
@@ -42,8 +44,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
                 "button.data_energistics.data_extractor.range_visible",
                 "button.data_energistics.data_extractor.range_visible.enabled",
                 "button.data_energistics.data_extractor.range_visible.disabled",
-                this.menu::sendSetRangeVisible
-        );
+                this.menu::sendSetRangeVisible);
         this.addToLeftToolbar(this.rangeVisibleButton);
 
         this.autoExportButton = new DataExtractorAutoExportButton(this.menu::sendSetAutoExportMode);
@@ -73,9 +74,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         super.updateBeforeRender();
 
         this.setTextContent("status", Component.translatable(
-                this.menu.online
-                        ? "screen.data_energistics.data_extractor.status.online"
-                        : "screen.data_energistics.data_extractor.status.offline"));
+                this.menu.online ? "screen.data_energistics.data_extractor.status.online" : "screen.data_energistics.data_extractor.status.offline"));
         this.setTextContent("damage", translate("damage", this.menu.damagePerCycle, this.menu.workIntervalSeconds));
         this.setTextContent("data_flow", translate("data_flow", this.menu.dataFlowPerCycle, this.menu.workIntervalSeconds));
         this.setTextContent("targets", translate("targets", this.menu.targetCount, this.menu.targetLimit));

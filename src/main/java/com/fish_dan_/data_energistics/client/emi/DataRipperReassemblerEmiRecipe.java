@@ -1,20 +1,13 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import appeng.core.AppEng;
-import appeng.api.stacks.GenericStack;
-import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
+import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import dev.emi.emi.api.recipe.BasicEmiRecipe;
-import dev.emi.emi.api.recipe.EmiRecipeCategory;
-import dev.emi.emi.api.stack.EmiIngredient;
-import dev.emi.emi.api.stack.EmiStack;
-import dev.emi.emi.api.widget.WidgetHolder;
-import java.util.List;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
@@ -22,7 +15,18 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
+import appeng.api.stacks.GenericStack;
+import appeng.core.AppEng;
+import dev.emi.emi.api.recipe.BasicEmiRecipe;
+import dev.emi.emi.api.recipe.EmiRecipeCategory;
+import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.api.widget.WidgetHolder;
+
+import java.util.List;
+
 public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
+
     private static final ResourceLocation BACKGROUND = AppEng.makeId("textures/guis/data_reassembler.png");
     private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/crystal_assembler.png");
     private static final int EMI_OFFSET_X = 1;
@@ -37,6 +41,7 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("data_reassembler"),
             EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get())) {
+
         @Override
         public Component getName() {
             return Component.translatable("recipe.data_energistics.data_reassembler");
@@ -85,15 +90,15 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
         if (keyInput != null) {
             var pos = DataReassemblerLayout.emiKeyInput();
             widgets.addDrawable(pos.x() + EMI_OFFSET_X + EMI_KEY_INPUT_OFFSET_X,
-                            pos.y() + EMI_OFFSET_Y + EMI_KEY_INPUT_OFFSET_Y, 18, 18,
-                            (guiGraphics, mouseX, mouseY, delta) -> {
-                                CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, keyInput.what());
-                                GenericStackDisplayHelper.renderSmallOverlay(
-                                        guiGraphics,
-                                        1,
-                                        1,
-                                        GenericStackDisplayHelper.formatCompactAmount(keyInput));
-                            })
+                    pos.y() + EMI_OFFSET_Y + EMI_KEY_INPUT_OFFSET_Y, 18, 18,
+                    (guiGraphics, mouseX, mouseY, delta) -> {
+                        CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, keyInput.what());
+                        GenericStackDisplayHelper.renderSmallOverlay(
+                                guiGraphics,
+                                1,
+                                1,
+                                GenericStackDisplayHelper.formatCompactAmount(keyInput));
+                    })
                     .tooltip((mouseX, mouseY) -> createEmiKeyTooltip(keyInput));
         }
 
@@ -101,15 +106,15 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
         if (keyOutput != null) {
             var pos = DataReassemblerLayout.emiKeyOutput();
             widgets.addDrawable(pos.x() + EMI_OFFSET_X + EMI_KEY_OUTPUT_OFFSET_X,
-                            pos.y() + EMI_OFFSET_Y + EMI_KEY_OUTPUT_OFFSET_Y, 18, 18,
-                            (guiGraphics, mouseX, mouseY, delta) -> {
-                                CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, keyOutput.what());
-                                GenericStackDisplayHelper.renderSmallOverlay(
-                                        guiGraphics,
-                                        1,
-                                        1,
-                                        GenericStackDisplayHelper.formatCompactAmount(keyOutput));
-                            })
+                    pos.y() + EMI_OFFSET_Y + EMI_KEY_OUTPUT_OFFSET_Y, 18, 18,
+                    (guiGraphics, mouseX, mouseY, delta) -> {
+                        CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, keyOutput.what());
+                        GenericStackDisplayHelper.renderSmallOverlay(
+                                guiGraphics,
+                                1,
+                                1,
+                                GenericStackDisplayHelper.formatCompactAmount(keyOutput));
+                    })
                     .tooltip((mouseX, mouseY) -> createEmiKeyTooltip(keyOutput));
         }
     }
@@ -131,14 +136,14 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
             GenericStack stack = stacks.get(i);
             var pos = input ? DataReassemblerLayout.emiFluidInput(i) : DataReassemblerLayout.emiFluidOutput(i);
             widgets.addDrawable(pos.x() + EMI_SLOT_OFFSET_X, pos.y() + EMI_SLOT_OFFSET_Y, 18, 18,
-                            (guiGraphics, mouseX, mouseY, delta) -> {
-                                CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, stack.what());
-                                GenericStackDisplayHelper.renderSmallOverlay(
-                                        guiGraphics,
-                                        1,
-                                        1,
-                                        GenericStackDisplayHelper.formatCompactAmount(stack));
-                            })
+                    (guiGraphics, mouseX, mouseY, delta) -> {
+                        CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, stack.what());
+                        GenericStackDisplayHelper.renderSmallOverlay(
+                                guiGraphics,
+                                1,
+                                1,
+                                GenericStackDisplayHelper.formatCompactAmount(stack));
+                    })
                     .tooltip((mouseX, mouseY) -> createEmiKeyTooltip(stack));
         }
     }

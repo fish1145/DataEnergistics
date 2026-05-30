@@ -2,20 +2,23 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.registry.ModItems;
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.CellState;
-import appeng.items.storage.BasicStorageCell;
+
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.level.Level;
+
+import appeng.api.storage.StorageCells;
+import appeng.api.storage.cells.CellState;
+import appeng.items.storage.BasicStorageCell;
 
 import java.util.Optional;
 
 public class DataFlowStorageCellItem extends BasicStorageCell {
+
     public DataFlowStorageCellItem(Item.Properties properties, double idleDrain, int totalBytes) {
         super(properties.stacksTo(1), idleDrain, totalBytes, 8, 1, DataFlowKeyType.TYPE);
     }

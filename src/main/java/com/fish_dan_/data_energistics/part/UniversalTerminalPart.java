@@ -1,12 +1,33 @@
 package com.fish_dan_.data_energistics.part;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
+import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
+
 import appeng.api.inventories.InternalInventory;
-import appeng.api.storage.IPatternAccessTermMenuHost;
-import appeng.api.storage.ISubMenuHost;
 import appeng.api.parts.IPartItem;
 import appeng.api.parts.IPartModel;
-import appeng.api.util.IConfigManager;
+import appeng.api.storage.IPatternAccessTermMenuHost;
+import appeng.api.storage.ISubMenuHost;
 import appeng.api.util.AEColor;
+import appeng.api.util.IConfigManager;
 import appeng.helpers.IPatternTerminalLogicHost;
 import appeng.helpers.IPatternTerminalMenuHost;
 import appeng.items.parts.PartModels;
@@ -17,27 +38,8 @@ import appeng.parts.PartModel;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.parts.reporting.AbstractTerminalPart;
 import appeng.parts.reporting.CraftingTerminalPart;
-import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
-import com.mojang.logging.LogUtils;
 import appeng.util.InteractionUtil;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.minecraft.server.level.ServerPlayer;
+import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -48,6 +50,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class UniversalTerminalPart extends AbstractTerminalPart implements IPatternTerminalLogicHost, IPatternTerminalMenuHost, IPatternAccessTermMenuHost, ISubMenuHost {
+
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String TAG_ACTIVE_TERMINAL = "universal_terminal_active";
     private static final String TAG_CRAFTING_GRID = "universal_terminal_crafting_grid";
@@ -59,11 +62,9 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private static final String TAG_PATTERN_SOURCE_LAST = "pattern_source_last";
     private static final String TAG_PATTERN_SOURCE_ENABLED = "pattern_source_enabled";
     @PartModels
-    public static final ResourceLocation MODEL_OFF =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_off");
+    public static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_off");
     @PartModels
-    public static final ResourceLocation MODEL_ON =
-            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_on");
+    public static final ResourceLocation MODEL_ON = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_on");
     public static final IPartModel MODELS_OFF = new PartModel(MODEL_BASE, MODEL_OFF, MODEL_STATUS_OFF);
     public static final IPartModel MODELS_ON = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_ON);
     public static final IPartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_HAS_CHANNEL);
@@ -144,9 +145,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         super.readFromNBT(data, registries);
         this.craftingGrid.readFromNBT(data, TAG_CRAFTING_GRID, registries);
         this.logic.readFromNBT(data, registries);
-        this.terminalData = data.contains(TAG_TERMINAL_DATA, CompoundTag.TAG_COMPOUND)
-                ? data.getCompound(TAG_TERMINAL_DATA).copy()
-                : new CompoundTag();
+        this.terminalData = data.contains(TAG_TERMINAL_DATA, CompoundTag.TAG_COMPOUND) ? data.getCompound(TAG_TERMINAL_DATA).copy() : new CompoundTag();
         readAdapterConfigManagers(data, registries);
         setActiveTerminal(data.getString(TAG_ACTIVE_TERMINAL));
     }
@@ -274,8 +273,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.universal_terminal.mode",
                             UniversalTerminalData.getTerminalDisplayName(this.activeTerminal)),
-                    true
-            );
+                    true);
         }
 
         return true;
@@ -291,19 +289,15 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
             if (player instanceof ServerPlayer serverPlayer) {
                 PacketDistributor.sendToPlayer(serverPlayer, new UniversalTerminalStateSyncPayload(
                         this.getInstalledTerminalNames(),
-                        menuTerminal
-                ));
+                        menuTerminal));
             }
             LOGGER.info("UniversalTerminalPart.openActiveTerminal opening {} menuType={} returningFromSubmenu={}",
                     menuTerminal, UniversalTerminalData.getMenuType(menuTerminal), returningFromSubmenu);
             MenuOpener.open(
                     UniversalTerminalData.getMenuType(menuTerminal),
                     player,
-                    usesCustomMenuLocator(menuTerminal)
-                            ? com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator.forPart(this, menuTerminal)
-                            : MenuLocators.forPart(this),
-                    returningFromSubmenu
-            );
+                    usesCustomMenuLocator(menuTerminal) ? com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator.forPart(this, menuTerminal) : MenuLocators.forPart(this),
+                    returningFromSubmenu);
         } else {
             LOGGER.info("UniversalTerminalPart.openActiveTerminal aborted: resolved terminal is null");
         }
@@ -356,8 +350,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     }
 
     public boolean isPersistentPatternSourceEnabled() {
-        return !this.terminalData.contains(TAG_PATTERN_SOURCE_ENABLED)
-                || this.terminalData.getBoolean(TAG_PATTERN_SOURCE_ENABLED);
+        return !this.terminalData.contains(TAG_PATTERN_SOURCE_ENABLED) || this.terminalData.getBoolean(TAG_PATTERN_SOURCE_ENABLED);
     }
 
     public void setPersistentPatternSourceEnabled(boolean enabled) {
@@ -519,9 +512,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     }
 
     private void setActiveTerminal(String terminalName) {
-        this.activeTerminal = terminalName == null || terminalName.isEmpty()
-                ? UniversalTerminalData.TERMINAL_ITEM
-                : terminalName;
+        this.activeTerminal = terminalName == null || terminalName.isEmpty() ? UniversalTerminalData.TERMINAL_ITEM : terminalName;
         this.terminalData.putString("active_terminal", this.activeTerminal);
     }
 

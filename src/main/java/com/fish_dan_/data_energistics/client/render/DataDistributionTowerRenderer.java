@@ -3,9 +3,8 @@ package com.fish_dan_.data_energistics.client.render;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
+
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -15,17 +14,20 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraft.Util;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.client.RenderTypeHelper;
 import net.neoforged.neoforge.client.model.data.ModelData;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import org.jetbrains.annotations.NotNull;
 
 public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDistributionTowerBlockEntity> {
+
     private static final float CRYSTAL_BASE_Y = 3.6875f;
     private static final float CRYSTAL_ONLINE_FLOAT_RANGE = 0.14f;
     private static final float CRYSTAL_ONLINE_FLOAT_SPEED = 0.14f;
@@ -38,14 +40,11 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     private static final float RANGE_LINE_GREEN = 0.85f;
     private static final float RANGE_LINE_BLUE = 1.0f;
     private static final float RANGE_LINE_ALPHA = 0.5f;
-    private static final ModelResourceLocation CRYSTAL_OFFLINE_MODEL =
-            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off"));
-    private static final ModelResourceLocation CRYSTAL_ONLINE_MODEL =
-            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on"));
+    private static final ModelResourceLocation CRYSTAL_OFFLINE_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off"));
+    private static final ModelResourceLocation CRYSTAL_ONLINE_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on"));
 
     @SuppressWarnings("unused")
-    public DataDistributionTowerRenderer(BlockEntityRendererProvider.Context context) {
-    }
+    public DataDistributionTowerRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
     public boolean shouldRenderOffScreen(@NotNull DataDistributionTowerBlockEntity blockEntity) {
@@ -61,8 +60,7 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
             AABB aabb = blockEntity.getCoverageAabb().move(
                     -blockEntity.getBlockPos().getX(),
                     -blockEntity.getBlockPos().getY(),
-                    -blockEntity.getBlockPos().getZ()
-            ).deflate(RANGE_LINE_INSET);
+                    -blockEntity.getBlockPos().getZ()).deflate(RANGE_LINE_INSET);
 
             var consumer = buffer.getBuffer(RenderType.lines());
             LevelRenderer.renderLineBox(poseStack, consumer, aabb, RANGE_LINE_RED, RANGE_LINE_GREEN, RANGE_LINE_BLUE, RANGE_LINE_ALPHA);
@@ -128,8 +126,7 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
                     packedLight,
                     packedOverlay,
                     ModelData.EMPTY,
-                    renderType
-            );
+                    renderType);
         }
     }
 }

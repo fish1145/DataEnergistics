@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "data_energistics:item/card_saber_energy"
-  }
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "data_energistics:item/card_saber_energy"
+	}
 }

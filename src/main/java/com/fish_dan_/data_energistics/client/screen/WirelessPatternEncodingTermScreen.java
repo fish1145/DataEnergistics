@@ -1,29 +1,12 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import appeng.client.Point;
-import appeng.client.gui.Icon;
-import appeng.client.gui.WidgetContainer;
-import appeng.client.gui.me.common.StackSizeRenderer;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.style.WidgetStyle;
-import appeng.client.gui.widgets.AETextField;
-import appeng.client.gui.widgets.Scrollbar;
-import appeng.core.definitions.AEItems;
-import appeng.helpers.InventoryAction;
-import appeng.api.stacks.AEItemKey;
-import appeng.menu.SlotSemantics;
-import appeng.menu.me.common.GridInventoryEntry;
-import appeng.parts.encoding.EncodingMode;
-import appeng.util.ReadableNumberConverter;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.mojang.blaze3d.vertex.PoseStack;
-import de.mari_023.ae2wtlib.wet.WETMenu;
-import de.mari_023.ae2wtlib.wet.WETScreen;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -35,6 +18,25 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.stacks.AEItemKey;
+import appeng.client.Point;
+import appeng.client.gui.Icon;
+import appeng.client.gui.WidgetContainer;
+import appeng.client.gui.me.common.StackSizeRenderer;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.style.WidgetStyle;
+import appeng.client.gui.widgets.AETextField;
+import appeng.client.gui.widgets.Scrollbar;
+import appeng.core.definitions.AEItems;
+import appeng.helpers.InventoryAction;
+import appeng.menu.SlotSemantics;
+import appeng.menu.me.common.GridInventoryEntry;
+import appeng.parts.encoding.EncodingMode;
+import appeng.util.ReadableNumberConverter;
+import com.mojang.blaze3d.vertex.PoseStack;
+import de.mari_023.ae2wtlib.wet.WETMenu;
+import de.mari_023.ae2wtlib.wet.WETScreen;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,21 +44,15 @@ import java.util.Map;
 import java.util.Objects;
 
 public class WirelessPatternEncodingTermScreen extends WETScreen {
+
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
-    private static final ResourceLocation AE2_UPLOAD_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
-    private static final ResourceLocation AE2_BUTTON_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
-    private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
-    private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
-    private static final Component PANEL_TITLE =
-            Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
-    private static final Component EMPTY_STATE_TEXT =
-            Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
-    private static final Component ENCODE_BUTTON_HINT =
-            Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
+    private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
+    private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
+    private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
+    private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
+    private static final Component PANEL_TITLE = Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
+    private static final Component EMPTY_STATE_TEXT = Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
+    private static final Component ENCODE_BUTTON_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
     private static final int PANEL_WIDTH = 128;
     private static final int PANEL_HEIGHT = 128;
     private static final int PANEL_TEXTURE_WIDTH = 128;
@@ -160,8 +156,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return true;
         }
 
-        if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button)
-                && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
+        if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
             return true;
         }
 
@@ -289,8 +284,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int mouseButton, double dragX, double dragY) {
-        if (this.previewVisible && this.previewScrollbarDragging
-                && this.previewScrollbar.onMouseDrag(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), mouseButton)) {
+        if (this.previewVisible && this.previewScrollbarDragging && this.previewScrollbar.onMouseDrag(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), mouseButton)) {
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, mouseButton, dragX, dragY);
@@ -298,8 +292,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY))
-                && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), scrollY)) {
+        if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), scrollY)) {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -342,8 +335,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
         GridInventoryEntry blankPatternEntry = findBlankPatternEntry();
         long networkStored = blankPatternEntry != null ? blankPatternEntry.getStoredAmount() : 0;
-        boolean networkCraftable = blankPatternEntry != null
-                && (blankPatternEntry.isCraftable() || blankPatternEntry.getRequestableAmount() > 0);
+        boolean networkCraftable = blankPatternEntry != null && (blankPatternEntry.isCraftable() || blankPatternEntry.getRequestableAmount() > 0);
         int localBlankPatternCount = AEItems.BLANK_PATTERN.is(slot.getItem()) ? slot.getItem().getCount() : 0;
         long displayedCount = networkStored + localBlankPatternCount;
         boolean hasBlankPatterns = displayedCount > 0;
@@ -353,9 +345,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
         } else {
-            ItemStack displayStack = slot.getItem().isEmpty()
-                    ? AEItems.BLANK_PATTERN.stack()
-                    : slot.getItem().copyWithCount(1);
+            ItemStack displayStack = slot.getItem().isEmpty() ? AEItems.BLANK_PATTERN.stack() : slot.getItem().copyWithCount(1);
             guiGraphics.renderItem(displayStack, slot.x, slot.y);
             guiGraphics.renderItemDecorations(this.font, displayStack, slot.x, slot.y, "");
         }
@@ -736,14 +726,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     private boolean isOverPreviewScrollbar(double mouseX, double mouseY) {
         Rect2i bounds = this.previewScrollbar.getBounds();
-        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth()
-                && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
+        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth() && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
     }
 
     private boolean isOverProviderList(double mouseX, double mouseY) {
         Rect2i bounds = getProviderListBounds();
-        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth()
-                && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
+        return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth() && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
     }
 
     private boolean isOverEncodeButton(double mouseX, double mouseY) {
@@ -755,15 +743,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         Point position = buttonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
         int width = buttonStyle.getWidth() > 0 ? buttonStyle.getWidth() : 16;
         int height = buttonStyle.getHeight() > 0 ? buttonStyle.getHeight() : 16;
-        return mouseX >= position.getX() && mouseX < position.getX() + width
-                && mouseY >= position.getY() && mouseY < position.getY() + height;
+        return mouseX >= position.getX() && mouseX < position.getX() + width && mouseY >= position.getY() && mouseY < position.getY() + height;
     }
 
     @SuppressWarnings("unchecked")
     private AbstractWidget resolveEncodePatternWidget() {
         try {
-            Map<String, AbstractWidget> widgetsById =
-                    (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
+            Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
             return widgetsById.get("encodePattern");
         } catch (IllegalAccessException e) {
             return null;
@@ -800,8 +786,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
 
         Slot slot = this.hoveredSlot;
-        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN
-                || !isMouseOverSlot(slot, mouseX, mouseY)) {
+        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || !isMouseOverSlot(slot, mouseX, mouseY)) {
             return false;
         }
 
@@ -853,10 +838,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     }
 
     private boolean isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
-        return mouseX >= this.leftPos + slot.x
-                && mouseX < this.leftPos + slot.x + 16
-                && mouseY >= this.topPos + slot.y
-                && mouseY < this.topPos + slot.y + 16;
+        return mouseX >= this.leftPos + slot.x && mouseX < this.leftPos + slot.x + 16 && mouseY >= this.topPos + slot.y && mouseY < this.topPos + slot.y + 16;
     }
 
     private boolean isRenamingProvider() {
@@ -917,9 +899,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                                               PatternEncodingPreviewMenu.SyncedPatternProvider provider,
                                               boolean selected, boolean hovered) {
         if (provider.useAeButtonStyle()) {
-            ResourceLocation texture = selected
-                    ? AE2_BUTTON_DISABLED_TEXTURE
-                    : hovered ? AE2_BUTTON_HIGHLIGHTED_TEXTURE : AE2_BUTTON_TEXTURE;
+            ResourceLocation texture = selected ? AE2_BUTTON_DISABLED_TEXTURE : hovered ? AE2_BUTTON_HIGHLIGHTED_TEXTURE : AE2_BUTTON_TEXTURE;
             drawNineSlicedTexture(guiGraphics, texture, bounds,
                     BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT,
                     BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER);
@@ -1016,6 +996,5 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
     }
 
-    private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
-    }
+    private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {}
 }

@@ -1,13 +1,8 @@
 package com.fish_dan_.data_energistics.item;
 
-import appeng.api.implementations.menuobjects.IMenuItem;
-import appeng.api.implementations.menuobjects.ItemMenuHost;
-import appeng.menu.MenuOpener;
-import appeng.menu.implementations.QuartzKnifeMenu;
-import appeng.menu.locator.ItemMenuHostLocator;
-import appeng.menu.locator.MenuLocators;
 import com.fish_dan_.data_energistics.integration.ExtendedAeRenamerCompat;
 import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -19,11 +14,19 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
+
+import appeng.api.implementations.menuobjects.IMenuItem;
+import appeng.api.implementations.menuobjects.ItemMenuHost;
+import appeng.menu.MenuOpener;
+import appeng.menu.implementations.QuartzKnifeMenu;
+import appeng.menu.locator.ItemMenuHostLocator;
+import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 public class PoweredItem extends Item implements PoweredEnergyItem, IMenuItem {
+
     public PoweredItem(Properties properties) {
         super(properties);
     }

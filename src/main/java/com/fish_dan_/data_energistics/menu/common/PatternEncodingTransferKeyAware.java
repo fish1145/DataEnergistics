@@ -4,6 +4,7 @@ import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.Nullable;
 
 public interface PatternEncodingTransferKeyAware {
+
     void dataEnergistics$sendTransferKeyInputAction(@Nullable String serializedKeyInput);
 
     void dataEnergistics$sendTransferKeyOutputAction(@Nullable String serializedKeyOutput);

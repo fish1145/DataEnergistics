@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.style.ScreenStyle;
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.client.screen.SingleUpgradeSlotRelocator;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
-import io.github.lounode.ae2cs.client.gui.UpgradeablePatternProviderGUI;
-import io.github.lounode.ae2cs.common.menu.UpgradeablePatternProviderMenu;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+
+import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.style.ScreenStyle;
+import io.github.lounode.ae2cs.client.gui.UpgradeablePatternProviderGUI;
+import io.github.lounode.ae2cs.common.menu.UpgradeablePatternProviderMenu;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(UpgradeablePatternProviderGUI.class)
 public abstract class Ae2CsUpgradeablePatternProviderGuiMixin extends AEBaseScreen<UpgradeablePatternProviderMenu> {
+
     @Unique
     private PatternProviderRedstoneTuningButton dataEnergistics$redstoneTuningButton;
 
@@ -28,8 +31,7 @@ public abstract class Ae2CsUpgradeablePatternProviderGuiMixin extends AEBaseScre
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataEnergistics$addRedstoneTuningButton(UpgradeablePatternProviderMenu menu, Inventory playerInventory,
                                                          Component title, ScreenStyle style, CallbackInfo ci) {
-        this.dataEnergistics$redstoneTuningButton =
-                new PatternProviderRedstoneTuningButton((PatternProviderMenuAccessor) menu);
+        this.dataEnergistics$redstoneTuningButton = new PatternProviderRedstoneTuningButton((PatternProviderMenuAccessor) menu);
         this.addToLeftToolbar(this.dataEnergistics$redstoneTuningButton);
     }
 

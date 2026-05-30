@@ -7,10 +7,10 @@ import appeng.api.config.Actionable;
 import appeng.api.stacks.AEKey;
 
 public final class DataFlowBusStrategies {
+
     private static boolean registered;
 
-    private DataFlowBusStrategies() {
-    }
+    private DataFlowBusStrategies() {}
 
     public static void register() {
         if (registered) {
@@ -25,6 +25,7 @@ public final class DataFlowBusStrategies {
     }
 
     private enum NoopImportStrategy implements StackImportStrategy {
+
         INSTANCE;
 
         @Override
@@ -34,6 +35,7 @@ public final class DataFlowBusStrategies {
     }
 
     private enum NoopExportStrategy implements StackExportStrategy {
+
         INSTANCE;
 
         @Override

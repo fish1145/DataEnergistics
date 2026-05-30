@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
@@ -13,7 +12,11 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+
 public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSaberEntity> {
+
     private static final float SANCTIFIER_SPIN_DEGREES_PER_TICK = 80.0F;
     private static final int SANCTIFIER_PRE_EMBED_SPIN_TICKS = 40;
     private final ItemRenderer itemRenderer;
@@ -56,8 +59,7 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
     }
 
     private static boolean hasSaberEnergyCard(ItemStack stack) {
-        return stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredEnergyItem poweredEnergyItem
-                && poweredEnergyItem.getSaberEnergyCardCount(stack) > 0;
+        return stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(stack) > 0;
     }
 
     private static float getSanctifierSpinDegrees(ThrownLightSaberEntity entity, float partialTick) {

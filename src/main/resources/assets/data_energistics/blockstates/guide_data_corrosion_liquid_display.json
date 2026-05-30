@@ -1,7 +1,7 @@
 {
-  "variants": {
-    "": {
-      "model": "data_energistics:block/guide_data_corrosion_liquid_display"
-    }
-  }
+	"variants": {
+		"": {
+			"model": "data_energistics:block/guide_data_corrosion_liquid_display"
+		}
+	}
 }

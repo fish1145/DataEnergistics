@@ -5,9 +5,13 @@ import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
 import com.fish_dan_.data_energistics.registry.ModItems;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableStatic;
@@ -16,13 +20,13 @@ import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.AbstractRecipeCategory;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
 
 public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldInteractionJeiRecipe> {
+
     private static final int WIDTH = 148;
     private static final int HEIGHT = 72;
     private static final int CENTER_Y = 36;
@@ -44,8 +48,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     private static final int RIGHT_CLICK_OUTPUT_X = 122;
     private static final int RIGHT_CLICK_OUTPUT_Y = 26;
 
-    public static final RecipeType<WorldInteractionJeiRecipe> RECIPE_TYPE =
-            RecipeType.create("data_energistics", "world_interaction", WorldInteractionJeiRecipe.class);
+    public static final RecipeType<WorldInteractionJeiRecipe> RECIPE_TYPE = RecipeType.create("data_energistics", "world_interaction", WorldInteractionJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable rightClickBackground;
@@ -77,10 +80,8 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, WorldInteractionJeiRecipe recipe, IFocusGroup focuses) {
         switch (recipe) {
-            case WorldInteractionJeiRecipe.TimeShiftView timeShiftView ->
-                    setTimeShiftRecipe(builder, timeShiftView.holder().value());
-            case WorldInteractionJeiRecipe.RightClickView rightClickView ->
-                    setRightClickRecipe(builder, rightClickView.holder().value());
+            case WorldInteractionJeiRecipe.TimeShiftView timeShiftView -> setTimeShiftRecipe(builder, timeShiftView.holder().value());
+            case WorldInteractionJeiRecipe.RightClickView rightClickView -> setRightClickRecipe(builder, rightClickView.holder().value());
         }
     }
 
@@ -139,10 +140,9 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     private void setRightClickRecipe(IRecipeLayoutBuilder builder, DataCaptureBallRightClickRecipe recipe) {
         builder.addInputSlot(RIGHT_CLICK_ITEM_X, RIGHT_CLICK_ITEM_Y)
                 .addItemStack(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()))
-                .addRichTooltipCallback((slotView, tooltip) ->
-                        tooltip.add(Component.translatable(
-                                "recipe.data_energistics.data_capture_ball_right_click.preset",
-                                recipe.getDataCost(), formatEnergy(recipe.getEnergyCost()))));
+                .addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(
+                        "recipe.data_energistics.data_capture_ball_right_click.preset",
+                        recipe.getDataCost(), formatEnergy(recipe.getEnergyCost()))));
         builder.addInputSlot(RIGHT_CLICK_BLOCK_X, RIGHT_CLICK_BLOCK_Y).addItemStack(new ItemStack(recipe.getInputBlock()));
         builder.addOutputSlot(RIGHT_CLICK_OUTPUT_X, RIGHT_CLICK_OUTPUT_Y).addItemStack(new ItemStack(recipe.getResultBlock()));
     }

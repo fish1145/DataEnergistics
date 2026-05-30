@@ -1,15 +1,16 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.FarmBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.common.FarmlandWaterManager;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
+import net.neoforged.neoforge.common.FarmlandWaterManager;
 import net.neoforged.neoforge.common.ticket.AABBTicket;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 public final class PersistentFarmlandLogic {
+
     private final Map<ServerLevel, Map<Long, AABBTicket>> waterTickets = new WeakHashMap<>();
 
     @SubscribeEvent

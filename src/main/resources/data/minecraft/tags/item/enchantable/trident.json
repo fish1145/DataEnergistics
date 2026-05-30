@@ -1,7 +1,7 @@
 {
-  "replace": false,
-  "values": [
-    "data_energistics:data_light_saber",
-    "data_energistics:data_sanctifier"
-  ]
+	"replace": false,
+	"values": [
+		"data_energistics:data_light_saber",
+		"data_energistics:data_sanctifier"
+	]
 }
