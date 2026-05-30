@@ -280,40 +280,48 @@ public final class PatternEncodingSourceHelper {
         }
 
         DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
-        syncPendingTransferKeyInput(menu, dataRipperRecipe != null ? dataRipperRecipe.getKeyInput() : null);
+        if (dataRipperRecipe != null) {
+            syncPendingTransferKeyInput(menu, dataRipperRecipe.getKeyInput());
+        }
     }
 
     public static void rememberTransferFluidInputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                   @Nullable Object transferContext) {
+                                                    @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             syncPendingTransferFluidInputs(menu, List.of());
             return;
         }
 
         DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
-        syncPendingTransferFluidInputs(menu, dataRipperRecipe != null ? dataRipperRecipe.getFluidInputs() : List.of());
+        if (dataRipperRecipe != null) {
+            syncPendingTransferFluidInputs(menu, dataRipperRecipe.getFluidInputs());
+        }
     }
 
     public static void rememberTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                 @Nullable Object transferContext) {
+                                                  @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             syncPendingTransferKeyOutput(menu, null);
             return;
         }
 
         DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
-        syncPendingTransferKeyOutput(menu, dataRipperRecipe != null ? dataRipperRecipe.getKeyOutput() : null);
+        if (dataRipperRecipe != null) {
+            syncPendingTransferKeyOutput(menu, dataRipperRecipe.getKeyOutput());
+        }
     }
 
     public static void rememberTransferFluidOutputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                                    @Nullable Object transferContext) {
+                                                     @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             syncPendingTransferFluidOutputs(menu, List.of());
             return;
         }
 
         DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
-        syncPendingTransferFluidOutputs(menu, dataRipperRecipe != null ? dataRipperRecipe.getFluidOutputs() : List.of());
+        if (dataRipperRecipe != null) {
+            syncPendingTransferFluidOutputs(menu, dataRipperRecipe.getFluidOutputs());
+        }
     }
 
     public static void syncManualTransferKeyInput(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
@@ -742,6 +750,10 @@ public final class PatternEncodingSourceHelper {
         if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
             return;
         }
+        ResourceLocation pendingPatternSource = readPendingPatternSource(menu.getPlayer());
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(pendingPatternSource)) {
+            return;
+        }
 
         PatternEncodingLogic logic = host.getLogic();
         ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
@@ -767,6 +779,10 @@ public final class PatternEncodingSourceHelper {
         if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
             return;
         }
+        ResourceLocation pendingPatternSource = readPendingPatternSource(menu.getPlayer());
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(pendingPatternSource)) {
+            return;
+        }
 
         PatternEncodingLogic logic = host.getLogic();
         ConfigInventory encodedOutputsInv = logic.getEncodedOutputInv();
@@ -774,7 +790,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void applyTransferFluidInputsAction(PatternEncodingTermMenu menu,
-                                                      @Nullable String serializedFluidInputs) {
+                                                       @Nullable String serializedFluidInputs) {
         List<GenericStack> fluidInputs = deserializeTransferFluidStacks(menu, serializedFluidInputs);
         writePendingTransferFluidInputs(menu.getPlayer(), fluidInputs);
 
@@ -782,6 +798,10 @@ public final class PatternEncodingSourceHelper {
             return;
         }
         if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+        ResourceLocation pendingPatternSource = readPendingPatternSource(menu.getPlayer());
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(pendingPatternSource)) {
             return;
         }
 
@@ -792,7 +812,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void applyTransferFluidOutputsAction(PatternEncodingTermMenu menu,
-                                                       @Nullable String serializedFluidOutputs) {
+                                                        @Nullable String serializedFluidOutputs) {
         List<GenericStack> fluidOutputs = deserializeTransferFluidStacks(menu, serializedFluidOutputs);
         writePendingTransferFluidOutputs(menu.getPlayer(), fluidOutputs);
 
@@ -800,6 +820,10 @@ public final class PatternEncodingSourceHelper {
             return;
         }
         if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+        ResourceLocation pendingPatternSource = readPendingPatternSource(menu.getPlayer());
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(pendingPatternSource)) {
             return;
         }
 
