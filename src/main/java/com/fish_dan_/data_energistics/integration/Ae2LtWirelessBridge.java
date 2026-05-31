@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
 import net.minecraft.client.renderer.RenderType;
@@ -42,7 +43,7 @@ public final class Ae2LtWirelessBridge {
     private Ae2LtWirelessBridge() {}
 
     public static boolean isAvailable() {
-        if (!Ae2LtCompat.isLoaded()) {
+        if (!Data_Energistics.Mods.isAe2LtLoaded()) {
             return false;
         }
         if (!coreInitialized) {

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
 import net.minecraft.core.BlockPos;
@@ -49,7 +50,7 @@ public final class Ae2LtRuntimeBridge {
     private Ae2LtRuntimeBridge() {}
 
     public static boolean isAvailable() {
-        if (!Ae2LtCompat.isLoaded()) {
+        if (!Data_Energistics.Mods.isAe2LtLoaded()) {
             return false;
         }
 

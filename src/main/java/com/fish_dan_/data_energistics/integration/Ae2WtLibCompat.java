@@ -6,8 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.fml.ModList;
-
+import com.fish_dan_.data_energistics.Data_Energistics;
 import appeng.client.gui.style.StyleManager;
 import appeng.menu.AEBaseMenu;
 
@@ -16,16 +15,14 @@ import java.lang.reflect.Method;
 
 public final class Ae2WtLibCompat {
 
-    private static final String MOD_ID = "ae2wtlib";
     private static final String WET_SCREEN_CLASS = "de.mari_023.ae2wtlib.wet.WETScreen";
     private static final String WET_MENU_CLASS = "de.mari_023.ae2wtlib.wet.WETMenu";
     private static final String WIRELESS_SCREEN_CLASS = "com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen";
-    private static final boolean LOADED = ModList.get().isLoaded(MOD_ID);
 
     private Ae2WtLibCompat() {}
 
     public static Screen maybeReplaceWirelessPatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-        if (!LOADED || currentScreen == null) {
+        if (!Data_Energistics.Mods.isAe2WtLibLoaded() || currentScreen == null) {
             return null;
         }
 
