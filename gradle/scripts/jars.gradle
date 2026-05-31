@@ -33,10 +33,10 @@ afterEvaluate {
                 'MixinConfigs': "data_energistics.mixins.json",
                 'Specification-Title': project.name,
                 'Specification-Version': mod_version,
-                'Specification-Vendor': 'QiuYe',
+                'Specification-Vendor': 'FishDan and QiuYe',
                 'Implementation-Title': base.archivesName,
                 'Implementation-Version': version,
-                'Implementation-Vendor': 'QiuYe',
+                'Implementation-Vendor': 'FishDan and QiuYe',
         ])
     }
 }
