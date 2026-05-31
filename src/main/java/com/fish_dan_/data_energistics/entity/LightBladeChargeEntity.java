@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
+import com.fish_dan_.data_energistics.mixin.core.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.nbt.CompoundTag;

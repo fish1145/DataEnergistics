@@ -1,37 +1,45 @@
 package com.fish_dan_.data_energistics.mixin;
 
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.fml.loading.LoadingModList;
+import net.neoforged.neoforge.data.loading.DatagenModLoader;
 
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
 
-    private static final String AE2LT_SENTINEL_CLASS = "com/moakiee/ae2lt/logic/EjectModeRegistry.class";
-    private static final String AE2LT_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2lt";
-    private static final String ADVANCED_AE_SENTINEL_CLASS = "net/pedroksl/advanced_ae/common/logic/AdvPatternProviderLogic.class";
-    private static final String ADVANCED_AE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.AdvancedAe";
-    private static final String AE2CS_SENTINEL_CLASS = "io/github/lounode/ae2cs/common/me/logic/ResonatingPatternProviderLogic.class";
-    private static final String AE2CS_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2Cs";
-    private static final String APPLIED_CREATE_SENTINEL_CLASS = "com/loliball/appliedcreate/patternprovider/MechanicalCraftingPatternLogic.class";
-    private static final String APPLIED_CREATE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.AppliedCreate";
-    private static final String EXTENDEDAE_SENTINEL_CLASS = "com/glodblock/github/extendedae/common/me/InscriberThread.class";
-    private static final String EXTENDEDAE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.ExtendedAe";
-    private static final String JEI_TRANSFER_SENTINEL_CLASS = "tamaized/ae2jeiintegration/integration/modules/jei/transfer/EncodePatternTransferHandler.class";
-    private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
-    private static final String EMI_HANDLER_SENTINEL_CLASS = "appeng/integration/modules/emi/EmiEncodePatternHandler.class";
-    private static final String NEOECOAE_MOD_ID = "neoecoae";
-    private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
-    private static final boolean ADVANCED_AE_PRESENT = isClassPresent(ADVANCED_AE_SENTINEL_CLASS);
-    private static final boolean AE2CS_PRESENT = isClassPresent(AE2CS_SENTINEL_CLASS);
-    private static final boolean APPLIED_CREATE_PRESENT = isClassPresent(APPLIED_CREATE_SENTINEL_CLASS);
-    private static final boolean EXTENDEDAE_PRESENT = isClassPresent(EXTENDEDAE_SENTINEL_CLASS);
-    private static final boolean JEI_TRANSFER_PRESENT = isClassPresent(JEI_TRANSFER_SENTINEL_CLASS);
-    private static final boolean EMI_PRESENT = isClassPresent(EMI_API_SENTINEL_CLASS) && isClassPresent(EMI_HANDLER_SENTINEL_CLASS);
+    private static final String MIXIN_PACKAGE = "com.fish_dan_.data_energistics.mixin.";
+    private static final Map<String, String> MOD_COMPAT_MIXINS = new HashMap<>();
+
+    static {
+        addModCompatMixin("ae2lt", "ae2lt.");
+        addModCompatMixin("advancedae", "advancedae.");
+        addModCompatMixin("ae2cs", "ae2cs.");
+        addModCompatMixin("appliedcreate", "appliedcreate.");
+        addModCompatMixin("extendedae", "extendedae.");
+        addModCompatMixin("jei", "jei.");
+        addModCompatMixin("emi", "emi.");
+        addModCompatMixin("neoecoae", "neoecoae.");
+    }
+
+    private static void addModCompatMixin(String modId, String packageName) {
+        MOD_COMPAT_MIXINS.put(modId, packageName);
+    }
+
+    private static boolean isModLoaded(String modId) {
+        if (ModList.get() == null) {
+            return LoadingModList.get().getModFileById(modId) != null;
+        }
+        return ModList.get().isLoaded(modId);
+    }
 
     @Override
     public void onLoad(String mixinPackage) {}
@@ -43,43 +51,29 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.startsWith(AE2LT_MIXIN_PREFIX)) {
-            return AE2LT_PRESENT;
+        if (!mixinClassName.startsWith(MIXIN_PACKAGE)) {
+            return true;
         }
-        if (mixinClassName.startsWith(ADVANCED_AE_MIXIN_PREFIX)) {
-            return ADVANCED_AE_PRESENT;
+        mixinClassName = mixinClassName.substring(MIXIN_PACKAGE.length());
+
+        if (mixinClassName.startsWith("dev.")) {
+            if (FMLLoader.isProduction()) {
+                return false;
+            }
+            mixinClassName = mixinClassName.substring("dev.".length());
+            if (mixinClassName.startsWith("datagen.")) {
+                return DatagenModLoader.isRunningDataGen();
+            }
+            return true;
         }
-        if (mixinClassName.startsWith(AE2CS_MIXIN_PREFIX)) {
-            return AE2CS_PRESENT;
+
+        for (var compatMod : MOD_COMPAT_MIXINS.entrySet()) {
+            if (mixinClassName.toLowerCase().startsWith(compatMod.getValue())) {
+                return isModLoaded(compatMod.getKey());
+            }
         }
-        if (mixinClassName.startsWith(APPLIED_CREATE_MIXIN_PREFIX)) {
-            return APPLIED_CREATE_PRESENT;
-        }
-        if (mixinClassName.startsWith(EXTENDEDAE_MIXIN_PREFIX)) {
-            return EXTENDEDAE_PRESENT;
-        }
-        if ("com.fish_dan_.data_energistics.mixin.ExtendedInscriberThreadMixin".equals(mixinClassName)) {
-            return EXTENDEDAE_PRESENT;
-        }
-        if ("com.fish_dan_.data_energistics.mixin.JeiEncodePatternTransferHandlerMixin".equals(mixinClassName)) {
-            return JEI_TRANSFER_PRESENT;
-        }
-        if ("com.fish_dan_.data_energistics.mixin.EmiEncodePatternHandlerMixin".equals(mixinClassName)) {
-            return EMI_PRESENT;
-        }
-        if ("com.fish_dan_.data_energistics.mixin.NeoECOAEClientMixin".equals(mixinClassName)) {
-            return isModLoaded(NEOECOAE_MOD_ID);
-        }
+
         return true;
-    }
-
-    private static boolean isClassPresent(String classResourcePath) {
-        return DataEnergisticsMixinPlugin.class.getClassLoader().getResource(classResourcePath) != null;
-    }
-
-    private static boolean isModLoaded(String modId) {
-        ModList modList = ModList.get();
-        return modList != null && modList.isLoaded(modId);
     }
 
     @Override

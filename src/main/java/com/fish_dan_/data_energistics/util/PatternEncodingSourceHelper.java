@@ -220,15 +220,15 @@ public final class PatternEncodingSourceHelper {
                                               @Nullable Object transferContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
             if (shouldIgnoreWorkstationMemory(sourceAware)) {
-                sourceAware.setPendingPatternSource(null);
-                sourceAware.setLastEncodedPatternSource(null);
+                sourceAware.data_energistics$setPendingPatternSource(null);
+                sourceAware.data_energistics$setLastEncodedPatternSource(null);
                 return;
             }
 
             ResourceLocation workstationId = resolveWorkstationForTransfer(recipe, transferContext);
-            sourceAware.setPendingPatternSource(workstationId);
-            if (sourceAware.isPatternSourceEnabled()) {
-                sourceAware.setLastEncodedPatternSource(workstationId);
+            sourceAware.data_energistics$setPendingPatternSource(workstationId);
+            if (sourceAware.data_energistics$isPatternSourceEnabled()) {
+                sourceAware.data_energistics$setLastEncodedPatternSource(workstationId);
             }
         }
     }
@@ -444,7 +444,7 @@ public final class PatternEncodingSourceHelper {
     public static void applyPatternSource(ItemStack stack, PatternEncodingSourceAware sourceAware,
                                           @Nullable ResourceLocation fallbackWorkstationId) {
         if (shouldIgnoreWorkstationMemory(sourceAware)) {
-            sourceAware.setLastEncodedPatternSource(null);
+            sourceAware.data_energistics$setLastEncodedPatternSource(null);
             return;
         }
 
@@ -453,12 +453,12 @@ public final class PatternEncodingSourceHelper {
             workstationId = fallbackWorkstationId;
         }
 
-        sourceAware.setLastEncodedPatternSource(workstationId);
+        sourceAware.data_energistics$setLastEncodedPatternSource(workstationId);
     }
 
     @Nullable
     public static ResourceLocation resolvePreferredWorkstationId(PatternEncodingSourceAware sourceAware) {
-        if (!sourceAware.isPatternSourceEnabled()) {
+        if (!sourceAware.data_energistics$isPatternSourceEnabled()) {
             return null;
         }
 
@@ -466,12 +466,12 @@ public final class PatternEncodingSourceHelper {
             return null;
         }
 
-        ResourceLocation workstationId = sourceAware.getPendingPatternSource();
+        ResourceLocation workstationId = sourceAware.data_energistics$getPendingPatternSource();
         if (workstationId != null) {
             return workstationId;
         }
 
-        return sourceAware.getLastEncodedPatternSource();
+        return sourceAware.data_energistics$getLastEncodedPatternSource();
     }
 
     private static boolean shouldIgnoreWorkstationMemory(PatternEncodingSourceAware sourceAware) {
@@ -479,7 +479,7 @@ public final class PatternEncodingSourceHelper {
             return false;
         }
 
-        EncodingMode mode = previewMenuHost.getEncodingMode();
+        EncodingMode mode = previewMenuHost.data_energistics$getEncodingMode();
         return mode == EncodingMode.CRAFTING || mode == EncodingMode.STONECUTTING || mode == EncodingMode.SMITHING_TABLE;
     }
 

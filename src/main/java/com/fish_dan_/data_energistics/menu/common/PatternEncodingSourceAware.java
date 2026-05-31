@@ -6,21 +6,21 @@ import org.jetbrains.annotations.Nullable;
 
 public interface PatternEncodingSourceAware {
 
-    void clearPatternSourceState();
+    void data_energistics$clearPatternSourceState();
 
-    void setPendingPatternSource(@Nullable ResourceLocation workstationId);
-
-    @Nullable
-    ResourceLocation getPendingPatternSource();
-
-    void clearPendingPatternSource();
+    void data_energistics$setPendingPatternSource(@Nullable ResourceLocation workstationId);
 
     @Nullable
-    ResourceLocation getLastEncodedPatternSource();
+    ResourceLocation data_energistics$getPendingPatternSource();
 
-    void setLastEncodedPatternSource(@Nullable ResourceLocation workstationId);
+    void data_energistics$clearPendingPatternSource();
 
-    boolean isPatternSourceEnabled();
+    @Nullable
+    ResourceLocation data_energistics$getLastEncodedPatternSource();
+
+    void data_energistics$setLastEncodedPatternSource(@Nullable ResourceLocation workstationId);
+
+    boolean data_energistics$isPatternSourceEnabled();
 
     void setPatternSourceEnabled(boolean enabled);
 }

@@ -167,7 +167,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public long getNetworkBlankPatternCount() {
+    public long data_energistics$getNetworkBlankPatternCount() {
         if (this.networkBlankPatternCount > 0) {
             return this.networkBlankPatternCount;
         }
@@ -177,7 +177,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public List<SyncedPatternProvider> getSyncedPatternProviders() {
+    public List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
         if (!this.syncedPatternProviders.providers().isEmpty()) {
             return this.syncedPatternProviders.providers();
         }
@@ -187,12 +187,12 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public appeng.parts.encoding.EncodingMode getEncodingMode() {
+    public appeng.parts.encoding.EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
     }
 
     @Override
-    public void transferEncodedPatternToProvider(long providerId) {
+    public void data_energistics$transferEncodedPatternToProvider(long providerId) {
         if (this.isClientSide()) {
             sendClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, providerId);
             return;
@@ -228,7 +228,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void openPatternProviderMenu(long providerId) {
+    public void data_energistics$openPatternProviderMenu(long providerId) {
         if (this.isClientSide()) {
             sendClientAction(ACTION_OPEN_PATTERN_PROVIDER_MENU, providerId);
             return;
@@ -247,7 +247,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void renamePatternProvider(long providerId, String name) {
+    public void data_energistics$renamePatternProvider(long providerId, String name) {
         if (this.isClientSide()) {
             sendClientAction(ACTION_RENAME_PATTERN_PROVIDER, providerId + "\n" + (name == null ? "" : name));
             return;
@@ -271,7 +271,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void setPendingPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
+    public void data_energistics$setPendingPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
                     workstationId != null ? workstationId.toString() : PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
@@ -279,20 +279,20 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         } else {
             writeFallbackPendingPatternSource(workstationId);
             PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), workstationId);
-            if (isPatternSourceEnabled()) {
-                setLastEncodedPatternSource(workstationId);
+            if (data_energistics$isPatternSourceEnabled()) {
+                data_energistics$setLastEncodedPatternSource(workstationId);
             }
         }
     }
 
     @Override
-    public @Nullable net.minecraft.resources.ResourceLocation getPendingPatternSource() {
+    public @Nullable net.minecraft.resources.ResourceLocation data_energistics$getPendingPatternSource() {
         net.minecraft.resources.ResourceLocation fallback = readFallbackPendingPatternSource();
         return fallback != null ? fallback : PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
     }
 
     @Override
-    public void clearPendingPatternSource() {
+    public void data_energistics$clearPendingPatternSource() {
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
                     PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
@@ -305,7 +305,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void clearPatternSourceState() {
+    public void data_energistics$clearPatternSourceState() {
         if (this.isClientSide()) {
             sendClientAction("dataEnergistics$clearPatternSourceState");
             writeFallbackPendingPatternSource(null);
@@ -322,7 +322,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @Nullable net.minecraft.resources.ResourceLocation getLastEncodedPatternSource() {
+    public @Nullable net.minecraft.resources.ResourceLocation data_energistics$getLastEncodedPatternSource() {
         if (this.lastEncodedPatternSource != null) {
             return this.lastEncodedPatternSource;
         }
@@ -332,7 +332,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void setLastEncodedPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
+    public void data_energistics$setLastEncodedPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
         this.lastEncodedPatternSource = workstationId;
         writeFallbackLastEncodedPatternSource(workstationId);
         if (this.isServerSide()) {
@@ -341,7 +341,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public boolean isPatternSourceEnabled() {
+    public boolean data_energistics$isPatternSourceEnabled() {
         Boolean fallback = readFallbackPatternSourceEnabled();
         return fallback != null ? fallback : PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
     }
@@ -467,13 +467,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     private void transferEncodedPatternToProviderFromClient(Long providerId) {
         if (providerId != null) {
-            transferEncodedPatternToProvider(providerId);
+            data_energistics$transferEncodedPatternToProvider(providerId);
         }
     }
 
     private void openPatternProviderMenuFromClient(Long providerId) {
         if (providerId != null) {
-            openPatternProviderMenu(providerId);
+            data_energistics$openPatternProviderMenu(providerId);
         }
     }
 
@@ -489,7 +489,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         try {
             long providerId = Long.parseLong(payload.substring(0, separator));
             String name = payload.substring(separator + 1);
-            renamePatternProvider(providerId, name);
+            data_energistics$renamePatternProvider(providerId, name);
         } catch (NumberFormatException ignored) {}
     }
 
