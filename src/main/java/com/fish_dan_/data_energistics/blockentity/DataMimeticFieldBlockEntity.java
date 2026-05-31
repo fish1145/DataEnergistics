@@ -76,9 +76,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject {
@@ -119,6 +121,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
     private boolean syncingKeyMenu;
     private GenericStack keyInputStack;
+    private int cachedSpeedCardCount = -1;
+    private List<IItemHandler> cachedAdjacentHandlers;
+    private boolean adjacentHandlersDirty = true;
+    private Player cachedFakePlayer;
+    private final Map<Block, BlockState> cachedCropLootStates = new HashMap<>();
 
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -371,6 +378,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
 
+        this.adjacentHandlersDirty = true;
         this.setChanged();
         this.markForClientUpdate();
     }
@@ -419,6 +427,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private void onUpgradesChanged() {
+        this.cachedSpeedCardCount = -1;
         markPowerUsageDirty();
         this.saveChanges();
         this.markForClientUpdate();
@@ -629,7 +638,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private List<IItemHandler> getAdjacentItemHandlers() {
+        if (!this.adjacentHandlersDirty && this.cachedAdjacentHandlers != null) {
+            return this.cachedAdjacentHandlers;
+        }
+        this.adjacentHandlersDirty = false;
         if (this.level == null) {
+            this.cachedAdjacentHandlers = List.of();
             return List.of();
         }
 
@@ -651,7 +665,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 handlers.add(handler);
             }
         }
-        return handlers;
+        this.cachedAdjacentHandlers = handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+        return this.cachedAdjacentHandlers;
     }
 
     @Nullable
@@ -697,7 +712,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             mob.setNoAi(true);
         }
 
-        Player fakePlayer = Platform.getFakePlayer(serverLevel, null);
+        Player fakePlayer = getFakePlayer(serverLevel);
         fakePlayer.moveTo(
                 this.worldPosition.getX() + 0.5,
                 this.worldPosition.getY() + 1.0,
@@ -864,6 +879,16 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private BlockState getRecordedCropLootState(Block cropBlock) {
+        BlockState cached = this.cachedCropLootStates.get(cropBlock);
+        if (cached != null) {
+            return cached;
+        }
+        BlockState result = computeCropLootState(cropBlock);
+        this.cachedCropLootStates.put(cropBlock, result);
+        return result;
+    }
+
+    private static BlockState computeCropLootState(Block cropBlock) {
         if (cropBlock == Blocks.WHEAT) {
             return getMaxAgeCropState(Blocks.WHEAT);
         }
@@ -903,7 +928,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     @SuppressWarnings("unchecked")
-    private BlockState applyMaxAge(Block block) {
+    private static BlockState applyMaxAge(Block block) {
         BlockState state = block.defaultBlockState();
         for (var prop : state.getProperties()) {
             if (prop.getName().equals("age") && prop instanceof IntegerProperty intProp) {
@@ -914,7 +939,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         return state;
     }
 
-    private BlockState getMaxAgeCropState(Block block) {
+    private static BlockState getMaxAgeCropState(Block block) {
         if (block instanceof CropBlock cropBlock) {
             return cropBlock.getStateForAge(cropBlock.getMaxAge());
         }
@@ -1084,7 +1109,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private int getInstalledSpeedCardCount() {
-        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD));
+        if (this.cachedSpeedCardCount < 0) {
+            this.cachedSpeedCardCount = Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD));
+        }
+        return this.cachedSpeedCardCount;
     }
 
     private long getDataFlowCostPerWorkCycle(int activeCarrierCount) {
@@ -1198,6 +1226,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         if (state.hasProperty(DataMimeticFieldBlock.LIT) && state.getValue(DataMimeticFieldBlock.LIT) != online) {
             this.level.setBlock(this.worldPosition, state.setValue(DataMimeticFieldBlock.LIT, online), 3);
         }
+    }
+
+    private Player getFakePlayer(ServerLevel serverLevel) {
+        if (this.cachedFakePlayer == null) {
+            this.cachedFakePlayer = Platform.getFakePlayer(serverLevel, null);
+        }
+        return this.cachedFakePlayer;
     }
 
     private void markPowerUsageDirty() {

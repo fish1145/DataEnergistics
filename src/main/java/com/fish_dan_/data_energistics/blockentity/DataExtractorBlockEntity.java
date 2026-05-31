@@ -144,6 +144,12 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private AABB cachedCoverageAabb;
     private List<LivingEntity> cachedTargets = List.of();
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
+    private int cachedCapacityCardCount = -1;
+    private int cachedSpeedCardCount = -1;
+    private int cachedEnergyCardCount = -1;
+    private List<IItemHandler> cachedAdjacentHandlers;
+    private boolean adjacentHandlersDirty = true;
+    private Player cachedFakePlayer;
 
     public DataExtractorBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -217,6 +223,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.debuffCooldown = 0;
         this.cachedCoverageAabb = null;
         this.cachedTargets = List.of();
+        this.cachedCapacityCardCount = -1;
+        this.cachedSpeedCardCount = -1;
+        this.cachedEnergyCardCount = -1;
+        this.adjacentHandlersDirty = true;
     }
 
     @Override
@@ -345,11 +355,11 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public int getWorkIntervalTicks() {
-        return computeWorkIntervalTicks(this.upgrades);
+        return computeWorkIntervalSeconds(getCachedSpeedCardCount()) * 20;
     }
 
     public int getWorkIntervalSeconds() {
-        return computeWorkIntervalSeconds(this.upgrades);
+        return computeWorkIntervalSeconds(getCachedSpeedCardCount());
     }
 
     public int getDataFlowPerCycle() {
@@ -357,11 +367,17 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public int getDataFlowPerCycle(int targetCount) {
-        return computeDataFlowPerCycle(this.upgrades, getDamagePerCycle(), targetCount);
+        if (targetCount <= 0) {
+            return 0;
+        }
+        int damagePerCycle = getDamagePerCycle();
+        int baseDataFlow = DataExtractorConfig.baseDataFlowPerCycle + getCachedEnergyCardCount() * DATA_FLOW_PER_ENERGY_CARD + Math.max(0, damagePerCycle) * DataExtractorConfig.dataFlowPerSwordDamage;
+        double multiplier = 1.0D + Math.max(0, targetCount - 1) * DataExtractorConfig.extraTargetDataFlowMultiplier;
+        return (int) Math.round(baseDataFlow * multiplier);
     }
 
     public int getTargetLimit() {
-        return computeTargetLimit(this.upgrades);
+        return DataExtractorConfig.baseTargetLimit + getCapacityCardCount() * DataExtractorConfig.targetLimitPerCapacityCard;
     }
 
     public boolean isRedstoneControlled() {
@@ -372,7 +388,24 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         if (this.level != null && this.level.isClientSide()) {
             return this.syncedCapacityCardCount;
         }
-        return computeCapacityCardCount(this.upgrades);
+        if (this.cachedCapacityCardCount < 0) {
+            this.cachedCapacityCardCount = computeCapacityCardCount(this.upgrades);
+        }
+        return this.cachedCapacityCardCount;
+    }
+
+    private int getCachedSpeedCardCount() {
+        if (this.cachedSpeedCardCount < 0) {
+            this.cachedSpeedCardCount = Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD));
+        }
+        return this.cachedSpeedCardCount;
+    }
+
+    private int getCachedEnergyCardCount() {
+        if (this.cachedEnergyCardCount < 0) {
+            this.cachedEnergyCardCount = Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.ENERGY_CARD));
+        }
+        return this.cachedEnergyCardCount;
     }
 
     public static int computeDamagePerCycle(ItemStack sword, @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
@@ -506,6 +539,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
+        this.adjacentHandlersDirty = true;
         this.saveChanges();
         this.markForClientUpdate();
     }
@@ -713,7 +747,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         ItemStack oreStack = this.storage.getStackInSlot(ORE_SLOT);
-        if (!isOreOrRawOre(oreStack)) {
+        if (oreStack.isEmpty() || !isOreOrRawOre(oreStack)) {
             return;
         }
 
@@ -768,7 +802,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         ItemStack cropStack = this.storage.getStackInSlot(CROP_SLOT);
-        if (!isSupportedCrop(cropStack)) {
+        if (cropStack.isEmpty() || !isSupportedCrop(cropStack)) {
             return;
         }
 
@@ -1087,7 +1121,12 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private List<IItemHandler> getAdjacentItemHandlers() {
+        if (!this.adjacentHandlersDirty && this.cachedAdjacentHandlers != null) {
+            return this.cachedAdjacentHandlers;
+        }
+        this.adjacentHandlersDirty = false;
         if (this.level == null) {
+            this.cachedAdjacentHandlers = List.of();
             return List.of();
         }
 
@@ -1109,7 +1148,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 handlers.add(handler);
             }
         }
-        return handlers;
+        this.cachedAdjacentHandlers = handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+        return this.cachedAdjacentHandlers;
     }
 
     @org.jetbrains.annotations.Nullable
@@ -1196,7 +1236,11 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return new SwordAttackResult(false, sword);
         }
 
-        Player fakePlayer = Platform.getFakePlayer(level, null);
+        Player fakePlayer = this.cachedFakePlayer;
+        if (fakePlayer == null) {
+            fakePlayer = Platform.getFakePlayer(level, null);
+            this.cachedFakePlayer = fakePlayer;
+        }
         ItemStack originalMainHand = fakePlayer.getItemInHand(InteractionHand.MAIN_HAND);
         ItemStack originalOffHand = fakePlayer.getItemInHand(InteractionHand.OFF_HAND);
 
@@ -1283,6 +1327,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private record SwordAttackResult(boolean damaged, ItemStack updatedSword) {}
 
     private void onUpgradesChanged() {
+        this.cachedCapacityCardCount = -1;
+        this.cachedSpeedCardCount = -1;
+        this.cachedEnergyCardCount = -1;
         double currentPower = this.getInternalCurrentPower();
         this.setInternalMaxPower(computeEnergyCacheCapacity(this.upgrades));
         if (currentPower > this.getInternalMaxPower()) {

@@ -466,5 +466,9 @@ public class Data_Energistics {
         public static boolean isIrisLoaded() {
             return isModLoaded("iris");
         }
+
+        public static boolean isJechLoaded() {
+            return isModLoaded("jecharacters");
+        }
     }
 }

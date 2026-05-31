@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelecti
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,11 +17,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.sourceforge.pinyin4j.PinyinHelper;
-import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
-import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
@@ -35,7 +31,6 @@ import java.util.Locale;
 
 public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTowerMenu> {
 
-    private static final HanyuPinyinOutputFormat PINYIN_FORMAT = createPinyinFormat();
     private static final int LIST_X = 13;
     private static final int LIST_Y = 52;
     private static final int LIST_WIDTH = 150;
@@ -203,12 +198,12 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     }
 
     private void applySearchFilter() {
-        String filter = normalizeSearch(this.searchQuery);
+        String filter = PinyinUtil.normalizeSearch(this.searchQuery);
         if (filter.isEmpty()) {
             this.cachedRows = List.copyOf(this.allRows);
         } else {
             this.cachedRows = this.allRows.stream()
-                    .filter(row -> matchesSearch(row.searchIndex(), filter))
+                    .filter(row -> PinyinUtil.matchesSearch(row.displayText(), filter))
                     .toList();
         }
 
@@ -237,7 +232,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             rows.add(new BoundRow(
                     i < icons.length ? toStack(icons[i]) : new ItemStack(Items.BARRIER),
                     names[i],
-                    buildSearchIndex(names[i]),
+                    names[i],
                     i < metas.length ? parseMeta(metas[i]) : new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0)),
                     i < kinds.length ? parseKind(kinds[i]) : RowKind.FE));
         }
@@ -267,26 +262,11 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     }
 
     private String getEmptyStateText() {
-        if (!normalizeSearch(this.searchQuery).isEmpty()) {
+        if (!PinyinUtil.normalizeSearch(this.searchQuery).isEmpty()) {
             return Component.translatable(
                     "screen.data_energistics.data_distribution_tower.search_no_match").getString();
         }
         return Component.translatable("screen.data_energistics.data_distribution_tower.bound_none").getString();
-    }
-
-    private String normalizeSearch(String text) {
-        if (text == null || text.isBlank()) {
-            return "";
-        }
-
-        StringBuilder builder = new StringBuilder(text.length());
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (Character.isLetterOrDigit(ch) || isCjk(ch)) {
-                builder.append(Character.toLowerCase(ch));
-            }
-        }
-        return builder.toString();
     }
 
     private void updateSearchSuggestion() {
@@ -295,97 +275,6 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         }
 
         this.searchBox.setPlaceholder(this.searchBox.isFocused() ? null : SEARCH_HINT);
-    }
-
-    private String buildSearchIndex(String text) {
-        String normalized = normalizeSearch(text);
-        if (normalized.isEmpty()) {
-            return "";
-        }
-
-        StringBuilder fullPinyin = new StringBuilder();
-        StringBuilder initials = new StringBuilder();
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (isCjk(ch)) {
-                String syllable = toPinyin(ch);
-                if (!syllable.isEmpty()) {
-                    fullPinyin.append(syllable);
-                    initials.append(syllable.charAt(0));
-                    continue;
-                }
-            }
-
-            if (Character.isLetterOrDigit(ch)) {
-                char normalizedChar = Character.toLowerCase(ch);
-                fullPinyin.append(normalizedChar);
-                initials.append(normalizedChar);
-            }
-        }
-
-        StringBuilder searchIndex = new StringBuilder(normalized);
-        appendSearchVariant(searchIndex, fullPinyin);
-        appendSearchVariant(searchIndex, initials);
-        return searchIndex.toString();
-    }
-
-    private boolean matchesSearch(String searchIndex, String filter) {
-        if (searchIndex == null || searchIndex.isEmpty()) {
-            return false;
-        }
-
-        for (String variant : searchIndex.split("\\|")) {
-            if (variant.contains(filter) || isSubsequenceMatch(filter, variant)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isSubsequenceMatch(String filter, String variant) {
-        if (filter.isEmpty()) {
-            return true;
-        }
-        if (variant.isEmpty()) {
-            return false;
-        }
-
-        int filterIndex = 0;
-        for (int i = 0; i < variant.length() && filterIndex < filter.length(); i++) {
-            if (variant.charAt(i) == filter.charAt(filterIndex)) {
-                filterIndex++;
-            }
-        }
-        return filterIndex == filter.length();
-    }
-
-    private void appendSearchVariant(StringBuilder searchIndex, StringBuilder variant) {
-        if (!variant.isEmpty()) {
-            searchIndex.append('|').append(variant);
-        }
-    }
-
-    private String toPinyin(char ch) {
-        try {
-            String[] values = PinyinHelper.toHanyuPinyinStringArray(ch, PINYIN_FORMAT);
-            if (values != null && values.length > 0 && values[0] != null) {
-                return values[0];
-            }
-        } catch (Exception ignored) {}
-        return "";
-    }
-
-    private boolean isCjk(char ch) {
-        Character.UnicodeBlock block = Character.UnicodeBlock.of(ch);
-        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT;
-    }
-
-    private static HanyuPinyinOutputFormat createPinyinFormat() {
-        HanyuPinyinOutputFormat format = new HanyuPinyinOutputFormat();
-        format.setCaseType(HanyuPinyinCaseType.LOWERCASE);
-        format.setToneType(HanyuPinyinToneType.WITHOUT_TONE);
-        format.setVCharType(HanyuPinyinVCharType.WITH_V);
-        return format;
     }
 
     private static String formatFeAmount(long amount) {

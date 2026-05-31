@@ -99,8 +99,8 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
         }
 
         String blockId = BuiltInRegistries.BLOCK.getKey(target.getBlockState().getBlock()).toString();
-        this.multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliers);
-        this.targetBlacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklist);
+        this.multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliersCompiled);
+        this.targetBlacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklistCompiled);
     }
 
     private void updateEffectiveSpeed() {
