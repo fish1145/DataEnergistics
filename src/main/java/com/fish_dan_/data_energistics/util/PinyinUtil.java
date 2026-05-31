@@ -2,7 +2,12 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
+
 public final class PinyinUtil {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private PinyinUtil() {}
 
@@ -68,11 +73,51 @@ public final class PinyinUtil {
 
     private static final class JechMatcher {
 
+        private static Object searcher;
+        private static boolean searcherTried;
+
         static boolean contains(String text, String filter) {
+            Object s = getSearcher();
+            if (s != null) {
+                try {
+                    var method = s.getClass().getMethod("search", String.class, String.class);
+                    Object result = method.invoke(s, text, filter);
+                    if (result instanceof Boolean b) {
+                        return b;
+                    }
+                    if (result instanceof Number n) {
+                        return n.intValue() > 0;
+                    }
+                } catch (ReflectiveOperationException e) {
+                    LOGGER.warn("[DE][Pinyin] PinIn direct search failed", e);
+                }
+            }
             try {
                 return me.towdium.jecharacters.utils.Match.contains(text, filter);
-            } catch (NoClassDefFoundError ignored) {
+            } catch (NoClassDefFoundError | NoSuchMethodError ignored) {
                 return false;
+            }
+        }
+
+        private static Object getSearcher() {
+            if (searcher != null || searcherTried) {
+                return searcher;
+            }
+            searcherTried = true;
+            try {
+                Class<?> searcherClass = Class.forName("me.towdium.pinin.Searcher");
+                var containField = searcherClass.getField("CONTAIN");
+                int containMode = containField.getInt(null);
+                try {
+                    var constructor = searcherClass.getConstructor(int.class);
+                    searcher = constructor.newInstance(containMode);
+                } catch (NoSuchMethodException e) {
+                    searcher = searcherClass.getConstructor().newInstance();
+                }
+                return searcher;
+            } catch (ReflectiveOperationException e) {
+                LOGGER.warn("[DE][Pinyin] Failed to init PinIn Searcher", e);
+                return null;
             }
         }
     }
