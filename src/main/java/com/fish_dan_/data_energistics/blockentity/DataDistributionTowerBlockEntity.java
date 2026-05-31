@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;

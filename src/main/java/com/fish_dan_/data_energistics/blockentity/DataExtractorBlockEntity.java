@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.DataExtractorConfig;
-import com.fish_dan_.data_energistics.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
+import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;

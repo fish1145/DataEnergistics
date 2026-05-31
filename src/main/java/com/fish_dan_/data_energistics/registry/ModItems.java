@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.FlatteningTntConfig;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.config.FlatteningTntConfig;
 import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.ConfigurableTntBlockItem;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;

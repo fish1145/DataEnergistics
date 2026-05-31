@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
-import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;

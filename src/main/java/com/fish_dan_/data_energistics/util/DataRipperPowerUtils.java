@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.Config;
+import com.fish_dan_.data_energistics.config.Config;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.core.definitions.AEItems;

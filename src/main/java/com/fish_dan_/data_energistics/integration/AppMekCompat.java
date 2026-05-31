@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.Direction;
-import com.fish_dan_.data_energistics.Data_Energistics;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 

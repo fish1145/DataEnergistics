@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.part;
 
-import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
+import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;

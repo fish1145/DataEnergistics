@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.FlatteningTntConfig;
+import com.fish_dan_.data_energistics.config.FlatteningTntConfig;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;

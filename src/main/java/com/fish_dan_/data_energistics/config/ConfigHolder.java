@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics;
+package com.fish_dan_.data_energistics.config;
 
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;

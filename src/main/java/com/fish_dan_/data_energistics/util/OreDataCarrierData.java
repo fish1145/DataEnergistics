@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.DataExtractorConfig;
+import com.fish_dan_.data_energistics.config.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;

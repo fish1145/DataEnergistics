@@ -1,5 +1,6 @@
-package com.fish_dan_.data_energistics;
+package com.fish_dan_.data_energistics.config;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 
 import net.neoforged.bus.api.SubscribeEvent;

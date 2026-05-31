@@ -28,6 +28,7 @@ import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermSc
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
 import com.fish_dan_.data_energistics.common.CommonProxy;
+import com.fish_dan_.data_energistics.config.ConfigHolder;
 import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;

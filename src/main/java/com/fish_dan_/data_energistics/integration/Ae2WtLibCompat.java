@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import com.fish_dan_.data_energistics.Data_Energistics;
+
 import appeng.client.gui.style.StyleManager;
 import appeng.menu.AEBaseMenu;
 
