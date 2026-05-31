@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.ModFluids;
 
 import net.minecraft.resources.ResourceLocation;
@@ -8,10 +9,10 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 
 public final class ModFluidClientExtensions {
 
-    private static final ResourceLocation ENDER_STILL = ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/ender_still");
-    private static final ResourceLocation ENDER_FLOW = ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/ender_flow");
-    private static final ResourceLocation DATA_CORROSION_LIQUID_STILL = ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/data_corrosion_liquid_still");
-    private static final ResourceLocation DATA_CORROSION_LIQUID_FLOW = ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/data_corrosion_liquid_flow");
+    private static final ResourceLocation ENDER_STILL = Data_Energistics.id("block/fluid/ender_still");
+    private static final ResourceLocation ENDER_FLOW = Data_Energistics.id("block/fluid/ender_flow");
+    private static final ResourceLocation DATA_CORROSION_LIQUID_STILL = Data_Energistics.id("block/fluid/data_corrosion_liquid_still");
+    private static final ResourceLocation DATA_CORROSION_LIQUID_FLOW = Data_Energistics.id("block/fluid/data_corrosion_liquid_flow");
     private static final ResourceLocation WATER_OVERLAY = ResourceLocation.withDefaultNamespace("block/water_overlay");
 
     private ModFluidClientExtensions() {}

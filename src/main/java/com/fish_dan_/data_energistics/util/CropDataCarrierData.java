@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.DataExtractorConfig;
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;
@@ -27,6 +28,8 @@ import net.minecraft.world.level.block.SweetBerryBushBlock;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+
 public final class CropDataCarrierData {
 
     private static final String TAG_CROP_ITEM = "crop_item";
@@ -38,6 +41,14 @@ public final class CropDataCarrierData {
 
     private static final TagKey<Item> TAG_COMMON_SEEDS = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:seeds"));
     private static final TagKey<Item> TAG_COMMON_CROPS = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:crops"));
+
+    private static final Map<Item, Block> CROP_TO_BLOCK = Map.ofEntries(
+            Map.entry(Items.WHEAT_SEEDS, Blocks.WHEAT),
+            Map.entry(Items.CARROT, Blocks.CARROTS),
+            Map.entry(Items.POTATO, Blocks.POTATOES),
+            Map.entry(Items.BEETROOT_SEEDS, Blocks.BEETROOTS),
+            Map.entry(Items.NETHER_WART, Blocks.NETHER_WART),
+            Map.entry(Items.SWEET_BERRIES, Blocks.SWEET_BERRY_BUSH));
 
     private CropDataCarrierData() {}
 
@@ -258,35 +269,14 @@ public final class CropDataCarrierData {
             return null;
         }
 
-        return ResourceLocation.fromNamespaceAndPath(
-                "data_energistics",
-                TREE_LOOT_TABLE_PREFIX + sourceBlockId.getNamespace() + "/" + sourceBlockId.getPath());
+        return Data_Energistics.id(TREE_LOOT_TABLE_PREFIX + sourceBlockId.getNamespace() + "/" + sourceBlockId.getPath());
     }
 
     @Nullable
     private static Block resolveCropSourceBlock(Item cropItem) {
-        if (cropItem == Items.WHEAT_SEEDS) {
-            return Blocks.WHEAT;
-        }
-        if (cropItem == Items.CARROT) {
-            return Blocks.CARROTS;
-        }
-        if (cropItem == Items.POTATO) {
-            return Blocks.POTATOES;
-        }
-        if (cropItem == Items.BEETROOT_SEEDS) {
-            return Blocks.BEETROOTS;
-        }
-        if (cropItem == Items.NETHER_WART) {
-            return Blocks.NETHER_WART;
-        }
-        if (cropItem == Items.SWEET_BERRIES) {
-            return Blocks.SWEET_BERRY_BUSH;
-        }
-        if (cropItem instanceof BlockItem blockItem) {
-            return blockItem.getBlock();
-        }
-        return null;
+        Block direct = CROP_TO_BLOCK.get(cropItem);
+        if (direct != null) return direct;
+        return cropItem instanceof BlockItem blockItem ? blockItem.getBlock() : null;
     }
 
     private static boolean isTreeSaplingBlock(Block sourceBlock, ResourceLocation cropItemId) {

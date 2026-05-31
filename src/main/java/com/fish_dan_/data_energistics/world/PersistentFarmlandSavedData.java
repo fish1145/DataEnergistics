@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -15,7 +17,7 @@ import java.util.Set;
 
 public class PersistentFarmlandSavedData extends SavedData {
 
-    private static final String DATA_NAME = "data_energistics_persistent_farmland";
+    private static final String DATA_NAME = Data_Energistics.MODID + "_persistent_farmland";
     private static final String POSITIONS_TAG = "Positions";
     private final Set<Long> farmlandPositions = new HashSet<>();
 

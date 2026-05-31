@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.render;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -55,7 +56,7 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
 
     private static boolean isSanctifier(ItemStack stack) {
         ResourceLocation itemId = stack.getItemHolder().getKey().location();
-        return "data_energistics".equals(itemId.getNamespace()) && "data_sanctifier".equals(itemId.getPath());
+        return Data_Energistics.MODID.equals(itemId.getNamespace()) && "data_sanctifier".equals(itemId.getPath());
     }
 
     private static boolean hasSaberEnergyCard(ItemStack stack) {

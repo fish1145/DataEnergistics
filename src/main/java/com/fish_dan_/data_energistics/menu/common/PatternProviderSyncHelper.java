@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu.common;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
@@ -67,7 +68,7 @@ public final class PatternProviderSyncHelper {
     private static final ResourceLocation AE2_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
     private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
-    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
+    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");

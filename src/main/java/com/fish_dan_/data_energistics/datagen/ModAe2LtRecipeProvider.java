@@ -30,7 +30,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
     @Override
     public CompletableFuture<?> run(CachedOutput cache) {
         var recipeDir = output.getOutputFolder()
-                .resolve("data/" + Data_Energistics.MODID + "/recipe/data_energistics/data_reassembler/ae2lt");
+                .resolve("data/" + Data_Energistics.MODID + "/recipe/" + Data_Energistics.MODID + "/data_reassembler/ae2lt");
 
         var tasks = new CompletableFuture<?>[3];
         tasks[0] = saveStable(cache, recipeDir.resolve("perfect_electro_chime_crystal.json"), perfectElectroChime());
@@ -93,7 +93,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
 
     private static JsonObject perfectElectroChime() {
         var root = conditions("ae2lt");
-        root.addProperty("type", "data_energistics:data_reassembler");
+        root.addProperty("type", Data_Energistics.MODID + ":data_reassembler");
 
         var items = new JsonArray();
         items.add(itemInput(itemId(ModItems.ELECTRO_CHIME_CRYSTAL), 1));
@@ -101,7 +101,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
         root.add("item_inputs", items);
 
         var fluids = new JsonArray();
-        fluids.add(fluidInput("data_energistics:data_corrosion_liquid", 250));
+        fluids.add(fluidInput(Data_Energistics.MODID + ":data_corrosion_liquid", 250));
         root.add("fluid_inputs", fluids);
 
         var outputs = new JsonArray();
@@ -114,7 +114,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
 
     private static JsonObject overloadCrystal() {
         var root = conditions("ae2lt");
-        root.addProperty("type", "data_energistics:data_reassembler");
+        root.addProperty("type", Data_Energistics.MODID + ":data_reassembler");
 
         var items = new JsonArray();
         items.add(itemInput(itemId(ModItems.OVERLOAD_CRYSTAL_DUST), 16));
@@ -122,7 +122,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
         root.add("item_inputs", items);
 
         var fluids = new JsonArray();
-        fluids.add(fluidInput("data_energistics:data_corrosion_liquid", 250));
+        fluids.add(fluidInput(Data_Energistics.MODID + ":data_corrosion_liquid", 250));
         root.add("fluid_inputs", fluids);
 
         var outputs = new JsonArray();
@@ -135,7 +135,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
 
     private static JsonObject electroChimeCrystal() {
         var root = conditions("ae2lt");
-        root.addProperty("type", "data_energistics:data_reassembler");
+        root.addProperty("type", Data_Energistics.MODID + ":data_reassembler");
 
         var items = new JsonArray();
         items.add(itemInput(AEItems.FLUIX_CRYSTAL.id().toString(), 16));
@@ -144,7 +144,7 @@ public class ModAe2LtRecipeProvider implements DataProvider {
         root.add("item_inputs", items);
 
         var fluids = new JsonArray();
-        fluids.add(fluidInput("data_energistics:data_corrosion_liquid", 250));
+        fluids.add(fluidInput(Data_Energistics.MODID + ":data_corrosion_liquid", 250));
         root.add("fluid_inputs", fluids);
 
         var outputs = new JsonArray();

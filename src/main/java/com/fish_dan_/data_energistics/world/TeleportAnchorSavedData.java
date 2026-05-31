@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.world;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 
 import net.minecraft.core.BlockPos;
@@ -23,7 +24,7 @@ import java.util.Map;
 
 public class TeleportAnchorSavedData extends SavedData {
 
-    private static final String DATA_NAME = "data_energistics_teleport_anchors";
+    private static final String DATA_NAME = Data_Energistics.MODID + "_teleport_anchors";
     private static final String ENTRIES_TAG = "entries";
     private static final String DIMENSION_TAG = "dimension";
     private static final String POSITION_TAG = "pos";

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.jei;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
@@ -39,7 +40,7 @@ import java.util.List;
 public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCategory<DataRipperReassemblerRecipe> {
 
     private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
-    public static final RecipeType<DataRipperReassemblerRecipe> RECIPE_TYPE = RecipeType.create("data_energistics", "data_reassembler", DataRipperReassemblerRecipe.class);
+    public static final RecipeType<DataRipperReassemblerRecipe> RECIPE_TYPE = RecipeType.create(Data_Energistics.MODID, "data_reassembler", DataRipperReassemblerRecipe.class);
 
     private final IDrawable background;
     private final IDrawableAnimated progress;

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.render;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -18,10 +19,10 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
 
     private static final float DISPLAY_HALF_SIZE = 0.125F;
     private static final ResourceLocation[] ORB_TEXTURES = new ResourceLocation[] {
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_0.png"),
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_1.png"),
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_2.png"),
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_3.png")
+            Data_Energistics.id("textures/entity/dispersing_data_0.png"),
+            Data_Energistics.id("textures/entity/dispersing_data_1.png"),
+            Data_Energistics.id("textures/entity/dispersing_data_2.png"),
+            Data_Energistics.id("textures/entity/dispersing_data_3.png")
     };
 
     public DispersingDataRenderer(EntityRendererProvider.Context context) {

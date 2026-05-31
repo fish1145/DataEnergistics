@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.jei;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
@@ -48,7 +49,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     private static final int RIGHT_CLICK_OUTPUT_X = 122;
     private static final int RIGHT_CLICK_OUTPUT_Y = 26;
 
-    public static final RecipeType<WorldInteractionJeiRecipe> RECIPE_TYPE = RecipeType.create("data_energistics", "world_interaction", WorldInteractionJeiRecipe.class);
+    public static final RecipeType<WorldInteractionJeiRecipe> RECIPE_TYPE = RecipeType.create(Data_Energistics.MODID, "world_interaction", WorldInteractionJeiRecipe.class);
 
     private final IDrawable background;
     private final IDrawable rightClickBackground;

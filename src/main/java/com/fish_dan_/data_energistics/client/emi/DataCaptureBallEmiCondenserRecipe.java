@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.emi;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -22,7 +23,7 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
     private static final int REQUIRED_POWER = 131072;
 
     DataCaptureBallEmiCondenserRecipe() {
-        super(CATEGORY, ResourceLocation.fromNamespaceAndPath("data_energistics", "condenser/data_capture_ball"), 96, 48);
+        super(CATEGORY, Data_Energistics.id("condenser/data_capture_ball"), 96, 48);
         this.outputs.add(EmiStack.of(DataCaptureBallItem.createChargedStack()));
         this.catalysts.add(EmiIngredient.of(List.of(
                 EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16K.get()),
@@ -64,7 +65,7 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
         } catch (ReflectiveOperationException ignored) {}
 
         return new EmiRecipeCategory(
-                ResourceLocation.fromNamespaceAndPath("data_energistics", "condenser_data_capture_ball"),
+                Data_Energistics.id("condenser_data_capture_ball"),
                 EmiStack.of(DataCaptureBallItem.createChargedStack()));
     }
 }
