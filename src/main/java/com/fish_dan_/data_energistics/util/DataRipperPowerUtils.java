@@ -60,23 +60,18 @@ public final class DataRipperPowerUtils {
         return (long) Math.ceil(value);
     }
 
+    private static final long[] POWER_FOR_SPEED = {
+            0, 0, 256, 0, 1024, 0, 2048, 0, 8192, 0,
+            16384, 0, 65536, 0, 131072, 0, 524288, 0,
+            268435456, 0, 2147483648L
+    };
+
     public static String formatDataFlowCost(double value) {
         return Long.toString(toDataFlowCost(value));
     }
 
     private static long basePowerForSpeed(int speed) {
-        return switch (speed) {
-            case 2 -> 256L;
-            case 4 -> 1_024L;
-            case 8 -> 2_048L;
-            case 16 -> 8_192L;
-            case 32 -> 16_384L;
-            case 64 -> 65_536L;
-            case 128 -> 131_072L;
-            case 256 -> 524_288L;
-            case 512 -> 268_435_456L;
-            case 1024 -> 2_147_483_648L;
-            default -> 0L;
-        };
+        int idx = Integer.numberOfTrailingZeros(speed) * 2;
+        return idx < POWER_FOR_SPEED.length ? POWER_FOR_SPEED[idx] : 0;
     }
 }

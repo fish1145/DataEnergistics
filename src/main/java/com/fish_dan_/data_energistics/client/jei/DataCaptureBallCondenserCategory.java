@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.jei;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -26,7 +27,7 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
 
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/condenser.png");
     private static final int REQUIRED_POWER = 131072;
-    public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE = RecipeType.create("data_energistics", "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
+    public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE = RecipeType.create(Data_Energistics.MODID, "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
 
     private final IDrawableAnimated progress;
     private final IDrawable background;
@@ -82,6 +83,6 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
 
     @Override
     public @Nullable ResourceLocation getRegistryName(DataCaptureBallCondenserRecipe recipe) {
-        return ResourceLocation.fromNamespaceAndPath("data_energistics", "condenser/data_capture_ball");
+        return Data_Energistics.id("condenser/data_capture_ball");
     }
 }

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.render;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -17,7 +18,7 @@ import com.mojang.math.Axis;
 
 public class LightBladeChargeRenderer extends EntityRenderer<LightBladeChargeEntity> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/blade_charge.png");
+    private static final ResourceLocation TEXTURE = Data_Energistics.id("textures/entity/blade_charge.png");
     private static final float HALF_LENGTH = 0.8F;
     private static final float HALF_WIDTH = 0.25F;
     private static final float CROSS_ANGLE = 45.0F;

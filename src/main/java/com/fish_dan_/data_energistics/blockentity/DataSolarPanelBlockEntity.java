@@ -84,14 +84,17 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         updateOnlineState();
     }
 
+    @Override
     public boolean isOnline() {
         return this.getMainNode().isOnline() && (!this.redstoneControlled || isReceivingRedstonePower());
     }
 
+    @Override
     public boolean isRedstoneControlled() {
         return this.redstoneControlled;
     }
 
+    @Override
     public boolean setRedstoneControlled(boolean enabled) {
         if (this.redstoneControlled == enabled) {
             return this.redstoneControlled;
@@ -109,6 +112,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         return this.upgrades;
     }
 
+    @Override
     public double getGeneratedPowerPerTick() {
         if (this.level == null) {
             return 0.0D;
@@ -168,6 +172,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         this.upgrades.clear();
     }
 
+    @Override
     public boolean isDaytime() {
         return this.level != null && this.level.isDay();
     }

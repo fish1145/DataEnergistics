@@ -121,6 +121,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return logic instanceof AdaptivePatternProviderLogic adaptive ? adaptive : null;
     }
 
+    @Override
     public AppEngInternalInventory getProviderInventory() {
         return getAdaptiveState().getProviderInventory();
     }
@@ -149,10 +150,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return this.externalReturnChemicalHandler;
     }
 
+    @Override
     public int getProviderSlotLimit() {
         return AdaptivePatternProviderState.PROVIDER_SLOT_LIMIT + getExtraProviderSlotsFromCapacityCards();
     }
 
+    @Override
     public ItemStack extractProviderOverflow() {
         return getAdaptiveState().extractProviderOverflow();
     }
@@ -166,10 +169,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return this.upgrades.size() > 0;
     }
 
+    @Override
     public int getPatternSlotCountForMenu() {
         return getConfiguredPatternSlotCount();
     }
 
+    @Override
     public Component getProviderDisplayName() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
         if (adjacentGroup != null) {
@@ -180,6 +185,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return profile != null ? profile.displayName() : this.getMainMenuIcon().getHoverName();
     }
 
+    @Override
     public Component getGuiDisplayName() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
         if (adjacentGroup != null) {
@@ -218,16 +224,19 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return groups.size() == 1 ? groups.iterator().next() : null;
     }
 
+    @Override
     public boolean isMeteoriteProviderSelected() {
         ProviderProfile profile = getProviderProfile();
         return profile != null && profile.kind() == ProviderKind.METEORITE;
     }
 
+    @Override
     public boolean isAdvancedAeProviderSelected() {
         ProviderProfile profile = getProviderProfile();
         return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL || profile.kind() == ProviderKind.ADVANCED_EXTENDED);
     }
 
+    @Override
     public boolean isAe2LightningTechOverloadedProviderSelected() {
         ProviderProfile profile = getProviderProfile();
         return profile != null && profile.kind() == ProviderKind.AE2LT_OVERLOADED;
@@ -252,55 +261,67 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return profile.kind() == ProviderKind.RESONATING || profile.kind() == ProviderKind.EXTENDED_RESONATING;
     }
 
+    @Override
     public boolean supportsFilteredImportToggle() {
         ProviderProfile profile = getProviderProfile();
         return profile != null && (profile.kind() == ProviderKind.ADVANCED_SMALL || profile.kind() == ProviderKind.ADVANCED_EXTENDED || profile.kind() == ProviderKind.AE2LT_OVERLOADED);
     }
 
+    @Override
     public Ae2LtProviderMode getAe2LtProviderMode() {
         return getAdaptiveState().getAe2LtProviderMode();
     }
 
+    @Override
     public void cycleAe2LtProviderMode() {
         getAdaptiveState().cycleAe2LtProviderMode();
         this.onAe2LtStateChanged();
     }
 
+    @Override
     public boolean isAe2LtWirelessMode() {
         return getAdaptiveState().isAe2LtWirelessMode();
     }
 
+    @Override
     public Ae2LtReturnMode getAe2LtReturnMode() {
         return getAdaptiveState().getAe2LtReturnMode();
     }
 
+    @Override
     public void cycleAe2LtReturnMode() {
         getAdaptiveState().cycleAe2LtReturnMode();
         this.onAe2LtStateChanged();
     }
 
+    @Override
     public Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
         return getAdaptiveState().getAe2LtWirelessDispatchMode();
     }
 
+    @Override
     public void cycleAe2LtWirelessDispatchMode() {
         getAdaptiveState().cycleAe2LtWirelessDispatchMode();
         this.onAe2LtStateChanged();
     }
 
+    @Override
     public Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
         return getAdaptiveState().getAe2LtWirelessSpeedMode();
     }
 
+    @Override
     public void cycleAe2LtWirelessSpeedMode() {
         getAdaptiveState().cycleAe2LtWirelessSpeedMode();
         this.onAe2LtStateChanged();
     }
 
+    @Override
     public boolean isAdvancedAeFilteredImportEnabled() {
         return getAdaptiveState().isAdvancedAeFilteredImportEnabled();
     }
 
+    @Override
     public void setAdvancedAeFilteredImportEnabled(boolean enabled) {
         if (!getAdaptiveState().setAdvancedAeFilteredImportEnabled(enabled)) {
             return;
@@ -331,11 +352,13 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
     }
 
+    @Override
     public void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
         getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
         this.onAe2LtStateChanged();
     }
 
+    @Override
     public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
         if (getAdaptiveState().removeConnection(dimension, pos)) {
             this.onAe2LtStateChanged();
@@ -344,6 +367,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return false;
     }
 
+    @Override
     public List<AdaptiveWirelessConnection> getConnections() {
         return getAdaptiveState().getConnections();
     }

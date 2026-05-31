@@ -13,17 +13,17 @@ import java.util.List;
 
 public interface PatternEncodingPreviewMenu {
 
-    long getNetworkBlankPatternCount();
+    long data_energistics$getNetworkBlankPatternCount();
 
-    EncodingMode getEncodingMode();
+    EncodingMode data_energistics$getEncodingMode();
 
-    List<SyncedPatternProvider> getSyncedPatternProviders();
+    List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders();
 
-    void transferEncodedPatternToProvider(long providerId);
+    void data_energistics$transferEncodedPatternToProvider(long providerId);
 
-    void openPatternProviderMenu(long providerId);
+    void data_energistics$openPatternProviderMenu(long providerId);
 
-    void renamePatternProvider(long providerId, String name);
+    void data_energistics$renamePatternProvider(long providerId, String name);
 
     record SyncedPatternProviderList(List<SyncedPatternProvider> providers) implements PacketWritable {
 

@@ -205,7 +205,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().transferEncodedPatternToProvider(hit.provider().id());
+                previewBridge().data_energistics$transferEncodedPatternToProvider(hit.provider().id());
                 return true;
             }
         }
@@ -217,7 +217,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().openPatternProviderMenu(hit.provider().id());
+                previewBridge().data_energistics$openPatternProviderMenu(hit.provider().id());
                 return true;
             }
         }
@@ -256,7 +256,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().openPatternProviderMenu(hit.provider().id());
+                previewBridge().data_energistics$openPatternProviderMenu(hit.provider().id());
                 return true;
             }
         }
@@ -569,7 +569,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
 
         this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::setPatternSourceEnabled);
-        this.patternSourceToggleButton.setState(sourceAware.isPatternSourceEnabled());
+        this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
         this.addRenderableWidget(this.patternSourceToggleButton);
     }
 
@@ -578,7 +578,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return;
         }
 
-        this.patternSourceToggleButton.setState(sourceAware.isPatternSourceEnabled());
+        this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
         ResourceLocation workstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(sourceAware);
         if (workstationId != null) {
             this.patternSourceToggleButton.setDetailLine(Component.translatable(
@@ -666,7 +666,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return this.cachedVisibleProviders;
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = previewBridge().getSyncedPatternProviders();
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = previewBridge().data_energistics$getSyncedPatternProviders();
         if (isRenamingProvider()) {
             this.cachedVisibleProviders = providers;
             this.visibleProvidersCacheDirty = false;
@@ -792,9 +792,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
         if (button == 0) {
             if (this.menu.getCarried().isEmpty()) {
-                blankPatternProxyMenu.pickupBlankPatterns(false);
+                blankPatternProxyMenu.data_energistics$pickupBlankPatterns(false);
             } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
-                blankPatternProxyMenu.depositCarriedBlankPatterns(false);
+                blankPatternProxyMenu.data_energistics$depositCarriedBlankPatterns(false);
             } else {
                 return false;
             }
@@ -803,9 +803,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
         if (button == 1) {
             if (this.menu.getCarried().isEmpty()) {
-                blankPatternProxyMenu.pickupBlankPatterns(true);
+                blankPatternProxyMenu.data_energistics$pickupBlankPatterns(true);
             } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
-                blankPatternProxyMenu.depositCarriedBlankPatterns(true);
+                blankPatternProxyMenu.data_energistics$depositCarriedBlankPatterns(true);
             } else {
                 return false;
             }
@@ -874,7 +874,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return;
         }
 
-        previewBridge().renamePatternProvider(this.renamingProviderId, this.providerRenameBox.getValue());
+        previewBridge().data_energistics$renamePatternProvider(this.renamingProviderId, this.providerRenameBox.getValue());
         cancelProviderRename();
     }
 

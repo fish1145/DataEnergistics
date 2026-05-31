@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
@@ -80,7 +81,7 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
     private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
-    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
+    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final ResourceLocation MEKANISM_COMBINER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "combiner");
@@ -220,15 +221,15 @@ public final class PatternEncodingSourceHelper {
                                               @Nullable Object transferContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
             if (shouldIgnoreWorkstationMemory(sourceAware)) {
-                sourceAware.setPendingPatternSource(null);
-                sourceAware.setLastEncodedPatternSource(null);
+                sourceAware.data_energistics$setPendingPatternSource(null);
+                sourceAware.data_energistics$setLastEncodedPatternSource(null);
                 return;
             }
 
             ResourceLocation workstationId = resolveWorkstationForTransfer(recipe, transferContext);
-            sourceAware.setPendingPatternSource(workstationId);
-            if (sourceAware.isPatternSourceEnabled()) {
-                sourceAware.setLastEncodedPatternSource(workstationId);
+            sourceAware.data_energistics$setPendingPatternSource(workstationId);
+            if (sourceAware.data_energistics$isPatternSourceEnabled()) {
+                sourceAware.data_energistics$setLastEncodedPatternSource(workstationId);
             }
         }
     }
@@ -444,7 +445,7 @@ public final class PatternEncodingSourceHelper {
     public static void applyPatternSource(ItemStack stack, PatternEncodingSourceAware sourceAware,
                                           @Nullable ResourceLocation fallbackWorkstationId) {
         if (shouldIgnoreWorkstationMemory(sourceAware)) {
-            sourceAware.setLastEncodedPatternSource(null);
+            sourceAware.data_energistics$setLastEncodedPatternSource(null);
             return;
         }
 
@@ -453,12 +454,12 @@ public final class PatternEncodingSourceHelper {
             workstationId = fallbackWorkstationId;
         }
 
-        sourceAware.setLastEncodedPatternSource(workstationId);
+        sourceAware.data_energistics$setLastEncodedPatternSource(workstationId);
     }
 
     @Nullable
     public static ResourceLocation resolvePreferredWorkstationId(PatternEncodingSourceAware sourceAware) {
-        if (!sourceAware.isPatternSourceEnabled()) {
+        if (!sourceAware.data_energistics$isPatternSourceEnabled()) {
             return null;
         }
 
@@ -466,12 +467,12 @@ public final class PatternEncodingSourceHelper {
             return null;
         }
 
-        ResourceLocation workstationId = sourceAware.getPendingPatternSource();
+        ResourceLocation workstationId = sourceAware.data_energistics$getPendingPatternSource();
         if (workstationId != null) {
             return workstationId;
         }
 
-        return sourceAware.getLastEncodedPatternSource();
+        return sourceAware.data_energistics$getLastEncodedPatternSource();
     }
 
     private static boolean shouldIgnoreWorkstationMemory(PatternEncodingSourceAware sourceAware) {
@@ -479,7 +480,7 @@ public final class PatternEncodingSourceHelper {
             return false;
         }
 
-        EncodingMode mode = previewMenuHost.getEncodingMode();
+        EncodingMode mode = previewMenuHost.data_energistics$getEncodingMode();
         return mode == EncodingMode.CRAFTING || mode == EncodingMode.STONECUTTING || mode == EncodingMode.SMITHING_TABLE;
     }
 

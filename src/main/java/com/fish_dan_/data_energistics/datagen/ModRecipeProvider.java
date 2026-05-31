@@ -51,18 +51,18 @@ public class ModRecipeProvider extends RecipeProvider {
 
         new Builder()
                 .addItem(tag("c:gems/redstone"), 16)
-                .addFluid(fluid("data_energistics:data_corrosion_liquid"), 250)
+                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
                 .addOutput(AFSingletons.CHARGED_REDSTONE, 20)
-                .save(cond, id("data_energistics/data_reassembler/appflux/redstone_crystal"));
+                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/appflux/redstone_crystal"));
 
         new Builder()
                 .addItem(Items.REDSTONE_BLOCK, 16)
                 .addItem(AEItems.FLUIX_CRYSTAL.asItem(), 16)
                 .addItem(Items.GLOWSTONE_DUST, 16)
-                .addFluid(fluid("data_energistics:data_corrosion_liquid"), 250)
+                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
                 .addOutput(AFSingletons.REDSTONE_CRYSTAL, 72)
                 .keyInput(dataFlowKey(2400))
-                .save(cond, id("data_energistics/data_reassembler/appflux/appflux_redstone_crystal"));
+                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/appflux/appflux_redstone_crystal"));
     }
 
     private void buildExtendedAeRecipes(RecipeOutput output) {
@@ -71,10 +71,10 @@ public class ModRecipeProvider extends RecipeProvider {
         new Builder()
                 .addItem(tag("c:gems/entro"), 16)
                 .addItem(tag("c:dusts/entro"), 16)
-                .addFluid(fluid("data_energistics:data_corrosion_liquid"), 250)
+                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
                 .addOutput(item("extendedae:entro_crystal"), 72)
                 .keyInput(dataFlowKey(2400))
-                .save(cond, id("data_energistics/data_reassembler/extendedae/eae_entro_crystal"));
+                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/extendedae/eae_entro_crystal"));
     }
 
     private void buildNeoEcoAeRecipes(RecipeOutput output) {
@@ -83,18 +83,18 @@ public class ModRecipeProvider extends RecipeProvider {
         new Builder()
                 .addItem(AEItems.CERTUS_QUARTZ_CRYSTAL_CHARGED.asItem(), 32)
                 .addItem(item("neoecoae:energized_crystal_dust"), 32)
-                .addFluid(fluid("data_energistics:data_corrosion_liquid"), 250)
+                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
                 .addOutput(item("neoecoae:energized_crystal"), 72)
                 .keyInput(dataFlowKey(2400))
-                .save(cond, id("data_energistics/data_reassembler/neoecoae/neoeco_energized_crystal"));
+                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/neoecoae/neoeco_energized_crystal"));
 
         new Builder()
                 .addItem(item("neoecoae:energized_crystal_dust"), 48)
                 .addItem(AEItems.FLUIX_CRYSTAL.asItem(), 48)
-                .addFluid(fluid("data_energistics:data_corrosion_liquid"), 250)
+                .addFluid(fluid(Data_Energistics.MODID + ":data_corrosion_liquid"), 250)
                 .addOutput(item("neoecoae:energized_fluix_crystal"), 72)
                 .keyInput(dataFlowKey(2400))
-                .save(cond, id("data_energistics/data_reassembler/neoecoae/neoeco_energized_fluix_crystal"));
+                .save(cond, id(Data_Energistics.MODID + "/data_reassembler/neoecoae/neoeco_energized_fluix_crystal"));
     }
 
     private static ResourceLocation id(String path) {
