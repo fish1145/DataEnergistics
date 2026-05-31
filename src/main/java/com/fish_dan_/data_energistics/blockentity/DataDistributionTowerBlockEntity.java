@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -96,6 +96,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
     private static final int CLUSTER_CACHE_TICKS = 10;
     private static final int DIAGNOSTIC_LOG_INTERVAL_TICKS = 100;
+    private static final int CACHE_CLEANUP_INTERVAL_TICKS = 6000;
+    private static final int MAX_ENERGY_STORAGE_VIEWS = 256;
+    private static final int MAX_CURSOR_ENTRIES = 128;
     private static final double BASE_IDLE_POWER_USAGE = 4.0;
     private static final double IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK = 8.0;
     private static final int BOOSTERS_PER_CHUNK_RING = 8;
@@ -114,6 +117,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
     private final Map<ExtractSimulationKey, Integer> cachedSimulatedExtracts = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
+    private final ArrayList<EnergyEndpoint> reusableEndpointFilter = new ArrayList<>();
     private long lastEndpointCacheTick = Long.MIN_VALUE;
     private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
@@ -148,6 +152,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean showRange = false;
     private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
+    private int cacheCleanupCooldown;
     private boolean pendingInitialDiscovery = false;
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
     private int pendingInitialDiscoveryDelay = 0;
@@ -260,6 +265,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         syncClientOnlineState();
 
         processPendingInitialDiscovery();
+
+        if (--this.cacheCleanupCooldown <= 0) {
+            this.cacheCleanupCooldown = CACHE_CLEANUP_INTERVAL_TICKS;
+            trimCaches();
+        }
 
         if (this.pendingRangeRefresh) {
             applyPendingRangeRefresh();
@@ -1010,6 +1020,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedSimulatedExtractTick = Long.MIN_VALUE;
     }
 
+    private void trimCaches() {
+        if (this.cachedEnergyStorageViews.size() > MAX_ENERGY_STORAGE_VIEWS) {
+            this.cachedEnergyStorageViews.clear();
+        }
+        if (this.extractRoundRobinCursor.size() > MAX_CURSOR_ENTRIES) {
+            this.extractRoundRobinCursor.clear();
+        }
+        if (this.receiveRoundRobinCursor.size() > MAX_CURSOR_ENTRIES) {
+            this.receiveRoundRobinCursor.clear();
+        }
+        if (this.cachedExtractQuerySummaries.size() > MAX_CURSOR_ENTRIES) {
+            this.cachedExtractQuerySummaries.clear();
+        }
+        if (this.cachedReceiveQuerySummaries.size() > MAX_CURSOR_ENTRIES) {
+            this.cachedReceiveQuerySummaries.clear();
+        }
+    }
+
     private List<BlockPos> getCachedEndpoints() {
         if (this.level == null) {
             return List.of();
@@ -1449,13 +1477,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return endpoints;
         }
 
-        ArrayList<EnergyEndpoint> filtered = new ArrayList<>(endpoints.size());
+        this.reusableEndpointFilter.clear();
         for (EnergyEndpoint endpoint : endpoints) {
             if (!excludedPos.equals(endpoint.pos())) {
-                filtered.add(endpoint);
+                this.reusableEndpointFilter.add(endpoint);
             }
         }
-        return filtered;
+        return this.reusableEndpointFilter;
     }
 
     private boolean isClusterCoordinator() {

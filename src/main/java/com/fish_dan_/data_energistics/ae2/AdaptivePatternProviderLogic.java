@@ -118,6 +118,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private final List<GenericStack> baseSendListView;
     private long ae2ltLastAutoReturnTick = -1L;
     private boolean dataEnergistics$dispatchPulsePending;
+    private List<AdaptiveWirelessConnection> cachedOrderedWirelessConnections;
+    private long cachedWirelessConnectionsTick = Long.MIN_VALUE;
 
     public AdaptivePatternProviderLogic(IManagedGridNode mainNode, PatternProviderLogicHost host, int patternInventorySize) {
         super(mainNode, host, patternInventorySize);
@@ -640,6 +642,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return List.of();
         }
 
+        long gameTime = level.getGameTime();
+        if (this.cachedOrderedWirelessConnections != null && this.cachedWirelessConnectionsTick == gameTime) {
+            return this.cachedOrderedWirelessConnections;
+        }
+
         List<AdaptiveWirelessConnection> valid = new ArrayList<>();
         for (var conn : adaptivePatternProviderHost.getConnections()) {
             if (!conn.dimension().equals(level.dimension())) {
@@ -653,17 +660,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         if (valid.isEmpty()) {
+            this.cachedOrderedWirelessConnections = List.of();
+            this.cachedWirelessConnectionsTick = gameTime;
             return List.of();
         }
 
         int idx = Math.floorMod(this.localRoundRobinIndex, valid.size());
         if (idx == 0) {
+            this.cachedOrderedWirelessConnections = valid;
+            this.cachedWirelessConnectionsTick = gameTime;
             return valid;
         }
 
         ArrayList<AdaptiveWirelessConnection> ordered = new ArrayList<>(valid.size());
         ordered.addAll(valid.subList(idx, valid.size()));
         ordered.addAll(valid.subList(0, idx));
+        this.cachedOrderedWirelessConnections = ordered;
+        this.cachedWirelessConnectionsTick = gameTime;
         return ordered;
     }
 

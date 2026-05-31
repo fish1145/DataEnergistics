@@ -4,7 +4,7 @@ dependencies {
     testImplementation(libs.testframework)
 
     // Misc libraries
-    compileOnly(forge.pinyin4j)
+    compileOnly(forge.jech)
 
     // AE2
     compileOnly(forge.ae2)
@@ -68,6 +68,7 @@ dependencies {
     localRuntime(forge.jei.neoforge.impl)
 
     // Client-only runtime mods
+    clientLocalRuntime(forge.jech)
     clientLocalRuntime(forge.sodium)
     clientLocalRuntime(forge.iris)
     renderNurseCfg(libs.renderNurse)

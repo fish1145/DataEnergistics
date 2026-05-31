@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.part;
 
-import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
+import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
@@ -64,6 +64,9 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private YesNo networkEnergySufficient = YesNo.YES;
+    private int cachedSpeedCards = -1;
+    private int cachedSpeedProduct = -1;
+    private int cachedEnergyCards = -1;
 
     public DataRipperPart(IPartItem<?> partItem) {
         super(partItem);
@@ -212,7 +215,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         }
 
         String blockId = BuiltInRegistries.BLOCK.getKey(targetState.getBlock()).toString();
-        if (DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklist)) {
+        if (DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklistCompiled)) {
             return;
         }
 
@@ -297,14 +300,23 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     private int calculateSpeed() {
         int cardCount = this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD);
         if (cardCount <= 0) {
+            this.cachedSpeedCards = 0;
+            this.cachedSpeedProduct = 0;
             return 0;
         }
-        return DataRipperPowerUtils.computeProductWithCap(this.getUpgrades());
+        if (cardCount != this.cachedSpeedCards) {
+            this.cachedSpeedCards = cardCount;
+            this.cachedSpeedProduct = DataRipperPowerUtils.computeProductWithCap(this.getUpgrades());
+        }
+        return this.cachedSpeedProduct;
     }
 
     private double calculateRequiredPower(int speed, String blockId) {
         int energyCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.ENERGY_CARD);
-        double multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliers);
+        if (energyCardCount != this.cachedEnergyCards) {
+            this.cachedEnergyCards = energyCardCount;
+        }
+        double multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliersCompiled);
         return DataRipperPowerUtils.computeFinalPowerForProduct(speed, energyCardCount) * multiplier;
     }
 
@@ -355,9 +367,9 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private void performRandomTicks(RandomTickTarget randomTickTarget, int speed) {
+        BlockState currentState = randomTickTarget.level().getBlockState(randomTickTarget.pos());
         for (int i = 0; i < speed - 1; i++) {
             try {
-                BlockState currentState = randomTickTarget.level().getBlockState(randomTickTarget.pos());
                 if (!currentState.isRandomlyTicking()) {
                     break;
                 }

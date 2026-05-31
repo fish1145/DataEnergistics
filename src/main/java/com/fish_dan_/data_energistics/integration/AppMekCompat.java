@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.Direction;
-import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
@@ -19,21 +19,18 @@ import java.util.function.Supplier;
 
 public final class AppMekCompat {
 
-    private static final String MEKANISM_MOD_ID = "mekanism";
-    private static final String APPMEK_MOD_ID = "appmek";
     private static final String CHEMICAL_CAPABILITIES_CLASS = "mekanism.common.capabilities.Capabilities";
     private static final String CHEMICAL_HANDLER_CLASS = "com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler";
-    private static final boolean CHEMICAL_SUPPORT_LOADED = ModList.get().isLoaded(MEKANISM_MOD_ID) && ModList.get().isLoaded(APPMEK_MOD_ID);
 
     private AppMekCompat() {}
 
-    public static boolean isChemicalSupportLoaded() {
-        return CHEMICAL_SUPPORT_LOADED;
+    private static boolean isChemicalSupportLoaded() {
+        return Data_Energistics.Mods.isMekanismLoaded() && Data_Energistics.Mods.isAppMekLoaded();
     }
 
     @Nullable
     public static Object createReturnChemicalHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {
-        if (!CHEMICAL_SUPPORT_LOADED) {
+        if (!isChemicalSupportLoaded()) {
             return null;
         }
 
@@ -47,7 +44,7 @@ public final class AppMekCompat {
     }
 
     public static void registerChemicalBlockEntityCapabilities(RegisterCapabilitiesEvent event) {
-        if (!CHEMICAL_SUPPORT_LOADED) {
+        if (!isChemicalSupportLoaded()) {
             return;
         }
 
@@ -63,7 +60,7 @@ public final class AppMekCompat {
     }
 
     public static void registerChemicalCableBusCapabilities(RegisterCapabilitiesEvent event) {
-        if (!CHEMICAL_SUPPORT_LOADED) {
+        if (!isChemicalSupportLoaded()) {
             return;
         }
 

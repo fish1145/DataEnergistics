@@ -28,6 +28,7 @@ import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermSc
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
 import com.fish_dan_.data_energistics.common.CommonProxy;
+import com.fish_dan_.data_energistics.config.ConfigHolder;
 import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
@@ -465,6 +466,42 @@ public class Data_Energistics {
 
         public static boolean isIrisLoaded() {
             return isModLoaded("iris");
+        }
+
+        public static boolean isJechLoaded() {
+            return isModLoaded("jecharacters");
+        }
+
+        public static boolean isExtendedAePlusLoaded() {
+            return isModLoaded("extendedae_plus");
+        }
+
+        public static boolean isAe2WtLibLoaded() {
+            return isModLoaded("ae2wtlib");
+        }
+
+        public static boolean isAe2LtLoaded() {
+            return isModLoaded("ae2lt");
+        }
+
+        public static boolean isCreateLoaded() {
+            return isModLoaded("create");
+        }
+
+        public static boolean isAppliedCreateLoaded() {
+            return isModLoaded("appliedcreate");
+        }
+
+        public static boolean isMekanismLoaded() {
+            return isModLoaded("mekanism");
+        }
+
+        public static boolean isAppMekLoaded() {
+            return isModLoaded("appmek");
+        }
+
+        public static boolean isAppFluxLoaded() {
+            return isModLoaded("appflux");
         }
     }
 }

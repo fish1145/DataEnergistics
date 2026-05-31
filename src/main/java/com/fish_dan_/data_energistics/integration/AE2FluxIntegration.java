@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.integration;
 
-import net.neoforged.fml.ModList;
+import com.fish_dan_.data_energistics.Data_Energistics;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
@@ -15,15 +15,13 @@ import java.lang.reflect.Method;
 
 public final class AE2FluxIntegration {
 
-    private static final boolean APPFLUX_LOADED = ModList.get().isLoaded("appflux");
-
     private static Class<?> fluxKeyClass;
     private static Class<?> energyTypeClass;
     private static Method fluxKeyOfMethod;
     private static Object energyTypeFE;
 
     static {
-        if (APPFLUX_LOADED) {
+        if (Data_Energistics.Mods.isAppFluxLoaded()) {
             try {
                 initializeReflection();
             } catch (Exception ignored) {}
@@ -40,7 +38,7 @@ public final class AE2FluxIntegration {
     }
 
     public static boolean isAvailable() {
-        return APPFLUX_LOADED && fluxKeyClass != null;
+        return Data_Energistics.Mods.isAppFluxLoaded() && fluxKeyClass != null;
     }
 
     public static long extractEnergyFromOwnNetwork(AENetworkedBlockEntity blockEntity, long amount, boolean simulate) {

@@ -41,10 +41,9 @@ applied-create = "7945860"
 mega-cells = "7952621"
 cloth-config = "5729127"
 amek = "7096962"
-
+jech = "8117474"
 
 ## libs ##
-pinyin4j = "2.5.1"
 
 [libraries]
 guideme             = { module = "curse.maven:guideme-1173950", version.ref = "guideme" }
@@ -86,7 +85,8 @@ applied-create      = { module = "curse.maven:applied-create-1474758", version.r
 mega-cells          = { module = "curse.maven:mega-cells-622112", version.ref = "mega-cells" }
 cloth-config        = { module = "curse.maven:cloth-config-348521", version.ref = "cloth-config" }
 amek                = { module = "curse.maven:applied-mekanistics-574300", version.ref = "amek" }
-pinyin4j            = { module = "com.belerweb:pinyin4j", version.ref = "pinyin4j" }
+
+jech                = { module = "curse.maven:just-enough-characters-250702", version.ref = "jech" }
 
 [bundles]
 jei = ["jei-common-api", "jei-neoforge-api", "jei-neoforge-impl"]

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -19,11 +20,6 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.sourceforge.pinyin4j.PinyinHelper;
-import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
-import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
-import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.client.Point;
@@ -52,7 +48,6 @@ import java.util.Map;
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T> {
 
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
-    private static final HanyuPinyinOutputFormat PINYIN_FORMAT = createPinyinFormat();
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
     private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
@@ -125,7 +120,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private PatternSourceToggleButton patternSourceToggleButton;
     private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
     private boolean visibleProvidersCacheDirty = true;
-    private final Map<Long, String> providerSearchIndexCache = new HashMap<>();
     private final Map<Long, String> providerSearchIndexSourceCache = new HashMap<>();
 
     public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -904,7 +898,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return providers;
         }
 
-        String query = normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
+        String query = PinyinUtil.normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
         if (query.isEmpty()) {
             this.cachedVisibleProviders = providers;
             this.visibleProvidersCacheDirty = false;
@@ -913,8 +907,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
         for (var provider : providers) {
-            String searchIndex = getCachedProviderSearchIndex(provider);
-            if (matchesSearch(searchIndex, query)) {
+            String source = getCachedProviderSource(provider);
+            if (PinyinUtil.matchesSearch(source, query)) {
                 filtered.add(provider);
             }
         }
@@ -927,121 +921,14 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.visibleProvidersCacheDirty = true;
     }
 
-    private String getCachedProviderSearchIndex(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
+    private String getCachedProviderSource(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
         long providerId = provider.id();
         String source = provider.displayName().getString() + " " + provider.iconItemId();
         String cachedSource = this.providerSearchIndexSourceCache.get(providerId);
         if (!source.equals(cachedSource)) {
             this.providerSearchIndexSourceCache.put(providerId, source);
-            this.providerSearchIndexCache.put(providerId, buildSearchIndex(source));
         }
-        return this.providerSearchIndexCache.getOrDefault(providerId, "");
-    }
-
-    private String normalizeSearch(String text) {
-        if (text == null || text.isBlank()) {
-            return "";
-        }
-
-        StringBuilder builder = new StringBuilder(text.length());
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (Character.isLetterOrDigit(ch) || isCjk(ch)) {
-                builder.append(Character.toLowerCase(ch));
-            }
-        }
-        return builder.toString();
-    }
-
-    private String buildSearchIndex(String text) {
-        String normalized = normalizeSearch(text);
-        if (normalized.isEmpty()) {
-            return "";
-        }
-
-        StringBuilder fullPinyin = new StringBuilder();
-        StringBuilder initials = new StringBuilder();
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (isCjk(ch)) {
-                String syllable = toPinyin(ch);
-                if (!syllable.isEmpty()) {
-                    fullPinyin.append(syllable);
-                    initials.append(syllable.charAt(0));
-                    continue;
-                }
-            }
-
-            if (Character.isLetterOrDigit(ch)) {
-                char normalizedChar = Character.toLowerCase(ch);
-                fullPinyin.append(normalizedChar);
-                initials.append(normalizedChar);
-            }
-        }
-
-        StringBuilder searchIndex = new StringBuilder(normalized);
-        appendSearchVariant(searchIndex, fullPinyin);
-        appendSearchVariant(searchIndex, initials);
-        return searchIndex.toString();
-    }
-
-    private boolean matchesSearch(String searchIndex, String filter) {
-        if (searchIndex == null || searchIndex.isEmpty()) {
-            return false;
-        }
-
-        for (String variant : searchIndex.split("\\|")) {
-            if (variant.contains(filter) || isSubsequenceMatch(filter, variant)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isSubsequenceMatch(String filter, String variant) {
-        if (filter.isEmpty()) {
-            return true;
-        }
-        if (variant.isEmpty()) {
-            return false;
-        }
-
-        int filterIndex = 0;
-        for (int i = 0; i < variant.length() && filterIndex < filter.length(); i++) {
-            if (variant.charAt(i) == filter.charAt(filterIndex)) {
-                filterIndex++;
-            }
-        }
-        return filterIndex == filter.length();
-    }
-
-    private void appendSearchVariant(StringBuilder searchIndex, StringBuilder variant) {
-        if (!variant.isEmpty()) {
-            searchIndex.append('|').append(variant);
-        }
-    }
-
-    private String toPinyin(char ch) {
-        try {
-            String[] values = PinyinHelper.toHanyuPinyinStringArray(ch, PINYIN_FORMAT);
-            if (values != null && values.length > 0 && values[0] != null) {
-                return values[0];
-            }
-        } catch (Exception ignored) {}
-        return "";
-    }
-
-    private boolean isCjk(char ch) {
-        Character.UnicodeBlock block = Character.UnicodeBlock.of(ch);
-        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT;
-    }
-
-    private static HanyuPinyinOutputFormat createPinyinFormat() {
-        HanyuPinyinOutputFormat format = new HanyuPinyinOutputFormat();
-        format.setCaseType(HanyuPinyinCaseType.LOWERCASE);
-        format.setToneType(HanyuPinyinToneType.WITHOUT_TONE);
-        format.setVCharType(HanyuPinyinVCharType.WITH_V);
-        return format;
+        return source;
     }
 
     private static Field resolveField(Class<?> owner, String name) {
