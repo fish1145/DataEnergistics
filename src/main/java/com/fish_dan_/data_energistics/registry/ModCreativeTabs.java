@@ -95,6 +95,8 @@ public final class ModCreativeTabs {
                         output.accept(DataCaptureBallItem.createChargedStack());
                         output.accept(ModItems.MATTER_CONVERGING_CROSSBOW);
                         output.accept(ModItems.DATA_RIPPER);
+                        output.accept(ModItems.FISH_DAN);
+                        output.accept(ModItems.QIUYEQAQ2024);
                     })
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
                     .build());

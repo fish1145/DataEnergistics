@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
+import com.fish_dan_.data_energistics.block.decor.DollBlock;
 
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
@@ -29,147 +30,156 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> DATA_SOLAR_PANEL = BLOCKS.registerBlock(
             "me_solar_panel",
             DataSolarPanelBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
 
     public static final DeferredBlock<Block> DATA_EXTRACTOR = BLOCKS.registerBlock(
             "data_extractor",
             DataExtractorBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_RIPPER_REASSEMBLER = BLOCKS.registerBlock(
             "data_reassembler",
             DataRipperReassemblerBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(
             "data_framework",
             DataFrameworkBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.QUARTZ_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK));
 
     public static final DeferredBlock<Block> DATA_DISTRIBUTION_TOWER = BLOCKS.registerBlock(
             "data_distribution_tower",
             DataDistributionTowerBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion()
                     .lightLevel(state -> state.getValue(DataDistributionTowerBlock.PART) == 2 && state.getValue(DataDistributionTowerBlock.ACTIVE) ? 15 : 0));
 
     public static final DeferredBlock<Block> DATA_MIMETIC_FIELD = BLOCKS.registerBlock(
             "data_mimetic_field",
             DataMimeticFieldBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_TELEPORT_ANCHOR = BLOCKS.registerBlock(
             "data_teleport_anchor",
             DataTeleportAnchorBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",
             Block::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.GLASS)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)
                     .noOcclusion());
 
     public static final DeferredBlock<Block> GUIDE_DATA_CORROSION_LIQUID_DISPLAY = BLOCKS.registerBlock(
             "guide_data_corrosion_liquid_display",
             Block::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.GLASS)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.GLASS)
                     .noOcclusion()
                     .lightLevel(state -> 4));
 
     public static final DeferredBlock<Block> ADAPTIVE_PATTERN_PROVIDER = BLOCKS.registerBlock(
             "adaptive_pattern_provider",
             properties -> new AdaptivePatternProviderBlock(properties),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> TNT_CONFIGURABLE = BLOCKS.registerBlock(
             "tnt_configurable",
             TntConfigurableBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.TNT));
 
     public static final DeferredBlock<Block> RESIDUAL_DATA_ORE = BLOCKS.registerBlock(
             "residual_data_ore",
             ResidualDataOreBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_0 = BLOCKS.registerBlock(
             "data_meteorite_0",
             properties -> new EnderCohesionMeteoriteBlock(properties, 0.05F, 0.10F, 0.00F, 0.00F),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_1 = BLOCKS.registerBlock(
             "data_meteorite_1",
             properties -> new EnderCohesionMeteoriteBlock(properties, 0.10F, 0.20F, 0.10F, 0.00F),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_2 = BLOCKS.registerBlock(
             "data_meteorite_2",
             properties -> new EnderCohesionMeteoriteBlock(properties, 0.15F, 0.25F, 0.15F, 0.15F),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> DATA_CRYSTAL_BLOCK = BLOCKS.registerBlock(
             "data_crystal_block",
             Block::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.REDSTONE_BLOCK)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.REDSTONE_BLOCK)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_0 = BLOCKS.registerBlock(
             "budding_data_crystal_0",
             Block::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_1 = BLOCKS.registerBlock(
             "budding_data_crystal_1",
             DataCrystalBuddingBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_2 = BLOCKS.registerBlock(
             "budding_data_crystal_2",
             DataCrystalBuddingBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_3 = BLOCKS.registerBlock(
             "budding_data_crystal_3",
             DataCrystalBuddingBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_4 = BLOCKS.registerBlock(
             "budding_data_crystal_4",
             DataCrystalBuddingBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> SMALL_DATA_CRYSTAL_BUD = BLOCKS.registerBlock(
             "small_data_crystal_bud",
             properties -> new AmethystClusterBlock(3.0F, 4.0F, properties),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.SMALL_AMETHYST_BUD)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SMALL_AMETHYST_BUD)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> MEDIUM_DATA_CRYSTAL_BUD = BLOCKS.registerBlock(
             "medium_data_crystal_bud",
             properties -> new AmethystClusterBlock(4.0F, 3.0F, properties),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.MEDIUM_AMETHYST_BUD)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.MEDIUM_AMETHYST_BUD)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> LARGE_DATA_CRYSTAL_BUD = BLOCKS.registerBlock(
             "large_data_crystal_bud",
             properties -> new AmethystClusterBlock(5.0F, 3.0F, properties),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.LARGE_AMETHYST_BUD)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.LARGE_AMETHYST_BUD)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> DATA_CRYSTAL_CLUSTER = BLOCKS.registerBlock(
             "data_crystal_cluster",
             properties -> new AmethystClusterBlock(7.0F, 3.0F, properties),
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.AMETHYST_CLUSTER)
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_CLUSTER)
                     .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> FISH_DAN = BLOCKS.registerBlock(
+            "fish_dan_",
+            DollBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
+    public static final DeferredBlock<Block> QIUYEQAQ2024 = BLOCKS.registerBlock(
+            "qiuyeqaq2024",
+            DollBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
 
     private ModBlocks() {}
 

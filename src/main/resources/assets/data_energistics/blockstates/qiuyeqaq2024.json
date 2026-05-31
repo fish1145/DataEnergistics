@@ -1,0 +1,11 @@
+{
+	"variants": {
+		"facing=north": { "model": "data_energistics:block/qiuyeqaq2024" },
+		"facing=east": { "model": "data_energistics:block/qiuyeqaq2024", "y": 90 },
+		"facing=south": {
+			"model": "data_energistics:block/qiuyeqaq2024",
+			"y": 180
+		},
+		"facing=west": { "model": "data_energistics:block/qiuyeqaq2024", "y": 270 }
+	}
+}

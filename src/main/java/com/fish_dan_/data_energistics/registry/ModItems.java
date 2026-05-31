@@ -194,6 +194,8 @@ public final class ModItems {
             () -> new MatterConvergingCrossbowItem(new Item.Properties()));
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));
+    public static final DeferredItem<BlockItem> FISH_DAN = ITEMS.registerSimpleBlockItem(ModBlocks.FISH_DAN);
+    public static final DeferredItem<BlockItem> QIUYEQAQ2024 = ITEMS.registerSimpleBlockItem(ModBlocks.QIUYEQAQ2024);
 
     private ModItems() {}
 

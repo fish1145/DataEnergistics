@@ -369,7 +369,7 @@ public class Data_Energistics {
         }
 
         private static double getHandSide(HumanoidArm mainArm, InteractionHand hand) {
-            boolean isRight = hand == InteractionHand.MAIN_HAND ? mainArm == HumanoidArm.RIGHT : mainArm != HumanoidArm.RIGHT;
+            boolean isRight = (hand == InteractionHand.MAIN_HAND) == (mainArm == HumanoidArm.RIGHT);
             return isRight ? 1.0D : -1.0D;
         }
 

@@ -1,0 +1,8 @@
+{
+	"variants": {
+		"facing=north": { "model": "data_energistics:block/fish_dan_" },
+		"facing=east": { "model": "data_energistics:block/fish_dan_", "y": 90 },
+		"facing=south": { "model": "data_energistics:block/fish_dan_", "y": 180 },
+		"facing=west": { "model": "data_energistics:block/fish_dan_", "y": 270 }
+	}
+}
