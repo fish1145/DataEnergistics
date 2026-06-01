@@ -1,14 +1,13 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
-import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.config.Config;
+import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -108,9 +107,7 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
     }
 
     private void refreshClientGui() {
-        if (Minecraft.getInstance().screen instanceof DataRipperScreen screen) {
-            screen.refreshGui();
-        }
+        MenuClientRefresh.refreshDataRipperScreen();
     }
 
     private BlockEntity getTargetBlockEntity() {

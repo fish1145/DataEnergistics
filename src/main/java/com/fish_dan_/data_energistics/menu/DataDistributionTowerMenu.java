@@ -2,10 +2,9 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
-import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
+import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.core.localization.ButtonToolTips;
@@ -70,8 +69,8 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     @Override
     public void onServerDataSync(ShortSet updatedFields) {
         super.onServerDataSync(updatedFields);
-        if (this.isClientSide() && Minecraft.getInstance().screen instanceof DataDistributionTowerScreen screen) {
-            screen.refreshFromServer();
+        if (this.isClientSide()) {
+            MenuClientRefresh.refreshDataDistributionTowerScreen();
         }
     }
 
