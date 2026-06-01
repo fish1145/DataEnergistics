@@ -20,11 +20,16 @@ import appeng.menu.locator.MenuLocators;
 import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public final class PatternProviderMenuOpenHelper {
@@ -43,6 +48,7 @@ public final class PatternProviderMenuOpenHelper {
             "openGUI",
             "openUi",
             "openUI");
+    private static final Map<Class<?>, List<ReflectiveOpenMethod>> REFLECTIVE_OPEN_METHOD_CACHE = new ConcurrentHashMap<>();
 
     private PatternProviderMenuOpenHelper() {}
 
@@ -167,22 +173,18 @@ public final class PatternProviderMenuOpenHelper {
     private static boolean openViaReflectiveOpenMethod(PatternContainer provider, Player player) {
         Object locator = provider instanceof BlockEntity blockEntity ? MenuLocators.forBlockEntity(blockEntity) : null;
 
-        for (Method method : getAllDeclaredMethods(provider.getClass())) {
-            if (!REFLECTIVE_OPEN_METHOD_NAMES.contains(method.getName())) {
-                continue;
-            }
-
-            Object[] args = buildOpenArgs(method.getParameterTypes(), player, locator);
+        for (ReflectiveOpenMethod method : getReflectiveOpenMethods(provider.getClass())) {
+            Object[] args = buildOpenArgs(method.parameterTypes(), player, locator);
             if (args == null) {
                 continue;
             }
 
-            Object result = ReflectionAccess.invoke(method, provider, args);
+            Object result = invokeReflectiveOpenMethod(method.handle(), provider, args);
             if (result instanceof Boolean opened) {
                 if (opened) {
                     return true;
                 }
-            } else if (result != null || method.getReturnType() == Void.TYPE) {
+            } else if (result != null || method.returnType() == Void.TYPE) {
                 return true;
             }
         }
@@ -333,20 +335,53 @@ public final class PatternProviderMenuOpenHelper {
         return null;
     }
 
-    private static List<Method> getAllDeclaredMethods(Class<?> type) {
-        var methods = new java.util.ArrayList<Method>();
+    private static List<ReflectiveOpenMethod> getReflectiveOpenMethods(Class<?> type) {
+        return REFLECTIVE_OPEN_METHOD_CACHE.computeIfAbsent(type, PatternProviderMenuOpenHelper::findReflectiveOpenMethods);
+    }
+
+    private static List<ReflectiveOpenMethod> findReflectiveOpenMethods(Class<?> type) {
+        var methods = new ArrayList<ReflectiveOpenMethod>();
         Class<?> current = type;
         while (current != null) {
             for (Method method : current.getDeclaredMethods()) {
-                methods.add(method);
+                if (!Modifier.isStatic(method.getModifiers()) && REFLECTIVE_OPEN_METHOD_NAMES.contains(method.getName())) {
+                    toMethodHandle(method).ifPresent(handle -> methods.add(new ReflectiveOpenMethod(
+                            handle,
+                            method.getReturnType(),
+                            method.getParameterTypes())));
+                }
             }
             current = current.getSuperclass();
         }
         return methods;
     }
 
+    private static java.util.Optional<MethodHandle> toMethodHandle(Method method) {
+        try {
+            method.setAccessible(true);
+            return java.util.Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), MethodHandles.lookup())
+                    .unreflect(method));
+        } catch (IllegalAccessException | SecurityException ignored) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    @Nullable
+    private static Object invokeReflectiveOpenMethod(MethodHandle method, Object target, Object[] args) {
+        Object[] arguments = new Object[args.length + 1];
+        arguments[0] = target;
+        System.arraycopy(args, 0, arguments, 1, args.length);
+        try {
+            return method.invokeWithArguments(arguments);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     @Nullable
     private static Object invokeNoArg(Object target, String methodName) {
         return ReflectionAccess.invokeNoArg(target, methodName);
     }
+
+    private record ReflectiveOpenMethod(MethodHandle handle, Class<?> returnType, Class<?>[] parameterTypes) {}
 }
