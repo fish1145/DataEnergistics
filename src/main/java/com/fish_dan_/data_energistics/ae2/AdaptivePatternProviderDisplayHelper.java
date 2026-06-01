@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
@@ -15,8 +15,7 @@ import java.util.List;
 
 public final class AdaptivePatternProviderDisplayHelper {
 
-    private AdaptivePatternProviderDisplayHelper() {
-    }
+    private AdaptivePatternProviderDisplayHelper() {}
 
     public static Component getGuiProviderName(ItemStack providerStack, String fallbackTranslationKey, String variantTranslationKey) {
         Component baseName = getInternalProviderName(providerStack, fallbackTranslationKey);
@@ -24,9 +23,7 @@ public final class AdaptivePatternProviderDisplayHelper {
             return baseName;
         }
 
-        return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack) != null
-                ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(variantTranslationKey, baseName)
-                : baseName;
+        return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack) != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(variantTranslationKey, baseName) : baseName;
     }
 
     public static Component getTerminalProviderName(ItemStack providerStack, String fallbackTranslationKey) {
@@ -35,9 +32,7 @@ public final class AdaptivePatternProviderDisplayHelper {
             return baseName;
         }
 
-        return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack) != null
-                ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(baseName)
-                : baseName;
+        return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack) != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(baseName) : baseName;
     }
 
     public static Component getInternalProviderName(ItemStack providerStack, String fallbackTranslationKey) {

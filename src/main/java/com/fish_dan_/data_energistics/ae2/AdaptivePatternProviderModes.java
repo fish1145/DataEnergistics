@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.ae2;
 
 public final class AdaptivePatternProviderModes {
 
-    private AdaptivePatternProviderModes() {
-    }
+    private AdaptivePatternProviderModes() {}
 
     public enum Ae2LtProviderMode {
+
         NORMAL,
         WIRELESS;
 
@@ -15,6 +15,7 @@ public final class AdaptivePatternProviderModes {
     }
 
     public enum Ae2LtReturnMode {
+
         OFF,
         AUTO,
         EJECT;
@@ -29,6 +30,7 @@ public final class AdaptivePatternProviderModes {
     }
 
     public enum Ae2LtWirelessDispatchMode {
+
         EVEN_DISTRIBUTION,
         SINGLE_TARGET;
 
@@ -38,6 +40,7 @@ public final class AdaptivePatternProviderModes {
     }
 
     public enum Ae2LtWirelessSpeedMode {
+
         NORMAL,
         FAST;
 

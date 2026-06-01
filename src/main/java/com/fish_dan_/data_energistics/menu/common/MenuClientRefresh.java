@@ -7,8 +7,7 @@ public final class MenuClientRefresh {
 
     private static final String HANDLER_CLASS = "com.fish_dan_.data_energistics.client.screen.MenuClientRefreshHandler";
 
-    private MenuClientRefresh() {
-    }
+    private MenuClientRefresh() {}
 
     public static void refreshDataRipperScreen() {
         invokeClientRefresh("refreshDataRipperScreen");

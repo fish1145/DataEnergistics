@@ -4,8 +4,7 @@ import net.minecraft.client.Minecraft;
 
 public final class MenuClientRefreshHandler {
 
-    private MenuClientRefreshHandler() {
-    }
+    private MenuClientRefreshHandler() {}
 
     public static void refreshDataRipperScreen() {
         if (Minecraft.getInstance().screen instanceof DataRipperScreen screen) {

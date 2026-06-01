@@ -201,5 +201,4 @@ public final class Ae2LtWirelessBridge {
             providerClass = null;
         }
     }
-
 }

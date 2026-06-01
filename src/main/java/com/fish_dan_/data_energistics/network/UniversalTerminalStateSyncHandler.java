@@ -7,8 +7,7 @@ public final class UniversalTerminalStateSyncHandler {
 
     private static final String HANDLER_CLASS = "com.fish_dan_.data_energistics.client.screen.UniversalTerminalStateSyncClientHandler";
 
-    private UniversalTerminalStateSyncHandler() {
-    }
+    private UniversalTerminalStateSyncHandler() {}
 
     public static void cacheSyncedTerminalState(UniversalTerminalStateSyncPayload payload) {
         if (FMLEnvironment.dist != Dist.CLIENT) {

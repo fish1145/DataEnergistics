@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
@@ -159,9 +159,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null
-                ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName())
-                : this.getMainMenuIcon().getHoverName();
+        return profile != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : this.getMainMenuIcon().getHoverName();
     }
 
     @Override
@@ -655,5 +653,4 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     protected DeferredHolder<MenuType<?>, ? extends MenuType<?>> getProviderMenu() {
         return ModMenus.ADAPTIVE_PATTERN_PROVIDER;
     }
-
 }

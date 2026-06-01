@@ -1969,8 +1969,7 @@ public final class PatternEncodingSourceHelper {
         return Optional.empty();
     }
 
-    private record MethodLookupKey(Class<?> type, String methodName) {
-    }
+    private record MethodLookupKey(Class<?> type, String methodName) {}
 
     private record ExternalMappings(Map<String, ResourceLocation> identifierToWorkstation,
                                     Map<String, String> pathHints,

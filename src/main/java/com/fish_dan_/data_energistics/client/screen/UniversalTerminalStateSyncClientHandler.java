@@ -4,8 +4,7 @@ import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 
 public final class UniversalTerminalStateSyncClientHandler {
 
-    private UniversalTerminalStateSyncClientHandler() {
-    }
+    private UniversalTerminalStateSyncClientHandler() {}
 
     public static void cacheSyncedTerminalState(UniversalTerminalStateSyncPayload payload) {
         UniversalTerminalClientHelper.cacheSyncedTerminalState(

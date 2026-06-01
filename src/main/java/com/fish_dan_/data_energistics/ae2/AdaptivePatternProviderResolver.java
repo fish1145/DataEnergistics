@@ -1,17 +1,8 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import appeng.api.implementations.blockentities.PatternContainerGroup;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
-import appeng.api.stacks.AEItemKey;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.core.definitions.AEBlocks;
-import appeng.core.definitions.AEParts;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,6 +14,16 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.api.stacks.AEItemKey;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.core.definitions.AEBlocks;
+import appeng.core.definitions.AEParts;
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
@@ -56,8 +57,7 @@ public final class AdaptivePatternProviderResolver {
             "assembler_matrix_pattern_plus",
             "assembler_matrix_speed_plus");
 
-    private AdaptivePatternProviderResolver() {
-    }
+    private AdaptivePatternProviderResolver() {}
 
     public static boolean isSupportedProviderStack(ItemStack stack) {
         return resolveProviderProfile(stack) != null;
@@ -373,10 +373,7 @@ public final class AdaptivePatternProviderResolver {
         }
 
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (itemId != null && "extendedae".equals(itemId.getNamespace())
-                && ("ex_pattern_provider".equals(itemId.getPath())
-                || "ex_pattern_provider_part".equals(itemId.getPath())
-                || "wireless_ex_pat".equals(itemId.getPath()))) {
+        if (itemId != null && "extendedae".equals(itemId.getNamespace()) && ("ex_pattern_provider".equals(itemId.getPath()) || "ex_pattern_provider_part".equals(itemId.getPath()) || "wireless_ex_pat".equals(itemId.getPath()))) {
             ItemStack icon = new ItemStack(stack.getItem());
             return new ProviderProfile(ProviderKind.EXTENDED, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
         }
@@ -407,14 +404,12 @@ public final class AdaptivePatternProviderResolver {
             if (result instanceof ItemStack stack && !stack.isEmpty()) {
                 return stack.copy();
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
         return fallback.copy();
     }
 
     private static boolean isAssemblerMatrixComponent(ResourceLocation blockId) {
-        return (EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()))
-                || (EXTENDEDAE_PLUS_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()));
+        return (EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath())) || (EXTENDEDAE_PLUS_NAMESPACE.equals(blockId.getNamespace()) && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()));
     }
 
     public enum ProviderKind {
@@ -433,6 +428,5 @@ public final class AdaptivePatternProviderResolver {
     }
 
     public record ProviderProfile(ProviderKind kind, int slotsPerProvider, ItemStack mainMenuIcon, AEItemKey terminalIcon,
-                                  Component displayName) {
-    }
+                                  Component displayName) {}
 }

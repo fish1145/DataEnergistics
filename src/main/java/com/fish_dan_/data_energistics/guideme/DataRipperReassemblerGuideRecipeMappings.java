@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.guideme;
 
-import com.fish_dan_.data_energistics.common.DataReassemblerGuideLayout;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModRecipes;

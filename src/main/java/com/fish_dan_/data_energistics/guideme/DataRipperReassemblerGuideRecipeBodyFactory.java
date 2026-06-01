@@ -4,13 +4,12 @@ import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 
 import net.neoforged.fml.loading.FMLEnvironment;
 
-import guideme.document.block.LytParagraph;
 import guideme.document.block.LytBlock;
+import guideme.document.block.LytParagraph;
 
 final class DataRipperReassemblerGuideRecipeBodyFactory {
 
-    private static final String CLIENT_BODY_CLASS =
-            "com.fish_dan_.data_energistics.client.guideme.DataRipperReassemblerGuideRecipeBody";
+    private static final String CLIENT_BODY_CLASS = "com.fish_dan_.data_energistics.client.guideme.DataRipperReassemblerGuideRecipeBody";
 
     private DataRipperReassemblerGuideRecipeBodyFactory() {}
 

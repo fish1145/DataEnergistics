@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.integration;
 
-import java.lang.reflect.Method;
-
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
+
+import java.lang.reflect.Method;
 
 public final class Ae2WtLibCompat {
 
