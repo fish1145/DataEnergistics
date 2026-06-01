@@ -418,6 +418,10 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
+    public static void clearRuntimeAnchorCache() {
+        LOADED_ANCHORS.clear();
+    }
+
     private void setOwnChunkForced(ServerLevel serverLevel, boolean forced) {
         ChunkPos chunkPos = new ChunkPos(this.worldPosition);
         serverLevel.setChunkForced(chunkPos.x, chunkPos.z, forced);
