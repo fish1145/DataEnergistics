@@ -7,14 +7,11 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 final class PatternEncodingReflectionAccess {
 
-    private static final Map<MethodLookupKey, Optional<MethodHandle>> NO_ARG_METHOD_CACHE = new ConcurrentHashMap<>();
-    private static final Map<SlotViewsLookupKey, Optional<SlotViewsInvoker>> SLOT_VIEWS_METHOD_CACHE = new ConcurrentHashMap<>();
+    private static final java.util.Map<SlotViewsLookupKey, Optional<SlotViewsInvoker>> SLOT_VIEWS_METHOD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     private PatternEncodingReflectionAccess() {}
 
@@ -46,38 +43,7 @@ final class PatternEncodingReflectionAccess {
 
     @Nullable
     static Object invokeNoArg(@Nullable Object target, String methodName) {
-        if (target == null) {
-            return null;
-        }
-
-        Optional<MethodHandle> method = NO_ARG_METHOD_CACHE.computeIfAbsent(
-                new MethodLookupKey(target.getClass(), methodName),
-                PatternEncodingReflectionAccess::findNoArgMethod);
-        if (method.isEmpty()) {
-            return null;
-        }
-
-        try {
-            return method.get().invoke(target);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static Optional<MethodHandle> findNoArgMethod(MethodLookupKey key) {
-        Class<?> type = key.type();
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(key.methodName());
-                method.setAccessible(true);
-                return Optional.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup()).unreflect(method));
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (IllegalAccessException | SecurityException ignored) {
-                return Optional.empty();
-            }
-        }
-        return Optional.empty();
+        return ReflectionAccess.invokeNoArg(target, methodName);
     }
 
     private static Optional<SlotViewsInvoker> findSlotViewsInvoker(SlotViewsLookupKey key) {
@@ -109,8 +75,6 @@ final class PatternEncodingReflectionAccess {
         }
         return Optional.empty();
     }
-
-    private record MethodLookupKey(Class<?> type, String methodName) {}
 
     private record SlotViewsLookupKey(Class<?> type, String roleName) {}
 

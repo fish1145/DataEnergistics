@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -1195,21 +1196,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
 
-        try {
-            Object value = blockEntity.getClass().getMethod("isCoreBlock").invoke(blockEntity);
-            return value instanceof Boolean bool && bool;
-        } catch (ReflectiveOperationException ignored) {
-            return false;
-        }
+        Object value = ReflectionAccess.invokeNoArg(blockEntity, "isCoreBlock");
+        return value instanceof Boolean bool && bool;
     }
 
     private boolean hasZeroArgMethod(Class<?> type, String methodName) {
-        try {
-            type.getMethod(methodName);
-            return true;
-        } catch (NoSuchMethodException ignored) {
-            return false;
-        }
+        return ReflectionAccess.hasNoArgMethod(type, methodName);
     }
 
     @Nullable

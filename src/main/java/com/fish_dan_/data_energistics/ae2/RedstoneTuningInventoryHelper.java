@@ -1,12 +1,11 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import org.jetbrains.annotations.Nullable;
-
-import java.lang.reflect.Method;
 
 public final class RedstoneTuningInventoryHelper {
 
@@ -49,12 +48,7 @@ public final class RedstoneTuningInventoryHelper {
     }
 
     private static @Nullable Object invokeNoArg(Object target, String methodName) {
-        try {
-            Method method = target.getClass().getMethod(methodName);
-            return method.invoke(target);
-        } catch (ReflectiveOperationException ignored) {
-            return null;
-        }
+        return ReflectionAccess.invokeNoArg(target, methodName);
     }
 
     private static boolean containsCard(@Nullable IUpgradeInventory inventory) {

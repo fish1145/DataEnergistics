@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,7 +27,6 @@ import appeng.core.definitions.AEParts;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
 
@@ -398,13 +398,10 @@ public final class AdaptivePatternProviderResolver {
     }
 
     private static ItemStack resolveMainMenuIcon(Object source, ItemStack fallback) {
-        try {
-            Method method = source.getClass().getMethod("getMainMenuIcon");
-            Object result = method.invoke(source);
-            if (result instanceof ItemStack stack && !stack.isEmpty()) {
-                return stack.copy();
-            }
-        } catch (Exception ignored) {}
+        Object result = ReflectionAccess.invokeNoArg(source, "getMainMenuIcon");
+        if (result instanceof ItemStack stack && !stack.isEmpty()) {
+            return stack.copy();
+        }
         return fallback.copy();
     }
 

@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -157,14 +158,13 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        try {
-            Class<?> blockUiMenuType = Class.forName("com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType");
-            Method openUi = blockUiMenuType.getMethod("openUI", ServerPlayer.class, BlockPos.class);
-            Object result = openUi.invoke(null, serverPlayer, blockEntity.getBlockPos());
-            return result instanceof Boolean opened && opened;
-        } catch (ReflectiveOperationException ignored) {
-            return false;
-        }
+        Object result = ReflectionAccess.invokeStatic(
+                "com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType",
+                "openUI",
+                new Class<?>[] { ServerPlayer.class, BlockPos.class },
+                serverPlayer,
+                blockEntity.getBlockPos());
+        return result instanceof Boolean opened && opened;
     }
 
     private static boolean openViaReflectiveMenuType(PatternContainer provider, Player player) {
@@ -189,17 +189,14 @@ public final class PatternProviderMenuOpenHelper {
                 continue;
             }
 
-            try {
-                method.setAccessible(true);
-                Object result = method.invoke(provider, args);
-                if (result instanceof Boolean opened) {
-                    if (opened) {
-                        return true;
-                    }
-                } else {
+            Object result = ReflectionAccess.invoke(method, provider, args);
+            if (result instanceof Boolean opened) {
+                if (opened) {
                     return true;
                 }
-            } catch (ReflectiveOperationException ignored) {}
+            } else if (result != null || method.getReturnType() == Void.TYPE) {
+                return true;
+            }
         }
 
         return false;
@@ -377,18 +374,6 @@ public final class PatternProviderMenuOpenHelper {
 
     @Nullable
     private static Object invokeNoArg(Object target, String methodName) {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                return method.invoke(target);
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (ReflectiveOperationException ignored) {
-                return null;
-            }
-        }
-        return null;
+        return ReflectionAccess.invokeNoArg(target, methodName);
     }
 }

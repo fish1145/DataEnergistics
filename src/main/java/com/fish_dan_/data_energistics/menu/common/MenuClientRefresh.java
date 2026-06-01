@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.menu.common;
 
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
+
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 
@@ -22,10 +24,6 @@ public final class MenuClientRefresh {
             return;
         }
 
-        try {
-            Class.forName(HANDLER_CLASS).getMethod(methodName).invoke(null);
-        } catch (ReflectiveOperationException ignored) {
-            // Client-only GUI refresh is best-effort; sync data remains authoritative.
-        }
+        ReflectionAccess.invokeStatic(HANDLER_CLASS, methodName, new Class<?>[0]);
     }
 }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics;
 
 import com.fish_dan_.data_energistics.bootstrap.common.CommonBootstrap;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -62,13 +63,11 @@ public class Data_Energistics {
         if (!isClientSide()) {
             return false;
         }
-        try {
-            Class<?> helperClass = Class.forName("com.fish_dan_.data_energistics.client.ClientThreadHelper");
-            return (boolean) helperClass.getMethod("isClientThread").invoke(null);
-        } catch (ReflectiveOperationException e) {
-            LOGGER.warn("Failed to query client thread state", e);
-            return false;
-        }
+        Object result = ReflectionAccess.invokeStatic(
+                "com.fish_dan_.data_energistics.client.ClientThreadHelper",
+                "isClientThread",
+                new Class<?>[0]);
+        return result instanceof Boolean clientThread && clientThread;
     }
 
     public static boolean isClientSide() {

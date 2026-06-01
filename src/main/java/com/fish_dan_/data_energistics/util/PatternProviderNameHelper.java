@@ -7,7 +7,6 @@ import appeng.parts.AEBasePart;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 public final class PatternProviderNameHelper {
 
@@ -104,10 +103,6 @@ public final class PatternProviderNameHelper {
     }
 
     private static void invokeNoArg(Object target, String methodName) {
-        try {
-            Method method = target.getClass().getMethod(methodName);
-            method.setAccessible(true);
-            method.invoke(target);
-        } catch (ReflectiveOperationException ignored) {}
+        ReflectionAccess.invokeNoArgBestEffort(target, methodName);
     }
 }
