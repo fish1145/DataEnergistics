@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.integration;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
 import net.minecraft.client.renderer.RenderType;

@@ -4,8 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 public final class ModFlags {
 
-    private ModFlags() {
-    }
+    private ModFlags() {}
 
     public static boolean isAnyRecipeViewerLoaded() {
         return isLoaded("jei") || isLoaded("emi");

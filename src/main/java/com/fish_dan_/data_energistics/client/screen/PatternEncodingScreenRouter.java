@@ -2,16 +2,17 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import appeng.client.gui.me.items.PatternEncodingTermScreen;
-import appeng.client.gui.style.StyleManager;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
+import appeng.client.gui.me.items.PatternEncodingTermScreen;
+import appeng.client.gui.style.StyleManager;
+
 public final class PatternEncodingScreenRouter {
 
-    private PatternEncodingScreenRouter() {
-    }
+    private PatternEncodingScreenRouter() {}
 
     public static void onScreenInitPost(ScreenEvent.Init.Post event) {
         maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);

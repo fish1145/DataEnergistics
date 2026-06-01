@@ -17,11 +17,11 @@ import com.fish_dan_.data_energistics.client.screen.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
-import com.fish_dan_.data_energistics.client.screen.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
+import com.fish_dan_.data_energistics.client.screen.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
@@ -36,10 +36,7 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
-import appeng.client.gui.me.items.PatternEncodingTermScreen;
-import appeng.core.definitions.AEItems;
-import appeng.init.client.InitScreens;
-import appeng.items.misc.PaintBallItem;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.entity.TntRenderer;
@@ -70,12 +67,15 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
+
+import appeng.core.definitions.AEItems;
+import appeng.init.client.InitScreens;
+import appeng.items.misc.PaintBallItem;
 import org.joml.Vector3f;
 
 public final class ClientBootstrap {
 
-    private ClientBootstrap() {
-    }
+    private ClientBootstrap() {}
 
     public static void init(IEventBus modEventBus) {
         modEventBus.register(ClientModEvents.class);
@@ -83,8 +83,7 @@ public final class ClientBootstrap {
 
     public static final class ClientModEvents {
 
-        private ClientModEvents() {
-        }
+        private ClientModEvents() {}
 
         @SubscribeEvent
         public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {

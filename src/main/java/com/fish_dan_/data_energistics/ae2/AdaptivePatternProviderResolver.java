@@ -1,19 +1,20 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import appeng.api.implementations.blockentities.PatternContainerGroup;
-import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.stacks.AEItemKey;
 import org.jetbrains.annotations.Nullable;
 
 public final class AdaptivePatternProviderResolver {
 
-    private AdaptivePatternProviderResolver() {
-    }
+    private AdaptivePatternProviderResolver() {}
 
     public static int getResolvedSlotsPerProvider(ItemStack stack) {
         return AdaptivePatternProviderBlockEntity.getResolvedSlotsPerProvider(stack);

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics;
 
 import com.fish_dan_.data_energistics.bootstrap.common.CommonBootstrap;
-import com.mojang.logging.LogUtils;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -13,6 +13,8 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.data.loading.DatagenModLoader;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
+
+import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -30,8 +32,7 @@ public class Data_Energistics {
 
     public Data_Energistics(IEventBus modEventBus, @Nullable ModContainer modContainer) {
         CommonBootstrap.init(modEventBus, modContainer);
-        String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[
-                net.minecraft.util.RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
+        String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[net.minecraft.util.RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
         LOGGER.info(selectedLogPair[0]);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.info(selectedLogPair[1]),
                 "data-energistics-shutdown-log"));
