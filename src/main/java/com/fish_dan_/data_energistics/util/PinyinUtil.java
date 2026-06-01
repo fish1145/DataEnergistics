@@ -5,6 +5,11 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.util.Optional;
+
 public final class PinyinUtil {
 
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -75,20 +80,20 @@ public final class PinyinUtil {
 
         private static Object searcher;
         private static boolean searcherTried;
+        private static Optional<MethodHandle> searchMethod = Optional.empty();
 
         static boolean contains(String text, String filter) {
             Object s = getSearcher();
-            if (s != null) {
+            if (s != null && searchMethod.isPresent()) {
                 try {
-                    var method = s.getClass().getMethod("search", String.class, String.class);
-                    Object result = method.invoke(s, text, filter);
+                    Object result = searchMethod.get().invoke(s, text, filter);
                     if (result instanceof Boolean b) {
                         return b;
                     }
                     if (result instanceof Number n) {
                         return n.intValue() > 0;
                     }
-                } catch (ReflectiveOperationException e) {
+                } catch (Throwable e) {
                     LOGGER.warn("[DE][Pinyin] PinIn direct search failed", e);
                 }
             }
@@ -106,19 +111,39 @@ public final class PinyinUtil {
             searcherTried = true;
             try {
                 Class<?> searcherClass = Class.forName("me.towdium.pinin.Searcher");
-                var containField = searcherClass.getField("CONTAIN");
-                int containMode = containField.getInt(null);
-                try {
-                    var constructor = searcherClass.getConstructor(int.class);
-                    searcher = constructor.newInstance(containMode);
-                } catch (NoSuchMethodException e) {
-                    searcher = searcherClass.getConstructor().newInstance();
+                Object contain = ReflectionAccess.getField(ReflectionAccess.findStaticField(searcherClass, "CONTAIN"), null);
+                int containMode = contain instanceof Number n ? n.intValue() : 0;
+                searcher = ReflectionAccess.newInstance("me.towdium.pinin.Searcher", new Class<?>[] { int.class }, containMode);
+                if (searcher == null) {
+                    searcher = ReflectionAccess.newInstance("me.towdium.pinin.Searcher", new Class<?>[0]);
                 }
+                searchMethod = findSearchMethod(searcherClass);
                 return searcher;
-            } catch (ReflectiveOperationException e) {
+            } catch (ReflectiveOperationException | LinkageError e) {
                 LOGGER.warn("[DE][Pinyin] Failed to init PinIn Searcher", e);
                 return null;
             }
+        }
+
+        private static Optional<MethodHandle> findSearchMethod(Class<?> searcherClass) {
+            Class<?>[] returnTypes = {
+                    boolean.class,
+                    Boolean.class,
+                    int.class,
+                    Integer.class,
+                    Number.class,
+                    Object.class
+            };
+            for (Class<?> returnType : returnTypes) {
+                try {
+                    return Optional.of(MethodHandles.publicLookup().findVirtual(
+                            searcherClass,
+                            "search",
+                            MethodType.methodType(returnType, String.class, String.class)));
+                } catch (NoSuchMethodException | IllegalAccessException | SecurityException ignored) {
+                }
+            }
+            return Optional.empty();
         }
     }
 }
