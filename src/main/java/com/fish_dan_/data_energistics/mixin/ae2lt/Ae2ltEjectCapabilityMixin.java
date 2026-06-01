@@ -20,7 +20,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 
 @Mixin(BlockCapability.class)
 public abstract class Ae2ltEjectCapabilityMixin<T, C> {
@@ -30,11 +31,11 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
     @Unique
     private static boolean dataEnergistics$proxying = false;
     @Unique
-    private static Method dataEnergistics$isBypassedMethod;
+    private static MethodHandle dataEnergistics$isBypassedMethod;
     @Unique
-    private static Method dataEnergistics$lookupByFaceMethod;
+    private static MethodHandle dataEnergistics$lookupByFaceMethod;
     @Unique
-    private static Method dataEnergistics$getHostMethod;
+    private static MethodHandle dataEnergistics$getHostMethod;
     @Unique
     private static boolean dataEnergistics$ejectReflectionInitialized = false;
 
@@ -166,14 +167,15 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
         dataEnergistics$ejectReflectionInitialized = true;
         try {
             Class<?> registryClass = Class.forName(DE_EJECT_MODE_REGISTRY);
-            dataEnergistics$isBypassedMethod = registryClass.getMethod("isBypassed");
-            dataEnergistics$lookupByFaceMethod = registryClass.getMethod(
+            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+            dataEnergistics$isBypassedMethod = lookup.unreflect(registryClass.getMethod("isBypassed"));
+            dataEnergistics$lookupByFaceMethod = lookup.unreflect(registryClass.getMethod(
                     "lookupByFace",
                     ResourceKey.class,
                     long.class,
-                    Direction.class);
+                    Direction.class));
             Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
-            dataEnergistics$getHostMethod = ejectEntryClass.getMethod("getHost");
+            dataEnergistics$getHostMethod = lookup.unreflect(ejectEntryClass.getMethod("getHost"));
         } catch (Exception ignored) {
             dataEnergistics$isBypassedMethod = null;
             dataEnergistics$lookupByFaceMethod = null;
@@ -184,8 +186,8 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
     @Unique
     private static boolean dataEnergistics$isBypassed() {
         try {
-            return Boolean.TRUE.equals(dataEnergistics$isBypassedMethod.invoke(null));
-        } catch (Exception ignored) {
+            return Boolean.TRUE.equals(dataEnergistics$isBypassedMethod.invoke());
+        } catch (Throwable ignored) {
             return false;
         }
     }
@@ -193,8 +195,8 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
     @Unique
     private static Object dataEnergistics$lookupByFace(ResourceKey<Level> dimension, long pos, Direction face) {
         try {
-            return dataEnergistics$lookupByFaceMethod.invoke(null, dimension, pos, face);
-        } catch (Exception ignored) {
+            return dataEnergistics$lookupByFaceMethod.invoke(dimension, pos, face);
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -204,7 +206,7 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
         try {
             Object host = dataEnergistics$getHostMethod.invoke(entry);
             return host instanceof BlockEntity blockEntity ? blockEntity : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }

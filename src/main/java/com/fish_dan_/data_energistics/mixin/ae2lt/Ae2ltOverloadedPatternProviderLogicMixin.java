@@ -17,9 +17,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Mixin(OverloadedPatternProviderLogic.class)
 public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements PatternProviderLogicAccessor {
@@ -30,6 +34,8 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
 
     @Unique
     private boolean dataEnergistics$dispatchPulsePending;
+    @Unique
+    private static final ConcurrentHashMap<FieldLookupKey, Optional<VarHandle>> dataEnergistics$FIELD_HANDLES = new ConcurrentHashMap<>();
 
     @Inject(method = "pushPattern", at = @At("RETURN"))
     private void dataEnergistics$afterPushPattern(appeng.api.crafting.IPatternDetails patternDetails,
@@ -117,18 +123,37 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
 
     @Unique
     private static Object dataEnergistics$getFieldValue(Object instance, String fieldName) {
-        Class<?> current = instance.getClass();
+        Optional<VarHandle> handle = dataEnergistics$FIELD_HANDLES.computeIfAbsent(
+                new FieldLookupKey(instance.getClass(), fieldName),
+                dataEnergistics$key -> dataEnergistics$findFieldHandle(dataEnergistics$key.type(), dataEnergistics$key.fieldName()));
+        if (handle.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return handle.get().get(instance);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    @Unique
+    private static Optional<VarHandle> dataEnergistics$findFieldHandle(Class<?> type, String fieldName) {
+        Class<?> current = type;
         while (current != null) {
             try {
                 Field field = current.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field.get(instance);
+                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(current, MethodHandles.lookup());
+                return Optional.of(lookup.findVarHandle(current, fieldName, field.getType()));
             } catch (NoSuchFieldException ignored) {
                 current = current.getSuperclass();
-            } catch (ReflectiveOperationException ignored) {
-                return null;
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
+                return Optional.empty();
             }
         }
-        return null;
+        return Optional.empty();
     }
+
+    @Unique
+    private record FieldLookupKey(Class<?> type, String fieldName) {}
 }
