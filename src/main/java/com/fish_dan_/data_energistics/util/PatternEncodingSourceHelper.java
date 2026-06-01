@@ -45,11 +45,14 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PatternEncodingSourceHelper {
 
     private static final Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
+    private static final Map<MethodLookupKey, Optional<Method>> NO_ARG_METHOD_CACHE = new ConcurrentHashMap<>();
     private static final int PROCESSING_INPUT_SLOT_BASE = 10;
     private static final int DATA_RIPPER_KEY_INPUT_SLOT = DataRipperReassemblerRecipe.KEY_INPUT_SLOT_INDEX;
     private static final int DATA_RIPPER_FLUID_INPUT_SLOT_BASE = DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS + DataRipperReassemblerRecipe.KEY_INPUT_SLOTS;
@@ -1938,19 +1941,35 @@ public final class PatternEncodingSourceHelper {
             return null;
         }
 
-        Class<?> type = target.getClass();
+        Optional<Method> method = NO_ARG_METHOD_CACHE.computeIfAbsent(
+                new MethodLookupKey(target.getClass(), methodName),
+                PatternEncodingSourceHelper::findNoArgMethod);
+        if (method.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return method.get().invoke(target);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
+    }
+
+    private static Optional<Method> findNoArgMethod(MethodLookupKey key) {
+        Class<?> type = key.type();
         while (type != null) {
             try {
-                Method method = type.getDeclaredMethod(methodName);
+                Method method = type.getDeclaredMethod(key.methodName());
                 method.setAccessible(true);
-                return method.invoke(target);
+                return Optional.of(method);
             } catch (NoSuchMethodException ignored) {
                 type = type.getSuperclass();
-            } catch (ReflectiveOperationException ignored) {
-                return null;
             }
         }
-        return null;
+        return Optional.empty();
+    }
+
+    private record MethodLookupKey(Class<?> type, String methodName) {
     }
 
     private record ExternalMappings(Map<String, ResourceLocation> identifierToWorkstation,
