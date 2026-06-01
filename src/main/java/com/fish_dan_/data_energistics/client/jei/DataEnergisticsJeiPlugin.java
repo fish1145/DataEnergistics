@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.HolderLookup;
@@ -37,7 +38,6 @@ import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -174,45 +174,39 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @SuppressWarnings("unchecked")
     private static IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>> createCraftingHandler(IRecipeTransferHandlerHelper transferHelper) {
-        try {
-            Class<?> handlerClass = Class.forName(CRAFTING_HANDLER_CLASS);
-            Constructor<?> constructor = handlerClass.getConstructor(
-                    Class.class,
-                    net.minecraft.world.inventory.MenuType.class,
-                    IRecipeTransferHandlerHelper.class);
-            return (IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>>) constructor.newInstance(
+        Object handler = ReflectionAccess.newInstance(
+                CRAFTING_HANDLER_CLASS,
+                new Class<?>[] {
+                        Class.class,
+                        net.minecraft.world.inventory.MenuType.class,
+                        IRecipeTransferHandlerHelper.class },
                     UniversalCraftingTermMenu.class,
                     ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
                     transferHelper);
-        } catch (ClassNotFoundException ignored) {
-            return null;
-        } catch (ReflectiveOperationException | LinkageError e) {
-            LOGGER.warn("Failed to register JEI crafting transfer for universal crafting terminal", e);
-            return null;
+        if (handler instanceof IRecipeTransferHandler<?, ?> recipeTransferHandler) {
+            return (IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>>) recipeTransferHandler;
         }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
     private static IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu> createEncodingHandler(
                                                                                                            IRecipeTransferHandlerHelper transferHelper,
                                                                                                            mezz.jei.api.runtime.IIngredientVisibility ingredientVisibility) {
-        try {
-            Class<?> handlerClass = Class.forName(ENCODING_HANDLER_CLASS);
-            Constructor<?> constructor = handlerClass.getConstructor(
-                    net.minecraft.world.inventory.MenuType.class,
-                    Class.class,
-                    IRecipeTransferHandlerHelper.class,
-                    mezz.jei.api.runtime.IIngredientVisibility.class);
-            return (IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu>) constructor.newInstance(
+        Object handler = ReflectionAccess.newInstance(
+                ENCODING_HANDLER_CLASS,
+                new Class<?>[] {
+                        net.minecraft.world.inventory.MenuType.class,
+                        Class.class,
+                        IRecipeTransferHandlerHelper.class,
+                        mezz.jei.api.runtime.IIngredientVisibility.class },
                     ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                     UniversalPatternEncodingTermMenu.class,
                     transferHelper,
                     ingredientVisibility);
-        } catch (ClassNotFoundException ignored) {
-            return null;
-        } catch (ReflectiveOperationException | LinkageError e) {
-            LOGGER.warn("Failed to register JEI transfer for universal pattern encoding terminal", e);
-            return null;
+        if (handler instanceof IUniversalRecipeTransferHandler<?> recipeTransferHandler) {
+            return (IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu>) recipeTransferHandler;
         }
+        return null;
     }
 }

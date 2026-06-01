@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.integration;
 
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -9,9 +10,6 @@ import net.minecraft.world.entity.player.Inventory;
 
 import appeng.client.gui.style.StyleManager;
 import appeng.menu.AEBaseMenu;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 
 public final class Ae2WtLibClientCompat {
 
@@ -37,8 +35,7 @@ public final class Ae2WtLibClientCompat {
                 return null;
             }
 
-            Method getMenu = wetScreenClass.getMethod("getMenu");
-            Object rawMenu = getMenu.invoke(screen);
+            Object rawMenu = ReflectionAccess.invokeNoArg(screen, "getMenu");
             if (!(rawMenu instanceof PatternEncodingPreviewMenu) || !(rawMenu instanceof AEBaseMenu baseMenu)) {
                 return null;
             }
@@ -48,16 +45,20 @@ public final class Ae2WtLibClientCompat {
                 return null;
             }
 
-            Constructor<?> constructor = wirelessScreenClass.getConstructor(
-                    wetMenuClass,
-                    Inventory.class,
-                    Component.class,
-                    appeng.client.gui.style.ScreenStyle.class);
-            Screen replacement = (Screen) constructor.newInstance(
+            Object replacementScreen = ReflectionAccess.newInstance(
+                    WIRELESS_SCREEN_CLASS,
+                    new Class<?>[] {
+                            wetMenuClass,
+                            Inventory.class,
+                            Component.class,
+                            appeng.client.gui.style.ScreenStyle.class },
                     wetMenuClass.cast(rawMenu),
                     baseMenu.getPlayerInventory(),
                     screen.getTitle(),
                     StyleManager.loadStyleDoc("/screens/wtlib/wireless_pattern_encoding_terminal.json"));
+            if (!(replacementScreen instanceof Screen replacement)) {
+                return null;
+            }
 
             if (applyImmediately) {
                 Minecraft minecraft = Minecraft.getInstance();

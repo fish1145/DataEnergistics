@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -54,15 +55,12 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
     }
 
     private static EmiRecipeCategory resolveCategory() {
-        try {
-            Class<?> recipeClass = Class.forName("appeng.integration.modules.emi.EmiCondenserRecipe");
-            var field = recipeClass.getDeclaredField("CATEGORY");
-            field.setAccessible(true);
-            Object value = field.get(null);
-            if (value instanceof EmiRecipeCategory category) {
-                return category;
-            }
-        } catch (ReflectiveOperationException ignored) {}
+        Object value = ReflectionAccess.getField(ReflectionAccess.findStaticField(
+                "appeng.integration.modules.emi.EmiCondenserRecipe",
+                "CATEGORY"), null);
+        if (value instanceof EmiRecipeCategory category) {
+            return category;
+        }
 
         return new EmiRecipeCategory(
                 Data_Energistics.id("condenser_data_capture_ball"),
