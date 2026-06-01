@@ -25,7 +25,7 @@ public final class AppMekCompat {
     private AppMekCompat() {}
 
     private static boolean isChemicalSupportLoaded() {
-        return Data_Energistics.Mods.isMekanismLoaded() && Data_Energistics.Mods.isAppMekLoaded();
+        return ModFlags.isMekanismLoaded() && ModFlags.isAppMekLoaded();
     }
 
     @Nullable

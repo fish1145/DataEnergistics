@@ -23,7 +23,7 @@ public final class Ae2WtLibCompat {
     private Ae2WtLibCompat() {}
 
     public static Screen maybeReplaceWirelessPatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-        if (!Data_Energistics.Mods.isAe2WtLibLoaded() || currentScreen == null) {
+        if (!ModFlags.isAe2WtLibLoaded() || currentScreen == null) {
             return null;
         }
 

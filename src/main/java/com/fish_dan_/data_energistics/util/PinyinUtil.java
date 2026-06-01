@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.ModFlags;
 
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
@@ -48,7 +48,7 @@ public final class PinyinUtil {
             return true;
         }
 
-        if (Data_Energistics.Mods.isJechLoaded()) {
+        if (ModFlags.isJechLoaded()) {
             return JechMatcher.contains(text, filter);
         }
 

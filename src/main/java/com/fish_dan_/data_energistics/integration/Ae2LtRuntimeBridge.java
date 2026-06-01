@@ -50,7 +50,7 @@ public final class Ae2LtRuntimeBridge {
     private Ae2LtRuntimeBridge() {}
 
     public static boolean isAvailable() {
-        if (!Data_Energistics.Mods.isAe2LtLoaded()) {
+        if (!ModFlags.isAe2LtLoaded()) {
             return false;
         }
 

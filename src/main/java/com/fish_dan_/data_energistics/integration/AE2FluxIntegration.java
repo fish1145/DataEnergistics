@@ -21,7 +21,7 @@ public final class AE2FluxIntegration {
     private static Object energyTypeFE;
 
     static {
-        if (Data_Energistics.Mods.isAppFluxLoaded()) {
+        if (ModFlags.isAppFluxLoaded()) {
             try {
                 initializeReflection();
             } catch (Exception ignored) {}
@@ -38,7 +38,7 @@ public final class AE2FluxIntegration {
     }
 
     public static boolean isAvailable() {
-        return Data_Energistics.Mods.isAppFluxLoaded() && fluxKeyClass != null;
+        return ModFlags.isAppFluxLoaded() && fluxKeyClass != null;
     }
 
     public static long extractEnergyFromOwnNetwork(AENetworkedBlockEntity blockEntity, long amount, boolean simulate) {

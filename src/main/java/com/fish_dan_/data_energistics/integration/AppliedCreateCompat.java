@@ -7,6 +7,6 @@ public final class AppliedCreateCompat {
     private AppliedCreateCompat() {}
 
     public static boolean isMechanicalProviderSupportEnabled() {
-        return Data_Energistics.Mods.isCreateLoaded() && Data_Energistics.Mods.isAppliedCreateLoaded();
+        return ModFlags.isCreateLoaded() && ModFlags.isAppliedCreateLoaded();
     }
 }

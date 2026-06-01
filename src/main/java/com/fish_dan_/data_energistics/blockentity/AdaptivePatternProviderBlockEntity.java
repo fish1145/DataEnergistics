@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
+import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -587,7 +588,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public static boolean isAe2LightningTechOverloadPatternStack(ItemStack stack) {
-        if (!Data_Energistics.Mods.isAe2LtLoaded() || stack.isEmpty()) {
+        if (!ModFlags.isAe2LtLoaded() || stack.isEmpty()) {
             return false;
         }
 
@@ -694,7 +695,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Nullable
     private static ProviderProfile resolveAe2LightningTechProfile(ItemStack stack) {
-        if (!Data_Energistics.Mods.isAe2LtLoaded()) {
+        if (!ModFlags.isAe2LtLoaded()) {
             return null;
         }
 
