@@ -17,22 +17,19 @@ import com.fish_dan_.data_energistics.client.screen.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
+import com.fish_dan_.data_energistics.client.screen.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
-import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
-import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
-import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -40,7 +37,6 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
-import appeng.client.gui.style.StyleManager;
 import appeng.core.definitions.AEItems;
 import appeng.init.client.InitScreens;
 import appeng.items.misc.PaintBallItem;
@@ -314,16 +310,12 @@ public final class ClientBootstrap {
         }
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {
-            maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
-            Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
+            PatternEncodingScreenRouter.onScreenInitPost(event);
             UniversalTerminalScreenHook.onScreenInitPost(event);
         }
 
         public static void onScreenOpening(ScreenEvent.Opening event) {
-            Screen replacement = maybeReplaceNativePatternEncodingScreen(event.getCurrentScreen(), false);
-            if (replacement == null) {
-                replacement = Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getCurrentScreen(), false);
-            }
+            Screen replacement = PatternEncodingScreenRouter.routeOpeningScreen(event.getCurrentScreen());
             if (replacement != null) {
                 event.setNewScreen(replacement);
             }
@@ -332,36 +324,6 @@ public final class ClientBootstrap {
         public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
             UniversalTerminalScreenHook.onScreenRenderPost(event);
             Ae2TerminalKeyOverlay.onScreenRenderPost(event);
-        }
-
-        private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-            if (!(currentScreen instanceof PatternEncodingTermScreen<?> screen)) {
-                return null;
-            }
-            if (currentScreen instanceof PatternEncodingPreviewScreen<?>) {
-                return null;
-            }
-            if (!(screen.getMenu() instanceof PatternEncodingPreviewMenu)) {
-                return null;
-            }
-            if (currentScreen.getClass() != PatternEncodingTermScreen.class) {
-                return null;
-            }
-
-            Screen replacement = new NativePatternEncodingTermScreen(
-                    screen.getMenu(),
-                    screen.getMenu().getPlayerInventory(),
-                    screen.getTitle(),
-                    StyleManager.loadStyleDoc("/screens/terminals/pattern_encoding_terminal.json"));
-
-            if (applyImmediately) {
-                Minecraft minecraft = Minecraft.getInstance();
-                if (minecraft.screen == currentScreen) {
-                    minecraft.setScreen(replacement);
-                }
-            }
-
-            return replacement;
         }
     }
 }
