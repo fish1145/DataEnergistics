@@ -57,4 +57,11 @@ public final class AdaptivePatternProviderDisplayHelper {
 
         return Math.min(maxPatternSlots, slotsPerProvider * providerSlotLimit);
     }
+
+    public static Component decorateAttachedMachineName(Component machineName, Component providerName) {
+        return Component.translatable(
+                "screen.data_energistics.adaptive_pattern_provider.attached_machine",
+                machineName,
+                providerName);
+    }
 }

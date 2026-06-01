@@ -160,7 +160,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public Component getGuiDisplayName() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
         if (adjacentGroup != null) {
-            return decorateAttachedMachineName(adjacentGroup.name(), getResolvedProviderNameForGui());
+            return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(adjacentGroup.name(), getResolvedProviderNameForGui());
         }
 
         AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
@@ -171,7 +171,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public Component getTerminalDisplayName() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
         if (adjacentGroup != null) {
-            return decorateAttachedMachineName(adjacentGroup.name(), getResolvedInternalProviderName());
+            return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(adjacentGroup.name(), getResolvedInternalProviderName());
         }
         return getResolvedProviderNameForTerminal();
     }
@@ -610,13 +610,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             }
         }
         return groups;
-    }
-
-    public static Component decorateAttachedMachineName(Component machineName, Component providerName) {
-        return Component.translatable(
-                "screen.data_energistics.adaptive_pattern_provider.attached_machine",
-                machineName,
-                providerName);
     }
 
     public static Component decorateAdaptiveProviderName(Component providerName) {

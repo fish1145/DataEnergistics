@@ -145,7 +145,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     public Component getGuiDisplayName() {
         var adjacentGroup = getAdjacentMachineGroup();
         if (adjacentGroup != null) {
-            return AdaptivePatternProviderBlockEntity.decorateAttachedMachineName(
+            return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(
                     adjacentGroup.name(),
                     getResolvedProviderNameForGui());
         }
@@ -161,7 +161,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     public Component getTerminalDisplayName() {
         var adjacentGroup = getAdjacentMachineGroup();
         if (adjacentGroup != null) {
-            return AdaptivePatternProviderBlockEntity.decorateAttachedMachineName(
+            return AdaptivePatternProviderDisplayHelper.decorateAttachedMachineName(
                     adjacentGroup.name(),
                     getResolvedInternalProviderName());
         }
