@@ -22,7 +22,7 @@ public final class PatternEncodingScreenRouter {
     public static Screen routeOpeningScreen(Screen currentScreen) {
         Screen replacement = maybeReplaceNativePatternEncodingScreen(currentScreen, false);
         if (replacement == null) {
-            replacement = Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(currentScreen, false);
+            replacement = Ae2WtLibCompat.<Screen>maybeReplaceWirelessPatternEncodingScreen(currentScreen, false);
         }
         return replacement;
     }
