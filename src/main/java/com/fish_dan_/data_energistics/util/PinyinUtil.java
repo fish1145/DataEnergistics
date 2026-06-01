@@ -140,8 +140,7 @@ public final class PinyinUtil {
                             searcherClass,
                             "search",
                             MethodType.methodType(returnType, String.class, String.class)));
-                } catch (NoSuchMethodException | IllegalAccessException | SecurityException ignored) {
-                }
+                } catch (NoSuchMethodException | IllegalAccessException | SecurityException ignored) {}
             }
             return Optional.empty();
         }

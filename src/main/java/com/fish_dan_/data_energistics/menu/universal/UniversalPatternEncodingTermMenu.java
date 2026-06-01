@@ -55,20 +55,15 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
     private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
     @Nullable
-    private static final VarHandle FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD =
-            resolveInheritedField("dataEnergistics$networkBlankPatternCount");
+    private static final VarHandle FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD = resolveInheritedField("dataEnergistics$networkBlankPatternCount");
     @Nullable
-    private static final VarHandle FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD =
-            resolveInheritedField("dataEnergistics$syncedPatternProviders");
+    private static final VarHandle FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD = resolveInheritedField("dataEnergistics$syncedPatternProviders");
     @Nullable
-    private static final VarHandle FALLBACK_PENDING_PATTERN_SOURCE_FIELD =
-            resolveInheritedField("dataEnergistics$pendingPatternSource");
+    private static final VarHandle FALLBACK_PENDING_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$pendingPatternSource");
     @Nullable
-    private static final VarHandle FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD =
-            resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
+    private static final VarHandle FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
     @Nullable
-    private static final VarHandle FALLBACK_PATTERN_SOURCE_ENABLED_FIELD =
-            resolveInheritedField("dataEnergistics$patternSourceEnabled");
+    private static final VarHandle FALLBACK_PATTERN_SOURCE_ENABLED_FIELD = resolveInheritedField("dataEnergistics$patternSourceEnabled");
     private static final String ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;

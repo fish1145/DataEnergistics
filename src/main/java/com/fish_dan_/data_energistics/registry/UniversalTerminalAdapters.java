@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 import com.fish_dan_.data_energistics.util.UniversalTerminalConfigProfile;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 import com.fish_dan_.data_energistics.util.UniversalTerminalDefinition;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;

@@ -154,8 +154,8 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
 
     @Unique
     private static VarHandle dataEnergistics$findDeclaredVarHandle(MethodHandles.Lookup lookup,
-                                                                  Class<?> owner,
-                                                                  String fieldName) throws ReflectiveOperationException {
+                                                                   Class<?> owner,
+                                                                   String fieldName) throws ReflectiveOperationException {
         for (var field : owner.getDeclaredFields()) {
             if (field.getName().equals(fieldName)) {
                 return lookup.findVarHandle(owner, fieldName, field.getType());

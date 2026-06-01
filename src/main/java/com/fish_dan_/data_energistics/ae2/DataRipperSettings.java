@@ -13,8 +13,7 @@ public final class DataRipperSettings {
 
     public static final Setting<YesNo> ACCELERATE = new Setting<>("accelerate", YesNo.class);
     public static final Setting<YesNo> REDSTONE_CONTROL = new Setting<>("redstone_control", YesNo.class);
-    private static final VarHandle AE2_SETTINGS_FIELD =
-            ReflectionAccess.findStaticField(Settings.class, "SETTINGS").orElse(null);
+    private static final VarHandle AE2_SETTINGS_FIELD = ReflectionAccess.findStaticField(Settings.class, "SETTINGS").orElse(null);
 
     static {
         registerAe2PacketSetting(ACCELERATE);

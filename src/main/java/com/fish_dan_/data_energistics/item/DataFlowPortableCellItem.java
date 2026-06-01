@@ -35,8 +35,7 @@ import java.lang.invoke.VarHandle;
 public class DataFlowPortableCellItem extends PortableCellItem {
 
     @Nullable
-    private static final VarHandle PORTABLE_CELL_MENU_TYPE_FIELD =
-            ReflectionAccess.findField(AbstractPortableCell.class, "menuType").orElse(null);
+    private static final VarHandle PORTABLE_CELL_MENU_TYPE_FIELD = ReflectionAccess.findField(AbstractPortableCell.class, "menuType").orElse(null);
 
     public DataFlowPortableCellItem(StorageTier tier, Item.Properties properties, int color) {
         super(DataFlowKeyType.TYPE, 1, null, tier, properties.stacksTo(1), color);

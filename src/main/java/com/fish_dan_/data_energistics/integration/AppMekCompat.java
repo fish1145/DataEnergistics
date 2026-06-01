@@ -21,8 +21,7 @@ public final class AppMekCompat {
 
     private static final String CHEMICAL_CAPABILITIES_CLASS = "mekanism.common.capabilities.Capabilities";
     private static final String CHEMICAL_HANDLER_CLASS = "com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler";
-    private static final Optional<VarHandle> CHEMICAL_CAPABILITY_FIELD =
-            ReflectionAccess.findStaticField(CHEMICAL_CAPABILITIES_CLASS, "CHEMICAL");
+    private static final Optional<VarHandle> CHEMICAL_CAPABILITY_FIELD = ReflectionAccess.findStaticField(CHEMICAL_CAPABILITIES_CLASS, "CHEMICAL");
 
     private AppMekCompat() {}
 

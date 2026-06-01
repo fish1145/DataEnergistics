@@ -750,8 +750,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @SuppressWarnings("unchecked")
     private AbstractWidget resolveEncodePatternWidget() {
-        Map<String, AbstractWidget> widgetsById =
-                (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
+        Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
         if (widgetsById == null) {
             return null;
         }

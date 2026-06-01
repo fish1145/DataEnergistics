@@ -107,14 +107,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<MechanicalRecipeAccess>> MECHANICAL_RECIPE_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final Optional<AppliedCreateAccess> APPLIED_CREATE_ACCESS = findAppliedCreateAccess();
-    private static final Optional<Ae2LtAllowedOutputFilterAccess> AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS =
-            findAe2LtAllowedOutputFilterAccess();
-    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadPatternAccess>> AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE =
-            new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE =
-            new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadOutputSlotAccess>> AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE =
-            new ConcurrentHashMap<>();
+    private static final Optional<Ae2LtAllowedOutputFilterAccess> AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS = findAe2LtAllowedOutputFilterAccess();
+    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadPatternAccess>> AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadOutputSlotAccess>> AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE = new ConcurrentHashMap<>();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -487,8 +483,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, boolean skipAvailabilityCheck) {
-        if (hasAdvancedDirectionalWork() || super.isBusy() || !this.mainNode.isActive()
-                || (!skipAvailabilityCheck && !getAvailablePatterns().contains(patternDetails))) {
+        if (hasAdvancedDirectionalWork() || super.isBusy() || !this.mainNode.isActive() || (!skipAvailabilityCheck && !getAvailablePatterns().contains(patternDetails))) {
             return false;
         }
 

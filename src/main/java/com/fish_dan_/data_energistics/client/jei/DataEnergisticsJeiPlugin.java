@@ -186,9 +186,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         Object handler = ReflectionAccess.newInstance(
                 CRAFTING_HANDLER_CLASS,
                 CRAFTING_HANDLER_PARAMETERS,
-                    UniversalCraftingTermMenu.class,
-                    ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
-                    transferHelper);
+                UniversalCraftingTermMenu.class,
+                ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
+                transferHelper);
         if (handler instanceof IRecipeTransferHandler<?, ?> recipeTransferHandler) {
             return (IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>>) recipeTransferHandler;
         }
@@ -202,10 +202,10 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         Object handler = ReflectionAccess.newInstance(
                 ENCODING_HANDLER_CLASS,
                 ENCODING_HANDLER_PARAMETERS,
-                    ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
-                    UniversalPatternEncodingTermMenu.class,
-                    transferHelper,
-                    ingredientVisibility);
+                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                UniversalPatternEncodingTermMenu.class,
+                transferHelper,
+                ingredientVisibility);
         if (handler instanceof IUniversalRecipeTransferHandler<?> recipeTransferHandler) {
             return (IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu>) recipeTransferHandler;
         }

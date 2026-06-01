@@ -113,9 +113,7 @@ public final class UniversalTerminalScreenHook {
         selectorPanel.setAnchorButton(button);
         selectorPanel.restoreState(rememberedSelectorOpen, rememberedSelectorPage);
 
-        if (invoke(ADD_TO_LEFT_TOOLBAR, screen, button)
-                && invoke(ADD_RENDERABLE_WIDGET, screen, button)
-                && invoke(ADD_RENDERABLE_WIDGET, screen, selectorPanel)) {
+        if (invoke(ADD_TO_LEFT_TOOLBAR, screen, button) && invoke(ADD_RENDERABLE_WIDGET, screen, button) && invoke(ADD_RENDERABLE_WIDGET, screen, selectorPanel)) {
             CYCLE_BUTTONS.put(screen, button);
             SELECTOR_PANELS.put(screen, selectorPanel);
         } else {

@@ -392,9 +392,7 @@ public final class Ae2LtRuntimeBridge {
                                            String methodName,
                                            Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
         for (var method : owner.getMethods()) {
-            if (java.lang.reflect.Modifier.isStatic(method.getModifiers())
-                    && method.getName().equals(methodName)
-                    && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+            if (java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
                 return PUBLIC_LOOKUP.unreflect(method);
             }
         }
@@ -405,9 +403,7 @@ public final class Ae2LtRuntimeBridge {
                                             String methodName,
                                             Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
         for (var method : owner.getMethods()) {
-            if (!java.lang.reflect.Modifier.isStatic(method.getModifiers())
-                    && method.getName().equals(methodName)
-                    && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+            if (!java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
                 return PUBLIC_LOOKUP.unreflect(method);
             }
         }

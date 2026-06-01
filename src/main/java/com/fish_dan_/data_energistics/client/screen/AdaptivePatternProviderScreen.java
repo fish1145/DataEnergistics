@@ -284,8 +284,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
 
     @SuppressWarnings("unchecked")
     private void installOrReplaceCompositeWidget(String id, Object widget) {
-        Map<String, Object> compositeWidgets =
-                (Map<String, Object>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
+        Map<String, Object> compositeWidgets = (Map<String, Object>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
         if (compositeWidgets == null) {
             throw new IllegalStateException("Could not replace AE2 composite widget: " + id);
         }
@@ -294,10 +293,8 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
 
     @SuppressWarnings("unchecked")
     private boolean hasWidget(String id) {
-        Map<String, AbstractWidget> widgets =
-                (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
-        Map<String, ?> compositeWidgets =
-                (Map<String, ?>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
+        Map<String, AbstractWidget> widgets = (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
+        Map<String, ?> compositeWidgets = (Map<String, ?>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
         if (widgets == null || compositeWidgets == null) {
             throw new IllegalStateException("Could not inspect AE2 widget container");
         }

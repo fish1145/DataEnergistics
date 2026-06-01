@@ -37,8 +37,8 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
-import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.inventories.InternalInventory;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
