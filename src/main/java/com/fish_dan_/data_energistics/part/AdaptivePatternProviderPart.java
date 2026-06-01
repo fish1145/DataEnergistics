@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
@@ -135,7 +136,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         ItemStack providerStack = getProviderStack();
-        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
+        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
         return displayName != null ? displayName : this.getMainMenuIcon().getHoverName();
     }
 
@@ -149,8 +150,8 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         ItemStack providerStack = getProviderStack();
-        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
-        return displayName != null ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(
+        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
+        return displayName != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(
                 getAdaptiveProviderVariantTranslationKey(),
                 displayName) : this.getMainMenuIcon().getHoverName();
     }
@@ -176,7 +177,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-        PatternContainerGroup specialGroup = AdaptivePatternProviderBlockEntity.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
+        PatternContainerGroup specialGroup = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
         if (specialGroup != null) {
             return specialGroup;
         }
@@ -375,7 +376,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return adjacentGroup.icon();
         }
 
-        AEItemKey icon = AdaptivePatternProviderBlockEntity.getResolvedProviderTerminalIcon(getProviderStack());
+        AEItemKey icon = AdaptivePatternProviderResolver.getResolvedProviderTerminalIcon(getProviderStack());
         return icon != null ? icon : AEItemKey.of(this.getPartItem());
     }
 
@@ -406,7 +407,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             }
         }
 
-        ItemStack icon = AdaptivePatternProviderBlockEntity.getResolvedProviderMainMenuIcon(getProviderStack());
+        ItemStack icon = AdaptivePatternProviderResolver.getResolvedProviderMainMenuIcon(getProviderStack());
         return icon != null && !icon.isEmpty() ? icon.copy() : new ItemStack(this.getPartItem().asItem());
     }
 
@@ -449,7 +450,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     private int getConfiguredPatternSlotCount() {
         ItemStack providerStack = getProviderStack();
-        int slotsPerProvider = AdaptivePatternProviderBlockEntity.getResolvedSlotsPerProvider(providerStack);
+        int slotsPerProvider = AdaptivePatternProviderResolver.getResolvedSlotsPerProvider(providerStack);
         if (slotsPerProvider <= 0) {
             return 0;
         }
@@ -459,7 +460,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     private int getCurrentProviderMaxPatternCapacity() {
-        int slotsPerProvider = AdaptivePatternProviderBlockEntity.getResolvedSlotsPerProvider(getProviderStack());
+        int slotsPerProvider = AdaptivePatternProviderResolver.getResolvedSlotsPerProvider(getProviderStack());
         if (slotsPerProvider <= 0) {
             return 0;
         }
@@ -505,10 +506,10 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-        if (AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(level, adjacentPos, side.getOpposite())) {
+        if (AdaptivePatternProviderResolver.isPatternProviderAttachment(level, adjacentPos, side.getOpposite())) {
             return null;
         }
-        PatternContainerGroup group = AdaptivePatternProviderBlockEntity.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
+        PatternContainerGroup group = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
         if (group == null) {
             group = PatternContainerGroup.fromMachine(
                     level,
@@ -528,8 +529,8 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return Component.translatable(getProviderTranslationKey());
         }
 
-        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
-        return displayName != null ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(
+        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
+        return displayName != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(
                 getAdaptiveProviderVariantTranslationKey(),
                 displayName) : Component.translatable(getProviderTranslationKey());
     }
@@ -540,8 +541,8 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return Component.translatable(getProviderTranslationKey());
         }
 
-        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
-        return displayName != null ? AdaptivePatternProviderBlockEntity.decorateAdaptiveProviderName(displayName) : Component.translatable(getProviderTranslationKey());
+        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
+        return displayName != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(displayName) : Component.translatable(getProviderTranslationKey());
     }
 
     private Component getResolvedInternalProviderName() {
@@ -550,7 +551,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return Component.translatable(getProviderTranslationKey());
         }
 
-        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
+        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
         return displayName != null ? displayName : Component.translatable(getProviderTranslationKey());
     }
 

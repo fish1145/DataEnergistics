@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 
@@ -1883,7 +1882,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         for (var dir : sides) {
             BlockPos adjacentPos = hostBe.getBlockPos().relative(dir);
             Direction adjacentFace = dir.getOpposite();
-            if (!hostLevel.hasChunkAt(adjacentPos) || AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
+            if (!hostLevel.hasChunkAt(adjacentPos) || AdaptivePatternProviderResolver.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
                 continue;
             }
 
@@ -2131,7 +2130,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Nullable
     private PatternProviderTarget getExternalTarget(Level level, BlockPos adjacentPos, Direction targetSide) {
-        if (AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(level, adjacentPos, targetSide)) {
+        if (AdaptivePatternProviderResolver.isPatternProviderAttachment(level, adjacentPos, targetSide)) {
             return null;
         }
         return PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
