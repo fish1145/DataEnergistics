@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -44,11 +45,12 @@ import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
 
@@ -56,10 +58,10 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF = List.of(Component.translatable("ae2lt.gui.return_mode.off"));
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO = List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT = List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
-    private static final Field SLOT_X_FIELD = resolveField(Slot.class, "x");
-    private static final Field SLOT_Y_FIELD = resolveField(Slot.class, "y");
-    private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
-    private static final Field WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
+    private static final Optional<VarHandle> SLOT_X_FIELD = resolveField(Slot.class, "x");
+    private static final Optional<VarHandle> SLOT_Y_FIELD = resolveField(Slot.class, "y");
+    private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
+    private static final Optional<VarHandle> WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
 
     private final ToggleButton previousPageButton;
     private final ToggleButton nextPageButton;
@@ -282,27 +284,28 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
 
     @SuppressWarnings("unchecked")
     private void installOrReplaceCompositeWidget(String id, Object widget) {
-        try {
-            Map<String, Object> compositeWidgets = (Map<String, Object>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
-            compositeWidgets.put(id, widget);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Could not replace AE2 composite widget: " + id, e);
+        Map<String, Object> compositeWidgets =
+                (Map<String, Object>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
+        if (compositeWidgets == null) {
+            throw new IllegalStateException("Could not replace AE2 composite widget: " + id);
         }
+        compositeWidgets.put(id, widget);
     }
 
     @SuppressWarnings("unchecked")
     private boolean hasWidget(String id) {
-        try {
-            Map<String, AbstractWidget> widgets = (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
-            if (widgets.containsKey(id)) {
-                return true;
-            }
-
-            Map<String, ?> compositeWidgets = (Map<String, ?>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
-            return compositeWidgets.containsKey(id);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Could not inspect AE2 widget container", e);
+        Map<String, AbstractWidget> widgets =
+                (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
+        Map<String, ?> compositeWidgets =
+                (Map<String, ?>) ReflectionAccess.getField(WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD, this.widgets);
+        if (widgets == null || compositeWidgets == null) {
+            throw new IllegalStateException("Could not inspect AE2 widget container");
         }
+
+        if (widgets.containsKey(id)) {
+            return true;
+        }
+        return compositeWidgets.containsKey(id);
     }
 
     private static SlotBuckets splitUniqueSlots(List<Slot> slots) {
@@ -318,22 +321,17 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     }
 
     private static void setSlotPosition(Slot slot, int x, int y) {
-        try {
-            SLOT_X_FIELD.setInt(slot, x);
-            SLOT_Y_FIELD.setInt(slot, y);
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Could not reposition duplicate slot", e);
+        if (!ReflectionAccess.setField(SLOT_X_FIELD, slot, x) || !ReflectionAccess.setField(SLOT_Y_FIELD, slot, y)) {
+            throw new IllegalStateException("Could not reposition duplicate slot");
         }
     }
 
-    private static Field resolveField(Class<?> owner, String name) {
-        try {
-            Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            return field;
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not resolve field " + owner.getSimpleName() + "." + name, e);
+    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
+        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
+        if (field.isEmpty()) {
+            throw new IllegalStateException("Could not resolve field " + owner.getSimpleName() + "." + name);
         }
+        return field;
     }
 
     private record SlotBuckets(List<Slot> unique, List<Slot> duplicates) {}

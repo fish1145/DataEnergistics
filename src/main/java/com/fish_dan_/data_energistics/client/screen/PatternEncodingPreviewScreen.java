@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -39,15 +40,16 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.util.ReadableNumberConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T> {
 
-    private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
+    private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
     private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
@@ -662,12 +664,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @SuppressWarnings("unchecked")
     private AbstractWidget resolveEncodePatternWidget() {
-        try {
-            Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
-            return widgetsById.get("encodePattern");
-        } catch (IllegalAccessException e) {
+        Map<String, AbstractWidget> widgetsById =
+                (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
+        if (widgetsById == null) {
             return null;
         }
+        return widgetsById.get("encodePattern");
     }
 
     protected void applyEncodeButtonHint() {
@@ -931,14 +933,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return source;
     }
 
-    private static Field resolveField(Class<?> owner, String name) {
-        try {
-            Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            return field;
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name, e);
+    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
+        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
+        if (field.isEmpty()) {
+            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name);
         }
+        return field;
     }
 
     private Rect2i getPreviewPanelBounds() {

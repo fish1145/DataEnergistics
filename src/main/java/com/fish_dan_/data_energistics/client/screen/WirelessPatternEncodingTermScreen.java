@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -37,15 +38,16 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import de.mari_023.ae2wtlib.wet.WETMenu;
 import de.mari_023.ae2wtlib.wet.WETScreen;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 public class WirelessPatternEncodingTermScreen extends WETScreen {
 
-    private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
+    private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
     private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
@@ -748,12 +750,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @SuppressWarnings("unchecked")
     private AbstractWidget resolveEncodePatternWidget() {
-        try {
-            Map<String, AbstractWidget> widgetsById = (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
-            return widgetsById.get("encodePattern");
-        } catch (IllegalAccessException e) {
+        Map<String, AbstractWidget> widgetsById =
+                (Map<String, AbstractWidget>) ReflectionAccess.getField(WIDGET_CONTAINER_WIDGETS_FIELD, this.widgets);
+        if (widgetsById == null) {
             return null;
         }
+        return widgetsById.get("encodePattern");
     }
 
     private void applyEncodeButtonHint() {
@@ -986,14 +988,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         return item == null ? ItemStack.EMPTY : new ItemStack(item);
     }
 
-    private static Field resolveField(Class<?> owner, String name) {
-        try {
-            Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            return field;
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name, e);
+    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
+        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
+        if (field.isEmpty()) {
+            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name);
         }
+        return field;
     }
 
     private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {}
