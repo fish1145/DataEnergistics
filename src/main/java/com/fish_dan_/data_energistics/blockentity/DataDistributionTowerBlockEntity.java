@@ -94,6 +94,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
     private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
+    private static final int TRANSFER_SCAN_CACHE_TICKS = 5;
     private static final int CLUSTER_CACHE_TICKS = 10;
     private static final int DIAGNOSTIC_LOG_INTERVAL_TICKS = 100;
     private static final int CACHE_CLEANUP_INTERVAL_TICKS = 6000;
@@ -125,6 +126,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
     private List<EnergyEndpoint> cachedReceiveEnergyEndpoints = List.of();
     private List<EnergyEndpoint> cachedExtractEnergyEndpoints = List.of();
+    private TransferScanSnapshot cachedTransferScanSnapshot = TransferScanSnapshot.EMPTY;
     private boolean endpointCacheValid;
     private boolean receiveEndpointResolutionValid;
     private boolean extractEndpointResolutionValid;
@@ -1018,6 +1020,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedReceiveQuerySummaries.clear();
         this.cachedSimulatedExtracts.clear();
         this.cachedSimulatedExtractTick = Long.MIN_VALUE;
+        this.cachedTransferScanSnapshot = TransferScanSnapshot.EMPTY;
     }
 
     private void trimCaches() {
@@ -1516,62 +1519,137 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        List<EnergyEndpoint> extractEndpoints = getCachedResolvedEnergyEndpoints(false);
-        List<EnergyEndpoint> receiveEndpoints = getCachedResolvedEnergyEndpoints(true);
-        performSingleRangeTransferStep(transferBudget, extractEndpoints, receiveEndpoints);
-    }
-
-    private void performSingleRangeTransferStep(long budget, List<EnergyEndpoint> extractEndpoints,
-                                                List<EnergyEndpoint> receiveEndpoints) {
-        long remainingBudget = budget;
-
-        if (AE2FluxIntegration.isAvailable() && remainingBudget > 0) {
-            long simulatedExtract = Math.min(remainingBudget,
-                    AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remainingBudget, true));
-            if (simulatedExtract > 0) {
-                long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, null, receiveEndpoints);
-                if (simulatedInsert > 0) {
-                    long transferAmount = Math.min(simulatedExtract, simulatedInsert);
-                    long actuallyExtracted = Math.min(transferAmount,
-                            AE2FluxIntegration.extractEnergyFromOwnNetwork(this, transferAmount, false));
-                    if (actuallyExtracted > 0) {
-                        long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, null, receiveEndpoints);
-                        remainingBudget -= Math.min(actuallyExtracted, actuallyInserted);
-                    }
-                }
-            }
+        TransferScanSnapshot transferScanSnapshot = getTransferScanSnapshot();
+        if (transferScanSnapshot.receiveEndpoints().isEmpty()) {
+            return;
         }
 
-        for (EnergyEndpoint source : extractEndpoints) {
+        long remainingBudget = transferBudget;
+        for (int substep = 0; substep < TRANSFER_SUBSTEPS_PER_TICK; substep++) {
             if (remainingBudget <= 0) {
                 break;
             }
 
-            IEnergyStorage sourceStorage = source.storage();
-            if (!sourceStorage.canExtract() || sourceStorage.getEnergyStored() <= 0) {
-                continue;
-            }
-
-            int requested = clampEnergyRequest(remainingBudget);
-            int simulatedExtract = sourceStorage.extractEnergy(requested, true);
+            long stepBudget = divideCeil(remainingBudget, TRANSFER_SUBSTEPS_PER_TICK - substep);
+            long simulatedExtract = simulateCachedTransferExtract(stepBudget, transferScanSnapshot);
             if (simulatedExtract <= 0) {
-                continue;
+                break;
             }
 
-            long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, source.pos(), receiveEndpoints);
+            long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, null, transferScanSnapshot.receiveEndpoints());
             if (simulatedInsert <= 0) {
-                continue;
+                break;
             }
 
-            int transferAmount = clampEnergyRequest(Math.min(simulatedExtract, simulatedInsert));
-            int actuallyExtracted = sourceStorage.extractEnergy(transferAmount, false);
+            long transferAmount = Math.min(simulatedExtract, Math.min(simulatedInsert, stepBudget));
+            long actuallyExtracted = 0;
+
+            if (AE2FluxIntegration.isAvailable()) {
+                actuallyExtracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, transferAmount, false);
+            }
             if (actuallyExtracted <= 0) {
+                actuallyExtracted = extractFromEndpointsRoundRobin(transferAmount, false, transferScanSnapshot.extractEndpoints());
+            }
+            if (actuallyExtracted <= 0) {
+                break;
+            }
+
+            long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, null, transferScanSnapshot.receiveEndpoints());
+            if (actuallyInserted <= 0) {
+                LOGGER.warn("Active range transfer extracted {} FE but failed to insert it; aborting to avoid further loss.", actuallyExtracted);
+                break;
+            }
+
+            if (actuallyInserted < actuallyExtracted) {
+                LOGGER.warn("Active range transfer inserted only {} / {} FE after simulation; stopping to avoid desync.", actuallyInserted, actuallyExtracted);
+                break;
+            }
+
+            remainingBudget -= actuallyInserted;
+        }
+    }
+
+    private TransferScanSnapshot getTransferScanSnapshot() {
+        if (this.level == null) {
+            return TransferScanSnapshot.EMPTY;
+        }
+
+        long gameTime = this.level.getGameTime();
+        TransferScanSnapshot cached = this.cachedTransferScanSnapshot;
+        if (cached.tick() != Long.MIN_VALUE && gameTime - cached.tick() < TRANSFER_SCAN_CACHE_TICKS) {
+            return cached;
+        }
+
+        List<EnergyEndpoint> extractEndpoints = getCachedResolvedEnergyEndpoints(false);
+        List<EnergyEndpoint> receiveEndpoints = getCachedResolvedEnergyEndpoints(true);
+
+        long aeExtractable = 0;
+        if (AE2FluxIntegration.isAvailable()) {
+            aeExtractable = Math.max(0L, AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true));
+        }
+
+        ArrayList<EnergyEndpoint> activeExtractEndpoints = new ArrayList<>(extractEndpoints.size());
+        for (EnergyEndpoint endpoint : extractEndpoints) {
+            IEnergyStorage storage = endpoint.storage();
+            if (storage.canExtract() && storage.getEnergyStored() > 0) {
+                activeExtractEndpoints.add(endpoint);
+            }
+        }
+
+        ArrayList<EnergyEndpoint> activeReceiveEndpoints = new ArrayList<>(receiveEndpoints.size());
+        for (EnergyEndpoint endpoint : receiveEndpoints) {
+            IEnergyStorage storage = endpoint.storage();
+            if (storage.canReceive()) {
+                activeReceiveEndpoints.add(endpoint);
+            }
+        }
+
+        TransferScanSnapshot snapshot = new TransferScanSnapshot(
+                gameTime,
+                aeExtractable,
+                List.copyOf(activeExtractEndpoints),
+                List.copyOf(activeReceiveEndpoints));
+        this.cachedTransferScanSnapshot = snapshot;
+        return snapshot;
+    }
+
+    private long simulateCachedTransferExtract(long amount, TransferScanSnapshot transferScanSnapshot) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        if (transferScanSnapshot.aeExtractable() > 0) {
+            return Math.min(amount, transferScanSnapshot.aeExtractable());
+        }
+
+        return extractFromEndpointsRoundRobin(amount, true, transferScanSnapshot.extractEndpoints());
+    }
+
+    private long extractFromEndpointsRoundRobin(long amount, boolean simulate, List<EnergyEndpoint> extractEndpoints) {
+        if (amount <= 0 || extractEndpoints.isEmpty()) {
+            return 0;
+        }
+
+        int endpointCount = extractEndpoints.size();
+        int startIndex = getExtractStartIndex(null, endpointCount);
+        int lastSuccessfulIndex = -1;
+
+        for (int offset = 0; offset < endpointCount; offset++) {
+            int endpointIndex = (startIndex + offset) % endpointCount;
+            IEnergyStorage storage = extractEndpoints.get(endpointIndex).storage();
+            if (!storage.canExtract() || storage.getEnergyStored() <= 0) {
                 continue;
             }
 
-            long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, source.pos(), receiveEndpoints);
-            remainingBudget -= Math.min(actuallyExtracted, actuallyInserted);
+            int extracted = storage.extractEnergy(clampEnergyRequest(amount), simulate);
+            if (extracted > 0) {
+                lastSuccessfulIndex = endpointIndex;
+                this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
+                return extracted;
+            }
         }
+
+        return 0;
     }
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos,
@@ -2157,6 +2235,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return current + delta;
     }
 
+    private static long divideCeil(long dividend, int divisor) {
+        if (dividend <= 0 || divisor <= 0) {
+            return 0;
+        }
+        return 1L + (dividend - 1L) / divisor;
+    }
+
     private static String formatFeAmount(long amount) {
         if (amount >= 1_000_000_000L) {
             return String.format(java.util.Locale.ROOT, "%.1fG", amount / 1_000_000_000.0);
@@ -2296,6 +2381,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private record ReceiverQuerySummary(long tick, boolean hasReceiver) {
 
         private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, false);
+    }
+
+    private record TransferScanSnapshot(long tick, long aeExtractable, List<EnergyEndpoint> extractEndpoints,
+                                        List<EnergyEndpoint> receiveEndpoints) {
+
+        private static final TransferScanSnapshot EMPTY = new TransferScanSnapshot(Long.MIN_VALUE, 0L, List.of(), List.of());
     }
 
     public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count, ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {}
