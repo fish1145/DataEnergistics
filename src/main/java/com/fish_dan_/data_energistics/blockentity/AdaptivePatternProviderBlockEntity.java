@@ -37,6 +37,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.upgrades.IUpgradeInventory;
@@ -53,7 +54,6 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Method;
 import java.util.List;
 
 public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
@@ -613,11 +613,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         PatternProviderLogicHost host = this;
-        try {
-            Class<?> updateHelper = Class.forName("appeng.api.networking.crafting.ICraftingProvider");
-            Method requestUpdate = updateHelper.getMethod("requestUpdate", appeng.api.networking.IManagedGridNode.class);
-            requestUpdate.invoke(null, this.getMainNode());
-        } catch (Exception ignored) {}
+        ICraftingProvider.requestUpdate(this.getMainNode());
 
         try {
             for (Class<?> machineClass : grid.getMachineClasses()) {
