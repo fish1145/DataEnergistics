@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.guideme;
+package com.fish_dan_.data_energistics.client.guideme;
 
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
@@ -48,16 +48,16 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
     private final int progressHeight;
 
     protected AbstractTexturedMachineGuideRecipeBody(
-                                                     ResourceLocation texture,
-                                                     int textureU,
-                                                     int textureV,
-                                                     int width,
-                                                     int height,
-                                                     @Nullable ResourceLocation progressTexture,
-                                                     int progressX,
-                                                     int progressY,
-                                                     int progressWidth,
-                                                     int progressHeight) {
+            ResourceLocation texture,
+            int textureU,
+            int textureV,
+            int width,
+            int height,
+            @Nullable ResourceLocation progressTexture,
+            int progressX,
+            int progressY,
+            int progressWidth,
+            int progressHeight) {
         this.texture = texture;
         this.textureU = textureU;
         this.textureV = textureV;
@@ -166,11 +166,11 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
     }
 
     protected final void renderGenericStackAmount(
-                                                  RenderContext context,
-                                                  GenericStack stack,
-                                                  int relativeX,
-                                                  int relativeY,
-                                                  String amountText) {
+            RenderContext context,
+            GenericStack stack,
+            int relativeX,
+            int relativeY,
+            String amountText) {
         var font = Minecraft.getInstance().font;
         var guiGraphics = context.guiGraphics();
         int textWidth = font.width(amountText);
@@ -202,11 +202,11 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
     }
 
     protected final Optional<GuideTooltip> getItemTooltipIfHovered(
-                                                                   float mouseX,
-                                                                   float mouseY,
-                                                                   ItemStack stack,
-                                                                   int relativeX,
-                                                                   int relativeY) {
+            float mouseX,
+            float mouseY,
+            ItemStack stack,
+            int relativeX,
+            int relativeY) {
         if (!stack.isEmpty() && slotRect(relativeX, relativeY).contains((int) mouseX, (int) mouseY)) {
             return Optional.of(createItemTooltip(stack));
         }
@@ -214,12 +214,12 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
     }
 
     protected final Optional<GuideTooltip> getGenericTooltipIfHovered(
-                                                                      float mouseX,
-                                                                      float mouseY,
-                                                                      GenericStack stack,
-                                                                      int relativeX,
-                                                                      int relativeY,
-                                                                      List<Component> extraLines) {
+            float mouseX,
+            float mouseY,
+            GenericStack stack,
+            int relativeX,
+            int relativeY,
+            List<Component> extraLines) {
         if (slotRect(relativeX, relativeY).contains((int) mouseX, (int) mouseY)) {
             return Optional.of(createGenericStackTooltip(stack, extraLines));
         }
