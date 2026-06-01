@@ -1016,20 +1016,20 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
-        List<IItemHandler> adjacentHandlers = getAdjacentItemHandlers();
-        MEStorage networkStorage = getConnectedItemNetwork();
         if (this.autoExportMode == DataExtractorAutoExportMode.CONTAINER) {
+            List<IItemHandler> adjacentHandlers = getAdjacentItemHandlers();
             if (adjacentHandlers.isEmpty()) {
                 this.dropCollectionCooldown = 0;
             } else {
-                exportCompletedCarrier(adjacentHandlers, networkStorage);
-                tickDroppedItemCollection(adjacentHandlers, networkStorage);
+                exportCompletedCarrier(adjacentHandlers, null);
+                tickDroppedItemCollection(adjacentHandlers, null);
             }
             return;
         }
 
-        exportCompletedCarrier(adjacentHandlers, networkStorage);
-        tickDroppedItemCollection(adjacentHandlers, networkStorage);
+        MEStorage networkStorage = getConnectedItemNetwork();
+        exportCompletedCarrier(List.of(), networkStorage);
+        tickDroppedItemCollection(List.of(), networkStorage);
     }
 
     private void exportCompletedCarrier(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
