@@ -13,12 +13,16 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.definitions.AEBlockEntities;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.VarHandle;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 public final class AppMekCompat {
 
     private static final String CHEMICAL_CAPABILITIES_CLASS = "mekanism.common.capabilities.Capabilities";
     private static final String CHEMICAL_HANDLER_CLASS = "com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler";
+    private static final Optional<VarHandle> CHEMICAL_CAPABILITY_FIELD =
+            ReflectionAccess.findStaticField(CHEMICAL_CAPABILITIES_CLASS, "CHEMICAL");
 
     private AppMekCompat() {}
 
@@ -82,8 +86,7 @@ public final class AppMekCompat {
     @Nullable
     private static BlockCapability<Object, Direction> getChemicalBlockCapability() {
         Object chemicalCapabilityHolder = ReflectionAccess.getField(
-                ReflectionAccess.findStaticField(CHEMICAL_CAPABILITIES_CLASS, "CHEMICAL"),
-                null);
+                CHEMICAL_CAPABILITY_FIELD, null);
         Object capability = ReflectionAccess.invokeNoArg(chemicalCapabilityHolder, "block");
         return capability instanceof BlockCapability<?, ?> blockCapability ? (BlockCapability<Object, Direction>) blockCapability : null;
     }

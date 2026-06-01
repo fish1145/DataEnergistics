@@ -28,13 +28,15 @@ import appeng.menu.MenuOpener;
 import appeng.menu.locator.ItemMenuHostLocator;
 import appeng.menu.locator.MenuLocators;
 import appeng.util.InteractionUtil;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
-import java.util.Optional;
 
 public class DataFlowPortableCellItem extends PortableCellItem {
 
-    private static final Optional<VarHandle> PORTABLE_CELL_MENU_TYPE_FIELD = ReflectionAccess.findField(AbstractPortableCell.class, "menuType");
+    @Nullable
+    private static final VarHandle PORTABLE_CELL_MENU_TYPE_FIELD =
+            ReflectionAccess.findField(AbstractPortableCell.class, "menuType").orElse(null);
 
     public DataFlowPortableCellItem(StorageTier tier, Item.Properties properties, int color) {
         super(DataFlowKeyType.TYPE, 1, null, tier, properties.stacksTo(1), color);
@@ -85,11 +87,24 @@ public class DataFlowPortableCellItem extends PortableCellItem {
     }
 
     private static MenuType<?> resolvePortableItemCellMenu() {
-        Object value = ReflectionAccess.getField(PORTABLE_CELL_MENU_TYPE_FIELD, AEItems.PORTABLE_ITEM_CELL1K.get());
+        Object value = getPortableCellMenuType(AEItems.PORTABLE_ITEM_CELL1K.get());
         if (value instanceof MenuType<?> menuType) {
             return menuType;
         }
         throw new IllegalStateException("Unable to access AE2 portable item cell menu type");
+    }
+
+    @Nullable
+    private static Object getPortableCellMenuType(AbstractPortableCell portableCell) {
+        if (PORTABLE_CELL_MENU_TYPE_FIELD == null) {
+            return null;
+        }
+
+        try {
+            return PORTABLE_CELL_MENU_TYPE_FIELD.get(portableCell);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private static boolean isEmptyCell(ItemStack stack) {

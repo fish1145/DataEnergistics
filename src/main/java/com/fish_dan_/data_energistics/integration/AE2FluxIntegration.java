@@ -11,6 +11,9 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
 import java.util.Optional;
 
@@ -20,6 +23,7 @@ public final class AE2FluxIntegration {
     private static Class<?> energyTypeClass;
     private static boolean initialized;
     private static Object energyTypeFE;
+    private static MethodHandle fluxKeyOfMethod;
 
     static {
         if (ModFlags.isAppFluxLoaded()) {
@@ -36,7 +40,11 @@ public final class AE2FluxIntegration {
         energyTypeClass = Class.forName("com.glodblock.github.appflux.common.me.key.type.EnergyType");
         Optional<VarHandle> energyTypeFeField = ReflectionAccess.findStaticField(energyTypeClass, "FE");
         energyTypeFE = ReflectionAccess.getField(energyTypeFeField, null);
-        initialized = energyTypeFE != null;
+        fluxKeyOfMethod = MethodHandles.publicLookup().findStatic(
+                fluxKeyClass,
+                "of",
+                MethodType.methodType(fluxKeyClass, energyTypeClass));
+        initialized = energyTypeFE != null && fluxKeyOfMethod != null;
     }
 
     public static boolean isAvailable() {
@@ -69,18 +77,14 @@ public final class AE2FluxIntegration {
                 return 0;
             }
 
-            Object fluxKeyObj = ReflectionAccess.invokeStatic(
-                    fluxKeyClass.getName(),
-                    "of",
-                    new Class<?>[] { energyTypeClass },
-                    energyTypeFE);
+            Object fluxKeyObj = fluxKeyOfMethod.invoke(energyTypeFE);
             if (!(fluxKeyObj instanceof AEKey fluxKey)) {
                 return 0;
             }
 
             Actionable actionable = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
             return inventory.extract(fluxKey, amount, actionable, IActionSource.ofMachine(blockEntity));
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return 0;
         }
     }
