@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.ae2lt;
 
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.client.integration.Ae2LtWirelessClientBridge;
 import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
 import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
 
@@ -255,7 +256,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
     @Unique
     private static void dataEnergistics$renderInnerCube(PoseStack poseStack, MultiBufferSource buffer,
                                                         BlockPos pos, int color) {
-        var renderType = Ae2LtWirelessBridge.getFaceSeeThroughRenderType();
+        var renderType = Ae2LtWirelessClientBridge.getFaceSeeThroughRenderType();
         if (renderType == null) {
             return;
         }

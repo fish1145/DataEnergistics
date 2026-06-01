@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.integration;
 
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -21,10 +20,8 @@ public final class Ae2LtWirelessBridge {
     private static final String CONNECTOR_ITEM_CLASS = "com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem";
     private static final String TARGET_HELPER_CLASS = "com.moakiee.ae2lt.logic.WirelessConnectorTargetHelper";
     private static final String PROVIDER_CLASS = "com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity";
-    private static final String RENDER_TYPES_CLASS = "com.moakiee.ae2lt.client.Ae2ltRenderTypes";
 
     private static boolean coreInitialized;
-    private static boolean renderInitialized;
     private static @Nullable Class<?> connectorItemClass;
     private static @Nullable Class<?> providerClass;
     private static @Nullable Method hasSelectionMethod;
@@ -36,7 +33,6 @@ public final class Ae2LtWirelessBridge {
     private static @Nullable Method getConnectionsMethod;
     private static @Nullable Method removeConnectionMethod;
     private static @Nullable Method addOrUpdateConnectionMethod;
-    private static @Nullable Method renderFaceSeeThroughMethod;
     private static @Nullable String hostProviderType;
 
     private Ae2LtWirelessBridge() {}
@@ -162,21 +158,6 @@ public final class Ae2LtWirelessBridge {
         } catch (Exception ignored) {}
     }
 
-    public static RenderType getFaceSeeThroughRenderType() {
-        if (!isAvailable()) {
-            return null;
-        }
-        if (!renderInitialized) {
-            initializeRender();
-        }
-        try {
-            Object result = renderFaceSeeThroughMethod != null ? renderFaceSeeThroughMethod.invoke(null) : null;
-            return result instanceof RenderType renderType ? renderType : null;
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
     private static List<AdaptiveWirelessConnection> convertConnections(List<?> list) {
         List<AdaptiveWirelessConnection> converted = new ArrayList<>(list.size());
         for (Object connection : list) {
@@ -221,13 +202,4 @@ public final class Ae2LtWirelessBridge {
         }
     }
 
-    private static void initializeRender() {
-        renderInitialized = true;
-        try {
-            Class<?> renderTypesClass = Class.forName(RENDER_TYPES_CLASS);
-            renderFaceSeeThroughMethod = renderTypesClass.getMethod("getFaceSeeThrough");
-        } catch (Exception ignored) {
-            renderFaceSeeThroughMethod = null;
-        }
-    }
 }
