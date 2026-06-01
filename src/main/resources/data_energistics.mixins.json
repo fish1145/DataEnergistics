@@ -11,7 +11,6 @@
 		"advancedae.AdvancedAePatternProviderMenuMixin",
 		"advancedae.AdvancedAePatternProviderPartMixin",
 		"ae2cs.Ae2CsPatternProviderLogicMixin",
-		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
 		"ae2cs.Ae2CsUpgradeablePatternProviderMenuMixin",
 		"ae2lt.Ae2ltEjectCapabilityMixin",
 		"ae2lt.Ae2ltOverloadedPatternProviderLogicMixin",
@@ -53,6 +52,7 @@
 	"client": [
 		"advancedae.AdvancedAePatternProviderScreenMixin",
 		"advancedae.AdvancedAeSmallPatternProviderScreenMixin",
+		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
 		"ae2lt.Ae2ltWirelessConnectorRendererMixin",
 		"client.Ae2CustomKeyGuiMixin",
 		"core.AdaptivePatternProviderScreenMixin",
