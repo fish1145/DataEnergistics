@@ -496,17 +496,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-        if (AdaptivePatternProviderResolver.isPatternProviderAttachment(level, adjacentPos, side.getOpposite())) {
-            return null;
-        }
-        PatternContainerGroup group = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
-        if (group == null) {
-            group = PatternContainerGroup.fromMachine(
-                    level,
-                    adjacentPos,
-                    side.getOpposite());
-        }
-        return group;
+        return AdaptivePatternProviderDisplayHelper.resolveAdjacentMachineGroup(level, adjacentPos, side.getOpposite());
     }
 
     private ItemStack getProviderStack() {

@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.AEItemKey;
@@ -101,5 +104,17 @@ public final class AdaptivePatternProviderDisplayHelper {
         }
 
         return new PatternContainerGroup(icon, icon.getDisplayName(), tooltip);
+    }
+
+    public static PatternContainerGroup resolveAdjacentMachineGroup(Level level, BlockPos adjacentPos, Direction attachmentSide) {
+        if (AdaptivePatternProviderResolver.isPatternProviderAttachment(level, adjacentPos, attachmentSide)) {
+            return null;
+        }
+
+        PatternContainerGroup group = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, adjacentPos);
+        if (group == null) {
+            group = PatternContainerGroup.fromMachine(level, adjacentPos, attachmentSide);
+        }
+        return group;
     }
 }

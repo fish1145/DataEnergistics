@@ -132,7 +132,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public boolean supportsAppliedFluxUpgradeSlot() {
-        return this.upgrades.size() > 0;
+        return !this.upgrades.isEmpty();
     }
 
     @Override
@@ -570,16 +570,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         var groups = new java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup>(sides.size());
         for (var side : sides) {
             var sidePos = hostPos.relative(side);
-            if (isPatternProviderAttachment(hostLevel, sidePos, side.getOpposite())) {
-                continue;
-            }
-            var group = resolveSpecialAdjacentMachineGroup(hostLevel, sidePos);
-            if (group == null) {
-                group = appeng.api.implementations.blockentities.PatternContainerGroup.fromMachine(
-                        hostLevel,
-                        sidePos,
-                        side.getOpposite());
-            }
+            var group = AdaptivePatternProviderDisplayHelper.resolveAdjacentMachineGroup(hostLevel, sidePos, side.getOpposite());
             if (group != null) {
                 groups.add(group);
             }
