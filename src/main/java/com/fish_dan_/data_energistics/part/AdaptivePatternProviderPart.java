@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
@@ -223,7 +224,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public AdaptivePatternProviderBlockEntity.Ae2LtProviderMode getAe2LtProviderMode() {
+    public AdaptivePatternProviderModes.Ae2LtProviderMode getAe2LtProviderMode() {
         return getAdaptiveState().getAe2LtProviderMode();
     }
 
@@ -239,7 +240,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public AdaptivePatternProviderBlockEntity.Ae2LtReturnMode getAe2LtReturnMode() {
+    public AdaptivePatternProviderModes.Ae2LtReturnMode getAe2LtReturnMode() {
         return getAdaptiveState().getAe2LtReturnMode();
     }
 
@@ -250,7 +251,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
+    public AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
         return getAdaptiveState().getAe2LtWirelessDispatchMode();
     }
 
@@ -261,7 +262,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
+    public AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
         return getAdaptiveState().getAe2LtWirelessSpeedMode();
     }
 

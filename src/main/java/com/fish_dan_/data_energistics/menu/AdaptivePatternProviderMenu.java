@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.chat.Component;
@@ -308,15 +308,15 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     public boolean isAe2LtWirelessMode() {
-        return this.ae2ltProviderMode == AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.WIRELESS.ordinal();
+        return this.ae2ltProviderMode == AdaptivePatternProviderModes.Ae2LtProviderMode.WIRELESS.ordinal();
     }
 
     public boolean isAe2LtEvenDistributionMode() {
-        return this.ae2ltWirelessDispatchMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
+        return this.ae2ltWirelessDispatchMode == AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
     }
 
     public boolean isAe2LtFastSpeedMode() {
-        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.FAST.ordinal();
+        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.FAST.ordinal();
     }
 
     public int getAe2LtReturnModeOrdinal() {

@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -45,21 +43,21 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     boolean supportsFilteredImportToggle();
 
-    AdaptivePatternProviderBlockEntity.Ae2LtProviderMode getAe2LtProviderMode();
+    AdaptivePatternProviderModes.Ae2LtProviderMode getAe2LtProviderMode();
 
     void cycleAe2LtProviderMode();
 
     boolean isAe2LtWirelessMode();
 
-    AdaptivePatternProviderBlockEntity.Ae2LtReturnMode getAe2LtReturnMode();
+    AdaptivePatternProviderModes.Ae2LtReturnMode getAe2LtReturnMode();
 
     void cycleAe2LtReturnMode();
 
-    AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode();
+    AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode();
 
     void cycleAe2LtWirelessDispatchMode();
 
-    AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode();
+    AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode();
 
     void cycleAe2LtWirelessSpeedMode();
 

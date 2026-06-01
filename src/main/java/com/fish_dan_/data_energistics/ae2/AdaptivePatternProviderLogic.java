@@ -625,11 +625,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LtAutoReturnEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.AUTO;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == AdaptivePatternProviderModes.Ae2LtReturnMode.AUTO;
     }
 
     private boolean isAe2LtEjectModeEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.EJECT;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == AdaptivePatternProviderModes.Ae2LtReturnMode.EJECT;
     }
 
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {

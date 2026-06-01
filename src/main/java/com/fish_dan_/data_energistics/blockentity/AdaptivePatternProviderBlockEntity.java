@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandler
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
@@ -238,7 +239,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public Ae2LtProviderMode getAe2LtProviderMode() {
+    public AdaptivePatternProviderModes.Ae2LtProviderMode getAe2LtProviderMode() {
         return getAdaptiveState().getAe2LtProviderMode();
     }
 
@@ -254,7 +255,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public Ae2LtReturnMode getAe2LtReturnMode() {
+    public AdaptivePatternProviderModes.Ae2LtReturnMode getAe2LtReturnMode() {
         return getAdaptiveState().getAe2LtReturnMode();
     }
 
@@ -265,7 +266,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
+    public AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
         return getAdaptiveState().getAe2LtWirelessDispatchMode();
     }
 
@@ -276,7 +277,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
+    public AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
         return getAdaptiveState().getAe2LtWirelessSpeedMode();
     }
 
@@ -715,48 +716,4 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return AdaptivePatternProviderResolver.isPatternProviderAttachment(level, pos, side);
     }
 
-    public enum Ae2LtProviderMode {
-
-        NORMAL,
-        WIRELESS;
-
-        public Ae2LtProviderMode next() {
-            return this == NORMAL ? WIRELESS : NORMAL;
-        }
-    }
-
-    public enum Ae2LtReturnMode {
-
-        OFF,
-        AUTO,
-        EJECT;
-
-        public Ae2LtReturnMode next() {
-            return switch (this) {
-                case OFF -> AUTO;
-                case AUTO -> EJECT;
-                case EJECT -> OFF;
-            };
-        }
-    }
-
-    public enum Ae2LtWirelessDispatchMode {
-
-        EVEN_DISTRIBUTION,
-        SINGLE_TARGET;
-
-        public Ae2LtWirelessDispatchMode next() {
-            return this == EVEN_DISTRIBUTION ? SINGLE_TARGET : EVEN_DISTRIBUTION;
-        }
-    }
-
-    public enum Ae2LtWirelessSpeedMode {
-
-        NORMAL,
-        FAST;
-
-        public Ae2LtWirelessSpeedMode next() {
-            return this == NORMAL ? FAST : NORMAL;
-        }
-    }
 }
