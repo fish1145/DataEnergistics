@@ -59,6 +59,9 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -69,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AdaptivePatternProviderLogic extends PatternProviderLogic implements PatternProviderLogicAccessor {
 
@@ -87,6 +91,19 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final String NBT_ADVANCED_SEND_LIST = "adaptive_advanced_send_list";
     private static final String NBT_ADVANCED_SEND_DIRECTION = "adaptive_advanced_send_direction";
     private static final String NBT_ADVANCED_DIRECTION_MAP = "adaptive_advanced_direction_map";
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+    private static final MethodHandles.Lookup BASE_LOGIC_LOOKUP = privateLookup(PatternProviderLogic.class);
+    private static final @Nullable MethodHandle BASE_DO_WORK = findBaseMethod("doWork");
+    private static final @Nullable MethodHandle BASE_HAS_WORK_TO_DO = findBaseMethod("hasWorkToDo");
+    private static final @Nullable MethodHandle BASE_ON_PUSH_PATTERN_SUCCESS = findBaseMethod("onPushPatternSuccess", IPatternDetails.class);
+    private static final VarHandle BASE_PATTERNS = requireBaseVarHandle("patterns", List.class);
+    private static final VarHandle BASE_PATTERN_INPUTS = requireBaseVarHandle("patternInputs", Set.class);
+    private static final VarHandle BASE_PATTERN_INVENTORY = requireBaseVarHandle("patternInventory", AppEngInternalInventory.class);
+    private static final VarHandle BASE_SEND_LIST = requireBaseVarHandle("sendList", List.class);
+    private static final VarHandle BASE_RETURN_INV = requireBaseVarHandle("returnInv", PatternProviderReturnInventory.class);
+    private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -104,9 +121,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private @Nullable IStackWatcher craftingWatcher;
     private @Nullable Direction advancedSendDirection;
     private int worksInRound;
-    private final Method doWorkMethod;
-    private final Method hasWorkToDoMethod;
-    private final Method onPushPatternSuccessMethod;
     private final List<IPatternDetails> patternDetailsView;
     private final Set<AEKey> patternInputsView;
     private final AppEngInternalInventory patternInventory;
@@ -127,13 +141,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 .addService(IGridTickable.class, new Ticker())
                 .addService(ICraftingWatcherNode.class, new AdaptiveCraftingWatcherNode());
         this.actionSource = new MachineSource(mainNode::getNode);
-        this.doWorkMethod = findBaseMethod("doWork");
-        this.hasWorkToDoMethod = findBaseMethod("hasWorkToDo");
-        this.onPushPatternSuccessMethod = findBaseMethod("onPushPatternSuccess", IPatternDetails.class);
-        this.patternDetailsView = requireBaseField("patterns", List.class);
-        this.patternInputsView = requireBaseField("patternInputs", Set.class);
-        this.patternInventory = requireBaseField("patternInventory", AppEngInternalInventory.class);
-        this.baseSendListView = requireBaseField("sendList", List.class);
+        this.patternDetailsView = readBaseVarHandle(BASE_PATTERNS, List.class, "patterns");
+        this.patternInputsView = readBaseVarHandle(BASE_PATTERN_INPUTS, Set.class, "patternInputs");
+        this.patternInventory = readBaseVarHandle(BASE_PATTERN_INVENTORY, AppEngInternalInventory.class, "patternInventory");
+        this.baseSendListView = readBaseVarHandle(BASE_SEND_LIST, List.class, "sendList");
         this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
         this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
         this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
@@ -831,39 +842,63 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @SuppressWarnings("unchecked")
     private List<GenericStack> getSparseInputs(IPatternDetails patternDetails) {
+        if (patternDetails == null) {
+            return List.of();
+        }
+
+        Optional<SparsePatternAccess> access = SPARSE_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                patternDetails.getClass(),
+                AdaptivePatternProviderLogic::findSparsePatternAccess);
+        if (access.isEmpty()) {
+            return List.of();
+        }
+
         try {
-            Method method = patternDetails.getClass().getMethod("getSparseInputs");
-            Object result = method.invoke(patternDetails);
+            Object result = access.get().sparseInputs().invoke(patternDetails);
             return result instanceof List<?> list ? (List<GenericStack>) list : List.of();
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return List.of();
         }
     }
 
     private Optional<ResolvedTarget> getResolvedTarget(IPatternDetails patternDetails, int sparseIndex) {
+        if (patternDetails == null) {
+            return Optional.empty();
+        }
+
+        Optional<SparsePatternAccess> access = SPARSE_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                patternDetails.getClass(),
+                AdaptivePatternProviderLogic::findSparsePatternAccess);
+        if (access.isEmpty()) {
+            return Optional.empty();
+        }
+
         try {
-            Method targetMethod = patternDetails.getClass().getMethod("getTargetForSparseInputIndex", int.class);
-            Object optionalObject = targetMethod.invoke(patternDetails, sparseIndex);
+            Object optionalObject = access.get().targetForSparseInputIndex().invoke(patternDetails, sparseIndex);
             if (!(optionalObject instanceof Optional<?> optional) || optional.isEmpty()) {
                 return Optional.empty();
             }
 
             Object target = optional.get();
-            Method posMethod = target.getClass().getMethod("pos");
-            Method faceMethod = target.getClass().getMethod("face");
+            Optional<ResolvedTargetAccess> targetAccess = RESOLVED_TARGET_ACCESS_CACHE.computeIfAbsent(
+                    target.getClass(),
+                    AdaptivePatternProviderLogic::findResolvedTargetAccess);
+            if (targetAccess.isEmpty()) {
+                return Optional.empty();
+            }
 
-            Object globalPosObject = posMethod.invoke(target);
+            Object globalPosObject = targetAccess.get().position().invoke(target);
             if (!(globalPosObject instanceof GlobalPos globalPos)) {
                 return Optional.empty();
             }
 
-            Object faceObject = faceMethod.invoke(target);
+            Object faceObject = targetAccess.get().face().invoke(target);
             if (!(faceObject instanceof Direction face)) {
                 return Optional.empty();
             }
 
             return Optional.of(new ResolvedTarget(globalPos, face));
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return Optional.empty();
         }
     }
@@ -1170,36 +1205,56 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private void invokePatternSuccess(IPatternDetails patternDetails) {
         try {
-            if (this.onPushPatternSuccessMethod != null) {
-                this.onPushPatternSuccessMethod.invoke(this, patternDetails);
+            if (BASE_ON_PUSH_PATTERN_SUCCESS != null) {
+                BASE_ON_PUSH_PATTERN_SUCCESS.invoke(this, patternDetails);
             }
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     @Nullable
-    private Method findBaseMethod(String name, Class<?>... parameterTypes) {
+    private static MethodHandles.Lookup privateLookup(Class<?> type) {
         try {
-            Method method = PatternProviderLogic.class.getDeclaredMethod(name, parameterTypes);
-            method.setAccessible(true);
-            return method;
-        } catch (Exception ignored) {
+            return MethodHandles.privateLookupIn(type, LOOKUP);
+        } catch (IllegalAccessException ignored) {
             return null;
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> T requireBaseField(String name, Class<?> type) {
+    @Nullable
+    private static MethodHandle findBaseMethod(String name, Class<?>... parameterTypes) {
         try {
-            Field field = PatternProviderLogic.class.getDeclaredField(name);
-            field.setAccessible(true);
-            Object value = field.get(this);
-            if (!type.isInstance(value)) {
-                throw new IllegalStateException("Unexpected base field type for " + name);
+            if (BASE_LOGIC_LOOKUP == null) {
+                return null;
             }
-            return (T) value;
-        } catch (Exception e) {
+            Method method = PatternProviderLogic.class.getDeclaredMethod(name, parameterTypes);
+            return BASE_LOGIC_LOOKUP.unreflect(method);
+        } catch (IllegalAccessException | NoSuchMethodException | SecurityException ignored) {
+            return null;
+        }
+    }
+
+    private static VarHandle requireBaseVarHandle(String name, Class<?> type) {
+        try {
+            if (BASE_LOGIC_LOOKUP == null) {
+                throw new IllegalStateException("No private lookup for PatternProviderLogic");
+            }
+            Field field = PatternProviderLogic.class.getDeclaredField(name);
+            if (!type.isAssignableFrom(field.getType())) {
+                throw new IllegalStateException("Unexpected base field declaration for " + name);
+            }
+            return BASE_LOGIC_LOOKUP.unreflectVarHandle(field);
+        } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new IllegalStateException("Failed to access base field: " + name, e);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T readBaseVarHandle(VarHandle handle, Class<?> type, String name) {
+        Object value = handle.get(this);
+        if (!type.isInstance(value)) {
+            throw new IllegalStateException("Unexpected base field type for " + name);
+        }
+        return (T) value;
     }
 
     @Nullable
@@ -1216,16 +1271,16 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean invokeBaseDoWork() {
         try {
-            return this.doWorkMethod != null && Boolean.TRUE.equals(this.doWorkMethod.invoke(this));
-        } catch (Exception ignored) {
+            return BASE_DO_WORK != null && Boolean.TRUE.equals(BASE_DO_WORK.invoke(this));
+        } catch (Throwable ignored) {
             return false;
         }
     }
 
     private boolean invokeBaseHasWorkToDo() {
         try {
-            return this.hasWorkToDoMethod != null && Boolean.TRUE.equals(this.hasWorkToDoMethod.invoke(this));
-        } catch (Exception ignored) {
+            return BASE_HAS_WORK_TO_DO != null && Boolean.TRUE.equals(BASE_HAS_WORK_TO_DO.invoke(this));
+        } catch (Throwable ignored) {
             return false;
         }
     }
@@ -1471,21 +1526,27 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean hasDirectionalInputs(IPatternDetails patternDetails) {
+        Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
+        if (access.isEmpty()) {
+            return false;
+        }
         try {
-            Method method = patternDetails.getClass().getMethod("directionalInputsSet");
-            return Boolean.TRUE.equals(method.invoke(patternDetails));
-        } catch (Exception ignored) {
+            return Boolean.TRUE.equals(access.get().directionalInputsSet().invoke(patternDetails));
+        } catch (Throwable ignored) {
             return false;
         }
     }
 
     @Nullable
     private Direction getAdvancedInputSide(IPatternDetails patternDetails, AEKey key) {
+        Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
+        if (access.isEmpty()) {
+            return null;
+        }
         try {
-            Method method = patternDetails.getClass().getMethod("getDirectionSideForInputKey", AEKey.class);
-            Object result = method.invoke(patternDetails, key);
+            Object result = access.get().directionSideForInputKey().invoke(patternDetails, key);
             return result instanceof Direction direction ? direction : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -1493,12 +1554,65 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     @Nullable
     @SuppressWarnings("unchecked")
     private Map<AEKey, Direction> getAdvancedDirectionMap(IPatternDetails patternDetails) {
-        try {
-            Method method = patternDetails.getClass().getMethod("getDirectionMap");
-            Object result = method.invoke(patternDetails);
-            return result instanceof Map<?, ?> map ? (Map<AEKey, Direction>) map : null;
-        } catch (Exception ignored) {
+        Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
+        if (access.isEmpty()) {
             return null;
+        }
+        try {
+            Object result = access.get().directionMap().invoke(patternDetails);
+            return result instanceof Map<?, ?> map ? (Map<AEKey, Direction>) map : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Optional<DirectionalPatternAccess> getDirectionalPatternAccess(@Nullable IPatternDetails patternDetails) {
+        if (patternDetails == null) {
+            return Optional.empty();
+        }
+        return DIRECTIONAL_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                patternDetails.getClass(),
+                AdaptivePatternProviderLogic::findDirectionalPatternAccess);
+    }
+
+    private static Optional<SparsePatternAccess> findSparsePatternAccess(Class<?> type) {
+        Optional<MethodHandle> sparseInputs = findDuckMethod(type, "getSparseInputs");
+        Optional<MethodHandle> targetForSparseInputIndex = findDuckMethod(type, "getTargetForSparseInputIndex", int.class);
+        if (sparseInputs.isEmpty() || targetForSparseInputIndex.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new SparsePatternAccess(sparseInputs.get(), targetForSparseInputIndex.get()));
+    }
+
+    private static Optional<ResolvedTargetAccess> findResolvedTargetAccess(Class<?> type) {
+        Optional<MethodHandle> position = findDuckMethod(type, "pos");
+        Optional<MethodHandle> face = findDuckMethod(type, "face");
+        if (position.isEmpty() || face.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new ResolvedTargetAccess(position.get(), face.get()));
+    }
+
+    private static Optional<DirectionalPatternAccess> findDirectionalPatternAccess(Class<?> type) {
+        Optional<MethodHandle> directionalInputsSet = findDuckMethod(type, "directionalInputsSet");
+        Optional<MethodHandle> directionSideForInputKey = findDuckMethod(type, "getDirectionSideForInputKey", AEKey.class);
+        Optional<MethodHandle> directionMap = findDuckMethod(type, "getDirectionMap");
+        if (directionalInputsSet.isEmpty() || directionSideForInputKey.isEmpty() || directionMap.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new DirectionalPatternAccess(
+                directionalInputsSet.get(),
+                directionSideForInputKey.get(),
+                directionMap.get()));
+    }
+
+    private static Optional<MethodHandle> findDuckMethod(Class<?> type, String name, Class<?>... parameterTypes) {
+        try {
+            Method method = type.getMethod(name, parameterTypes);
+            method.setAccessible(true);
+            return Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), LOOKUP).unreflect(method));
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return Optional.empty();
         }
     }
 
@@ -2048,10 +2162,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private void installExpandedReturnInventory() {
         try {
-            Field field = PatternProviderLogic.class.getDeclaredField("returnInv");
-            field.setAccessible(true);
-            field.set(this, new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
-        } catch (Exception e) {
+            BASE_RETURN_INV.set(this, new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
+        } catch (Throwable e) {
             throw new IllegalStateException("Failed to expand adaptive pattern provider return inventory", e);
         }
     }
@@ -2175,6 +2287,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {}
 
     private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {}
+
+    private record SparsePatternAccess(MethodHandle sparseInputs, MethodHandle targetForSparseInputIndex) {}
+
+    private record ResolvedTargetAccess(MethodHandle position, MethodHandle face) {}
+
+    private record DirectionalPatternAccess(MethodHandle directionalInputsSet,
+                                            MethodHandle directionSideForInputKey,
+                                            MethodHandle directionMap) {}
 
     private final class Ticker implements IGridTickable {
 
