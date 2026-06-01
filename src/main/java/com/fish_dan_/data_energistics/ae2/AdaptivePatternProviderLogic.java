@@ -236,7 +236,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         if (isAdvancedAeDirectionalPattern(patternDetails)) {
-            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder, false);
             if (pushed) {
                 dataEnergistics$afterPushPattern();
             }
@@ -391,7 +391,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (isAe2LtWirelessMode()) {
             pushed = pushAe2LtWirelessPattern(patternDetails, inputHolder, totalCost);
         } else if (isDirectionalPattern(patternDetails)) {
-            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder, true);
             if (pushed) {
                 consumeAe2LtTotalCost(totalCost);
             }
@@ -464,8 +464,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         this.ae2ltOutputFilterDirty = true;
     }
 
-    private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-        if (hasAdvancedDirectionalWork() || super.isBusy() || !this.mainNode.isActive() || !getAvailablePatterns().contains(patternDetails)) {
+    private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, boolean skipAvailabilityCheck) {
+        if (hasAdvancedDirectionalWork() || super.isBusy() || !this.mainNode.isActive()
+                || (!skipAvailabilityCheck && !getAvailablePatterns().contains(patternDetails))) {
             return false;
         }
 
