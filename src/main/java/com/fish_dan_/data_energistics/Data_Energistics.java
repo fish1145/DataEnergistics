@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics;
 
 import com.fish_dan_.data_energistics.bootstrap.common.CommonBootstrap;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.IEventBus;
@@ -60,7 +59,16 @@ public class Data_Energistics {
 
     @SuppressWarnings("ConstantValue")
     public static boolean isClientThread() {
-        return isClientSide() && Minecraft.getInstance() != null && Minecraft.getInstance().isSameThread();
+        if (!isClientSide()) {
+            return false;
+        }
+        try {
+            Class<?> helperClass = Class.forName("com.fish_dan_.data_energistics.client.ClientThreadHelper");
+            return (boolean) helperClass.getMethod("isClientThread").invoke(null);
+        } catch (ReflectiveOperationException e) {
+            LOGGER.warn("Failed to query client thread state", e);
+            return false;
+        }
     }
 
     public static boolean isClientSide() {
