@@ -565,6 +565,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF || this.level == null) {
             return;
         }
+        if (isHiddenBufferEmpty()) {
+            return;
+        }
         flushHiddenBuffer(getAdjacentItemHandlers(), getConnectedItemNetwork());
     }
 
@@ -595,6 +598,15 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 this.hiddenBuffer.setItemDirect(i, remaining);
             }
         }
+    }
+
+    private boolean isHiddenBufferEmpty() {
+        for (int i = 0; i < this.hiddenBuffer.size(); i++) {
+            if (!this.hiddenBuffer.getStackInSlot(i).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private ItemStack routeGeneratedItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
