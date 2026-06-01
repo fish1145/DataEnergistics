@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -28,9 +29,12 @@ import appeng.menu.locator.ItemMenuHostLocator;
 import appeng.menu.locator.MenuLocators;
 import appeng.util.InteractionUtil;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.VarHandle;
+import java.util.Optional;
 
 public class DataFlowPortableCellItem extends PortableCellItem {
+
+    private static final Optional<VarHandle> PORTABLE_CELL_MENU_TYPE_FIELD = ReflectionAccess.findField(AbstractPortableCell.class, "menuType");
 
     public DataFlowPortableCellItem(StorageTier tier, Item.Properties properties, int color) {
         super(DataFlowKeyType.TYPE, 1, null, tier, properties.stacksTo(1), color);
@@ -81,13 +85,11 @@ public class DataFlowPortableCellItem extends PortableCellItem {
     }
 
     private static MenuType<?> resolvePortableItemCellMenu() {
-        try {
-            Field field = AbstractPortableCell.class.getDeclaredField("menuType");
-            field.setAccessible(true);
-            return (MenuType<?>) field.get(AEItems.PORTABLE_ITEM_CELL1K.get());
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Unable to access AE2 portable item cell menu type", e);
+        Object value = ReflectionAccess.getField(PORTABLE_CELL_MENU_TYPE_FIELD, AEItems.PORTABLE_ITEM_CELL1K.get());
+        if (value instanceof MenuType<?> menuType) {
+            return menuType;
         }
+        throw new IllegalStateException("Unable to access AE2 portable item cell menu type");
     }
 
     private static boolean isEmptyCell(ItemStack stack) {
