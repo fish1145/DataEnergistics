@@ -107,6 +107,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<MechanicalRecipeAccess>> MECHANICAL_RECIPE_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final Optional<AppliedCreateAccess> APPLIED_CREATE_ACCESS = findAppliedCreateAccess();
+    private static final Optional<Ae2LtAllowedOutputFilterAccess> AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS =
+            findAe2LtAllowedOutputFilterAccess();
+    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadPatternAccess>> AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadOutputSlotAccess>> AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE =
+            new ConcurrentHashMap<>();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -127,10 +135,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private final List<IPatternDetails> patternDetailsView;
     private final Set<AEKey> patternInputsView;
     private final AppEngInternalInventory patternInventory;
-    private final @Nullable Method ae2LtTotalCostMethod;
-    private final @Nullable Method ae2LtCanAffordMethod;
-    private final @Nullable Method ae2LtConsumeRawMethod;
-    private final @Nullable Method ae2csAdjacentMeStorageMethod;
+    private final @Nullable MethodHandle ae2LtTotalCostMethod;
+    private final @Nullable MethodHandle ae2LtCanAffordMethod;
+    private final @Nullable MethodHandle ae2LtConsumeRawMethod;
+    private final @Nullable MethodHandle ae2csAdjacentMeStorageMethod;
     private final List<GenericStack> baseSendListView;
     private long ae2ltLastAutoReturnTick = -1L;
     private boolean dataEnergistics$dispatchPulsePending;
@@ -1281,12 +1289,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     @Nullable
-    private Method findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
+    private MethodHandle findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
         try {
             Class<?> owner = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
             Method method = owner.getMethod(name, parameterTypes);
             method.setAccessible(true);
-            return method;
+            return MethodHandles.privateLookupIn(owner, LOOKUP).unreflect(method);
         } catch (Exception ignored) {
             return null;
         }
@@ -1521,9 +1529,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (this.ae2LtTotalCostMethod == null) {
                 return 0.0D;
             }
-            Object result = this.ae2LtTotalCostMethod.invoke(null, (Object) inputHolder);
+            Object result = this.ae2LtTotalCostMethod.invoke((Object) inputHolder);
             return result instanceof Number number ? number.doubleValue() : 0.0D;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return 0.0D;
         }
     }
@@ -1533,9 +1541,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (this.ae2LtCanAffordMethod == null) {
                 return true;
             }
-            Object result = this.ae2LtCanAffordMethod.invoke(null, getGrid(), totalCost);
+            Object result = this.ae2LtCanAffordMethod.invoke(getGrid(), totalCost);
             return !(result instanceof Boolean canAfford) || canAfford;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return true;
         }
     }
@@ -1543,9 +1551,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private void consumeAe2LtTotalCost(double totalCost) {
         try {
             if (this.ae2LtConsumeRawMethod != null) {
-                this.ae2LtConsumeRawMethod.invoke(null, getGrid(), totalCost);
+                this.ae2LtConsumeRawMethod.invoke(getGrid(), totalCost);
             }
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     private boolean hasDirectionalInputs(IPatternDetails patternDetails) {
@@ -1701,6 +1709,36 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         } catch (ReflectiveOperationException | SecurityException ignored) {}
 
         return null;
+    }
+
+    private static Optional<Ae2LtAllowedOutputFilterAccess> findAe2LtAllowedOutputFilterAccess() {
+        try {
+            Class<?> filterClass = Class.forName(AE2LT_ALLOWED_OUTPUT_FILTER_CLASS);
+            MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(filterClass, LOOKUP);
+            MethodHandle constructor = lookup.unreflectConstructor(filterClass.getConstructor());
+            MethodHandle allowStrict = lookup.unreflect(filterClass.getMethod("allowStrict", AEKey.class));
+            MethodHandle allowIdOnly = lookup.unreflect(filterClass.getMethod("allowIdOnly", AEKey.class));
+            MethodHandle isEmpty = lookup.unreflect(filterClass.getMethod("isEmpty"));
+            return Optional.of(new Ae2LtAllowedOutputFilterAccess(constructor, allowStrict, allowIdOnly, isEmpty));
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<Ae2LtOverloadPatternAccess> findAe2LtOverloadPatternAccess(Class<?> type) {
+        Optional<MethodHandle> overloadPatternDetailsView = findDuckMethod(type, "overloadPatternDetailsView");
+        return overloadPatternDetailsView.map(Ae2LtOverloadPatternAccess::new);
+    }
+
+    private static Optional<MethodHandle> getAe2LtOverloadOutputsAccess(Class<?> type) {
+        return AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE.computeIfAbsent(
+                type,
+                key -> findDuckMethod(key, "outputs"));
+    }
+
+    private static Optional<Ae2LtOverloadOutputSlotAccess> findAe2LtOverloadOutputSlotAccess(Class<?> type) {
+        Optional<MethodHandle> matchMode = findDuckMethod(type, "matchMode");
+        return matchMode.map(Ae2LtOverloadOutputSlotAccess::new);
     }
 
     private static Optional<MethodHandle> findDuckMethod(Class<?> type, String name, Class<?>... parameterTypes) {
@@ -1910,11 +1948,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Nullable
     private Object buildAe2LtAllowedOutputFilter() {
+        Optional<Ae2LtAllowedOutputFilterAccess> filterAccess = AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS;
+        if (filterAccess.isEmpty()) {
+            return null;
+        }
+
         try {
-            Class<?> filterClass = Class.forName(AE2LT_ALLOWED_OUTPUT_FILTER_CLASS);
-            Object filter = filterClass.getConstructor().newInstance();
-            Method allowStrict = filterClass.getMethod("allowStrict", AEKey.class);
-            Method allowIdOnly = filterClass.getMethod("allowIdOnly", AEKey.class);
+            Ae2LtAllowedOutputFilterAccess filterMethods = filterAccess.get();
+            Object filter = filterMethods.constructor().invoke();
 
             for (IPatternDetails pattern : getAvailablePatterns()) {
                 if (pattern == null) {
@@ -1923,18 +1964,28 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
                 if (isAe2LightningTechOverloadedPattern(pattern)) {
                     List<GenericStack> ae2Outputs = pattern.getOutputs();
-                    Object overloadDetails = pattern.getClass().getMethod("overloadPatternDetailsView").invoke(pattern);
+                    Object overloadDetails = getAe2LtOverloadDetails(pattern);
+                    if (overloadDetails == null) {
+                        continue;
+                    }
                     @SuppressWarnings("unchecked")
-                    List<Object> overloadOutputs = (List<Object>) overloadDetails.getClass().getMethod("outputs").invoke(overloadDetails);
+                    List<Object> overloadOutputs = getAe2LtOverloadOutputs(overloadDetails);
+                    if (overloadOutputs == null) {
+                        continue;
+                    }
                     int count = Math.min(ae2Outputs.size(), overloadOutputs.size());
                     for (int i = 0; i < count; i++) {
-                        AEKey key = ae2Outputs.get(i).what();
+                        GenericStack ae2Output = ae2Outputs.get(i);
+                        if (ae2Output == null || ae2Output.what() == null) {
+                            continue;
+                        }
+                        AEKey key = ae2Output.what();
                         Object outputSlot = overloadOutputs.get(i);
-                        Object matchMode = outputSlot.getClass().getMethod("matchMode").invoke(outputSlot);
+                        Object matchMode = getAe2LtOverloadMatchMode(outputSlot);
                         if ("ID_ONLY".equals(String.valueOf(matchMode))) {
-                            allowIdOnly.invoke(filter, key);
+                            filterMethods.allowIdOnly().invoke(filter, key);
                         } else {
-                            allowStrict.invoke(filter, key);
+                            filterMethods.allowStrict().invoke(filter, key);
                         }
                     }
                     continue;
@@ -1942,33 +1993,86 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
                 for (GenericStack output : pattern.getOutputs()) {
                     if (output != null && output.what() != null) {
-                        allowStrict.invoke(filter, output.what());
+                        filterMethods.allowStrict().invoke(filter, output.what());
                     }
                 }
             }
 
             return filter;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
 
     private boolean isAe2LtAllowedOutputFilterEmpty(Object filter) {
+        Optional<Ae2LtAllowedOutputFilterAccess> access = AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS;
+        if (access.isEmpty()) {
+            return true;
+        }
+
         try {
-            Method isEmpty = filter.getClass().getMethod("isEmpty");
-            Object result = isEmpty.invoke(filter);
+            Object result = access.get().isEmpty().invoke(filter);
             return !(result instanceof Boolean empty) || empty;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return true;
         }
     }
 
     @Nullable
-    private Method findAe2CsAdjacentMeStorageMethod() {
+    private Object getAe2LtOverloadDetails(IPatternDetails pattern) {
+        Optional<Ae2LtOverloadPatternAccess> access = AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                pattern.getClass(),
+                AdaptivePatternProviderLogic::findAe2LtOverloadPatternAccess);
+        if (access.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return access.get().overloadPatternDetailsView().invoke(pattern);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private List<Object> getAe2LtOverloadOutputs(Object overloadDetails) {
+        Optional<MethodHandle> outputs = getAe2LtOverloadOutputsAccess(overloadDetails.getClass());
+        if (outputs.isEmpty()) {
+            return null;
+        }
+
+        try {
+            Object result = outputs.get().invoke(overloadDetails);
+            return result instanceof List<?> list ? (List<Object>) list : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private Object getAe2LtOverloadMatchMode(Object outputSlot) {
+        Optional<Ae2LtOverloadOutputSlotAccess> access = AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE.computeIfAbsent(
+                outputSlot.getClass(),
+                AdaptivePatternProviderLogic::findAe2LtOverloadOutputSlotAccess);
+        if (access.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return access.get().matchMode().invoke(outputSlot);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private MethodHandle findAe2CsAdjacentMeStorageMethod() {
         try {
             Class<?> helperClass = Class.forName(AE2CS_GENERIC_STACK_INV_HELPER_CLASS);
-            return helperClass.getMethod("getAdjacentMeStorage",
+            Method method = helperClass.getMethod("getAdjacentMeStorage",
                     Level.class, BlockPos.class, BlockEntity.class, Direction.class);
+            return MethodHandles.privateLookupIn(helperClass, LOOKUP).unreflect(method);
         } catch (Exception ignored) {
             return null;
         }
@@ -1981,9 +2085,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         try {
-            Object result = this.ae2csAdjacentMeStorageMethod.invoke(null, level, pos, blockEntity, side);
+            Object result = this.ae2csAdjacentMeStorageMethod.invoke(level, pos, blockEntity, side);
             return result instanceof MEStorage storage ? storage : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -2398,6 +2502,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                                        MethodHandle checkCompletedRecipe,
                                        MethodHandle getAllCraftersOfChain,
                                        MethodHandle getTargetingCrafter) {}
+
+    private record Ae2LtAllowedOutputFilterAccess(MethodHandle constructor,
+                                                  MethodHandle allowStrict,
+                                                  MethodHandle allowIdOnly,
+                                                  MethodHandle isEmpty) {}
+
+    private record Ae2LtOverloadPatternAccess(MethodHandle overloadPatternDetailsView) {}
+
+    private record Ae2LtOverloadOutputSlotAccess(MethodHandle matchMode) {}
 
     private record SparsePatternAccess(MethodHandle sparseInputs, MethodHandle targetForSparseInputIndex) {}
 
