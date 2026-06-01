@@ -184,6 +184,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.level != null && !this.level.isClientSide()) {
             unregisterFromChunkIndex();
             destroyAllConnections();
+            clearRuntimeCaches();
         }
         super.setRemoved();
     }
@@ -1018,6 +1019,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedReceiveQuerySummaries.clear();
         this.cachedSimulatedExtracts.clear();
         this.cachedSimulatedExtractTick = Long.MIN_VALUE;
+    }
+
+    private void clearRuntimeCaches() {
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        this.cachedEnergyStorageViews.clear();
+        this.reusableEndpointFilter.clear();
+        this.cachedTransferBudgetHint = 0L;
+        trimCaches();
     }
 
     private void trimCaches() {
