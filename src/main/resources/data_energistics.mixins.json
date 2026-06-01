@@ -44,10 +44,8 @@
 		"core.PatternProviderMenuMixin",
 		"core.PatternProviderPartMixin",
 		"core.ResultSlotMixin",
-		"emi.EmiEncodePatternHandlerMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
-		"extendedae.ExtendedInscriberThreadMixin",
-		"jei.JeiEncodePatternTransferHandlerMixin"
+		"extendedae.ExtendedInscriberThreadMixin"
 	],
 	"client": [
 		"advancedae.AdvancedAePatternProviderScreenMixin",
@@ -59,6 +57,8 @@
 		"core.CondenserScreenMixin",
 		"core.PatternProviderScreenMixin",
 		"core.WidgetContainerAccessor",
+		"emi.EmiEncodePatternHandlerMixin",
+		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin"
 	],
 	"injectors": {
