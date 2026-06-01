@@ -492,7 +492,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     private int countActiveCarriers() {
         int count = 0;
-        for (int i = 0; i < getActiveSlotCount(); i++) {
+        int activeSlotCount = getActiveSlotCount();
+        for (int i = 0; i < activeSlotCount; i++) {
             ItemStack stack = this.storage.getStackInSlot(i);
             if (hasRecordedData(stack)) {
                 count++;
@@ -511,7 +512,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         List<ItemStack> generated = new ArrayList<>();
-        for (int i = 0; i < getActiveSlotCount(); i++) {
+        int activeSlotCount = getActiveSlotCount();
+        for (int i = 0; i < activeSlotCount; i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
             if (BiologyDataCarrierData.isComplete(carrier)) {
                 generated.addAll(generateBiologyLoot(serverLevel, carrier));
@@ -527,7 +529,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         List<ItemStack> generated = new ArrayList<>();
-        for (int i = 0; i < getActiveSlotCount(); i++) {
+        int activeSlotCount = getActiveSlotCount();
+        for (int i = 0; i < activeSlotCount; i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
             if (!OreDataCarrierData.isComplete(carrier)) {
                 continue;
@@ -547,7 +550,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         List<ItemStack> generated = new ArrayList<>();
-        for (int i = 0; i < getActiveSlotCount(); i++) {
+        int activeSlotCount = getActiveSlotCount();
+        for (int i = 0; i < activeSlotCount; i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
             if (!CropDataCarrierData.isComplete(carrier)) {
                 continue;
