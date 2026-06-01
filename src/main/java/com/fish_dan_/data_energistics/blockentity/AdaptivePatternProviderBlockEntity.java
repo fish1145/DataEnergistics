@@ -159,7 +159,9 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : this.getMainMenuIcon().getHoverName();
+        return profile != null
+                ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName())
+                : this.getMainMenuIcon().getHoverName();
     }
 
     @Override
@@ -180,7 +182,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
         var hostPos = this.getBlockPos();
         for (var side : this.getTargets()) {
-            var specialGroup = resolveSpecialAdjacentMachineGroup(hostLevel, hostPos.relative(side));
+            var specialGroup = AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(hostLevel, hostPos.relative(side));
             if (specialGroup != null) {
                 return specialGroup;
             }
@@ -575,18 +577,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return groups;
     }
 
-    public static Component decorateAdaptiveProviderName(Component providerName) {
-        return decorateAdaptiveProviderName(
-                "screen.data_energistics.adaptive_pattern_provider.provider_variant",
-                providerName);
-    }
-
-    public static Component decorateAdaptiveProviderName(String translationKey, Component providerName) {
-        return Component.translatable(
-                translationKey,
-                providerName);
-    }
-
     private Component getResolvedProviderNameForGui() {
         return AdaptivePatternProviderDisplayHelper.getGuiProviderName(
                 getAdaptiveState().getProviderStack(),
@@ -659,17 +649,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     protected DeferredHolder<MenuType<?>, ? extends MenuType<?>> getProviderMenu() {
         return ModMenus.ADAPTIVE_PATTERN_PROVIDER;
-    }
-
-    @Nullable
-    public static appeng.api.implementations.blockentities.PatternContainerGroup resolveSpecialAdjacentMachineGroup(
-                                                                                                                    Level level,
-                                                                                                                    BlockPos pos) {
-        return AdaptivePatternProviderResolver.resolveSpecialAdjacentMachineGroup(level, pos);
-    }
-
-    public static boolean isPatternProviderAttachment(Level level, BlockPos pos, @Nullable Direction side) {
-        return AdaptivePatternProviderResolver.isPatternProviderAttachment(level, pos, side);
     }
 
 }
