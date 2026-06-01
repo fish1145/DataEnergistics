@@ -425,15 +425,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public ItemStack getMainMenuIcon() {
         var adjacentGroup = getSingleAdjacentMachineGroup();
-        if (adjacentGroup != null && adjacentGroup.icon() != null) {
-            ItemStack adjacentIcon = adjacentGroup.icon().toStack();
-            if (!adjacentIcon.isEmpty()) {
-                return adjacentIcon;
-            }
-        }
-
         AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null ? profile.mainMenuIcon().copy() : getProviderBlock().get().asItem().getDefaultInstance();
+        ItemStack providerIcon = profile != null ? profile.mainMenuIcon() : null;
+        return AdaptivePatternProviderDisplayHelper.resolveMainMenuIcon(
+                adjacentGroup,
+                providerIcon,
+                getProviderBlock().get().asItem().getDefaultInstance());
     }
 
     @Override

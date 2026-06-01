@@ -75,6 +75,17 @@ public final class AdaptivePatternProviderDisplayHelper {
                 providerName);
     }
 
+    public static ItemStack resolveMainMenuIcon(PatternContainerGroup adjacentGroup, ItemStack providerIcon, ItemStack fallbackIcon) {
+        if (adjacentGroup != null && adjacentGroup.icon() != null) {
+            ItemStack adjacentIcon = adjacentGroup.icon().toStack();
+            if (!adjacentIcon.isEmpty()) {
+                return adjacentIcon;
+            }
+        }
+
+        return providerIcon != null && !providerIcon.isEmpty() ? providerIcon.copy() : fallbackIcon;
+    }
+
     public static List<Component> appendLockedSlotsTooltip(List<Component> baseTooltip, String translationKey, int unlockedSlots, int totalSlots) {
         if (unlockedSlots >= totalSlots) {
             return List.copyOf(baseTooltip);

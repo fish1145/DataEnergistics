@@ -399,15 +399,11 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Override
     public ItemStack getMainMenuIcon() {
         var adjacentGroup = getAdjacentMachineGroup();
-        if (adjacentGroup != null && adjacentGroup.icon() != null) {
-            ItemStack adjacentIcon = adjacentGroup.icon().toStack();
-            if (!adjacentIcon.isEmpty()) {
-                return adjacentIcon;
-            }
-        }
-
-        ItemStack icon = AdaptivePatternProviderResolver.getResolvedProviderMainMenuIcon(getProviderStack());
-        return icon != null && !icon.isEmpty() ? icon.copy() : new ItemStack(this.getPartItem().asItem());
+        ItemStack providerIcon = AdaptivePatternProviderResolver.getResolvedProviderMainMenuIcon(getProviderStack());
+        return AdaptivePatternProviderDisplayHelper.resolveMainMenuIcon(
+                adjacentGroup,
+                providerIcon,
+                new ItemStack(this.getPartItem().asItem()));
     }
 
     @Override
