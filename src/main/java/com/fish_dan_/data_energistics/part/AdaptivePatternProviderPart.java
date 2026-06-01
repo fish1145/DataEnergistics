@@ -186,18 +186,18 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public boolean isMeteoriteProviderSelected() {
-        return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderBlockEntity.ProviderKind.METEORITE;
+        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.METEORITE;
     }
 
     @Override
     public boolean isAdvancedAeProviderSelected() {
-        var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_EXTENDED;
+        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED;
     }
 
     @Override
     public boolean isAe2LightningTechOverloadedProviderSelected() {
-        return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
+        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
     }
 
     @Override
@@ -205,20 +205,20 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
         }
-        var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_ANDESITE || kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_BRASS;
+        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_ANDESITE || kind == AdaptivePatternProviderResolver.ProviderKind.APPLIED_CREATE_BRASS;
     }
 
     @Override
     public boolean isResonatingProviderSelected() {
-        var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.RESONATING || kind == AdaptivePatternProviderBlockEntity.ProviderKind.EXTENDED_RESONATING;
+        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderResolver.ProviderKind.RESONATING || kind == AdaptivePatternProviderResolver.ProviderKind.EXTENDED_RESONATING;
     }
 
     @Override
     public boolean supportsFilteredImportToggle() {
-        var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
-        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderBlockEntity.ProviderKind.ADVANCED_EXTENDED || kind == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
+        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_SMALL || kind == AdaptivePatternProviderResolver.ProviderKind.ADVANCED_EXTENDED || kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
     }
 
     @Override
