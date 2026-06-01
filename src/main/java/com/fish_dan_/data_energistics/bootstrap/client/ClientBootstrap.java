@@ -32,6 +32,7 @@ import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
@@ -39,6 +40,8 @@ import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.TntRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.resources.model.ModelResourceLocation;
@@ -100,6 +103,7 @@ public final class ClientBootstrap {
             event.enqueueWork(() -> {
                 ClientAeKeyRenderers.register();
                 ModStorageCells.registerClientModels();
+                registerFluidRenderLayers();
                 registerMatterConvergingCrossbowProperties();
                 registerDataCaptureBallProperties();
                 registerLightSaberProperties();
@@ -156,6 +160,14 @@ public final class ClientBootstrap {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
+        }
+
+        private static void registerFluidRenderLayers() {
+            RenderType translucent = RenderType.translucent();
+            ItemBlockRenderTypes.setRenderLayer(ModFluids.ENDER.get(), translucent);
+            ItemBlockRenderTypes.setRenderLayer(ModFluids.FLOWING_ENDER.get(), translucent);
+            ItemBlockRenderTypes.setRenderLayer(ModFluids.DATA_CORROSION_LIQUID.get(), translucent);
+            ItemBlockRenderTypes.setRenderLayer(ModFluids.FLOWING_DATA_CORROSION_LIQUID.get(), translucent);
         }
 
         private static void registerMatterConvergingCrossbowProperties() {

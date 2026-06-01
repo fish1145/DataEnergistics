@@ -49,6 +49,7 @@ public final class ModFluids {
     private static final float VANILLA_DRAGON_BREATH_DAMAGE = 6.0F;
     private static final float DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER = 2.0F;
     private static final float DATA_CORROSION_LIQUID_FLUID_DAMAGE = VANILLA_DRAGON_BREATH_DAMAGE * DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER;
+    private static final int DEFAULT_FLUID_TINT = 0xFFFFFFFF;
 
     public static final DeferredRegister<FluidType> FLUID_TYPES = DeferredRegister.create(NeoForgeRegistries.Keys.FLUID_TYPES, Data_Energistics.MODID);
     public static final DeferredRegister<Fluid> FLUIDS = DeferredRegister.create(BuiltInRegistries.FLUID, Data_Energistics.MODID);
@@ -66,7 +67,8 @@ public final class ModFluids {
                     .temperature(300)
                     .rarity(Rarity.UNCOMMON)
                     .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                    .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
+                    .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY),
+                    ClientFluidProperties.create()));
     public static final DeferredHolder<FluidType, FluidType> DATA_CORROSION_LIQUID_TYPE = FLUID_TYPES.register(
             "data_corrosion_liquid",
             () -> new DragonBreathDamageFluidType(FluidType.Properties.create()
@@ -81,7 +83,9 @@ public final class ModFluids {
                     .lightLevel(4)
                     .rarity(Rarity.RARE)
                     .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
-                    .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
+                    .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY),
+                    ClientFluidProperties.create()
+                            .tintColor(0xFFB5FEE8)));
 
     public static final DeferredHolder<Fluid, FlowingFluid> ENDER = FLUIDS.register("ender",
             () -> new BaseFlowingFluid.Source(enderProperties()));
@@ -152,10 +156,46 @@ public final class ModFluids {
                 .explosionResistance(explosionResistance);
     }
 
-    private static final class EnderTeleportFluidType extends FluidType {
+    public interface ClientTintedFluidType {
 
-        private EnderTeleportFluidType(Properties properties) {
+        int getTintColor();
+    }
+
+    private static class TintedFluidType extends FluidType implements ClientTintedFluidType {
+
+        private final int tintColor;
+
+        private TintedFluidType(Properties properties, ClientFluidProperties clientProperties) {
             super(properties);
+            this.tintColor = clientProperties.tintColor;
+        }
+
+        @Override
+        public int getTintColor() {
+            return this.tintColor;
+        }
+    }
+
+    private static final class ClientFluidProperties {
+
+        private int tintColor = DEFAULT_FLUID_TINT;
+
+        private ClientFluidProperties() {}
+
+        private static ClientFluidProperties create() {
+            return new ClientFluidProperties();
+        }
+
+        private ClientFluidProperties tintColor(int tintColor) {
+            this.tintColor = tintColor;
+            return this;
+        }
+    }
+
+    private static final class EnderTeleportFluidType extends TintedFluidType {
+
+        private EnderTeleportFluidType(Properties properties, ClientFluidProperties clientProperties) {
+            super(properties, clientProperties);
         }
 
         @Override
@@ -211,10 +251,10 @@ public final class ModFluids {
         }
     }
 
-    private static final class DragonBreathDamageFluidType extends FluidType {
+    private static final class DragonBreathDamageFluidType extends TintedFluidType {
 
-        private DragonBreathDamageFluidType(Properties properties) {
-            super(properties);
+        private DragonBreathDamageFluidType(Properties properties, ClientFluidProperties clientProperties) {
+            super(properties, clientProperties);
         }
 
         @Override

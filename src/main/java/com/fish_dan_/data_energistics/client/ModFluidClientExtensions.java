@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
+import java.util.function.IntSupplier;
+
 public final class ModFluidClientExtensions {
 
     private static final ResourceLocation ENDER_STILL = Data_Energistics.id("block/fluid/ender_still");
@@ -18,19 +20,25 @@ public final class ModFluidClientExtensions {
     private ModFluidClientExtensions() {}
 
     public static void register(RegisterClientExtensionsEvent event) {
-        event.registerFluidType(new TintedFluidTypeExtensions(0xFFFFFFFF, ENDER_STILL, ENDER_FLOW), ModFluids.ENDER_TYPE);
+        event.registerFluidType(new TintedFluidTypeExtensions(
+                () -> ((ModFluids.ClientTintedFluidType) ModFluids.ENDER_TYPE.get()).getTintColor(),
+                ENDER_STILL,
+                ENDER_FLOW), ModFluids.ENDER_TYPE);
         event.registerFluidType(
-                new TintedFluidTypeExtensions(0xFFFFFFFF, DATA_CORROSION_LIQUID_STILL, DATA_CORROSION_LIQUID_FLOW),
+                new TintedFluidTypeExtensions(
+                        () -> ((ModFluids.ClientTintedFluidType) ModFluids.DATA_CORROSION_LIQUID_TYPE.get()).getTintColor(),
+                        DATA_CORROSION_LIQUID_STILL,
+                        DATA_CORROSION_LIQUID_FLOW),
                 ModFluids.DATA_CORROSION_LIQUID_TYPE);
     }
 
-    private record TintedFluidTypeExtensions(int tintColor, ResourceLocation stillTexture,
+    private record TintedFluidTypeExtensions(IntSupplier tintColor, ResourceLocation stillTexture,
                                              ResourceLocation flowingTexture)
             implements IClientFluidTypeExtensions {
 
         @Override
         public int getTintColor() {
-            return tintColor;
+            return this.tintColor.getAsInt();
         }
 
         @Override
