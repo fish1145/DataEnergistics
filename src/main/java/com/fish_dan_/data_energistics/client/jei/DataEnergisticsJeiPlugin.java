@@ -47,6 +47,15 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String CRAFTING_HANDLER_CLASS = "tamaized.ae2jeiintegration.integration.modules.jei.transfer.UseCraftingRecipeTransfer";
     private static final String ENCODING_HANDLER_CLASS = "tamaized.ae2jeiintegration.integration.modules.jei.transfer.EncodePatternTransferHandler";
+    private static final Class<?>[] CRAFTING_HANDLER_PARAMETERS = {
+            Class.class,
+            net.minecraft.world.inventory.MenuType.class,
+            IRecipeTransferHandlerHelper.class };
+    private static final Class<?>[] ENCODING_HANDLER_PARAMETERS = {
+            net.minecraft.world.inventory.MenuType.class,
+            Class.class,
+            IRecipeTransferHandlerHelper.class,
+            mezz.jei.api.runtime.IIngredientVisibility.class };
     private IJeiRuntime jeiRuntime;
 
     @Override
@@ -176,10 +185,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     private static IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>> createCraftingHandler(IRecipeTransferHandlerHelper transferHelper) {
         Object handler = ReflectionAccess.newInstance(
                 CRAFTING_HANDLER_CLASS,
-                new Class<?>[] {
-                        Class.class,
-                        net.minecraft.world.inventory.MenuType.class,
-                        IRecipeTransferHandlerHelper.class },
+                CRAFTING_HANDLER_PARAMETERS,
                     UniversalCraftingTermMenu.class,
                     ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
                     transferHelper);
@@ -195,11 +201,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                                                                                                            mezz.jei.api.runtime.IIngredientVisibility ingredientVisibility) {
         Object handler = ReflectionAccess.newInstance(
                 ENCODING_HANDLER_CLASS,
-                new Class<?>[] {
-                        net.minecraft.world.inventory.MenuType.class,
-                        Class.class,
-                        IRecipeTransferHandlerHelper.class,
-                        mezz.jei.api.runtime.IIngredientVisibility.class },
+                ENCODING_HANDLER_PARAMETERS,
                     ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                     UniversalPatternEncodingTermMenu.class,
                     transferHelper,

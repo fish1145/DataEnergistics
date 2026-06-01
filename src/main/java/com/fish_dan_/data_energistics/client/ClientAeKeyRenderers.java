@@ -21,6 +21,7 @@ public final class ClientAeKeyRenderers {
     private static boolean registered;
     private static final DataFlowKeyRenderHandler DATA_FLOW_RENDER_HANDLER = new DataFlowKeyRenderHandler();
     private static final DataKeyRenderHandler DATA_RENDER_HANDLER = new DataKeyRenderHandler();
+    private static final Optional<VarHandle> RENDERERS_FIELD = ReflectionAccess.findStaticField(AEKeyRendering.class, "renderers");
 
     private ClientAeKeyRenderers() {}
 
@@ -43,14 +44,13 @@ public final class ClientAeKeyRenderers {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private static void overwrite(AEKeyType type, AEKeyRenderHandler<?> handler) {
         try {
-            Optional<VarHandle> renderersField = ReflectionAccess.findStaticField(AEKeyRendering.class, "renderers");
-            Map<AEKeyType, AEKeyRenderHandler<?>> current = (Map<AEKeyType, AEKeyRenderHandler<?>>) ReflectionAccess.getField(renderersField, null);
-            if (renderersField.isEmpty() || current == null) {
+            Map<AEKeyType, AEKeyRenderHandler<?>> current = (Map<AEKeyType, AEKeyRenderHandler<?>>) ReflectionAccess.getField(RENDERERS_FIELD, null);
+            if (RENDERERS_FIELD.isEmpty() || current == null) {
                 throw new IllegalStateException("AE key render handler registry is unavailable");
             }
             Map<AEKeyType, AEKeyRenderHandler<?>> updated = new IdentityHashMap<>(current);
             updated.put(type, (AEKeyRenderHandler<? extends AEKey>) handler);
-            renderersField.get().set(updated);
+            RENDERERS_FIELD.get().set(updated);
         } catch (Throwable e) {
             throw new IllegalStateException("Failed to override AE key render handler for " + type, e);
         }

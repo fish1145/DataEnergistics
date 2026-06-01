@@ -11,11 +11,16 @@ import net.minecraft.world.entity.player.Inventory;
 import appeng.client.gui.style.StyleManager;
 import appeng.menu.AEBaseMenu;
 
+import java.util.Optional;
+
 public final class Ae2WtLibClientCompat {
 
     private static final String WET_SCREEN_CLASS = "de.mari_023.ae2wtlib.wet.WETScreen";
     private static final String WET_MENU_CLASS = "de.mari_023.ae2wtlib.wet.WETMenu";
     private static final String WIRELESS_SCREEN_CLASS = "com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen";
+    private static final Optional<Class<?>> WET_SCREEN_TYPE = resolveOptionalClass(WET_SCREEN_CLASS);
+    private static final Optional<Class<?>> WET_MENU_TYPE = resolveOptionalClass(WET_MENU_CLASS);
+    private static final Optional<Class<?>> WIRELESS_SCREEN_TYPE = resolveOptionalClass(WIRELESS_SCREEN_CLASS);
 
     private Ae2WtLibClientCompat() {}
 
@@ -25,13 +30,11 @@ public final class Ae2WtLibClientCompat {
         }
 
         try {
-            Class<?> wirelessScreenClass = Class.forName(WIRELESS_SCREEN_CLASS);
-            if (wirelessScreenClass.isInstance(screen)) {
+            if (WIRELESS_SCREEN_TYPE.isEmpty() || WIRELESS_SCREEN_TYPE.get().isInstance(screen)) {
                 return null;
             }
 
-            Class<?> wetScreenClass = Class.forName(WET_SCREEN_CLASS);
-            if (!wetScreenClass.isInstance(screen)) {
+            if (WET_SCREEN_TYPE.isEmpty() || !WET_SCREEN_TYPE.get().isInstance(screen)) {
                 return null;
             }
 
@@ -40,7 +43,11 @@ public final class Ae2WtLibClientCompat {
                 return null;
             }
 
-            Class<?> wetMenuClass = Class.forName(WET_MENU_CLASS);
+            if (WET_MENU_TYPE.isEmpty()) {
+                return null;
+            }
+
+            Class<?> wetMenuClass = WET_MENU_TYPE.get();
             if (!wetMenuClass.isInstance(rawMenu)) {
                 return null;
             }
@@ -68,8 +75,16 @@ public final class Ae2WtLibClientCompat {
             }
 
             return replacement;
-        } catch (ReflectiveOperationException | LinkageError ignored) {
+        } catch (LinkageError ignored) {
             return null;
+        }
+    }
+
+    private static Optional<Class<?>> resolveOptionalClass(String className) {
+        try {
+            return Optional.of(Class.forName(className));
+        } catch (ClassNotFoundException | LinkageError ignored) {
+            return Optional.empty();
         }
     }
 }

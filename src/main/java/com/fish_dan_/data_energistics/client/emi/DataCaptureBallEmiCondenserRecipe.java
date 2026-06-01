@@ -16,10 +16,15 @@ import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.WidgetHolder;
 
+import java.lang.invoke.VarHandle;
 import java.util.List;
+import java.util.Optional;
 
 final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
 
+    private static final Optional<VarHandle> AE2_CONDENSER_CATEGORY_FIELD = ReflectionAccess.findStaticField(
+            "appeng.integration.modules.emi.EmiCondenserRecipe",
+            "CATEGORY");
     static final EmiRecipeCategory CATEGORY = resolveCategory();
     private static final int REQUIRED_POWER = 131072;
 
@@ -55,9 +60,7 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
     }
 
     private static EmiRecipeCategory resolveCategory() {
-        Object value = ReflectionAccess.getField(ReflectionAccess.findStaticField(
-                "appeng.integration.modules.emi.EmiCondenserRecipe",
-                "CATEGORY"), null);
+        Object value = ReflectionAccess.getField(AE2_CONDENSER_CATEGORY_FIELD, null);
         if (value instanceof EmiRecipeCategory category) {
             return category;
         }
