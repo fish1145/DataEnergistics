@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
+
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
-
-import java.lang.reflect.Method;
 
 public final class Ae2WtLibCompat {
 
@@ -17,12 +17,11 @@ public final class Ae2WtLibCompat {
             return null;
         }
 
-        try {
-            Method method = Class.forName(CLIENT_COMPAT_CLASS)
-                    .getMethod("maybeReplaceWirelessPatternEncodingScreen", Object.class, boolean.class);
-            return (T) method.invoke(null, currentScreen, applyImmediately);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
-        }
+        return (T) ReflectionAccess.invokeStatic(
+                CLIENT_COMPAT_CLASS,
+                "maybeReplaceWirelessPatternEncodingScreen",
+                new Class<?>[] { Object.class, boolean.class },
+                currentScreen,
+                applyImmediately);
     }
 }

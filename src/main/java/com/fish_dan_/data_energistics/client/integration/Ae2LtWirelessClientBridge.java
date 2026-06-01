@@ -1,19 +1,18 @@
 package com.fish_dan_.data_energistics.client.integration;
 
 import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.renderer.RenderType;
 
 import org.jetbrains.annotations.Nullable;
-
-import java.lang.reflect.Method;
 
 public final class Ae2LtWirelessClientBridge {
 
     private static final String RENDER_TYPES_CLASS = "com.moakiee.ae2lt.client.Ae2ltRenderTypes";
 
     private static boolean renderInitialized;
-    private static @Nullable Method renderFaceSeeThroughMethod;
+    private static @Nullable RenderType faceSeeThroughRenderType;
 
     private Ae2LtWirelessClientBridge() {}
 
@@ -24,21 +23,12 @@ public final class Ae2LtWirelessClientBridge {
         if (!renderInitialized) {
             initializeRender();
         }
-        try {
-            Object result = renderFaceSeeThroughMethod != null ? renderFaceSeeThroughMethod.invoke(null) : null;
-            return result instanceof RenderType renderType ? renderType : null;
-        } catch (Exception ignored) {
-            return null;
-        }
+        return faceSeeThroughRenderType;
     }
 
     private static void initializeRender() {
         renderInitialized = true;
-        try {
-            Class<?> renderTypesClass = Class.forName(RENDER_TYPES_CLASS);
-            renderFaceSeeThroughMethod = renderTypesClass.getMethod("getFaceSeeThrough");
-        } catch (Exception ignored) {
-            renderFaceSeeThroughMethod = null;
-        }
+        Object result = ReflectionAccess.invokeStatic(RENDER_TYPES_CLASS, "getFaceSeeThrough", new Class<?>[0]);
+        faceSeeThroughRenderType = result instanceof RenderType renderType ? renderType : null;
     }
 }

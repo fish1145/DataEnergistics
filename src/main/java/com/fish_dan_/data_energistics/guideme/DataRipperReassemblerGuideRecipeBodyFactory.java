@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.guideme;
 
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -18,11 +19,13 @@ final class DataRipperReassemblerGuideRecipeBodyFactory {
             return LytParagraph.of("");
         }
 
-        try {
-            Class<?> bodyClass = Class.forName(CLIENT_BODY_CLASS);
-            return (LytBlock) bodyClass.getConstructor(DataRipperReassemblerRecipe.class).newInstance(recipe);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Failed to create GuideME data reassembler recipe body", e);
+        Object body = ReflectionAccess.newInstance(
+                CLIENT_BODY_CLASS,
+                new Class<?>[] { DataRipperReassemblerRecipe.class },
+                recipe);
+        if (body instanceof LytBlock block) {
+            return block;
         }
+        throw new IllegalStateException("Failed to create GuideME data reassembler recipe body");
     }
 }
