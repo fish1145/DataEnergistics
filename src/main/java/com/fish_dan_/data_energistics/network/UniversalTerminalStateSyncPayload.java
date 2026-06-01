@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.screen.UniversalTerminalClientHelper;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -40,9 +39,7 @@ public record UniversalTerminalStateSyncPayload(List<String> installedTerminalNa
     }
 
     public static void handle(UniversalTerminalStateSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> UniversalTerminalClientHelper.cacheSyncedTerminalState(
-                payload.installedTerminalNames(),
-                payload.activeTerminalName()));
+        context.enqueueWork(() -> UniversalTerminalStateSyncHandler.cacheSyncedTerminalState(payload));
     }
 
     private static List<String> readInstalledTerminalNames(RegistryFriendlyByteBuf buf) {
