@@ -10,7 +10,6 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHand
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
-import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -44,10 +43,7 @@ import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
-import appeng.core.definitions.AEParts;
-import appeng.core.localization.GuiText;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.ISubMenu;
@@ -58,7 +54,6 @@ import appeng.util.inv.InternalInventoryHost;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 
 public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
@@ -444,21 +439,19 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public appeng.api.implementations.blockentities.PatternContainerGroup getTerminalGroup() {
         var baseGroup = buildAdaptiveTerminalGroup();
-        var tooltip = new ArrayList<Component>(baseGroup.tooltip());
         int unlockedSlots = getConfiguredPatternSlotCount();
         int totalSlots = getCurrentProviderMaxPatternCapacity();
-        if (unlockedSlots < totalSlots) {
-            tooltip.add(Component.translatable(
-                    getTerminalGroupLockedSlotsKey(),
-                    unlockedSlots,
-                    totalSlots));
-        }
+        var tooltip = AdaptivePatternProviderDisplayHelper.appendLockedSlotsTooltip(
+                baseGroup.tooltip(),
+                getTerminalGroupLockedSlotsKey(),
+                unlockedSlots,
+                totalSlots);
 
         Component displayName = this instanceof Nameable nameable && nameable.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
         return new appeng.api.implementations.blockentities.PatternContainerGroup(
                 baseGroup.icon(),
                 displayName,
-                List.copyOf(tooltip));
+                tooltip);
     }
 
     @Override
@@ -554,28 +547,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         var groups = getAdjacentMachineGroups();
-        if (groups.size() == 1) {
-            return groups.iterator().next();
-        }
-
-        List<Component> tooltip = List.of();
-        if (groups.size() > 1) {
-            var builtTooltip = new ArrayList<Component>();
-            builtTooltip.add(GuiText.AdjacentToDifferentMachines.text());
-            for (var group : groups) {
-                builtTooltip.add(group.name());
-                for (var line : group.tooltip()) {
-                    builtTooltip.add(Component.literal("  ").append(line));
-                }
-            }
-            tooltip = List.copyOf(builtTooltip);
-        }
-
         var icon = this.getTerminalIcon();
-        return new appeng.api.implementations.blockentities.PatternContainerGroup(
+        return AdaptivePatternProviderDisplayHelper.createTerminalFallbackGroup(
                 icon,
-                icon.getDisplayName(),
-                tooltip);
+                List.copyOf(groups));
     }
 
     @Nullable

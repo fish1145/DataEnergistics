@@ -3,6 +3,13 @@ package com.fish_dan_.data_energistics.ae2;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.stacks.AEItemKey;
+import appeng.core.localization.GuiText;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public final class AdaptivePatternProviderDisplayHelper {
 
     private AdaptivePatternProviderDisplayHelper() {
@@ -63,5 +70,36 @@ public final class AdaptivePatternProviderDisplayHelper {
                 "screen.data_energistics.adaptive_pattern_provider.attached_machine",
                 machineName,
                 providerName);
+    }
+
+    public static List<Component> appendLockedSlotsTooltip(List<Component> baseTooltip, String translationKey, int unlockedSlots, int totalSlots) {
+        if (unlockedSlots >= totalSlots) {
+            return List.copyOf(baseTooltip);
+        }
+
+        var tooltip = new ArrayList<>(baseTooltip);
+        tooltip.add(Component.translatable(translationKey, unlockedSlots, totalSlots));
+        return List.copyOf(tooltip);
+    }
+
+    public static PatternContainerGroup createTerminalFallbackGroup(AEItemKey icon, List<PatternContainerGroup> groups) {
+        if (groups.size() == 1) {
+            return groups.getFirst();
+        }
+
+        List<Component> tooltip = List.of();
+        if (groups.size() > 1) {
+            var builtTooltip = new ArrayList<Component>();
+            builtTooltip.add(GuiText.AdjacentToDifferentMachines.text());
+            for (var group : groups) {
+                builtTooltip.add(group.name());
+                for (var line : group.tooltip()) {
+                    builtTooltip.add(Component.literal("  ").append(line));
+                }
+            }
+            tooltip = List.copyOf(builtTooltip);
+        }
+
+        return new PatternContainerGroup(icon, icon.getDisplayName(), tooltip);
     }
 }

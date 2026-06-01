@@ -11,7 +11,6 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHand
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -47,7 +46,6 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class AdaptivePatternProviderPart extends PatternProviderPart implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
@@ -419,20 +417,18 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
 
         var adjacentGroup = getAdjacentMachineGroup();
-        List<Component> tooltip = new ArrayList<>();
         int unlockedSlots = getConfiguredPatternSlotCount();
         int totalSlots = getCurrentProviderMaxPatternCapacity();
-        if (unlockedSlots < totalSlots) {
-            tooltip.add(Component.translatable(
-                    "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots",
-                    unlockedSlots,
-                    totalSlots));
-        }
+        var tooltip = AdaptivePatternProviderDisplayHelper.appendLockedSlotsTooltip(
+                List.of(),
+                "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots",
+                unlockedSlots,
+                totalSlots);
 
         return new PatternContainerGroup(
                 adjacentGroup != null ? adjacentGroup.icon() : this.getTerminalIcon(),
                 getTerminalDisplayName(),
-                List.copyOf(tooltip));
+                tooltip);
     }
 
     @Override
