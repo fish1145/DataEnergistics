@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
@@ -478,22 +479,16 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     private int getConfiguredPatternSlotCount() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        if (profile == null) {
-            return 0;
-        }
-
-        int providerCount = Math.min(getAdaptiveState().getProviderStack().getCount(), getProviderSlotLimit());
-        return profile.slotsPerProvider() * providerCount;
+        return AdaptivePatternProviderDisplayHelper.getConfiguredPatternSlotCount(
+                getAdaptiveState().getProviderStack(),
+                getProviderSlotLimit());
     }
 
     private int getCurrentProviderMaxPatternCapacity() {
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        if (profile == null) {
-            return 0;
-        }
-
-        return Math.min(AdaptivePatternProviderState.MAX_PATTERN_SLOTS, profile.slotsPerProvider() * getProviderSlotLimit());
+        return AdaptivePatternProviderDisplayHelper.getMaxPatternCapacity(
+                getAdaptiveState().getProviderStack(),
+                getProviderSlotLimit(),
+                AdaptivePatternProviderState.MAX_PATTERN_SLOTS);
     }
 
     private int getExtraProviderSlotsFromCapacityCards() {
@@ -676,30 +671,22 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     private Component getResolvedProviderNameForGui() {
-        if (getAdaptiveState().getProviderStack().isEmpty()) {
-            return Component.translatable(getProviderTranslationKey());
-        }
-
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName()) : Component.translatable(getProviderTranslationKey());
+        return AdaptivePatternProviderDisplayHelper.getGuiProviderName(
+                getAdaptiveState().getProviderStack(),
+                getProviderTranslationKey(),
+                getAdaptiveProviderVariantTranslationKey());
     }
 
     private Component getResolvedProviderNameForTerminal() {
-        if (getAdaptiveState().getProviderStack().isEmpty()) {
-            return Component.translatable(getProviderTranslationKey());
-        }
-
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null ? decorateAdaptiveProviderName(profile.displayName()) : Component.translatable(getProviderTranslationKey());
+        return AdaptivePatternProviderDisplayHelper.getTerminalProviderName(
+                getAdaptiveState().getProviderStack(),
+                getProviderTranslationKey());
     }
 
     private Component getResolvedInternalProviderName() {
-        if (getAdaptiveState().getProviderStack().isEmpty()) {
-            return Component.translatable(getProviderTranslationKey());
-        }
-
-        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
-        return profile != null ? profile.displayName() : Component.translatable(getProviderTranslationKey());
+        return AdaptivePatternProviderDisplayHelper.getInternalProviderName(
+                getAdaptiveState().getProviderStack(),
+                getProviderTranslationKey());
     }
 
     private AdaptivePatternProviderState getAdaptiveState() {

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
@@ -448,23 +449,16 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     private int getConfiguredPatternSlotCount() {
-        ItemStack providerStack = getProviderStack();
-        int slotsPerProvider = AdaptivePatternProviderResolver.getResolvedSlotsPerProvider(providerStack);
-        if (slotsPerProvider <= 0) {
-            return 0;
-        }
-
-        int providerCount = Math.min(providerStack.getCount(), getProviderSlotLimit());
-        return slotsPerProvider * providerCount;
+        return AdaptivePatternProviderDisplayHelper.getConfiguredPatternSlotCount(
+                getProviderStack(),
+                getProviderSlotLimit());
     }
 
     private int getCurrentProviderMaxPatternCapacity() {
-        int slotsPerProvider = AdaptivePatternProviderResolver.getResolvedSlotsPerProvider(getProviderStack());
-        if (slotsPerProvider <= 0) {
-            return 0;
-        }
-
-        return Math.min(AdaptivePatternProviderState.MAX_PATTERN_SLOTS, slotsPerProvider * getProviderSlotLimit());
+        return AdaptivePatternProviderDisplayHelper.getMaxPatternCapacity(
+                getProviderStack(),
+                getProviderSlotLimit(),
+                AdaptivePatternProviderState.MAX_PATTERN_SLOTS);
     }
 
     private int getExtraProviderSlotsFromCapacityCards() {
@@ -523,35 +517,22 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     private Component getResolvedProviderNameForGui() {
-        ItemStack providerStack = getProviderStack();
-        if (providerStack.isEmpty()) {
-            return Component.translatable(getProviderTranslationKey());
-        }
-
-        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
-        return displayName != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(
-                getAdaptiveProviderVariantTranslationKey(),
-                displayName) : Component.translatable(getProviderTranslationKey());
+        return AdaptivePatternProviderDisplayHelper.getGuiProviderName(
+                getProviderStack(),
+                getProviderTranslationKey(),
+                getAdaptiveProviderVariantTranslationKey());
     }
 
     private Component getResolvedProviderNameForTerminal() {
-        ItemStack providerStack = getProviderStack();
-        if (providerStack.isEmpty()) {
-            return Component.translatable(getProviderTranslationKey());
-        }
-
-        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
-        return displayName != null ? AdaptivePatternProviderResolver.decorateAdaptiveProviderName(displayName) : Component.translatable(getProviderTranslationKey());
+        return AdaptivePatternProviderDisplayHelper.getTerminalProviderName(
+                getProviderStack(),
+                getProviderTranslationKey());
     }
 
     private Component getResolvedInternalProviderName() {
-        ItemStack providerStack = getProviderStack();
-        if (providerStack.isEmpty()) {
-            return Component.translatable(getProviderTranslationKey());
-        }
-
-        Component displayName = AdaptivePatternProviderResolver.getResolvedProviderDisplayName(providerStack);
-        return displayName != null ? displayName : Component.translatable(getProviderTranslationKey());
+        return AdaptivePatternProviderDisplayHelper.getInternalProviderName(
+                getProviderStack(),
+                getProviderTranslationKey());
     }
 
     private String getProviderTranslationKey() {
