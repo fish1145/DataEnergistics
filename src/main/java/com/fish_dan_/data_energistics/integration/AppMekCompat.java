@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
@@ -12,8 +13,6 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.definitions.AEBlockEntities;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.function.Supplier;
 
 public final class AppMekCompat {
@@ -33,13 +32,7 @@ public final class AppMekCompat {
             return null;
         }
 
-        try {
-            Class<?> handlerClass = Class.forName(CHEMICAL_HANDLER_CLASS);
-            Constructor<?> constructor = handlerClass.getConstructor(Supplier.class);
-            return constructor.newInstance(logicSupplier);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
-        }
+        return ReflectionAccess.newInstance(CHEMICAL_HANDLER_CLASS, new Class<?>[] { Supplier.class }, logicSupplier);
     }
 
     public static void registerChemicalBlockEntityCapabilities(RegisterCapabilitiesEvent event) {
@@ -88,13 +81,10 @@ public final class AppMekCompat {
     @SuppressWarnings("unchecked")
     @Nullable
     private static BlockCapability<Object, Direction> getChemicalBlockCapability() {
-        try {
-            Class<?> capabilitiesClass = Class.forName(CHEMICAL_CAPABILITIES_CLASS);
-            Object chemicalCapabilityHolder = capabilitiesClass.getField("CHEMICAL").get(null);
-            Method blockMethod = chemicalCapabilityHolder.getClass().getMethod("block");
-            return (BlockCapability<Object, Direction>) blockMethod.invoke(chemicalCapabilityHolder);
-        } catch (ReflectiveOperationException | LinkageError ignored) {
-            return null;
-        }
+        Object chemicalCapabilityHolder = ReflectionAccess.getField(
+                ReflectionAccess.findStaticField(CHEMICAL_CAPABILITIES_CLASS, "CHEMICAL"),
+                null);
+        Object capability = ReflectionAccess.invokeNoArg(chemicalCapabilityHolder, "block");
+        return capability instanceof BlockCapability<?, ?> blockCapability ? (BlockCapability<Object, Direction>) blockCapability : null;
     }
 }

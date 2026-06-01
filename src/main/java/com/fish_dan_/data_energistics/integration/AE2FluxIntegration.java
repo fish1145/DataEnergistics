@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
@@ -9,13 +11,14 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 
-import java.lang.reflect.Method;
+import java.lang.invoke.VarHandle;
+import java.util.Optional;
 
 public final class AE2FluxIntegration {
 
     private static Class<?> fluxKeyClass;
     private static Class<?> energyTypeClass;
-    private static Method fluxKeyOfMethod;
+    private static boolean initialized;
     private static Object energyTypeFE;
 
     static {
@@ -31,12 +34,13 @@ public final class AE2FluxIntegration {
     private static void initializeReflection() throws Exception {
         fluxKeyClass = Class.forName("com.glodblock.github.appflux.common.me.key.FluxKey");
         energyTypeClass = Class.forName("com.glodblock.github.appflux.common.me.key.type.EnergyType");
-        fluxKeyOfMethod = fluxKeyClass.getMethod("of", energyTypeClass);
-        energyTypeFE = energyTypeClass.getField("FE").get(null);
+        Optional<VarHandle> energyTypeFeField = ReflectionAccess.findStaticField(energyTypeClass, "FE");
+        energyTypeFE = ReflectionAccess.getField(energyTypeFeField, null);
+        initialized = energyTypeFE != null;
     }
 
     public static boolean isAvailable() {
-        return ModFlags.isAppFluxLoaded() && fluxKeyClass != null;
+        return ModFlags.isAppFluxLoaded() && initialized;
     }
 
     public static long extractEnergyFromOwnNetwork(AENetworkedBlockEntity blockEntity, long amount, boolean simulate) {
@@ -65,7 +69,11 @@ public final class AE2FluxIntegration {
                 return 0;
             }
 
-            Object fluxKeyObj = fluxKeyOfMethod.invoke(null, energyTypeFE);
+            Object fluxKeyObj = ReflectionAccess.invokeStatic(
+                    fluxKeyClass.getName(),
+                    "of",
+                    new Class<?>[] { energyTypeClass },
+                    energyTypeFE);
             if (!(fluxKeyObj instanceof AEKey fluxKey)) {
                 return 0;
             }

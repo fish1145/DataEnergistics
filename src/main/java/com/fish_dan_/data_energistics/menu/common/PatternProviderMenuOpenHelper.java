@@ -20,9 +20,7 @@ import appeng.menu.locator.MenuLocators;
 import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -84,20 +82,10 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        try {
-            Class<?> menusClass = Class.forName(APPLIED_PNEUMATICS_MENUS_CLASS);
-            Field field = menusClass.getField(menuFieldName);
-            Object fieldValue = field.get(null);
-            MenuType<?> menuType = null;
-            if (fieldValue instanceof MenuType<?> directMenuType) {
-                menuType = directMenuType;
-            } else if (fieldValue instanceof Supplier<?> supplier && supplier.get() instanceof MenuType<?> suppliedMenuType) {
-                menuType = suppliedMenuType;
-            }
-            return menuType != null && MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(blockEntity));
-        } catch (ReflectiveOperationException ignored) {
-            return false;
-        }
+        MenuType<?> menuType = readMenuType(ReflectionAccess.getField(
+                ReflectionAccess.findStaticField(APPLIED_PNEUMATICS_MENUS_CLASS, menuFieldName),
+                null));
+        return menuType != null && MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(blockEntity));
     }
 
     private static boolean openViaPatternProviderLogicHost(PatternContainer provider, Player player) {
@@ -289,15 +277,10 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        try {
-            Class<?> containerClass = Class.forName("com.glodblock.github.extendedae.container.ContainerAssemblerMatrix");
-            Object type = containerClass.getField("TYPE").get(null);
-            if (type instanceof MenuType<?> menuType) {
-                return MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(coreBlockEntity));
-            }
-        } catch (ReflectiveOperationException ignored) {}
-
-        return false;
+        MenuType<?> menuType = readMenuType(ReflectionAccess.getField(
+                ReflectionAccess.findStaticField("com.glodblock.github.extendedae.container.ContainerAssemblerMatrix", "TYPE"),
+                null));
+        return menuType != null && MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(coreBlockEntity));
     }
 
     @Nullable
@@ -310,27 +293,17 @@ public final class PatternProviderMenuOpenHelper {
             return menuType;
         }
 
-        Class<?> type = target.getClass();
-        while (type != null) {
-            for (Field field : type.getDeclaredFields()) {
-                if (!Modifier.isStatic(field.getModifiers())) {
-                    continue;
-                }
-                if (!MenuType.class.isAssignableFrom(field.getType())) {
-                    continue;
-                }
+        return null;
+    }
 
-                try {
-                    field.setAccessible(true);
-                    Object fieldValue = field.get(null);
-                    if (fieldValue instanceof MenuType<?> menuType) {
-                        return menuType;
-                    }
-                } catch (ReflectiveOperationException ignored) {}
-            }
-            type = type.getSuperclass();
+    @Nullable
+    private static MenuType<?> readMenuType(@Nullable Object value) {
+        if (value instanceof MenuType<?> menuType) {
+            return menuType;
         }
-
+        if (value instanceof Supplier<?> supplier && supplier.get() instanceof MenuType<?> suppliedMenuType) {
+            return suppliedMenuType;
+        }
         return null;
     }
 
