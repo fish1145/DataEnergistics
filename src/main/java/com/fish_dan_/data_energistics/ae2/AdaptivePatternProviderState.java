@@ -325,7 +325,7 @@ public final class AdaptivePatternProviderState {
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            return AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack);
+            return AdaptivePatternProviderResolver.isSupportedProviderStack(stack);
         }
     }
 }

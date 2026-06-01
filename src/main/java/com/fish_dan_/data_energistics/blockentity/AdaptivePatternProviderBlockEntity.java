@@ -503,46 +503,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return AdaptivePatternProviderResolver.resolveProviderProfile(getAdaptiveState().getProviderStack());
     }
 
-    public static boolean isSupportedProviderStack(ItemStack stack) {
-        return AdaptivePatternProviderResolver.isSupportedProviderStack(stack);
-    }
-
-    @Nullable
-    public static AdaptivePatternProviderResolver.ProviderKind getResolvedProviderKind(ItemStack stack) {
-        return AdaptivePatternProviderResolver.getResolvedProviderKind(stack);
-    }
-
-    public static int getResolvedSlotsPerProvider(ItemStack stack) {
-        return AdaptivePatternProviderResolver.getResolvedSlotsPerProvider(stack);
-    }
-
-    @Nullable
-    public static ItemStack getResolvedProviderMainMenuIcon(ItemStack stack) {
-        return AdaptivePatternProviderResolver.getResolvedProviderMainMenuIcon(stack);
-    }
-
-    @Nullable
-    public static AEItemKey getResolvedProviderTerminalIcon(ItemStack stack) {
-        return AdaptivePatternProviderResolver.getResolvedProviderTerminalIcon(stack);
-    }
-
-    @Nullable
-    public static Component getResolvedProviderDisplayName(ItemStack stack) {
-        return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(stack);
-    }
-
-    public static boolean isAdvancedAeProviderStack(ItemStack stack) {
-        return AdaptivePatternProviderResolver.isAdvancedAeProviderStack(stack);
-    }
-
-    public static boolean isAe2LightningTechOverloadedProviderStack(ItemStack stack) {
-        return AdaptivePatternProviderResolver.isAe2LightningTechOverloadedProviderStack(stack);
-    }
-
-    public static boolean isAe2LightningTechOverloadPatternStack(ItemStack stack) {
-        return AdaptivePatternProviderResolver.isAe2LightningTechOverloadPatternStack(stack);
-    }
-
     private void onAe2LtStateChanged() {
         this.saveChanges();
         this.markForClientUpdate();
