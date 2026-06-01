@@ -15,10 +15,12 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.ref.WeakReference;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -29,21 +31,24 @@ public final class Ae2LtRuntimeBridge {
     private static final String GHOST_OUTPUT_BLOCK_ENTITY_CLASS = "com.moakiee.ae2lt.blockentity.GhostOutputBlockEntity";
     private static final String POWER_COST_UTIL_CLASS = "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
 
-    private static @Nullable Method machineAdapterFindMethod;
-    private static @Nullable Method adapterCanAcceptMethod;
-    private static @Nullable Method adapterPushCopiesMethod;
-    private static @Nullable Method adapterFlushOverflowMethod;
-    private static @Nullable Method adapterExtractOutputsMethod;
-    private static @Nullable Method pushResultAcceptedCopiesMethod;
-    private static @Nullable Method pushResultOverflowMethod;
-    private static @Nullable Method powerCostMaxAffordableMethod;
-    private static @Nullable Method powerCostConsumeMethod;
-    private static @Nullable Method ejectUnregisterAllMethod;
-    private static @Nullable Method ejectRegisterMethod;
-    private static @Nullable Method dimPosDimensionMethod;
-    private static @Nullable Method dimPosPosMethod;
-    private static @Nullable Constructor<?> ghostOutputConstructor;
-    private static @Nullable Constructor<?> ejectEntryConstructor;
+    private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
+
+    private static @Nullable MethodHandle machineAdapterFindMethod;
+    private static @Nullable MethodHandle adapterCanAcceptMethod;
+    private static @Nullable MethodHandle adapterPushCopiesMethod;
+    private static @Nullable MethodHandle adapterFlushOverflowMethod;
+    private static @Nullable MethodHandle adapterExtractOutputsMethod;
+    private static @Nullable MethodHandle pushResultAcceptedCopiesMethod;
+    private static @Nullable MethodHandle pushResultOverflowMethod;
+    private static @Nullable MethodHandle powerCostMaxAffordableMethod;
+    private static @Nullable MethodHandle powerCostConsumeMethod;
+    private static @Nullable MethodHandle ejectUnregisterAllMethod;
+    private static @Nullable MethodHandle ejectRegisterMethod;
+    private static @Nullable MethodHandle dimPosDimensionMethod;
+    private static @Nullable MethodHandle dimPosPosMethod;
+    private static @Nullable MethodHandle ghostOutputConstructor;
+    private static @Nullable MethodHandle ghostOutputSetLevelMethod;
+    private static @Nullable MethodHandle ejectEntryConstructor;
     private static boolean initialized;
 
     private Ae2LtRuntimeBridge() {}
@@ -72,7 +77,7 @@ public final class Ae2LtRuntimeBridge {
         }
 
         try {
-            Object adapter = machineAdapterFindMethod.invoke(null, targetLevel, connection.pos());
+            Object adapter = machineAdapterFindMethod.invoke(targetLevel, connection.pos());
             if (adapter == null) {
                 return null;
             }
@@ -119,7 +124,7 @@ public final class Ae2LtRuntimeBridge {
                 }
             }
             return converted;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -133,7 +138,7 @@ public final class Ae2LtRuntimeBridge {
         }
 
         try {
-            Object adapter = machineAdapterFindMethod.invoke(null, targetLevel, connection.pos());
+            Object adapter = machineAdapterFindMethod.invoke(targetLevel, connection.pos());
             return adapter != null && Boolean.TRUE.equals(adapterFlushOverflowMethod.invoke(
                     adapter,
                     targetLevel,
@@ -141,7 +146,7 @@ public final class Ae2LtRuntimeBridge {
                     connection.boundFace(),
                     overflow,
                     actionSource));
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return false;
         }
     }
@@ -156,7 +161,7 @@ public final class Ae2LtRuntimeBridge {
         }
 
         try {
-            Object adapter = machineAdapterFindMethod.invoke(null, level, pos);
+            Object adapter = machineAdapterFindMethod.invoke(level, pos);
             if (adapter == null) {
                 return List.of();
             }
@@ -173,7 +178,7 @@ public final class Ae2LtRuntimeBridge {
                 }
             }
             return converted;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return List.of();
         }
     }
@@ -184,9 +189,9 @@ public final class Ae2LtRuntimeBridge {
         }
 
         try {
-            Object result = powerCostMaxAffordableMethod.invoke(null, grid, key, amount);
+            Object result = powerCostMaxAffordableMethod.invoke(grid, key, amount);
             return result instanceof Number number ? number.longValue() : 0L;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return 0L;
         }
     }
@@ -197,8 +202,8 @@ public final class Ae2LtRuntimeBridge {
         }
 
         try {
-            powerCostConsumeMethod.invoke(null, grid, key, amount);
-        } catch (Exception ignored) {}
+            powerCostConsumeMethod.invoke(grid, key, amount);
+        } catch (Throwable ignored) {}
     }
 
     public static void refreshEjectRegistrations(BlockEntity host,
@@ -210,7 +215,7 @@ public final class Ae2LtRuntimeBridge {
         }
 
         try {
-            Object removed = ejectUnregisterAllMethod.invoke(null, host, true);
+            Object removed = ejectUnregisterAllMethod.invoke(host, true);
             invalidateCapabilities(removed, level);
 
             if (!ejectModeEnabled || !wirelessModeEnabled) {
@@ -229,19 +234,19 @@ public final class Ae2LtRuntimeBridge {
 
                 BlockPos adjacentPos = connection.pos().relative(connection.boundFace());
                 Direction queryFace = connection.boundFace().getOpposite();
-                Object ghostBlockEntity = ghostOutputConstructor.newInstance(adjacentPos);
-                ghostBlockEntity.getClass().getMethod("setLevel", net.minecraft.world.level.Level.class).invoke(ghostBlockEntity, targetLevel);
+                Object ghostBlockEntity = ghostOutputConstructor.invoke(adjacentPos);
+                ghostOutputSetLevelMethod.invoke(ghostBlockEntity, targetLevel);
 
-                Object entry = ejectEntryConstructor.newInstance(
+                Object entry = ejectEntryConstructor.invoke(
                         new WeakReference<>(host),
                         ghostBlockEntity,
                         level.dimension(),
                         host.getBlockPos());
 
-                ejectRegisterMethod.invoke(null, targetLevel.dimension(), adjacentPos.asLong(), queryFace, entry);
+                ejectRegisterMethod.invoke(targetLevel.dimension(), adjacentPos.asLong(), queryFace, entry);
                 targetLevel.invalidateCapabilities(adjacentPos);
             }
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     private static void invalidateCapabilities(@Nullable Object positions, ServerLevel sourceLevel) {
@@ -263,7 +268,7 @@ public final class Ae2LtRuntimeBridge {
                 if (targetLevel != null) {
                     targetLevel.invalidateCapabilities(blockPos);
                 }
-            } catch (Exception ignored) {}
+            } catch (Throwable ignored) {}
         }
     }
 
@@ -271,16 +276,23 @@ public final class Ae2LtRuntimeBridge {
         initialized = true;
         try {
             Class<?> machineAdapterRegistryClass = Class.forName(MACHINE_ADAPTER_REGISTRY_CLASS);
-            machineAdapterFindMethod = machineAdapterRegistryClass.getMethod("find", net.minecraft.world.level.Level.class, BlockPos.class);
+            machineAdapterFindMethod = findStatic(
+                    machineAdapterRegistryClass,
+                    "find",
+                    net.minecraft.world.level.Level.class,
+                    BlockPos.class);
 
             Class<?> machineAdapterClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter");
-            adapterCanAcceptMethod = machineAdapterClass.getMethod(
+            adapterCanAcceptMethod = findVirtual(
+                    machineAdapterClass,
                     "canAccept",
                     ServerLevel.class,
                     BlockPos.class,
                     Direction.class,
                     IPatternDetails.class);
-            adapterPushCopiesMethod = machineAdapterClass.getMethod(
+            Class<?> pushResultClass = Class.forName("com.moakiee.ae2lt.logic.PushResult");
+            adapterPushCopiesMethod = findVirtual(
+                    machineAdapterClass,
                     "pushCopies",
                     ServerLevel.class,
                     BlockPos.class,
@@ -291,7 +303,8 @@ public final class Ae2LtRuntimeBridge {
                     boolean.class,
                     Set.class,
                     IActionSource.class);
-            adapterFlushOverflowMethod = machineAdapterClass.getMethod(
+            adapterFlushOverflowMethod = findVirtual(
+                    machineAdapterClass,
                     "flushOverflow",
                     ServerLevel.class,
                     BlockPos.class,
@@ -299,7 +312,8 @@ public final class Ae2LtRuntimeBridge {
                     List.class,
                     IActionSource.class);
             Class<?> allowedOutputFilterClass = Class.forName("com.moakiee.ae2lt.logic.AllowedOutputFilter");
-            adapterExtractOutputsMethod = machineAdapterClass.getMethod(
+            adapterExtractOutputsMethod = findVirtual(
+                    machineAdapterClass,
                     "extractOutputs",
                     ServerLevel.class,
                     BlockPos.class,
@@ -307,23 +321,24 @@ public final class Ae2LtRuntimeBridge {
                     allowedOutputFilterClass,
                     IActionSource.class);
 
-            Class<?> pushResultClass = Class.forName("com.moakiee.ae2lt.logic.PushResult");
-            pushResultAcceptedCopiesMethod = pushResultClass.getMethod("acceptedCopies");
-            pushResultOverflowMethod = pushResultClass.getMethod("overflow");
+            pushResultAcceptedCopiesMethod = findVirtual(pushResultClass, "acceptedCopies");
+            pushResultOverflowMethod = findVirtual(pushResultClass, "overflow");
 
             Class<?> powerCostClass = Class.forName(POWER_COST_UTIL_CLASS);
-            powerCostMaxAffordableMethod = powerCostClass.getMethod("maxAffordable", IGrid.class, AEKey.class, long.class);
-            powerCostConsumeMethod = powerCostClass.getMethod("consume", IGrid.class, AEKey.class, long.class);
+            powerCostMaxAffordableMethod = findStatic(powerCostClass, "maxAffordable", IGrid.class, AEKey.class, long.class);
+            powerCostConsumeMethod = findStatic(powerCostClass, "consume", IGrid.class, AEKey.class, long.class);
 
             Class<?> ejectRegistryClass = Class.forName(EJECT_MODE_REGISTRY_CLASS);
-            ejectUnregisterAllMethod = ejectRegistryClass.getMethod("unregisterAll", BlockEntity.class, boolean.class);
+            ejectUnregisterAllMethod = findStatic(ejectRegistryClass, "unregisterAll", BlockEntity.class, boolean.class);
             Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
-            ejectEntryConstructor = ejectEntryClass.getConstructor(
+            ejectEntryConstructor = findConstructor(
+                    ejectEntryClass,
                     WeakReference.class,
                     BlockEntity.class,
                     net.minecraft.resources.ResourceKey.class,
                     BlockPos.class);
-            ejectRegisterMethod = ejectRegistryClass.getMethod(
+            ejectRegisterMethod = findStatic(
+                    ejectRegistryClass,
                     "register",
                     net.minecraft.resources.ResourceKey.class,
                     long.class,
@@ -331,13 +346,45 @@ public final class Ae2LtRuntimeBridge {
                     ejectEntryClass);
 
             Class<?> dimPosClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$DimPos");
-            dimPosDimensionMethod = dimPosClass.getMethod("dimension");
-            dimPosPosMethod = dimPosClass.getMethod("pos");
+            dimPosDimensionMethod = findVirtual(dimPosClass, "dimension");
+            dimPosPosMethod = findVirtual(dimPosClass, "pos");
 
             Class<?> ghostClass = Class.forName(GHOST_OUTPUT_BLOCK_ENTITY_CLASS);
-            ghostOutputConstructor = ghostClass.getConstructor(BlockPos.class);
-        } catch (Exception ignored) {
+            ghostOutputConstructor = findConstructor(ghostClass, BlockPos.class);
+            ghostOutputSetLevelMethod = findVirtual(ghostClass, "setLevel", net.minecraft.world.level.Level.class);
+        } catch (ReflectiveOperationException | LinkageError | SecurityException ignored) {
             machineAdapterFindMethod = null;
         }
+    }
+
+    private static MethodHandle findStatic(Class<?> owner,
+                                           String methodName,
+                                           Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
+        for (var method : owner.getMethods()) {
+            if (java.lang.reflect.Modifier.isStatic(method.getModifiers())
+                    && method.getName().equals(methodName)
+                    && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+                return PUBLIC_LOOKUP.unreflect(method);
+            }
+        }
+        throw new NoSuchMethodException(owner.getName() + "." + methodName);
+    }
+
+    private static MethodHandle findVirtual(Class<?> owner,
+                                            String methodName,
+                                            Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
+        for (var method : owner.getMethods()) {
+            if (!java.lang.reflect.Modifier.isStatic(method.getModifiers())
+                    && method.getName().equals(methodName)
+                    && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+                return PUBLIC_LOOKUP.unreflect(method);
+            }
+        }
+        throw new NoSuchMethodException(owner.getName() + "." + methodName);
+    }
+
+    private static MethodHandle findConstructor(Class<?> owner,
+                                                Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
+        return PUBLIC_LOOKUP.findConstructor(owner, MethodType.methodType(void.class, parameterTypes));
     }
 }
