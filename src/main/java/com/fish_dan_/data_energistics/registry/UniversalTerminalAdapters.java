@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocato
 import com.fish_dan_.data_energistics.util.UniversalTerminalConfigProfile;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 import com.fish_dan_.data_energistics.util.UniversalTerminalDefinition;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -28,7 +29,6 @@ import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -361,16 +361,14 @@ public final class UniversalTerminalAdapters {
     private static @Nullable java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> resolveMenuTypeSupplier(
                                                                                                                             String ownerClassName, String fieldName) {
         try {
-            Class<?> ownerClass = Class.forName(ownerClassName);
-            Field field = ownerClass.getField(fieldName);
-            Object value = field.get(null);
+            Object value = ReflectionAccess.getField(ReflectionAccess.findStaticField(ownerClassName, fieldName), null);
             if (value instanceof java.util.function.Supplier<?> supplier) {
                 return () -> (net.minecraft.world.inventory.MenuType<?>) supplier.get();
             }
             if (value instanceof net.minecraft.world.inventory.MenuType<?> menuType) {
                 return () -> menuType;
             }
-        } catch (ReflectiveOperationException e) {
+        } catch (LinkageError e) {
             LOGGER.debug("Could not resolve reflected menu supplier {}#{}", ownerClassName, fieldName, e);
         }
         return null;
@@ -387,7 +385,7 @@ public final class UniversalTerminalAdapters {
         try {
             Class<?> settingsClass = Class.forName("net.pedroksl.advanced_ae.api.AAESettings");
             Class<? extends Enum> visibleClass = (Class<? extends Enum>) Class.forName("net.pedroksl.advanced_ae.api.ShowQuantumCrafters");
-            Object setting = settingsClass.getField("TERMINAL_SHOW_QUANTUM_CRAFTERS").get(null);
+            Object setting = ReflectionAccess.getField(ReflectionAccess.findStaticField(settingsClass, "TERMINAL_SHOW_QUANTUM_CRAFTERS"), null);
             Enum<?> visible = Enum.valueOf(visibleClass, "VISIBLE");
             var builder = IConfigManager.builder(saveAction);
             ((appeng.api.util.IConfigManagerBuilder) builder).registerSetting((Setting) setting, (Enum) visible);

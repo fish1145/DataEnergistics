@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.integration;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
@@ -11,17 +11,22 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.invoke.VarHandle;
+import java.util.Optional;
 
 public final class AE2FluxIntegration {
 
     private static Class<?> fluxKeyClass;
     private static Class<?> energyTypeClass;
-    private static Method fluxKeyOfMethod;
+    private static boolean initialized;
     private static Object energyTypeFE;
+    private static MethodHandle fluxKeyOfMethod;
 
     static {
-        if (Data_Energistics.Mods.isAppFluxLoaded()) {
+        if (ModFlags.isAppFluxLoaded()) {
             try {
                 initializeReflection();
             } catch (Exception ignored) {}
@@ -33,12 +38,17 @@ public final class AE2FluxIntegration {
     private static void initializeReflection() throws Exception {
         fluxKeyClass = Class.forName("com.glodblock.github.appflux.common.me.key.FluxKey");
         energyTypeClass = Class.forName("com.glodblock.github.appflux.common.me.key.type.EnergyType");
-        fluxKeyOfMethod = fluxKeyClass.getMethod("of", energyTypeClass);
-        energyTypeFE = energyTypeClass.getField("FE").get(null);
+        Optional<VarHandle> energyTypeFeField = ReflectionAccess.findStaticField(energyTypeClass, "FE");
+        energyTypeFE = ReflectionAccess.getField(energyTypeFeField, null);
+        fluxKeyOfMethod = MethodHandles.publicLookup().findStatic(
+                fluxKeyClass,
+                "of",
+                MethodType.methodType(fluxKeyClass, energyTypeClass));
+        initialized = energyTypeFE != null && fluxKeyOfMethod != null;
     }
 
     public static boolean isAvailable() {
-        return Data_Energistics.Mods.isAppFluxLoaded() && fluxKeyClass != null;
+        return ModFlags.isAppFluxLoaded() && initialized;
     }
 
     public static long extractEnergyFromOwnNetwork(AENetworkedBlockEntity blockEntity, long amount, boolean simulate) {
@@ -67,14 +77,14 @@ public final class AE2FluxIntegration {
                 return 0;
             }
 
-            Object fluxKeyObj = fluxKeyOfMethod.invoke(null, energyTypeFE);
+            Object fluxKeyObj = fluxKeyOfMethod.invoke(energyTypeFE);
             if (!(fluxKeyObj instanceof AEKey fluxKey)) {
                 return 0;
             }
 
             Actionable actionable = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
             return inventory.extract(fluxKey, amount, actionable, IActionSource.ofMachine(blockEntity));
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return 0;
         }
     }

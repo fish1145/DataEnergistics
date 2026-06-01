@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -51,10 +49,10 @@ public final class AdaptivePatternProviderState {
     private final List<AdaptiveWirelessConnection> ae2LtConnections = new ArrayList<>();
     private boolean advancedAeFilteredImport;
     private boolean resonatingPullEnabled;
-    private AdaptivePatternProviderBlockEntity.Ae2LtProviderMode ae2LtProviderMode = AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.NORMAL;
-    private AdaptivePatternProviderBlockEntity.Ae2LtReturnMode ae2LtReturnMode = AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.OFF;
-    private AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode = AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION;
-    private AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode = AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.NORMAL;
+    private AdaptivePatternProviderModes.Ae2LtProviderMode ae2LtProviderMode = AdaptivePatternProviderModes.Ae2LtProviderMode.NORMAL;
+    private AdaptivePatternProviderModes.Ae2LtReturnMode ae2LtReturnMode = AdaptivePatternProviderModes.Ae2LtReturnMode.OFF;
+    private AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode = AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION;
+    private AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode = AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.NORMAL;
 
     public AdaptivePatternProviderState(InternalInventoryHost inventoryHost, IntSupplier providerSlotLimit) {
         this.providerSlotLimit = providerSlotLimit;
@@ -120,7 +118,7 @@ public final class AdaptivePatternProviderState {
         return true;
     }
 
-    public AdaptivePatternProviderBlockEntity.Ae2LtProviderMode getAe2LtProviderMode() {
+    public AdaptivePatternProviderModes.Ae2LtProviderMode getAe2LtProviderMode() {
         return this.ae2LtProviderMode;
     }
 
@@ -129,10 +127,10 @@ public final class AdaptivePatternProviderState {
     }
 
     public boolean isAe2LtWirelessMode() {
-        return this.ae2LtProviderMode == AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.WIRELESS;
+        return this.ae2LtProviderMode == AdaptivePatternProviderModes.Ae2LtProviderMode.WIRELESS;
     }
 
-    public AdaptivePatternProviderBlockEntity.Ae2LtReturnMode getAe2LtReturnMode() {
+    public AdaptivePatternProviderModes.Ae2LtReturnMode getAe2LtReturnMode() {
         return this.ae2LtReturnMode;
     }
 
@@ -140,7 +138,7 @@ public final class AdaptivePatternProviderState {
         this.ae2LtReturnMode = this.ae2LtReturnMode.next();
     }
 
-    public AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
+    public AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
         return this.ae2LtWirelessDispatchMode;
     }
 
@@ -148,7 +146,7 @@ public final class AdaptivePatternProviderState {
         this.ae2LtWirelessDispatchMode = this.ae2LtWirelessDispatchMode.next();
     }
 
-    public AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
+    public AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
         return this.ae2LtWirelessSpeedMode;
     }
 
@@ -206,17 +204,17 @@ public final class AdaptivePatternProviderState {
         this.advancedAeFilteredImport = data.getBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG);
         this.resonatingPullEnabled = data.getBoolean(RESONATING_PULL_ENABLED_TAG);
         this.ae2LtProviderMode = readEnum(data, AE2LT_PROVIDER_MODE_TAG,
-                AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.NORMAL,
-                AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.class);
+                AdaptivePatternProviderModes.Ae2LtProviderMode.NORMAL,
+                AdaptivePatternProviderModes.Ae2LtProviderMode.class);
         this.ae2LtReturnMode = readEnum(data, AE2LT_RETURN_MODE_TAG,
-                AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.OFF,
-                AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.class);
+                AdaptivePatternProviderModes.Ae2LtReturnMode.OFF,
+                AdaptivePatternProviderModes.Ae2LtReturnMode.class);
         this.ae2LtWirelessDispatchMode = readEnum(data, AE2LT_WIRELESS_DISPATCH_MODE_TAG,
-                AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION,
-                AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.class);
+                AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION,
+                AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.class);
         this.ae2LtWirelessSpeedMode = readEnum(data, AE2LT_WIRELESS_SPEED_MODE_TAG,
-                AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.NORMAL,
-                AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.class);
+                AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.NORMAL,
+                AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.class);
         this.ae2LtConnections.clear();
         ListTag connectionList = data.getList(AE2LT_CONNECTIONS_TAG, CompoundTag.TAG_COMPOUND);
         for (int i = 0; i < connectionList.size(); i++) {
@@ -262,25 +260,25 @@ public final class AdaptivePatternProviderState {
             changed = true;
         }
 
-        var ae2LtProviderMode = AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.values()[data.readVarInt()];
+        var ae2LtProviderMode = AdaptivePatternProviderModes.Ae2LtProviderMode.values()[data.readVarInt()];
         if (this.ae2LtProviderMode != ae2LtProviderMode) {
             this.ae2LtProviderMode = ae2LtProviderMode;
             changed = true;
         }
 
-        var ae2LtReturnMode = AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.values()[data.readVarInt()];
+        var ae2LtReturnMode = AdaptivePatternProviderModes.Ae2LtReturnMode.values()[data.readVarInt()];
         if (this.ae2LtReturnMode != ae2LtReturnMode) {
             this.ae2LtReturnMode = ae2LtReturnMode;
             changed = true;
         }
 
-        var ae2LtWirelessDispatchMode = AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.values()[data.readVarInt()];
+        var ae2LtWirelessDispatchMode = AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.values()[data.readVarInt()];
         if (this.ae2LtWirelessDispatchMode != ae2LtWirelessDispatchMode) {
             this.ae2LtWirelessDispatchMode = ae2LtWirelessDispatchMode;
             changed = true;
         }
 
-        var ae2LtWirelessSpeedMode = AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.values()[data.readVarInt()];
+        var ae2LtWirelessSpeedMode = AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.values()[data.readVarInt()];
         if (this.ae2LtWirelessSpeedMode != ae2LtWirelessSpeedMode) {
             this.ae2LtWirelessSpeedMode = ae2LtWirelessSpeedMode;
             changed = true;
@@ -325,7 +323,7 @@ public final class AdaptivePatternProviderState {
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            return AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack);
+            return AdaptivePatternProviderResolver.isSupportedProviderStack(stack);
         }
     }
 }

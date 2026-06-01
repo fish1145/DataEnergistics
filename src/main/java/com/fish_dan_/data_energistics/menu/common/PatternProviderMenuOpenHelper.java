@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -19,13 +20,16 @@ import appeng.menu.locator.MenuLocators;
 import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public final class PatternProviderMenuOpenHelper {
@@ -44,6 +48,7 @@ public final class PatternProviderMenuOpenHelper {
             "openGUI",
             "openUi",
             "openUI");
+    private static final Map<Class<?>, List<ReflectiveOpenMethod>> REFLECTIVE_OPEN_METHOD_CACHE = new ConcurrentHashMap<>();
 
     private PatternProviderMenuOpenHelper() {}
 
@@ -83,20 +88,10 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        try {
-            Class<?> menusClass = Class.forName(APPLIED_PNEUMATICS_MENUS_CLASS);
-            Field field = menusClass.getField(menuFieldName);
-            Object fieldValue = field.get(null);
-            MenuType<?> menuType = null;
-            if (fieldValue instanceof MenuType<?> directMenuType) {
-                menuType = directMenuType;
-            } else if (fieldValue instanceof Supplier<?> supplier && supplier.get() instanceof MenuType<?> suppliedMenuType) {
-                menuType = suppliedMenuType;
-            }
-            return menuType != null && MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(blockEntity));
-        } catch (ReflectiveOperationException ignored) {
-            return false;
-        }
+        MenuType<?> menuType = readMenuType(ReflectionAccess.getField(
+                ReflectionAccess.findStaticField(APPLIED_PNEUMATICS_MENUS_CLASS, menuFieldName),
+                null));
+        return menuType != null && MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(blockEntity));
     }
 
     private static boolean openViaPatternProviderLogicHost(PatternContainer provider, Player player) {
@@ -157,14 +152,13 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        try {
-            Class<?> blockUiMenuType = Class.forName("com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType");
-            Method openUi = blockUiMenuType.getMethod("openUI", ServerPlayer.class, BlockPos.class);
-            Object result = openUi.invoke(null, serverPlayer, blockEntity.getBlockPos());
-            return result instanceof Boolean opened && opened;
-        } catch (ReflectiveOperationException ignored) {
-            return false;
-        }
+        Object result = ReflectionAccess.invokeStatic(
+                "com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType",
+                "openUI",
+                new Class<?>[] { ServerPlayer.class, BlockPos.class },
+                serverPlayer,
+                blockEntity.getBlockPos());
+        return result instanceof Boolean opened && opened;
     }
 
     private static boolean openViaReflectiveMenuType(PatternContainer provider, Player player) {
@@ -179,27 +173,20 @@ public final class PatternProviderMenuOpenHelper {
     private static boolean openViaReflectiveOpenMethod(PatternContainer provider, Player player) {
         Object locator = provider instanceof BlockEntity blockEntity ? MenuLocators.forBlockEntity(blockEntity) : null;
 
-        for (Method method : getAllDeclaredMethods(provider.getClass())) {
-            if (!REFLECTIVE_OPEN_METHOD_NAMES.contains(method.getName())) {
-                continue;
-            }
-
-            Object[] args = buildOpenArgs(method.getParameterTypes(), player, locator);
+        for (ReflectiveOpenMethod method : getReflectiveOpenMethods(provider.getClass())) {
+            Object[] args = buildOpenArgs(method.parameterTypes(), player, locator);
             if (args == null) {
                 continue;
             }
 
-            try {
-                method.setAccessible(true);
-                Object result = method.invoke(provider, args);
-                if (result instanceof Boolean opened) {
-                    if (opened) {
-                        return true;
-                    }
-                } else {
+            Object result = invokeReflectiveOpenMethod(method.handle(), provider, args);
+            if (result instanceof Boolean opened) {
+                if (opened) {
                     return true;
                 }
-            } catch (ReflectiveOperationException ignored) {}
+            } else if (result != null || method.returnType() == Void.TYPE) {
+                return true;
+            }
         }
 
         return false;
@@ -292,15 +279,10 @@ public final class PatternProviderMenuOpenHelper {
             return false;
         }
 
-        try {
-            Class<?> containerClass = Class.forName("com.glodblock.github.extendedae.container.ContainerAssemblerMatrix");
-            Object type = containerClass.getField("TYPE").get(null);
-            if (type instanceof MenuType<?> menuType) {
-                return MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(coreBlockEntity));
-            }
-        } catch (ReflectiveOperationException ignored) {}
-
-        return false;
+        MenuType<?> menuType = readMenuType(ReflectionAccess.getField(
+                ReflectionAccess.findStaticField("com.glodblock.github.extendedae.container.ContainerAssemblerMatrix", "TYPE"),
+                null));
+        return menuType != null && MenuOpener.open(menuType, player, MenuLocators.forBlockEntity(coreBlockEntity));
     }
 
     @Nullable
@@ -313,27 +295,17 @@ public final class PatternProviderMenuOpenHelper {
             return menuType;
         }
 
-        Class<?> type = target.getClass();
-        while (type != null) {
-            for (Field field : type.getDeclaredFields()) {
-                if (!Modifier.isStatic(field.getModifiers())) {
-                    continue;
-                }
-                if (!MenuType.class.isAssignableFrom(field.getType())) {
-                    continue;
-                }
+        return null;
+    }
 
-                try {
-                    field.setAccessible(true);
-                    Object fieldValue = field.get(null);
-                    if (fieldValue instanceof MenuType<?> menuType) {
-                        return menuType;
-                    }
-                } catch (ReflectiveOperationException ignored) {}
-            }
-            type = type.getSuperclass();
+    @Nullable
+    private static MenuType<?> readMenuType(@Nullable Object value) {
+        if (value instanceof MenuType<?> menuType) {
+            return menuType;
         }
-
+        if (value instanceof Supplier<?> supplier && supplier.get() instanceof MenuType<?> suppliedMenuType) {
+            return suppliedMenuType;
+        }
         return null;
     }
 
@@ -363,32 +335,53 @@ public final class PatternProviderMenuOpenHelper {
         return null;
     }
 
-    private static List<Method> getAllDeclaredMethods(Class<?> type) {
-        var methods = new java.util.ArrayList<Method>();
+    private static List<ReflectiveOpenMethod> getReflectiveOpenMethods(Class<?> type) {
+        return REFLECTIVE_OPEN_METHOD_CACHE.computeIfAbsent(type, PatternProviderMenuOpenHelper::findReflectiveOpenMethods);
+    }
+
+    private static List<ReflectiveOpenMethod> findReflectiveOpenMethods(Class<?> type) {
+        var methods = new ArrayList<ReflectiveOpenMethod>();
         Class<?> current = type;
         while (current != null) {
             for (Method method : current.getDeclaredMethods()) {
-                methods.add(method);
+                if (!Modifier.isStatic(method.getModifiers()) && REFLECTIVE_OPEN_METHOD_NAMES.contains(method.getName())) {
+                    toMethodHandle(method).ifPresent(handle -> methods.add(new ReflectiveOpenMethod(
+                            handle,
+                            method.getReturnType(),
+                            method.getParameterTypes())));
+                }
             }
             current = current.getSuperclass();
         }
         return methods;
     }
 
+    private static java.util.Optional<MethodHandle> toMethodHandle(Method method) {
+        try {
+            method.setAccessible(true);
+            return java.util.Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), MethodHandles.lookup())
+                    .unreflect(method));
+        } catch (IllegalAccessException | SecurityException ignored) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    @Nullable
+    private static Object invokeReflectiveOpenMethod(MethodHandle method, Object target, Object[] args) {
+        Object[] arguments = new Object[args.length + 1];
+        arguments[0] = target;
+        System.arraycopy(args, 0, arguments, 1, args.length);
+        try {
+            return method.invokeWithArguments(arguments);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     @Nullable
     private static Object invokeNoArg(Object target, String methodName) {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                return method.invoke(target);
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (ReflectiveOperationException ignored) {
-                return null;
-            }
-        }
-        return null;
+        return ReflectionAccess.invokeNoArg(target, methodName);
     }
+
+    private record ReflectiveOpenMethod(MethodHandle handle, Class<?> returnType, Class<?>[] parameterTypes) {}
 }

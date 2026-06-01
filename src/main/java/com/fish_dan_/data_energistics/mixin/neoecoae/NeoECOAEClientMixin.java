@@ -12,8 +12,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Pseudo
@@ -29,7 +30,7 @@ public class NeoECOAEClientMixin {
     @Unique
     private static final String FIXED_BLOCK_ENTITY_RENDERERS = "cn.dancingsnow.neoecoae.api.rendering.FixedBlockEntityRenderers";
     @Unique
-    private static volatile Method data_energistics$fixedRendererMethod;
+    private static volatile MethodHandle data_energistics$fixedRendererMethod;
     @Unique
     private static volatile boolean data_energistics$fixedRendererLookupAttempted;
 
@@ -55,21 +56,21 @@ public class NeoECOAEClientMixin {
 
     @Unique
     private static void data_energistics$invokeFixedRenderers(Object context, BlockPos sectionOrigin) {
-        Method renderMethod = data_energistics$getFixedRendererMethod(context);
+        MethodHandle renderMethod = data_energistics$getFixedRendererMethod(context);
         if (renderMethod == null) {
             return;
         }
 
         try {
-            renderMethod.invoke(null, context, sectionOrigin);
-        } catch (IllegalAccessException | InvocationTargetException exception) {
+            renderMethod.invoke(context, sectionOrigin);
+        } catch (Throwable exception) {
             throw new RuntimeException("Failed to invoke NeoECOAE fixed renderer hook", exception);
         }
     }
 
     @Unique
-    private static Method data_energistics$getFixedRendererMethod(Object context) {
-        Method renderMethod = data_energistics$fixedRendererMethod;
+    private static MethodHandle data_energistics$getFixedRendererMethod(Object context) {
+        MethodHandle renderMethod = data_energistics$fixedRendererMethod;
         if (renderMethod != null) {
             return renderMethod;
         }
@@ -80,7 +81,10 @@ public class NeoECOAEClientMixin {
         data_energistics$fixedRendererLookupAttempted = true;
         try {
             Class<?> renderersClass = Class.forName(FIXED_BLOCK_ENTITY_RENDERERS);
-            renderMethod = renderersClass.getMethod("render", context.getClass().getInterfaces()[0], BlockPos.class);
+            renderMethod = MethodHandles.publicLookup().findStatic(
+                    renderersClass,
+                    "render",
+                    MethodType.methodType(void.class, context.getClass().getInterfaces()[0], BlockPos.class));
             data_energistics$fixedRendererMethod = renderMethod;
             return renderMethod;
         } catch (ReflectiveOperationException | RuntimeException exception) {

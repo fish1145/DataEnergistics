@@ -6,11 +6,14 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.parts.IPart;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 
 final class UniversalTerminalMenuHostResolver {
@@ -57,14 +60,23 @@ final class UniversalTerminalMenuHostResolver {
                     continue;
                 }
 
-                try {
-                    partClass.getMethod(method.getName(), method.getParameterTypes());
-                } catch (NoSuchMethodException ignored) {
+                if (findPartMethod(partClass, method).isEmpty()) {
                     return false;
                 }
             }
         }
         return true;
+    }
+
+    private static Optional<MethodHandle> findPartMethod(Class<?> partClass, Method method) {
+        try {
+            return Optional.of(MethodHandles.publicLookup().findVirtual(
+                    partClass,
+                    method.getName(),
+                    MethodType.methodType(method.getReturnType(), method.getParameterTypes())));
+        } catch (NoSuchMethodException | IllegalAccessException | SecurityException ignored) {
+            return Optional.empty();
+        }
     }
 
     private record MenuHostInvocationHandler(UniversalTerminalPart part) implements InvocationHandler {
@@ -76,7 +88,7 @@ final class UniversalTerminalMenuHostResolver {
                     case "toString" -> "UniversalTerminalProxy[" + this.part + "]";
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == (args == null || args.length == 0 ? null : args[0]);
-                    default -> method.invoke(this, args);
+                    default -> ReflectionAccess.invoke(method, this, args == null ? new Object[0] : args);
                 };
             }
 
@@ -91,8 +103,13 @@ final class UniversalTerminalMenuHostResolver {
                 return this.part;
             }
 
-            Method partMethod = this.part.getClass().getMethod(method.getName(), method.getParameterTypes());
-            return partMethod.invoke(this.part, args);
+            Optional<MethodHandle> partMethod = findPartMethod(this.part.getClass(), method);
+            if (partMethod.isEmpty()) {
+                throw new NoSuchMethodException(this.part.getClass().getName() + "." + method.getName());
+            }
+            return partMethod.get()
+                    .bindTo(this.part)
+                    .invokeWithArguments(args == null ? new Object[0] : args);
         }
     }
 }

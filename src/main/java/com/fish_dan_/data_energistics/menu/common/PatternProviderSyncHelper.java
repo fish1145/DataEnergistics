@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -23,7 +23,6 @@ import appeng.parts.crafting.PatternProviderPart;
 import appeng.parts.encoding.EncodingMode;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,9 +31,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,7 +40,6 @@ public final class PatternProviderSyncHelper {
 
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
     private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
-    private static final Map<Class<?>, Map<String, Optional<Method>>> NO_ARG_METHOD_CACHE = new ConcurrentHashMap<>();
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
     private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
     private static final String NEOECOAE_NAMESPACE = "neoecoae";
@@ -618,11 +614,8 @@ public final class PatternProviderSyncHelper {
             return terminalIcon;
         }
 
-        if (container instanceof AdaptivePatternProviderBlockEntity blockEntity) {
-            return blockEntity.getMainMenuIcon();
-        }
-        if (container instanceof AdaptivePatternProviderPart part) {
-            return part.getMainMenuIcon();
+        if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
+            return adaptiveHost.getProviderMainMenuIcon();
         }
         if (container instanceof PatternProviderBlockEntity blockEntity) {
             return blockEntity.getMainMenuIcon();
@@ -1284,7 +1277,7 @@ public final class PatternProviderSyncHelper {
 
         Object providerStack = invokeNoArgReflectively(container, "getProviderStack");
         if (providerStack instanceof ItemStack stack && !stack.isEmpty()) {
-            return AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(stack);
+            return AdaptivePatternProviderResolver.getResolvedProviderDisplayName(stack);
         }
 
         return null;
@@ -1309,7 +1302,7 @@ public final class PatternProviderSyncHelper {
 
         Object providerStack = invokeNoArgReflectively(container, "getProviderStack");
         if (providerStack instanceof ItemStack stack && !stack.isEmpty()) {
-            ItemStack resolvedIcon = AdaptivePatternProviderBlockEntity.getResolvedProviderMainMenuIcon(stack);
+            ItemStack resolvedIcon = AdaptivePatternProviderResolver.getResolvedProviderMainMenuIcon(stack);
             if (resolvedIcon != null && !resolvedIcon.isEmpty()) {
                 ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(resolvedIcon.getItem());
                 if (iconItemId != null && resolvedIcon.getItem() != Items.AIR) {
@@ -1341,36 +1334,7 @@ public final class PatternProviderSyncHelper {
 
     @Nullable
     private static Object invokeNoArgReflectively(Object source, String methodName) {
-        Method method = NO_ARG_METHOD_CACHE
-                .computeIfAbsent(source.getClass(), ignored -> new ConcurrentHashMap<>())
-                .computeIfAbsent(methodName, ignored -> findNoArgMethod(source.getClass(), methodName))
-                .orElse(null);
-        if (method == null) {
-            return null;
-        }
-
-        try {
-            return method.invoke(source);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static Optional<Method> findNoArgMethod(Class<?> sourceClass, String methodName) {
-        Class<?> type = sourceClass;
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                return Optional.of(method);
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (Exception ignored) {
-                return Optional.empty();
-            }
-        }
-
-        return Optional.empty();
+        return ReflectionAccess.invokeNoArg(source, methodName);
     }
 
     private static Component resolveWorkstationDisplayName(ResourceLocation workstationId) {

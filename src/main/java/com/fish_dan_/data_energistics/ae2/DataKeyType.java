@@ -38,6 +38,6 @@ public final class DataKeyType extends AEKeyType {
 
     @Override
     public int getAmountPerOperation() {
-        return 1;
+        return super.getAmountPerOperation();
     }
 }

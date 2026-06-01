@@ -1,114 +1,37 @@
 package com.fish_dan_.data_energistics;
 
-import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
-import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
-import com.fish_dan_.data_energistics.client.ModItemColors;
-import com.fish_dan_.data_energistics.client.ModKeyMappings;
-import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
-import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
-import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
-import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
-import com.fish_dan_.data_energistics.client.render.LightBladeChargeRenderer;
-import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
-import com.fish_dan_.data_energistics.client.render.ThrownLightSaberRenderer;
-import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
-import com.fish_dan_.data_energistics.client.screen.Ae2TerminalKeyOverlay;
-import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
-import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
-import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
-import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
-import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
-import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
-import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
-import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
-import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
-import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
-import com.fish_dan_.data_energistics.common.CommonProxy;
-import com.fish_dan_.data_energistics.config.ConfigHolder;
-import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
-import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
-import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
-import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.registry.ModItems;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.registry.ModStorageCells;
-import com.fish_dan_.data_energistics.util.LightSaberColorData;
+import com.fish_dan_.data_energistics.bootstrap.common.CommonBootstrap;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.entity.TntRenderer;
-import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ChargedProjectiles;
-import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLLoader;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.ModelEvent;
-import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.data.loading.DatagenModLoader;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
-import appeng.client.gui.me.items.PatternEncodingTermScreen;
-import appeng.client.gui.style.StyleManager;
-import appeng.core.definitions.AEItems;
-import appeng.init.client.InitScreens;
-import appeng.items.misc.PaintBallItem;
 import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
 import org.slf4j.Logger;
 
-// The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(Data_Energistics.MODID)
 public class Data_Energistics {
 
-    // Define mod id in a common place for everything to reference
     public static final String MODID = "data_energistics";
 
     private static final String[][] STARTUP_SHUTDOWN_LOG_PAIRS = {
             { "Ciallo～(∠・ω< )⌒☆", "柚子厨真恶心！" },
             { "原神启动！", "前面的区域以后再探索吧" }
     };
-    // Directly reference a slf4j logger
+
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public Data_Energistics(IEventBus modEventBus, @Nullable ModContainer modContainer) {
-        ConfigHolder.init(modContainer);
-        CommonProxy.init(modEventBus);
+        CommonBootstrap.init(modEventBus, modContainer);
         String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[net.minecraft.util.RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
         LOGGER.info(selectedLogPair[0]);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.info(selectedLogPair[1]),
@@ -137,7 +60,14 @@ public class Data_Energistics {
 
     @SuppressWarnings("ConstantValue")
     public static boolean isClientThread() {
-        return isClientSide() && Minecraft.getInstance() != null && Minecraft.getInstance().isSameThread();
+        if (!isClientSide()) {
+            return false;
+        }
+        Object result = ReflectionAccess.invokeStatic(
+                "com.fish_dan_.data_energistics.client.ClientThreadHelper",
+                "isClientThread",
+                new Class<?>[0]);
+        return result instanceof Boolean clientThread && clientThread;
     }
 
     public static boolean isClientSide() {
@@ -155,353 +85,5 @@ public class Data_Energistics {
             path = path.substring(i + 1);
         }
         return ResourceLocation.fromNamespaceAndPath(MODID, path);
-    }
-
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with
-    // @SubscribeEvent
-    @SuppressWarnings("removal")
-    @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents {
-
-        @SubscribeEvent
-        public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {
-            ModItemColors.register(event);
-        }
-
-        @SubscribeEvent
-        public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
-            ModFluidClientExtensions.register(event);
-        }
-
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            event.enqueueWork(() -> {
-                ClientAeKeyRenderers.register();
-                ModStorageCells.registerClientModels();
-                registerMatterConvergingCrossbowProperties();
-                registerDataCaptureBallProperties();
-                registerLightSaberProperties();
-                NeoForge.EVENT_BUS.addListener(ClientModEvents::onClientTickPost);
-                NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
-                NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
-                NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
-            });
-        }
-
-        @SubscribeEvent
-        public static void onLoadComplete(FMLLoadCompleteEvent event) {
-            event.enqueueWork(ClientAeKeyRenderers::reregister);
-        }
-
-        @SubscribeEvent
-        public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-            event.register(ModKeyMappings.OPEN_PATTERN_PROVIDER);
-            event.register(ModKeyMappings.RENAME_PATTERN_PROVIDER);
-        }
-
-        @SubscribeEvent
-        public static void onRegisterScreens(RegisterMenuScreensEvent event) {
-            InitScreens.register(event, ModMenus.DATA_RIPPER.get(), DataRipperScreen::new, "/screens/data_ripper.json");
-            InitScreens.register(event, ModMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
-            InitScreens.register(event, ModMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
-            InitScreens.register(event, ModMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
-            InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
-            InitScreens.register(event, ModMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
-            InitScreens.register(event, ModMenus.DATA_TELEPORT_ANCHOR.get(), DataTeleportAnchorScreen::new, "/screens/data_teleport_anchor.json");
-            InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
-            InitScreens.register(event, ModMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
-            InitScreens.register(event, ModMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");
-            InitScreens.register(event, ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), UniversalPatternEncodingTermScreen::new, "/screens/universal_pattern_encoding_terminal.json");
-            InitScreens.register(event, ModMenus.UNIVERSAL_PATTERN_ACCESS_TERM.get(), UniversalPatternAccessTermScreen::new, "/screens/universal_pattern_access_terminal.json");
-        }
-
-        @SubscribeEvent
-        public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
-            event.registerBlockEntityRenderer(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DataExtractorRenderer::new);
-            event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
-            event.registerBlockEntityRenderer(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DataMimeticFieldRenderer::new);
-            event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
-            event.registerEntityRenderer(ModEntities.LIGHT_BLADE_CHARGE.get(), LightBladeChargeRenderer::new);
-            event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
-            event.registerEntityRenderer(ModEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
-            event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
-        }
-
-        @SubscribeEvent
-        public static void onRegisterAdditionalModels(ModelEvent.RegisterAdditional event) {
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/ore_data_carrier")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
-        }
-
-        private static void registerMatterConvergingCrossbowProperties() {
-            var item = ModItems.MATTER_CONVERGING_CROSSBOW.get();
-            ItemProperties.register(item, Data_Energistics.id("loaded_special_light_saber"),
-                    (stack, level, entity, seed) -> {
-                        ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
-                        return !charged.isEmpty() && MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(charged.getItems().getFirst()) ? 1.0F : 0.0F;
-                    });
-            ItemProperties.register(item, Data_Energistics.id("load_stage"),
-                    (stack, level, entity, seed) -> {
-                        if (net.minecraft.world.item.CrossbowItem.isCharged(stack)) {
-                            return 0.67F;
-                        }
-                        if (entity == null || !entity.isUsingItem() || entity.getUseItem() != stack) {
-                            return 0.0F;
-                        }
-
-                        float progress = (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
-                        progress = Mth.clamp(progress, 0.0F, 1.0F);
-                        if (progress < 1.0F / 3.0F) {
-                            return 0.0F;
-                        }
-                        if (progress >= 2.0F / 3.0F) {
-                            return 0.67F;
-                        }
-                        return 0.42F;
-                    });
-            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("pull"),
-                    (stack, level, entity, seed) -> {
-                        if (entity == null) {
-                            return 0.0F;
-                        }
-                        if (net.minecraft.world.item.CrossbowItem.isCharged(stack)) {
-                            return 0.0F;
-                        }
-                        return entity.getUseItem() != stack ? 0.0F : (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
-                    });
-            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("pulling"),
-                    (stack, level, entity, seed) -> entity != null && entity.isUsingItem() && entity.getUseItem() == stack && !net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
-            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("charged"),
-                    (stack, level, entity, seed) -> net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
-            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("firework"),
-                    (stack, level, entity, seed) -> {
-                        var charged = stack.get(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES);
-                        return charged != null && charged.contains(Items.FIREWORK_ROCKET) ? 1.0F : 0.0F;
-                    });
-        }
-
-        private static void registerDataCaptureBallProperties() {
-            ItemProperties.register(ModItems.DATA_CAPTURE_BALL.get(), Data_Energistics.id("fill_level"),
-                    (stack, level, entity, seed) -> DataCaptureBallItem.getFillModelValue(stack));
-        }
-
-        private static void registerLightSaberProperties() {
-            ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("powered"),
-                    (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
-            ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("light_saber_color"),
-                    (stack, level, entity, seed) -> LightSaberColorData.getModelValue(stack));
-            ItemProperties.register(ModItems.DATA_SANCTIFIER.get(), Data_Energistics.id("powered"),
-                    (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
-        }
-
-        private static boolean isPowered(ItemStack stack) {
-            return stack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getAECurrentPower(stack) > 0.0D;
-        }
-
-        public static void onClientTickPost(ClientTickEvent.Post event) {
-            Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.isPaused() || minecraft.level == null || minecraft.player == null) {
-                return;
-            }
-
-            if ((minecraft.player.tickCount & 1) != 0) {
-                return;
-            }
-
-            spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.MAIN_HAND);
-            spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.OFF_HAND);
-        }
-
-        private static void spawnMatterConvergingCrossbowParticles(Minecraft minecraft, InteractionHand hand) {
-            var player = minecraft.player;
-            ItemStack stack = player.getItemInHand(hand);
-            if (!stack.is(ModItems.MATTER_CONVERGING_CROSSBOW.get())) {
-                return;
-            }
-
-            ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
-            if (charged.isEmpty()) {
-                return;
-            }
-
-            ItemStack ammo = charged.getItems().getFirst();
-            Vec3 look = player.getViewVector(1.0F).normalize();
-            Vec3 worldUp = new Vec3(0.0D, 1.0D, 0.0D);
-            Vec3 right = look.cross(worldUp);
-            if (right.lengthSqr() < 1.0E-6D) {
-                right = new Vec3(1.0D, 0.0D, 0.0D);
-            } else {
-                right = right.normalize();
-            }
-            Vec3 up = right.cross(look).normalize();
-
-            double side = getHandSide(player.getMainArm(), hand);
-            Vec3 base = player.getEyePosition()
-                    .add(look.scale(0.78D))
-                    .add(right.scale(0D * side))
-                    .add(up.scale(-0.30D));
-            Vec3 velocity = look.scale(0.02D).add(up.scale(0.002D));
-
-            Integer color = getMatterBallParticleColor(ammo);
-            if (color == null) {
-                return;
-            }
-
-            Vector3f rgb = new Vector3f(
-                    ((color >> 16) & 0xFF) / 255.0F,
-                    ((color >> 8) & 0xFF) / 255.0F,
-                    (color & 0xFF) / 255.0F);
-            DustParticleOptions particle = new DustParticleOptions(rgb, 0.85F);
-            if (ammo.is(AEItems.SINGULARITY.asItem())) {
-                Vec3 singularityBase = base.add(up.scale(-0.05D));
-                minecraft.level.addParticle(particle,
-                        singularityBase.x, singularityBase.y, singularityBase.z,
-                        velocity.x, velocity.y, velocity.z);
-                minecraft.level.addParticle(ParticleTypes.DRAGON_BREATH,
-                        singularityBase.x, singularityBase.y, singularityBase.z,
-                        velocity.x * 0.2D, velocity.y * 0.2D, velocity.z * 0.2D);
-                return;
-            }
-            minecraft.level.addParticle(particle, base.x, base.y, base.z, velocity.x, velocity.y, velocity.z);
-        }
-
-        private static double getHandSide(HumanoidArm mainArm, InteractionHand hand) {
-            boolean isRight = (hand == InteractionHand.MAIN_HAND) == (mainArm == HumanoidArm.RIGHT);
-            return isRight ? 1.0D : -1.0D;
-        }
-
-        private static Integer getMatterBallParticleColor(ItemStack ammo) {
-            Item item = ammo.getItem();
-            if (item instanceof PaintBallItem paintBallItem) {
-                return paintBallItem.getColor().mediumVariant;
-            }
-            if (ammo.is(AEItems.SINGULARITY.asItem())) {
-                return 0x7A3DFF;
-            }
-            if (item == AEItems.MATTER_BALL.asItem()) {
-                return 0xD8D8D8;
-            }
-            return null;
-        }
-
-        public static void onScreenInitPost(ScreenEvent.Init.Post event) {
-            maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
-            Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
-            UniversalTerminalScreenHook.onScreenInitPost(event);
-        }
-
-        public static void onScreenOpening(ScreenEvent.Opening event) {
-            Screen replacement = maybeReplaceNativePatternEncodingScreen(event.getCurrentScreen(), false);
-            if (replacement == null) {
-                replacement = Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getCurrentScreen(), false);
-            }
-            if (replacement != null) {
-                event.setNewScreen(replacement);
-            }
-        }
-
-        public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
-            UniversalTerminalScreenHook.onScreenRenderPost(event);
-            Ae2TerminalKeyOverlay.onScreenRenderPost(event);
-        }
-
-        private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-            if (!(currentScreen instanceof PatternEncodingTermScreen<?> screen)) {
-                return null;
-            }
-
-            if (currentScreen instanceof PatternEncodingPreviewScreen<?>) {
-                return null;
-            }
-
-            if (!(screen.getMenu() instanceof PatternEncodingPreviewMenu)) {
-                return null;
-            }
-
-            if (currentScreen.getClass() != PatternEncodingTermScreen.class) {
-                return null;
-            }
-
-            Screen replacement = new NativePatternEncodingTermScreen(
-                    screen.getMenu(),
-                    screen.getMenu().getPlayerInventory(),
-                    screen.getTitle(),
-                    StyleManager.loadStyleDoc("/screens/terminals/pattern_encoding_terminal.json"));
-
-            if (applyImmediately) {
-                Minecraft minecraft = Minecraft.getInstance();
-                if (minecraft.screen == currentScreen) {
-                    minecraft.setScreen(replacement);
-                }
-            }
-
-            return replacement;
-        }
-    }
-
-    public static class Mods {
-
-        public static boolean isAnyRecipeViewerLoaded() {
-            return isModLoaded("jei") || isModLoaded("emi");
-        }
-
-        public static boolean isJEILoaded() {
-            return !isModLoaded("emi") && isModLoaded("jei");
-        }
-
-        public static boolean isEMILoaded() {
-            return isModLoaded("emi");
-        }
-
-        public static boolean isAE2Loaded() {
-            return isModLoaded("ae2");
-        }
-
-        public static boolean isSodiumLoaded() {
-            return isModLoaded("sodium");
-        }
-
-        public static boolean isIrisLoaded() {
-            return isModLoaded("iris");
-        }
-
-        public static boolean isJechLoaded() {
-            return isModLoaded("jecharacters");
-        }
-
-        public static boolean isExtendedAePlusLoaded() {
-            return isModLoaded("extendedae_plus");
-        }
-
-        public static boolean isAe2WtLibLoaded() {
-            return isModLoaded("ae2wtlib");
-        }
-
-        public static boolean isAe2LtLoaded() {
-            return isModLoaded("ae2lt");
-        }
-
-        public static boolean isCreateLoaded() {
-            return isModLoaded("create");
-        }
-
-        public static boolean isAppliedCreateLoaded() {
-            return isModLoaded("appliedcreate");
-        }
-
-        public static boolean isMekanismLoaded() {
-            return isModLoaded("mekanism");
-        }
-
-        public static boolean isAppMekLoaded() {
-            return isModLoaded("appmek");
-        }
-
-        public static boolean isAppFluxLoaded() {
-            return isModLoaded("appflux");
-        }
     }
 }

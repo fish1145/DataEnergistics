@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
+
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
@@ -11,22 +13,25 @@ import appeng.menu.AEBaseMenu;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.invoke.VarHandle;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.function.Supplier;
 
 public final class UniversalTerminalScreenHook {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final Method ADD_TO_LEFT_TOOLBAR = resolveMethod(AEBaseScreen.class, "addToLeftToolbar", Button.class);
-    private static final Method ADD_RENDERABLE_WIDGET = resolveMethod(Screen.class, "addRenderableWidget", GuiEventListener.class);
-    private static final Method REMOVE_WIDGET = resolveMethod(Screen.class, "removeWidget", GuiEventListener.class);
-    private static final Field VERTICAL_TOOLBAR_FIELD = resolveField(AEBaseScreen.class, "verticalToolbar");
-    private static final Field TOOLBAR_BUTTONS_FIELD = resolveField(VerticalButtonBar.class, "buttons");
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+    private static final MethodHandle ADD_TO_LEFT_TOOLBAR = resolveMethod(AEBaseScreen.class, "addToLeftToolbar", Button.class, Button.class);
+    private static final MethodHandle ADD_RENDERABLE_WIDGET = resolveMethod(Screen.class, "addRenderableWidget", GuiEventListener.class, GuiEventListener.class);
+    private static final MethodHandle REMOVE_WIDGET = resolveMethod(Screen.class, "removeWidget", void.class, GuiEventListener.class);
+    private static final Optional<VarHandle> VERTICAL_TOOLBAR_FIELD = resolveField(AEBaseScreen.class, "verticalToolbar");
+    private static final Optional<VarHandle> TOOLBAR_BUTTONS_FIELD = resolveField(VerticalButtonBar.class, "buttons");
     private static final Map<Screen, UniversalTerminalCycleButton> CYCLE_BUTTONS = new WeakHashMap<>();
     private static final Map<Screen, UniversalTerminalSelectorPanel> SELECTOR_PANELS = new WeakHashMap<>();
     private static boolean rememberedSelectorOpen;
@@ -108,14 +113,13 @@ public final class UniversalTerminalScreenHook {
         selectorPanel.setAnchorButton(button);
         selectorPanel.restoreState(rememberedSelectorOpen, rememberedSelectorPage);
 
-        try {
-            ADD_TO_LEFT_TOOLBAR.invoke(screen, button);
-            ADD_RENDERABLE_WIDGET.invoke(screen, button);
-            ADD_RENDERABLE_WIDGET.invoke(screen, selectorPanel);
+        if (invoke(ADD_TO_LEFT_TOOLBAR, screen, button)
+                && invoke(ADD_RENDERABLE_WIDGET, screen, button)
+                && invoke(ADD_RENDERABLE_WIDGET, screen, selectorPanel)) {
             CYCLE_BUTTONS.put(screen, button);
             SELECTOR_PANELS.put(screen, selectorPanel);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            LOGGER.warn("Failed to inject universal terminal cycle button into {}", screen.getClass().getName(), e);
+        } else {
+            LOGGER.warn("Failed to inject universal terminal cycle button into {}", screen.getClass().getName());
         }
     }
 
@@ -142,24 +146,22 @@ public final class UniversalTerminalScreenHook {
         if (widget == null) {
             return;
         }
-        try {
-            REMOVE_WIDGET.invoke(screen, widget);
-        } catch (IllegalAccessException | InvocationTargetException e) {
+        if (!invoke(REMOVE_WIDGET, screen, widget)) {
             LOGGER.warn("Failed to detach universal terminal widget {} from {}",
-                    widget.getClass().getName(), screen.getClass().getName(), e);
+                    widget.getClass().getName(), screen.getClass().getName());
         }
     }
 
     @SuppressWarnings("unchecked")
     private static void removeFromLeftToolbar(AEBaseScreen<?> screen) {
-        try {
-            VerticalButtonBar toolbar = (VerticalButtonBar) VERTICAL_TOOLBAR_FIELD.get(screen);
-            List<Button> buttons = (List<Button>) TOOLBAR_BUTTONS_FIELD.get(toolbar);
-            buttons.removeIf(existing -> existing instanceof UniversalTerminalCycleButton);
-        } catch (IllegalAccessException e) {
+        VerticalButtonBar toolbar = (VerticalButtonBar) ReflectionAccess.getField(VERTICAL_TOOLBAR_FIELD, screen);
+        List<Button> buttons = toolbar == null ? null : (List<Button>) ReflectionAccess.getField(TOOLBAR_BUTTONS_FIELD, toolbar);
+        if (buttons == null) {
             LOGGER.warn("Failed to remove universal terminal button from AE2 toolbar in {}",
-                    screen.getClass().getName(), e);
+                    screen.getClass().getName());
+            return;
         }
+        buttons.removeIf(existing -> existing instanceof UniversalTerminalCycleButton);
     }
 
     private static UniversalTerminalCycleButton findCycleButton(AEBaseScreen<?> screen) {
@@ -199,33 +201,38 @@ public final class UniversalTerminalScreenHook {
             return false;
         }
 
-        try {
-            VerticalButtonBar toolbar = (VerticalButtonBar) VERTICAL_TOOLBAR_FIELD.get(screen);
-            List<Button> buttons = (List<Button>) TOOLBAR_BUTTONS_FIELD.get(toolbar);
-            return buttons.contains(button);
-        } catch (IllegalAccessException e) {
-            LOGGER.warn("Failed to inspect AE2 toolbar buttons in {}", screen.getClass().getName(), e);
+        VerticalButtonBar toolbar = (VerticalButtonBar) ReflectionAccess.getField(VERTICAL_TOOLBAR_FIELD, screen);
+        List<Button> buttons = toolbar == null ? null : (List<Button>) ReflectionAccess.getField(TOOLBAR_BUTTONS_FIELD, toolbar);
+        if (buttons == null) {
+            LOGGER.warn("Failed to inspect AE2 toolbar buttons in {}", screen.getClass().getName());
             return false;
         }
+        return buttons.contains(button);
     }
 
-    private static Method resolveMethod(Class<?> owner, String name, Class<?>... parameterTypes) {
+    private static MethodHandle resolveMethod(Class<?> owner, String name, Class<?> returnType, Class<?>... parameterTypes) {
         try {
-            Method method = owner.getDeclaredMethod(name, parameterTypes);
-            method.setAccessible(true);
-            return method;
-        } catch (ReflectiveOperationException e) {
+            return MethodHandles.privateLookupIn(owner, LOOKUP)
+                    .findVirtual(owner, name, MethodType.methodType(returnType, parameterTypes));
+        } catch (NoSuchMethodException | IllegalAccessException | SecurityException e) {
             throw new IllegalStateException("Could not resolve method " + owner.getName() + "#" + name, e);
         }
     }
 
-    private static Field resolveField(Class<?> owner, String name) {
+    private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
+        Optional<VarHandle> field = ReflectionAccess.findField(owner, name);
+        if (field.isEmpty()) {
+            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name);
+        }
+        return field;
+    }
+
+    private static boolean invoke(MethodHandle method, Object target, Object argument) {
         try {
-            Field field = owner.getDeclaredField(name);
-            field.setAccessible(true);
-            return field;
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Could not resolve field " + owner.getName() + "#" + name, e);
+            method.invoke(target, argument);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 }

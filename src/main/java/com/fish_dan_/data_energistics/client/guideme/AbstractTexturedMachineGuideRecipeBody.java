@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.guideme;
+package com.fish_dan_.data_energistics.client.guideme;
 
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;

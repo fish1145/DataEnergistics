@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.chat.Component;
@@ -307,15 +308,15 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     public boolean isAe2LtWirelessMode() {
-        return this.ae2ltProviderMode == AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.WIRELESS.ordinal();
+        return this.ae2ltProviderMode == AdaptivePatternProviderModes.Ae2LtProviderMode.WIRELESS.ordinal();
     }
 
     public boolean isAe2LtEvenDistributionMode() {
-        return this.ae2ltWirelessDispatchMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
+        return this.ae2ltWirelessDispatchMode == AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
     }
 
     public boolean isAe2LtFastSpeedMode() {
-        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.FAST.ordinal();
+        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.FAST.ordinal();
     }
 
     public int getAe2LtReturnModeOrdinal() {
@@ -549,7 +550,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
             moveIntoSemanticSlots(SlotSemantics.UPGRADE, stack);
         }
 
-        if (!stack.isEmpty() && AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack)) {
+        if (!stack.isEmpty() && AdaptivePatternProviderResolver.isSupportedProviderStack(stack)) {
             moveIntoSemanticSlots(PROVIDER_INPUT, stack);
         }
 
@@ -593,11 +594,11 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     private boolean isPatternLike(ItemStack stack) {
-        return PatternDetailsHelper.isEncodedPattern(stack) || AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack);
+        return PatternDetailsHelper.isEncodedPattern(stack) || AdaptivePatternProviderResolver.isAe2LightningTechOverloadPatternStack(stack);
     }
 
     private boolean shouldAllowLightningTechOverloadPattern(ItemStack stack) {
-        return AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack) && this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
+        return AdaptivePatternProviderResolver.isAe2LightningTechOverloadPatternStack(stack) && this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private final class PagedPatternInventory implements InternalInventory {
@@ -708,7 +709,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack) && super.mayPlace(stack);
+            return AdaptivePatternProviderResolver.isSupportedProviderStack(stack) && super.mayPlace(stack);
         }
     }
 }

@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
+import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
@@ -40,7 +41,7 @@ import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Field;
+import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -53,11 +54,21 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
     private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
-    private static final Field FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD = resolveInheritedField("dataEnergistics$networkBlankPatternCount");
-    private static final Field FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD = resolveInheritedField("dataEnergistics$syncedPatternProviders");
-    private static final Field FALLBACK_PENDING_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$pendingPatternSource");
-    private static final Field FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
-    private static final Field FALLBACK_PATTERN_SOURCE_ENABLED_FIELD = resolveInheritedField("dataEnergistics$patternSourceEnabled");
+    @Nullable
+    private static final VarHandle FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD =
+            resolveInheritedField("dataEnergistics$networkBlankPatternCount");
+    @Nullable
+    private static final VarHandle FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD =
+            resolveInheritedField("dataEnergistics$syncedPatternProviders");
+    @Nullable
+    private static final VarHandle FALLBACK_PENDING_PATTERN_SOURCE_FIELD =
+            resolveInheritedField("dataEnergistics$pendingPatternSource");
+    @Nullable
+    private static final VarHandle FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD =
+            resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
+    @Nullable
+    private static final VarHandle FALLBACK_PATTERN_SOURCE_ENABLED_FIELD =
+            resolveInheritedField("dataEnergistics$patternSourceEnabled");
     private static final String ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;
@@ -510,114 +521,73 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Nullable
-    private static Field resolveInheritedField(String fieldName) {
-        try {
-            Field field = PatternEncodingTermMenu.class.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            return field;
-        } catch (NoSuchFieldException ignored) {
+    private static VarHandle resolveInheritedField(String fieldName) {
+        return ReflectionAccess.findField(PatternEncodingTermMenu.class, fieldName).orElse(null);
+    }
+
+    @Nullable
+    private static Object readInheritedField(@Nullable VarHandle field, Object target) {
+        if (field == null) {
             return null;
         }
+
+        try {
+            return field.get(target);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static void writeInheritedField(@Nullable VarHandle field, Object target, @Nullable Object value) {
+        if (field == null) {
+            return;
+        }
+
+        try {
+            field.set(target, value);
+        } catch (Throwable ignored) {}
     }
 
     @Nullable
     private Long readFallbackNetworkBlankPatternCount() {
-        if (FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD == null) {
-            return null;
-        }
-
-        try {
-            Object value = FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD.get(this);
-            return value instanceof Long count ? count : null;
-        } catch (IllegalAccessException ignored) {
-            return null;
-        }
+        Object value = readInheritedField(FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD, this);
+        return value instanceof Long count ? count : null;
     }
 
     @Nullable
     private SyncedPatternProviderList readFallbackSyncedPatternProviders() {
-        if (FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD == null) {
-            return null;
-        }
-
-        try {
-            Object value = FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD.get(this);
-            return value instanceof SyncedPatternProviderList providers ? providers : null;
-        } catch (IllegalAccessException ignored) {
-            return null;
-        }
+        Object value = readInheritedField(FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD, this);
+        return value instanceof SyncedPatternProviderList providers ? providers : null;
     }
 
     @Nullable
     private net.minecraft.resources.ResourceLocation readFallbackPendingPatternSource() {
-        if (FALLBACK_PENDING_PATTERN_SOURCE_FIELD == null) {
-            return null;
-        }
-
-        try {
-            Object value = FALLBACK_PENDING_PATTERN_SOURCE_FIELD.get(this);
-            return value instanceof net.minecraft.resources.ResourceLocation id ? id : null;
-        } catch (IllegalAccessException ignored) {
-            return null;
-        }
+        Object value = readInheritedField(FALLBACK_PENDING_PATTERN_SOURCE_FIELD, this);
+        return value instanceof net.minecraft.resources.ResourceLocation id ? id : null;
     }
 
     private void writeFallbackPendingPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
-        if (FALLBACK_PENDING_PATTERN_SOURCE_FIELD == null) {
-            return;
-        }
-
-        try {
-            FALLBACK_PENDING_PATTERN_SOURCE_FIELD.set(this, workstationId);
-        } catch (IllegalAccessException ignored) {}
+        writeInheritedField(FALLBACK_PENDING_PATTERN_SOURCE_FIELD, this, workstationId);
     }
 
     @Nullable
     private net.minecraft.resources.ResourceLocation readFallbackLastEncodedPatternSource() {
-        if (FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD == null) {
-            return null;
-        }
-
-        try {
-            Object value = FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD.get(this);
-            return value instanceof net.minecraft.resources.ResourceLocation id ? id : null;
-        } catch (IllegalAccessException ignored) {
-            return null;
-        }
+        Object value = readInheritedField(FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD, this);
+        return value instanceof net.minecraft.resources.ResourceLocation id ? id : null;
     }
 
     private void writeFallbackLastEncodedPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
-        if (FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD == null) {
-            return;
-        }
-
-        try {
-            FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD.set(this, workstationId);
-        } catch (IllegalAccessException ignored) {}
+        writeInheritedField(FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD, this, workstationId);
     }
 
     @Nullable
     private Boolean readFallbackPatternSourceEnabled() {
-        if (FALLBACK_PATTERN_SOURCE_ENABLED_FIELD == null) {
-            return null;
-        }
-
-        try {
-            Object value = FALLBACK_PATTERN_SOURCE_ENABLED_FIELD.get(this);
-            return value instanceof Boolean enabled ? enabled : null;
-        } catch (IllegalAccessException ignored) {
-            return null;
-        }
+        Object value = readInheritedField(FALLBACK_PATTERN_SOURCE_ENABLED_FIELD, this);
+        return value instanceof Boolean enabled ? enabled : null;
     }
 
     private void writeFallbackPatternSourceEnabled(boolean enabled) {
-        if (FALLBACK_PATTERN_SOURCE_ENABLED_FIELD == null) {
-            return;
-        }
-
-        try {
-            FALLBACK_PATTERN_SOURCE_ENABLED_FIELD.setBoolean(this, enabled);
-        } catch (IllegalAccessException ignored) {}
+        writeInheritedField(FALLBACK_PATTERN_SOURCE_ENABLED_FIELD, this, enabled);
     }
 
     private void clearEncodedPatternSlot() {

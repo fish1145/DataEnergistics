@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
@@ -51,6 +52,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
@@ -239,6 +241,11 @@ public class CommonProxy {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {}
+
+    @SubscribeEvent
+    public void onServerStopped(ServerStoppedEvent event) {
+        DataTeleportAnchorBlockEntity.clearRuntimeAnchorCache();
+    }
 
     @SubscribeEvent
     public void onItemAttributeModifiers(ItemAttributeModifierEvent event) {

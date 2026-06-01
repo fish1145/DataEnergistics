@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 
@@ -25,6 +24,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
 import appeng.api.config.Actionable;
@@ -60,6 +60,9 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -70,6 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AdaptivePatternProviderLogic extends PatternProviderLogic implements PatternProviderLogicAccessor {
 
@@ -88,6 +92,29 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final String NBT_ADVANCED_SEND_LIST = "adaptive_advanced_send_list";
     private static final String NBT_ADVANCED_SEND_DIRECTION = "adaptive_advanced_send_direction";
     private static final String NBT_ADVANCED_DIRECTION_MAP = "adaptive_advanced_direction_map";
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+    private static final MethodHandles.Lookup BASE_LOGIC_LOOKUP = privateLookup(PatternProviderLogic.class);
+    private static final @Nullable MethodHandle BASE_DO_WORK = findBaseMethod("doWork");
+    private static final @Nullable MethodHandle BASE_HAS_WORK_TO_DO = findBaseMethod("hasWorkToDo");
+    private static final @Nullable MethodHandle BASE_ON_PUSH_PATTERN_SUCCESS = findBaseMethod("onPushPatternSuccess", IPatternDetails.class);
+    private static final VarHandle BASE_PATTERNS = requireBaseVarHandle("patterns", List.class);
+    private static final VarHandle BASE_PATTERN_INPUTS = requireBaseVarHandle("patternInputs", Set.class);
+    private static final VarHandle BASE_PATTERN_INVENTORY = requireBaseVarHandle("patternInventory", AppEngInternalInventory.class);
+    private static final VarHandle BASE_SEND_LIST = requireBaseVarHandle("sendList", List.class);
+    private static final VarHandle BASE_RETURN_INV = requireBaseVarHandle("returnInv", PatternProviderReturnInventory.class);
+    private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<MechanicalRecipeAccess>> MECHANICAL_RECIPE_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final Optional<AppliedCreateAccess> APPLIED_CREATE_ACCESS = findAppliedCreateAccess();
+    private static final Optional<Ae2LtAllowedOutputFilterAccess> AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS =
+            findAe2LtAllowedOutputFilterAccess();
+    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadPatternAccess>> AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE =
+            new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadOutputSlotAccess>> AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE =
+            new ConcurrentHashMap<>();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -105,16 +132,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private @Nullable IStackWatcher craftingWatcher;
     private @Nullable Direction advancedSendDirection;
     private int worksInRound;
-    private final Method doWorkMethod;
-    private final Method hasWorkToDoMethod;
-    private final Method onPushPatternSuccessMethod;
     private final List<IPatternDetails> patternDetailsView;
     private final Set<AEKey> patternInputsView;
     private final AppEngInternalInventory patternInventory;
-    private final @Nullable Method ae2LtTotalCostMethod;
-    private final @Nullable Method ae2LtCanAffordMethod;
-    private final @Nullable Method ae2LtConsumeRawMethod;
-    private final @Nullable Method ae2csAdjacentMeStorageMethod;
+    private final @Nullable MethodHandle ae2LtTotalCostMethod;
+    private final @Nullable MethodHandle ae2LtCanAffordMethod;
+    private final @Nullable MethodHandle ae2LtConsumeRawMethod;
+    private final @Nullable MethodHandle ae2csAdjacentMeStorageMethod;
     private final List<GenericStack> baseSendListView;
     private long ae2ltLastAutoReturnTick = -1L;
     private boolean dataEnergistics$dispatchPulsePending;
@@ -128,13 +152,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 .addService(IGridTickable.class, new Ticker())
                 .addService(ICraftingWatcherNode.class, new AdaptiveCraftingWatcherNode());
         this.actionSource = new MachineSource(mainNode::getNode);
-        this.doWorkMethod = findBaseMethod("doWork");
-        this.hasWorkToDoMethod = findBaseMethod("hasWorkToDo");
-        this.onPushPatternSuccessMethod = findBaseMethod("onPushPatternSuccess", IPatternDetails.class);
-        this.patternDetailsView = requireBaseField("patterns", List.class);
-        this.patternInputsView = requireBaseField("patternInputs", Set.class);
-        this.patternInventory = requireBaseField("patternInventory", AppEngInternalInventory.class);
-        this.baseSendListView = requireBaseField("sendList", List.class);
+        this.patternDetailsView = readBaseVarHandle(BASE_PATTERNS, List.class, "patterns");
+        this.patternInputsView = readBaseVarHandle(BASE_PATTERN_INPUTS, Set.class, "patternInputs");
+        this.patternInventory = readBaseVarHandle(BASE_PATTERN_INVENTORY, AppEngInternalInventory.class, "patternInventory");
+        this.baseSendListView = readBaseVarHandle(BASE_SEND_LIST, List.class, "sendList");
         this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
         this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
         this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
@@ -237,7 +258,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         if (isAdvancedAeDirectionalPattern(patternDetails)) {
-            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder, false);
             if (pushed) {
                 dataEnergistics$afterPushPattern();
             }
@@ -392,7 +413,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (isAe2LtWirelessMode()) {
             pushed = pushAe2LtWirelessPattern(patternDetails, inputHolder, totalCost);
         } else if (isDirectionalPattern(patternDetails)) {
-            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder, true);
             if (pushed) {
                 consumeAe2LtTotalCost(totalCost);
             }
@@ -465,8 +486,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         this.ae2ltOutputFilterDirty = true;
     }
 
-    private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-        if (hasAdvancedDirectionalWork() || super.isBusy() || !this.mainNode.isActive() || !getAvailablePatterns().contains(patternDetails)) {
+    private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, boolean skipAvailabilityCheck) {
+        if (hasAdvancedDirectionalWork() || super.isBusy() || !this.mainNode.isActive()
+                || (!skipAvailabilityCheck && !getAvailablePatterns().contains(patternDetails))) {
             return false;
         }
 
@@ -626,11 +648,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LtAutoReturnEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.AUTO;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == AdaptivePatternProviderModes.Ae2LtReturnMode.AUTO;
     }
 
     private boolean isAe2LtEjectModeEnabled() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.EJECT;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == AdaptivePatternProviderModes.Ae2LtReturnMode.EJECT;
     }
 
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {
@@ -779,6 +801,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return super.pushPattern(patternDetails, inputHolder);
         }
 
+        List<AppliedCreateCrafterCandidate> candidates = collectAppliedCreateCrafterCandidates(level, blockEntity.getBlockPos());
+        if (candidates.isEmpty()) {
+            return super.pushPattern(patternDetails, inputHolder);
+        }
+
         List<AppliedCreateRecipeInfo> recipes = collectAppliedCreateRecipeInfos(level, primaryOutputKey.toStack());
         if (recipes.isEmpty()) {
             return super.pushPattern(patternDetails, inputHolder);
@@ -789,7 +816,20 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return super.pushPattern(patternDetails, inputHolder);
         }
 
-        BlockPos providerPos = blockEntity.getBlockPos();
+        for (AppliedCreateCrafterCandidate candidate : candidates) {
+            if (!tryPushAppliedCreateRecipe(recipes, candidate.crafterChain(), candidate.crafterGrid(), flattenedInputs)) {
+                continue;
+            }
+
+            invokePatternSuccess(patternDetails);
+            return true;
+        }
+
+        return super.pushPattern(patternDetails, inputHolder);
+    }
+
+    private List<AppliedCreateCrafterCandidate> collectAppliedCreateCrafterCandidates(Level level, BlockPos providerPos) {
+        ArrayList<AppliedCreateCrafterCandidate> candidates = new ArrayList<>();
         for (Direction side : this.host.getTargets()) {
             BlockEntity adjacentBlockEntity = level.getBlockEntity(providerPos.relative(side));
             if (!isMechanicalCrafterBlockEntity(adjacentBlockEntity)) {
@@ -806,52 +846,70 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            if (!tryPushAppliedCreateRecipe(recipes, crafterChain, crafterGrid, flattenedInputs)) {
-                continue;
-            }
-
-            invokePatternSuccess(patternDetails);
-            return true;
+            candidates.add(new AppliedCreateCrafterCandidate(crafterChain, crafterGrid));
         }
-
-        return super.pushPattern(patternDetails, inputHolder);
+        return candidates;
     }
 
     @SuppressWarnings("unchecked")
     private List<GenericStack> getSparseInputs(IPatternDetails patternDetails) {
+        if (patternDetails == null) {
+            return List.of();
+        }
+
+        Optional<SparsePatternAccess> access = SPARSE_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                patternDetails.getClass(),
+                AdaptivePatternProviderLogic::findSparsePatternAccess);
+        if (access.isEmpty()) {
+            return List.of();
+        }
+
         try {
-            Method method = patternDetails.getClass().getMethod("getSparseInputs");
-            Object result = method.invoke(patternDetails);
+            Object result = access.get().sparseInputs().invoke(patternDetails);
             return result instanceof List<?> list ? (List<GenericStack>) list : List.of();
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return List.of();
         }
     }
 
     private Optional<ResolvedTarget> getResolvedTarget(IPatternDetails patternDetails, int sparseIndex) {
+        if (patternDetails == null) {
+            return Optional.empty();
+        }
+
+        Optional<SparsePatternAccess> access = SPARSE_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                patternDetails.getClass(),
+                AdaptivePatternProviderLogic::findSparsePatternAccess);
+        if (access.isEmpty()) {
+            return Optional.empty();
+        }
+
         try {
-            Method targetMethod = patternDetails.getClass().getMethod("getTargetForSparseInputIndex", int.class);
-            Object optionalObject = targetMethod.invoke(patternDetails, sparseIndex);
+            Object optionalObject = access.get().targetForSparseInputIndex().invoke(patternDetails, sparseIndex);
             if (!(optionalObject instanceof Optional<?> optional) || optional.isEmpty()) {
                 return Optional.empty();
             }
 
             Object target = optional.get();
-            Method posMethod = target.getClass().getMethod("pos");
-            Method faceMethod = target.getClass().getMethod("face");
+            Optional<ResolvedTargetAccess> targetAccess = RESOLVED_TARGET_ACCESS_CACHE.computeIfAbsent(
+                    target.getClass(),
+                    AdaptivePatternProviderLogic::findResolvedTargetAccess);
+            if (targetAccess.isEmpty()) {
+                return Optional.empty();
+            }
 
-            Object globalPosObject = posMethod.invoke(target);
+            Object globalPosObject = targetAccess.get().position().invoke(target);
             if (!(globalPosObject instanceof GlobalPos globalPos)) {
                 return Optional.empty();
             }
 
-            Object faceObject = faceMethod.invoke(target);
+            Object faceObject = targetAccess.get().face().invoke(target);
             if (!(faceObject instanceof Direction face)) {
                 return Optional.empty();
             }
 
             return Optional.of(new ResolvedTarget(globalPos, face));
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return Optional.empty();
         }
     }
@@ -873,18 +931,21 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             for (RecipeHolder<?> holder : recipeHolders) {
                 Object recipe = holder.value();
                 try {
-                    ItemStack result = (ItemStack) recipe.getClass()
-                            .getMethod("getResultItem", HolderLookup.Provider.class)
-                            .invoke(recipe, registries);
+                    Optional<MechanicalRecipeAccess> access = getMechanicalRecipeAccess(recipe);
+                    if (access.isEmpty()) {
+                        continue;
+                    }
+
+                    ItemStack result = (ItemStack) access.get().getResultItem().invoke(recipe, registries);
                     if (!ItemStack.isSameItemSameComponents(result, expectedOutput)) {
                         continue;
                     }
-                    int width = (Integer) recipe.getClass().getMethod("getWidth").invoke(recipe);
-                    int height = (Integer) recipe.getClass().getMethod("getHeight").invoke(recipe);
+                    int width = (Integer) access.get().getWidth().invoke(recipe);
+                    int height = (Integer) access.get().getHeight().invoke(recipe);
                     @SuppressWarnings("unchecked")
-                    List<Ingredient> ingredients = (List<Ingredient>) recipe.getClass().getMethod("getIngredients").invoke(recipe);
+                    List<Ingredient> ingredients = (List<Ingredient>) access.get().getIngredients().invoke(recipe);
                     recipes.add(new AppliedCreateRecipeInfo(width, height, ingredients));
-                } catch (Exception ignored) {}
+                } catch (Throwable ignored) {}
             }
         }
 
@@ -1088,66 +1149,83 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private String getCrafterPointingName(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return "UP";
+        }
+
         try {
-            Object blockState = crafter.getClass().getMethod("getBlockState").invoke(crafter);
-            Object pointingProperty = Class.forName(CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS).getField("POINTING").get(null);
-            Object pointing = blockState.getClass()
-                    .getMethod("getValue", Property.class)
-                    .invoke(blockState, pointingProperty);
+            Object blockStateObject = access.get().getBlockState().invoke(crafter);
+            Object pointingProperty = access.get().pointingProperty().get();
+            if (!(blockStateObject instanceof BlockState blockState) || !(pointingProperty instanceof Property<?> property)) {
+                return "UP";
+            }
+
+            Object pointing = blockState.getValue(property);
             return String.valueOf(pointing);
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return "UP";
         }
     }
 
     private ItemStack insertIntoCrafter(Object crafter, ItemStack stack, boolean simulate) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return stack;
+        }
+
         try {
-            Object inventory = crafter.getClass().getMethod("getInventory").invoke(crafter);
-            Object result = inventory.getClass()
-                    .getMethod("insertItem", int.class, ItemStack.class, boolean.class)
-                    .invoke(inventory, 0, stack, simulate);
+            Object inventory = access.get().getInventory().invoke(crafter);
+            Object result = access.get().insertItem().invoke(inventory, 0, stack, simulate);
             return result instanceof ItemStack itemStack ? itemStack : stack;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return stack;
         }
     }
 
     private void triggerCrafterRecipeCheck(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return;
+        }
+
         try {
-            crafter.getClass().getMethod("checkCompletedRecipe", boolean.class).invoke(crafter, true);
-        } catch (Exception ignored) {}
+            access.get().checkCompletedRecipe().invoke(crafter, true);
+        } catch (Throwable ignored) {}
     }
 
     private boolean isMechanicalCrafterBlockEntity(@Nullable Object value) {
         if (value == null) {
             return false;
         }
-        try {
-            return Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS).isInstance(value);
-        } catch (Exception ignored) {
-            return false;
-        }
+        return APPLIED_CREATE_ACCESS.map(access -> access.crafterClass().isInstance(value)).orElse(false);
     }
 
     @Nullable
     private List<?> getAllMechanicalCraftersOfChain(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return null;
+        }
+
         try {
-            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
-            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
-            Object result = handlerClass.getMethod("getAllCraftersOfChain", crafterClass).invoke(null, crafter);
+            Object result = access.get().getAllCraftersOfChain().invoke(crafter);
             return result instanceof List<?> list ? list : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
 
     @Nullable
     private Object getTargetingCrafter(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return null;
+        }
+
         try {
-            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
-            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
-            return handlerClass.getMethod("getTargetingCrafter", crafterClass).invoke(null, crafter);
-        } catch (Exception ignored) {
+            return access.get().getTargetingCrafter().invoke(crafter);
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -1158,45 +1236,65 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private void invokePatternSuccess(IPatternDetails patternDetails) {
         try {
-            if (this.onPushPatternSuccessMethod != null) {
-                this.onPushPatternSuccessMethod.invoke(this, patternDetails);
+            if (BASE_ON_PUSH_PATTERN_SUCCESS != null) {
+                BASE_ON_PUSH_PATTERN_SUCCESS.invoke(this, patternDetails);
             }
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     @Nullable
-    private Method findBaseMethod(String name, Class<?>... parameterTypes) {
+    private static MethodHandles.Lookup privateLookup(Class<?> type) {
         try {
-            Method method = PatternProviderLogic.class.getDeclaredMethod(name, parameterTypes);
-            method.setAccessible(true);
-            return method;
-        } catch (Exception ignored) {
+            return MethodHandles.privateLookupIn(type, LOOKUP);
+        } catch (IllegalAccessException ignored) {
             return null;
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> T requireBaseField(String name, Class<?> type) {
+    @Nullable
+    private static MethodHandle findBaseMethod(String name, Class<?>... parameterTypes) {
         try {
-            Field field = PatternProviderLogic.class.getDeclaredField(name);
-            field.setAccessible(true);
-            Object value = field.get(this);
-            if (!type.isInstance(value)) {
-                throw new IllegalStateException("Unexpected base field type for " + name);
+            if (BASE_LOGIC_LOOKUP == null) {
+                return null;
             }
-            return (T) value;
-        } catch (Exception e) {
+            Method method = PatternProviderLogic.class.getDeclaredMethod(name, parameterTypes);
+            return BASE_LOGIC_LOOKUP.unreflect(method);
+        } catch (IllegalAccessException | NoSuchMethodException | SecurityException ignored) {
+            return null;
+        }
+    }
+
+    private static VarHandle requireBaseVarHandle(String name, Class<?> type) {
+        try {
+            if (BASE_LOGIC_LOOKUP == null) {
+                throw new IllegalStateException("No private lookup for PatternProviderLogic");
+            }
+            Field field = PatternProviderLogic.class.getDeclaredField(name);
+            if (!type.isAssignableFrom(field.getType())) {
+                throw new IllegalStateException("Unexpected base field declaration for " + name);
+            }
+            return BASE_LOGIC_LOOKUP.unreflectVarHandle(field);
+        } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new IllegalStateException("Failed to access base field: " + name, e);
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private <T> T readBaseVarHandle(VarHandle handle, Class<?> type, String name) {
+        Object value = handle.get(this);
+        if (!type.isInstance(value)) {
+            throw new IllegalStateException("Unexpected base field type for " + name);
+        }
+        return (T) value;
+    }
+
     @Nullable
-    private Method findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
+    private MethodHandle findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
         try {
             Class<?> owner = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
             Method method = owner.getMethod(name, parameterTypes);
             method.setAccessible(true);
-            return method;
+            return MethodHandles.privateLookupIn(owner, LOOKUP).unreflect(method);
         } catch (Exception ignored) {
             return null;
         }
@@ -1204,16 +1302,16 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean invokeBaseDoWork() {
         try {
-            return this.doWorkMethod != null && Boolean.TRUE.equals(this.doWorkMethod.invoke(this));
-        } catch (Exception ignored) {
+            return BASE_DO_WORK != null && Boolean.TRUE.equals(BASE_DO_WORK.invoke(this));
+        } catch (Throwable ignored) {
             return false;
         }
     }
 
     private boolean invokeBaseHasWorkToDo() {
         try {
-            return this.hasWorkToDoMethod != null && Boolean.TRUE.equals(this.hasWorkToDoMethod.invoke(this));
-        } catch (Exception ignored) {
+            return BASE_HAS_WORK_TO_DO != null && Boolean.TRUE.equals(BASE_HAS_WORK_TO_DO.invoke(this));
+        } catch (Throwable ignored) {
             return false;
         }
     }
@@ -1431,9 +1529,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (this.ae2LtTotalCostMethod == null) {
                 return 0.0D;
             }
-            Object result = this.ae2LtTotalCostMethod.invoke(null, (Object) inputHolder);
+            Object result = this.ae2LtTotalCostMethod.invoke((Object) inputHolder);
             return result instanceof Number number ? number.doubleValue() : 0.0D;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return 0.0D;
         }
     }
@@ -1443,9 +1541,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (this.ae2LtCanAffordMethod == null) {
                 return true;
             }
-            Object result = this.ae2LtCanAffordMethod.invoke(null, getGrid(), totalCost);
+            Object result = this.ae2LtCanAffordMethod.invoke(getGrid(), totalCost);
             return !(result instanceof Boolean canAfford) || canAfford;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return true;
         }
     }
@@ -1453,27 +1551,33 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private void consumeAe2LtTotalCost(double totalCost) {
         try {
             if (this.ae2LtConsumeRawMethod != null) {
-                this.ae2LtConsumeRawMethod.invoke(null, getGrid(), totalCost);
+                this.ae2LtConsumeRawMethod.invoke(getGrid(), totalCost);
             }
-        } catch (Exception ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     private boolean hasDirectionalInputs(IPatternDetails patternDetails) {
+        Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
+        if (access.isEmpty()) {
+            return false;
+        }
         try {
-            Method method = patternDetails.getClass().getMethod("directionalInputsSet");
-            return Boolean.TRUE.equals(method.invoke(patternDetails));
-        } catch (Exception ignored) {
+            return Boolean.TRUE.equals(access.get().directionalInputsSet().invoke(patternDetails));
+        } catch (Throwable ignored) {
             return false;
         }
     }
 
     @Nullable
     private Direction getAdvancedInputSide(IPatternDetails patternDetails, AEKey key) {
+        Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
+        if (access.isEmpty()) {
+            return null;
+        }
         try {
-            Method method = patternDetails.getClass().getMethod("getDirectionSideForInputKey", AEKey.class);
-            Object result = method.invoke(patternDetails, key);
+            Object result = access.get().directionSideForInputKey().invoke(patternDetails, key);
             return result instanceof Direction direction ? direction : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -1481,12 +1585,169 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     @Nullable
     @SuppressWarnings("unchecked")
     private Map<AEKey, Direction> getAdvancedDirectionMap(IPatternDetails patternDetails) {
-        try {
-            Method method = patternDetails.getClass().getMethod("getDirectionMap");
-            Object result = method.invoke(patternDetails);
-            return result instanceof Map<?, ?> map ? (Map<AEKey, Direction>) map : null;
-        } catch (Exception ignored) {
+        Optional<DirectionalPatternAccess> access = getDirectionalPatternAccess(patternDetails);
+        if (access.isEmpty()) {
             return null;
+        }
+        try {
+            Object result = access.get().directionMap().invoke(patternDetails);
+            return result instanceof Map<?, ?> map ? (Map<AEKey, Direction>) map : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Optional<DirectionalPatternAccess> getDirectionalPatternAccess(@Nullable IPatternDetails patternDetails) {
+        if (patternDetails == null) {
+            return Optional.empty();
+        }
+        return DIRECTIONAL_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                patternDetails.getClass(),
+                AdaptivePatternProviderLogic::findDirectionalPatternAccess);
+    }
+
+    private static Optional<MechanicalRecipeAccess> getMechanicalRecipeAccess(Object recipe) {
+        return MECHANICAL_RECIPE_ACCESS_CACHE.computeIfAbsent(
+                recipe.getClass(),
+                AdaptivePatternProviderLogic::findMechanicalRecipeAccess);
+    }
+
+    private static Optional<MechanicalRecipeAccess> findMechanicalRecipeAccess(Class<?> type) {
+        Optional<MethodHandle> getResultItem = findDuckMethod(type, "getResultItem", HolderLookup.Provider.class);
+        Optional<MethodHandle> getWidth = findDuckMethod(type, "getWidth");
+        Optional<MethodHandle> getHeight = findDuckMethod(type, "getHeight");
+        Optional<MethodHandle> getIngredients = findDuckMethod(type, "getIngredients");
+        if (getResultItem.isEmpty() || getWidth.isEmpty() || getHeight.isEmpty() || getIngredients.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new MechanicalRecipeAccess(
+                getResultItem.get(),
+                getWidth.get(),
+                getHeight.get(),
+                getIngredients.get()));
+    }
+
+    private static Optional<SparsePatternAccess> findSparsePatternAccess(Class<?> type) {
+        Optional<MethodHandle> sparseInputs = findDuckMethod(type, "getSparseInputs");
+        Optional<MethodHandle> targetForSparseInputIndex = findDuckMethod(type, "getTargetForSparseInputIndex", int.class);
+        if (sparseInputs.isEmpty() || targetForSparseInputIndex.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new SparsePatternAccess(sparseInputs.get(), targetForSparseInputIndex.get()));
+    }
+
+    private static Optional<ResolvedTargetAccess> findResolvedTargetAccess(Class<?> type) {
+        Optional<MethodHandle> position = findDuckMethod(type, "pos");
+        Optional<MethodHandle> face = findDuckMethod(type, "face");
+        if (position.isEmpty() || face.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new ResolvedTargetAccess(position.get(), face.get()));
+    }
+
+    private static Optional<DirectionalPatternAccess> findDirectionalPatternAccess(Class<?> type) {
+        Optional<MethodHandle> directionalInputsSet = findDuckMethod(type, "directionalInputsSet");
+        Optional<MethodHandle> directionSideForInputKey = findDuckMethod(type, "getDirectionSideForInputKey", AEKey.class);
+        Optional<MethodHandle> directionMap = findDuckMethod(type, "getDirectionMap");
+        if (directionalInputsSet.isEmpty() || directionSideForInputKey.isEmpty() || directionMap.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new DirectionalPatternAccess(
+                directionalInputsSet.get(),
+                directionSideForInputKey.get(),
+                directionMap.get()));
+    }
+
+    private static Optional<AppliedCreateAccess> findAppliedCreateAccess() {
+        try {
+            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
+            MethodHandles.Lookup crafterLookup = MethodHandles.privateLookupIn(crafterClass, LOOKUP);
+            MethodHandle getBlockState = crafterLookup.findVirtual(crafterClass, "getBlockState",
+                    java.lang.invoke.MethodType.methodType(BlockState.class));
+            Method getInventoryMethod = crafterClass.getMethod("getInventory");
+            MethodHandle getInventory = MethodHandles.privateLookupIn(getInventoryMethod.getDeclaringClass(), LOOKUP)
+                    .unreflect(getInventoryMethod);
+            MethodHandle checkCompletedRecipe = crafterLookup.findVirtual(crafterClass, "checkCompletedRecipe",
+                    java.lang.invoke.MethodType.methodType(void.class, boolean.class));
+
+            Class<?> blockClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS);
+            VarHandle pointingProperty = MethodHandles.privateLookupIn(blockClass, LOOKUP)
+                    .findStaticVarHandle(blockClass, "POINTING", Property.class);
+
+            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
+            MethodHandles.Lookup handlerLookup = MethodHandles.privateLookupIn(handlerClass, LOOKUP);
+            MethodHandle getAllCraftersOfChain = handlerLookup.findStatic(handlerClass, "getAllCraftersOfChain",
+                    java.lang.invoke.MethodType.methodType(List.class, crafterClass));
+            MethodHandle getTargetingCrafter = handlerLookup.findStatic(handlerClass, "getTargetingCrafter",
+                    java.lang.invoke.MethodType.methodType(crafterClass, crafterClass));
+
+            MethodHandle insertItem = findAppliedCreateInsertItem(getInventoryMethod.getReturnType());
+            if (insertItem == null) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new AppliedCreateAccess(
+                    crafterClass,
+                    getBlockState,
+                    pointingProperty,
+                    getInventory,
+                    insertItem,
+                    checkCompletedRecipe,
+                    getAllCraftersOfChain,
+                    getTargetingCrafter));
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    @Nullable
+    private static MethodHandle findAppliedCreateInsertItem(Class<?> inventoryClass) {
+        try {
+            return MethodHandles.privateLookupIn(inventoryClass, LOOKUP)
+                    .findVirtual(inventoryClass, "insertItem",
+                            java.lang.invoke.MethodType.methodType(ItemStack.class, int.class, ItemStack.class, boolean.class));
+        } catch (ReflectiveOperationException | SecurityException ignored) {}
+
+        return null;
+    }
+
+    private static Optional<Ae2LtAllowedOutputFilterAccess> findAe2LtAllowedOutputFilterAccess() {
+        try {
+            Class<?> filterClass = Class.forName(AE2LT_ALLOWED_OUTPUT_FILTER_CLASS);
+            MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(filterClass, LOOKUP);
+            MethodHandle constructor = lookup.unreflectConstructor(filterClass.getConstructor());
+            MethodHandle allowStrict = lookup.unreflect(filterClass.getMethod("allowStrict", AEKey.class));
+            MethodHandle allowIdOnly = lookup.unreflect(filterClass.getMethod("allowIdOnly", AEKey.class));
+            MethodHandle isEmpty = lookup.unreflect(filterClass.getMethod("isEmpty"));
+            return Optional.of(new Ae2LtAllowedOutputFilterAccess(constructor, allowStrict, allowIdOnly, isEmpty));
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<Ae2LtOverloadPatternAccess> findAe2LtOverloadPatternAccess(Class<?> type) {
+        Optional<MethodHandle> overloadPatternDetailsView = findDuckMethod(type, "overloadPatternDetailsView");
+        return overloadPatternDetailsView.map(Ae2LtOverloadPatternAccess::new);
+    }
+
+    private static Optional<MethodHandle> getAe2LtOverloadOutputsAccess(Class<?> type) {
+        return AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE.computeIfAbsent(
+                type,
+                key -> findDuckMethod(key, "outputs"));
+    }
+
+    private static Optional<Ae2LtOverloadOutputSlotAccess> findAe2LtOverloadOutputSlotAccess(Class<?> type) {
+        Optional<MethodHandle> matchMode = findDuckMethod(type, "matchMode");
+        return matchMode.map(Ae2LtOverloadOutputSlotAccess::new);
+    }
+
+    private static Optional<MethodHandle> findDuckMethod(Class<?> type, String name, Class<?>... parameterTypes) {
+        try {
+            Method method = type.getMethod(name, parameterTypes);
+            method.setAccessible(true);
+            return Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), LOOKUP).unreflect(method));
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return Optional.empty();
         }
     }
 
@@ -1687,11 +1948,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Nullable
     private Object buildAe2LtAllowedOutputFilter() {
+        Optional<Ae2LtAllowedOutputFilterAccess> filterAccess = AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS;
+        if (filterAccess.isEmpty()) {
+            return null;
+        }
+
         try {
-            Class<?> filterClass = Class.forName(AE2LT_ALLOWED_OUTPUT_FILTER_CLASS);
-            Object filter = filterClass.getConstructor().newInstance();
-            Method allowStrict = filterClass.getMethod("allowStrict", AEKey.class);
-            Method allowIdOnly = filterClass.getMethod("allowIdOnly", AEKey.class);
+            Ae2LtAllowedOutputFilterAccess filterMethods = filterAccess.get();
+            Object filter = filterMethods.constructor().invoke();
 
             for (IPatternDetails pattern : getAvailablePatterns()) {
                 if (pattern == null) {
@@ -1700,18 +1964,28 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
                 if (isAe2LightningTechOverloadedPattern(pattern)) {
                     List<GenericStack> ae2Outputs = pattern.getOutputs();
-                    Object overloadDetails = pattern.getClass().getMethod("overloadPatternDetailsView").invoke(pattern);
+                    Object overloadDetails = getAe2LtOverloadDetails(pattern);
+                    if (overloadDetails == null) {
+                        continue;
+                    }
                     @SuppressWarnings("unchecked")
-                    List<Object> overloadOutputs = (List<Object>) overloadDetails.getClass().getMethod("outputs").invoke(overloadDetails);
+                    List<Object> overloadOutputs = getAe2LtOverloadOutputs(overloadDetails);
+                    if (overloadOutputs == null) {
+                        continue;
+                    }
                     int count = Math.min(ae2Outputs.size(), overloadOutputs.size());
                     for (int i = 0; i < count; i++) {
-                        AEKey key = ae2Outputs.get(i).what();
+                        GenericStack ae2Output = ae2Outputs.get(i);
+                        if (ae2Output == null || ae2Output.what() == null) {
+                            continue;
+                        }
+                        AEKey key = ae2Output.what();
                         Object outputSlot = overloadOutputs.get(i);
-                        Object matchMode = outputSlot.getClass().getMethod("matchMode").invoke(outputSlot);
+                        Object matchMode = getAe2LtOverloadMatchMode(outputSlot);
                         if ("ID_ONLY".equals(String.valueOf(matchMode))) {
-                            allowIdOnly.invoke(filter, key);
+                            filterMethods.allowIdOnly().invoke(filter, key);
                         } else {
-                            allowStrict.invoke(filter, key);
+                            filterMethods.allowStrict().invoke(filter, key);
                         }
                     }
                     continue;
@@ -1719,33 +1993,86 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
                 for (GenericStack output : pattern.getOutputs()) {
                     if (output != null && output.what() != null) {
-                        allowStrict.invoke(filter, output.what());
+                        filterMethods.allowStrict().invoke(filter, output.what());
                     }
                 }
             }
 
             return filter;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
 
     private boolean isAe2LtAllowedOutputFilterEmpty(Object filter) {
+        Optional<Ae2LtAllowedOutputFilterAccess> access = AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS;
+        if (access.isEmpty()) {
+            return true;
+        }
+
         try {
-            Method isEmpty = filter.getClass().getMethod("isEmpty");
-            Object result = isEmpty.invoke(filter);
+            Object result = access.get().isEmpty().invoke(filter);
             return !(result instanceof Boolean empty) || empty;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return true;
         }
     }
 
     @Nullable
-    private Method findAe2CsAdjacentMeStorageMethod() {
+    private Object getAe2LtOverloadDetails(IPatternDetails pattern) {
+        Optional<Ae2LtOverloadPatternAccess> access = AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE.computeIfAbsent(
+                pattern.getClass(),
+                AdaptivePatternProviderLogic::findAe2LtOverloadPatternAccess);
+        if (access.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return access.get().overloadPatternDetailsView().invoke(pattern);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private List<Object> getAe2LtOverloadOutputs(Object overloadDetails) {
+        Optional<MethodHandle> outputs = getAe2LtOverloadOutputsAccess(overloadDetails.getClass());
+        if (outputs.isEmpty()) {
+            return null;
+        }
+
+        try {
+            Object result = outputs.get().invoke(overloadDetails);
+            return result instanceof List<?> list ? (List<Object>) list : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private Object getAe2LtOverloadMatchMode(Object outputSlot) {
+        Optional<Ae2LtOverloadOutputSlotAccess> access = AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE.computeIfAbsent(
+                outputSlot.getClass(),
+                AdaptivePatternProviderLogic::findAe2LtOverloadOutputSlotAccess);
+        if (access.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return access.get().matchMode().invoke(outputSlot);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private MethodHandle findAe2CsAdjacentMeStorageMethod() {
         try {
             Class<?> helperClass = Class.forName(AE2CS_GENERIC_STACK_INV_HELPER_CLASS);
-            return helperClass.getMethod("getAdjacentMeStorage",
+            Method method = helperClass.getMethod("getAdjacentMeStorage",
                     Level.class, BlockPos.class, BlockEntity.class, Direction.class);
+            return MethodHandles.privateLookupIn(helperClass, LOOKUP).unreflect(method);
         } catch (Exception ignored) {
             return null;
         }
@@ -1758,9 +2085,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         try {
-            Object result = this.ae2csAdjacentMeStorageMethod.invoke(null, level, pos, blockEntity, side);
+            Object result = this.ae2csAdjacentMeStorageMethod.invoke(level, pos, blockEntity, side);
             return result instanceof MEStorage storage ? storage : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -1883,7 +2210,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         for (var dir : sides) {
             BlockPos adjacentPos = hostBe.getBlockPos().relative(dir);
             Direction adjacentFace = dir.getOpposite();
-            if (!hostLevel.hasChunkAt(adjacentPos) || AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
+            if (!hostLevel.hasChunkAt(adjacentPos) || AdaptivePatternProviderResolver.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
                 continue;
             }
 
@@ -2036,10 +2363,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private void installExpandedReturnInventory() {
         try {
-            Field field = PatternProviderLogic.class.getDeclaredField("returnInv");
-            field.setAccessible(true);
-            field.set(this, new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
-        } catch (Exception e) {
+            BASE_RETURN_INV.set(this, new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
+        } catch (Throwable e) {
             throw new IllegalStateException("Failed to expand adaptive pattern provider return inventory", e);
         }
     }
@@ -2131,7 +2456,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Nullable
     private PatternProviderTarget getExternalTarget(Level level, BlockPos adjacentPos, Direction targetSide) {
-        if (AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(level, adjacentPos, targetSide)) {
+        if (AdaptivePatternProviderResolver.isPatternProviderAttachment(level, adjacentPos, targetSide)) {
             return null;
         }
         return PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
@@ -2158,9 +2483,42 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private record GridCoord(int x, int y) {}
 
+    private record AppliedCreateCrafterCandidate(List<?> crafterChain, Map<GridCoord, Object> crafterGrid) {}
+
     private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {}
 
     private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {}
+
+    private record MechanicalRecipeAccess(MethodHandle getResultItem,
+                                          MethodHandle getWidth,
+                                          MethodHandle getHeight,
+                                          MethodHandle getIngredients) {}
+
+    private record AppliedCreateAccess(Class<?> crafterClass,
+                                       MethodHandle getBlockState,
+                                       VarHandle pointingProperty,
+                                       MethodHandle getInventory,
+                                       MethodHandle insertItem,
+                                       MethodHandle checkCompletedRecipe,
+                                       MethodHandle getAllCraftersOfChain,
+                                       MethodHandle getTargetingCrafter) {}
+
+    private record Ae2LtAllowedOutputFilterAccess(MethodHandle constructor,
+                                                  MethodHandle allowStrict,
+                                                  MethodHandle allowIdOnly,
+                                                  MethodHandle isEmpty) {}
+
+    private record Ae2LtOverloadPatternAccess(MethodHandle overloadPatternDetailsView) {}
+
+    private record Ae2LtOverloadOutputSlotAccess(MethodHandle matchMode) {}
+
+    private record SparsePatternAccess(MethodHandle sparseInputs, MethodHandle targetForSparseInputIndex) {}
+
+    private record ResolvedTargetAccess(MethodHandle position, MethodHandle face) {}
+
+    private record DirectionalPatternAccess(MethodHandle directionalInputsSet,
+                                            MethodHandle directionSideForInputKey,
+                                            MethodHandle directionMap) {}
 
     private final class Ticker implements IGridTickable {
 

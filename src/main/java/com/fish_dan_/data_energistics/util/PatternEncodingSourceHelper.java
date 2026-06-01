@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1171,7 +1170,7 @@ public final class PatternEncodingSourceHelper {
             return catalystWorkstation;
         }
 
-        Object backingRecipe = invokeNoArg(context, "getBackingRecipe");
+        Object backingRecipe = PatternEncodingReflectionAccess.invokeNoArg(context, "getBackingRecipe");
         if (backingRecipe instanceof RecipeHolder<?> holder) {
             return resolveWorkstationForRecipe(holder.value());
         }
@@ -1179,8 +1178,8 @@ public final class PatternEncodingSourceHelper {
             return resolveWorkstationForRecipe(recipe);
         }
 
-        Object category = invokeNoArg(context, "getCategory");
-        ResourceLocation categoryId = tryReadResourceLocation(category, "getId");
+        Object category = PatternEncodingReflectionAccess.invokeNoArg(context, "getCategory");
+        ResourceLocation categoryId = PatternEncodingReflectionAccess.tryReadResourceLocation(category, "getId");
         if (categoryId != null) {
             ResourceLocation categoryWorkstation = resolveWorkstationFromIdentifier(categoryId, category, context);
             if (categoryWorkstation != null) {
@@ -1188,7 +1187,7 @@ public final class PatternEncodingSourceHelper {
             }
         }
 
-        ResourceLocation directId = tryReadResourceLocation(context, "getId");
+        ResourceLocation directId = PatternEncodingReflectionAccess.tryReadResourceLocation(context, "getId");
         if (directId != null) {
             ResourceLocation directWorkstation = resolveWorkstationFromIdentifier(directId, context, category);
             if (directWorkstation != null) {
@@ -1206,12 +1205,12 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     private static ResourceLocation resolveWorkstationFromCatalysts(Object context) {
-        Object catalysts = invokeNoArg(context, "getCatalysts");
+        Object catalysts = PatternEncodingReflectionAccess.invokeNoArg(context, "getCatalysts");
         Collection<?> collection;
         if (catalysts instanceof Collection<?> catalystCollection) {
             collection = catalystCollection;
         } else {
-            Object catalystSlots = invokeSlotViewsByRole(context, "CATALYST");
+            Object catalystSlots = PatternEncodingReflectionAccess.invokeSlotViewsByRole(context, "CATALYST");
             if (catalystSlots instanceof Collection<?> slotCollection) {
                 collection = slotCollection;
             } else {
@@ -1219,10 +1218,10 @@ public final class PatternEncodingSourceHelper {
             }
         }
 
-        List<String> hintTexts = collectHintTexts(tryReadResourceLocation(context, "getId"),
-                invokeNoArg(context, "getCategory"),
+        List<String> hintTexts = collectHintTexts(PatternEncodingReflectionAccess.tryReadResourceLocation(context, "getId"),
+                PatternEncodingReflectionAccess.invokeNoArg(context, "getCategory"),
                 context,
-                invokeNoArg(context, "getBackingRecipe"));
+                PatternEncodingReflectionAccess.invokeNoArg(context, "getBackingRecipe"));
         ResourceLocation bestCandidate = null;
         int bestScore = Integer.MIN_VALUE;
         for (Object catalyst : collection) {
@@ -1258,12 +1257,12 @@ public final class PatternEncodingSourceHelper {
             return candidates;
         }
 
-        Object displayedItemStack = invokeNoArg(catalyst, "getDisplayedItemStack");
+        Object displayedItemStack = PatternEncodingReflectionAccess.invokeNoArg(catalyst, "getDisplayedItemStack");
         if (displayedItemStack instanceof java.util.Optional<?> optional && optional.orElse(null) instanceof ItemStack stack && !stack.isEmpty()) {
             appendWorkstationCandidate(candidates, BuiltInRegistries.ITEM.getKey(stack.getItem()));
         }
 
-        Object itemStacks = invokeNoArg(catalyst, "getItemStacks");
+        Object itemStacks = PatternEncodingReflectionAccess.invokeNoArg(catalyst, "getItemStacks");
         if (itemStacks instanceof java.util.stream.Stream<?> stream) {
             try (stream) {
                 stream.limit(8).forEach(entry -> {
@@ -1274,12 +1273,12 @@ public final class PatternEncodingSourceHelper {
             }
         }
 
-        Object itemStack = invokeNoArg(catalyst, "getItemStack");
+        Object itemStack = PatternEncodingReflectionAccess.invokeNoArg(catalyst, "getItemStack");
         if (itemStack instanceof ItemStack stack && !stack.isEmpty()) {
             appendWorkstationCandidate(candidates, BuiltInRegistries.ITEM.getKey(stack.getItem()));
         }
 
-        Object emiStacks = invokeNoArg(catalyst, "getEmiStacks");
+        Object emiStacks = PatternEncodingReflectionAccess.invokeNoArg(catalyst, "getEmiStacks");
         if (emiStacks instanceof Collection<?> collection) {
             for (Object emiStack : collection) {
                 for (ResourceLocation candidate : collectWorkstationCandidatesFromCatalyst(emiStack, visited)) {
@@ -1288,7 +1287,7 @@ public final class PatternEncodingSourceHelper {
             }
         }
 
-        ResourceLocation id = tryReadResourceLocation(catalyst, "getId");
+        ResourceLocation id = PatternEncodingReflectionAccess.tryReadResourceLocation(catalyst, "getId");
         if (id != null) {
             appendWorkstationCandidate(candidates, resolveWorkstationFromIdentifier(id, catalyst));
         }
@@ -1415,9 +1414,9 @@ public final class PatternEncodingSourceHelper {
 
         for (Object hintSource : hintSources) {
             appendHintText(hints, hintSource);
-            appendHintText(hints, invokeNoArg(hintSource, "getTitle"));
-            appendHintText(hints, invokeNoArg(hintSource, "getName"));
-            appendHintText(hints, invokeNoArg(hintSource, "getTooltip"));
+            appendHintText(hints, PatternEncodingReflectionAccess.invokeNoArg(hintSource, "getTitle"));
+            appendHintText(hints, PatternEncodingReflectionAccess.invokeNoArg(hintSource, "getName"));
+            appendHintText(hints, PatternEncodingReflectionAccess.invokeNoArg(hintSource, "getTooltip"));
         }
 
         hints.removeIf(String::isBlank);
@@ -1892,65 +1891,6 @@ public final class PatternEncodingSourceHelper {
         if (persisted.isEmpty()) {
             persistentData.remove(Player.PERSISTED_NBT_TAG);
         }
-    }
-
-    @Nullable
-    private static ResourceLocation tryReadResourceLocation(@Nullable Object target, String methodName) {
-        Object value = invokeNoArg(target, methodName);
-        return value instanceof ResourceLocation id ? id : null;
-    }
-
-    @Nullable
-    private static Object invokeSlotViewsByRole(@Nullable Object target, String roleName) {
-        if (target == null) {
-            return null;
-        }
-
-        Class<?> type = target.getClass();
-        while (type != null) {
-            for (Method method : type.getDeclaredMethods()) {
-                if (!method.getName().equals("getSlotViews") || method.getParameterCount() != 1) {
-                    continue;
-                }
-
-                Class<?> parameterType = method.getParameterTypes()[0];
-                if (!parameterType.isEnum()) {
-                    continue;
-                }
-
-                try {
-                    @SuppressWarnings({ "rawtypes", "unchecked" })
-                    Object enumValue = Enum.valueOf((Class<? extends Enum>) parameterType.asSubclass(Enum.class), roleName);
-                    method.setAccessible(true);
-                    return method.invoke(target, enumValue);
-                } catch (ReflectiveOperationException | IllegalArgumentException ignored) {
-                    return null;
-                }
-            }
-            type = type.getSuperclass();
-        }
-        return null;
-    }
-
-    @Nullable
-    private static Object invokeNoArg(@Nullable Object target, String methodName) {
-        if (target == null) {
-            return null;
-        }
-
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                return method.invoke(target);
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (ReflectiveOperationException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 
     private record ExternalMappings(Map<String, ResourceLocation> identifierToWorkstation,

@@ -20,14 +20,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 
 @Mixin(targets = "com.moakiee.ae2lt.network.WirelessConnectorUsePacket", remap = false)
 public abstract class Ae2ltWirelessConnectorUsePacketMixin {
 
     @Unique
-    private static Method dataEnergistics$handMethod;
+    private static MethodHandle dataEnergistics$handMethod;
     @Unique
     private static boolean dataEnergistics$handMethodInitialized = false;
 
@@ -218,7 +220,10 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         if (!dataEnergistics$handMethodInitialized) {
             dataEnergistics$handMethodInitialized = true;
             try {
-                dataEnergistics$handMethod = this.getClass().getMethod("hand");
+                dataEnergistics$handMethod = MethodHandles.publicLookup().findVirtual(
+                        this.getClass(),
+                        "hand",
+                        MethodType.methodType(InteractionHand.class));
             } catch (Exception ignored) {
                 dataEnergistics$handMethod = null;
             }
@@ -227,7 +232,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         try {
             Object result = dataEnergistics$handMethod != null ? dataEnergistics$handMethod.invoke(this) : null;
             return result instanceof InteractionHand hand ? hand : InteractionHand.MAIN_HAND;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return InteractionHand.MAIN_HAND;
         }
     }
