@@ -24,6 +24,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
 import appeng.api.config.Actionable;
@@ -104,6 +105,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Optional<MechanicalRecipeAccess>> MECHANICAL_RECIPE_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final Optional<AppliedCreateAccess> APPLIED_CREATE_ACCESS = findAppliedCreateAccess();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -920,18 +923,21 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             for (RecipeHolder<?> holder : recipeHolders) {
                 Object recipe = holder.value();
                 try {
-                    ItemStack result = (ItemStack) recipe.getClass()
-                            .getMethod("getResultItem", HolderLookup.Provider.class)
-                            .invoke(recipe, registries);
+                    Optional<MechanicalRecipeAccess> access = getMechanicalRecipeAccess(recipe);
+                    if (access.isEmpty()) {
+                        continue;
+                    }
+
+                    ItemStack result = (ItemStack) access.get().getResultItem().invoke(recipe, registries);
                     if (!ItemStack.isSameItemSameComponents(result, expectedOutput)) {
                         continue;
                     }
-                    int width = (Integer) recipe.getClass().getMethod("getWidth").invoke(recipe);
-                    int height = (Integer) recipe.getClass().getMethod("getHeight").invoke(recipe);
+                    int width = (Integer) access.get().getWidth().invoke(recipe);
+                    int height = (Integer) access.get().getHeight().invoke(recipe);
                     @SuppressWarnings("unchecked")
-                    List<Ingredient> ingredients = (List<Ingredient>) recipe.getClass().getMethod("getIngredients").invoke(recipe);
+                    List<Ingredient> ingredients = (List<Ingredient>) access.get().getIngredients().invoke(recipe);
                     recipes.add(new AppliedCreateRecipeInfo(width, height, ingredients));
-                } catch (Exception ignored) {}
+                } catch (Throwable ignored) {}
             }
         }
 
@@ -1135,66 +1141,83 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private String getCrafterPointingName(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return "UP";
+        }
+
         try {
-            Object blockState = crafter.getClass().getMethod("getBlockState").invoke(crafter);
-            Object pointingProperty = Class.forName(CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS).getField("POINTING").get(null);
-            Object pointing = blockState.getClass()
-                    .getMethod("getValue", Property.class)
-                    .invoke(blockState, pointingProperty);
+            Object blockStateObject = access.get().getBlockState().invoke(crafter);
+            Object pointingProperty = access.get().pointingProperty().get();
+            if (!(blockStateObject instanceof BlockState blockState) || !(pointingProperty instanceof Property<?> property)) {
+                return "UP";
+            }
+
+            Object pointing = blockState.getValue(property);
             return String.valueOf(pointing);
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return "UP";
         }
     }
 
     private ItemStack insertIntoCrafter(Object crafter, ItemStack stack, boolean simulate) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return stack;
+        }
+
         try {
-            Object inventory = crafter.getClass().getMethod("getInventory").invoke(crafter);
-            Object result = inventory.getClass()
-                    .getMethod("insertItem", int.class, ItemStack.class, boolean.class)
-                    .invoke(inventory, 0, stack, simulate);
+            Object inventory = access.get().getInventory().invoke(crafter);
+            Object result = access.get().insertItem().invoke(inventory, 0, stack, simulate);
             return result instanceof ItemStack itemStack ? itemStack : stack;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return stack;
         }
     }
 
     private void triggerCrafterRecipeCheck(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return;
+        }
+
         try {
-            crafter.getClass().getMethod("checkCompletedRecipe", boolean.class).invoke(crafter, true);
-        } catch (Exception ignored) {}
+            access.get().checkCompletedRecipe().invoke(crafter, true);
+        } catch (Throwable ignored) {}
     }
 
     private boolean isMechanicalCrafterBlockEntity(@Nullable Object value) {
         if (value == null) {
             return false;
         }
-        try {
-            return Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS).isInstance(value);
-        } catch (Exception ignored) {
-            return false;
-        }
+        return APPLIED_CREATE_ACCESS.map(access -> access.crafterClass().isInstance(value)).orElse(false);
     }
 
     @Nullable
     private List<?> getAllMechanicalCraftersOfChain(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return null;
+        }
+
         try {
-            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
-            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
-            Object result = handlerClass.getMethod("getAllCraftersOfChain", crafterClass).invoke(null, crafter);
+            Object result = access.get().getAllCraftersOfChain().invoke(crafter);
             return result instanceof List<?> list ? list : null;
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             return null;
         }
     }
 
     @Nullable
     private Object getTargetingCrafter(Object crafter) {
+        Optional<AppliedCreateAccess> access = APPLIED_CREATE_ACCESS;
+        if (access.isEmpty()) {
+            return null;
+        }
+
         try {
-            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
-            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
-            return handlerClass.getMethod("getTargetingCrafter", crafterClass).invoke(null, crafter);
-        } catch (Exception ignored) {
+            return access.get().getTargetingCrafter().invoke(crafter);
+        } catch (Throwable ignored) {
             return null;
         }
     }
@@ -1575,6 +1598,27 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 AdaptivePatternProviderLogic::findDirectionalPatternAccess);
     }
 
+    private static Optional<MechanicalRecipeAccess> getMechanicalRecipeAccess(Object recipe) {
+        return MECHANICAL_RECIPE_ACCESS_CACHE.computeIfAbsent(
+                recipe.getClass(),
+                AdaptivePatternProviderLogic::findMechanicalRecipeAccess);
+    }
+
+    private static Optional<MechanicalRecipeAccess> findMechanicalRecipeAccess(Class<?> type) {
+        Optional<MethodHandle> getResultItem = findDuckMethod(type, "getResultItem", HolderLookup.Provider.class);
+        Optional<MethodHandle> getWidth = findDuckMethod(type, "getWidth");
+        Optional<MethodHandle> getHeight = findDuckMethod(type, "getHeight");
+        Optional<MethodHandle> getIngredients = findDuckMethod(type, "getIngredients");
+        if (getResultItem.isEmpty() || getWidth.isEmpty() || getHeight.isEmpty() || getIngredients.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new MechanicalRecipeAccess(
+                getResultItem.get(),
+                getWidth.get(),
+                getHeight.get(),
+                getIngredients.get()));
+    }
+
     private static Optional<SparsePatternAccess> findSparsePatternAccess(Class<?> type) {
         Optional<MethodHandle> sparseInputs = findDuckMethod(type, "getSparseInputs");
         Optional<MethodHandle> targetForSparseInputIndex = findDuckMethod(type, "getTargetForSparseInputIndex", int.class);
@@ -1604,6 +1648,59 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 directionalInputsSet.get(),
                 directionSideForInputKey.get(),
                 directionMap.get()));
+    }
+
+    private static Optional<AppliedCreateAccess> findAppliedCreateAccess() {
+        try {
+            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
+            MethodHandles.Lookup crafterLookup = MethodHandles.privateLookupIn(crafterClass, LOOKUP);
+            MethodHandle getBlockState = crafterLookup.findVirtual(crafterClass, "getBlockState",
+                    java.lang.invoke.MethodType.methodType(BlockState.class));
+            Method getInventoryMethod = crafterClass.getMethod("getInventory");
+            MethodHandle getInventory = MethodHandles.privateLookupIn(getInventoryMethod.getDeclaringClass(), LOOKUP)
+                    .unreflect(getInventoryMethod);
+            MethodHandle checkCompletedRecipe = crafterLookup.findVirtual(crafterClass, "checkCompletedRecipe",
+                    java.lang.invoke.MethodType.methodType(void.class, boolean.class));
+
+            Class<?> blockClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS);
+            VarHandle pointingProperty = MethodHandles.privateLookupIn(blockClass, LOOKUP)
+                    .findStaticVarHandle(blockClass, "POINTING", Property.class);
+
+            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
+            MethodHandles.Lookup handlerLookup = MethodHandles.privateLookupIn(handlerClass, LOOKUP);
+            MethodHandle getAllCraftersOfChain = handlerLookup.findStatic(handlerClass, "getAllCraftersOfChain",
+                    java.lang.invoke.MethodType.methodType(List.class, crafterClass));
+            MethodHandle getTargetingCrafter = handlerLookup.findStatic(handlerClass, "getTargetingCrafter",
+                    java.lang.invoke.MethodType.methodType(crafterClass, crafterClass));
+
+            MethodHandle insertItem = findAppliedCreateInsertItem(getInventoryMethod.getReturnType());
+            if (insertItem == null) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new AppliedCreateAccess(
+                    crafterClass,
+                    getBlockState,
+                    pointingProperty,
+                    getInventory,
+                    insertItem,
+                    checkCompletedRecipe,
+                    getAllCraftersOfChain,
+                    getTargetingCrafter));
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    @Nullable
+    private static MethodHandle findAppliedCreateInsertItem(Class<?> inventoryClass) {
+        try {
+            return MethodHandles.privateLookupIn(inventoryClass, LOOKUP)
+                    .findVirtual(inventoryClass, "insertItem",
+                            java.lang.invoke.MethodType.methodType(ItemStack.class, int.class, ItemStack.class, boolean.class));
+        } catch (ReflectiveOperationException | SecurityException ignored) {}
+
+        return null;
     }
 
     private static Optional<MethodHandle> findDuckMethod(Class<?> type, String name, Class<?>... parameterTypes) {
@@ -2287,6 +2384,20 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {}
 
     private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {}
+
+    private record MechanicalRecipeAccess(MethodHandle getResultItem,
+                                          MethodHandle getWidth,
+                                          MethodHandle getHeight,
+                                          MethodHandle getIngredients) {}
+
+    private record AppliedCreateAccess(Class<?> crafterClass,
+                                       MethodHandle getBlockState,
+                                       VarHandle pointingProperty,
+                                       MethodHandle getInventory,
+                                       MethodHandle insertItem,
+                                       MethodHandle checkCompletedRecipe,
+                                       MethodHandle getAllCraftersOfChain,
+                                       MethodHandle getTargetingCrafter) {}
 
     private record SparsePatternAccess(MethodHandle sparseInputs, MethodHandle targetForSparseInputIndex) {}
 
