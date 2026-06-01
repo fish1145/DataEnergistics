@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -67,6 +68,8 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     private int cachedSpeedCards = -1;
     private int cachedSpeedProduct = -1;
     private int cachedEnergyCards = -1;
+    @Nullable
+    private TickContext cachedTickContext;
 
     public DataRipperPart(IPartItem<?> partItem) {
         super(partItem);
@@ -177,19 +180,26 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
             return TickRateModulation.SLEEP;
         }
 
-        var level = this.getLevel();
-        if (level == null || this.getBlockEntity() == null) {
-            return TickRateModulation.IDLE;
-        }
-
-        BlockPos targetPos = this.getBlockEntity().getBlockPos().relative(this.getSide());
-        BlockState targetState = level.getBlockState(targetPos);
-        BlockEntity targetBlockEntity = level.getBlockEntity(targetPos);
         if (!this.isActive()) {
             return TickRateModulation.IDLE;
         }
 
-        this.ticker(targetPos, targetState, targetBlockEntity);
+        int speed = this.calculateSpeed();
+        if (speed <= 0) {
+            return TickRateModulation.IDLE;
+        }
+
+        var level = this.getLevel();
+        var hostBlockEntity = this.getBlockEntity();
+        if (level == null || hostBlockEntity == null) {
+            return TickRateModulation.IDLE;
+        }
+
+        BlockPos targetPos = hostBlockEntity.getBlockPos().relative(this.getSide());
+        BlockState targetState = level.getBlockState(targetPos);
+        BlockEntity targetBlockEntity = level.getBlockEntity(targetPos);
+
+        this.ticker(level, targetPos, targetState, targetBlockEntity, speed);
         return TickRateModulation.IDLE;
     }
 
@@ -209,29 +219,24 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         }
     }
 
-    private void ticker(BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity) {
+    private void ticker(Level level, BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity, int speed) {
         if (!this.isValidForTicking()) {
             return;
         }
 
-        String blockId = BuiltInRegistries.BLOCK.getKey(targetState.getBlock()).toString();
-        if (DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklistCompiled)) {
+        TickContext tickContext = this.getTickContext(level, targetPos, targetState, targetBlockEntity);
+        if (tickContext.blacklisted()) {
             return;
         }
 
-        RandomTickTarget randomTickTarget = this.getRandomTickTarget(targetPos, targetState);
-        BlockEntityTicker<BlockEntity> ticker = targetBlockEntity != null ? this.getTicker(targetBlockEntity) : null;
-        GridTickTarget gridTickTarget = targetBlockEntity != null ? this.getGridTickTarget(targetBlockEntity) : null;
+        RandomTickTarget randomTickTarget = tickContext.randomTickTarget();
+        BlockEntityTicker<BlockEntity> ticker = tickContext.ticker();
+        GridTickTarget gridTickTarget = tickContext.gridTickTarget();
         if (ticker == null && gridTickTarget == null && randomTickTarget == null) {
             return;
         }
 
-        int speed = this.calculateSpeed();
-        if (speed <= 0) {
-            return;
-        }
-
-        double requiredPower = this.calculateRequiredPower(speed, blockId);
+        double requiredPower = this.calculateRequiredPower(speed, tickContext.powerMultiplier());
         if (!this.extractPower(requiredPower)) {
             return;
         }
@@ -249,19 +254,40 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         }
     }
 
+    private TickContext getTickContext(Level level, BlockPos targetPos, BlockState targetState, @Nullable BlockEntity targetBlockEntity) {
+        TickContext tickContext = this.cachedTickContext;
+        if (tickContext != null && tickContext.matches(level, targetPos, targetState, targetBlockEntity)) {
+            return tickContext;
+        }
+
+        String blockId = BuiltInRegistries.BLOCK.getKey(targetState.getBlock()).toString();
+        boolean blacklisted = DataRipperConfigParsingUtils.isBlockBlacklisted(blockId, Config.dataRipperBlacklistCompiled);
+        double powerMultiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliersCompiled);
+        RandomTickTarget randomTickTarget = this.getRandomTickTarget(level, targetPos, targetState);
+        BlockEntityTicker<BlockEntity> ticker = targetBlockEntity != null ? this.getTicker(level, targetState, targetBlockEntity) : null;
+        GridTickTarget gridTickTarget = targetBlockEntity != null ? this.getGridTickTarget(targetBlockEntity) : null;
+        tickContext = new TickContext(
+                level,
+                targetPos,
+                targetState,
+                targetBlockEntity,
+                blacklisted,
+                powerMultiplier,
+                ticker,
+                gridTickTarget,
+                randomTickTarget);
+        this.cachedTickContext = tickContext;
+        return tickContext;
+    }
+
     private boolean isValidForTicking() {
         var mainNode = this.getMainNode();
         return mainNode != null && mainNode.getGrid() != null;
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends BlockEntity> BlockEntityTicker<T> getTicker(T blockEntity) {
-        var level = this.getLevel();
-        if (level == null) {
-            return null;
-        }
-
-        return level.getBlockState(blockEntity.getBlockPos()).getTicker(level, (BlockEntityType<T>) blockEntity.getType());
+    private <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState blockState, T blockEntity) {
+        return blockState.getTicker(level, (BlockEntityType<T>) blockEntity.getType());
     }
 
     @Nullable
@@ -284,8 +310,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     @Nullable
-    private RandomTickTarget getRandomTickTarget(BlockPos targetPos, BlockState targetState) {
-        var level = this.getLevel();
+    private RandomTickTarget getRandomTickTarget(Level level, BlockPos targetPos, BlockState targetState) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return null;
         }
@@ -311,12 +336,11 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         return this.cachedSpeedProduct;
     }
 
-    private double calculateRequiredPower(int speed, String blockId) {
+    private double calculateRequiredPower(int speed, double multiplier) {
         int energyCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.ENERGY_CARD);
         if (energyCardCount != this.cachedEnergyCards) {
             this.cachedEnergyCards = energyCardCount;
         }
-        double multiplier = DataRipperConfigParsingUtils.getMultiplierForBlock(blockId, Config.dataRipperMultipliersCompiled);
         return DataRipperPowerUtils.computeFinalPowerForProduct(speed, energyCardCount) * multiplier;
     }
 
@@ -417,4 +441,20 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     private record GridTickTarget(IGridNode node, IGridTickable tickable) {}
 
     private record RandomTickTarget(ServerLevel level, BlockPos pos) {}
+
+    private record TickContext(
+                               Level level,
+                               BlockPos pos,
+                               BlockState state,
+                               @Nullable BlockEntity blockEntity,
+                               boolean blacklisted,
+                               double powerMultiplier,
+                               @Nullable BlockEntityTicker<BlockEntity> ticker,
+                               @Nullable GridTickTarget gridTickTarget,
+                               @Nullable RandomTickTarget randomTickTarget) {
+
+        private boolean matches(Level level, BlockPos pos, BlockState state, @Nullable BlockEntity blockEntity) {
+            return this.level == level && this.pos.equals(pos) && this.state == state && this.blockEntity == blockEntity;
+        }
+    }
 }
