@@ -77,6 +77,8 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     void markForClientUpdate();
 
+    ItemStack getProviderMainMenuIcon();
+
     @Nullable
     PatternContainerGroup getPrimaryAttachedMachineGroup();
 }

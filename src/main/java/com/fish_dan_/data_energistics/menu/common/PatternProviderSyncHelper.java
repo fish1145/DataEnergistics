@@ -3,8 +3,6 @@ package com.fish_dan_.data_energistics.menu.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
@@ -619,11 +617,8 @@ public final class PatternProviderSyncHelper {
             return terminalIcon;
         }
 
-        if (container instanceof AdaptivePatternProviderBlockEntity blockEntity) {
-            return blockEntity.getMainMenuIcon();
-        }
-        if (container instanceof AdaptivePatternProviderPart part) {
-            return part.getMainMenuIcon();
+        if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
+            return adaptiveHost.getProviderMainMenuIcon();
         }
         if (container instanceof PatternProviderBlockEntity blockEntity) {
             return blockEntity.getMainMenuIcon();

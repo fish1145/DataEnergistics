@@ -436,6 +436,11 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
+    public ItemStack getProviderMainMenuIcon() {
+        return getMainMenuIcon();
+    }
+
+    @Override
     public appeng.api.implementations.blockentities.PatternContainerGroup getTerminalGroup() {
         var baseGroup = buildAdaptiveTerminalGroup();
         int unlockedSlots = getConfiguredPatternSlotCount();

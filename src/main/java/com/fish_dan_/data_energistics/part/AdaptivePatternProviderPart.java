@@ -407,6 +407,11 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
+    public ItemStack getProviderMainMenuIcon() {
+        return getMainMenuIcon();
+    }
+
+    @Override
     public PatternContainerGroup getTerminalGroup() {
         if (this instanceof Nameable nameable && nameable.hasCustomName()) {
             return new PatternContainerGroup(this.getTerminalIcon(), nameable.getCustomName(), List.of());
