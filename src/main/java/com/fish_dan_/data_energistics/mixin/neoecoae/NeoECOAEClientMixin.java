@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Pseudo
@@ -80,8 +81,10 @@ public class NeoECOAEClientMixin {
         data_energistics$fixedRendererLookupAttempted = true;
         try {
             Class<?> renderersClass = Class.forName(FIXED_BLOCK_ENTITY_RENDERERS);
-            renderMethod = MethodHandles.publicLookup().unreflect(
-                    renderersClass.getMethod("render", context.getClass().getInterfaces()[0], BlockPos.class));
+            renderMethod = MethodHandles.publicLookup().findStatic(
+                    renderersClass,
+                    "render",
+                    MethodType.methodType(void.class, context.getClass().getInterfaces()[0], BlockPos.class));
             data_energistics$fixedRendererMethod = renderMethod;
             return renderMethod;
         } catch (ReflectiveOperationException | RuntimeException exception) {

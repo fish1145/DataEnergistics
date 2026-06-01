@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 
 @Mixin(targets = "com.moakiee.ae2lt.network.WirelessConnectorUsePacket", remap = false)
@@ -219,7 +220,10 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         if (!dataEnergistics$handMethodInitialized) {
             dataEnergistics$handMethodInitialized = true;
             try {
-                dataEnergistics$handMethod = MethodHandles.publicLookup().unreflect(this.getClass().getMethod("hand"));
+                dataEnergistics$handMethod = MethodHandles.publicLookup().findVirtual(
+                        this.getClass(),
+                        "hand",
+                        MethodType.methodType(InteractionHand.class));
             } catch (Exception ignored) {
                 dataEnergistics$handMethod = null;
             }

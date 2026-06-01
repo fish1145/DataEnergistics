@@ -19,7 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -142,16 +141,27 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
         Class<?> current = type;
         while (current != null) {
             try {
-                Field field = current.getDeclaredField(fieldName);
                 MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(current, MethodHandles.lookup());
-                return Optional.of(lookup.findVarHandle(current, fieldName, field.getType()));
-            } catch (NoSuchFieldException ignored) {
+                return Optional.of(dataEnergistics$findDeclaredVarHandle(lookup, current, fieldName));
+            } catch (NoSuchFieldException | NoSuchFieldError ignored) {
                 current = current.getSuperclass();
             } catch (ReflectiveOperationException | RuntimeException ignored) {
                 return Optional.empty();
             }
         }
         return Optional.empty();
+    }
+
+    @Unique
+    private static VarHandle dataEnergistics$findDeclaredVarHandle(MethodHandles.Lookup lookup,
+                                                                  Class<?> owner,
+                                                                  String fieldName) throws ReflectiveOperationException {
+        for (var field : owner.getDeclaredFields()) {
+            if (field.getName().equals(fieldName)) {
+                return lookup.findVarHandle(owner, fieldName, field.getType());
+            }
+        }
+        throw new NoSuchFieldException(fieldName);
     }
 
     @Unique

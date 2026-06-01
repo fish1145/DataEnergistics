@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 
 @Mixin(BlockCapability.class)
 public abstract class Ae2ltEjectCapabilityMixin<T, C> {
@@ -168,14 +169,14 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
         try {
             Class<?> registryClass = Class.forName(DE_EJECT_MODE_REGISTRY);
             MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-            dataEnergistics$isBypassedMethod = lookup.unreflect(registryClass.getMethod("isBypassed"));
-            dataEnergistics$lookupByFaceMethod = lookup.unreflect(registryClass.getMethod(
-                    "lookupByFace",
-                    ResourceKey.class,
-                    long.class,
-                    Direction.class));
+            dataEnergistics$isBypassedMethod = lookup.findStatic(registryClass, "isBypassed",
+                    MethodType.methodType(boolean.class));
             Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
-            dataEnergistics$getHostMethod = lookup.unreflect(ejectEntryClass.getMethod("getHost"));
+            dataEnergistics$lookupByFaceMethod = lookup.findStatic(registryClass,
+                    "lookupByFace",
+                    MethodType.methodType(ejectEntryClass, ResourceKey.class, long.class, Direction.class));
+            dataEnergistics$getHostMethod = lookup.findVirtual(ejectEntryClass, "getHost",
+                    MethodType.methodType(BlockEntity.class));
         } catch (Exception ignored) {
             dataEnergistics$isBypassedMethod = null;
             dataEnergistics$lookupByFaceMethod = null;
