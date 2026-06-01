@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
@@ -9,7 +10,6 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
-import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -73,7 +73,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     private final IUpgradeInventory upgrades;
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getLogic);
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getLogic);
-    private final Object externalReturnChemicalHandler = AppMekCompat.createReturnChemicalHandler(this::getLogic);
+    private final Object externalReturnChemicalHandler = AdaptivePatternProviderExternalHandlers.createChemicalHandler(this::getLogic);
 
     public AdaptivePatternProviderPart(IPartItem<?> partItem) {
         super(partItem);
@@ -202,7 +202,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public boolean isAppliedCreateMechanicalProviderSelected() {
-        if (!AppliedCreateCompat.isMechanicalProviderSupportEnabled()) {
+        if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
         }
         var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());

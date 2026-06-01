@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
@@ -8,7 +9,6 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandl
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
-import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -102,7 +102,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private final IUpgradeInventory upgrades;
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getAdaptiveLogic);
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getAdaptiveLogic);
-    private final Object externalReturnChemicalHandler = AppMekCompat.createReturnChemicalHandler(this::getAdaptiveLogic);
+    private final Object externalReturnChemicalHandler = AdaptivePatternProviderExternalHandlers.createChemicalHandler(this::getAdaptiveLogic);
     private int syncedPatternSlotCount = 0;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -245,7 +245,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public boolean isAppliedCreateMechanicalProviderSelected() {
-        if (!AppliedCreateCompat.isMechanicalProviderSupportEnabled()) {
+        if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
         }
         ProviderProfile profile = getProviderProfile();
@@ -714,7 +714,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Nullable
     private static ProviderProfile resolveAppliedCreateProfile(ItemStack stack) {
-        if (!AppliedCreateCompat.isMechanicalProviderSupportEnabled()) {
+        if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return null;
         }
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
