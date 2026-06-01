@@ -778,6 +778,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return super.pushPattern(patternDetails, inputHolder);
         }
 
+        List<AppliedCreateCrafterCandidate> candidates = collectAppliedCreateCrafterCandidates(level, blockEntity.getBlockPos());
+        if (candidates.isEmpty()) {
+            return super.pushPattern(patternDetails, inputHolder);
+        }
+
         List<AppliedCreateRecipeInfo> recipes = collectAppliedCreateRecipeInfos(level, primaryOutputKey.toStack());
         if (recipes.isEmpty()) {
             return super.pushPattern(patternDetails, inputHolder);
@@ -788,7 +793,20 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return super.pushPattern(patternDetails, inputHolder);
         }
 
-        BlockPos providerPos = blockEntity.getBlockPos();
+        for (AppliedCreateCrafterCandidate candidate : candidates) {
+            if (!tryPushAppliedCreateRecipe(recipes, candidate.crafterChain(), candidate.crafterGrid(), flattenedInputs)) {
+                continue;
+            }
+
+            invokePatternSuccess(patternDetails);
+            return true;
+        }
+
+        return super.pushPattern(patternDetails, inputHolder);
+    }
+
+    private List<AppliedCreateCrafterCandidate> collectAppliedCreateCrafterCandidates(Level level, BlockPos providerPos) {
+        ArrayList<AppliedCreateCrafterCandidate> candidates = new ArrayList<>();
         for (Direction side : this.host.getTargets()) {
             BlockEntity adjacentBlockEntity = level.getBlockEntity(providerPos.relative(side));
             if (!isMechanicalCrafterBlockEntity(adjacentBlockEntity)) {
@@ -805,15 +823,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            if (!tryPushAppliedCreateRecipe(recipes, crafterChain, crafterGrid, flattenedInputs)) {
-                continue;
-            }
-
-            invokePatternSuccess(patternDetails);
-            return true;
+            candidates.add(new AppliedCreateCrafterCandidate(crafterChain, crafterGrid));
         }
-
-        return super.pushPattern(patternDetails, inputHolder);
+        return candidates;
     }
 
     @SuppressWarnings("unchecked")
@@ -2156,6 +2168,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private record FallbackTarget(Direction direction, PatternProviderTarget target) {}
 
     private record GridCoord(int x, int y) {}
+
+    private record AppliedCreateCrafterCandidate(List<?> crafterChain, Map<GridCoord, Object> crafterGrid) {}
 
     private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {}
 
