@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
+import com.fish_dan_.data_energistics.client.model.DataFrameworkCtmModel;
 import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
@@ -160,6 +161,11 @@ public final class ClientBootstrap {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
+        }
+
+        @SubscribeEvent
+        public static void onRegisterGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
+            event.register(Data_Energistics.id("data_framework_ctm"), new DataFrameworkCtmModel.Loader());
         }
 
         private static void registerFluidRenderLayers() {

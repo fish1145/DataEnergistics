@@ -1,6 +1,3 @@
 {
-	"parent": "minecraft:block/cube_all",
-	"textures": {
-		"all": "data_energistics:block/data_framework"
-	}
+  "loader": "data_energistics:data_framework_ctm"
 }

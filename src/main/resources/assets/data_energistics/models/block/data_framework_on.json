@@ -1,0 +1,4 @@
+{
+  "loader": "data_energistics:data_framework_ctm",
+  "texture_root": "block/data_framework_ctm_on"
+}

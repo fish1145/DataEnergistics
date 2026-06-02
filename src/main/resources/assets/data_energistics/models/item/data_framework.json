@@ -1,3 +1,6 @@
 {
-	"parent": "data_energistics:block/data_framework"
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "data_energistics:block/data_framework_ctm_off/full"
+  }
 }

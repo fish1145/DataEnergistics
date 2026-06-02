@@ -46,7 +46,9 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(
             "data_framework",
             DataFrameworkBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
+                    .noOcclusion()
+                    .isViewBlocking((state, blockGetter, pos) -> false));
 
     public static final DeferredBlock<Block> DATA_DISTRIBUTION_TOWER = BLOCKS.registerBlock(
             "data_distribution_tower",
