@@ -21,7 +21,6 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import appeng.block.AEBaseBlock;
-
 import org.jetbrains.annotations.NotNull;
 
 public class DataFrameworkBlock extends AEBaseBlock implements EntityBlock {
@@ -46,15 +45,14 @@ public class DataFrameworkBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
-            BlockEntityType<T> blockEntityType) {
+                                                                  BlockEntityType<T> blockEntityType) {
         if (!(level instanceof ServerLevel)) {
             return null;
         }
         if (blockEntityType != ModBlockEntities.DATA_FRAMEWORK_BLOCK_ENTITY.get()) {
             return null;
         }
-        return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) ->
-                ((DataFrameworkBlockEntity) tickerBlockEntity).serverTick();
+        return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((DataFrameworkBlockEntity) tickerBlockEntity).serverTick();
     }
 
     @Override
@@ -64,19 +62,19 @@ public class DataFrameworkBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public boolean propagatesSkylightDown(@NotNull BlockState state, @NotNull BlockGetter blockGetter,
-            @NotNull BlockPos pos) {
+                                          @NotNull BlockPos pos) {
         return true;
     }
 
     @Override
     protected @NotNull VoxelShape getVisualShape(@NotNull BlockState state, @NotNull BlockGetter world,
-            @NotNull BlockPos pos, @NotNull CollisionContext context) {
+                                                 @NotNull BlockPos pos, @NotNull CollisionContext context) {
         return Shapes.empty();
     }
 
     @Override
     protected boolean skipRendering(@NotNull BlockState state, @NotNull BlockState adjacentBlockState,
-            @NotNull Direction side) {
+                                    @NotNull Direction side) {
         if (adjacentBlockState.is(this) && adjacentBlockState.getRenderShape() == state.getRenderShape()) {
             return true;
         }
