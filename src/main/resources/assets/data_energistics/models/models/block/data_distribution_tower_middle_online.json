@@ -1,6 +1,0 @@
-{
-	"parent": "data_energistics:block/data_distribution_tower_middle_offline",
-	"textures": {
-		"2": "data_energistics:block/data_distribution_tower/crystal_on"
-	}
-}
