@@ -1,4 +1,9 @@
 {
-  "loader": "data_energistics:data_framework_ctm",
-  "texture_root": "block/data_framework_ctm_on"
+	"loader": "data_energistics:data_framework_ctm",
+	"texture": "block/data_framework_ctm_on/full",
+	"connection_texture": "block/data_framework_ctm_on/connection",
+	"textures": {
+		"all": "data_energistics:block/data_framework_ctm_on/full",
+		"ctm": "data_energistics:block/data_framework_ctm_on/connection"
+	}
 }
