@@ -12,8 +12,8 @@ import net.minecraft.world.inventory.InventoryMenu;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.fluids.FluidStack;
 
-import appeng.api.stacks.AEFluidKey;
 import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.client.gui.style.Blitter;
 

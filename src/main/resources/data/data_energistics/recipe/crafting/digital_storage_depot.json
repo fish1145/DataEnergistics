@@ -1,10 +1,6 @@
 {
 	"type": "minecraft:crafting_shaped",
-	"pattern": [
-		"ABA",
-		"CDC",
-		"AEA"
-	],
+	"pattern": ["ABA", "CDC", "AEA"],
 	"key": {
 		"A": {
 			"tag": "c:ingots/iron"

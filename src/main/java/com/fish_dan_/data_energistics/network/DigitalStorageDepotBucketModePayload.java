@@ -37,9 +37,7 @@ public record DigitalStorageDepotBucketModePayload(boolean offHand) implements C
 
             boolean bucketMode = DigitalStorageDepotBlockItem.toggleBucketMode(stack);
             player.displayClientMessage(Component.translatable(
-                    bucketMode
-                            ? "message.data_energistics.digital_storage_depot.bucket_mode_on"
-                            : "message.data_energistics.digital_storage_depot.bucket_mode_off"), true);
+                    bucketMode ? "message.data_energistics.digital_storage_depot.bucket_mode_on" : "message.data_energistics.digital_storage_depot.bucket_mode_off"), true);
         });
     }
 }

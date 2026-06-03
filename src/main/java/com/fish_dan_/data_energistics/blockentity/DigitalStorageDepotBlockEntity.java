@@ -13,8 +13,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
@@ -64,17 +64,17 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final InternalInventory externalInventory = new CombinedInternalInventory(
             new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, false)),
             new FilteredInternalInventory(this.storage, new SlotAccessFilter(false, true)));
-    private final FluidTank[] fluidTanks = new FluidTank[]{
+    private final FluidTank[] fluidTanks = new FluidTank[] {
             new SyncFluidTank(0, FLUID_CAPACITY),
             new SyncFluidTank(1, FLUID_CAPACITY),
             new SyncFluidTank(2, FLUID_CAPACITY)
     };
-    private final GenericStackInv[] fluidMenuInventories = new GenericStackInv[]{
+    private final GenericStackInv[] fluidMenuInventories = new GenericStackInv[] {
             createFluidMenuInventory(0),
             createFluidMenuInventory(1),
             createFluidMenuInventory(2)
     };
-    private final GenericStackInv[] keyMenuInventories = new GenericStackInv[]{
+    private final GenericStackInv[] keyMenuInventories = new GenericStackInv[] {
             createKeyMenuInventory(0),
             createKeyMenuInventory(1),
             createKeyMenuInventory(2)
@@ -133,9 +133,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     public void restoreStoredFluids(FluidStack[] fluids) {
         for (int i = 0; i < FLUID_SLOTS; i++) {
             FluidStack fluid = i < fluids.length ? fluids[i] : FluidStack.EMPTY;
-            this.fluidTanks[i].setFluid(fluid.isEmpty()
-                    ? FluidStack.EMPTY
-                    : fluid.copyWithAmount(Math.min(FLUID_CAPACITY, fluid.getAmount())));
+            this.fluidTanks[i].setFluid(fluid.isEmpty() ? FluidStack.EMPTY : fluid.copyWithAmount(Math.min(FLUID_CAPACITY, fluid.getAmount())));
         }
         syncMenuFluidsFromTanks();
         this.saveChanges();
@@ -191,9 +189,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             this.fluidTanks[i].readFromNBT(registries, data.getCompound(FLUID_TAG_PREFIX + i));
         }
         for (int i = 0; i < KEY_SLOTS; i++) {
-            this.keyStacks[i] = data.contains(KEY_TAG_PREFIX + i)
-                    ? GenericStack.readTag(registries, data.getCompound(KEY_TAG_PREFIX + i))
-                    : null;
+            this.keyStacks[i] = data.contains(KEY_TAG_PREFIX + i) ? GenericStack.readTag(registries, data.getCompound(KEY_TAG_PREFIX + i)) : null;
         }
         syncMenuFluidsFromTanks();
         syncKeyMenusFromStacks();

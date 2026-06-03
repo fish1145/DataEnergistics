@@ -71,9 +71,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             return InteractionResultHolder.pass(stack);
         }
 
-        AttemptResult result = placingFluid
-                ? tryPlaceFluid(level, player, hand, stack, hitResult)
-                : tryPickUpFluid(level, player, hand, stack, hitResult);
+        AttemptResult result = placingFluid ? tryPlaceFluid(level, player, hand, stack, hitResult) : tryPickUpFluid(level, player, hand, stack, hitResult);
         if (result == AttemptResult.NO_TARGET) {
             return InteractionResultHolder.pass(stack);
         }
@@ -98,9 +96,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
                 context.getClickedFace(),
                 context.getClickedPos(),
                 context.isInside());
-        AttemptResult result = context.isSecondaryUseActive()
-                ? tryPlaceFluid(context.getLevel(), player, context.getHand(), context.getItemInHand(), hitResult)
-                : tryPickUpFluid(context.getLevel(), player, context.getHand(), context.getItemInHand(), hitResult);
+        AttemptResult result = context.isSecondaryUseActive() ? tryPlaceFluid(context.getLevel(), player, context.getHand(), context.getItemInHand(), hitResult) : tryPickUpFluid(context.getLevel(), player, context.getHand(), context.getItemInHand(), hitResult);
         if (result == AttemptResult.SUCCESS) {
             return InteractionResult.sidedSuccess(context.getLevel().isClientSide());
         }
@@ -183,9 +179,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         }
 
         ItemStack updatedDepot = stack.copyWithCount(1);
-        storedFluids[selectedSlot] = currentFluid.isEmpty()
-                ? pickedUpFluid.copy()
-                : currentFluid.copyWithAmount(currentFluid.getAmount() + pickedUpFluid.getAmount());
+        storedFluids[selectedSlot] = currentFluid.isEmpty() ? pickedUpFluid.copy() : currentFluid.copyWithAmount(currentFluid.getAmount() + pickedUpFluid.getAmount());
         writeStoredFluids(updatedDepot, registries, storedFluids);
 
         if (player.hasInfiniteMaterials()) {
@@ -264,8 +258,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
     private static BlockPos resolvePlacementPos(Player player, Level level, BlockHitResult hitResult, FluidStack fluid) {
         BlockPos pos = hitResult.getBlockPos();
         BlockState state = level.getBlockState(pos);
-        if (state.getBlock() instanceof LiquidBlockContainer liquidContainer
-                && liquidContainer.canPlaceLiquid(player, level, pos, state, fluid.getFluid())) {
+        if (state.getBlock() instanceof LiquidBlockContainer liquidContainer && liquidContainer.canPlaceLiquid(player, level, pos, state, fluid.getFluid())) {
             return pos;
         }
         if (state.canBeReplaced(fluid.getFluid())) {
@@ -302,9 +295,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
         for (int i = 0; i < DigitalStorageDepotBlockEntity.FLUID_SLOTS; i++) {
             String itemFluidTagKey = getItemFluidTagKey(i);
-            fluids[i] = customTag.contains(itemFluidTagKey)
-                    ? FluidStack.parseOptional(registries, customTag.getCompound(itemFluidTagKey))
-                    : DigitalStorageDepotBlockEntity.readFluidFromTag(registries, blockEntityTag, i);
+            fluids[i] = customTag.contains(itemFluidTagKey) ? FluidStack.parseOptional(registries, customTag.getCompound(itemFluidTagKey)) : DigitalStorageDepotBlockEntity.readFluidFromTag(registries, blockEntityTag, i);
         }
         return fluids;
     }

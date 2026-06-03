@@ -86,17 +86,11 @@ public class DigitalStorageDepotScreen extends UpgradeableScreen<DigitalStorageD
     }
 
     private boolean isEmptyGenericSlot(@Nullable Slot slot) {
-        return slot != null
-                && slot.isActive()
-                && slot.getItem().isEmpty()
-                && isGenericSemantic(this.menu.getSlotSemantic(slot));
+        return slot != null && slot.isActive() && slot.getItem().isEmpty() && isGenericSemantic(this.menu.getSlotSemantic(slot));
     }
 
     private boolean isFilledGenericSlot(@Nullable Slot slot) {
-        return slot != null
-                && slot.isActive()
-                && !slot.getItem().isEmpty()
-                && isGenericSemantic(this.menu.getSlotSemantic(slot));
+        return slot != null && slot.isActive() && !slot.getItem().isEmpty() && isGenericSemantic(this.menu.getSlotSemantic(slot));
     }
 
     private @Nullable GenericStack getDisplayedGenericStack(@Nullable Slot slot) {
@@ -124,15 +118,11 @@ public class DigitalStorageDepotScreen extends UpgradeableScreen<DigitalStorageD
     }
 
     private boolean isFluidSemantic(SlotSemantic semantic) {
-        return semantic == DigitalStorageDepotMenu.FLUID
-                || semantic == DigitalStorageDepotMenu.FLUID_2
-                || semantic == DigitalStorageDepotMenu.FLUID_3;
+        return semantic == DigitalStorageDepotMenu.FLUID || semantic == DigitalStorageDepotMenu.FLUID_2 || semantic == DigitalStorageDepotMenu.FLUID_3;
     }
 
     private boolean isKeySemantic(SlotSemantic semantic) {
-        return semantic == DigitalStorageDepotMenu.KEY
-                || semantic == DigitalStorageDepotMenu.KEY_2
-                || semantic == DigitalStorageDepotMenu.KEY_3;
+        return semantic == DigitalStorageDepotMenu.KEY || semantic == DigitalStorageDepotMenu.KEY_2 || semantic == DigitalStorageDepotMenu.KEY_3;
     }
 
     private int getGenericSlotIndex(@Nullable Slot slot) {

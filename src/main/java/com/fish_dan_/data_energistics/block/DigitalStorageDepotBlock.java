@@ -41,7 +41,6 @@ import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class DigitalStorageDepotBlock extends AEBaseBlock implements EntityBlock {
@@ -134,8 +133,7 @@ public class DigitalStorageDepotBlock extends AEBaseBlock implements EntityBlock
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide() && player.getAbilities().instabuild
-                && level.getBlockEntity(pos) instanceof DigitalStorageDepotBlockEntity depot) {
+        if (!level.isClientSide() && player.getAbilities().instabuild && level.getBlockEntity(pos) instanceof DigitalStorageDepotBlockEntity depot) {
             depot.clearContent();
         }
         return super.playerWillDestroy(level, pos, state, player);
