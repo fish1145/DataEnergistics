@@ -5,8 +5,6 @@ import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
 import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
-import com.fish_dan_.data_energistics.client.model.DataFrameworkCtmModel;
-import com.fish_dan_.data_energistics.client.model.ctm.CtmTextureManager;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
@@ -75,7 +73,6 @@ import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -172,16 +169,6 @@ public final class ClientBootstrap {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
-        }
-
-        @SubscribeEvent
-        public static void onRegisterGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
-            event.register(Data_Energistics.id("data_framework_ctm"), new DataFrameworkCtmModel.Loader());
-        }
-
-        @SubscribeEvent
-        public static void onAtlasStitched(TextureAtlasStitchedEvent event) {
-            CtmTextureManager.onAtlasStitched(event);
         }
 
         private static void registerFluidRenderLayers() {

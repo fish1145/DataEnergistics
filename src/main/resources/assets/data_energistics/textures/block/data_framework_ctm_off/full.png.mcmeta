@@ -1,5 +1,12 @@
 {
-	"data_energistics": {
-		"connection_texture": "data_energistics:block/data_framework_ctm_off/connection"
+	"ctm": {
+		"ctm_version": 1,
+		"type": "ctm",
+		"textures": [
+			"data_energistics:block/data_framework_ctm_off/connection"
+		],
+		"extra": {
+			"connect_inside": false
+		}
 	}
 }

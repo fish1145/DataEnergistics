@@ -42,6 +42,7 @@ mega-cells = "7952621"
 cloth-config = "5729127"
 amek = "7096962"
 jech = "8117474"
+ctm = "5587515"
 
 ## libs ##
 
@@ -87,6 +88,7 @@ cloth-config        = { module = "curse.maven:cloth-config-348521", version.ref 
 amek                = { module = "curse.maven:applied-mekanistics-574300", version.ref = "amek" }
 
 jech                = { module = "curse.maven:just-enough-characters-250702", version.ref = "jech" }
+ctm                 = { module = "curse.maven:ctm-267602", version.ref = "ctm" }
 
 [bundles]
 jei = ["jei-common-api", "jei-neoforge-api", "jei-neoforge-impl"]

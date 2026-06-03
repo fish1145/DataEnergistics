@@ -1,9 +1,6 @@
 {
-	"loader": "data_energistics:data_framework_ctm",
-	"texture": "block/data_framework_ctm_off/full",
-	"connection_texture": "block/data_framework_ctm_off/connection",
+	"parent": "minecraft:block/cube_all",
 	"textures": {
-		"all": "data_energistics:block/data_framework_ctm_off/full",
-		"ctm": "data_energistics:block/data_framework_ctm_off/connection"
+		"all": "data_energistics:block/data_framework_ctm_off/full"
 	}
 }

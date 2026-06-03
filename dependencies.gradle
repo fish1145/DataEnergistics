@@ -69,6 +69,8 @@ dependencies {
 
     // Client-only runtime mods
     clientLocalRuntime(forge.jech)
+    clientLocalRuntime(forge.ctm)
+    jarJar(forge.ctm.get())
     clientLocalRuntime(forge.sodium)
     clientLocalRuntime(forge.iris)
     renderNurseCfg(libs.renderNurse)
