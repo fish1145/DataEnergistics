@@ -1,219 +1,240 @@
 package com.fish_dan_.data_energistics.client.model.ctm;
 
+import com.fish_dan_.data_energistics.client.model.quad.MeshBuilder;
 import com.fish_dan_.data_energistics.client.model.quad.MutableQuadView;
 
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.ArrayList;
+import org.joml.Vector2f;
+import org.joml.Vector3f;
+
+import java.util.LinkedList;
 import java.util.List;
 
-import static com.fish_dan_.data_energistics.client.model.ctm.CtmTextureManager.CTM_SPRITE_CACHE;
+import static com.fish_dan_.data_energistics.client.model.ctm.CtmTextureManager.*;
+import static com.fish_dan_.data_energistics.client.model.quad.MutableQuadView.*;
 
 public class CTMMeshBuilder {
 
-    private static final int SHEET_SIZE = 8;
-
     public static List<BakedQuad> buildCTMQuads(BlockAndTintGetter level, BlockPos pos, BlockState state,
                                                 List<BakedQuad> quads, Direction cullFace) {
-        int textureIndex = getTextureIndex(buildContext(level, pos, state, cullFace));
-        if (textureIndex < 0) {
-            return quads;
-        }
+        TextureConnections connections = TextureConnections.getInstance();
+        connections.fillSubmapCache(level, pos, state, cullFace);
 
-        List<BakedQuad> result = new ArrayList<>(quads.size());
-        MutableQuadView emitter = MutableQuadView.getInstance();
+        return buildCTMQuads(connections, quads, cullFace);
+    }
 
-        for (BakedQuad originalQuad : quads) {
+    public static List<BakedQuad> buildCTMQuads(TextureConnections connections, List<BakedQuad> base,
+                                                Direction cullFace) {
+        List<BakedQuad> result = new LinkedList<>();
+        MeshBuilder meshBuilder = MeshBuilder.getInstance();
+        var emitter = meshBuilder.getEmitter();
+
+        for (BakedQuad originalQuad : base) {
             TextureAtlasSprite originalSprite = originalQuad.getSprite();
-            @SuppressWarnings("resource")
-            TextureAtlasSprite connectedSprite = CTM_SPRITE_CACHE.get(originalSprite.contents().name());
-            if (connectedSprite == null) {
+
+            TextureAtlasSprite connectionSprite = CTM_SPRITE_CACHE.get(originalSprite.contents().name());
+            if (connectionSprite == null) {
                 result.add(originalQuad);
                 continue;
             }
 
-            emitter.fromVanilla(originalQuad, cullFace);
-            for (int vertex = 0; vertex < 4; vertex++) {
-                emitter.uv(vertex, getTargetU(originalSprite, connectedSprite, emitter.u(vertex), textureIndex),
-                        getTargetV(originalSprite, connectedSprite, emitter.v(vertex), textureIndex));
-            }
-            result.add(emitter.toBakedQuad(connectedSprite));
-        }
+            for (int xQuadrant = 0; xQuadrant < 2; xQuadrant++) {
+                for (int yQuadrant = 0; yQuadrant < 2; yQuadrant++) {
+                    boolean defaultTexture = connections.isDefaultTexture(xQuadrant, yQuadrant);
+                    TextureAtlasSprite ctmSprite = defaultTexture ? originalSprite : connectionSprite;
 
+                    emitter.fromVanilla(originalQuad, cullFace);
+                    emitter.spriteUnbake(originalSprite, BAKE_NORMALIZED | BAKE_DEROTATE_UV);
+
+                    // slice quad into the current quadrant
+                    subsect(emitter, Submap.X2[xQuadrant][yQuadrant]);
+                    remapUVs(emitter, connections.getSubmapFor(xQuadrant, yQuadrant));
+
+                    emitter.spriteBake(ctmSprite, BAKE_NORMALIZED);
+
+                    emitter.computeGeometry();
+                    emitter.populateMissingNormals();
+
+                    result.add(emitter.toBakedQuad(ctmSprite));
+                    emitter.emit();
+                }
+            }
+        }
         return result;
     }
 
-    private static CTContext buildContext(BlockAndTintGetter level, BlockPos pos, BlockState state, Direction face) {
-        boolean positive = face.getAxisDirection() == Direction.AxisDirection.POSITIVE;
-        Direction horizontal = getRightDirection(face);
-        Direction vertical = getUpDirection(face);
-        horizontal = positive ? horizontal.getOpposite() : horizontal;
-        if (face == Direction.DOWN) {
-            vertical = vertical.getOpposite();
-            horizontal = horizontal.getOpposite();
-        }
+    // these are only used within the below methods, but are stored here as consts to reduce allocations
+    // because they can be reused infinitely. DO NOT USE OUTSIDE subsect()/transformUVs()!!
 
-        CTContext context = new CTContext();
-        context.up = testConnection(level, pos, state, face, horizontal, vertical, 0, 1);
-        context.down = testConnection(level, pos, state, face, horizontal, vertical, 0, -1);
-        context.left = testConnection(level, pos, state, face, horizontal, vertical, -1, 0);
-        context.right = testConnection(level, pos, state, face, horizontal, vertical, 1, 0);
-        context.topLeft = context.up && context.left
-                && testConnection(level, pos, state, face, horizontal, vertical, -1, 1);
-        context.topRight = context.up && context.right
-                && testConnection(level, pos, state, face, horizontal, vertical, 1, 1);
-        context.bottomLeft = context.down && context.left
-                && testConnection(level, pos, state, face, horizontal, vertical, -1, -1);
-        context.bottomRight = context.down && context.right
-                && testConnection(level, pos, state, face, horizontal, vertical, 1, -1);
-        return context;
+    // filled in first copyUv() calls
+    private static final ThreadLocal<Vector2f[]> uvs = ThreadLocal.withInitial(() -> new Vector2f[4]);
+    private static final ThreadLocal<Vector2f[]> uvExtremes = ThreadLocal.withInitial(() -> {
+        return new Vector2f[] { new Vector2f(), new Vector2f() };
+    });
+    // set in copyPos() calls
+    private static final ThreadLocal<Vector3f> position = ThreadLocal.withInitial(Vector3f::new);
+    private static final ThreadLocal<Vector2f[]> xy = ThreadLocal.withInitial(() -> {
+        return new Vector2f[] { new Vector2f(), new Vector2f(), new Vector2f(), new Vector2f() };
+    });
+    private static final ThreadLocal<Vector2f[]> newXy = ThreadLocal.withInitial(() -> {
+        return new Vector2f[] { new Vector2f(), new Vector2f(), new Vector2f(), new Vector2f() };
+    });
+
+    private static void remapUVs(MutableQuadView quad, ISubmap submap) {
+        submap = submap.unitScale();
+
+        Vector2f maxUV = CTMMeshBuilder.uvExtremes.get()[0];
+        maxUV.set(Float.MIN_VALUE, Float.MIN_VALUE);
+
+        // cache UVs
+        Vector2f[] uvs = CTMMeshBuilder.uvs.get();
+        for (int i = 0; i < 4; i++) {
+            uvs[i] = quad.copyUv(i, uvs[i]);
+            maxUV.max(uvs[i]);
+        }
+        // scale the quadrants' UVs to the quadrant's area
+        scaleUVCoordinatesToQuadrant(uvs, maxUV);
+
+        // recompute min & max UVs
+        Vector2f[] uvExtremes = getUVExtremes(uvs);
+        Vector2f minUV = uvExtremes[0];
+        maxUV = uvExtremes[1];
+
+        float width = maxUV.x - minUV.x;
+        float height = maxUV.y - minUV.y;
+
+        float minU = submap.getXOffset();
+        float minV = submap.getYOffset();
+        minU += minUV.x * submap.getWidth();
+        minV += minUV.y * submap.getHeight();
+
+        float maxU = minU + (width * submap.getWidth());
+        float maxV = minV + (height * submap.getHeight());
+
+        quad.uv(0, uvs[0].x <= minUV.x ? minU : maxU, uvs[0].y <= minUV.y ? minV : maxV);
+        quad.uv(1, uvs[1].x <= minUV.x ? minU : maxU, uvs[1].y <= minUV.y ? minV : maxV);
+        quad.uv(2, uvs[2].x <= minUV.x ? minU : maxU, uvs[2].y <= minUV.y ? minV : maxV);
+        quad.uv(3, uvs[3].x <= minUV.x ? minU : maxU, uvs[3].y <= minUV.y ? minV : maxV);
     }
 
-    private static boolean testConnection(BlockAndTintGetter level, BlockPos pos, BlockState state,
-                                          Direction textureSide, Direction horizontal, Direction vertical,
-                                          int horizontalOffset, int verticalOffset) {
-        BlockPos targetPos = pos.relative(horizontal, horizontalOffset)
-                .relative(vertical, verticalOffset);
-        BlockState targetState = getCTBlockState(level, level.getBlockState(pos), textureSide, pos, targetPos);
-        return connectsTo(state, targetState, level, pos, targetPos, textureSide);
-    }
+    // TODO simplify, this is quite long
+    public static MutableQuadView subsect(final MutableQuadView quad, ISubmap submap) {
+        Direction normal = quad.nominalFace();
+        // nominalFace should never be null here; MutableQuadView.fromVanilla updates it
+        assert normal != null;
 
-    private static BlockState getCTBlockState(BlockAndTintGetter level, BlockState reference, Direction face,
-                                              BlockPos fromPos, BlockPos toPos) {
-        BlockState blockState = level.getBlockState(toPos);
-        return blockState.getAppearance(level, toPos, face, reference, fromPos);
-    }
+        Vector2f[] xy = CTMMeshBuilder.xy.get();
+        Vector2f[] newXy = CTMMeshBuilder.newXy.get();
+        Vector3f position = CTMMeshBuilder.position.get();
+        for (int i = 0; i < 4; i++) {
+            // updates position
+            quad.copyPos(i, position);
 
-    private static boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter level, BlockPos pos,
-                                      BlockPos otherPos, Direction face) {
-        return !isBeingBlocked(state, level, pos, otherPos, face) && state.getBlock() == other.getBlock();
-    }
-
-    private static boolean isBeingBlocked(BlockState state, BlockAndTintGetter level, BlockPos pos, BlockPos otherPos,
-                                          Direction face) {
-        BlockPos blockingPos = otherPos.relative(face);
-        BlockState blockState = level.getBlockState(pos);
-        BlockState blockingState = level.getBlockState(blockingPos);
-
-        if (!Block.isFaceFull(blockingState.getShape(level, blockingPos), face.getOpposite())) {
-            return false;
-        }
-        if (face.getAxis().choose(pos.getX(), pos.getY(), pos.getZ())
-                != face.getAxis().choose(otherPos.getX(), otherPos.getY(), otherPos.getZ())) {
-            return false;
-        }
-
-        return connectsTo(state,
-                getCTBlockState(level, blockState, face.getOpposite(), pos.relative(face), blockingPos),
-                level, pos, blockingPos, face);
-    }
-
-    private static Direction getUpDirection(Direction face) {
-        return face.getAxis().isHorizontal() ? Direction.UP : Direction.NORTH;
-    }
-
-    private static Direction getRightDirection(Direction face) {
-        return face.getAxis() == Direction.Axis.X ? Direction.SOUTH : Direction.WEST;
-    }
-
-    private static int getTextureIndex(CTContext context) {
-        int tileX = 0;
-        int tileY = 0;
-        int borders = (!context.up ? 1 : 0)
-                + (!context.down ? 1 : 0)
-                + (!context.left ? 1 : 0)
-                + (!context.right ? 1 : 0);
-
-        if (context.up) {
-            tileX++;
-        }
-        if (context.down) {
-            tileX += 2;
-        }
-        if (context.left) {
-            tileY++;
-        }
-        if (context.right) {
-            tileY += 2;
-        }
-
-        if (borders == 0) {
-            if (context.topRight) {
-                tileX++;
-            }
-            if (context.topLeft) {
-                tileX += 2;
-            }
-            if (context.bottomRight) {
-                tileY += 2;
-            }
-            if (context.bottomLeft) {
-                tileY++;
+            switch (normal.getAxis()) {
+                case X -> xy[i].set(position.z, position.y);
+                case Y -> xy[i].set(position.x, position.z);
+                case Z -> xy[i].set(position.x, position.y);
             }
         }
 
-        if (borders == 1) {
-            if (!context.right && (context.topLeft || context.bottomLeft)) {
-                tileY = 4;
-                tileX = -1 + (context.bottomLeft ? 1 : 0) + (context.topLeft ? 1 : 0) * 2;
-            }
-            if (!context.left && (context.topRight || context.bottomRight)) {
-                tileY = 5;
-                tileX = -1 + (context.bottomRight ? 1 : 0) + (context.topRight ? 1 : 0) * 2;
-            }
-            if (!context.down && (context.topLeft || context.topRight)) {
-                tileY = 6;
-                tileX = -1 + (context.topLeft ? 1 : 0) + (context.topRight ? 1 : 0) * 2;
-            }
-            if (!context.up && (context.bottomLeft || context.bottomRight)) {
-                tileY = 7;
-                tileX = -1 + (context.bottomLeft ? 1 : 0) + (context.bottomRight ? 1 : 0) * 2;
-            }
+        if (normal != Direction.UP) {
+            submap = submap.flipY();
+        }
+        if (normal == Direction.EAST || normal == Direction.NORTH) {
+            submap = submap.flipX();
         }
 
-        if (borders == 2
-                && ((context.up && context.left && context.topLeft)
-                || (context.down && context.left && context.bottomLeft)
-                || (context.up && context.right && context.topRight)
-                || (context.down && context.right && context.bottomRight))) {
-            tileX += 3;
+        submap = submap.unitScale();
+
+        if (normal.getAxis() == Direction.Axis.Y || normal == Direction.SOUTH || normal == Direction.WEST) {
+            // Relative X is the same sign for DOWN, UP, SOUTH, and WEST
+            newXy[0].x = Math.max(xy[0].x, submap.getXOffset());                      // DUSW
+            newXy[1].x = Math.max(xy[1].x, submap.getXOffset());                      // DUSW
+            newXy[2].x = Math.min(xy[2].x, submap.getXOffset() + submap.getWidth());  // DUSW
+            newXy[3].x = Math.min(xy[3].x, submap.getXOffset() + submap.getWidth());  // DUSW
+        } else {
+            // Flip relative X for NORTH and EAST
+            newXy[0].x = Math.min(xy[0].x, submap.getXOffset() + submap.getWidth());  // NE
+            newXy[1].x = Math.min(xy[1].x, submap.getXOffset() + submap.getWidth());  // NE
+            newXy[2].x = Math.max(xy[2].x, submap.getXOffset());                      // NE
+            newXy[3].x = Math.max(xy[3].x, submap.getXOffset());                      // NE
+        }
+        if (normal != Direction.UP) {
+            // Relative Y is the same sign for all but UP
+            newXy[0].y = Math.min(xy[0].y, submap.getYOffset() + submap.getHeight()); // DNSWE
+            newXy[1].y = Math.max(xy[1].y, submap.getYOffset());                      // DNSWE
+            newXy[2].y = Math.max(xy[2].y, submap.getYOffset());                      // DNSWE
+            newXy[3].y = Math.min(xy[3].y, submap.getYOffset() + submap.getHeight()); // DNSWE
+        } else {
+            // Flip relative Y for UP
+            newXy[0].y = Math.max(xy[0].y, submap.getYOffset());                      // U
+            newXy[1].y = Math.min(xy[1].y, submap.getYOffset() + submap.getHeight()); // U
+            newXy[2].y = Math.min(xy[2].y, submap.getYOffset() + submap.getHeight()); // U
+            newXy[3].y = Math.max(xy[3].y, submap.getYOffset());                      // U
         }
 
-        return tileX + SHEET_SIZE * tileY;
+        float u0 = normalize(newXy[0].x, xy[0].x, xy[3].x),
+                v0 = normalize(newXy[0].y, xy[0].y, xy[1].y);
+        float u1 = normalize(newXy[1].x, xy[1].x, xy[2].x),
+                v1 = normalize(newXy[1].y, xy[1].y, xy[0].y);
+        float u2 = normalize(newXy[2].x, xy[2].x, xy[1].x),
+                v2 = normalize(newXy[2].y, xy[2].y, xy[3].y);
+        float u3 = normalize(newXy[3].x, xy[3].x, xy[0].x),
+                v3 = normalize(newXy[3].y, xy[3].y, xy[2].y);
+
+        quad.uv(0, Mth.lerp(u0, quad.u(0), quad.u(3)), Mth.lerp(v0, quad.v(0), quad.v(1)));
+        quad.uv(1, Mth.lerp(u1, quad.u(1), quad.u(2)), Mth.lerp(v1, quad.v(1), quad.v(0)));
+        quad.uv(2, Mth.lerp(u2, quad.u(2), quad.u(1)), Mth.lerp(v2, quad.v(2), quad.v(3)));
+        quad.uv(3, Mth.lerp(u3, quad.u(3), quad.u(0)), Mth.lerp(v3, quad.v(3), quad.v(2)));
+
+        // spotless:off
+        for (int i = 0; i < 4; i++) {
+            switch (normal.getAxis()) {
+                case X -> quad.pos(i, quad.x(i),  newXy[i].y, newXy[i].x);
+                case Y -> quad.pos(i, newXy[i].x, quad.y(i),  newXy[i].y);
+                case Z -> quad.pos(i, newXy[i].x, newXy[i].y, quad.z(i));
+            }
+        }
+        // spotless:on
+
+        return quad;
     }
 
-    private static float getTargetU(TextureAtlasSprite original, TextureAtlasSprite target, float localU, int index) {
-        float uOffset = index % SHEET_SIZE;
-        return target.getU((getUnInterpolatedU(original, localU) + uOffset) / SHEET_SIZE);
+    public static Vector2f[] getUVExtremes(Vector2f[] uvs) {
+        Vector2f[] uvExtremes = CTMMeshBuilder.uvExtremes.get();
+        uvExtremes[0].set(Float.MAX_VALUE, Float.MAX_VALUE);
+        uvExtremes[1].set(Float.MIN_VALUE, Float.MIN_VALUE);
+
+        for (int i = 0; i < 4; i++) {
+            Vector2f vertexUV = uvs[i];
+            uvExtremes[0].min(vertexUV);
+            uvExtremes[1].max(vertexUV);
+        }
+        return uvExtremes;
     }
 
-    private static float getTargetV(TextureAtlasSprite original, TextureAtlasSprite target, float localV, int index) {
-        float vOffset = index / (float) SHEET_SIZE;
-        return target.getV((getUnInterpolatedV(original, localV) + vOffset) / SHEET_SIZE);
+    private static void scaleUVCoordinatesToQuadrant(Vector2f[] uvs, Vector2f maxUV) {
+        float minU = maxUV.x() - 0.5f > Mth.EPSILON ? 0.5f : 0.0f,
+                minV = maxUV.y() - 0.5f > Mth.EPSILON ? 0.5f : 0.0f;
+        float maxU = maxUV.x() - 0.5f > Mth.EPSILON ? 1.0f : 0.5f,
+                maxV = maxUV.y() - 0.5f > Mth.EPSILON ? 1.0f : 0.5f;
+
+        for (int i = 0; i < 4; i++) {
+            // scale u,v to a 0-1 range
+            uvs[i].set(normalize(uvs[i].x, minU, maxU), normalize(uvs[i].y, minV, maxV));
+        }
     }
 
-    private static float getUnInterpolatedU(TextureAtlasSprite sprite, float u) {
-        return (u - sprite.getU0()) / (sprite.getU1() - sprite.getU0());
-    }
-
-    private static float getUnInterpolatedV(TextureAtlasSprite sprite, float v) {
-        return (v - sprite.getV0()) / (sprite.getV1() - sprite.getV0());
-    }
-
-    private static class CTContext {
-        private boolean up;
-        private boolean down;
-        private boolean left;
-        private boolean right;
-        private boolean topLeft;
-        private boolean topRight;
-        private boolean bottomLeft;
-        private boolean bottomRight;
+    /// scale {@code delta} to a 0-1 range based on {@code min} and {@code max}
+    public static float normalize(float delta, float min, float max) {
+        if (min == max) return 0.5f;
+        return Mth.clamp(Mth.inverseLerp(delta, min, max), 0.0f, 1.0f);
     }
 }
