@@ -18,6 +18,11 @@ public final class ModKeyMappings {
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_M,
             KEY_CATEGORY);
+    public static final KeyMapping TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE = new KeyMapping(
+            "key.data_energistics.toggle_digital_storage_depot_bucket_mode",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_Z,
+            KEY_CATEGORY);
 
     private ModKeyMappings() {}
 }

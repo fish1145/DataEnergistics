@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.item.ConfigurableTntBlockItem;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
 import com.fish_dan_.data_energistics.item.InfiniteDataCellItem;
@@ -95,6 +96,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_2);
     public static final DeferredItem<BlockItem> DATA_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CRYSTAL_BLOCK);
+    public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
+            "digital_storage_depot",
+            () -> new DigitalStorageDepotBlockItem(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_0 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_0);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_1 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_1);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_2 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_2);

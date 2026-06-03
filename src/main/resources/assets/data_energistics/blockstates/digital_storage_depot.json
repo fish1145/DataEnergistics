@@ -1,0 +1,19 @@
+{
+	"variants": {
+		"facing=north": {
+			"model": "data_energistics:block/digital_storage_depot"
+		},
+		"facing=east": {
+			"model": "data_energistics:block/digital_storage_depot",
+			"y": 90
+		},
+		"facing=south": {
+			"model": "data_energistics:block/digital_storage_depot",
+			"y": 180
+		},
+		"facing=west": {
+			"model": "data_energistics:block/digital_storage_depot",
+			"y": 270
+		}
+	}
+}

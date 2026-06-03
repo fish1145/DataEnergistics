@@ -25,5 +25,13 @@ public final class ModPayloads {
                 DataTeleportAnchorKnifeTeleportPayload.TYPE,
                 DataTeleportAnchorKnifeTeleportPayload.STREAM_CODEC,
                 DataTeleportAnchorKnifeTeleportPayload::handle);
+        registrar.playToServer(
+                DigitalStorageDepotScrollPayload.TYPE,
+                DigitalStorageDepotScrollPayload.STREAM_CODEC,
+                DigitalStorageDepotScrollPayload::handle);
+        registrar.playToServer(
+                DigitalStorageDepotBucketModePayload.TYPE,
+                DigitalStorageDepotBucketModePayload.STREAM_CODEC,
+                DigitalStorageDepotBucketModePayload::handle);
     }
 }

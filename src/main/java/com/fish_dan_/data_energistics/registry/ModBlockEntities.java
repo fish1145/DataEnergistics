@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -23,6 +24,10 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSolarPanelBlockEntity>> DATA_SOLAR_PANEL_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "me_solar_panel",
             () -> BlockEntityType.Builder.of(DataSolarPanelBlockEntity::new, ModBlocks.DATA_SOLAR_PANEL.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalStorageDepotBlockEntity>> DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "digital_storage_depot",
+            () -> BlockEntityType.Builder.of(DigitalStorageDepotBlockEntity::new, ModBlocks.DIGITAL_STORAGE_DEPOT.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataExtractorBlockEntity>> DATA_EXTRACTOR_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_extractor",

@@ -1,0 +1,117 @@
+{
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/digital_storage_depot.png",
+		"srcRect": [0, 0, 176, 183]
+	},
+	"slots": {
+		"DIGITAL_STORAGE_DEPOT_FLUID": {
+			"left": 7,
+			"top": 22
+		},
+		"DIGITAL_STORAGE_DEPOT_KEY": {
+			"left": 26,
+			"top": 40
+		},
+		"DIGITAL_STORAGE_DEPOT_FLUID_2": {
+			"left": 7,
+			"top": 40
+		},
+		"DIGITAL_STORAGE_DEPOT_KEY_2": {
+			"left": 26,
+			"top": 22
+		},
+		"DIGITAL_STORAGE_DEPOT_FLUID_3": {
+			"left": 7,
+			"top": 58
+		},
+		"DIGITAL_STORAGE_DEPOT_KEY_3": {
+			"left": 26,
+			"top": 58
+		},
+		"STORAGE": {
+			"left": 45,
+			"top": 22,
+			"grid": "HORIZONTAL"
+		},
+		"DIGITAL_STORAGE_DEPOT_ROW_2": {
+			"left": 45,
+			"top": 40,
+			"grid": "HORIZONTAL"
+		},
+		"DIGITAL_STORAGE_DEPOT_ROW_3": {
+			"left": 45,
+			"top": 58,
+			"grid": "HORIZONTAL"
+		},
+		"PLAYER_INVENTORY": {
+			"left": 8,
+			"bottom": 84,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 8,
+			"bottom": 26,
+			"grid": "HORIZONTAL"
+		}
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "block.data_energistics.digital_storage_depot"
+			},
+			"position": {
+				"left": 88,
+				"top": 6
+			},
+			"align": "CENTER"
+		},
+		"player_inventory_title": {
+			"text": {
+				"translate": "container.inventory"
+			},
+			"position": {
+				"left": 8,
+				"bottom": 94
+			}
+		},
+		"debug_f1": {
+			"text": {
+				"text": ""
+			},
+			"position": {
+				"left": 92,
+				"top": 20
+			}
+		},
+		"debug_f2": {
+			"text": {
+				"text": ""
+			},
+			"position": {
+				"left": 92,
+				"top": 30
+			}
+		},
+		"debug_f3": {
+			"text": {
+				"text": ""
+			},
+			"position": {
+				"left": 92,
+				"top": 40
+			}
+		}
+	},
+	"widgets": {
+		"upgrades": {
+			"left": 174,
+			"top": 0
+		}
+	}
+}

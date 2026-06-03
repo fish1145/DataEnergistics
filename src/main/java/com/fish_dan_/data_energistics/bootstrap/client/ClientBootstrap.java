@@ -23,6 +23,7 @@ import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
+import com.fish_dan_.data_energistics.client.screen.DigitalStorageDepotScreen;
 import com.fish_dan_.data_energistics.client.screen.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
@@ -30,8 +31,11 @@ import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermSc
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
+import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
+import com.fish_dan_.data_energistics.network.DigitalStorageDepotScrollPayload;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModFluids;
@@ -65,6 +69,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -73,6 +78,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.event.TextureAtlasStitchedEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.core.definitions.AEItems;
 import appeng.init.client.InitScreens;
@@ -111,6 +117,7 @@ public final class ClientBootstrap {
                 registerDataCaptureBallProperties();
                 registerLightSaberProperties();
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onClientTickPost);
+                NeoForge.EVENT_BUS.addListener(ClientModEvents::onMouseScroll);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
@@ -126,6 +133,7 @@ public final class ClientBootstrap {
         public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(ModKeyMappings.OPEN_PATTERN_PROVIDER);
             event.register(ModKeyMappings.RENAME_PATTERN_PROVIDER);
+            event.register(ModKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE);
         }
 
         @SubscribeEvent
@@ -136,6 +144,7 @@ public final class ClientBootstrap {
             InitScreens.register(event, ModMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
             InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
             InitScreens.register(event, ModMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
+            InitScreens.register(event, ModMenus.DIGITAL_STORAGE_DEPOT.get(), DigitalStorageDepotScreen::new, "/screens/digital_storage_depot.json");
             InitScreens.register(event, ModMenus.DATA_TELEPORT_ANCHOR.get(), DataTeleportAnchorScreen::new, "/screens/data_teleport_anchor.json");
             InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
@@ -254,12 +263,55 @@ public final class ClientBootstrap {
                 return;
             }
 
+            while (ModKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE.consumeClick()) {
+                toggleDepotBucketMode(minecraft);
+            }
+
             if ((minecraft.player.tickCount & 1) != 0) {
                 return;
             }
 
             spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.MAIN_HAND);
             spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.OFF_HAND);
+        }
+
+        public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.player == null || minecraft.screen != null || !minecraft.player.isShiftKeyDown()) {
+                return;
+            }
+
+            ItemStack mainHand = minecraft.player.getMainHandItem();
+            ItemStack offHand = minecraft.player.getOffhandItem();
+            boolean useMainHand = DigitalStorageDepotBlockItem.isDepotStack(mainHand) && DigitalStorageDepotBlockItem.isBucketMode(mainHand);
+            boolean useOffHand = !useMainHand && DigitalStorageDepotBlockItem.isDepotStack(offHand) && DigitalStorageDepotBlockItem.isBucketMode(offHand);
+            if (!useMainHand && !useOffHand) {
+                return;
+            }
+
+            double delta = event.getScrollDeltaY();
+            if (delta == 0) {
+                return;
+            }
+
+            PacketDistributor.sendToServer(new DigitalStorageDepotScrollPayload(delta < 0, useOffHand));
+            event.setCanceled(true);
+        }
+
+        private static void toggleDepotBucketMode(Minecraft minecraft) {
+            if (minecraft.screen != null || minecraft.player == null) {
+                return;
+            }
+
+            ItemStack mainHand = minecraft.player.getMainHandItem();
+            ItemStack offHand = minecraft.player.getOffhandItem();
+            boolean useMainHand = DigitalStorageDepotBlockItem.isDepotStack(mainHand);
+            boolean useOffHand = !useMainHand && DigitalStorageDepotBlockItem.isDepotStack(offHand);
+            if (!useMainHand && !useOffHand) {
+                return;
+            }
+
+            PacketDistributor.sendToServer(new DigitalStorageDepotBucketModePayload(useOffHand));
         }
 
         private static void spawnMatterConvergingCrossbowParticles(Minecraft minecraft, InteractionHand hand) {

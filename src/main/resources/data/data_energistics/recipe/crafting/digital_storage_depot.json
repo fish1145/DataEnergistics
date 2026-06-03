@@ -1,0 +1,29 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": [
+		"ABA",
+		"CDC",
+		"AEA"
+	],
+	"key": {
+		"A": {
+			"tag": "c:ingots/iron"
+		},
+		"B": {
+			"item": "ae2:energy_cell"
+		},
+		"C": {
+			"item": "data_energistics:data_framework"
+		},
+		"D": {
+			"item": "ae2:drive"
+		},
+		"E": {
+			"item": "data_energistics:data_storage_component_1k"
+		}
+	},
+	"result": {
+		"id": "data_energistics:digital_storage_depot",
+		"count": 1
+	}
+}

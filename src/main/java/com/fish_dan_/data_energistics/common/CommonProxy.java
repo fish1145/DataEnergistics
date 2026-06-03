@@ -120,6 +120,10 @@ public class CommonProxy {
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
@@ -134,6 +138,14 @@ public class CommonProxy {
                 AECapabilities.ME_STORAGE,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalPatternInputStorage());
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalFluidHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),

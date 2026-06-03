@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
@@ -118,6 +119,14 @@ public final class ModBlocks {
             "data_crystal_block",
             Block::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.REDSTONE_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> DIGITAL_STORAGE_DEPOT = BLOCKS.registerBlock(
+            "digital_storage_depot",
+            DigitalStorageDepotBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion()
+                    .isViewBlocking((state, blockGetter, pos) -> false)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_0 = BLOCKS.registerBlock(
