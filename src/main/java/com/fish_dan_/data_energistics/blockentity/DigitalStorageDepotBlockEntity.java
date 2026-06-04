@@ -385,7 +385,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                         return false;
                     }
                     var current = this.getStack(slot);
-                    return current == null || current.amount() <= 0 || current.what().equals(what);
+                    return (current == null || current.amount() <= 0 || current.what().equals(what)) && !conflictsWithOtherKeys(slotIndex, what);
                 });
             }
         };
@@ -483,6 +483,10 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 this.keyMenuInventories[slotIndex].setStack(0, previous);
                 return;
             }
+            if (stack != null && stack.what() != null && stack.amount() > 0 && conflictsWithOtherKeys(slotIndex, stack.what())) {
+                this.keyMenuInventories[slotIndex].setStack(0, previous);
+                return;
+            }
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
                 this.keyStacks[slotIndex] = null;
             } else {
@@ -559,8 +563,29 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return false;
     }
 
+    public static boolean hasConflictingKey(GenericStack[] keys, int slotIndex, AEKey candidate) {
+        if (candidate == null) {
+            return false;
+        }
+
+        for (int i = 0; i < keys.length; i++) {
+            if (i == slotIndex) {
+                continue;
+            }
+            GenericStack other = keys[i];
+            if (other != null && other.what() != null && other.amount() > 0 && other.what().equals(candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean conflictsWithOtherTanks(int slotIndex, FluidStack candidate) {
         return hasConflictingFluid(this.fluidTanksAsStacks(), slotIndex, candidate);
+    }
+
+    private boolean conflictsWithOtherKeys(int slotIndex, AEKey candidate) {
+        return hasConflictingKey(this.keyStacks, slotIndex, candidate);
     }
 
     private FluidStack[] fluidTanksAsStacks() {

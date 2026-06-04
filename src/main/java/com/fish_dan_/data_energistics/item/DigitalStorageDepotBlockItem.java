@@ -35,7 +35,10 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.fluids.FluidUtil;
 
+import appeng.api.config.Actionable;
 import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -147,6 +150,10 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return getSelectedFluidStack(stack, registries);
     }
 
+    public static @Nullable GenericStack getSelectedTerminalStack(ItemStack stack, HolderLookup.Provider registries) {
+        return getSelectedMarkedStack(stack, registries);
+    }
+
     public static @Nullable GenericStack getSelectedFluidStack(ItemStack stack, HolderLookup.Provider registries) {
         FluidStack fluid = getSelectedStoredFluid(stack, registries);
         if (fluid.isEmpty()) {
@@ -182,6 +189,30 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
 
     public static boolean isDepotStack(ItemStack stack) {
         return stack.getItem() instanceof DigitalStorageDepotBlockItem;
+    }
+
+    public static long insertIntoSelectedTerminalSlot(ItemStack stack, HolderLookup.Provider registries, AEKey what,
+                                                      long amount, Actionable mode) {
+        if (!isBucketMode(stack) || amount <= 0 || what instanceof AEItemKey) {
+            return 0L;
+        }
+        if (what instanceof AEFluidKey fluidKey) {
+            return insertIntoSelectedFluidSlot(stack, registries, fluidKey, amount, mode);
+        }
+        return insertIntoSelectedKeySlot(stack, registries, what, amount, mode);
+    }
+
+    public static long extractFromSelectedTerminalSlot(ItemStack stack, HolderLookup.Provider registries,
+                                                       @Nullable AEKey requested, long amount, Actionable mode) {
+        if (!isBucketMode(stack) || amount <= 0) {
+            return 0L;
+        }
+
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        if (tag.getInt(TAG_MARK_MODE) == MARK_MODE_KEY) {
+            return extractFromSelectedKeySlot(stack, registries, requested, amount, mode);
+        }
+        return extractFromSelectedFluidSlot(stack, registries, requested, amount, mode);
     }
 
     public static void applyStoredFluidsToBlockEntity(ItemStack stack, DigitalStorageDepotBlockEntity depot, HolderLookup.Provider registries) {
@@ -231,7 +262,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         FluidStack currentFluid = storedFluids[selectedSlot];
         FluidStack candidate = pickupPreview.get().copyWithAmount(FluidType.BUCKET_VOLUME);
 
-        if (!canStoreFluidInSlot(currentFluid, candidate)) {
+        if (!canStoreFluidInSelectedSlot(storedFluids, selectedSlot, candidate)) {
             player.displayClientMessage(Component.literal("该流体槽无法装入这种液体"), true);
             return AttemptResult.BLOCKED;
         }
@@ -410,17 +441,124 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return selectedSlot >= 0 && selectedSlot < storedFluids.length ? storedFluids[selectedSlot] : FluidStack.EMPTY;
     }
 
-    private static boolean canStoreFluidInSlot(FluidStack currentFluid, FluidStack candidate) {
+    private static boolean canStoreFluidInSelectedSlot(FluidStack[] fluids, int selectedSlot, FluidStack candidate) {
         if (candidate.isEmpty()) {
             return false;
         }
+        FluidStack currentFluid = fluids[selectedSlot];
         if (currentFluid.isEmpty()) {
-            return candidate.getAmount() <= DigitalStorageDepotBlockEntity.FLUID_CAPACITY;
+            return !DigitalStorageDepotBlockEntity.hasConflictingFluid(fluids, selectedSlot, candidate) && candidate.getAmount() <= DigitalStorageDepotBlockEntity.FLUID_CAPACITY;
         }
         if (!FluidStack.isSameFluidSameComponents(currentFluid, candidate)) {
             return false;
         }
         return currentFluid.getAmount() + candidate.getAmount() <= DigitalStorageDepotBlockEntity.FLUID_CAPACITY;
+    }
+
+    private static long insertIntoSelectedFluidSlot(ItemStack stack, HolderLookup.Provider registries, AEFluidKey fluidKey,
+                                                    long amount, Actionable mode) {
+        int selectedSlot = getSelectedFluidSlot(stack);
+        FluidStack[] fluids = readStoredFluids(stack, registries);
+        FluidStack current = fluids[selectedSlot];
+        FluidStack incoming = fluidKey.toStack(1);
+        if (!canStoreFluidInSelectedSlot(fluids, selectedSlot, incoming)) {
+            return 0L;
+        }
+
+        long currentAmount = current.isEmpty() ? 0L : current.getAmount();
+        long inserted = Math.min(amount, DigitalStorageDepotBlockEntity.FLUID_CAPACITY - currentAmount);
+        if (inserted <= 0) {
+            return 0L;
+        }
+
+        if (mode == Actionable.MODULATE) {
+            int updatedAmount = (int) Math.min(DigitalStorageDepotBlockEntity.FLUID_CAPACITY, currentAmount + inserted);
+            fluids[selectedSlot] = fluidKey.toStack(updatedAmount);
+            writeStoredFluids(stack, registries, fluids);
+        }
+        return inserted;
+    }
+
+    private static long extractFromSelectedFluidSlot(ItemStack stack, HolderLookup.Provider registries,
+                                                     @Nullable AEKey requested, long amount, Actionable mode) {
+        int selectedSlot = getSelectedFluidSlot(stack);
+        FluidStack[] fluids = readStoredFluids(stack, registries);
+        FluidStack current = fluids[selectedSlot];
+        if (current.isEmpty()) {
+            return 0L;
+        }
+
+        AEFluidKey currentKey = AEFluidKey.of(current);
+        if (currentKey == null || requested != null && !currentKey.equals(requested)) {
+            return 0L;
+        }
+
+        long extracted = Math.min(amount, current.getAmount());
+        if (extracted <= 0) {
+            return 0L;
+        }
+
+        if (mode == Actionable.MODULATE) {
+            FluidStack updated = current.copy();
+            updated.shrink((int) extracted);
+            fluids[selectedSlot] = updated.isEmpty() ? FluidStack.EMPTY : updated;
+            writeStoredFluids(stack, registries, fluids);
+        }
+        return extracted;
+    }
+
+    private static long insertIntoSelectedKeySlot(ItemStack stack, HolderLookup.Provider registries, AEKey what,
+                                                  long amount, Actionable mode) {
+        if (what instanceof AEFluidKey || !isAllowedTerminalKey(what)) {
+            return 0L;
+        }
+
+        int selectedSlot = getSelectedKeySlot(stack);
+        GenericStack[] keys = readStoredKeys(stack, registries);
+        GenericStack current = keys[selectedSlot];
+        if (current != null && current.what() != null && !current.what().equals(what)) {
+            return 0L;
+        }
+        if ((current == null || current.what() == null || current.amount() <= 0) && DigitalStorageDepotBlockEntity.hasConflictingKey(keys, selectedSlot, what)) {
+            return 0L;
+        }
+
+        long currentAmount = current == null ? 0L : current.amount();
+        long inserted = Math.min(amount, DigitalStorageDepotBlockEntity.KEY_CAPACITY - currentAmount);
+        if (inserted <= 0) {
+            return 0L;
+        }
+
+        if (mode == Actionable.MODULATE) {
+            writeSelectedKeyStack(stack, registries, new GenericStack(what, currentAmount + inserted));
+        }
+        return inserted;
+    }
+
+    private static long extractFromSelectedKeySlot(ItemStack stack, HolderLookup.Provider registries,
+                                                   @Nullable AEKey requested, long amount, Actionable mode) {
+        GenericStack current = getSelectedKeyStack(stack, registries);
+        if (current == null || current.what() == null || current.amount() <= 0) {
+            return 0L;
+        }
+        if (requested != null && !current.what().equals(requested)) {
+            return 0L;
+        }
+
+        long extracted = Math.min(amount, current.amount());
+        if (extracted <= 0) {
+            return 0L;
+        }
+
+        if (mode == Actionable.MODULATE) {
+            long remaining = current.amount() - extracted;
+            writeSelectedKeyStack(stack, registries, remaining <= 0 ? null : new GenericStack(current.what(), remaining));
+        }
+        return extracted;
+    }
+
+    private static boolean isAllowedTerminalKey(AEKey what) {
+        return what != null && !(what instanceof AEItemKey) && !(what instanceof AEFluidKey);
     }
 
     private static FluidStack[] readStoredFluids(ItemStack stack, HolderLookup.Provider registries) {
@@ -436,6 +574,16 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return fluids;
     }
 
+    private static GenericStack[] readStoredKeys(ItemStack stack, HolderLookup.Provider registries) {
+        GenericStack[] keys = new GenericStack[DigitalStorageDepotBlockEntity.KEY_SLOTS];
+        CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
+        for (int i = 0; i < DigitalStorageDepotBlockEntity.KEY_SLOTS; i++) {
+            String tagKey = DigitalStorageDepotBlockEntity.getKeyTagKey(i);
+            keys[i] = blockEntityTag.contains(tagKey) ? GenericStack.readTag(registries, blockEntityTag.getCompound(tagKey)) : null;
+        }
+        return keys;
+    }
+
     private static void writeStoredFluids(ItemStack stack, HolderLookup.Provider registries, FluidStack[] fluids) {
         CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
         for (int i = 0; i < DigitalStorageDepotBlockEntity.FLUID_SLOTS; i++) {
@@ -443,6 +591,18 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             DigitalStorageDepotBlockEntity.writeFluidToTag(registries, blockEntityTag, i, fluid);
         }
         clearLegacyStoredFluidTags(stack);
+        BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
+    }
+
+    private static void writeSelectedKeyStack(ItemStack stack, HolderLookup.Provider registries, @Nullable GenericStack keyStack) {
+        int selectedSlot = getSelectedKeySlot(stack);
+        CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
+        String tagKey = DigitalStorageDepotBlockEntity.getKeyTagKey(selectedSlot);
+        if (keyStack == null || keyStack.what() == null || keyStack.amount() <= 0) {
+            blockEntityTag.remove(tagKey);
+        } else {
+            blockEntityTag.put(tagKey, GenericStack.writeTag(registries, keyStack));
+        }
         BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
     }
 
