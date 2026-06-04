@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.DataKeyType;
 import com.fish_dan_.data_energistics.mixin.core.ContainerItemStrategiesAccessor;
 import com.fish_dan_.data_energistics.mixin.core.CowMapAccessor;
 
@@ -33,33 +35,12 @@ public class DigitalStorageDepotKeyContainerItemStrategy implements ContainerIte
     }
 
     public static void registerMissingStrategies() {
-        for (AEKeyType type : AEKeyTypes.getAll()) {
+        for (AEKeyType type : new AEKeyType[] { DataFlowKeyType.TYPE, DataKeyType.TYPE }) {
             if (type == AEKeyType.items() || type == AEKeyType.fluids()) {
                 continue;
             }
-
-            ContainerItemStrategy<?, ?> original = getRegisteredStrategy(type);
-            if (original instanceof DigitalStorageDepotKeyContainerItemStrategy) {
-                continue;
-            }
-
-            DigitalStorageDepotKeyContainerItemStrategy strategy = new DigitalStorageDepotKeyContainerItemStrategy(
-                    type,
-                    castStrategy(original));
-            if (original == null) {
-                registerStrategy(type, strategy);
-            } else {
-                replaceStrategy(type, strategy);
-            }
+            installStrategy(type);
         }
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static void registerStrategy(AEKeyType type, DigitalStorageDepotKeyContainerItemStrategy strategy) {
-        ContainerItemStrategy.register(
-                type,
-                (Class) type.getKeyClass(),
-                (ContainerItemStrategy) strategy);
     }
 
     @Override
@@ -154,10 +135,19 @@ public class DigitalStorageDepotKeyContainerItemStrategy implements ContainerIte
     }
 
     @SuppressWarnings("unchecked")
-    private static void replaceStrategy(AEKeyType type, ContainerItemStrategy<?, ?> strategy) {
+    private static void installStrategy(AEKeyType type) {
         CowMap<AEKeyType, ContainerItemStrategy<?, ?>> strategies = ContainerItemStrategiesAccessor.dataEnergistics$getStrategies();
         synchronized (strategies) {
             CowMapAccessor<AEKeyType, ContainerItemStrategy<?, ?>> accessor = (CowMapAccessor<AEKeyType, ContainerItemStrategy<?, ?>>) strategies;
+            ContainerItemStrategy<?, ?> original = accessor.dataEnergistics$getMap().get(type);
+            if (original instanceof DigitalStorageDepotKeyContainerItemStrategy) {
+                return;
+            }
+
+            DigitalStorageDepotKeyContainerItemStrategy strategy = new DigitalStorageDepotKeyContainerItemStrategy(
+                    type,
+                    castStrategy(original));
+
             Map<AEKeyType, ContainerItemStrategy<?, ?>> updated = new IdentityHashMap<>(accessor.dataEnergistics$getMap());
             updated.put(type, strategy);
             accessor.dataEnergistics$setMap(Collections.unmodifiableMap(updated));

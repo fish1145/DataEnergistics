@@ -280,6 +280,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
 
+        this.adjacentHandlersDirty = true;
         updatePowerUsageIfNeeded();
         tickHiddenBufferFlush();
         refillEnergyCache();

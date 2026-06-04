@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -22,8 +25,12 @@ import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 
+import java.util.List;
+
 public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepotBlockEntity> {
 
+    private static final String ACTION_SET_AUTO_EXPORT = "set_auto_export";
+    private static final String ACTION_SET_OUTPUT_SIDE = "set_output_side";
     public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("DIGITAL_STORAGE_DEPOT_ROW_2", false);
     public static final SlotSemantic STORAGE_ROW_3 = SlotSemantics.register("DIGITAL_STORAGE_DEPOT_ROW_3", false);
     public static final SlotSemantic FLUID = SlotSemantics.register("DIGITAL_STORAGE_DEPOT_FLUID", false);
@@ -57,9 +64,19 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
     public long keyAmount2;
     @GuiSync(911)
     public GenericStack fluidDisplay2;
+    @GuiSync(912)
+    public int autoExportModeOrdinal;
+    @GuiSync(913)
+    public int itemOutputSidesMask = 63;
+    @GuiSync(914)
+    public int fluidOutputSidesMask = 63;
+    @GuiSync(915)
+    public int keyOutputSidesMask = 63;
 
     public DigitalStorageDepotMenu(int id, Inventory playerInventory, DigitalStorageDepotBlockEntity host) {
         super(ModMenus.DIGITAL_STORAGE_DEPOT.get(), id, playerInventory, host);
+        registerClientAction(ACTION_SET_AUTO_EXPORT, Integer.class, this::setAutoExportMode);
+        registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
     }
 
     @Override
@@ -70,6 +87,10 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
                 GenericStack keyStack = this.getHost().getKeyStack(i);
                 syncKeyAmount(keyStack == null ? 0L : keyStack.amount(), i);
             }
+            this.autoExportModeOrdinal = this.getHost().getAutoExportMode().ordinal();
+            this.itemOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(DigitalStorageDepotOutputType.ITEMS));
+            this.fluidOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(DigitalStorageDepotOutputType.FLUIDS));
+            this.keyOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(DigitalStorageDepotOutputType.KEYS));
         }
         super.broadcastChanges();
     }
@@ -185,6 +206,84 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
             case 1 -> this.keyAmount1 = amount;
             case 2 -> this.keyAmount2 = amount;
         }
+    }
+
+    public void sendSetAutoExportMode(DataExtractorAutoExportMode mode) {
+        sendClientAction(ACTION_SET_AUTO_EXPORT, mode.ordinal());
+    }
+
+    public DataExtractorAutoExportMode getAutoExportMode() {
+        return DataExtractorAutoExportMode.fromOrdinal(this.autoExportModeOrdinal);
+    }
+
+    public List<Direction> getOutputSides(DigitalStorageDepotOutputType outputType) {
+        int mask = switch (outputType) {
+            case ITEMS -> this.itemOutputSidesMask;
+            case FLUIDS -> this.fluidOutputSidesMask;
+            case KEYS -> this.keyOutputSidesMask;
+        };
+
+        java.util.ArrayList<Direction> sides = new java.util.ArrayList<>();
+        for (Direction side : Direction.values()) {
+            if ((mask & (1 << side.ordinal())) != 0) {
+                sides.add(side);
+            }
+        }
+        return sides;
+    }
+
+    public void sendSetOutputSide(DigitalStorageDepotOutputType outputType, Direction side, boolean enabled) {
+        sendClientAction(ACTION_SET_OUTPUT_SIDE, outputType.getSerializedName() + ":" + side.getName() + ":" + enabled);
+    }
+
+    private void setAutoExportMode(Integer ordinal) {
+        if (ordinal == null || this.getHost() == null) {
+            return;
+        }
+
+        this.autoExportModeOrdinal = this.getHost()
+                .setAutoExportMode(DataExtractorAutoExportMode.fromOrdinal(ordinal))
+                .ordinal();
+        broadcastChanges();
+    }
+
+    private void setOutputSide(String payload) {
+        if (payload == null || this.getHost() == null) {
+            return;
+        }
+
+        int firstSeparator = payload.indexOf(':');
+        int secondSeparator = firstSeparator < 0 ? -1 : payload.indexOf(':', firstSeparator + 1);
+        if (firstSeparator <= 0 || secondSeparator <= firstSeparator + 1 || secondSeparator >= payload.length() - 1) {
+            return;
+        }
+
+        DigitalStorageDepotOutputType outputType = DigitalStorageDepotOutputType.fromSerializedName(payload.substring(0, firstSeparator));
+        if (outputType == null) {
+            return;
+        }
+
+        Direction side = Direction.byName(payload.substring(firstSeparator + 1, secondSeparator));
+        if (side == null) {
+            return;
+        }
+
+        boolean enabled = Boolean.parseBoolean(payload.substring(secondSeparator + 1));
+        this.getHost().setOutputSideEnabled(outputType, side, enabled);
+        switch (outputType) {
+            case ITEMS -> this.itemOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(DigitalStorageDepotOutputType.ITEMS));
+            case FLUIDS -> this.fluidOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(DigitalStorageDepotOutputType.FLUIDS));
+            case KEYS -> this.keyOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(DigitalStorageDepotOutputType.KEYS));
+        }
+        broadcastChanges();
+    }
+
+    private int encodeOutputSides(Iterable<Direction> sides) {
+        int mask = 0;
+        for (Direction side : sides) {
+            mask |= 1 << side.ordinal();
+        }
+        return mask;
     }
 
     private boolean canExtractUpgradeSlot(int slot) {

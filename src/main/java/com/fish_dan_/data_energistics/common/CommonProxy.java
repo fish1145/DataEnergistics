@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
@@ -90,6 +91,7 @@ public class CommonProxy {
 
         modEventBus.addListener(instance::commonSetup);
         modEventBus.addListener(EventPriority.LOWEST, instance::registerDepotContainerItemStrategies);
+        modEventBus.addListener(EventPriority.LOWEST, instance::registerGenericKeyWorldExportStrategies);
         modEventBus.addListener(instance::registerAe2KeyTypes);
         modEventBus.addListener(instance::registerCapabilities);
         modEventBus.addListener(instance::registerPayloadHandlers);
@@ -120,6 +122,10 @@ public class CommonProxy {
         event.enqueueWork(DigitalStorageDepotKeyContainerItemStrategy::registerMissingStrategies);
     }
 
+    private void registerGenericKeyWorldExportStrategies(final FMLCommonSetupEvent event) {
+        event.enqueueWork(GenericKeyItemExportStrategy::registerMissingStrategies);
+    }
+
     private void registerAe2KeyTypes(final RegisterEvent event) {
         ModAE2Keys.register(event);
     }
@@ -133,6 +139,10 @@ public class CommonProxy {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalKeyInventory());
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
@@ -152,7 +162,7 @@ public class CommonProxy {
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
+                (blockEntity, context) -> blockEntity.getExternalItemHandler());
         event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),

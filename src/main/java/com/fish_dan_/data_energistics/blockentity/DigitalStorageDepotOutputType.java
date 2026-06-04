@@ -1,0 +1,33 @@
+package com.fish_dan_.data_energistics.blockentity;
+
+import org.jetbrains.annotations.Nullable;
+
+public enum DigitalStorageDepotOutputType {
+    ITEMS("items"),
+    FLUIDS("fluids"),
+    KEYS("keys");
+
+    private final String serializedName;
+
+    DigitalStorageDepotOutputType(String serializedName) {
+        this.serializedName = serializedName;
+    }
+
+    public String getSerializedName() {
+        return this.serializedName;
+    }
+
+    public static @Nullable DigitalStorageDepotOutputType fromSerializedName(String serializedName) {
+        if (serializedName == null || serializedName.isBlank()) {
+            return null;
+        }
+
+        for (DigitalStorageDepotOutputType type : values()) {
+            if (type.serializedName.equalsIgnoreCase(serializedName)) {
+                return type;
+            }
+        }
+
+        return null;
+    }
+}

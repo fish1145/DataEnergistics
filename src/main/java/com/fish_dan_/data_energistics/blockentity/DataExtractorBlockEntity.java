@@ -330,6 +330,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             return;
         }
 
+        this.adjacentHandlersDirty = true;
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
             resetWorkProgress();
             refillEnergyCache();

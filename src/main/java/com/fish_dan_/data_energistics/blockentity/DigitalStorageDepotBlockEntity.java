@@ -3,11 +3,15 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.mojang.logging.LogUtils;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
@@ -15,12 +19,16 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 import appeng.api.config.Actionable;
+import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
@@ -52,12 +60,15 @@ import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
 public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity implements InternalInventoryHost, IUpgradeableObject, IPriorityHost {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static final int STORAGE_COLUMNS = 7;
     public static final int STORAGE_ROWS = 3;
@@ -74,10 +85,17 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private static final String FLUID_TAG_PREFIX = "stored_fluid_";
     private static final String KEY_TAG_PREFIX = "stored_key_";
     private static final String PRIORITY_TAG = "priority";
+    private static final String AUTO_EXPORT_MODE_TAG = "auto_export_mode";
+    private static final String OUTPUT_SIDES_TAG = "output_sides";
+    private static final String ITEM_OUTPUT_SIDES_TAG = "item_output_sides";
+    private static final String FLUID_OUTPUT_SIDES_TAG = "fluid_output_sides";
+    private static final String KEY_OUTPUT_SIDES_TAG = "key_output_sides";
 
     private final AppEngInternalInventory storage = new DepotItemInventory();
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final InternalInventory externalInventory = new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, true));
+    private final IItemHandler externalItemHandler = new DepotExternalItemHandler();
+    private final GenericInternalInventory externalKeyInventory = new DepotExternalKeyInventory();
     private final FluidTank[] fluidTanks = new FluidTank[] {
             new SyncFluidTank(0, FLUID_CAPACITY),
             new SyncFluidTank(1, FLUID_CAPACITY),
@@ -101,6 +119,11 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final IStorageProvider storageProvider = new DepotStorageProvider();
     private boolean exportingToNetwork;
     private int priority;
+    private DataExtractorAutoExportMode autoExportMode = DataExtractorAutoExportMode.OFF;
+    private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
+    private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
+    private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
+    private long nextKeyInsertLogTime;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -122,7 +145,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     public void serverTick() {
-        // Reserved for future storage logic.
+        tryAutoExport();
     }
 
     public AppEngInternalInventory getStorageInventory() {
@@ -131,6 +154,14 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     public InternalInventory getExternalInventory() {
         return this.externalInventory;
+    }
+
+    public IItemHandler getExternalItemHandler() {
+        return this.externalItemHandler;
+    }
+
+    public GenericInternalInventory getExternalKeyInventory() {
+        return this.externalKeyInventory;
     }
 
     public IFluidHandler getExternalFluidHandler() {
@@ -202,6 +233,41 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         this.requestStorageUpdate();
     }
 
+    public DataExtractorAutoExportMode getAutoExportMode() {
+        return this.autoExportMode;
+    }
+
+    public DataExtractorAutoExportMode setAutoExportMode(DataExtractorAutoExportMode mode) {
+        DataExtractorAutoExportMode resolvedMode = mode == null ? DataExtractorAutoExportMode.OFF : mode;
+        if (this.autoExportMode == resolvedMode) {
+            return this.autoExportMode;
+        }
+
+        this.autoExportMode = resolvedMode;
+        this.saveChanges();
+        this.markForClientUpdate();
+        return this.autoExportMode;
+    }
+
+    public Set<Direction> getOutputSides(DigitalStorageDepotOutputType outputType) {
+        Set<Direction> sides = getOutputSidesInternal(outputType);
+        if (sides.isEmpty()) {
+            return EnumSet.noneOf(Direction.class);
+        }
+        return EnumSet.copyOf(sides);
+    }
+
+    public void setOutputSideEnabled(DigitalStorageDepotOutputType outputType, Direction side, boolean enabled) {
+        Set<Direction> sides = getOutputSidesInternal(outputType);
+        boolean changed = enabled ? sides.add(side) : sides.remove(side);
+        if (!changed) {
+            return;
+        }
+
+        this.saveChanges();
+        this.markForClientUpdate();
+    }
+
     public boolean canRemoveCapacityCard(int slot) {
         ItemStack stack = this.upgrades.getStackInSlot(slot);
         if (stack.isEmpty() || !stack.is(AEItems.CAPACITY_CARD.asItem())) {
@@ -234,6 +300,10 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     public boolean exportContentsToNetwork(Player player) {
+        return exportContentsToNetwork(IActionSource.ofPlayer(player));
+    }
+
+    public boolean exportContentsToNetwork(IActionSource source) {
         IGridNode node = this.getMainNode().getNode();
         if (node == null || node.getGrid() == null || !node.isActive()) {
             return false;
@@ -245,7 +315,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         }
 
         boolean changed = false;
-        IActionSource source = IActionSource.ofPlayer(player);
         this.exportingToNetwork = true;
         try {
             changed |= exportItemsToNetwork(inventory, source);
@@ -305,6 +374,19 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.priority = data.getInt(PRIORITY_TAG);
+        this.autoExportMode = DataExtractorAutoExportMode.fromOrdinal(data.getInt(AUTO_EXPORT_MODE_TAG));
+        boolean hasTypedOutputSides = data.contains(ITEM_OUTPUT_SIDES_TAG) || data.contains(FLUID_OUTPUT_SIDES_TAG) || data.contains(KEY_OUTPUT_SIDES_TAG);
+        if (hasTypedOutputSides) {
+            readOutputSides(data, ITEM_OUTPUT_SIDES_TAG, this.itemOutputSides);
+            readOutputSides(data, FLUID_OUTPUT_SIDES_TAG, this.fluidOutputSides);
+            readOutputSides(data, KEY_OUTPUT_SIDES_TAG, this.keyOutputSides);
+        } else if (data.contains(OUTPUT_SIDES_TAG)) {
+            Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
+            readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
+            copyOutputSidesToAllTypes(legacySides.isEmpty() ? EnumSet.allOf(Direction.class) : legacySides);
+        } else {
+            copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
+        }
         for (int i = 0; i < FLUID_SLOTS; i++) {
             this.fluidTanks[i].readFromNBT(registries, data.getCompound(FLUID_TAG_PREFIX + i));
         }
@@ -322,6 +404,11 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putInt(PRIORITY_TAG, this.priority);
+        data.putInt(AUTO_EXPORT_MODE_TAG, this.autoExportMode.ordinal());
+        data.put(ITEM_OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
+        data.put(FLUID_OUTPUT_SIDES_TAG, createOutputSidesTag(this.fluidOutputSides));
+        data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
+        data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         for (int i = 0; i < FLUID_SLOTS; i++) {
             data.put(FLUID_TAG_PREFIX + i, this.fluidTanks[i].writeToNBT(registries, new CompoundTag()));
         }
@@ -446,10 +533,239 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return changed;
     }
 
+    private void tryAutoExport() {
+        if (this.autoExportMode == DataExtractorAutoExportMode.OFF) {
+            return;
+        }
+
+        if (this.autoExportMode == DataExtractorAutoExportMode.AE) {
+            exportContentsToNetwork(IActionSource.ofMachine(this));
+            return;
+        }
+
+        exportItemsToAdjacentHandlers();
+        exportFluidsToAdjacentHandlers();
+        exportKeysToAdjacentHandlers();
+    }
+
+    private void exportItemsToAdjacentHandlers() {
+        List<IItemHandler> handlers = getAdjacentItemHandlers(this.itemOutputSides);
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (int slot = 0; slot < this.storage.size(); slot++) {
+            ItemStack stack = this.storage.getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            ItemStack remaining = stack.copy();
+            for (IItemHandler handler : handlers) {
+                if (remaining.isEmpty()) {
+                    break;
+                }
+                remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
+            }
+
+            if (remaining.getCount() == stack.getCount()) {
+                continue;
+            }
+
+            this.storage.setItemDirect(slot, remaining);
+            changed = true;
+        }
+
+        if (changed) {
+            this.saveChanges();
+            this.markForClientUpdate();
+            this.requestStorageUpdate();
+        }
+    }
+
+    private void exportFluidsToAdjacentHandlers() {
+        List<IFluidHandler> handlers = getAdjacentFluidHandlers(this.fluidOutputSides);
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (FluidTank tank : this.fluidTanks) {
+            FluidStack current = tank.getFluid();
+            if (current.isEmpty()) {
+                continue;
+            }
+
+            FluidStack remaining = current.copy();
+            for (IFluidHandler handler : handlers) {
+                if (remaining.isEmpty()) {
+                    break;
+                }
+
+                int filled = handler.fill(remaining, FluidAction.EXECUTE);
+                if (filled <= 0) {
+                    continue;
+                }
+                remaining.shrink(filled);
+            }
+
+            if (remaining.getAmount() == current.getAmount()) {
+                continue;
+            }
+
+            tank.setFluid(remaining.isEmpty() ? FluidStack.EMPTY : remaining);
+            changed = true;
+        }
+
+        if (changed) {
+            syncMenuFluidsFromTanks();
+            this.saveChanges();
+            this.markForClientUpdate();
+            this.requestStorageUpdate();
+        }
+    }
+
+    private void exportKeysToAdjacentHandlers() {
+        List<IItemHandler> handlers = getAdjacentItemHandlers(this.keyOutputSides);
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (int i = 0; i < KEY_SLOTS; i++) {
+            GenericStack stack = this.keyStacks[i];
+            if (stack == null || stack.what() == null || stack.amount() <= 0) {
+                continue;
+            }
+
+            ItemStack wrapped = GenericStack.wrapInItemStack(stack.what(), stack.amount());
+            ItemStack remaining = insertIntoAdjacentHandlers(wrapped, handlers);
+            if (ItemStack.matches(wrapped, remaining)) {
+                continue;
+            }
+
+            GenericStack remainingStack = GenericStack.fromItemStack(remaining);
+            this.keyStacks[i] = remainingStack == null || remainingStack.what() == null || remainingStack.amount() <= 0
+                    ? null
+                    : clampKeyStack(remainingStack);
+            changed = true;
+        }
+
+        if (changed) {
+            syncKeyMenusFromStacks();
+            this.saveChanges();
+            this.markForClientUpdate();
+            this.requestStorageUpdate();
+        }
+    }
+
+    private ItemStack insertIntoAdjacentHandlers(ItemStack stack, List<IItemHandler> handlers) {
+        ItemStack remaining = stack.copy();
+        for (IItemHandler handler : handlers) {
+            if (remaining.isEmpty()) {
+                break;
+            }
+            remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
+        }
+        return remaining;
+    }
+
+    private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        List<IItemHandler> handlers = new java.util.ArrayList<>();
+        for (Direction direction : outputSides) {
+            BlockPos targetPos = this.worldPosition.relative(direction);
+            BlockState targetState = this.level.getBlockState(targetPos);
+            if (targetState.isAir()) {
+                continue;
+            }
+
+            IItemHandler handler = this.level.getCapability(
+                    Capabilities.ItemHandler.BLOCK,
+                    targetPos,
+                    targetState,
+                    this.level.getBlockEntity(targetPos),
+                    direction.getOpposite());
+            if (handler != null) {
+                handlers.add(handler);
+            }
+        }
+        return handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+    }
+
+    private List<IFluidHandler> getAdjacentFluidHandlers(Set<Direction> outputSides) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        List<IFluidHandler> handlers = new java.util.ArrayList<>();
+        for (Direction direction : outputSides) {
+            BlockPos targetPos = this.worldPosition.relative(direction);
+            BlockState targetState = this.level.getBlockState(targetPos);
+            if (targetState.isAir()) {
+                continue;
+            }
+
+            IFluidHandler handler = this.level.getCapability(
+                    Capabilities.FluidHandler.BLOCK,
+                    targetPos,
+                    targetState,
+                    this.level.getBlockEntity(targetPos),
+                    direction.getOpposite());
+            if (handler != null) {
+                handlers.add(handler);
+            }
+        }
+        return handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+    }
+
     private void requestStorageUpdate() {
         if (this.level != null && !this.level.isClientSide()) {
             IStorageProvider.requestUpdate(this.getMainNode());
         }
+    }
+
+    private Set<Direction> getOutputSidesInternal(DigitalStorageDepotOutputType outputType) {
+        return switch (outputType) {
+            case ITEMS -> this.itemOutputSides;
+            case FLUIDS -> this.fluidOutputSides;
+            case KEYS -> this.keyOutputSides;
+        };
+    }
+
+    private void copyOutputSidesToAllTypes(Set<Direction> sides) {
+        this.itemOutputSides.clear();
+        this.fluidOutputSides.clear();
+        this.keyOutputSides.clear();
+        this.itemOutputSides.addAll(sides);
+        this.fluidOutputSides.addAll(sides);
+        this.keyOutputSides.addAll(sides);
+    }
+
+    private static void readOutputSides(CompoundTag data, String tagName, Set<Direction> target) {
+        target.clear();
+        if (!data.contains(tagName)) {
+            return;
+        }
+
+        for (Tag name : data.getList(tagName, Tag.TAG_STRING)) {
+            Direction side = Direction.byName(name.getAsString());
+            if (side != null) {
+                target.add(side);
+            }
+        }
+    }
+
+    private static ListTag createOutputSidesTag(Set<Direction> sides) {
+        ListTag tag = new ListTag();
+        for (Direction side : sides) {
+            tag.add(StringTag.valueOf(side.getName()));
+        }
+        return tag;
     }
 
     private GenericStackInv createFluidMenuInventory(int slotIndex) {
@@ -607,6 +923,75 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return what == null ? null : new GenericStack(what, Math.min(getKeyCapacity(), stack.amount()));
     }
 
+    private long insertExternalKey(GenericStack stack, boolean simulate) {
+        AEKey what = stack.what();
+        if (!isAllowedMenuKey(what) || stack.amount() <= 0) {
+            return 0L;
+        }
+
+        int matchingSlot = -1;
+        int emptySlot = -1;
+        for (int i = 0; i < KEY_SLOTS; i++) {
+            GenericStack current = this.keyStacks[i];
+            if (current != null && current.what() != null && current.amount() > 0 && current.what().equals(what)) {
+                matchingSlot = i;
+                break;
+            }
+            if (emptySlot < 0 && (current == null || current.what() == null || current.amount() <= 0)) {
+                emptySlot = i;
+            }
+        }
+
+        int slot = matchingSlot >= 0 ? matchingSlot : emptySlot;
+        if (slot < 0 || (matchingSlot < 0 && conflictsWithOtherKeys(slot, what))) {
+            return 0L;
+        }
+
+        GenericStack current = this.keyStacks[slot];
+        long currentAmount = current == null ? 0L : current.amount();
+        long inserted = Math.min(stack.amount(), Math.max(0L, getKeyCapacity() - currentAmount));
+        if (inserted <= 0L) {
+            return 0L;
+        }
+
+        if (!simulate) {
+            this.keyStacks[slot] = new GenericStack(what, currentAmount + inserted);
+            syncKeyMenusFromStacks();
+            this.saveChanges();
+            this.markForClientUpdate();
+            this.requestStorageUpdate();
+        }
+
+        return inserted;
+    }
+
+    private ItemStack extractExternalKey(int keySlot, int amount, boolean simulate) {
+        if (keySlot < 0 || keySlot >= KEY_SLOTS || amount <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        GenericStack current = this.keyStacks[keySlot];
+        if (current == null || current.what() == null || current.amount() <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        long extracted = Math.min(current.amount(), amount);
+        if (extracted <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        if (!simulate) {
+            long remaining = current.amount() - extracted;
+            this.keyStacks[keySlot] = remaining <= 0 ? null : new GenericStack(current.what(), remaining);
+            syncKeyMenusFromStacks();
+            this.saveChanges();
+            this.markForClientUpdate();
+            this.requestStorageUpdate();
+        }
+
+        return GenericStack.wrapInItemStack(current.what(), extracted);
+    }
+
     public static String getFluidTagKey(int slotIndex) {
         return FLUID_TAG_PREFIX + slotIndex;
     }
@@ -726,6 +1111,279 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         public void mountInventories(IStorageMounts storageMounts) {
             storageMounts.mount(networkStorage, priority);
         }
+    }
+
+    private final class DepotExternalItemHandler implements IItemHandler {
+
+        @Override
+        public int getSlots() {
+            return storage.size() + KEY_SLOTS;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            if (slot < 0) {
+                return ItemStack.EMPTY;
+            }
+            if (slot < storage.size()) {
+                return storage.getStackInSlot(slot);
+            }
+
+            int keySlot = slot - storage.size();
+            if (keySlot < 0 || keySlot >= KEY_SLOTS) {
+                return ItemStack.EMPTY;
+            }
+
+            GenericStack current = keyStacks[keySlot];
+            return current == null || current.what() == null || current.amount() <= 0
+                    ? ItemStack.EMPTY
+                    : GenericStack.wrapInItemStack(current.what(), current.amount());
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (stack.isEmpty()) {
+                return stack;
+            }
+
+            GenericStack genericStack = GenericStack.fromItemStack(stack);
+            if (genericStack != null && genericStack.what() != null && isAllowedMenuKey(genericStack.what())) {
+                long inserted = insertExternalKey(genericStack, simulate);
+                if (inserted <= 0) {
+                    return stack;
+                }
+
+                long remaining = genericStack.amount() - inserted;
+                return remaining <= 0 ? ItemStack.EMPTY : GenericStack.wrapInItemStack(genericStack.what(), remaining);
+            }
+
+            if (slot < 0 || slot >= storage.size()) {
+                return stack;
+            }
+
+            return storage.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (slot < 0 || amount <= 0) {
+                return ItemStack.EMPTY;
+            }
+            if (slot < storage.size()) {
+                return storage.extractItem(slot, amount, simulate);
+            }
+
+            return extractExternalKey(slot - storage.size(), amount, simulate);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            if (slot >= 0 && slot < storage.size()) {
+                return storage.getSlotLimit(slot);
+            }
+            return 64;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return !stack.isEmpty() && !ItemStack.matches(stack, insertItem(slot, stack.copy(), true));
+        }
+    }
+
+    private final class DepotExternalKeyInventory implements GenericInternalInventory {
+
+        private int batchDepth;
+        private boolean batchDirty;
+
+        @Override
+        public int size() {
+            return KEY_SLOTS;
+        }
+
+        @Override
+        public @Nullable GenericStack getStack(int slot) {
+            return isValidKeySlot(slot) ? keyStacks[slot] : null;
+        }
+
+        @Override
+        public @Nullable AEKey getKey(int slot) {
+            GenericStack stack = getStack(slot);
+            return stack == null ? null : stack.what();
+        }
+
+        @Override
+        public long getAmount(int slot) {
+            GenericStack stack = getStack(slot);
+            return stack == null ? 0L : stack.amount();
+        }
+
+        @Override
+        public long getMaxAmount(AEKey key) {
+            return isAllowedMenuKey(key) ? getKeyCapacity() : 0L;
+        }
+
+        @Override
+        public long getCapacity(AEKeyType keyType) {
+            return isSupportedType(keyType) ? getKeyCapacity() : 0L;
+        }
+
+        @Override
+        public boolean canInsert() {
+            return true;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return true;
+        }
+
+        @Override
+        public void setStack(int slot, @Nullable GenericStack newStack) {
+            if (!isValidKeySlot(slot)) {
+                return;
+            }
+
+            GenericStack clamped = newStack;
+            if (clamped != null) {
+                if (!isAllowedMenuKey(clamped.what()) || conflictsWithOtherKeys(slot, clamped.what())) {
+                    return;
+                }
+                clamped = clampKeyStack(clamped);
+            }
+
+            GenericStack current = keyStacks[slot];
+            boolean changed = current == null ? clamped != null : !current.equals(clamped);
+            if (!changed) {
+                return;
+            }
+
+            keyStacks[slot] = clamped;
+            syncKeyMenusFromStacks();
+            onChange();
+        }
+
+        @Override
+        public boolean isSupportedType(AEKeyType type) {
+            return type != null && type != AEKeyType.items() && type != AEKeyType.fluids();
+        }
+
+        @Override
+        public boolean isAllowedIn(int slot, AEKey what) {
+            if (!isValidKeySlot(slot) || !isAllowedMenuKey(what)) {
+                return false;
+            }
+
+            GenericStack current = keyStacks[slot];
+            return (current == null || current.what() == null || current.what().equals(what)) && !conflictsWithOtherKeys(slot, what);
+        }
+
+        @Override
+        public long insert(int slot, AEKey what, long amount, Actionable mode) {
+            if (!isAllowedIn(slot, what) || amount <= 0) {
+                return 0L;
+            }
+
+            GenericStack current = keyStacks[slot];
+            long currentAmount = current == null ? 0L : current.amount();
+            long inserted = Math.min(amount, Math.max(0L, getKeyCapacity() - currentAmount));
+            if (inserted <= 0L) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                keyStacks[slot] = new GenericStack(what, currentAmount + inserted);
+                syncKeyMenusFromStacks();
+                onChange();
+                logExternalKeyInsert(slot, what, inserted, currentAmount + inserted);
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(int slot, AEKey what, long amount, Actionable mode) {
+            if (!isValidKeySlot(slot) || what == null || amount <= 0) {
+                return 0L;
+            }
+
+            GenericStack current = keyStacks[slot];
+            if (current == null || current.what() == null || !current.what().equals(what)) {
+                return 0L;
+            }
+
+            long extracted = Math.min(current.amount(), amount);
+            if (extracted <= 0L) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                long remaining = current.amount() - extracted;
+                keyStacks[slot] = remaining <= 0 ? null : new GenericStack(what, remaining);
+                syncKeyMenusFromStacks();
+                onChange();
+            }
+            return extracted;
+        }
+
+        @Override
+        public void beginBatch() {
+            this.batchDepth++;
+        }
+
+        @Override
+        public void endBatch() {
+            if (this.batchDepth > 0) {
+                this.batchDepth--;
+            }
+            if (this.batchDepth == 0 && this.batchDirty) {
+                this.batchDirty = false;
+                notifyExternalKeyInventoryChanged();
+            }
+        }
+
+        @Override
+        public void endBatchSuppressed() {
+            if (this.batchDepth > 0) {
+                this.batchDepth--;
+            }
+            if (this.batchDepth == 0) {
+                this.batchDirty = false;
+            }
+        }
+
+        @Override
+        public void onChange() {
+            if (this.batchDepth > 0) {
+                this.batchDirty = true;
+                return;
+            }
+            notifyExternalKeyInventoryChanged();
+        }
+
+        private boolean isValidKeySlot(int slot) {
+            return slot >= 0 && slot < KEY_SLOTS;
+        }
+
+        private void notifyExternalKeyInventoryChanged() {
+            saveChanges();
+            markForClientUpdate();
+            requestStorageUpdate();
+        }
+    }
+
+    private void logExternalKeyInsert(int slot, AEKey what, long inserted, long total) {
+        long now = System.currentTimeMillis();
+        if (now < this.nextKeyInsertLogTime) {
+            return;
+        }
+
+        this.nextKeyInsertLogTime = now + 2000L;
+        LOGGER.info(
+                "[DE depot key input] pos={} slot={} key={} inserted={} total={}",
+                this.worldPosition,
+                slot,
+                what,
+                inserted,
+                total);
     }
 
     private final class DepotItemInventory extends AppEngInternalInventory {

@@ -1,7 +1,11 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
+import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotAutoExportButton;
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
 
 import net.minecraft.client.Minecraft;
@@ -29,10 +33,36 @@ import java.util.List;
 
 public class DigitalStorageDepotScreen extends UpgradeableScreen<DigitalStorageDepotMenu> {
 
+    private final DigitalStorageDepotAutoExportButton autoExportButton;
+    private final OutputSideActionButton outputSideButton;
+
     public DigitalStorageDepotScreen(DigitalStorageDepotMenu menu, Inventory playerInventory, Component title,
                                      ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.widgets.addOpenPriorityButton();
+        this.autoExportButton = new DigitalStorageDepotAutoExportButton(this.menu::sendSetAutoExportMode);
+        this.addToLeftToolbar(this.autoExportButton);
+        this.outputSideButton = new OutputSideActionButton(button -> openOutputConfig());
+        this.addToLeftToolbar(this.outputSideButton);
+    }
+
+    private void openOutputConfig() {
+        if (this.menu.getHost() == null) {
+            return;
+        }
+
+        this.switchToScreen(new DigitalStorageDepotOutputSideScreen(
+                this,
+                this.menu,
+                this.menu.getHost(),
+                DigitalStorageDepotOutputType.ITEMS));
+    }
+
+    @Override
+    protected void updateBeforeRender() {
+        super.updateBeforeRender();
+        this.autoExportButton.setMode(this.menu.getAutoExportMode());
+        this.outputSideButton.setVisibility(this.menu.getAutoExportMode() == DataExtractorAutoExportMode.CONTAINER);
     }
 
     @Override
