@@ -3,8 +3,6 @@ package com.fish_dan_.data_energistics.ae2;
 import appeng.api.behaviors.StackExportStrategy;
 import appeng.api.behaviors.StackImportStrategy;
 import appeng.api.behaviors.StackTransferContext;
-import appeng.api.config.Actionable;
-import appeng.api.stacks.AEKey;
 
 public final class DataFlowBusStrategies {
 
@@ -19,9 +17,9 @@ public final class DataFlowBusStrategies {
 
         registered = true;
         StackImportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> NoopImportStrategy.INSTANCE);
-        StackExportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> NoopExportStrategy.INSTANCE);
+        StackExportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> new GenericKeyItemExportStrategy(DataFlowKeyType.TYPE, level, pos, side));
         StackImportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> NoopImportStrategy.INSTANCE);
-        StackExportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> NoopExportStrategy.INSTANCE);
+        StackExportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> new GenericKeyItemExportStrategy(DataKeyType.TYPE, level, pos, side));
     }
 
     private enum NoopImportStrategy implements StackImportStrategy {
@@ -31,21 +29,6 @@ public final class DataFlowBusStrategies {
         @Override
         public boolean transfer(StackTransferContext context) {
             return false;
-        }
-    }
-
-    private enum NoopExportStrategy implements StackExportStrategy {
-
-        INSTANCE;
-
-        @Override
-        public long transfer(StackTransferContext context, AEKey what, long amount) {
-            return 0;
-        }
-
-        @Override
-        public long push(AEKey what, long amount, Actionable mode) {
-            return 0;
         }
     }
 }
