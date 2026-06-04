@@ -17,6 +17,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -43,8 +44,11 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.util.inv.AppEngInternalInventory;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class DigitalStorageDepotBlockItem extends BlockItem {
@@ -225,6 +229,12 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             return extractFromSelectedKeySlot(stack, registries, requested, amount, mode);
         }
         return extractFromSelectedFluidSlot(stack, registries, requested, amount, mode);
+    }
+
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        DigitalStorageDepotTooltipComponent component = createTooltipComponent(stack, ITEM_CAPABILITY_REGISTRIES);
+        return component.isEmpty() ? Optional.empty() : Optional.of(component);
     }
 
     public static void applyStoredFluidsToBlockEntity(ItemStack stack, DigitalStorageDepotBlockEntity depot, HolderLookup.Provider registries) {
@@ -639,6 +649,50 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
 
     private static boolean isAllowedTerminalKey(AEKey what) {
         return what != null && !(what instanceof AEItemKey) && !(what instanceof AEFluidKey);
+    }
+
+    private static DigitalStorageDepotTooltipComponent createTooltipComponent(ItemStack stack, HolderLookup.Provider registries) {
+        return new DigitalStorageDepotTooltipComponent(
+                readStoredItemStacks(stack, registries),
+                readStoredFluidStacks(stack, registries),
+                readStoredKeyStacks(stack, registries));
+    }
+
+    private static List<GenericStack> readStoredItemStacks(ItemStack stack, HolderLookup.Provider registries) {
+        AppEngInternalInventory inventory = new AppEngInternalInventory(DigitalStorageDepotBlockEntity.STORAGE_SLOTS);
+        CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
+        inventory.readFromNBT(blockEntityTag, DigitalStorageDepotBlockEntity.getStorageTagKey(), registries);
+
+        List<GenericStack> stacks = new ArrayList<>();
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack itemStack = inventory.getStackInSlot(i);
+            AEItemKey itemKey = AEItemKey.of(itemStack);
+            if (itemKey != null) {
+                stacks.add(new GenericStack(itemKey, itemStack.getCount()));
+            }
+        }
+        return stacks;
+    }
+
+    private static List<GenericStack> readStoredFluidStacks(ItemStack stack, HolderLookup.Provider registries) {
+        List<GenericStack> stacks = new ArrayList<>();
+        for (FluidStack fluid : readStoredFluids(stack, registries)) {
+            AEFluidKey fluidKey = AEFluidKey.of(fluid);
+            if (fluidKey != null) {
+                stacks.add(new GenericStack(fluidKey, fluid.getAmount()));
+            }
+        }
+        return stacks;
+    }
+
+    private static List<GenericStack> readStoredKeyStacks(ItemStack stack, HolderLookup.Provider registries) {
+        List<GenericStack> stacks = new ArrayList<>();
+        for (GenericStack keyStack : readStoredKeys(stack, registries)) {
+            if (keyStack != null && keyStack.what() != null && keyStack.amount() > 0) {
+                stacks.add(keyStack);
+            }
+        }
+        return stacks;
     }
 
     private static FluidStack[] readStoredFluids(ItemStack stack, HolderLookup.Provider registries) {

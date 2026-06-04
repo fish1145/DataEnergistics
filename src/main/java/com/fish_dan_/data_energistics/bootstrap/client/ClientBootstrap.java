@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
+import com.fish_dan_.data_energistics.client.render.DigitalStorageDepotClientTooltipComponent;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.LightBladeChargeRenderer;
 import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
@@ -30,6 +31,7 @@ import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTerm
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotTooltipComponent;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
@@ -69,6 +71,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
@@ -148,6 +151,11 @@ public final class ClientBootstrap {
             InitScreens.register(event, ModMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), UniversalPatternEncodingTermScreen::new, "/screens/universal_pattern_encoding_terminal.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_PATTERN_ACCESS_TERM.get(), UniversalPatternAccessTermScreen::new, "/screens/universal_pattern_access_terminal.json");
+        }
+
+        @SubscribeEvent
+        public static void onRegisterClientTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event) {
+            event.register(DigitalStorageDepotTooltipComponent.class, DigitalStorageDepotClientTooltipComponent::new);
         }
 
         @SubscribeEvent

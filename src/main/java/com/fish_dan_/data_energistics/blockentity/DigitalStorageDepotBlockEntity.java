@@ -519,6 +519,10 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return FLUID_TAG_PREFIX + slotIndex;
     }
 
+    public static String getStorageTagKey() {
+        return STORAGE_TAG;
+    }
+
     public static String getKeyTagKey(int slotIndex) {
         return KEY_TAG_PREFIX + slotIndex;
     }
