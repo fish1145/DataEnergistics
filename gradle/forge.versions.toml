@@ -25,6 +25,7 @@ iris = "1.8.8+1.21.1-neoforge"
 modernfix = "4SPHwiDB" # 5.24.3+mc1.21.1
 
 ## cursemaven ##
+spark = "6225208"
 guideme = "8129788"
 geckolib = "7707149"
 glodium = "5821676"
@@ -87,6 +88,7 @@ mega-cells          = { module = "curse.maven:mega-cells-622112", version.ref = 
 cloth-config        = { module = "curse.maven:cloth-config-348521", version.ref = "cloth-config" }
 amek                = { module = "curse.maven:applied-mekanistics-574300", version.ref = "amek" }
 
+spark               = { module = "curse.maven:spark-361579", version.ref = "spark" }
 jech                = { module = "curse.maven:just-enough-characters-250702", version.ref = "jech" }
 ctm                 = { module = "curse.maven:ctm-267602", version.ref = "ctm" }
 

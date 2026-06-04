@@ -30,6 +30,8 @@ dependencies {
     compileOnly(forge.jade)
 
     // Standard runtime mods
+    localRuntime(forge.spark)
+
     localRuntime(forge.jade)
     localRuntime(forge.curios)
     localRuntime(forge.modernfix)

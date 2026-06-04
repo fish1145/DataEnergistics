@@ -5,7 +5,9 @@ import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
@@ -34,6 +36,7 @@ import net.neoforged.neoforge.common.SoundActions;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
 
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEFluidKey;
@@ -53,6 +56,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
     private static final String LEGACY_TAG_ITEM_FLUID_PREFIX = "item_stored_fluid_";
     private static final int MARK_MODE_FLUID = 0;
     private static final int MARK_MODE_KEY = 1;
+    private static final HolderLookup.Provider ITEM_CAPABILITY_REGISTRIES = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
 
     public DigitalStorageDepotBlockItem(Block block, Properties properties) {
         super(block, properties);
@@ -175,8 +179,16 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return keyStack != null && keyStack.what() != null && keyStack.amount() > 0 ? keyStack : null;
     }
 
+    public static @Nullable GenericStack getSelectedKeyStack(ItemStack stack) {
+        return getSelectedKeyStack(stack, ITEM_CAPABILITY_REGISTRIES);
+    }
+
     public static boolean isBucketMode(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean(TAG_BUCKET_MODE);
+    }
+
+    public static boolean isKeySlotMarked(ItemStack stack) {
+        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getInt(TAG_MARK_MODE) == MARK_MODE_KEY;
     }
 
     public static boolean toggleBucketMode(ItemStack stack) {
@@ -439,6 +451,74 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         int selectedSlot = getSelectedFluidSlot(stack);
         FluidStack[] storedFluids = readStoredFluids(stack, registries);
         return selectedSlot >= 0 && selectedSlot < storedFluids.length ? storedFluids[selectedSlot] : FluidStack.EMPTY;
+    }
+
+    public static FluidStack getSelectedStoredFluid(ItemStack stack) {
+        return getSelectedStoredFluid(stack, ITEM_CAPABILITY_REGISTRIES);
+    }
+
+    public static int fillSelectedFluidSlot(ItemStack stack, FluidStack resource, FluidAction action) {
+        if (!isBucketMode(stack) || resource.isEmpty()) {
+            return 0;
+        }
+
+        AEFluidKey fluidKey = AEFluidKey.of(resource);
+        if (fluidKey == null) {
+            return 0;
+        }
+
+        long inserted = insertIntoSelectedTerminalSlot(
+                stack,
+                ITEM_CAPABILITY_REGISTRIES,
+                fluidKey,
+                resource.getAmount(),
+                action.execute() ? Actionable.MODULATE : Actionable.SIMULATE);
+        return (int) Math.min(Integer.MAX_VALUE, inserted);
+    }
+
+    public static FluidStack drainSelectedFluidSlot(ItemStack stack, int maxDrain, FluidAction action) {
+        if (!isBucketMode(stack) || maxDrain <= 0) {
+            return FluidStack.EMPTY;
+        }
+
+        FluidStack current = getSelectedStoredFluid(stack);
+        if (current.isEmpty()) {
+            return FluidStack.EMPTY;
+        }
+
+        AEFluidKey fluidKey = AEFluidKey.of(current);
+        if (fluidKey == null) {
+            return FluidStack.EMPTY;
+        }
+
+        int drainAmount = Math.min(current.getAmount(), maxDrain);
+        long extracted = extractFromSelectedTerminalSlot(
+                stack,
+                ITEM_CAPABILITY_REGISTRIES,
+                fluidKey,
+                drainAmount,
+                action.execute() ? Actionable.MODULATE : Actionable.SIMULATE);
+        return extracted <= 0 ? FluidStack.EMPTY : current.copyWithAmount((int) Math.min(Integer.MAX_VALUE, extracted));
+    }
+
+    public static FluidStack drainSelectedFluidSlot(ItemStack stack, FluidStack resource, FluidAction action) {
+        if (resource.isEmpty()) {
+            return FluidStack.EMPTY;
+        }
+
+        FluidStack current = getSelectedStoredFluid(stack);
+        if (current.isEmpty() || !FluidStack.isSameFluidSameComponents(current, resource)) {
+            return FluidStack.EMPTY;
+        }
+        return drainSelectedFluidSlot(stack, resource.getAmount(), action);
+    }
+
+    public static long insertIntoSelectedKeySlot(ItemStack stack, AEKey what, long amount, Actionable mode) {
+        return insertIntoSelectedKeySlot(stack, ITEM_CAPABILITY_REGISTRIES, what, amount, mode);
+    }
+
+    public static long extractFromSelectedKeySlot(ItemStack stack, AEKey requested, long amount, Actionable mode) {
+        return extractFromSelectedKeySlot(stack, ITEM_CAPABILITY_REGISTRIES, requested, amount, mode);
     }
 
     private static boolean canStoreFluidInSelectedSlot(FluidStack[] fluids, int selectedSlot, FluidStack candidate) {

@@ -7,6 +7,9 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotKeyContainerItemStrategy;
 import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.item.PoweredAxeItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
@@ -43,6 +46,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -83,6 +87,7 @@ public class CommonProxy {
         UniversalTerminalAdapters.init();
 
         modEventBus.addListener(instance::commonSetup);
+        modEventBus.addListener(EventPriority.LOWEST, instance::registerDepotContainerItemStrategies);
         modEventBus.addListener(instance::registerAe2KeyTypes);
         modEventBus.addListener(instance::registerCapabilities);
         modEventBus.addListener(instance::registerPayloadHandlers);
@@ -107,6 +112,10 @@ public class CommonProxy {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(ModUpgrades::init);
+    }
+
+    private void registerDepotContainerItemStrategies(final FMLCommonSetupEvent event) {
+        event.enqueueWork(DigitalStorageDepotKeyContainerItemStrategy::registerMissingStrategies);
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
@@ -146,6 +155,10 @@ public class CommonProxy {
                 Capabilities.FluidHandler.BLOCK,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalFluidHandler());
+        event.registerItem(
+                Capabilities.FluidHandler.ITEM,
+                (stack, context) -> DigitalStorageDepotBlockItem.isBucketMode(stack) && !DigitalStorageDepotBlockItem.isKeySlotMarked(stack) ? new DigitalStorageDepotFluidHandlerItem(stack) : null,
+                ModItems.DIGITAL_STORAGE_DEPOT.get());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
