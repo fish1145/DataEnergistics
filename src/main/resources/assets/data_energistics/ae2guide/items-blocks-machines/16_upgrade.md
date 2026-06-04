@@ -27,7 +27,7 @@ item_ids:
 容量卡会同时提升物品槽、流体槽和 Key 槽的容量：  
 最终容量 = 基础容量 × (1 + 4 × 容量卡数量)
 
-如果移除容量卡会导致现有内容超过新的容量上限，该容量卡会暂时无法取出。
+若移除后现有内容超过降级后的上限，该容量卡将暂时无法取出。
 
 ---
 
@@ -53,7 +53,7 @@ item_ids:
 </Row>
 
 效果：  
-<ItemImage id="data_energistics:matter_converging_crossbow" />：最终伤害 = 基础伤害 × (聚能卡数量 × 2) × 当前速度(3.15)，暴击后再 × 1.5。若使用满电 <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> 作为弹药，则还能进一步提高最大百分比真实伤害。  
+<ItemImage id="data_energistics:matter_converging_crossbow" />：最终伤害 = 基础伤害 × (聚能卡数量 × 2) × 当前速度(3.15)，暴击后再 × 1.5。若使用满电 <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> 作为弹药，则还能增加百分比真实伤害上限。  
 <ItemImage id="data_energistics:data_light_saber" />：提高伤害上限、增加耗能，并允许满电状态下左键发射光刃。  
 <ItemImage id="data_energistics:data_sanctifier" />：与数据光剑属于同一强化分支。  
 <ItemImage id="data_energistics:data_crystal_cutting_knife" />：增加传送范围与数据流存储能力。  
@@ -83,4 +83,4 @@ item_ids:
 <ItemImage id="data_energistics:adaptive_pattern_provider" />：  
 这一分支中的样板供应器在发出红石脉冲时会主动发送一次脉冲；接收到红石脉冲时，会对内部每个可合成样板各请求一次主产物输出。  
 <ItemImage id="data_energistics:matter_converging_crossbow" />：  
-普通弹药单发耗电变为基础耗电 × 5，并使弹射物获得追踪最近非玩家活体的能力。
+普通弹药单发耗电变为基础耗电 × 5，并使弹射物获得追踪最近的非玩家活体的能力。
