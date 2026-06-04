@@ -89,7 +89,7 @@ public class CondenserOutputModeButton extends IconButton {
                             CondenserOutput.SINGULARITY.requiredPower));
             case DATA_CAPTURE_BALL -> List.of(
                     Component.translatable("button.data_energistics.condenser_output.header"),
-                    Component.translatable("button.data_energistics.condenser_output.data_capture_ball"),
+                    Component.translatable("item.data_energistics.data_capture_ball"),
                     Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"),
                     Component.translatable(
                             "button.data_energistics.condenser_output.power",

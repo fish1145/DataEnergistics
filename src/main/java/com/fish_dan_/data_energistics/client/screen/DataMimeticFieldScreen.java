@@ -38,9 +38,9 @@ public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMe
         this.redstoneControlButton = new DataExtractorToggleButton(
                 Icon.REDSTONE_ON,
                 Icon.REDSTONE_OFF,
-                "button.data_energistics.data_mimetic_field.redstone_control",
-                "button.data_energistics.data_mimetic_field.redstone_control.enabled",
-                "button.data_energistics.data_mimetic_field.redstone_control.disabled",
+                "button.data_energistics.redstone_control",
+                "button.data_energistics.redstone_control.enabled",
+                "button.data_energistics.redstone_control.disabled",
                 this.menu::sendSetRedstoneControlled);
         this.addToLeftToolbar(this.redstoneControlButton);
 

@@ -143,7 +143,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
         }
         if (!anchor.isOnline()) {
             player.displayClientMessage(Component.translatable(
-                    "message.data_energistics.data_teleport_anchor.anchor_offline"), true);
+                    "message.data_energistics.data_teleport_anchor.target_offline"), true);
             return ItemInteractionResult.CONSUME;
         }
 

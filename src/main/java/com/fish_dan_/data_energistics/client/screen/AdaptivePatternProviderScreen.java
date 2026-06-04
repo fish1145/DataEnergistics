@@ -109,14 +109,14 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.previousPageButton = new ToggleButton(
                 Icon.BACK,
                 Icon.BACK,
-                Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.previous"),
-                Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.previous"),
+                Component.translatable("screen.data_energistics.page.previous"),
+                Component.translatable("screen.data_energistics.page.previous"),
                 this::goPreviousPage);
         this.nextPageButton = new ToggleButton(
                 Icon.ARROW_RIGHT,
                 Icon.ARROW_RIGHT,
-                Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.next"),
-                Component.translatable("screen.data_energistics.adaptive_pattern_provider.page.next"),
+                Component.translatable("screen.data_energistics.page.next"),
+                Component.translatable("screen.data_energistics.page.next"),
                 this::goNextPage);
         this.addToLeftToolbar(this.previousPageButton);
         this.addToLeftToolbar(this.nextPageButton);
@@ -217,7 +217,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.setTextContent("dialog_title",
                 Component.translatable("block.data_energistics.adaptive_pattern_provider"));
         this.setTextContent("page_info", Component.translatable(
-                "screen.data_energistics.adaptive_pattern_provider.page",
+                "screen.data_energistics.page",
                 this.menu.totalPages <= 0 ? 1 : this.menu.pageIndex + 1,
                 Math.max(1, this.menu.totalPages)));
     }

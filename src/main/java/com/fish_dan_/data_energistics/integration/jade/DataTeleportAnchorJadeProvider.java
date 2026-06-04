@@ -48,7 +48,7 @@ public class DataTeleportAnchorJadeProvider implements IBlockComponentProvider, 
                     Component.translatable("color.minecraft." + serverData.getString(TAG_COLOR))));
         }
 
-        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.data_teleport_anchor.status.online" : "jade.data_energistics.data_teleport_anchor.status.offline"));
+        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.status.online" : "jade.data_energistics.status.offline"));
     }
 
     @Override

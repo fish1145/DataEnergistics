@@ -37,17 +37,17 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
         }
 
         Component statusLine = Component.translatable(
-                serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.data_distribution_tower.status.online" : "jade.data_energistics.data_distribution_tower.status.offline");
+                serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.status.online" : "jade.data_energistics.status.offline");
         tooltip.add(Math.min(1, tooltip.size()), statusLine);
         tooltip.add(Component.translatable(
-                "jade.data_energistics.data_distribution_tower.ae",
+                "screen.data_energistics.ae_channels",
                 serverData.getInt(TAG_AE_USED),
                 serverData.getInt(TAG_AE_MAX)));
         tooltip.add(Component.translatable(
-                "jade.data_energistics.data_distribution_tower.fe",
+                "screen.data_energistics.network_fe",
                 serverData.getString(TAG_FE)));
         tooltip.add(Component.translatable(
-                "jade.data_energistics.data_distribution_tower.range",
+                "screen.data_energistics.range",
                 formatRangeText(serverData.getInt(TAG_RANGE))));
     }
 

@@ -32,7 +32,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         this.redstoneControlButton = new DataExtractorToggleButton(
                 Icon.REDSTONE_ON,
                 Icon.REDSTONE_OFF,
-                "button.data_energistics.data_extractor.redstone_control",
+                "button.data_energistics.redstone_control",
                 "button.data_energistics.data_extractor.redstone_control.enabled",
                 "button.data_energistics.data_extractor.redstone_control.disabled",
                 this.menu::sendSetRedstoneControlled);
@@ -41,7 +41,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         this.rangeVisibleButton = new DataExtractorToggleButton(
                 Icon.PATTERN_TERMINAL_ALL,
                 Icon.PATTERN_TERMINAL_VISIBLE,
-                "button.data_energistics.data_extractor.range_visible",
+                "button.data_energistics.range_visible",
                 "button.data_energistics.data_extractor.range_visible.enabled",
                 "button.data_energistics.data_extractor.range_visible.disabled",
                 this.menu::sendSetRangeVisible);
@@ -74,7 +74,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         super.updateBeforeRender();
 
         this.setTextContent("status", Component.translatable(
-                this.menu.online ? "screen.data_energistics.data_extractor.status.online" : "screen.data_energistics.data_extractor.status.offline"));
+                this.menu.online ? "screen.data_energistics.status.online" : "screen.data_energistics.status.offline"));
         this.setTextContent("damage", translate("damage", this.menu.damagePerCycle, this.menu.workIntervalSeconds));
         this.setTextContent("data_flow", translate("data_flow", this.menu.dataFlowPerCycle, this.menu.workIntervalSeconds));
         this.setTextContent("targets", translate("targets", this.menu.targetCount, this.menu.targetLimit));

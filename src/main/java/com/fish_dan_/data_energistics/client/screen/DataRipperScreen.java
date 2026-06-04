@@ -27,7 +27,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
                 YesNo.NO,
                 Icon.REDSTONE_ON,
                 Icon.REDSTONE_OFF,
-                "button.data_energistics.data_ripper.redstone_control",
+                "button.data_energistics.redstone_control",
                 "button.data_energistics.data_ripper.redstone_control.enabled",
                 "button.data_energistics.data_ripper.redstone_control.disabled",
                 "button.data_energistics.data_ripper.redstone_control.blocked");

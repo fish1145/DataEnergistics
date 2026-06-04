@@ -19,7 +19,7 @@ public class DataSolarPanelScreen extends UpgradeableScreen<DataSolarPanelMenu> 
         this.redstoneControlButton = new DataExtractorToggleButton(
                 Icon.REDSTONE_ON,
                 Icon.REDSTONE_OFF,
-                "button.data_energistics.me_solar_panel.redstone_control",
+                "button.data_energistics.redstone_control",
                 "button.data_energistics.me_solar_panel.redstone_control.enabled",
                 "button.data_energistics.me_solar_panel.redstone_control.disabled",
                 this.menu::sendSetRedstoneControlled);
@@ -31,7 +31,7 @@ public class DataSolarPanelScreen extends UpgradeableScreen<DataSolarPanelMenu> 
         super.updateBeforeRender();
         this.setTextContent("time", Component.translatable(
                 "screen.data_energistics.me_solar_panel.time",
-                Component.translatable(this.menu.daytime ? "screen.data_energistics.me_solar_panel.time.day" : "screen.data_energistics.me_solar_panel.time.night")));
+                Component.translatable(this.menu.daytime ? "text.data_energistics.time.day" : "text.data_energistics.time.night")));
         this.setTextContent("generation", Component.translatable(
                 "screen.data_energistics.me_solar_panel.generation",
                 this.menu.generatedPower));

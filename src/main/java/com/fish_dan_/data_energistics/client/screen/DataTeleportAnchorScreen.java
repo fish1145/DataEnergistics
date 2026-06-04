@@ -54,9 +54,9 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
         this.redstoneControlButton = new DataExtractorToggleButton(
                 Icon.REDSTONE_ON,
                 Icon.REDSTONE_OFF,
-                "button.data_energistics.data_teleport_anchor.redstone_control",
-                "button.data_energistics.data_teleport_anchor.redstone_control.enabled",
-                "button.data_energistics.data_teleport_anchor.redstone_control.disabled",
+                "button.data_energistics.redstone_control",
+                "button.data_energistics.redstone_control.enabled",
+                "button.data_energistics.redstone_control.disabled",
                 this.menu::sendSetRedstoneControlled);
         this.addToLeftToolbar(this.redstoneControlButton);
         this.scrollbar = widgets.addScrollBar("scrollbar", Scrollbar.SMALL);

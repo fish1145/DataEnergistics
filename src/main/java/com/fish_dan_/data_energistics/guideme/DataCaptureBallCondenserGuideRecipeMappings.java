@@ -44,7 +44,7 @@ public final class DataCaptureBallCondenserGuideRecipeMappings implements Recipe
         return String.format(
                 Locale.ROOT,
                 "%s | %s",
-                Component.translatable("button.data_energistics.condenser_output.data_capture_ball").getString(),
+                Component.translatable("item.data_energistics.data_capture_ball").getString(),
                 Component.translatable("button.data_energistics.condenser_output.power", recipe.getRequiredPower()).getString());
     }
 }

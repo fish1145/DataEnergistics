@@ -41,7 +41,7 @@ public class DataSolarPanelJadeProvider implements IBlockComponentProvider, ISer
                     Platform.formatPower(serverData.getDouble(TAG_MAX_POWER), false)));
         }
 
-        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.me_solar_panel.status.online" : "jade.data_energistics.me_solar_panel.status.offline"));
+        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.status.online" : "jade.data_energistics.status.offline"));
     }
 
     @Override

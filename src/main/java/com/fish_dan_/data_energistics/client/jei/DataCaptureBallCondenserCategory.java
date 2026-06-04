@@ -75,7 +75,7 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
     public void getTooltip(ITooltipBuilder tooltip, DataCaptureBallCondenserRecipe recipe,
                            IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
         if (mouseX >= 80 && mouseX < 96 && mouseY >= 26 && mouseY < 42) {
-            tooltip.add(Component.translatable("button.data_energistics.condenser_output.data_capture_ball"));
+            tooltip.add(Component.translatable("item.data_energistics.data_capture_ball"));
             tooltip.add(Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"));
             tooltip.add(Component.translatable("button.data_energistics.condenser_output.power", REQUIRED_POWER));
         }

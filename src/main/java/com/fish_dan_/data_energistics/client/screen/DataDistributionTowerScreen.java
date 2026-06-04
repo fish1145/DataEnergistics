@@ -56,7 +56,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         this.rangeVisibleButton = new DataExtractorToggleButton(
                 Icon.PATTERN_TERMINAL_ALL,
                 Icon.PATTERN_TERMINAL_VISIBLE,
-                "button.data_energistics.data_distribution_tower.range_visible",
+                "button.data_energistics.range_visible",
                 "button.data_energistics.data_distribution_tower.range_visible.enabled",
                 "button.data_energistics.data_distribution_tower.range_visible.disabled",
                 this.menu::sendSetRangeVisible);
@@ -96,14 +96,14 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         setTextContent("dialog_title", Component.translatable(
                 this.menu.online ? "screen.data_energistics.data_distribution_tower.title.online" : "screen.data_energistics.data_distribution_tower.title.offline"));
         setTextContent("ae_channels", Component.translatable(
-                "screen.data_energistics.data_distribution_tower.ae_channels",
+                "screen.data_energistics.ae_channels",
                 this.menu.usedChannels,
                 this.menu.maxChannels));
         setTextContent("available_fe", Component.translatable(
-                "screen.data_energistics.data_distribution_tower.available_fe",
+                "screen.data_energistics.network_fe",
                 formatFeAmount(this.menu.availableFe)));
         setTextContent("range", Component.translatable(
-                "screen.data_energistics.data_distribution_tower.range",
+                "screen.data_energistics.range",
                 formatRangeText(this.menu.chunkRadius)));
         setTextContent("range_visible", Component.translatable(
                 this.menu.rangeVisible ? "screen.data_energistics.data_distribution_tower.range_visible.on" : "screen.data_energistics.data_distribution_tower.range_visible.off"));

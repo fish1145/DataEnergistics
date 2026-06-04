@@ -49,7 +49,7 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
                 .dest(0, 0, 14, 14)
                 .blit(guiGraphics));
         widgets.addTooltipText(List.of(
-                Component.translatable("button.data_energistics.condenser_output.data_capture_ball"),
+                Component.translatable("item.data_energistics.data_capture_ball"),
                 Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"),
                 Component.translatable("button.data_energistics.condenser_output.power", REQUIRED_POWER)), 80, 28, 16, 16);
         widgets.addSlot(EmiStack.of(DataCaptureBallItem.createChargedStack()), 56, 26).drawBack(false);

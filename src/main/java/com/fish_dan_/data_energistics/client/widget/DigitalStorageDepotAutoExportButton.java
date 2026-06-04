@@ -66,7 +66,7 @@ public class DigitalStorageDepotAutoExportButton extends IconButton {
     @Override
     public List<Component> getTooltipMessage() {
         return List.of(
-                Component.translatable("button.data_energistics.digital_storage_depot.auto_export"),
+                Component.translatable("button.data_energistics.auto_export"),
                 Component.translatable("button.data_energistics.digital_storage_depot.auto_export." + this.mode.getSerializedName()));
     }
 }

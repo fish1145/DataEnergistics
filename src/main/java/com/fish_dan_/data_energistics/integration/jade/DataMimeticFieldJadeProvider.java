@@ -41,7 +41,7 @@ public class DataMimeticFieldJadeProvider implements IBlockComponentProvider, IS
                     Platform.formatPower(serverData.getDouble(TAG_MAX_POWER), false)));
         }
 
-        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.data_mimetic_field.status.online" : "jade.data_energistics.data_mimetic_field.status.offline"));
+        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.status.online" : "jade.data_energistics.status.offline"));
     }
 
     @Override

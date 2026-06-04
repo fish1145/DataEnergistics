@@ -218,7 +218,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     private void renderPageLabel(GuiGraphics guiGraphics) {
         Font font = Minecraft.getInstance().font;
         int totalPages = getPageCount();
-        Component label = Component.translatable("gui.data_energistics.universal_terminal.page", this.page + 1, totalPages);
+        Component label = Component.translatable("screen.data_energistics.page", this.page + 1, totalPages);
         int textX = this.getX() + (this.width - font.width(label)) / 2;
         guiGraphics.drawString(font, label, textX, this.getY() + 93, 0xFFE6EDF3, false);
     }
@@ -226,14 +226,14 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     private void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         if (isOverPrevButton(mouseX, mouseY) && this.page > 0) {
             guiGraphics.renderTooltip(Minecraft.getInstance().font,
-                    Component.translatable("gui.data_energistics.universal_terminal.previous_page"),
+                    Component.translatable("screen.data_energistics.page.previous"),
                     mouseX, mouseY);
             return;
         }
 
         if (isOverNextButton(mouseX, mouseY) && this.page < getPageCount() - 1) {
             guiGraphics.renderTooltip(Minecraft.getInstance().font,
-                    Component.translatable("gui.data_energistics.universal_terminal.next_page"),
+                    Component.translatable("screen.data_energistics.page.next"),
                     mouseX, mouseY);
             return;
         }

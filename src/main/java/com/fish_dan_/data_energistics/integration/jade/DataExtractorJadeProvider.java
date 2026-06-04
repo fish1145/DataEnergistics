@@ -41,7 +41,7 @@ public class DataExtractorJadeProvider implements IBlockComponentProvider, IServ
                     Platform.formatPower(serverData.getDouble(TAG_MAX_POWER), false)));
         }
 
-        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.data_extractor.status.online" : "jade.data_energistics.data_extractor.status.offline"));
+        tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.status.online" : "jade.data_energistics.status.offline"));
     }
 
     @Override
