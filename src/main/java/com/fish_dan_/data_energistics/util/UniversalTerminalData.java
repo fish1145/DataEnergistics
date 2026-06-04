@@ -1,13 +1,14 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
@@ -98,8 +99,8 @@ public final class UniversalTerminalData {
 
     @Nullable
     public static String getActiveTerminalName(ItemStack stack, HolderLookup.Provider registries) {
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        String active = tag.getString(TAG_ACTIVE);
+        UniversalTerminalItemData data = getData(stack, registries);
+        String active = data.activeTerminal();
         if (active.isEmpty() || getDefinition(active).isEmpty()) {
             List<TerminalEntry> entries = readEntries(stack, registries);
             return entries.isEmpty() ? null : entries.getFirst().name();
@@ -108,7 +109,8 @@ public final class UniversalTerminalData {
     }
 
     public static void setActiveTerminal(ItemStack stack, String terminalName) {
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putString(TAG_ACTIVE, terminalName));
+        UniversalTerminalItemData data = getData(stack, null);
+        stack.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), data.withActiveTerminal(terminalName));
     }
 
     public static boolean isUniversalTerminal(ItemStack stack) {
@@ -179,34 +181,38 @@ public final class UniversalTerminalData {
     }
 
     public static void writeEntries(ItemStack stack, HolderLookup.Provider registries, List<TerminalEntry> entries) {
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            ListTag terminalList = new ListTag();
-            for (TerminalEntry entry : entries) {
-                CompoundTag entryTag = new CompoundTag();
-                entryTag.putString(TAG_NAME, entry.name());
-                entryTag.put(TAG_STACK, entry.stack().saveOptional(registries));
-                terminalList.add(entryTag);
-            }
-            tag.put(TAG_TERMINALS, terminalList);
-        });
+        UniversalTerminalItemData data = getData(stack, registries);
+        stack.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), data.withTerminals(entries.stream()
+                .map(entry -> new UniversalTerminalItemData.TerminalEntryData(entry.name(), entry.stack()))
+                .toList()));
     }
 
     public static List<TerminalEntry> readEntries(ItemStack stack, HolderLookup.Provider registries) {
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        ListTag terminalList = tag.getList(TAG_TERMINALS, CompoundTag.TAG_COMPOUND);
-        List<TerminalEntry> entries = new ArrayList<>(terminalList.size());
-        for (int i = 0; i < terminalList.size(); i++) {
-            CompoundTag entryTag = terminalList.getCompound(i);
-            String name = entryTag.getString(TAG_NAME);
+        UniversalTerminalItemData data = getData(stack, registries);
+        List<TerminalEntry> entries = new ArrayList<>(data.terminals().size());
+        for (UniversalTerminalItemData.TerminalEntryData entry : data.terminals()) {
+            String name = entry.name();
             if (name.isEmpty() || getDefinition(name).isEmpty()) {
                 continue;
             }
-            ItemStack terminalStack = ItemStack.parseOptional(registries, entryTag.getCompound(TAG_STACK));
+            ItemStack terminalStack = entry.stack();
             if (!terminalStack.isEmpty()) {
                 entries.add(new TerminalEntry(name, terminalStack));
             }
         }
         return entries;
+    }
+
+    public static UniversalTerminalItemData getData(ItemStack stack, @Nullable HolderLookup.Provider registries) {
+        UniversalTerminalItemData data = stack.get(ModDataComponents.UNIVERSAL_TERMINAL.get());
+        if (data != null) {
+            return data;
+        }
+        if (registries == null) {
+            return UniversalTerminalItemData.EMPTY;
+        }
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        return tag.isEmpty() ? UniversalTerminalItemData.EMPTY : UniversalTerminalItemData.fromLegacyTag(tag, registries);
     }
 
     private static Optional<UniversalTerminalAdapter> getDefinition(String terminalName) {

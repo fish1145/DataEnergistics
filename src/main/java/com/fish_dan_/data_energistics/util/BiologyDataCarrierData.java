@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;
@@ -8,7 +10,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -40,12 +41,10 @@ public final class BiologyDataCarrierData {
             return false;
         }
 
-        float requiredDamage = Math.max(1.0F, DataExtractorConfig.mobRequiredDamage);
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            tag.putString(TAG_ENTITY_TYPE, entityId.toString());
-            tag.putFloat(TAG_REQUIRED_DAMAGE, requiredDamage);
-            tag.putFloat(TAG_COLLECTED_DAMAGE, 0.0F);
-        });
+        stack.set(ModDataComponents.MOB_DATA_CARRIER.get(), new MobDataCarrierItemData(
+                entityId,
+                Math.max(1.0F, DataExtractorConfig.mobRequiredDamage),
+                0.0F));
         return true;
     }
 
@@ -54,23 +53,26 @@ public final class BiologyDataCarrierData {
             return false;
         }
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            float required = Math.max(1.0F, tag.getFloat(TAG_REQUIRED_DAMAGE));
-            float current = tag.getFloat(TAG_COLLECTED_DAMAGE);
-            tag.putFloat(TAG_COLLECTED_DAMAGE, Mth.clamp(current + damage, 0.0F, required));
-        });
+        MobDataCarrierItemData data = getData(stack);
+        if (data == null) {
+            return false;
+        }
+        stack.set(ModDataComponents.MOB_DATA_CARRIER.get(), data.withAddedCollectedDamage(damage));
         return true;
     }
 
     public static float getRequiredDamage(ItemStack stack) {
-        CompoundTag tag = getTag(stack);
-        return Math.max(0.0F, tag.getFloat(TAG_REQUIRED_DAMAGE));
+        MobDataCarrierItemData data = getData(stack);
+        return data == null ? 0.0F : Math.max(0.0F, data.requiredDamage());
     }
 
     public static float getCollectedDamage(ItemStack stack) {
-        CompoundTag tag = getTag(stack);
-        float required = Math.max(0.0F, tag.getFloat(TAG_REQUIRED_DAMAGE));
-        float collected = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_DAMAGE));
+        MobDataCarrierItemData data = getData(stack);
+        if (data == null) {
+            return 0.0F;
+        }
+        float required = Math.max(0.0F, data.requiredDamage());
+        float collected = Math.max(0.0F, data.collectedDamage());
         return required > 0.0F ? Math.min(collected, required) : collected;
     }
 
@@ -81,12 +83,8 @@ public final class BiologyDataCarrierData {
 
     @Nullable
     public static ResourceLocation getEntityTypeId(ItemStack stack) {
-        String rawId = getTag(stack).getString(TAG_ENTITY_TYPE);
-        if (rawId.isEmpty()) {
-            return null;
-        }
-
-        return ResourceLocation.tryParse(rawId);
+        MobDataCarrierItemData data = getData(stack);
+        return data == null ? null : data.entityType();
     }
 
     public static Component getEntityDisplayName(ItemStack stack) {
@@ -105,10 +103,9 @@ public final class BiologyDataCarrierData {
 
     public static ItemStack createCompletedCarrier(ItemStack source) {
         ItemStack result = new ItemStack(ModItems.MOB_DATA_CARRIER.get());
-        CompoundTag tag = getTag(source);
-        if (!tag.isEmpty()) {
-            tag.putFloat(TAG_COLLECTED_DAMAGE, Math.max(tag.getFloat(TAG_COLLECTED_DAMAGE), tag.getFloat(TAG_REQUIRED_DAMAGE)));
-            result.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        MobDataCarrierItemData data = getData(source);
+        if (data != null) {
+            result.set(ModDataComponents.MOB_DATA_CARRIER.get(), data.asComplete());
         }
         return result;
     }
@@ -120,8 +117,22 @@ public final class BiologyDataCarrierData {
         return String.format(Locale.ROOT, "%.1f", value);
     }
 
-    private static CompoundTag getTag(ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    private static @Nullable MobDataCarrierItemData getData(ItemStack stack) {
+        MobDataCarrierItemData data = stack.get(ModDataComponents.MOB_DATA_CARRIER.get());
+        if (data != null) {
+            return data;
+        }
+
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        String rawId = tag.getString(TAG_ENTITY_TYPE);
+        ResourceLocation entityType = rawId.isEmpty() ? null : ResourceLocation.tryParse(rawId);
+        if (entityType == null) {
+            return null;
+        }
+        return new MobDataCarrierItemData(
+                entityType,
+                Math.max(0.0F, tag.getFloat(TAG_REQUIRED_DAMAGE)),
+                Math.max(0.0F, tag.getFloat(TAG_COLLECTED_DAMAGE)));
     }
 
     public static boolean canRecordEntity(ResourceLocation entityId) {

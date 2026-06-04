@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.Holder;
@@ -609,6 +610,10 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private long getStoredDataAmount(ItemStack weaponStack) {
+        Long stored = weaponStack.get(ModDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get());
+        if (stored != null) {
+            return Math.max(0L, stored);
+        }
         CompoundTag tag = weaponStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         return Math.max(0L, tag.getLong(TAG_STORED_DATA));
     }
@@ -623,7 +628,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return 0L;
         }
         long updated = current + accepted;
-        CustomData.update(DataComponents.CUSTOM_DATA, weaponStack, tag -> tag.putLong(TAG_STORED_DATA, updated));
+        weaponStack.set(ModDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get(), updated);
         return accepted;
     }
 

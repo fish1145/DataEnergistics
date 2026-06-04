@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.mixin.core.LivingEntityAccessor;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
@@ -406,6 +407,10 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private float getDataDustDamageRatio() {
+        Float ratio = this.getItem().get(ModDataComponents.MATTER_CONVERGING_BOLT_DAMAGE_RATIO.get());
+        if (ratio != null) {
+            return Mth.clamp(ratio, DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
+        }
         CompoundTag tag = this.getItem().getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         return Mth.clamp(tag.getFloat(TAG_DATA_DUST_DAMAGE_RATIO), DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
     }

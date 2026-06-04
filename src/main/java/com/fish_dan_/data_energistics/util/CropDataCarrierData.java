@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.item.CropDataCarrierItemData;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;
@@ -12,7 +14,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
-import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -29,6 +30,7 @@ import net.minecraft.world.level.block.SweetBerryBushBlock;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
+import java.util.Optional;
 
 public final class CropDataCarrierData {
 
@@ -69,17 +71,12 @@ public final class CropDataCarrierData {
         ResourceLocation sourceBlockId = deriveSourceBlockId(itemId);
         ResourceLocation lootTableId = deriveLootTableId(itemId, sourceBlockId);
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            tag.putString(TAG_CROP_ITEM, itemId.toString());
-            if (sourceBlockId != null) {
-                tag.putString(TAG_SOURCE_BLOCK, sourceBlockId.toString());
-            }
-            if (lootTableId != null) {
-                tag.putString(TAG_LOOT_TABLE, lootTableId.toString());
-            }
-            tag.putFloat(TAG_REQUIRED_AMOUNT, Math.max(1.0F, DataExtractorConfig.cropRequiredAmount));
-            tag.putFloat(TAG_COLLECTED_AMOUNT, 0.0F);
-        });
+        stack.set(ModDataComponents.CROP_DATA_CARRIER.get(), new CropDataCarrierItemData(
+                itemId,
+                Optional.ofNullable(sourceBlockId),
+                Optional.ofNullable(lootTableId),
+                Math.max(1.0F, DataExtractorConfig.cropRequiredAmount),
+                0.0F));
         return true;
     }
 
@@ -88,22 +85,26 @@ public final class CropDataCarrierData {
             return false;
         }
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            float required = Math.max(1.0F, tag.getFloat(TAG_REQUIRED_AMOUNT));
-            float current = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
-            tag.putFloat(TAG_COLLECTED_AMOUNT, Mth.clamp(current + amount, 0.0F, required));
-        });
+        CropDataCarrierItemData data = getData(stack);
+        if (data == null) {
+            return false;
+        }
+        stack.set(ModDataComponents.CROP_DATA_CARRIER.get(), data.withAddedCollectedAmount(amount));
         return true;
     }
 
     public static float getRequiredAmount(ItemStack stack) {
-        return Math.max(0.0F, getTag(stack).getFloat(TAG_REQUIRED_AMOUNT));
+        CropDataCarrierItemData data = getData(stack);
+        return data == null ? 0.0F : Math.max(0.0F, data.requiredAmount());
     }
 
     public static float getCollectedAmount(ItemStack stack) {
-        CompoundTag tag = getTag(stack);
-        float required = Math.max(0.0F, tag.getFloat(TAG_REQUIRED_AMOUNT));
-        float collected = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
+        CropDataCarrierItemData data = getData(stack);
+        if (data == null) {
+            return 0.0F;
+        }
+        float required = Math.max(0.0F, data.requiredAmount());
+        float collected = Math.max(0.0F, data.collectedAmount());
         return required > 0 ? Math.min(collected, required) : collected;
     }
 
@@ -112,12 +113,10 @@ public final class CropDataCarrierData {
             return;
         }
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            float clampedRequired = Math.max(1.0F, requiredAmount);
-            float current = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
-            tag.putFloat(TAG_REQUIRED_AMOUNT, clampedRequired);
-            tag.putFloat(TAG_COLLECTED_AMOUNT, Mth.clamp(current, 0.0F, clampedRequired));
-        });
+        CropDataCarrierItemData data = getData(stack);
+        if (data != null) {
+            stack.set(ModDataComponents.CROP_DATA_CARRIER.get(), data.withRequiredAmount(requiredAmount));
+        }
     }
 
     public static boolean isComplete(ItemStack stack) {
@@ -130,19 +129,15 @@ public final class CropDataCarrierData {
 
     @Nullable
     public static ResourceLocation getCropItemId(ItemStack stack) {
-        String rawId = getTag(stack).getString(TAG_CROP_ITEM);
-        if (rawId.isEmpty()) {
-            return null;
-        }
-        return ResourceLocation.tryParse(rawId);
+        CropDataCarrierItemData data = getData(stack);
+        return data == null ? null : data.cropItem();
     }
 
     @Nullable
     public static ResourceLocation getSourceBlockId(ItemStack stack) {
-        CompoundTag tag = getTag(stack);
-        String rawId = tag.getString(TAG_SOURCE_BLOCK);
-        if (!rawId.isEmpty()) {
-            return ResourceLocation.tryParse(rawId);
+        CropDataCarrierItemData data = getData(stack);
+        if (data != null && data.sourceBlock().isPresent()) {
+            return data.sourceBlock().get();
         }
 
         return deriveSourceBlockId(getCropItemId(stack));
@@ -150,10 +145,9 @@ public final class CropDataCarrierData {
 
     @Nullable
     public static ResourceLocation getLootTableId(ItemStack stack) {
-        CompoundTag tag = getTag(stack);
-        String rawId = tag.getString(TAG_LOOT_TABLE);
-        if (!rawId.isEmpty()) {
-            return ResourceLocation.tryParse(rawId);
+        CropDataCarrierItemData data = getData(stack);
+        if (data != null && data.lootTable().isPresent()) {
+            return data.lootTable().get();
         }
 
         ResourceLocation cropItemId = getCropItemId(stack);
@@ -208,10 +202,9 @@ public final class CropDataCarrierData {
 
     public static ItemStack createCompletedCarrier(ItemStack source) {
         ItemStack result = new ItemStack(ModItems.CROP_DATA_CARRIER.get());
-        CompoundTag tag = getTag(source);
-        if (!tag.isEmpty()) {
-            tag.putFloat(TAG_COLLECTED_AMOUNT, Math.max(tag.getFloat(TAG_COLLECTED_AMOUNT), tag.getFloat(TAG_REQUIRED_AMOUNT)));
-            result.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        CropDataCarrierItemData data = getData(source);
+        if (data != null) {
+            result.set(ModDataComponents.CROP_DATA_CARRIER.get(), data.asComplete());
         }
         return result;
     }
@@ -235,8 +228,27 @@ public final class CropDataCarrierData {
         return false;
     }
 
-    private static CompoundTag getTag(ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    private static @Nullable CropDataCarrierItemData getData(ItemStack stack) {
+        CropDataCarrierItemData data = stack.get(ModDataComponents.CROP_DATA_CARRIER.get());
+        if (data != null) {
+            return data;
+        }
+
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        String rawCropItem = tag.getString(TAG_CROP_ITEM);
+        ResourceLocation cropItem = rawCropItem.isEmpty() ? null : ResourceLocation.tryParse(rawCropItem);
+        if (cropItem == null) {
+            return null;
+        }
+
+        String rawSourceBlock = tag.getString(TAG_SOURCE_BLOCK);
+        String rawLootTable = tag.getString(TAG_LOOT_TABLE);
+        return new CropDataCarrierItemData(
+                cropItem,
+                rawSourceBlock.isEmpty() ? Optional.empty() : Optional.ofNullable(ResourceLocation.tryParse(rawSourceBlock)),
+                rawLootTable.isEmpty() ? Optional.empty() : Optional.ofNullable(ResourceLocation.tryParse(rawLootTable)),
+                Math.max(0.0F, tag.getFloat(TAG_REQUIRED_AMOUNT)),
+                Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT)));
     }
 
     @Nullable
@@ -386,5 +398,6 @@ public final class CropDataCarrierData {
         }
     }
 
-    private record CropInputMapping(ResourceLocation inputItemId, ResourceLocation recordedCropId, float progressPerItem) {}
+    private record CropInputMapping(ResourceLocation inputItemId, ResourceLocation recordedCropId,
+                                    float progressPerItem) {}
 }

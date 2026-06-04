@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;
@@ -46,6 +47,15 @@ public final class LightSaberColorData {
     }
 
     public static @Nullable DyeColor getStoredColor(ItemStack stack) {
+        String storedName = stack.get(ModDataComponents.LIGHT_SABER_COLOR.get());
+        if (storedName != null && !storedName.isEmpty()) {
+            for (DyeColor value : DyeColor.values()) {
+                if (value.getName().equals(storedName)) {
+                    return value;
+                }
+            }
+        }
+
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         if (!tag.contains(TAG_LIGHT_SABER_COLOR)) {
             return null;
@@ -80,7 +90,7 @@ public final class LightSaberColorData {
 
     public static ItemStack withColor(ItemStack stack, DyeColor color) {
         ItemStack result = stack.copy();
-        CustomData.update(DataComponents.CUSTOM_DATA, result, tag -> tag.putString(TAG_LIGHT_SABER_COLOR, color.getName()));
+        result.set(ModDataComponents.LIGHT_SABER_COLOR.get(), color.getName());
         return result;
     }
 

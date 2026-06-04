@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.core.HolderLookup;
@@ -17,7 +19,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -370,15 +371,19 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     public void importSettings(appeng.util.SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         super.importSettings(mode, input, player);
         if (mode == appeng.util.SettingsFrom.DISMANTLE_ITEM) {
-            var customData = input.get(DataComponents.CUSTOM_DATA);
-            if (customData != null) {
-                CompoundTag tag = customData.copyTag();
-                this.terminalData = tag.copy();
-                HolderLookup.Provider registries = player != null ? player.level().registryAccess() : this.getLevel() != null ? this.getLevel().registryAccess() : null;
-                if (registries != null) {
-                    readAdapterConfigManagers(tag, registries);
+            UniversalTerminalItemData data = input.get(ModDataComponents.UNIVERSAL_TERMINAL.get());
+            HolderLookup.Provider registries = player != null ? player.level().registryAccess() : this.getLevel() != null ? this.getLevel().registryAccess() : null;
+            if (data == null && registries != null) {
+                var customData = input.get(DataComponents.CUSTOM_DATA);
+                if (customData != null) {
+                    data = UniversalTerminalItemData.fromLegacyTag(customData.copyTag(), registries);
                 }
-                String importedActive = tag.getString("active_terminal");
+            }
+            if (data != null && registries != null) {
+                CompoundTag tag = data.toLegacyTag(registries);
+                this.terminalData = data.terminalData().copy();
+                readAdapterConfigManagers(tag, registries);
+                String importedActive = data.activeTerminal();
                 if (!importedActive.isEmpty()) {
                     setActiveTerminal(importedActive);
                 } else if (this.getLevel() != null) {
@@ -400,17 +405,18 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         super.exportSettings(mode, builder);
         if (mode == appeng.util.SettingsFrom.DISMANTLE_ITEM) {
             ItemStack stack = new ItemStack(this.getPartItem().asItem());
+            HolderLookup.Provider registries = this.getLevel() == null ? null : this.getLevel().registryAccess();
             if (!this.terminalData.isEmpty() || this.getLevel() != null) {
                 CompoundTag tag = this.terminalData.copy();
-                if (this.getLevel() != null) {
-                    writeAdapterConfigManagers(tag, this.getLevel().registryAccess());
+                if (registries != null) {
+                    writeAdapterConfigManagers(tag, registries);
                 }
-                stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+                List<UniversalTerminalItemData.TerminalEntryData> entries = registries == null ? List.of() : UniversalTerminalItemData.fromLegacyTag(tag, registries).terminals();
+                stack.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), new UniversalTerminalItemData(this.activeTerminal, entries, tag));
             }
-            UniversalTerminalData.setActiveTerminal(stack, this.activeTerminal);
-            var customData = stack.get(DataComponents.CUSTOM_DATA);
-            if (customData != null) {
-                builder.set(DataComponents.CUSTOM_DATA, customData);
+            UniversalTerminalItemData data = stack.get(ModDataComponents.UNIVERSAL_TERMINAL.get());
+            if (data != null) {
+                builder.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), data);
             }
         }
     }
@@ -504,10 +510,10 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
 
     private ItemStack buildDataStack() {
         ItemStack stack = new ItemStack(this.getPartItem().asItem());
-        if (!this.terminalData.isEmpty()) {
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(this.terminalData.copy()));
+        if (!this.terminalData.isEmpty() || this.getLevel() != null) {
+            List<UniversalTerminalItemData.TerminalEntryData> entries = this.getLevel() == null ? List.of() : UniversalTerminalItemData.fromLegacyTag(this.terminalData, this.getLevel().registryAccess()).terminals();
+            stack.set(ModDataComponents.UNIVERSAL_TERMINAL.get(), new UniversalTerminalItemData(this.activeTerminal, entries, this.terminalData.copy()));
         }
-        UniversalTerminalData.setActiveTerminal(stack, this.activeTerminal);
         return stack;
     }
 

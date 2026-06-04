@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.config.DataExtractorConfig;
+import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.component.DataComponents;
@@ -8,7 +10,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -37,11 +38,10 @@ public final class OreDataCarrierData {
             return false;
         }
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            tag.putString(TAG_ORE_ITEM, itemId.toString());
-            tag.putFloat(TAG_REQUIRED_AMOUNT, Math.max(1.0F, DataExtractorConfig.oreRequiredAmount));
-            tag.putFloat(TAG_COLLECTED_AMOUNT, 0.0F);
-        });
+        stack.set(ModDataComponents.ORE_DATA_CARRIER.get(), new OreDataCarrierItemData(
+                itemId,
+                Math.max(1.0F, DataExtractorConfig.oreRequiredAmount),
+                0.0F));
         return true;
     }
 
@@ -50,22 +50,26 @@ public final class OreDataCarrierData {
             return false;
         }
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            float required = Math.max(1.0F, tag.getFloat(TAG_REQUIRED_AMOUNT));
-            float current = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
-            tag.putFloat(TAG_COLLECTED_AMOUNT, Mth.clamp(current + amount, 0.0F, required));
-        });
+        OreDataCarrierItemData data = getData(stack);
+        if (data == null) {
+            return false;
+        }
+        stack.set(ModDataComponents.ORE_DATA_CARRIER.get(), data.withAddedCollectedAmount(amount));
         return true;
     }
 
     public static float getRequiredAmount(ItemStack stack) {
-        return Math.max(0.0F, getTag(stack).getFloat(TAG_REQUIRED_AMOUNT));
+        OreDataCarrierItemData data = getData(stack);
+        return data == null ? 0.0F : Math.max(0.0F, data.requiredAmount());
     }
 
     public static float getCollectedAmount(ItemStack stack) {
-        CompoundTag tag = getTag(stack);
-        float required = Math.max(0.0F, tag.getFloat(TAG_REQUIRED_AMOUNT));
-        float collected = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
+        OreDataCarrierItemData data = getData(stack);
+        if (data == null) {
+            return 0.0F;
+        }
+        float required = Math.max(0.0F, data.requiredAmount());
+        float collected = Math.max(0.0F, data.collectedAmount());
         return required > 0 ? Math.min(collected, required) : collected;
     }
 
@@ -74,12 +78,10 @@ public final class OreDataCarrierData {
             return;
         }
 
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            float clampedRequired = Math.max(1.0F, requiredAmount);
-            float current = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
-            tag.putFloat(TAG_REQUIRED_AMOUNT, clampedRequired);
-            tag.putFloat(TAG_COLLECTED_AMOUNT, Mth.clamp(current, 0.0F, clampedRequired));
-        });
+        OreDataCarrierItemData data = getData(stack);
+        if (data != null) {
+            stack.set(ModDataComponents.ORE_DATA_CARRIER.get(), data.withRequiredAmount(requiredAmount));
+        }
     }
 
     public static boolean isComplete(ItemStack stack) {
@@ -89,12 +91,8 @@ public final class OreDataCarrierData {
 
     @Nullable
     public static ResourceLocation getOreItemId(ItemStack stack) {
-        String rawId = getTag(stack).getString(TAG_ORE_ITEM);
-        if (rawId.isEmpty()) {
-            return null;
-        }
-
-        return ResourceLocation.tryParse(rawId);
+        OreDataCarrierItemData data = getData(stack);
+        return data == null ? null : data.oreItem();
     }
 
     public static Component getOreDisplayName(ItemStack stack) {
@@ -113,16 +111,29 @@ public final class OreDataCarrierData {
 
     public static ItemStack createCompletedCarrier(ItemStack source) {
         ItemStack result = new ItemStack(ModItems.ORE_DATA_CARRIER.get());
-        CompoundTag tag = getTag(source);
-        if (!tag.isEmpty()) {
-            tag.putFloat(TAG_COLLECTED_AMOUNT, Math.max(tag.getFloat(TAG_COLLECTED_AMOUNT), tag.getFloat(TAG_REQUIRED_AMOUNT)));
-            result.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        OreDataCarrierItemData data = getData(source);
+        if (data != null) {
+            result.set(ModDataComponents.ORE_DATA_CARRIER.get(), data.asComplete());
         }
         return result;
     }
 
-    private static CompoundTag getTag(ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    private static @Nullable OreDataCarrierItemData getData(ItemStack stack) {
+        OreDataCarrierItemData data = stack.get(ModDataComponents.ORE_DATA_CARRIER.get());
+        if (data != null) {
+            return data;
+        }
+
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        String rawId = tag.getString(TAG_ORE_ITEM);
+        ResourceLocation oreItem = rawId.isEmpty() ? null : ResourceLocation.tryParse(rawId);
+        if (oreItem == null) {
+            return null;
+        }
+        return new OreDataCarrierItemData(
+                oreItem,
+                Math.max(0.0F, tag.getFloat(TAG_REQUIRED_AMOUNT)),
+                Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT)));
     }
 
     public static boolean canRecordOre(ResourceLocation itemId) {

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -189,12 +191,16 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     private void toggleBreakSize(ItemStack stack) {
         int radius = this.getBreakRadius(stack) == 1 ? 2 : 1;
-        CustomData.update(net.minecraft.core.component.DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(TAG_BREAK_RADIUS, radius));
+        stack.set(ModDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get(), radius);
     }
 
     private int getBreakRadius(ItemStack stack) {
-        return stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
-                .getInt(TAG_BREAK_RADIUS) == 2 ? 2 : 1;
+        Integer radius = stack.get(ModDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get());
+        if (radius == null) {
+            radius = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
+                    .getInt(TAG_BREAK_RADIUS);
+        }
+        return radius == 2 ? 2 : 1;
     }
 
     private int getBreakSize(ItemStack stack) {

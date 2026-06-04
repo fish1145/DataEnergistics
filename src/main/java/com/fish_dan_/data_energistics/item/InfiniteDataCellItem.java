@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.item;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellInventory;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -82,10 +83,14 @@ public class InfiniteDataCellItem extends Item implements ICellWorkbenchItem {
     public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
     private static boolean wasObtainedChecked(ItemStack stack) {
+        Boolean checked = stack.get(ModDataComponents.INFINITE_DATA_CELL_OBTAINED_CHECKED.get());
+        if (checked != null) {
+            return checked;
+        }
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean(TAG_OBTAINED_CHECKED);
     }
 
     private static void markObtainedChecked(ItemStack stack) {
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putBoolean(TAG_OBTAINED_CHECKED, true));
+        stack.set(ModDataComponents.INFINITE_DATA_CELL_OBTAINED_CHECKED.get(), true);
     }
 }
