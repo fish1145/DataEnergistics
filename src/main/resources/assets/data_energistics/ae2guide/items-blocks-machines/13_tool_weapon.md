@@ -39,6 +39,8 @@ item_ids:
 | <ItemImage id="data_energistics:data_crystal_shovel" /> 数据水晶锹        | 20kae | 1.4  | 6                     | 5\12                     | <ItemLink id="ae2:speed_card"/> : 增加0.2攻击/挖掘速度，增加耗能 / <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量)   |
 | <ItemImage id="data_energistics:data_crystal_cutting_knife" /> 数据切割刀 | 20kae | 无    | 当装载eae时潜行右键可以给AE设备重命名 | 替换为特殊功能，存储数据流可在传送锚之间互相传送 | <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量)                                                         |
 
+这些使用 AE 能量的工具现在也能通过 Forge Energy 设备充电。输入的 FE 会按 AE2 能量单位转换为 AE 存入物品；这个兼容只负责充电，不会把工具内的 AE 反向输出为 FE。
+
 ---
 
 ## 数据光剑

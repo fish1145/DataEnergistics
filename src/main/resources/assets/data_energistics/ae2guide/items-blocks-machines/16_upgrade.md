@@ -11,6 +11,26 @@ item_ids:
 
 # 升级
 
+## AE2 容量卡
+
+<Row>
+  <ItemLink id="ae2:capacity_card" />
+  <ItemImage id="ae2:capacity_card" />
+</Row>
+
+数位化存储仓可以安装最多 4 张容量卡。
+
+<Row>
+  <ItemImage id="data_energistics:digital_storage_depot" />
+</Row>
+
+容量卡会同时提升物品槽、流体槽和 Key 槽的容量：  
+最终容量 = 基础容量 × (1 + 4 × 容量卡数量)
+
+如果移除容量卡会导致现有内容超过新的容量上限，该容量卡会暂时无法取出。
+
+---
+
 ## 聚能卡
 <Row>
   <ItemImage id="data_energistics:card_saber_energy" scale="6" />

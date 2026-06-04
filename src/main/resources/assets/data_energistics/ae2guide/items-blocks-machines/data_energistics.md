@@ -5,23 +5,6 @@ navigation:
   position: 114514
 categories:
 - devices
-item_ids:
-- data_energistics:data_flow_cell_1k
-- data_energistics:data_flow_cell_4k
-- data_energistics:data_flow_cell_16k
-- data_energistics:data_flow_cell_64k
-- data_energistics:data_flow_cell_256k
-- data_energistics:portable_data_flow_cell_1k
-- data_energistics:portable_data_flow_cell_4k
-- data_energistics:portable_data_flow_cell_16k
-- data_energistics:portable_data_flow_cell_64k
-- data_energistics:portable_data_flow_cell_256k
-- data_energistics:data_storage_component_1k
-- data_energistics:data_storage_component_4k
-- data_energistics:data_storage_component_16k
-- data_energistics:data_storage_component_64k
-- data_energistics:data_storage_component_256k
-- data_energistics:data_flow_component_housing
 ---
 
 # 数据能源
@@ -44,4 +27,4 @@ item_ids:
 * <ItemImage id="data_energistics:adaptive_pattern_provider" /> [自适应样板供应器](10_adaptive_pattern_provider.md)      <ItemImage id="data_energistics:data_distribution_tower" /> [数据均分塔](11_data_distribution_tower.md)
 * <ItemImage id="data_energistics:data_ripper" /> [数据撕裂器](12_data_ripper.md)      <ItemImage id="data_energistics:data_sanctifier" /> [工具/武器](13_tool_weapon.md)
 * <ItemImage id="data_energistics:universal_terminal" /> [通用终端](14_universal_terminal.md)      <ItemImage id="data_energistics:ender_bucket" /> [流体](15_fluid.md)
-* <ItemImage id="ae2:advanced_card" /> [升级](16_upgrade.md)
+* <ItemImage id="ae2:advanced_card" /> [升级](16_upgrade.md)      <ItemImage id="data_energistics:digital_storage_depot" /> [数位化存储仓](17_digital_storage_depot.md)
