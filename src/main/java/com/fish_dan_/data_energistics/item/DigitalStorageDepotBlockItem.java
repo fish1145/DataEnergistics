@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -60,7 +61,6 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
     private static final String TAG_SELECTED_KEY_SLOT = "selected_key_slot";
     private static final String TAG_MARK_MODE = "mark_mode";
     private static final String TAG_BUCKET_MODE = "bucket_mode";
-    private static final String LEGACY_TAG_ITEM_FLUID_PREFIX = "item_stored_fluid_";
     private static final int MARK_MODE_FLUID = 0;
     private static final int MARK_MODE_KEY = 1;
     private static final HolderLookup.Provider ITEM_CAPABILITY_REGISTRIES = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
@@ -124,38 +124,29 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
     }
 
     public static int getSelectedFluidSlot(ItemStack stack) {
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        return clampSlot(tag.getInt(TAG_SELECTED_FLUID_SLOT), DigitalStorageDepotBlockEntity.FLUID_SLOTS);
+        return clampSlot(getDepotData(stack).selectedFluidSlot(), DigitalStorageDepotBlockEntity.FLUID_SLOTS);
     }
 
     public static int cycleSelectedFluidSlot(ItemStack stack, boolean reverse) {
         int current = getSelectedFluidSlot(stack);
         int updated = Math.floorMod(current + (reverse ? -1 : 1), DigitalStorageDepotBlockEntity.FLUID_SLOTS);
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            tag.putInt(TAG_SELECTED_FLUID_SLOT, updated);
-            tag.putInt(TAG_MARK_MODE, MARK_MODE_FLUID);
-        });
+        setDepotData(stack, getDepotData(stack).withSelectedFluidSlot(updated).withMarkMode(MARK_MODE_FLUID));
         return updated;
     }
 
     public static int getSelectedKeySlot(ItemStack stack) {
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        return clampSlot(tag.getInt(TAG_SELECTED_KEY_SLOT), DigitalStorageDepotBlockEntity.KEY_SLOTS);
+        return clampSlot(getDepotData(stack).selectedKeySlot(), DigitalStorageDepotBlockEntity.KEY_SLOTS);
     }
 
     public static int cycleSelectedKeySlot(ItemStack stack, boolean reverse) {
         int current = getSelectedKeySlot(stack);
         int updated = Math.floorMod(current + (reverse ? -1 : 1), DigitalStorageDepotBlockEntity.KEY_SLOTS);
-        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-            tag.putInt(TAG_SELECTED_KEY_SLOT, updated);
-            tag.putInt(TAG_MARK_MODE, MARK_MODE_KEY);
-        });
+        setDepotData(stack, getDepotData(stack).withSelectedKeySlot(updated).withMarkMode(MARK_MODE_KEY));
         return updated;
     }
 
     public static @Nullable GenericStack getSelectedMarkedStack(ItemStack stack, HolderLookup.Provider registries) {
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        if (tag.getInt(TAG_MARK_MODE) == MARK_MODE_KEY) {
+        if (getDepotData(stack).markMode() == MARK_MODE_KEY) {
             return getSelectedKeyStack(stack, registries);
         }
         return getSelectedFluidStack(stack, registries);
@@ -191,18 +182,16 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
     }
 
     public static boolean isBucketMode(ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getBoolean(TAG_BUCKET_MODE);
+        return getDepotData(stack).bucketMode();
     }
 
     public static boolean isKeySlotMarked(ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getInt(TAG_MARK_MODE) == MARK_MODE_KEY;
+        return getDepotData(stack).markMode() == MARK_MODE_KEY;
     }
 
     public static boolean toggleBucketMode(ItemStack stack) {
         boolean updated = !isBucketMode(stack);
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        tag.putBoolean(TAG_BUCKET_MODE, updated);
-        CustomData.set(DataComponents.CUSTOM_DATA, stack, tag);
+        setDepotData(stack, getDepotData(stack).withBucketMode(updated));
         return updated;
     }
 
@@ -227,8 +216,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             return 0L;
         }
 
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        if (tag.getInt(TAG_MARK_MODE) == MARK_MODE_KEY) {
+        if (getDepotData(stack).markMode() == MARK_MODE_KEY) {
             return extractFromSelectedKeySlot(stack, registries, requested, amount, mode);
         }
         return extractFromSelectedFluidSlot(stack, registries, requested, amount, mode);
@@ -709,13 +697,9 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
 
     private static FluidStack[] readStoredFluids(ItemStack stack, HolderLookup.Provider registries) {
         FluidStack[] fluids = new FluidStack[DigitalStorageDepotBlockEntity.FLUID_SLOTS];
-        CompoundTag customTag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
         for (int i = 0; i < DigitalStorageDepotBlockEntity.FLUID_SLOTS; i++) {
             fluids[i] = DigitalStorageDepotBlockEntity.readFluidFromTag(registries, blockEntityTag, i);
-            if (fluids[i].isEmpty() && customTag.contains(getLegacyItemFluidTagKey(i))) {
-                fluids[i] = FluidStack.parseOptional(registries, customTag.getCompound(getLegacyItemFluidTagKey(i)));
-            }
         }
         return fluids;
     }
@@ -737,6 +721,15 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return Math.max(0, upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD));
     }
 
+    private static DigitalStorageDepotItemData getDepotData(ItemStack stack) {
+        DigitalStorageDepotItemData data = stack.get(ModDataComponents.DIGITAL_STORAGE_DEPOT.get());
+        return data != null ? data : DigitalStorageDepotItemData.DEFAULT;
+    }
+
+    private static void setDepotData(ItemStack stack, DigitalStorageDepotItemData data) {
+        stack.set(ModDataComponents.DIGITAL_STORAGE_DEPOT.get(), data);
+    }
+
     private static void writeStoredFluids(ItemStack stack, HolderLookup.Provider registries, FluidStack[] fluids) {
         CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
         int capacity = getFluidCapacity(stack);
@@ -744,7 +737,6 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             FluidStack fluid = i < fluids.length ? fluids[i] : FluidStack.EMPTY;
             DigitalStorageDepotBlockEntity.writeFluidToTag(registries, blockEntityTag, i, fluid, capacity);
         }
-        clearLegacyStoredFluidTags(stack);
         BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
     }
 
@@ -758,25 +750,6 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             blockEntityTag.put(tagKey, GenericStack.writeTag(registries, keyStack));
         }
         BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
-    }
-
-    private static void clearLegacyStoredFluidTags(ItemStack stack) {
-        CompoundTag customTag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        boolean changed = false;
-        for (int i = 0; i < DigitalStorageDepotBlockEntity.FLUID_SLOTS; i++) {
-            String key = getLegacyItemFluidTagKey(i);
-            if (customTag.contains(key)) {
-                customTag.remove(key);
-                changed = true;
-            }
-        }
-        if (changed) {
-            CustomData.set(DataComponents.CUSTOM_DATA, stack, customTag);
-        }
-    }
-
-    private static String getLegacyItemFluidTagKey(int slot) {
-        return LEGACY_TAG_ITEM_FLUID_PREFIX + slot;
     }
 
     private static void restorePlacedDepot(Level level, BlockPos pos, ItemStack stack) {

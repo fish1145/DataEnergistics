@@ -24,6 +24,7 @@ import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -76,6 +77,7 @@ public class CommonProxy {
         CommonProxy instance = new CommonProxy();
 
         ModFluids.register(modEventBus);
+        ModDataComponents.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModItems.register(modEventBus);
         ModEntities.register(modEventBus);
