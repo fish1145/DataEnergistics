@@ -32,6 +32,7 @@ public class DigitalStorageDepotScreen extends UpgradeableScreen<DigitalStorageD
     public DigitalStorageDepotScreen(DigitalStorageDepotMenu menu, Inventory playerInventory, Component title,
                                      ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.widgets.addOpenPriorityButton();
     }
 
     @Override

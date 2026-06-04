@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -41,7 +42,10 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.core.definitions.AEItems;
+import appeng.helpers.IPriorityHost;
 import appeng.helpers.externalstorage.GenericStackInv;
+import appeng.menu.ISubMenu;
+import appeng.menu.MenuOpener;
 import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
@@ -53,7 +57,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity implements InternalInventoryHost, IUpgradeableObject {
+public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity implements InternalInventoryHost, IUpgradeableObject, IPriorityHost {
 
     public static final int STORAGE_COLUMNS = 7;
     public static final int STORAGE_ROWS = 3;
@@ -69,6 +73,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private static final String UPGRADES_TAG = "upgrades";
     private static final String FLUID_TAG_PREFIX = "stored_fluid_";
     private static final String KEY_TAG_PREFIX = "stored_key_";
+    private static final String PRIORITY_TAG = "priority";
 
     private final AppEngInternalInventory storage = new DepotItemInventory();
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
@@ -95,6 +100,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final MEStorage networkStorage = new DepotStorage();
     private final IStorageProvider storageProvider = new DepotStorageProvider();
     private boolean exportingToNetwork;
+    private int priority;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -167,6 +173,33 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     public int getInstalledCapacityCardCount() {
         return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD));
+    }
+
+    @Override
+    public int getPriority() {
+        return this.priority;
+    }
+
+    @Override
+    public ItemStack getMainMenuIcon() {
+        return ModBlocks.DIGITAL_STORAGE_DEPOT.get().asItem().getDefaultInstance();
+    }
+
+    @Override
+    public void returnToMainMenu(Player player, ISubMenu subMenu) {
+        MenuOpener.returnTo(ModMenus.DIGITAL_STORAGE_DEPOT.get(), player, subMenu.getLocator());
+    }
+
+    @Override
+    public void setPriority(int newValue) {
+        if (this.priority == newValue) {
+            return;
+        }
+
+        this.priority = newValue;
+        this.saveChanges();
+        this.markForClientUpdate();
+        this.requestStorageUpdate();
     }
 
     public boolean canRemoveCapacityCard(int slot) {
@@ -271,6 +304,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         super.loadTag(data, registries);
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
+        this.priority = data.getInt(PRIORITY_TAG);
         for (int i = 0; i < FLUID_SLOTS; i++) {
             this.fluidTanks[i].readFromNBT(registries, data.getCompound(FLUID_TAG_PREFIX + i));
         }
@@ -287,6 +321,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         super.saveAdditional(data, registries);
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
+        data.putInt(PRIORITY_TAG, this.priority);
         for (int i = 0; i < FLUID_SLOTS; i++) {
             data.put(FLUID_TAG_PREFIX + i, this.fluidTanks[i].writeToNBT(registries, new CompoundTag()));
         }
@@ -689,7 +724,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
         @Override
         public void mountInventories(IStorageMounts storageMounts) {
-            storageMounts.mount(networkStorage);
+            storageMounts.mount(networkStorage, priority);
         }
     }
 

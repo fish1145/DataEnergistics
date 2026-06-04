@@ -109,6 +109,12 @@
 		}
 	},
 	"widgets": {
+		"openPriority": {
+			"left": 152,
+			"top": -5,
+			"width": 20,
+			"height": 20
+		},
 		"upgrades": {
 			"left": 174,
 			"top": 0
