@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
 import com.fish_dan_.data_energistics.item.PoweredAxeItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.item.PoweredHoeItem;
+import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
 import com.fish_dan_.data_energistics.item.PoweredPickaxeItem;
 import com.fish_dan_.data_energistics.item.PoweredShovelItem;
 import com.fish_dan_.data_energistics.item.PoweredSwordItem;
@@ -46,6 +47,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.EventPriority;
@@ -63,6 +65,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
 import appeng.api.AECapabilities;
+import appeng.api.implementations.items.IAEItemPowerStorage;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
@@ -171,6 +174,15 @@ public class CommonProxy {
                 Capabilities.FluidHandler.ITEM,
                 (stack, context) -> DigitalStorageDepotBlockItem.isBucketMode(stack) && !DigitalStorageDepotBlockItem.isKeySlotMarked(stack) ? new DigitalStorageDepotFluidHandlerItem(stack) : null,
                 ModItems.DIGITAL_STORAGE_DEPOT.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_SWORD.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_AXE.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_PICKAXE.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_HOE.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_SHOVEL.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_LIGHT_SABER.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_SANCTIFIER.get());
+        registerPoweredItemEnergyStorage(event, ModItems.MATTER_CONVERGING_CROSSBOW.get());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
@@ -270,6 +282,13 @@ public class CommonProxy {
                     return tower.getEnergyStorageForQuery(pos, context);
                 },
                 ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+    }
+
+    private static <T extends Item & IAEItemPowerStorage> void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, T item) {
+        event.registerItem(
+                Capabilities.EnergyStorage.ITEM,
+                (stack, context) -> new PoweredItemEnergyStorage(stack, item),
+                item);
     }
 
     private void registerPayloadHandlers(final RegisterPayloadHandlersEvent event) {
