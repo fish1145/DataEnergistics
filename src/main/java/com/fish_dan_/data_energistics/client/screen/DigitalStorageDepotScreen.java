@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 import appeng.api.stacks.AEFluidKey;
@@ -20,6 +21,7 @@ import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantic;
+import appeng.menu.SlotSemantics;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -82,6 +84,19 @@ public class DigitalStorageDepotScreen extends UpgradeableScreen<DigitalStorageD
             return;
         }
 
+        if (isStorageSlot(slot) && slot.hasItem()) {
+            ItemStack displayStack = slot.getItem();
+            guiGraphics.renderItem(displayStack, slot.x, slot.y);
+            if (displayStack.getCount() > 1) {
+                GenericStackDisplayHelper.renderSmallOverlay(
+                        guiGraphics,
+                        slot.x,
+                        slot.y,
+                        GenericStackDisplayHelper.formatCompactAmount(displayStack.getCount()));
+            }
+            return;
+        }
+
         super.renderSlot(guiGraphics, slot);
     }
 
@@ -115,6 +130,15 @@ public class DigitalStorageDepotScreen extends UpgradeableScreen<DigitalStorageD
 
     private boolean isGenericSemantic(SlotSemantic semantic) {
         return isFluidSemantic(semantic) || isKeySemantic(semantic);
+    }
+
+    private boolean isStorageSlot(@Nullable Slot slot) {
+        if (slot == null || !slot.isActive()) {
+            return false;
+        }
+
+        SlotSemantic semantic = this.menu.getSlotSemantic(slot);
+        return semantic == SlotSemantics.STORAGE || semantic == DigitalStorageDepotMenu.STORAGE_ROW_2 || semantic == DigitalStorageDepotMenu.STORAGE_ROW_3;
     }
 
     private boolean isFluidSemantic(SlotSemantic semantic) {

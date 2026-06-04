@@ -10,6 +10,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -39,6 +40,7 @@ import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.core.definitions.AEItems;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
@@ -61,13 +63,14 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     public static final int KEY_SLOTS = 3;
     public static final int FLUID_CAPACITY = 64_000;
     public static final long KEY_CAPACITY = 64_000L;
+    public static final int CAPACITY_CARD_MULTIPLIER = 4;
 
     private static final String STORAGE_TAG = "storage";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String FLUID_TAG_PREFIX = "stored_fluid_";
     private static final String KEY_TAG_PREFIX = "stored_key_";
 
-    private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
+    private final AppEngInternalInventory storage = new DepotItemInventory();
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final InternalInventory externalInventory = new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, true));
     private final FluidTank[] fluidTanks = new FluidTank[] {
@@ -143,7 +146,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     public void restoreStoredFluids(FluidStack[] fluids) {
         for (int i = 0; i < FLUID_SLOTS; i++) {
             FluidStack fluid = i < fluids.length ? fluids[i] : FluidStack.EMPTY;
-            this.fluidTanks[i].setFluid(fluid.isEmpty() ? FluidStack.EMPTY : fluid.copyWithAmount(Math.min(FLUID_CAPACITY, fluid.getAmount())));
+            this.fluidTanks[i].setFluid(fluid.isEmpty() ? FluidStack.EMPTY : fluid.copyWithAmount(Math.min(getFluidCapacity(), fluid.getAmount())));
         }
         syncMenuFluidsFromTanks();
         this.saveChanges();
@@ -151,7 +154,46 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     public int getFluidCapacity() {
-        return FLUID_CAPACITY;
+        return computeFluidCapacity(getInstalledCapacityCardCount());
+    }
+
+    public long getKeyCapacity() {
+        return computeKeyCapacity(getInstalledCapacityCardCount());
+    }
+
+    public int getItemCapacity(ItemStack stack) {
+        return computeItemCapacity(stack.getMaxStackSize(), getInstalledCapacityCardCount());
+    }
+
+    public int getInstalledCapacityCardCount() {
+        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD));
+    }
+
+    public boolean canRemoveCapacityCard(int slot) {
+        ItemStack stack = this.upgrades.getStackInSlot(slot);
+        if (stack.isEmpty() || !stack.is(AEItems.CAPACITY_CARD.asItem())) {
+            return true;
+        }
+
+        int remainingCards = Math.max(0, getInstalledCapacityCardCount() - 1);
+        int reducedFluidCapacity = computeFluidCapacity(remainingCards);
+        long reducedKeyCapacity = computeKeyCapacity(remainingCards);
+        for (ItemStack storedStack : this.storage) {
+            if (!storedStack.isEmpty() && storedStack.getCount() > computeItemCapacity(storedStack.getMaxStackSize(), remainingCards)) {
+                return false;
+            }
+        }
+        for (FluidTank tank : this.fluidTanks) {
+            if (tank.getFluidAmount() > reducedFluidCapacity) {
+                return false;
+            }
+        }
+        for (GenericStack keyStack : this.keyStacks) {
+            if (keyStack != null && keyStack.amount() > reducedKeyCapacity) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public @Nullable GenericStack getKeyStack(int slot) {
@@ -235,6 +277,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         for (int i = 0; i < KEY_SLOTS; i++) {
             this.keyStacks[i] = data.contains(KEY_TAG_PREFIX + i) ? GenericStack.readTag(registries, data.getCompound(KEY_TAG_PREFIX + i)) : null;
         }
+        refreshDynamicCapacities();
         syncMenuFluidsFromTanks();
         syncKeyMenusFromStacks();
     }
@@ -263,11 +306,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 drops.add(stack.copy());
             }
         }
-        for (ItemStack stack : this.upgrades) {
-            if (!stack.isEmpty()) {
-                drops.add(stack.copy());
-            }
-        }
     }
 
     @Override
@@ -285,9 +323,28 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     private void onUpgradesChanged() {
+        refreshDynamicCapacities();
         this.saveChanges();
         this.markForClientUpdate();
         this.requestStorageUpdate();
+    }
+
+    private void refreshDynamicCapacities() {
+        for (int i = 0; i < this.storage.size(); i++) {
+            ItemStack stack = this.storage.getStackInSlot(i);
+            this.storage.setMaxStackSize(i, stack.isEmpty() ? computeItemCapacity(Item.ABSOLUTE_MAX_STACK_SIZE, getInstalledCapacityCardCount()) : getItemCapacity(stack));
+        }
+        for (FluidTank tank : this.fluidTanks) {
+            tank.setCapacity(getFluidCapacity());
+        }
+        for (GenericStackInv inv : this.fluidMenuInventories) {
+            inv.setCapacity(AEKeyType.fluids(), getFluidCapacity());
+        }
+        for (GenericStackInv inv : this.keyMenuInventories) {
+            applyKeyCapacities(inv, getKeyCapacity());
+        }
+        syncMenuFluidsFromTanks();
+        syncKeyMenusFromStacks();
     }
 
     private boolean exportItemsToNetwork(MEStorage inventory, IActionSource source) {
@@ -372,7 +429,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 });
             }
         };
-        inv.setCapacity(AEKeyType.fluids(), FLUID_CAPACITY);
+        inv.setCapacity(AEKeyType.fluids(), getFluidCapacity());
         return inv;
     }
 
@@ -389,13 +446,13 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 });
             }
         };
-        applyKeyCapacities(inv);
+        applyKeyCapacities(inv, getKeyCapacity());
         return inv;
     }
 
-    private static void applyKeyCapacities(GenericStackInv inv) {
+    private static void applyKeyCapacities(GenericStackInv inv, long capacity) {
         for (AEKeyType type : AEKeyTypes.getAll()) {
-            inv.setCapacity(type, KEY_CAPACITY);
+            inv.setCapacity(type, capacity);
         }
     }
 
@@ -510,9 +567,9 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return current.what().equals(incoming.what());
     }
 
-    private static @Nullable GenericStack clampKeyStack(GenericStack stack) {
+    private @Nullable GenericStack clampKeyStack(GenericStack stack) {
         AEKey what = stack.what();
-        return what == null ? null : new GenericStack(what, Math.min(KEY_CAPACITY, stack.amount()));
+        return what == null ? null : new GenericStack(what, Math.min(getKeyCapacity(), stack.amount()));
     }
 
     public static String getFluidTagKey(int slotIndex) {
@@ -523,8 +580,32 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return STORAGE_TAG;
     }
 
+    public static String getUpgradesTagKey() {
+        return UPGRADES_TAG;
+    }
+
     public static String getKeyTagKey(int slotIndex) {
         return KEY_TAG_PREFIX + slotIndex;
+    }
+
+    public static int computeFluidCapacity(int capacityCardCount) {
+        return (int) Math.min(Integer.MAX_VALUE, computeStorageCapacity(FLUID_CAPACITY, capacityCardCount));
+    }
+
+    public static long computeKeyCapacity(int capacityCardCount) {
+        return computeStorageCapacity(KEY_CAPACITY, capacityCardCount);
+    }
+
+    public static int computeItemCapacity(int baseCapacity, int capacityCardCount) {
+        return (int) Math.min(Integer.MAX_VALUE, computeStorageCapacity(baseCapacity, capacityCardCount));
+    }
+
+    private static long computeStorageCapacity(long baseCapacity, int capacityCardCount) {
+        long multiplier = 1L + (long) Math.max(0, capacityCardCount) * CAPACITY_CARD_MULTIPLIER;
+        if (baseCapacity > Long.MAX_VALUE / multiplier) {
+            return Long.MAX_VALUE;
+        }
+        return baseCapacity * multiplier;
     }
 
     public static FluidStack readFluidFromTag(HolderLookup.Provider registries, CompoundTag tag, int slotIndex) {
@@ -541,11 +622,15 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     public static void writeFluidToTag(HolderLookup.Provider registries, CompoundTag tag, int slotIndex, FluidStack stack) {
+        writeFluidToTag(registries, tag, slotIndex, stack, FLUID_CAPACITY);
+    }
+
+    public static void writeFluidToTag(HolderLookup.Provider registries, CompoundTag tag, int slotIndex, FluidStack stack, int capacity) {
         if (stack.isEmpty()) {
             tag.remove(getFluidTagKey(slotIndex));
         } else {
-            FluidTank tank = new FluidTank(FLUID_CAPACITY);
-            tank.setFluid(stack.copyWithAmount(Math.min(FLUID_CAPACITY, stack.getAmount())));
+            FluidTank tank = new FluidTank(capacity);
+            tank.setFluid(stack.copyWithAmount(Math.min(capacity, stack.getAmount())));
             tag.put(getFluidTagKey(slotIndex), tank.writeToNBT(registries, new CompoundTag()));
         }
     }
@@ -605,6 +690,69 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         @Override
         public void mountInventories(IStorageMounts storageMounts) {
             storageMounts.mount(networkStorage);
+        }
+    }
+
+    private final class DepotItemInventory extends AppEngInternalInventory {
+
+        private DepotItemInventory() {
+            super(DigitalStorageDepotBlockEntity.this, STORAGE_SLOTS);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (stack.isEmpty() || !isItemValid(slot, stack)) {
+                return stack;
+            }
+
+            ItemStack inSlot = getStackInSlot(slot);
+            if (!inSlot.isEmpty() && !ItemStack.isSameItemSameComponents(inSlot, stack)) {
+                return stack;
+            }
+
+            int limit = computeItemCapacity(stack.getMaxStackSize(), getInstalledCapacityCardCount());
+            setMaxStackSize(slot, limit);
+            int currentAmount = inSlot.isEmpty() ? 0 : inSlot.getCount();
+            int inserted = Math.min(stack.getCount(), Math.max(0, limit - currentAmount));
+            if (inserted <= 0) {
+                return stack;
+            }
+
+            if (!simulate) {
+                ItemStack updated = inSlot.isEmpty() ? stack.copy() : inSlot.copy();
+                updated.setCount(currentAmount + inserted);
+                setItemDirect(slot, updated);
+            }
+
+            if (inserted >= stack.getCount()) {
+                return ItemStack.EMPTY;
+            }
+
+            ItemStack remainder = stack.copy();
+            remainder.shrink(inserted);
+            return remainder;
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            ItemStack stack = getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+
+            int extracted = Math.min(stack.getCount(), amount);
+            if (extracted <= 0) {
+                return ItemStack.EMPTY;
+            }
+
+            ItemStack result = stack.copy();
+            result.setCount(extracted);
+            if (!simulate) {
+                ItemStack remaining = stack.copy();
+                remaining.shrink(extracted);
+                setItemDirect(slot, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
+            }
+            return result;
         }
     }
 
@@ -725,7 +873,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             if (matchingSlot >= 0) {
                 GenericStack current = keyStacks[matchingSlot];
                 long currentAmount = current == null ? 0L : current.amount();
-                long inserted = Math.min(amount, KEY_CAPACITY - currentAmount);
+                long inserted = Math.min(amount, getKeyCapacity() - currentAmount);
                 if (inserted <= 0) {
                     return 0L;
                 }
@@ -743,7 +891,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             if (emptySlot < 0) {
                 return 0L;
             }
-            long inserted = Math.min(amount, KEY_CAPACITY);
+            long inserted = Math.min(amount, getKeyCapacity());
             if (mode == Actionable.MODULATE) {
                 keyStacks[emptySlot] = new GenericStack(what, inserted);
                 syncKeyMenusFromStacks();
@@ -887,6 +1035,11 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         @Override
         public boolean isFluidValid(FluidStack stack) {
             return super.isFluidValid(stack) && !conflictsWithOtherTanks(this.slotIndex, stack);
+        }
+
+        @Override
+        public int getCapacity() {
+            return getFluidCapacity();
         }
 
         @Override

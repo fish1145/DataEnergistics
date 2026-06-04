@@ -44,6 +44,9 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.core.definitions.AEItems;
 import appeng.util.inv.AppEngInternalInventory;
 import org.jetbrains.annotations.Nullable;
 
@@ -284,7 +287,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         FluidStack currentFluid = storedFluids[selectedSlot];
         FluidStack candidate = pickupPreview.get().copyWithAmount(FluidType.BUCKET_VOLUME);
 
-        if (!canStoreFluidInSelectedSlot(storedFluids, selectedSlot, candidate)) {
+        if (!canStoreFluidInSelectedSlot(storedFluids, selectedSlot, candidate, getFluidCapacity(stack))) {
             player.displayClientMessage(Component.literal("该流体槽无法装入这种液体"), true);
             return AttemptResult.BLOCKED;
         }
@@ -467,6 +470,14 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return getSelectedStoredFluid(stack, ITEM_CAPABILITY_REGISTRIES);
     }
 
+    public static int getFluidCapacity(ItemStack stack) {
+        return DigitalStorageDepotBlockEntity.computeFluidCapacity(getInstalledCapacityCardCount(stack));
+    }
+
+    public static long getKeyCapacity(ItemStack stack) {
+        return DigitalStorageDepotBlockEntity.computeKeyCapacity(getInstalledCapacityCardCount(stack));
+    }
+
     public static int fillSelectedFluidSlot(ItemStack stack, FluidStack resource, FluidAction action) {
         if (!isBucketMode(stack) || resource.isEmpty()) {
             return 0;
@@ -531,18 +542,18 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return extractFromSelectedKeySlot(stack, ITEM_CAPABILITY_REGISTRIES, requested, amount, mode);
     }
 
-    private static boolean canStoreFluidInSelectedSlot(FluidStack[] fluids, int selectedSlot, FluidStack candidate) {
+    private static boolean canStoreFluidInSelectedSlot(FluidStack[] fluids, int selectedSlot, FluidStack candidate, int capacity) {
         if (candidate.isEmpty()) {
             return false;
         }
         FluidStack currentFluid = fluids[selectedSlot];
         if (currentFluid.isEmpty()) {
-            return !DigitalStorageDepotBlockEntity.hasConflictingFluid(fluids, selectedSlot, candidate) && candidate.getAmount() <= DigitalStorageDepotBlockEntity.FLUID_CAPACITY;
+            return !DigitalStorageDepotBlockEntity.hasConflictingFluid(fluids, selectedSlot, candidate) && candidate.getAmount() <= capacity;
         }
         if (!FluidStack.isSameFluidSameComponents(currentFluid, candidate)) {
             return false;
         }
-        return currentFluid.getAmount() + candidate.getAmount() <= DigitalStorageDepotBlockEntity.FLUID_CAPACITY;
+        return currentFluid.getAmount() + candidate.getAmount() <= capacity;
     }
 
     private static long insertIntoSelectedFluidSlot(ItemStack stack, HolderLookup.Provider registries, AEFluidKey fluidKey,
@@ -551,18 +562,19 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         FluidStack[] fluids = readStoredFluids(stack, registries);
         FluidStack current = fluids[selectedSlot];
         FluidStack incoming = fluidKey.toStack(1);
-        if (!canStoreFluidInSelectedSlot(fluids, selectedSlot, incoming)) {
+        int capacity = getFluidCapacity(stack);
+        if (!canStoreFluidInSelectedSlot(fluids, selectedSlot, incoming, capacity)) {
             return 0L;
         }
 
         long currentAmount = current.isEmpty() ? 0L : current.getAmount();
-        long inserted = Math.min(amount, DigitalStorageDepotBlockEntity.FLUID_CAPACITY - currentAmount);
+        long inserted = Math.min(amount, capacity - currentAmount);
         if (inserted <= 0) {
             return 0L;
         }
 
         if (mode == Actionable.MODULATE) {
-            int updatedAmount = (int) Math.min(DigitalStorageDepotBlockEntity.FLUID_CAPACITY, currentAmount + inserted);
+            int updatedAmount = (int) Math.min(capacity, currentAmount + inserted);
             fluids[selectedSlot] = fluidKey.toStack(updatedAmount);
             writeStoredFluids(stack, registries, fluids);
         }
@@ -614,7 +626,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         }
 
         long currentAmount = current == null ? 0L : current.amount();
-        long inserted = Math.min(amount, DigitalStorageDepotBlockEntity.KEY_CAPACITY - currentAmount);
+        long inserted = Math.min(amount, getKeyCapacity(stack) - currentAmount);
         if (inserted <= 0) {
             return 0L;
         }
@@ -718,11 +730,19 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         return keys;
     }
 
+    private static int getInstalledCapacityCardCount(ItemStack stack) {
+        CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
+        IUpgradeInventory upgrades = UpgradeInventories.forMachine(stack.getItem(), DigitalStorageDepotBlockEntity.UPGRADE_SLOTS, () -> {});
+        upgrades.readFromNBT(blockEntityTag, DigitalStorageDepotBlockEntity.getUpgradesTagKey(), ITEM_CAPABILITY_REGISTRIES);
+        return Math.max(0, upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD));
+    }
+
     private static void writeStoredFluids(ItemStack stack, HolderLookup.Provider registries, FluidStack[] fluids) {
         CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
+        int capacity = getFluidCapacity(stack);
         for (int i = 0; i < DigitalStorageDepotBlockEntity.FLUID_SLOTS; i++) {
             FluidStack fluid = i < fluids.length ? fluids[i] : FluidStack.EMPTY;
-            DigitalStorageDepotBlockEntity.writeFluidToTag(registries, blockEntityTag, i, fluid);
+            DigitalStorageDepotBlockEntity.writeFluidToTag(registries, blockEntityTag, i, fluid, capacity);
         }
         clearLegacyStoredFluidTags(stack);
         BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);

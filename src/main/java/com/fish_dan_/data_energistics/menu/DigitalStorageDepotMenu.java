@@ -5,16 +5,22 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 
+import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.util.IConfigManager;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
 import appeng.menu.slot.AppEngSlot;
+import appeng.menu.slot.RestrictedInputSlot;
+import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 
 public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepotBlockEntity> {
 
@@ -78,7 +84,16 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
         this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventory(2), 0), FLUID_3);
         this.addSlot(new AppEngSlot(this.getHost().getKeyMenuInventory(2), 0), KEY_3);
         for (int i = 0; i < DigitalStorageDepotBlockEntity.STORAGE_SLOTS; i++) {
-            this.addSlot(new AppEngSlot(storage, i), getRowSemantic(i));
+            this.addSlot(new DepotStorageSlot(storage, i), getRowSemantic(i));
+        }
+    }
+
+    @Override
+    protected void setupUpgrades() {
+        var upgrades = this.getHost().getUpgrades();
+        var protectedUpgrades = new CapacityProtectedUpgradeInventory(upgrades);
+        for (int i = 0; i < upgrades.size(); i++) {
+            this.addSlot(new CapacityProtectedUpgradeSlot(protectedUpgrades, i), SlotSemantics.UPGRADE);
         }
     }
 
@@ -102,7 +117,7 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
     }
 
     public long getKeyCapacity() {
-        return DigitalStorageDepotBlockEntity.KEY_CAPACITY;
+        return this.getHost().getKeyCapacity();
     }
 
     public String getFluidId(int slot) {
@@ -169,6 +184,89 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
             case 0 -> this.keyAmount0 = amount;
             case 1 -> this.keyAmount1 = amount;
             case 2 -> this.keyAmount2 = amount;
+        }
+    }
+
+    private boolean canExtractUpgradeSlot(int slot) {
+        return this.getHost().canRemoveCapacityCard(slot);
+    }
+
+    private static final class DepotStorageSlot extends AppEngSlot {
+
+        private DepotStorageSlot(InternalInventory inv, int invSlot) {
+            super(inv, invSlot);
+        }
+
+        @Override
+        public int getMaxStackSize(ItemStack stack) {
+            return this.getMaxStackSize();
+        }
+    }
+
+    private final class CapacityProtectedUpgradeSlot extends RestrictedInputSlot {
+
+        private final int invSlot;
+
+        private CapacityProtectedUpgradeSlot(InternalInventory inv, int invSlot) {
+            super(PlacableItemType.UPGRADES, inv, invSlot);
+            this.invSlot = invSlot;
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return canExtractUpgradeSlot(this.invSlot) && super.mayPickup(player);
+        }
+    }
+
+    private final class CapacityProtectedUpgradeInventory implements InternalInventory {
+
+        private final IUpgradeInventory delegate;
+
+        private CapacityProtectedUpgradeInventory(IUpgradeInventory delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int size() {
+            return this.delegate.size();
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return this.delegate.getSlotLimit(slot);
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slotIndex) {
+            return this.delegate.getStackInSlot(slotIndex);
+        }
+
+        @Override
+        public void setItemDirect(int slotIndex, ItemStack stack) {
+            this.delegate.setItemDirect(slotIndex, stack);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return this.delegate.isItemValid(slot, stack);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return this.delegate.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (!canExtractUpgradeSlot(slot)) {
+                return ItemStack.EMPTY;
+            }
+            return this.delegate.extractItem(slot, amount, simulate);
+        }
+
+        @Override
+        public void sendChangeNotification(int slot) {
+            this.delegate.sendChangeNotification(slot);
         }
     }
 }

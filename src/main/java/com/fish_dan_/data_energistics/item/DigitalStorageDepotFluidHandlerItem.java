@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
@@ -34,7 +32,7 @@ public class DigitalStorageDepotFluidHandlerItem implements IFluidHandlerItem {
 
     @Override
     public int getTankCapacity(int tank) {
-        return tank == 0 ? DigitalStorageDepotBlockEntity.FLUID_CAPACITY : 0;
+        return tank == 0 ? DigitalStorageDepotBlockItem.getFluidCapacity(this.container) : 0;
     }
 
     @Override
