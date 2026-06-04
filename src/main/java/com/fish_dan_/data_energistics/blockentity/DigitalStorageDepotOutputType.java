@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import org.jetbrains.annotations.Nullable;
 
 public enum DigitalStorageDepotOutputType {
+
     ITEMS("items"),
     FLUIDS("fluids"),
     KEYS("keys");

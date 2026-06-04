@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.mojang.logging.LogUtils;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,8 +26,8 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
-import appeng.api.config.Actionable;
 import appeng.api.behaviors.GenericInternalInventory;
+import appeng.api.config.Actionable;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
@@ -59,6 +58,7 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+import com.mojang.logging.LogUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -646,9 +646,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             }
 
             GenericStack remainingStack = GenericStack.fromItemStack(remaining);
-            this.keyStacks[i] = remainingStack == null || remainingStack.what() == null || remainingStack.amount() <= 0
-                    ? null
-                    : clampKeyStack(remainingStack);
+            this.keyStacks[i] = remainingStack == null || remainingStack.what() == null || remainingStack.amount() <= 0 ? null : clampKeyStack(remainingStack);
             changed = true;
         }
 
@@ -1135,9 +1133,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             }
 
             GenericStack current = keyStacks[keySlot];
-            return current == null || current.what() == null || current.amount() <= 0
-                    ? ItemStack.EMPTY
-                    : GenericStack.wrapInItemStack(current.what(), current.amount());
+            return current == null || current.what() == null || current.amount() <= 0 ? ItemStack.EMPTY : GenericStack.wrapInItemStack(current.what(), current.amount());
         }
 
         @Override

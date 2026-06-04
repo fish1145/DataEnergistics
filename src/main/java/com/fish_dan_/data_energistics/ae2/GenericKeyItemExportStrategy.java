@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.mixin.core.CowMapAccessor;
 import com.fish_dan_.data_energistics.mixin.core.StackWorldBehaviorsAccessor;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,6 +23,8 @@ import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
 import appeng.util.CowMap;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;

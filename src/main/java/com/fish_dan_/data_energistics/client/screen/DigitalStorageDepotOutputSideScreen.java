@@ -38,10 +38,10 @@ public class DigitalStorageDepotOutputSideScreen extends AESubScreen<DigitalStor
     private DigitalStorageDepotOutputType selectedContentType;
 
     public DigitalStorageDepotOutputSideScreen(
-            DigitalStorageDepotScreen parent,
-            DigitalStorageDepotMenu menu,
-            AEBaseBlockEntity host,
-            DigitalStorageDepotOutputType initialContentType) {
+                                               DigitalStorageDepotScreen parent,
+                                               DigitalStorageDepotMenu menu,
+                                               AEBaseBlockEntity host,
+                                               DigitalStorageDepotOutputType initialContentType) {
         super(parent, "/screens/data_ripper_output_sides.json");
         this.menu = menu;
         this.selectedContentType = initialContentType == null ? DigitalStorageDepotOutputType.ITEMS : initialContentType;

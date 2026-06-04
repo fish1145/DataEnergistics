@@ -19,10 +19,10 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public abstract class ExportBusPartWrappedKeyMixin {
 
     @Redirect(
-            method = "doBusWork",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lappeng/util/ConfigInventory;getKey(I)Lappeng/api/stacks/AEKey;"))
+              method = "doBusWork",
+              at = @At(
+                       value = "INVOKE",
+                       target = "Lappeng/util/ConfigInventory;getKey(I)Lappeng/api/stacks/AEKey;"))
     private AEKey dataEnergistics$unwrapWrappedCustomKey(ConfigInventory inventory, int slot) {
         AEKey key = inventory.getKey(slot);
         if (!(key instanceof AEItemKey itemKey)) {

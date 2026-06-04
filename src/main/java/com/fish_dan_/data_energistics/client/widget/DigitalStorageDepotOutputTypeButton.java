@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.client.widget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.network.chat.Component;
 import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
 
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.IconButton;
@@ -44,9 +44,7 @@ public class DigitalStorageDepotOutputTypeButton extends IconButton {
         }
 
         int yOffset = this.isHovered() ? 1 : 0;
-        Icon background = this.isHovered()
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : this.selected ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+        Icon background = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : this.selected ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
         background.getBlitter()
                 .dest(this.getX(), this.getY() + yOffset, this.width, this.height)
                 .zOffset(2)
@@ -66,12 +64,7 @@ public class DigitalStorageDepotOutputTypeButton extends IconButton {
 
     @Override
     public boolean isMouseOver(double mouseX, double mouseY) {
-        return this.active
-                && this.visible
-                && mouseX >= this.getX()
-                && mouseY >= this.getY()
-                && mouseX < this.getX() + BUTTON_SIZE
-                && mouseY < this.getY() + BUTTON_SIZE;
+        return this.active && this.visible && mouseX >= this.getX() && mouseY >= this.getY() && mouseX < this.getX() + BUTTON_SIZE && mouseY < this.getY() + BUTTON_SIZE;
     }
 
     @Override

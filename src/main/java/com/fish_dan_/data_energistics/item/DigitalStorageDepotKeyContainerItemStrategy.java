@@ -15,7 +15,6 @@ import appeng.api.behaviors.ContainerItemStrategy;
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
-import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
 import appeng.util.CowMap;
 import org.jetbrains.annotations.Nullable;
