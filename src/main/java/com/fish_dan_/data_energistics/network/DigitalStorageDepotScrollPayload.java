@@ -12,7 +12,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public record DigitalStorageDepotScrollPayload(boolean reverse, boolean offHand) implements CustomPacketPayload {
+public record DigitalStorageDepotScrollPayload(boolean reverse, boolean offHand,
+                                               boolean keySlot)
+        implements CustomPacketPayload {
 
     public static final Type<DigitalStorageDepotScrollPayload> TYPE = new Type<>(Data_Energistics.id("digital_storage_depot_scroll"));
     public static final StreamCodec<RegistryFriendlyByteBuf, DigitalStorageDepotScrollPayload> STREAM_CODEC = StreamCodec.composite(
@@ -20,6 +22,8 @@ public record DigitalStorageDepotScrollPayload(boolean reverse, boolean offHand)
             DigitalStorageDepotScrollPayload::reverse,
             ByteBufCodecs.BOOL,
             DigitalStorageDepotScrollPayload::offHand,
+            ByteBufCodecs.BOOL,
+            DigitalStorageDepotScrollPayload::keySlot,
             DigitalStorageDepotScrollPayload::new);
 
     @Override
@@ -35,8 +39,13 @@ public record DigitalStorageDepotScrollPayload(boolean reverse, boolean offHand)
             if (!DigitalStorageDepotBlockItem.isDepotStack(stack)) {
                 return;
             }
-            int slot = DigitalStorageDepotBlockItem.cycleSelectedFluidSlot(stack, payload.reverse());
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("当前流体槽: " + (slot + 1)), true);
+            if (payload.keySlot()) {
+                int slot = DigitalStorageDepotBlockItem.cycleSelectedKeySlot(stack, payload.reverse());
+                player.displayClientMessage(net.minecraft.network.chat.Component.literal("当前 Key 槽: " + (slot + 1)), true);
+            } else {
+                int slot = DigitalStorageDepotBlockItem.cycleSelectedFluidSlot(stack, payload.reverse());
+                player.displayClientMessage(net.minecraft.network.chat.Component.literal("当前流体槽: " + (slot + 1)), true);
+            }
         });
     }
 }

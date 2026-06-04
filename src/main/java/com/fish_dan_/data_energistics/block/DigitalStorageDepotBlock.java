@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -90,6 +91,11 @@ public class DigitalStorageDepotBlock extends AEBaseBlock implements EntityBlock
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalStorageDepotBlockEntity depot) {
+            if (player.isShiftKeyDown()) {
+                boolean exported = depot.exportContentsToNetwork(player);
+                player.displayClientMessage(Component.literal(exported ? "已导入 ME 网络" : "没有可导入内容或 ME 网络未接收"), true);
+                return InteractionResult.SUCCESS;
+            }
             MenuOpener.open(ModMenus.DIGITAL_STORAGE_DEPOT.get(), player, MenuLocators.forBlockEntity(depot));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());

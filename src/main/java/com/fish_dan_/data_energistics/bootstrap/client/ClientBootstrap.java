@@ -264,14 +264,20 @@ public final class ClientBootstrap {
 
         public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
             Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.player == null || minecraft.screen != null || !minecraft.player.isShiftKeyDown()) {
+            if (minecraft.player == null || minecraft.screen != null) {
+                return;
+            }
+
+            boolean controlDown = Screen.hasControlDown();
+            boolean altDown = Screen.hasAltDown();
+            if (controlDown == altDown) {
                 return;
             }
 
             ItemStack mainHand = minecraft.player.getMainHandItem();
             ItemStack offHand = minecraft.player.getOffhandItem();
-            boolean useMainHand = DigitalStorageDepotBlockItem.isDepotStack(mainHand) && DigitalStorageDepotBlockItem.isBucketMode(mainHand);
-            boolean useOffHand = !useMainHand && DigitalStorageDepotBlockItem.isDepotStack(offHand) && DigitalStorageDepotBlockItem.isBucketMode(offHand);
+            boolean useMainHand = DigitalStorageDepotBlockItem.isDepotStack(mainHand);
+            boolean useOffHand = !useMainHand && DigitalStorageDepotBlockItem.isDepotStack(offHand);
             if (!useMainHand && !useOffHand) {
                 return;
             }
@@ -281,7 +287,7 @@ public final class ClientBootstrap {
                 return;
             }
 
-            PacketDistributor.sendToServer(new DigitalStorageDepotScrollPayload(delta < 0, useOffHand));
+            PacketDistributor.sendToServer(new DigitalStorageDepotScrollPayload(delta < 0, useOffHand, altDown));
             event.setCanceled(true);
         }
 

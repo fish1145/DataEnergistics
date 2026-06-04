@@ -7,7 +7,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,8 +18,11 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 
+import appeng.api.config.Actionable;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
@@ -25,6 +30,10 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.IStorageMounts;
+import appeng.api.storage.IStorageProvider;
+import appeng.api.storage.MEStorage;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
@@ -33,7 +42,6 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
@@ -61,9 +69,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
-    private final InternalInventory externalInventory = new CombinedInternalInventory(
-            new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, false)),
-            new FilteredInternalInventory(this.storage, new SlotAccessFilter(false, true)));
+    private final InternalInventory externalInventory = new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, true));
     private final FluidTank[] fluidTanks = new FluidTank[] {
             new SyncFluidTank(0, FLUID_CAPACITY),
             new SyncFluidTank(1, FLUID_CAPACITY),
@@ -83,10 +89,14 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
     private final GenericStack[] keyStacks = new GenericStack[KEY_SLOTS];
+    private final MEStorage networkStorage = new DepotStorage();
+    private final IStorageProvider storageProvider = new DepotStorageProvider();
+    private boolean exportingToNetwork;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
+                .addService(IStorageProvider.class, this.storageProvider)
                 .setVisualRepresentation(ModBlocks.DIGITAL_STORAGE_DEPOT.get())
                 .setIdlePowerUsage(0.0D);
         syncMenuFluidsFromTanks();
@@ -148,6 +158,38 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return this.keyStacks[slot];
     }
 
+    public boolean exportContentsToNetwork(Player player) {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return false;
+        }
+
+        MEStorage inventory = node.getGrid().getStorageService().getInventory();
+        if (inventory == null) {
+            return false;
+        }
+
+        boolean changed = false;
+        IActionSource source = IActionSource.ofPlayer(player);
+        this.exportingToNetwork = true;
+        try {
+            changed |= exportItemsToNetwork(inventory, source);
+            changed |= exportFluidsToNetwork(inventory, source);
+            changed |= exportKeysToNetwork(inventory, source);
+        } finally {
+            this.exportingToNetwork = false;
+        }
+
+        if (changed) {
+            syncMenuFluidsFromTanks();
+            syncKeyMenusFromStacks();
+            this.saveChanges();
+            this.markForClientUpdate();
+            this.requestStorageUpdate();
+        }
+        return changed;
+    }
+
     @Override
     public IUpgradeInventory getUpgrades() {
         return this.upgrades;
@@ -172,12 +214,14 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     public void saveChangedInventory(AppEngInternalInventory inv) {
         this.saveChanges();
         this.markForClientUpdate();
+        this.requestStorageUpdate();
     }
 
     @Override
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         this.saveChanges();
         this.markForClientUpdate();
+        this.requestStorageUpdate();
     }
 
     @Override
@@ -243,6 +287,77 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private void onUpgradesChanged() {
         this.saveChanges();
         this.markForClientUpdate();
+        this.requestStorageUpdate();
+    }
+
+    private boolean exportItemsToNetwork(MEStorage inventory, IActionSource source) {
+        boolean changed = false;
+        for (int slot = 0; slot < this.storage.size(); slot++) {
+            ItemStack stack = this.storage.getStackInSlot(slot);
+            AEItemKey itemKey = AEItemKey.of(stack);
+            if (itemKey == null) {
+                continue;
+            }
+
+            long inserted = inventory.insert(itemKey, stack.getCount(), Actionable.MODULATE, source);
+            if (inserted <= 0) {
+                continue;
+            }
+
+            ItemStack updated = stack.copy();
+            updated.shrink((int) Math.min(inserted, updated.getCount()));
+            this.storage.setItemDirect(slot, updated.isEmpty() ? ItemStack.EMPTY : updated);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private boolean exportFluidsToNetwork(MEStorage inventory, IActionSource source) {
+        boolean changed = false;
+        for (FluidTank tank : this.fluidTanks) {
+            FluidStack fluid = tank.getFluid();
+            AEFluidKey fluidKey = AEFluidKey.of(fluid);
+            if (fluidKey == null) {
+                continue;
+            }
+
+            long inserted = inventory.insert(fluidKey, fluid.getAmount(), Actionable.MODULATE, source);
+            if (inserted <= 0) {
+                continue;
+            }
+
+            FluidStack updated = fluid.copy();
+            updated.shrink((int) Math.min(inserted, updated.getAmount()));
+            tank.setFluid(updated.isEmpty() ? FluidStack.EMPTY : updated);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private boolean exportKeysToNetwork(MEStorage inventory, IActionSource source) {
+        boolean changed = false;
+        for (int i = 0; i < KEY_SLOTS; i++) {
+            GenericStack stack = this.keyStacks[i];
+            if (stack == null || stack.what() == null || stack.amount() <= 0) {
+                continue;
+            }
+
+            long inserted = inventory.insert(stack.what(), stack.amount(), Actionable.MODULATE, source);
+            if (inserted <= 0) {
+                continue;
+            }
+
+            long remaining = stack.amount() - inserted;
+            this.keyStacks[i] = remaining <= 0 ? null : new GenericStack(stack.what(), remaining);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private void requestStorageUpdate() {
+        if (this.level != null && !this.level.isClientSide()) {
+            IStorageProvider.requestUpdate(this.getMainNode());
+        }
     }
 
     private GenericStackInv createFluidMenuInventory(int slotIndex) {
@@ -334,6 +449,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             }
             this.saveChanges();
             this.markForClientUpdate();
+            this.requestStorageUpdate();
         } finally {
             this.syncingFluidMenu = false;
         }
@@ -374,6 +490,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             }
             this.saveChanges();
             this.markForClientUpdate();
+            this.requestStorageUpdate();
         } finally {
             this.syncingKeyMenu = false;
         }
@@ -403,14 +520,25 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     public static FluidStack readFluidFromTag(HolderLookup.Provider registries, CompoundTag tag, int slotIndex) {
-        return FluidStack.parseOptional(registries, tag.getCompound(getFluidTagKey(slotIndex)));
+        CompoundTag fluidTag = tag.getCompound(getFluidTagKey(slotIndex));
+        if (fluidTag.isEmpty()) {
+            return FluidStack.EMPTY;
+        }
+        if (fluidTag.contains("Fluid")) {
+            FluidTank tank = new FluidTank(FLUID_CAPACITY);
+            tank.readFromNBT(registries, fluidTag);
+            return tank.getFluid();
+        }
+        return FluidStack.parseOptional(registries, fluidTag);
     }
 
     public static void writeFluidToTag(HolderLookup.Provider registries, CompoundTag tag, int slotIndex, FluidStack stack) {
         if (stack.isEmpty()) {
             tag.remove(getFluidTagKey(slotIndex));
         } else {
-            tag.put(getFluidTagKey(slotIndex), stack.save(registries));
+            FluidTank tank = new FluidTank(FLUID_CAPACITY);
+            tank.setFluid(stack.copyWithAmount(Math.min(FLUID_CAPACITY, stack.getAmount())));
+            tag.put(getFluidTagKey(slotIndex), tank.writeToNBT(registries, new CompoundTag()));
         }
     }
 
@@ -441,6 +569,202 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             fluids[i] = this.fluidTanks[i].getFluid();
         }
         return fluids;
+    }
+
+    private final class DepotStorageProvider implements IStorageProvider {
+
+        @Override
+        public void mountInventories(IStorageMounts storageMounts) {
+            storageMounts.mount(networkStorage);
+        }
+    }
+
+    private final class DepotStorage implements MEStorage {
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            MEStorage.checkPreconditions(what, amount, mode, source);
+            if (amount <= 0 || exportingToNetwork) {
+                return 0L;
+            }
+            if (what instanceof AEItemKey itemKey) {
+                return insertItem(itemKey, amount, mode);
+            }
+            if (what instanceof AEFluidKey fluidKey) {
+                return insertFluid(fluidKey, amount, mode);
+            }
+            if (isAllowedMenuKey(what)) {
+                return insertKey(what, amount, mode);
+            }
+            return 0L;
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            MEStorage.checkPreconditions(what, amount, mode, source);
+            if (amount <= 0) {
+                return 0L;
+            }
+            if (what instanceof AEItemKey itemKey) {
+                return extractItem(itemKey, amount, mode);
+            }
+            if (what instanceof AEFluidKey fluidKey) {
+                return extractFluid(fluidKey, amount, mode);
+            }
+            if (isAllowedMenuKey(what)) {
+                return extractKey(what, amount, mode);
+            }
+            return 0L;
+        }
+
+        @Override
+        public void getAvailableStacks(KeyCounter out) {
+            for (ItemStack stack : storage) {
+                AEItemKey itemKey = AEItemKey.of(stack);
+                if (itemKey != null) {
+                    out.add(itemKey, stack.getCount());
+                }
+            }
+            for (FluidTank tank : fluidTanks) {
+                FluidStack stack = tank.getFluid();
+                AEFluidKey fluidKey = AEFluidKey.of(stack);
+                if (fluidKey != null) {
+                    out.add(fluidKey, stack.getAmount());
+                }
+            }
+            for (GenericStack stack : keyStacks) {
+                if (stack != null && stack.what() != null && stack.amount() > 0) {
+                    out.add(stack.what(), stack.amount());
+                }
+            }
+        }
+
+        @Override
+        public Component getDescription() {
+            return ModBlocks.DIGITAL_STORAGE_DEPOT.get().getName();
+        }
+
+        private long insertItem(AEItemKey what, long amount, Actionable mode) {
+            long remaining = amount;
+            while (remaining > 0) {
+                int attempt = (int) Math.min(remaining, what.getMaxStackSize());
+                ItemStack input = what.toStack(attempt);
+                ItemStack overflow = storage.addItems(input, mode == Actionable.SIMULATE);
+                int inserted = attempt - overflow.getCount();
+                if (inserted <= 0) {
+                    break;
+                }
+                remaining -= inserted;
+            }
+            return amount - remaining;
+        }
+
+        private long extractItem(AEItemKey what, long amount, Actionable mode) {
+            long extracted = 0L;
+            int request = (int) Math.min(amount, Integer.MAX_VALUE);
+            for (int slot = 0; slot < storage.size() && request > 0; slot++) {
+                ItemStack stack = storage.getStackInSlot(slot);
+                if (!what.matches(stack)) {
+                    continue;
+                }
+                ItemStack result = storage.extractItem(slot, request, mode == Actionable.SIMULATE);
+                int count = result.getCount();
+                extracted += count;
+                request -= count;
+            }
+            return extracted;
+        }
+
+        private long insertFluid(AEFluidKey what, long amount, Actionable mode) {
+            int requested = (int) Math.min(amount, Integer.MAX_VALUE);
+            if (requested <= 0) {
+                return 0L;
+            }
+            return externalFluidHandler.fill(what.toStack(requested), mode.getFluidAction());
+        }
+
+        private long extractFluid(AEFluidKey what, long amount, Actionable mode) {
+            int requested = (int) Math.min(amount, Integer.MAX_VALUE);
+            if (requested <= 0) {
+                return 0L;
+            }
+            return externalFluidHandler.drain(what.toStack(requested), mode.getFluidAction()).getAmount();
+        }
+
+        private long insertKey(AEKey what, long amount, Actionable mode) {
+            int matchingSlot = findKeySlot(what);
+            if (matchingSlot >= 0) {
+                GenericStack current = keyStacks[matchingSlot];
+                long currentAmount = current == null ? 0L : current.amount();
+                long inserted = Math.min(amount, KEY_CAPACITY - currentAmount);
+                if (inserted <= 0) {
+                    return 0L;
+                }
+                if (mode == Actionable.MODULATE) {
+                    keyStacks[matchingSlot] = new GenericStack(what, currentAmount + inserted);
+                    syncKeyMenusFromStacks();
+                    saveChanges();
+                    markForClientUpdate();
+                    requestStorageUpdate();
+                }
+                return inserted;
+            }
+
+            int emptySlot = findEmptyKeySlot();
+            if (emptySlot < 0) {
+                return 0L;
+            }
+            long inserted = Math.min(amount, KEY_CAPACITY);
+            if (mode == Actionable.MODULATE) {
+                keyStacks[emptySlot] = new GenericStack(what, inserted);
+                syncKeyMenusFromStacks();
+                saveChanges();
+                markForClientUpdate();
+                requestStorageUpdate();
+            }
+            return inserted;
+        }
+
+        private long extractKey(AEKey what, long amount, Actionable mode) {
+            int slot = findKeySlot(what);
+            if (slot < 0) {
+                return 0L;
+            }
+            GenericStack current = keyStacks[slot];
+            long extracted = Math.min(amount, current.amount());
+            if (extracted <= 0) {
+                return 0L;
+            }
+            if (mode == Actionable.MODULATE) {
+                long remaining = current.amount() - extracted;
+                keyStacks[slot] = remaining <= 0 ? null : new GenericStack(what, remaining);
+                syncKeyMenusFromStacks();
+                saveChanges();
+                markForClientUpdate();
+                requestStorageUpdate();
+            }
+            return extracted;
+        }
+
+        private int findKeySlot(AEKey what) {
+            for (int i = 0; i < KEY_SLOTS; i++) {
+                GenericStack stack = keyStacks[i];
+                if (stack != null && stack.what() != null && stack.amount() > 0 && stack.what().equals(what)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        private int findEmptyKeySlot() {
+            for (int i = 0; i < KEY_SLOTS; i++) {
+                GenericStack stack = keyStacks[i];
+                if (stack == null || stack.what() == null || stack.amount() <= 0) {
+                    return i;
+                }
+            }
+            return -1;
+        }
     }
 
     private final class DepotFluidHandler implements IFluidHandler {
@@ -541,6 +865,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             syncMenuFluidFromTank(this.slotIndex);
             saveChanges();
             markForClientUpdate();
+            requestStorageUpdate();
         }
     }
 
