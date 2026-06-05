@@ -50,6 +50,10 @@ public final class ModFlags {
         return isLoaded("create");
     }
 
+    public static boolean isCuriosLoaded() {
+        return isLoaded("curios");
+    }
+
     public static boolean isAppliedCreateLoaded() {
         return isLoaded("appliedcreate");
     }

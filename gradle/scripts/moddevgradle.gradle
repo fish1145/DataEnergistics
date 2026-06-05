@@ -39,6 +39,16 @@ neoForge {
             systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
+        loginClient {
+            client()
+            sourceSet = sourceSets.clientExtra
+            ideName = "All Client (Dev Login)"
+            devLogin = true
+
+            gameDirectory.set(file('run/login/client'))
+            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
+        }
+
         server {
             server()
             sourceSet = sourceSets.extra

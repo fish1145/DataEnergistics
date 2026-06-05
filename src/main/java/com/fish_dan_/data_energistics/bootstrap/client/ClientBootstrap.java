@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
 import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.client.integration.CuriosDollRendererRegistry;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
@@ -29,6 +30,7 @@ import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
+import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotTooltipComponent;
@@ -116,6 +118,9 @@ public final class ClientBootstrap {
                 registerMatterConvergingCrossbowProperties();
                 registerDataCaptureBallProperties();
                 registerLightSaberProperties();
+                if (ModFlags.isCuriosLoaded()) {
+                    CuriosDollRendererRegistry.register();
+                }
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onClientTickPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onMouseScroll);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
