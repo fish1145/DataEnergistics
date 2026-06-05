@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
-import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotOutputTypeButton;
+import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotOutputTypeCycleButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
 import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
 
@@ -32,9 +32,7 @@ public class DigitalStorageDepotOutputSideScreen extends AESubScreen<DigitalStor
 
     private final EnumMap<Direction, OutputSideDisplayButton> buttons = new EnumMap<>(Direction.class);
     private final DigitalStorageDepotMenu menu;
-    private final DigitalStorageDepotOutputTypeButton itemTypeButton;
-    private final DigitalStorageDepotOutputTypeButton fluidTypeButton;
-    private final DigitalStorageDepotOutputTypeButton keyTypeButton;
+    private final DigitalStorageDepotOutputTypeCycleButton outputTypeButton;
     private DigitalStorageDepotOutputType selectedContentType;
 
     public DigitalStorageDepotOutputSideScreen(
@@ -63,23 +61,8 @@ public class DigitalStorageDepotOutputSideScreen extends AESubScreen<DigitalStor
         clearButton.setMessage(Component.translatable("gui.data_energistics.set_output_sides.clear"));
         this.widgets.add("clear", clearButton);
 
-        this.itemTypeButton = new DigitalStorageDepotOutputTypeButton(
-                "I",
-                Component.translatable("tooltip.data_energistics.digital_storage_depot.items"),
-                btn -> this.setSelectedContentType(DigitalStorageDepotOutputType.ITEMS));
-        this.widgets.add("items", this.itemTypeButton);
-
-        this.fluidTypeButton = new DigitalStorageDepotOutputTypeButton(
-                "F",
-                Component.translatable("tooltip.data_energistics.digital_storage_depot.fluids"),
-                btn -> this.setSelectedContentType(DigitalStorageDepotOutputType.FLUIDS));
-        this.widgets.add("fluids", this.fluidTypeButton);
-
-        this.keyTypeButton = new DigitalStorageDepotOutputTypeButton(
-                "K",
-                Component.translatable("tooltip.data_energistics.digital_storage_depot.keys"),
-                btn -> this.setSelectedContentType(DigitalStorageDepotOutputType.KEYS));
-        this.widgets.add("keys", this.keyTypeButton);
+        this.outputTypeButton = new DigitalStorageDepotOutputTypeCycleButton(this::setSelectedContentType);
+        this.addToLeftToolbar(this.outputTypeButton);
 
         for (Direction side : Direction.values()) {
             OutputSideDisplayButton button = new OutputSideDisplayButton(btn -> {
@@ -109,9 +92,7 @@ public class DigitalStorageDepotOutputSideScreen extends AESubScreen<DigitalStor
 
     private void setSelectedContentType(DigitalStorageDepotOutputType selectedContentType) {
         this.selectedContentType = selectedContentType;
-        this.itemTypeButton.setSelected(selectedContentType == DigitalStorageDepotOutputType.ITEMS);
-        this.fluidTypeButton.setSelected(selectedContentType == DigitalStorageDepotOutputType.FLUIDS);
-        this.keyTypeButton.setSelected(selectedContentType == DigitalStorageDepotOutputType.KEYS);
+        this.outputTypeButton.setCurrentType(selectedContentType);
         refreshSideButtons();
     }
 

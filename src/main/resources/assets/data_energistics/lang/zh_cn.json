@@ -141,6 +141,7 @@
 	"gui.data_energistics.set_output_sides": "输出面",
 	"gui.data_energistics.set_output_sides.open": "打开输出配置",
 	"gui.data_energistics.set_output_sides.clear": "清除所有面",
+	"gui.data_energistics.set_output_sides.content_type": "输出类型",
 	"gui.data_energistics.set_output_sides.on": "已启用",
 	"gui.data_energistics.set_output_sides.off": "已禁用",
 	"screen.data_energistics.status.online": "状态：在线",

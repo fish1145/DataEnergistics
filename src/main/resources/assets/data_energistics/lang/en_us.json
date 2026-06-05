@@ -141,6 +141,7 @@
 	"gui.data_energistics.set_output_sides": "Output Side",
 	"gui.data_energistics.set_output_sides.open": "Open Output Config",
 	"gui.data_energistics.set_output_sides.clear": "Clear All Sides",
+	"gui.data_energistics.set_output_sides.content_type": "Output Type",
 	"gui.data_energistics.set_output_sides.on": "Enabled",
 	"gui.data_energistics.set_output_sides.off": "Disabled",
 	"screen.data_energistics.status.online": "Status: Online",

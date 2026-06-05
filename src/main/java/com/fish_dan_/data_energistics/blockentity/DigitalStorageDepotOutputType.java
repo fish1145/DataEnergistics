@@ -18,6 +18,10 @@ public enum DigitalStorageDepotOutputType {
         return this.serializedName;
     }
 
+    public DigitalStorageDepotOutputType next() {
+        return values()[(this.ordinal() + 1) % values().length];
+    }
+
     public static @Nullable DigitalStorageDepotOutputType fromSerializedName(String serializedName) {
         if (serializedName == null || serializedName.isBlank()) {
             return null;

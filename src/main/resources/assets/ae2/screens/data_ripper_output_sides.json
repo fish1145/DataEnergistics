@@ -27,24 +27,6 @@
 			"width": 8,
 			"height": 8
 		},
-		"items": {
-			"left": 74,
-			"top": 18,
-			"width": 8,
-			"height": 8
-		},
-		"fluids": {
-			"left": 74,
-			"top": 28,
-			"width": 8,
-			"height": 8
-		},
-		"keys": {
-			"left": 74,
-			"top": 38,
-			"width": 8,
-			"height": 8
-		},
 		"top": {
 			"left": 34,
 			"top": 16
