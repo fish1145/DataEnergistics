@@ -8,12 +8,12 @@ neoForge {
         mappingsVersion = libs.versions.parchment.get()
     }
 
-    accessTransformers {
-        var file = project.file('src/main/resources/META-INF/accesstransformer.cfg')
-        from(file)
-        publish(file)
-    }
-    validateAccessTransformers = true
+//    accessTransformers {
+//        var file = project.file('src/main/resources/META-INF/accesstransformer.cfg')
+//        from(file)
+//        publish(file)
+//    }
+//    validateAccessTransformers = true
 
     addModdingDependenciesTo(sourceSets.test)
     addModdingDependenciesTo(sourceSets.extra)

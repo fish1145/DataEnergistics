@@ -7,7 +7,7 @@ dependencies {
     compileOnly(forge.jech)
 
     // AE2
-    compileOnly(forge.ae2)
+    accessCompileOnly(forge.ae2)
     compileOnly(forge.guideme)
     compileOnly(forge.ae2wt)
     compileOnly(forge.ae2wt.api)
