@@ -8,6 +8,7 @@ modId = "${mod_id}"
 version = "${version}"
 displayName = "${mod_name}"
 authors = "fish_dan, QiuYe"
+logoFile = "logo.png"
 description = "${mod_description}"
 displayURL = "${mod_url}"
 

@@ -9,6 +9,8 @@ categories:
 
 # 数据能源
 
+![Data Energistics Logo](/assets/logo.png)
+
 <Row>
   <ItemImage id="data_flow_cell_1k" scale="6" />
   <ItemImage id="portable_data_flow_cell_1k" scale="6" />
