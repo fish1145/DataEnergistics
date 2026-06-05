@@ -43,9 +43,7 @@ public class DigitalStorageDepotOutputTypeCycleButton extends Button implements 
         }
 
         int yOffset = this.isHovered() ? 1 : 0;
-        Icon background = this.isHovered()
-                ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER
-                : (this.isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
+        Icon background = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : (this.isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
 
         background.getBlitter()
                 .dest(this.getX() - 1, this.getY() + yOffset, 18, 20)
