@@ -4,6 +4,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.helpers.patternprovider.PatternProviderReturnInventory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -20,4 +21,7 @@ public interface PatternProviderLogicFieldAccessor {
 
     @Accessor("sendList")
     List<GenericStack> dataEnergistics$getSendList();
+
+    @Accessor("returnInv")
+    void dataEnergistics$setReturnInv(PatternProviderReturnInventory returnInv);
 }

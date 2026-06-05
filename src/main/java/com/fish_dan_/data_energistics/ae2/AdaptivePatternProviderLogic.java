@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
+import com.fish_dan_.data_energistics.mixin.core.PatternProviderLogicFieldAccessor;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -101,7 +102,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final VarHandle BASE_PATTERN_INPUTS = requireBaseVarHandle("patternInputs", Set.class);
     private static final VarHandle BASE_PATTERN_INVENTORY = requireBaseVarHandle("patternInventory", AppEngInternalInventory.class);
     private static final VarHandle BASE_SEND_LIST = requireBaseVarHandle("sendList", List.class);
-    private static final VarHandle BASE_RETURN_INV = requireBaseVarHandle("returnInv", PatternProviderReturnInventory.class);
     private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
@@ -2357,11 +2357,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private void installExpandedReturnInventory() {
-        try {
-            BASE_RETURN_INV.set(this, new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
-        } catch (Throwable e) {
-            throw new IllegalStateException("Failed to expand adaptive pattern provider return inventory", e);
-        }
+        ((PatternProviderLogicFieldAccessor) this).dataEnergistics$setReturnInv(
+                new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
     }
 
     private void onReturnInventoryChanged() {
