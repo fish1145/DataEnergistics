@@ -235,36 +235,36 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
             Block.box(6, 0, 7, 10, 4, 9),
             Block.box(2, 0, 7.5d, 4, 4, 8.5d),
             Block.box(12, 0, 7.5d, 14, 4, 8.5d),
-            Block.box(8, 7, 7, 10, 9, 9),
-            Block.box(6, 14, 7, 8, 16, 9),
-            Block.box(6, 9, 7, 10, 14, 9));
+            Block.box(8, 6, 7, 10, 8, 9),
+            Block.box(6, 13, 7, 8, 15, 9),
+            Block.box(6, 8, 7, 10, 13, 9));
     private static final VoxelShape TOP_SHAPE_EAST = Shapes.or(
             Block.box(7, 4, 8, 9, 6, 10),
             Block.box(7, 0, 6, 9, 4, 10),
             Block.box(7.5d, 0, 12, 8.5d, 4, 14),
             Block.box(7.5d, 0, 2, 8.5d, 4, 4),
-            Block.box(7, 7, 6, 9, 9, 8),
-            Block.box(7, 14, 8, 9, 16, 10),
-            Block.box(7, 9, 6, 9, 14, 10));
+            Block.box(7, 6, 6, 9, 8, 8),
+            Block.box(7, 13, 8, 9, 15, 10),
+            Block.box(7, 8, 6, 9, 13, 10));
     private static final VoxelShape TOP_SHAPE_SOUTH = Shapes.or(
             Block.box(8, 4, 7, 10, 6, 9),
             Block.box(6, 0, 7, 10, 4, 9),
             Block.box(12, 0, 7.5d, 14, 4, 8.5d),
             Block.box(2, 0, 7.5d, 4, 4, 8.5d),
-            Block.box(6, 7, 7, 8, 9, 9),
-            Block.box(8, 14, 7, 10, 16, 9),
-            Block.box(6, 9, 7, 10, 14, 9));
+            Block.box(6, 6, 7, 8, 8, 9),
+            Block.box(8, 13, 7, 10, 15, 9),
+            Block.box(6, 8, 7, 10, 13, 9));
     private static final VoxelShape TOP_SHAPE_WEST = Shapes.or(
             Block.box(7, 4, 6, 9, 6, 8),
             Block.box(7, 0, 6, 9, 4, 10),
             Block.box(7.5d, 0, 2, 8.5d, 4, 4),
             Block.box(7.5d, 0, 12, 8.5d, 4, 14),
-            Block.box(7, 7, 8, 9, 9, 10),
-            Block.box(7, 14, 6, 9, 16, 8),
-            Block.box(7, 9, 6, 9, 14, 10));
+            Block.box(7, 6, 8, 9, 8, 10),
+            Block.box(7, 13, 6, 9, 15, 8),
+            Block.box(7, 8, 6, 9, 13, 10));
     private static final VoxelShape BOTTOM_INTERACTION_SHAPE = Block.box(0, 0, 0, 16, 16, 16);
     private static final VoxelShape MIDDLE_INTERACTION_SHAPE = Block.box(0, 0, 5, 16, 16, 11);
-    private static final VoxelShape TOP_INTERACTION_SHAPE = Block.box(2, 0, 6, 14, 16, 10);
+    private static final VoxelShape TOP_INTERACTION_SHAPE = Block.box(2, 0, 6, 14, 15, 10);
     private static final Map<Direction, VoxelShape> BOTTOM_SHAPES = Map.of(
             Direction.NORTH, BOTTOM_SHAPE_NORTH,
             Direction.EAST, BOTTOM_SHAPE_WEST,

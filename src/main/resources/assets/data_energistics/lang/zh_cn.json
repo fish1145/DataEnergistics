@@ -268,7 +268,7 @@
 	"text.data_energistics.data_distribution_tower.range.current_chunk": "当前区块",
 	"text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s 区块",
 	"text.data_energistics.data_extractor.range.box": "上方 %sx%sx%s",
-	"screen.data_energistics.data_extractor.damage": "伤害：%s/%s秒",
+	"screen.data_energistics.data_extractor.damage": "伤害：%s/次",
 	"screen.data_energistics.data_extractor.data_flow": "数据流产出：%s/%s秒",
 	"screen.data_energistics.data_extractor.targets": "目标：%s/%s",
 	"button.data_energistics.data_extractor.redstone_control.enabled": "仅在接收到红石信号时工作",

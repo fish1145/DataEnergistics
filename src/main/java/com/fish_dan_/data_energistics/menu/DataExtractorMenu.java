@@ -86,7 +86,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
                     this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD));
             this.targetLimit = DataExtractorBlockEntity.computeTargetLimit(this.getUpgrades());
             this.damagePerCycle = DataExtractorBlockEntity.computeDamagePerCycle(
-                    this.getHost().getStorageInventory().getStackInSlot(2),
+                    this.getHost().getStorageInventory().getStackInSlot(1),
                     this.getHost().getLevel() != null ? this.getHost().getLevel().registryAccess() : null);
             this.dataFlowPerCycle = DataExtractorBlockEntity.computeDataFlowPerCycle(
                     this.getUpgrades(),

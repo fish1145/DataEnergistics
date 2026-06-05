@@ -75,7 +75,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
 
         this.setTextContent("status", Component.translatable(
                 this.menu.online ? "screen.data_energistics.status.online" : "screen.data_energistics.status.offline"));
-        this.setTextContent("damage", translate("damage", this.menu.damagePerCycle, this.menu.workIntervalSeconds));
+        this.setTextContent("damage", translate("damage", this.menu.damagePerCycle));
         this.setTextContent("data_flow", translate("data_flow", this.menu.dataFlowPerCycle, this.menu.workIntervalSeconds));
         this.setTextContent("targets", translate("targets", this.menu.targetCount, this.menu.targetLimit));
         this.redstoneControlButton.setState(this.menu.redstoneControlled);

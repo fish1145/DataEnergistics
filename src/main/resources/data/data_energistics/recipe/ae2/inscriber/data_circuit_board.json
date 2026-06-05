@@ -3,7 +3,7 @@
 	"mode": "press",
 	"ingredients": {
 		"top": {
-			"tag": "c:dusts/certus_quartz"
+			"tag": "c:dusts/fluix"
 		},
 		"middle": {
 			"item": "data_energistics:data_inscriber_template"

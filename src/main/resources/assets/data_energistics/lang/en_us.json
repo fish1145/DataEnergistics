@@ -263,7 +263,7 @@
 	"text.data_energistics.data_distribution_tower.range.current_chunk": "Current chunk",
 	"text.data_energistics.data_distribution_tower.range.chunk_square": "%sx%s chunks",
 	"text.data_energistics.data_extractor.range.box": "%sx%sx%s above",
-	"screen.data_energistics.data_extractor.damage": "Damage: %s/%ss",
+	"screen.data_energistics.data_extractor.damage": "Damage: %s/cycle",
 	"screen.data_energistics.data_extractor.data_flow": "Data Flow Production: %s/%ss",
 	"screen.data_energistics.data_extractor.targets": "Targets: %s/%s",
 	"button.data_energistics.data_extractor.redstone_control.enabled": "Only work while receiving a redstone signal",

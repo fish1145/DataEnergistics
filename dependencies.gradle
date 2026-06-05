@@ -18,6 +18,7 @@ dependencies {
     compileOnly(forge.aelt)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
+    compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
     compileOnly(forge.amek)
     compileOnly(forge.mek)

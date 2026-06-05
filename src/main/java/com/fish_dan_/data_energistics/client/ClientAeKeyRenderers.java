@@ -37,7 +37,6 @@ public final class ClientAeKeyRenderers {
         registered = true;
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
     private static void overwrite(AEKeyType type, AEKeyRenderHandler<?> handler) {
         Map<AEKeyType, AEKeyRenderHandler<?>> updated = new IdentityHashMap<>(AEKeyRendering.renderers);
         updated.put(type, (AEKeyRenderHandler<? extends AEKey>) handler);
