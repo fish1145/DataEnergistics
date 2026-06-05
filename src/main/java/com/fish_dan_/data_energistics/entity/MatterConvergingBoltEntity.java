@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.mixin.core.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -398,7 +397,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         target.invulnerableTime = 0;
         target.hurtTime = 0;
         target.hurtDuration = 0;
-        ((LivingEntityAccessor) target).dataEnergistics$setLastHurt(0.0F);
+        target.lastHurt = 0.0F;
         target.setHealth(Math.max(0.0F, target.getHealth() - damage));
         target.hurt(damageSource, 0.0F);
         if (target.getHealth() <= 0.0F) {
@@ -462,7 +461,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         if (target instanceof LivingEntity livingTarget) {
             livingTarget.hurtTime = 0;
             livingTarget.hurtDuration = 0;
-            ((LivingEntityAccessor) livingTarget).dataEnergistics$setLastHurt(0.0F);
+            livingTarget.lastHurt = 0.0F;
         }
     }
 

@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.entity;
 
-import com.fish_dan_.data_energistics.mixin.core.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.nbt.CompoundTag;
@@ -187,7 +186,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
         if (target instanceof LivingEntity livingTarget) {
             livingTarget.hurtTime = 0;
             livingTarget.hurtDuration = 0;
-            ((LivingEntityAccessor) livingTarget).dataEnergistics$setLastHurt(0.0F);
+            livingTarget.lastHurt = 0.0F;
         }
     }
 

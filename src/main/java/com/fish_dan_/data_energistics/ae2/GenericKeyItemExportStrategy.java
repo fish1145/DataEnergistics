@@ -1,8 +1,5 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.mixin.core.CowMapAccessor;
-import com.fish_dan_.data_energistics.mixin.core.StackWorldBehaviorsAccessor;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -22,6 +19,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
+import appeng.parts.automation.StackWorldBehaviors;
 import appeng.util.CowMap;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
@@ -57,16 +55,15 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
 
     @SuppressWarnings("unchecked")
     private static void registerIfMissing(AEKeyType type) {
-        CowMap<AEKeyType, StackExportStrategy.Factory> strategies = StackWorldBehaviorsAccessor.dataEnergistics$getExportStrategies();
+        CowMap<AEKeyType, StackExportStrategy.Factory> strategies = StackWorldBehaviors.exportStrategies;
         synchronized (strategies) {
-            CowMapAccessor<AEKeyType, StackExportStrategy.Factory> accessor = (CowMapAccessor<AEKeyType, StackExportStrategy.Factory>) strategies;
-            if (accessor.dataEnergistics$getMap().containsKey(type)) {
+            if (strategies.map.containsKey(type)) {
                 return;
             }
 
-            Map<AEKeyType, StackExportStrategy.Factory> updated = new IdentityHashMap<>(accessor.dataEnergistics$getMap());
+            Map<AEKeyType, StackExportStrategy.Factory> updated = new IdentityHashMap<>(strategies.map);
             updated.put(type, (level, fromPos, fromSide) -> new GenericKeyItemExportStrategy(type, level, fromPos, fromSide));
-            accessor.dataEnergistics$setMap(Collections.unmodifiableMap(updated));
+            strategies.map = Collections.unmodifiableMap(updated);
         }
     }
 

@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 
 import appeng.api.config.LockCraftingMode;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import org.spongepowered.asm.mixin.Final;
@@ -17,12 +19,22 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.List;
+
 @Mixin(PatternProviderLogic.class)
 public abstract class PatternProviderLogicMixin implements PatternProviderLogicAccessor {
 
     @Shadow
     @Final
     private PatternProviderLogicHost host;
+
+    @Shadow
+    @Final
+    private IActionSource actionSource;
+
+    @Shadow
+    @Final
+    private List<GenericStack> sendList;
 
     @Shadow
     public abstract LockCraftingMode getCraftingLockedReason();
@@ -74,7 +86,7 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
             RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                     serverLevel,
                     this.host.getGrid(),
-                    ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
+                    this.actionSource,
                     ((PatternProviderLogic) (Object) this).getAvailablePatterns());
             return true;
         }
@@ -86,7 +98,7 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
         if (!this.dataEnergistics$dispatchPulsePending) {
             return;
         }
-        if (!((PatternProviderLogicFieldAccessor) this).dataEnergistics$getSendList().isEmpty()) {
+        if (!this.sendList.isEmpty()) {
             return;
         }
         this.dataEnergistics$dispatchPulsePending = false;
@@ -103,7 +115,7 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
         RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                 serverLevel,
                 this.host.getGrid(),
-                ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
+                this.actionSource,
                 ((PatternProviderLogic) (Object) this).getAvailablePatterns());
     }
 }

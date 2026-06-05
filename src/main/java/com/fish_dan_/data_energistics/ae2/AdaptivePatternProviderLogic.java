@@ -63,7 +63,6 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -93,14 +92,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final String NBT_ADVANCED_SEND_DIRECTION = "adaptive_advanced_send_direction";
     private static final String NBT_ADVANCED_DIRECTION_MAP = "adaptive_advanced_direction_map";
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-    private static final MethodHandles.Lookup BASE_LOGIC_LOOKUP = privateLookup(PatternProviderLogic.class);
-    private static final @Nullable MethodHandle BASE_DO_WORK = findBaseMethod("doWork");
-    private static final @Nullable MethodHandle BASE_HAS_WORK_TO_DO = findBaseMethod("hasWorkToDo");
-    private static final @Nullable MethodHandle BASE_ON_PUSH_PATTERN_SUCCESS = findBaseMethod("onPushPatternSuccess", IPatternDetails.class);
-    private static final VarHandle BASE_PATTERNS = requireBaseVarHandle("patterns", List.class);
-    private static final VarHandle BASE_PATTERN_INPUTS = requireBaseVarHandle("patternInputs", Set.class);
-    private static final VarHandle BASE_PATTERN_INVENTORY = requireBaseVarHandle("patternInventory", AppEngInternalInventory.class);
-    private static final VarHandle BASE_SEND_LIST = requireBaseVarHandle("sendList", List.class);
     private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<DirectionalPatternAccess>> DIRECTIONAL_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
@@ -127,14 +118,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private @Nullable IStackWatcher craftingWatcher;
     private @Nullable Direction advancedSendDirection;
     private int worksInRound;
-    private final List<IPatternDetails> patternDetailsView;
-    private final Set<AEKey> patternInputsView;
-    private final AppEngInternalInventory patternInventory;
     private final @Nullable MethodHandle ae2LtTotalCostMethod;
     private final @Nullable MethodHandle ae2LtCanAffordMethod;
     private final @Nullable MethodHandle ae2LtConsumeRawMethod;
     private final @Nullable MethodHandle ae2csAdjacentMeStorageMethod;
-    private final List<GenericStack> baseSendListView;
     private long ae2ltLastAutoReturnTick = -1L;
     private boolean dataEnergistics$dispatchPulsePending;
     private List<AdaptiveWirelessConnection> cachedOrderedWirelessConnections;
@@ -147,10 +134,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 .addService(IGridTickable.class, new Ticker())
                 .addService(ICraftingWatcherNode.class, new AdaptiveCraftingWatcherNode());
         this.actionSource = new MachineSource(mainNode::getNode);
-        this.patternDetailsView = readBaseVarHandle(BASE_PATTERNS, List.class, "patterns");
-        this.patternInputsView = readBaseVarHandle(BASE_PATTERN_INPUTS, Set.class, "patternInputs");
-        this.patternInventory = readBaseVarHandle(BASE_PATTERN_INVENTORY, AppEngInternalInventory.class, "patternInventory");
-        this.baseSendListView = readBaseVarHandle(BASE_SEND_LIST, List.class, "sendList");
         this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
         this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
         this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
@@ -598,8 +581,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private void rebuildPatternsIncludingAe2LtOverloadPatterns() {
-        this.patternDetailsView.clear();
-        this.patternInputsView.clear();
+        this.patterns.clear();
+        this.patternInputs.clear();
 
         var level = this.host.getBlockEntity().getLevel();
         for (int slot = 0; slot < this.patternInventory.size(); slot++) {
@@ -609,10 +592,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            this.patternDetailsView.add(details);
+            this.patterns.add(details);
             for (var input : details.getInputs()) {
                 for (var possibleInput : input.getPossibleInputs()) {
-                    this.patternInputsView.add(possibleInput.what().dropSecondary());
+                    this.patternInputs.add(possibleInput.what().dropSecondary());
                 }
             }
         }
@@ -1225,61 +1208,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private Set<AEKey> getPatternInputs() {
-        return this.patternInputsView;
+        return this.patternInputs;
     }
 
     private void invokePatternSuccess(IPatternDetails patternDetails) {
-        try {
-            if (BASE_ON_PUSH_PATTERN_SUCCESS != null) {
-                BASE_ON_PUSH_PATTERN_SUCCESS.invoke(this, patternDetails);
-            }
-        } catch (Throwable ignored) {}
-    }
-
-    @Nullable
-    private static MethodHandles.Lookup privateLookup(Class<?> type) {
-        try {
-            return MethodHandles.privateLookupIn(type, LOOKUP);
-        } catch (IllegalAccessException ignored) {
-            return null;
-        }
-    }
-
-    @Nullable
-    private static MethodHandle findBaseMethod(String name, Class<?>... parameterTypes) {
-        try {
-            if (BASE_LOGIC_LOOKUP == null) {
-                return null;
-            }
-            Method method = PatternProviderLogic.class.getDeclaredMethod(name, parameterTypes);
-            return BASE_LOGIC_LOOKUP.unreflect(method);
-        } catch (IllegalAccessException | NoSuchMethodException | SecurityException ignored) {
-            return null;
-        }
-    }
-
-    private static VarHandle requireBaseVarHandle(String name, Class<?> type) {
-        try {
-            if (BASE_LOGIC_LOOKUP == null) {
-                throw new IllegalStateException("No private lookup for PatternProviderLogic");
-            }
-            Field field = PatternProviderLogic.class.getDeclaredField(name);
-            if (!type.isAssignableFrom(field.getType())) {
-                throw new IllegalStateException("Unexpected base field declaration for " + name);
-            }
-            return BASE_LOGIC_LOOKUP.unreflectVarHandle(field);
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            throw new IllegalStateException("Failed to access base field: " + name, e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> T readBaseVarHandle(VarHandle handle, Class<?> type, String name) {
-        Object value = handle.get(this);
-        if (!type.isInstance(value)) {
-            throw new IllegalStateException("Unexpected base field type for " + name);
-        }
-        return (T) value;
+        super.onPushPatternSuccess(patternDetails);
     }
 
     @Nullable
@@ -1295,19 +1228,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean invokeBaseDoWork() {
-        try {
-            return BASE_DO_WORK != null && Boolean.TRUE.equals(BASE_DO_WORK.invoke(this));
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return super.doWork();
     }
 
     private boolean invokeBaseHasWorkToDo() {
-        try {
-            return BASE_HAS_WORK_TO_DO != null && Boolean.TRUE.equals(BASE_HAS_WORK_TO_DO.invoke(this));
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return super.hasWorkToDo();
     }
 
     private boolean pushAdvancedDirectionalInputs(Direction primaryDirection, KeyCounter[] inputHolder, IPatternDetails patternDetails) {
@@ -1864,7 +1789,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (!this.dataEnergistics$dispatchPulsePending) {
             return;
         }
-        if (!this.baseSendListView.isEmpty() || !this.advancedDirectionalSendList.isEmpty() || !this.ae2ltWirelessSendList.isEmpty()) {
+        if (!this.sendList.isEmpty() || !this.advancedDirectionalSendList.isEmpty() || !this.ae2ltWirelessSendList.isEmpty()) {
             return;
         }
         this.dataEnergistics$dispatchPulsePending = false;

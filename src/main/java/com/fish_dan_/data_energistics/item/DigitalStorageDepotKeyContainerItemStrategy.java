@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.DataKeyType;
-import com.fish_dan_.data_energistics.mixin.core.ContainerItemStrategiesAccessor;
-import com.fish_dan_.data_energistics.mixin.core.CowMapAccessor;
 
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -11,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.behaviors.ContainerItemStrategies;
 import appeng.api.behaviors.ContainerItemStrategy;
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEKey;
@@ -125,7 +124,7 @@ public class DigitalStorageDepotKeyContainerItemStrategy implements ContainerIte
     }
 
     private static @Nullable ContainerItemStrategy<?, ?> getRegisteredStrategy(AEKeyType type) {
-        return ContainerItemStrategiesAccessor.dataEnergistics$getStrategies().getMap().get(type);
+        return ContainerItemStrategies.strategies.getMap().get(type);
     }
 
     @SuppressWarnings("unchecked")
@@ -135,10 +134,9 @@ public class DigitalStorageDepotKeyContainerItemStrategy implements ContainerIte
 
     @SuppressWarnings("unchecked")
     private static void installStrategy(AEKeyType type) {
-        CowMap<AEKeyType, ContainerItemStrategy<?, ?>> strategies = ContainerItemStrategiesAccessor.dataEnergistics$getStrategies();
+        CowMap<AEKeyType, ContainerItemStrategy<?, ?>> strategies = ContainerItemStrategies.strategies;
         synchronized (strategies) {
-            CowMapAccessor<AEKeyType, ContainerItemStrategy<?, ?>> accessor = (CowMapAccessor<AEKeyType, ContainerItemStrategy<?, ?>>) strategies;
-            ContainerItemStrategy<?, ?> original = accessor.dataEnergistics$getMap().get(type);
+            ContainerItemStrategy<?, ?> original = strategies.map.get(type);
             if (original instanceof DigitalStorageDepotKeyContainerItemStrategy) {
                 return;
             }
@@ -147,9 +145,9 @@ public class DigitalStorageDepotKeyContainerItemStrategy implements ContainerIte
                     type,
                     castStrategy(original));
 
-            Map<AEKeyType, ContainerItemStrategy<?, ?>> updated = new IdentityHashMap<>(accessor.dataEnergistics$getMap());
+            Map<AEKeyType, ContainerItemStrategy<?, ?>> updated = new IdentityHashMap<>(strategies.map);
             updated.put(type, strategy);
-            accessor.dataEnergistics$setMap(Collections.unmodifiableMap(updated));
+            strategies.map = Collections.unmodifiableMap(updated);
         }
     }
 
