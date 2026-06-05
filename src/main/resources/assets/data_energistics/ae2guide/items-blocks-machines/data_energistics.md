@@ -1,13 +1,13 @@
 ---
 navigation:
-  title: 数据能源
+  title: Data Energistics
   icon: data_crystal
   position: 114514
 categories:
 - devices
 ---
 
-# 数据能源
+# Data Energistics
 
 <Row>
   <ItemImage id="data_flow_cell_1k" scale="6" />
@@ -15,16 +15,16 @@ categories:
   <ItemImage id="data_storage_component_1k" scale="6" />
 </Row>
 
-这一页作为 Data Energistics 在 AE2 Guide 体系中的总入口。
+This page serves as the main entry point for Data Energistics within the AE2 Guide system.
 
-## 条目
+## Entries
 
-* <ItemImage id="data_energistics:data_meteorite_0" /> [数位化陨石](0_data_meteorite.md)      <ItemImage id="data_energistics:data_inscriber_template" /> [模板/电路板](1_template.md)
-* <ItemImage id="data_crystal" /> [数据水晶](2_data_crystal.md)      <ItemImage id="data_energistics:obsidian_dust" /> [部分材料](3_solidified_obsidian.md)
-* <ItemImage id="data_energistics:data_flow_component_housing" /> [数据流元件](4_data_flow_components.md)      <ItemImage id="data_energistics:me_solar_panel" /> [ME太阳能板](5_me_solar_panel.md)
-* <ItemImage id="data_energistics:data_reassembler" /> [数据重组器](6_data_reassembler.md)      <ItemImage id="data_energistics:data_extractor" /> [数据提取仪](7_data_extractor.md)
-* <ItemImage id="data_energistics:data_mimetic_field" /> [数据拟生场](8_data_mimetic_field.md)      <ItemImage id="data_energistics:data_teleport_anchor" /> [数据传送锚](9_data_teleport_anchor.md)
-* <ItemImage id="data_energistics:adaptive_pattern_provider" /> [自适应样板供应器](10_adaptive_pattern_provider.md)      <ItemImage id="data_energistics:data_distribution_tower" /> [数据均分塔](11_data_distribution_tower.md)
-* <ItemImage id="data_energistics:data_ripper" /> [数据撕裂器](12_data_ripper.md)      <ItemImage id="data_energistics:data_sanctifier" /> [工具/武器](13_tool_weapon.md)
-* <ItemImage id="data_energistics:universal_terminal" /> [通用终端](14_universal_terminal.md)      <ItemImage id="data_energistics:ender_bucket" /> [流体](15_fluid.md)
-* <ItemImage id="ae2:advanced_card" /> [升级](16_upgrade.md)      <ItemImage id="data_energistics:digital_storage_depot" /> [数位化存储仓](17_digital_storage_depot.md)
+* <ItemImage id="data_energistics:data_meteorite_0" /> [Digitalized Meteorite](0_data_meteorite.md)      <ItemImage id="data_energistics:data_inscriber_template" /> [Templates/Circuit Boards](1_template.md)
+* <ItemImage id="data_crystal" /> [Data Crystal](2_data_crystal.md)      <ItemImage id="data_energistics:obsidian_dust" /> [Materials](3_solidified_obsidian.md)
+* <ItemImage id="data_energistics:data_flow_component_housing" /> [Data Flow Components](4_data_flow_components.md)      <ItemImage id="data_energistics:me_solar_panel" /> [ME Solar Panel](5_me_solar_panel.md)
+* <ItemImage id="data_energistics:data_reassembler" /> [Data Reassembler](6_data_reassembler.md)      <ItemImage id="data_energistics:data_extractor" /> [Data Extractor](7_data_extractor.md)
+* <ItemImage id="data_energistics:data_mimetic_field" /> [Data Mimetic Field](8_data_mimetic_field.md)      <ItemImage id="data_energistics:data_teleport_anchor" /> [Data Teleport Anchor](9_data_teleport_anchor.md)
+* <ItemImage id="data_energistics:adaptive_pattern_provider" /> [Adaptive Pattern Provider](10_adaptive_pattern_provider.md)      <ItemImage id="data_energistics:data_distribution_tower" /> [Data Distribution Tower](11_data_distribution_tower.md)
+* <ItemImage id="data_energistics:data_ripper" /> [Data Ripper](12_data_ripper.md)      <ItemImage id="data_energistics:data_sanctifier" /> [Tools/Weapons](13_tool_weapon.md)
+* <ItemImage id="data_energistics:universal_terminal" /> [Universal Terminal](14_universal_terminal.md)      <ItemImage id="data_energistics:ender_bucket" /> [Fluids](15_fluid.md)
+* <ItemImage id="ae2:advanced_card" /> [Upgrades](16_upgrade.md)      <ItemImage id="data_energistics:digital_storage_depot" /> [Digital Storage Depot](17_digital_storage_depot.md)

@@ -1,16 +1,16 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: 数位化存储仓
+  title: Digital Storage Depot
   icon: data_energistics:digital_storage_depot
   position: 17
 item_ids:
 - data_energistics:digital_storage_depot
 ---
 
-# 数位化存储仓
+# Digital Storage Depot
 
-数位化存储仓是一种可接入 ME 网络的混合存储方块。它可以同时保存物品、流体，以及数据流、数据等非物品 Key。
+The Digital Storage Depot is a hybrid storage block that can be connected to an ME network. It can simultaneously store items, fluids, and non-item Keys such as Data Flow and Data.
 
 <GameScene zoom="6" background="transparent">
   <Block id="data_energistics:digital_storage_depot" x="0" y="0" z="0" />
@@ -23,70 +23,70 @@ item_ids:
 
 ---
 
-## 存储结构
+## Storage Structure
 
-存储仓内部有 21 个物品槽、3 个流体槽和 3 个 Key 槽。
+The depot has 21 item slots, 3 fluid slots, and 3 Key slots.
 
-- 物品槽可以存放普通物品，并作为 ME Storage 被网络访问
-- 流体槽每格基础容量为 64,000 mB
-- Key 槽每格基础容量为 64,000，适合保存数据流、数据等非物品、非流体 Key
-- 同一种流体或同一种 Key 只会占用一个槽位，不能在多个槽中重复记录
+- Item slots can hold regular items and are accessible as ME Storage on the network
+- Each fluid slot has a base capacity of 64,000 mB
+- Each Key slot has a base capacity of 64,000, ideal for storing non-item, non-fluid Keys like Data Flow and Data
+- The same type of fluid or Key only occupies one slot and cannot be recorded across multiple slots
 
-放入 AE2 容量卡会扩大所有三类容量。
+Installing AE2 Capacity Cards increases all three capacity types.
 
 <Row>
   <ItemLink id="ae2:capacity_card" />
   <ItemImage id="ae2:capacity_card" />
 </Row>
 
-容量公式：  
-最终容量 = 基础容量 × (1 + 4 × 容量卡数量)
+Capacity Formula:
+Final Capacity = Base x (1 + 4 x Capacity Cards)
 
-默认最多可安装 4 张容量卡。取出容量卡时，如果现有内容超过降级后的容量，卡会被保护而不能取出。
+Up to 4 Capacity Cards can be installed by default. If removing a card would cause existing contents to exceed the downgraded capacity, the card will be protected and cannot be removed.
 
 ---
 
-## ME 网络
+## ME Network
 
-数位化存储仓接入 ME 网络后，会把内部内容作为一个独立存储挂载到网络中。
+When connected to an ME network, the Digital Storage Depot mounts its internal contents as an independent storage unit.
 
 <Row>
   <ItemImage id="ae2:fluix_covered_cable" />
   <ItemImage id="data_energistics:digital_storage_depot" />
 </Row>
 
-它支持 AE2 的存储优先级。优先级越高，网络越倾向于先把内容写入这里；优先级越低，越适合作为溢出或备用存储。
+It supports AE2 storage priority. Higher priority makes the network prefer writing content here first; lower priority makes it suitable as overflow or backup storage.
 
-AE2 导出总线也可以配合存储仓使用。把数据流、数据等 Generic Key 配置到导出总线后，可以直接导入存储仓的 Key 槽；对普通物品和流体则按对应槽位处理。
-
----
-
-## 自动输出
-
-左侧工具栏中的自动输出按钮有三种状态：
-
-- 关闭：不主动输出内部内容
-- 容器：自动把物品、流体和 Key 推送到相邻容器
-- AE：自动把物品、流体和 Key 推送回当前连接的 AE 网络
-
-当自动输出处于“容器”模式时，可以打开输出面配置。物品、流体和 Key 各自拥有独立的六面开关，因此可以让不同类型的内容走向不同设备。
+AE2 Export Buses can also be used with the depot. Configuring Generic Keys like Data Flow and Data on an Export Bus allows direct import into the depot's Key slots. Regular items and fluids are handled through their respective slots.
 
 ---
 
-## 便携桶模式
+## Auto-Output
 
-拿在手上时，数位化存储仓也可以作为便携容器使用。默认按 `Z` 切换桶模式。
+The auto-output button in the left toolbar has three states:
 
-桶模式开启后：
+- Off: Does not actively output internal contents
+- Container: Automatically pushes items, fluids, and Keys to adjacent containers
+- AE: Automatically pushes items, fluids, and Keys back to the connected AE network
 
-- 右键流体源或流体容器，可以把一桶流体收入当前选择的流体槽
-- 对可放置位置右键，可以从当前流体槽倒出一桶流体
-- 只有被标记的一个流体槽会作为物品流体容器暴露给其他设备
-- 如果标记的是 Key 槽，则会作为对应 Key 类型的便携容器参与 AE 交互
+When auto-output is in Container mode, the output side configuration can be opened. Items, fluids, and Keys each have independent six-face toggles, allowing different content types to be routed to different devices.
 
-选择槽位：
+---
 
-- 按住 Ctrl 滚轮，切换当前流体槽
-- 按住 Alt 滚轮，切换当前 Key 槽
+## Portable Bucket Mode
 
-提示框会预览存储仓中已有的物品、流体和 Key。重新放置时，存储的流体和 Key 会随方块数据恢复。
+When held in hand, the Digital Storage Depot can also function as a portable container. Press Z by default to toggle bucket mode.
+
+When bucket mode is active:
+
+- Right-click a fluid source or fluid container to collect one bucket into the currently selected fluid slot
+- Right-click on a placeable position to pour out one bucket from the current fluid slot
+- Only one marked fluid slot is exposed as a fluid container to other devices
+- If a Key slot is marked, it acts as a portable container for that Key type in AE interactions
+
+Selecting slots:
+
+- Hold Ctrl and scroll to switch the current fluid slot
+- Hold Alt and scroll to switch the current Key slot
+
+The tooltip previews items, fluids, and Keys already stored in the depot. When replaced, stored fluids and Keys are preserved with the block data.

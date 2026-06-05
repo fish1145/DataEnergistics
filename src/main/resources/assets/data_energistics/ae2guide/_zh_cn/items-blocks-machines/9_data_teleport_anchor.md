@@ -1,15 +1,15 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: Data Teleport Anchor
+  title: 数据传送锚
   icon: data_energistics:data_teleport_anchor
   position: 9
 item_ids:
 - data_energistics:data_teleport_anchor
 ---
 
-## Data Teleport Anchor
-Across billions of light-years, point-to-point data transmission nails two lonely civilizations together as each other's anchor points, never to be separated.
+## 数据传送锚
+百亿光年之外，点对点的数据传送，把两颗孤独的文明，钉成了彼此的锚点，永不分离。
 
 <GameScene zoom="6" background="transparent">
     <Block id="data_energistics:data_teleport_anchor" x="0" y="0" z="0" />
@@ -19,8 +19,8 @@ Across billions of light-years, point-to-point data transmission nails two lonel
   <RecipeFor id="data_energistics:data_teleport_anchor" />
 </Row>
 
-A point-to-point teleporter. Consumes 10 kAE.
-Has 16 color channels, each isolated from the others. Using a <ItemImage id="data_energistics:data_crystal_cutting_knife" /> bypasses the color restriction.
+一个点对点的传送。消耗10 kAE  
+共有16个颜色，颜色与颜色之间互相隔离。使用<ItemImage id="data_energistics:data_crystal_cutting_knife" />可以无视颜色
 
 <GameScene zoom="4.2" background="transparent">
     <Block id="data_energistics:data_teleport_anchor" p:lit="true" p:color="black" x="0" y="0" z="0" />
@@ -41,10 +41,10 @@ Has 16 color channels, each isolated from the others. Using a <ItemImage id="dat
     <Block id="data_energistics:data_teleport_anchor" p:lit="true" p:color="yellow" x="4" y="0" z="2" />
     <IsometricCamera yaw="25" pitch="25" />
 </GameScene>  
-Right-click with a color applicator or dye to change its color.
+使用染色器右键或者用染料右键将其染色
 
 ---
 
-# Special
+# 特殊
 <ItemImage id="data_energistics:data_crystal_cutting_knife" scale="6"/>  
-When held, highlights all Data Teleport Anchors within a 9x9 block area with their corresponding color. Right-click to consume 20 Data Flow and 400 AE to teleport above the anchor.
+当手持时，将自身9×9区块范围内的数据传送锚颜色对应高亮显示，右键将消耗20数据流以及400 AE进行传送至上方

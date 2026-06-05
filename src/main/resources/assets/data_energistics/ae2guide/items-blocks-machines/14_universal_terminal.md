@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: 通用终端
+  title: Universal Terminal
   icon: data_energistics:universal_terminal
   position: 14
 item_ids:
@@ -9,8 +9,8 @@ item_ids:
 
 ---
 
-# 通用终端
-将多个终端功能收纳进同一个物品中，减少频繁切换工具栏与背包的操作成本。
+# Universal Terminal
+Consolidates multiple terminal functions into a single item, reducing the need to frequently switch between the toolbar and inventory.
 
 <Row>
   <ItemImage id="data_energistics:universal_terminal" scale="6" />
@@ -18,70 +18,70 @@ item_ids:
 
 ---
 
-# 基本用途
-通用终端本质上是一个“终端容器”。
+# Basic Usage
+The Universal Terminal is essentially a "terminal container."
 
-它可以把多个终端项目安装到同一件物品里，并在使用时切换当前激活的终端界面。  
-物品 tooltip 会直接列出当前已经安装的终端列表。
+It can install multiple terminal items into a single item and switch between the currently active terminal interface during use.  
+The item tooltip directly lists all currently installed terminals.
 
-默认内置支持：
-- ME 终端
-- 合成终端
-- 样板访问终端
-- 样板编码终端
+Built-in default support:
+- ME Terminal
+- Crafting Terminal
+- Pattern Access Terminal
+- Pattern Encoding Terminal
 
-除此之外，系统还会自动尝试识别其他模组中可兼容的终端类部件，并把它们注册为可安装对象。
-
----
-
-# 合成与扩展
-通用终端的合并规则有两种：
-
-1. 通用终端 + 一个受支持终端
-- 会把这个新终端安装进已有的通用终端中
-- 如果该终端已经装过，则不会重复添加
-
-2. 两个不同的受支持终端
-- 会直接合成为一个新的通用终端
-- 新通用终端中同时保存这两个终端
-
-限制：
-- 不能用两个通用终端彼此合并
-- 不能把两个相同终端重复合并成新的内容
+In addition, the system will automatically attempt to recognize compatible terminal-type parts from other mods and register them as installable objects.
 
 ---
 
-# 切换方式
-通用终端会记录一个“当前激活终端”。
+# Crafting and Expansion
+The Universal Terminal has two merging rules:
 
-使用时：
-- 打开的是当前激活终端对应的界面
-- 可以在已安装终端之间循环切换
-- 切换后会在物品数据中保存当前模式
+1. Universal Terminal + a supported terminal
+- Installs the new terminal into the existing Universal Terminal
+- If the terminal is already installed, it will not be added again
 
-如果当前激活终端无效，系统会自动回退到已安装列表中的第一个终端。
+2. Two different supported terminals
+- Directly crafts them into a new Universal Terminal
+- The new Universal Terminal preserves both terminals
 
----
-
-# 数据保存
-通用终端会在物品内部保存：
-- 已安装的终端列表
-- 每个终端对应的原始终端物品信息
-- 当前激活终端名称
-
-这意味着：
-- 同一件通用终端可以长期成长
-- 后续再往里继续安装新终端时，不会丢失已有内容
-- tooltip 中能直接看到当前已安装的终端
+Limitations:
+- Two Universal Terminals cannot be merged together
+- Two identical terminals cannot be merged into something new
 
 ---
 
-# 兼容说明
-通用终端优先兼容 AE2 原生终端。  
-对其他模组终端的支持方式是：
-- 自动检测终端部件类型
-- 自动匹配合适的菜单类型
-- 识别其属于存储、合成、样板访问或样板编码哪一类
+# Switching
+The Universal Terminal remembers a "currently active terminal."
 
-因此，一部分第三方终端也可以直接并入通用终端。  
-若某个终端没有被识别到，通常是它的部件类型或菜单结构与当前兼容规则不匹配。
+When used:
+- Opens the interface corresponding to the currently active terminal
+- Can cycle through installed terminals
+- After switching, the current mode is saved in the item data
+
+If the currently active terminal is invalid, the system automatically falls back to the first terminal in the installed list.
+
+---
+
+# Data Preservation
+The Universal Terminal stores the following inside the item:
+- List of installed terminals
+- Original terminal item information for each terminal
+- Name of the currently active terminal
+
+This means:
+- A single Universal Terminal can grow over time
+- Adding new terminals later does not lose existing content
+- The tooltip displays all currently installed terminals
+
+---
+
+# Compatibility Notes
+The Universal Terminal is primarily compatible with AE2 native terminals.  
+For other mod terminals, the support works as follows:
+- Automatically detects the terminal part type
+- Automatically matches the appropriate menu type
+- Identifies whether it belongs to Storage, Crafting, Pattern Access, or Pattern Encoding
+
+Therefore, some third-party terminals can also be integrated into the Universal Terminal.  
+If a terminal is not recognized, it is usually because its part type or menu structure does not match the current compatibility rules.

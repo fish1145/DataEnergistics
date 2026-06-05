@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: 数据流元件
+  title: Data Flow Components
   icon: data_energistics:data_flow_component_housing
   position: 4
 item_ids:
@@ -24,7 +24,7 @@ item_ids:
 - data_energistics:data_cell_infinity
 ---
 
-# 数据流元件
+# Data Flow Components
 
 <Column>
   <Row>
@@ -40,13 +40,13 @@ item_ids:
   </Row>
 </Column>
 
-数据流元件是一组围绕数据流存储构建的组件与成品元件。
+Data Flow Components are a set of components and finished cells built around data flow storage.
 
 ---
 
-##  存储组件
+## Storage Components
 
-数据流存储组件决定了对应元件的容量等级。当前提供了 1K 到 256K 的五个等级。
+Data Flow Storage Components determine the capacity tier of the corresponding cell. Five tiers from 1K to 256K are currently available.
 
 <Column>
   <Row>
@@ -63,9 +63,9 @@ item_ids:
 
 ---
 
-##  元件外壳
+## Component Housing
 
-数据流元件外壳用于将存储组件封装为可使用的元件。
+The Data Flow Component Housing is used to encase a storage component into a usable cell.
 
 <Row>
   <RecipeFor id="data_flow_component_housing" />
@@ -73,9 +73,9 @@ item_ids:
 
 ---
 
-##  数据流存储元件
+## Data Flow Storage Cells
 
-组装完成后，可以得到对应等级的数据流存储元件。
+Once assembled, you get the corresponding tier of Data Flow Storage Cell.
 
 <Column>
   <Row>
@@ -87,14 +87,14 @@ item_ids:
   </Row>
 </Column>
 
-其他存储组件也是一致的配方
-没有容纳任何数据流时，可以 Shift+右键拆卸
+Other storage components follow the same recipe pattern.
+When not holding any data flow, you can disassemble it with Shift+Right-click.
 
 ---
 
-##  便携式数据流元件
+## Portable Data Flow Cells
 
-其他便携存储组件也是一致的配方
+Other portable storage cells follow the same recipe pattern.
 
 <Column>
   <Row>
@@ -102,23 +102,23 @@ item_ids:
   </Row>
 </Column>
 
-没有容纳任何数据流时，可以 Shift+右键拆卸  
+When not holding any data flow, you can disassemble it with Shift+Right-click.
 
 ---
 
-# 升级  
+# Upgrades  
 
 <Row>
     <ItemLink id="ae2:energy_card"/>  
     <ItemImage id="ae2:energy_card" />
 </Row>
-能源卡:
-最大能源 = 基础容量 × (1 + 8 × 能源卡数量)
+Energy Card:
+Max Energy = Base Capacity x (1 + 8 x Energy Cards)
 
 ---
 
-# 创造元件
+# Creative Cell
   <Row>
     <ItemImage id="data_cell_infinity" />
   </Row>
-一种未知力量形成的元件，能无限取出数据流以及数据，没有人知道它从何而来，也没有人知道它将会去哪
+A cell formed by an unknown power, capable of extracting unlimited data flow and data. No one knows where it came from, and no one knows where it will go.

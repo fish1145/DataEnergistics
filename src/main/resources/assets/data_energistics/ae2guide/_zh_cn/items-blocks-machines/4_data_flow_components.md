@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: Data Flow Components
+  title: 数据流元件
   icon: data_energistics:data_flow_component_housing
   position: 4
 item_ids:
@@ -24,7 +24,7 @@ item_ids:
 - data_energistics:data_cell_infinity
 ---
 
-# Data Flow Components
+# 数据流元件
 
 <Column>
   <Row>
@@ -40,13 +40,13 @@ item_ids:
   </Row>
 </Column>
 
-Data Flow Components are a set of components and finished cells built around data flow storage.
+数据流元件是一组围绕数据流存储构建的组件与成品元件。
 
 ---
 
-## Storage Components
+##  存储组件
 
-Data Flow Storage Components determine the capacity tier of the corresponding cell. Five tiers from 1K to 256K are currently available.
+数据流存储组件决定了对应元件的容量等级。当前提供了 1K 到 256K 的五个等级。
 
 <Column>
   <Row>
@@ -63,9 +63,9 @@ Data Flow Storage Components determine the capacity tier of the corresponding ce
 
 ---
 
-## Component Housing
+##  元件外壳
 
-The Data Flow Component Housing is used to encase a storage component into a usable cell.
+数据流元件外壳用于将存储组件封装为可使用的元件。
 
 <Row>
   <RecipeFor id="data_flow_component_housing" />
@@ -73,9 +73,9 @@ The Data Flow Component Housing is used to encase a storage component into a usa
 
 ---
 
-## Data Flow Storage Cells
+##  数据流存储元件
 
-Once assembled, you get the corresponding tier of Data Flow Storage Cell.
+组装完成后，可以得到对应等级的数据流存储元件。
 
 <Column>
   <Row>
@@ -87,14 +87,14 @@ Once assembled, you get the corresponding tier of Data Flow Storage Cell.
   </Row>
 </Column>
 
-Other storage components follow the same recipe pattern.
-When not holding any data flow, you can disassemble it with Shift+Right-click.
+其他存储组件也是一致的配方
+没有容纳任何数据流时，可以 Shift+右键拆卸
 
 ---
 
-## Portable Data Flow Cells
+##  便携式数据流元件
 
-Other portable storage cells follow the same recipe pattern.
+其他便携存储组件也是一致的配方
 
 <Column>
   <Row>
@@ -102,23 +102,23 @@ Other portable storage cells follow the same recipe pattern.
   </Row>
 </Column>
 
-When not holding any data flow, you can disassemble it with Shift+Right-click.
+没有容纳任何数据流时，可以 Shift+右键拆卸  
 
 ---
 
-# Upgrades  
+# 升级  
 
 <Row>
     <ItemLink id="ae2:energy_card"/>  
     <ItemImage id="ae2:energy_card" />
 </Row>
-Energy Card:
-Max Energy = Base Capacity x (1 + 8 x Energy Cards)
+能源卡:
+最大能源 = 基础容量 × (1 + 8 × 能源卡数量)
 
 ---
 
-# Creative Cell
+# 创造元件
   <Row>
     <ItemImage id="data_cell_infinity" />
   </Row>
-A cell formed by an unknown power, capable of extracting unlimited data flow and data. No one knows where it came from, and no one knows where it will go.
+一种未知力量形成的元件，能无限取出数据流以及数据，没有人知道它从何而来，也没有人知道它将会去哪

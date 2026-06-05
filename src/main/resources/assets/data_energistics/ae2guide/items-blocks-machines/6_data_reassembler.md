@@ -1,15 +1,15 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: 数据重组器
+  title: Data Reassembler
   icon: data_energistics:data_reassembler
   position: 6
 item_ids:
 - data_energistics:data_reassembler
 ---
 
-# 数据重组器
-以数据重组信息碎片，织就窥见未来的智能经纬。它将作为你本模组最重要的机器。陪你走过这个模组的一路
+# Data Reassembler
+Reassembles information fragments with data, weaving an intelligent warp that glimpses the future. It will be the most important machine in this mod, accompanying you throughout your journey.
 <GameScene zoom="6" background="transparent">
     <Block id="data_energistics:data_reassembler" x="0" y="0" z="0" />
    <IsometricCamera yaw="205" pitch="25" />
@@ -20,9 +20,9 @@ item_ids:
 
 ---
 
-# 升级
+# Upgrades
 <Row>
     <ItemLink id="ae2:speed_card"/>
     <ItemImage id="ae2:speed_card" />
 </Row>
-加速卡：最终速度 = 基础速度 - 加速卡数量 × 40
+Speed Card: Final Speed = Base Speed - Speed Cards x 40

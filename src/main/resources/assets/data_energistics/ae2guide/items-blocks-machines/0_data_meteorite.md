@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: 数位化陨石
+  title: Digitalized Meteorite
   icon: data_energistics:data_meteorite_0
   position: 0
 item_ids:
@@ -10,7 +10,7 @@ item_ids:
 - data_energistics:data_meteorite_2
 ---
 
-# 数位化陨石
+# Digitalized Meteorite
 
 <GameScene zoom="3" background="transparent">
   <Block id="data_energistics:guide_data_corrosion_liquid_display" x="3" y="0" z="4" />
@@ -55,17 +55,17 @@ item_ids:
 
   <IsometricCamera yaw="150" pitch="25" />
 </GameScene>
-一颗来自于未知空间的陨石，拥有撕破维度的力量。你不知道他为何来到了这，只知道他与平常的陨石截然不同  
-他将作为你本模组的开端  
-陨石内部有27%的概率拥有1~2个充盈数据水晶母岩
+A meteorite from an unknown space, possessing the power to tear through dimensions. You don't know how it got here, only that it is utterly different from ordinary meteorites.
+It will serve as the beginning of this mod.
+There is a 27% chance of finding 1 to 2 Charged Data Crystal Motherrocks inside the meteorite.
 
 ---
 
-## 数位陨石
+## Digital Meteorite
 
-| 陨石 | 基础掉落 | 额外产出 |
+| Meteorite | Base Drop | Bonus Output |
 |---|-|---|
-| <ItemImage id="ae2:sky_stone_block" /> | 100% <ItemImage id="ae2:sky_stone_block" /> | 无 |
-| <ItemImage id="data_energistics:data_meteorite_0" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 10% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> | 5% + 时运每级 +3%：生成 1 个即散数据实体 |
-| <ItemImage id="data_energistics:data_meteorite_1" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 20% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> 10% + 时运每级 +3% <ItemImage id="ae2:sky_dust" /> | 10% + 时运每级 +3%：生成 1 个即散数据实体 |
-| <ItemImage id="data_energistics:data_meteorite_2" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 25% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> 15% + 时运每级 +3% <ItemImage id="ae2:sky_dust" /> | 15% + 时运每级 +3%：生成 1~2 个即散数据实体 15%：6³空间随机传送|
+| <ItemImage id="ae2:sky_stone_block" /> | 100% <ItemImage id="ae2:sky_stone_block" /> | None |
+| <ItemImage id="data_energistics:data_meteorite_0" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 10% + 3% per Fortune level <ItemImage id="ae2:ender_dust" /> | 5% + 3% per Fortune level: spawns 1 Dispersing Data entity |
+| <ItemImage id="data_energistics:data_meteorite_1" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 20% + 3% per Fortune level <ItemImage id="ae2:ender_dust" /> 10% + 3% per Fortune level <ItemImage id="ae2:sky_dust" /> | 10% + 3% per Fortune level: spawns 1 Dispersing Data entity |
+| <ItemImage id="data_energistics:data_meteorite_2" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 25% + 3% per Fortune level <ItemImage id="ae2:ender_dust" /> 15% + 3% per Fortune level <ItemImage id="ae2:sky_dust" /> | 15% + 3% per Fortune level: spawns 1-2 Dispersing Data entities 15%: random teleport within 6x6x6 area |

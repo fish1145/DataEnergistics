@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
-  title: 模板/电路板
+  title: Templates/Circuit Boards
   icon: data_energistics:data_inscriber_template
   position: 1
 item_ids:
@@ -10,27 +10,27 @@ item_ids:
 - data_energistics:data_processor
 ---
 
-# 模板/电路板
+# Templates/Circuit Boards
 
-## 模板
+## Template
 <Row>
   <ItemImage id="data_energistics:data_inscriber_template" scale="6" />
   <ItemImage id="ae2:mysterious_cube" scale="6" />
 </Row>
-从神秘方块挖掘掉落用于制作奇特的数据电路板
+Drops from mining Mysterious Cubes, used to craft unique data circuit boards.
 
 ---
 
-## 电路板
+## Circuit Board
 <Row>
     <RecipeFor id="data_energistics:data_circuit_board" />
 </Row>
-突破常理，跃出束缚，以神秘的形式存在
+Breaking convention, leaping beyond constraints, existing in a mysterious form.
 
 ---
 
-## 处理器
+## Processor
 <Row>
     <RecipeFor id="data_energistics:data_processor" />
 </Row>
-奇异存在，未知操作，理解过去现在未来
+A strange existence, unknown operations, understanding the past, present, and future.
