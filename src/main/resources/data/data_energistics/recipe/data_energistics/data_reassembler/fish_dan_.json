@@ -1,0 +1,64 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "minecraft:red_wool"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "minecraft:white_wool"
+			},
+			"count": 2
+		},
+		{
+			"ingredient": {
+				"tag": "c:gems/data_crystal"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"tag": "c:dusts/data_dust"
+			},
+			"count": 8
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_carrier"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_processor"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"tag": "c:ingots/digisidian_memorize"
+			},
+			"count": 1
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 1000,
+			"#t": "ae2:f",
+			"id": "minecraft:water"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:fish_dan_",
+			"count": 1
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 1600
+	}
+}
