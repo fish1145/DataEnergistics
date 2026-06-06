@@ -128,7 +128,7 @@ public final class ModItems {
     public static final DeferredItem<PoweredAxeItem> DATA_CRYSTAL_AXE = ITEMS.register(
             "data_crystal_axe",
             () -> new PoweredAxeItem(DATA_CRYSTAL_TOOL_TIER,
-                    handheldProperties(0, PoweredAxeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 0.0F, -2.8F))));
+                    handheldProperties(0, PoweredAxeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 8.0F, -2.8F))));
     public static final DeferredItem<PoweredPickaxeItem> DATA_CRYSTAL_PICKAXE = ITEMS.register(
             "data_crystal_pickaxe",
             () -> new PoweredPickaxeItem(DATA_CRYSTAL_TOOL_TIER,
