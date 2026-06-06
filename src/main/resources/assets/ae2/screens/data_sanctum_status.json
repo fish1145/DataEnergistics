@@ -1,0 +1,41 @@
+{
+	"$schema": "schema.json",
+	"includes": ["common/common.json"],
+	"background": {
+		"texture": "guis/data_teleport_anchor.png",
+		"srcRect": [0, 0, 176, 183]
+	},
+	"text": {
+		"dialog_title": {
+			"position": {
+				"left": 88,
+				"top": 6
+			},
+			"align": "CENTER"
+		},
+		"online": {
+			"position": {
+				"left": 22,
+				"top": 34
+			}
+		},
+		"active": {
+			"position": {
+				"left": 22,
+				"top": 50
+			}
+		},
+		"mode": {
+			"position": {
+				"left": 22,
+				"top": 66
+			}
+		},
+		"network_port": {
+			"position": {
+				"left": 22,
+				"top": 82
+			}
+		}
+	}
+}

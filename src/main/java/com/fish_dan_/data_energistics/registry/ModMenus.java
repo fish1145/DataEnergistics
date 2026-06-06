@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
@@ -14,6 +15,7 @@ import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
+import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
@@ -74,6 +76,13 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DataTeleportAnchorMenu>> DATA_TELEPORT_ANCHOR = MENUS.register("data_teleport_anchor", () -> MenuTypeBuilder
             .create(DataTeleportAnchorMenu::new, DataTeleportAnchorBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_teleport_anchor")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataSanctumStatusMenu>> DATA_SANCTUM_STATUS = MENUS.register("data_sanctum_status", () -> IMenuTypeExtension.create((id, playerInventory, data) -> {
+        var pos = data.readBlockPos();
+        BlockEntity blockEntity = playerInventory.player.level().getBlockEntity(pos);
+        DataSanctumBlockEntity sanctum = blockEntity instanceof DataSanctumBlockEntity host ? host : null;
+        return new DataSanctumStatusMenu(id, playerInventory, sanctum);
+    }));
 
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER = MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
             .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderHost.class)

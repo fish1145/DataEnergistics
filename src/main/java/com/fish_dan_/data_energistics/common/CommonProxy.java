@@ -220,12 +220,11 @@ public class CommonProxy {
                         return null;
                     }
 
-                    if (!DataSanctumBlockEntity.isMainPart(state) && DataSanctumBlockEntity.isAdjacentToMainPart(pos, state)) {
+                    if (!DataSanctumBlockEntity.isNetworkPortPart(state)) {
                         return null;
                     }
 
-                    DataSanctumBlockEntity sanctum = DataSanctumBlock.getMainBlockEntity(level, pos, state);
-                    return sanctum != null ? sanctum : null;
+                    return DataSanctumBlock.getMainBlockEntity(level, pos, state);
                 },
                 ModBlocks.DATA_SANCTUM.get());
         event.registerBlockEntity(

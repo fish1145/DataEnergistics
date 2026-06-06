@@ -5,7 +5,8 @@
 				"active": "false",
 				"facing": "north",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
 				"model": "data_energistics:block/data_sanctum/off"
@@ -16,7 +17,8 @@
 				"active": "false",
 				"facing": "east",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
 				"model": "data_energistics:block/data_sanctum/off",
@@ -28,7 +30,8 @@
 				"active": "false",
 				"facing": "south",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
 				"model": "data_energistics:block/data_sanctum/off",
@@ -40,7 +43,8 @@
 				"active": "false",
 				"facing": "west",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
 				"model": "data_energistics:block/data_sanctum/off",
@@ -52,10 +56,11 @@
 				"active": "true",
 				"facing": "north",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
-				"model": "data_energistics:block/data_sanctum/linked"
+				"model": "data_energistics:block/data_sanctum/on"
 			}
 		},
 		{
@@ -63,10 +68,11 @@
 				"active": "true",
 				"facing": "east",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
-				"model": "data_energistics:block/data_sanctum/linked",
+				"model": "data_energistics:block/data_sanctum/on",
 				"y": 90
 			}
 		},
@@ -75,10 +81,11 @@
 				"active": "true",
 				"facing": "south",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
-				"model": "data_energistics:block/data_sanctum/linked",
+				"model": "data_energistics:block/data_sanctum/on",
 				"y": 180
 			}
 		},
@@ -87,10 +94,11 @@
 				"active": "true",
 				"facing": "west",
 				"offset_x": "2",
-				"offset_z": "2"
+				"offset_z": "2",
+				"offset_y": "0"
 			},
 			"apply": {
-				"model": "data_energistics:block/data_sanctum/linked",
+				"model": "data_energistics:block/data_sanctum/on",
 				"y": 270
 			}
 		}
