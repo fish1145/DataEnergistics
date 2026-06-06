@@ -1,0 +1,14 @@
+{
+	"loader": "neoforge:obj",
+	"parent": "block/block",
+	"model": "data_energistics:models/block/data_sanctum/csm.obj",
+	"flip_v": true,
+	"render_type": "translucent",
+	"shade_quads": true,
+	"emissive_ambient": false,
+	"textures": {
+		"particle": "data_energistics:block/data_sanctum/sprite_0",
+		"base": "data_energistics:block/data_sanctum/sprite_0",
+		"none": "data_energistics:block/data_sanctum/sprite_0"
+	}
+}

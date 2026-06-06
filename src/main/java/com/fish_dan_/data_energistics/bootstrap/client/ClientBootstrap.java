@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.client.integration.CuriosDollRendererRegis
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
+import com.fish_dan_.data_energistics.client.render.DataSanctumRenderer;
 import com.fish_dan_.data_energistics.client.render.DigitalStorageDepotClientTooltipComponent;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.LightBladeChargeRenderer;
@@ -168,6 +169,7 @@ public final class ClientBootstrap {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DataExtractorRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DataMimeticFieldRenderer::new);
+            event.registerBlockEntityRenderer(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), DataSanctumRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
             event.registerEntityRenderer(ModEntities.LIGHT_BLADE_CHARGE.get(), LightBladeChargeRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
@@ -182,6 +184,8 @@ public final class ClientBootstrap {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
+            event.register(DataSanctumRenderer.BLACK_HOLE_MODEL);
+            event.register(DataSanctumRenderer.PORTAL_MODEL);
         }
 
         private static void registerFluidRenderLayers() {

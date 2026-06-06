@@ -1,0 +1,15 @@
+{
+	"loader": "neoforge:obj",
+	"parent": "block/block",
+	"model": "data_energistics:models/block/data_sanctum/model_0.obj",
+	"flip_v": true,
+	"render_type": "cutout",
+	"shade_quads": true,
+	"emissive_ambient": false,
+	"textures": {
+		"particle": "data_energistics:block/data_sanctum/sprite_0",
+		"base": "data_energistics:block/data_sanctum/sprite_0",
+		"crystal_off": "data_energistics:block/data_distribution_tower/crystal_off",
+		"none": "data_energistics:block/data_sanctum/sprite_0"
+	}
+}

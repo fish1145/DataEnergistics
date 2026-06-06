@@ -1,0 +1,98 @@
+{
+	"multipart": [
+		{
+			"when": {
+				"active": "false",
+				"facing": "north",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off"
+			}
+		},
+		{
+			"when": {
+				"active": "false",
+				"facing": "east",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"active": "false",
+				"facing": "south",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"active": "false",
+				"facing": "west",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off",
+				"y": 270
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "north",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/linked"
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "east",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/linked",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "south",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/linked",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "west",
+				"offset_x": "2",
+				"offset_z": "2"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/linked",
+				"y": 270
+			}
+		}
+	]
+}

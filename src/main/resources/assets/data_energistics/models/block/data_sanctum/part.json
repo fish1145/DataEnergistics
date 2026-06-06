@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:block/air",
+	"textures": {
+		"particle": "data_energistics:block/data_sanctum/sprite_0"
+	}
+}
