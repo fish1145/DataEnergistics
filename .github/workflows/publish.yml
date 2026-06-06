@@ -130,7 +130,7 @@ jobs:
           MC_VERSION: '1.21.1'
           LOADER: neoforge
           JAVA: '21'
-          VERSION_TYPE: alpha
+          VERSION_TYPE: beta
         uses: Kir-Antipov/mc-publish@v3.3.0
         with:
           curseforge-id: 1565514
