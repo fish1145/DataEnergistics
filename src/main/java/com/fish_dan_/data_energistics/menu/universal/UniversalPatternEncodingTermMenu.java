@@ -54,6 +54,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
     private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
+    private static final String ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
     @Nullable
     private static final VarHandle FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD = resolveInheritedField("dataEnergistics$networkBlankPatternCount");
     @Nullable
@@ -104,6 +105,12 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this::openPatternProviderMenuFromClient);
         registerClientAction(ACTION_RENAME_PATTERN_PROVIDER, String.class,
                 this::renamePatternProviderFromClient);
+        registerClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE, String.class,
+                this::setPendingPatternSourceFromClient);
+        registerClientAction(ACTION_SET_PATTERN_SOURCE_ENABLED, Boolean.class,
+                this::setPatternSourceEnabledFromClient);
+        registerClientAction(ACTION_CLEAR_PATTERN_SOURCE_STATE,
+                this::data_energistics$clearPatternSourceState);
         this.patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
         this.lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
         if (this.isServerSide()) {
@@ -313,7 +320,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @Override
     public void data_energistics$clearPatternSourceState() {
         if (this.isClientSide()) {
-            sendClientAction("dataEnergistics$clearPatternSourceState");
+            sendClientAction(ACTION_CLEAR_PATTERN_SOURCE_STATE);
             writeFallbackPendingPatternSource(null);
             this.lastEncodedPatternSource = null;
             writeFallbackLastEncodedPatternSource(null);
@@ -497,6 +504,16 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             String name = payload.substring(separator + 1);
             data_energistics$renamePatternProvider(providerId, name);
         } catch (NumberFormatException ignored) {}
+    }
+
+    private void setPendingPatternSourceFromClient(String workstationId) {
+        data_energistics$setPendingPatternSource(workstationId == null || workstationId.isEmpty() ? null : net.minecraft.resources.ResourceLocation.tryParse(workstationId));
+    }
+
+    private void setPatternSourceEnabledFromClient(Boolean enabled) {
+        if (enabled != null) {
+            data_energistics$setPatternSourceEnabled(enabled);
+        }
     }
 
     private void renamePatternProvider(appeng.helpers.patternprovider.PatternContainer provider, @Nullable String name) {

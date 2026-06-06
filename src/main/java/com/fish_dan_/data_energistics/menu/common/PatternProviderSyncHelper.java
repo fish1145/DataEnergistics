@@ -336,6 +336,8 @@ public final class PatternProviderSyncHelper {
                 patternInventory.size(),
                 usedPatternSlots,
                 getWorkbenchLinePriority(container, displayName, iconItemId, primaryWorkbenchOrdering),
+                getRecordedDeviceScore(container, displayName, iconItemId, preferredWorkstationId,
+                        primaryWorkbenchOrdering),
                 getPreferredProviderScore(container, displayName, iconItemId, patternInventory.size(), usedPatternSlots,
                         preferredWorkstationId, encodingMode, currentEncodedPattern, primaryWorkbenchOrdering)));
     }
@@ -436,12 +438,14 @@ public final class PatternProviderSyncHelper {
                                                                                             boolean primaryWorkbenchOrdering) {
         Comparator<AggregatedPatternProvider> comparator;
         if (primaryWorkbenchOrdering) {
-            comparator = Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::preferredScore)
+            comparator = Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::recordedDeviceScore)
                     .reversed()
+                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed())
                     .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::workbenchLinePriority).reversed());
         } else {
             comparator = Comparator.<AggregatedPatternProvider>comparingInt(AggregatedPatternProvider::workbenchLinePriority)
                     .reversed()
+                    .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::recordedDeviceScore).reversed())
                     .thenComparing(Comparator.comparingInt(AggregatedPatternProvider::preferredScore).reversed());
         }
 
@@ -453,12 +457,14 @@ public final class PatternProviderSyncHelper {
                                                                                             boolean primaryWorkbenchOrdering) {
         Comparator<DiscoveredPatternProvider> comparator;
         if (primaryWorkbenchOrdering) {
-            comparator = Comparator.<DiscoveredPatternProvider>comparingInt(DiscoveredPatternProvider::preferredScore)
+            comparator = Comparator.<DiscoveredPatternProvider>comparingInt(DiscoveredPatternProvider::recordedDeviceScore)
                     .reversed()
+                    .thenComparing(Comparator.comparingInt(DiscoveredPatternProvider::preferredScore).reversed())
                     .thenComparing(Comparator.comparingInt(DiscoveredPatternProvider::workbenchLinePriority).reversed());
         } else {
             comparator = Comparator.<DiscoveredPatternProvider>comparingInt(DiscoveredPatternProvider::workbenchLinePriority)
                     .reversed()
+                    .thenComparing(Comparator.comparingInt(DiscoveredPatternProvider::recordedDeviceScore).reversed())
                     .thenComparing(Comparator.comparingInt(DiscoveredPatternProvider::preferredScore).reversed());
         }
 
@@ -786,6 +792,33 @@ public final class PatternProviderSyncHelper {
         }
 
         return fallbackScore;
+    }
+
+    private static int getRecordedDeviceScore(PatternContainer container, Component displayName,
+                                              ResourceLocation iconItemId,
+                                              @Nullable ResourceLocation preferredWorkstationId,
+                                              boolean primaryWorkbenchOrdering) {
+        if (preferredWorkstationId == null || primaryWorkbenchOrdering) {
+            return 0;
+        }
+
+        List<String> workstationTexts = List.of(
+                resolveWorkstationDisplayName(preferredWorkstationId).getString(),
+                preferredWorkstationId.toString(),
+                preferredWorkstationId.getPath());
+        int score = 0;
+        for (String providerText : collectProviderIdentityStrings(container, displayName, iconItemId)) {
+            String normalizedProviderText = normalizeForMatch(providerText);
+            if (normalizedProviderText.isEmpty()) {
+                continue;
+            }
+            for (String workstationText : workstationTexts) {
+                score = Math.max(score, computeRecordedDeviceTextScore(
+                        normalizedProviderText,
+                        normalizeForMatch(workstationText)));
+            }
+        }
+        return score;
     }
 
     private static int getWorkbenchLinePriority(PatternContainer container, Component displayName,
@@ -1441,6 +1474,7 @@ public final class PatternProviderSyncHelper {
                                              int patternSlotCount,
                                              int usedPatternSlotCount,
                                              int workbenchLinePriority,
+                                             int recordedDeviceScore,
                                              int preferredScore) {}
 
     private static final class AggregatedPatternProvider {
@@ -1454,6 +1488,7 @@ public final class PatternProviderSyncHelper {
         private int patternSlotCount;
         private int usedPatternSlotCount;
         private int workbenchLinePriority;
+        private int recordedDeviceScore;
         private int preferredScore;
         private int representationPriority;
         private final List<PatternContainer> containers = new ArrayList<>();
@@ -1474,6 +1509,7 @@ public final class PatternProviderSyncHelper {
             this.patternSlotCount += provider.patternSlotCount();
             this.usedPatternSlotCount += provider.usedPatternSlotCount();
             this.workbenchLinePriority = Math.max(this.workbenchLinePriority, provider.workbenchLinePriority());
+            this.recordedDeviceScore = Math.max(this.recordedDeviceScore, provider.recordedDeviceScore());
             this.preferredScore = Math.max(this.preferredScore, provider.preferredScore());
             this.useAeButtonStyle |= provider.useAeButtonStyle();
             this.renameable |= provider.renameable();
@@ -1520,6 +1556,10 @@ public final class PatternProviderSyncHelper {
 
         private int preferredScore() {
             return this.preferredScore;
+        }
+
+        private int recordedDeviceScore() {
+            return this.recordedDeviceScore;
         }
 
         private int workbenchLinePriority() {
