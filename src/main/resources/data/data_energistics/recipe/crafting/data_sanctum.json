@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["DCD", "FRF", "IPI"],
+	"key": {
+		"C": {
+			"tag": "c:gems/data_crystal"
+		},
+		"D": {
+			"item": "data_energistics:data_processor"
+		},
+		"F": {
+			"item": "data_energistics:data_framework"
+		},
+		"I": {
+			"tag": "c:ingots/iron"
+		},
+		"P": {
+			"item": "ae2:engineering_processor"
+		},
+		"R": {
+			"item": "data_energistics:data_reassembler"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_sanctum",
+		"count": 1
+	}
+}

@@ -4,7 +4,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
@@ -211,6 +213,21 @@ public class CommonProxy {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
+        event.registerBlock(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                (level, pos, state, blockEntity, context) -> {
+                    if (!(state.getBlock() instanceof DataSanctumBlock)) {
+                        return null;
+                    }
+
+                    if (!DataSanctumBlockEntity.isMainPart(state) && DataSanctumBlockEntity.isAdjacentToMainPart(pos, state)) {
+                        return null;
+                    }
+
+                    DataSanctumBlockEntity sanctum = DataSanctumBlock.getMainBlockEntity(level, pos, state);
+                    return sanctum != null ? sanctum : null;
+                },
+                ModBlocks.DATA_SANCTUM.get());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),

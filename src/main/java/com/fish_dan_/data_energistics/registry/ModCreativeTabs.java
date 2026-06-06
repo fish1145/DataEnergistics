@@ -47,6 +47,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);
+                        output.accept(ModItems.DATA_SANCTUM);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER);
                         output.accept(ModItems.TNT_CONFIGURABLE);
                         output.accept(ModItems.RESIDUAL_DATA_ORE);
