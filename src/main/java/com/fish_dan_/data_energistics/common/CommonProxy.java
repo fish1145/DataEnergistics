@@ -230,6 +230,10 @@ public class CommonProxy {
                 ModBlocks.DATA_SANCTUM.get());
         event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
+                ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getReturnInventory());
+        event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> {
                     var logic = blockEntity.getLogic();

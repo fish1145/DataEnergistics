@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -9,7 +10,6 @@ import net.minecraft.world.inventory.Slot;
 import appeng.api.config.Settings;
 import appeng.api.util.IConfigManager;
 import appeng.core.definitions.AEItems;
-import appeng.helpers.InterfaceLogicHost;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.implementations.SetStockAmountMenu;
@@ -22,17 +22,18 @@ import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DataSanctumInterfaceMenu extends UpgradeableMenu<InterfaceLogicHost> {
+public class DataSanctumInterfaceMenu extends UpgradeableMenu<DataSanctumBlockEntity> {
 
     public static final String ACTION_OPEN_SET_AMOUNT = "setAmount";
     public static final int CONFIG_SLOT_COUNT = 9;
-    public static final int STORAGE_SLOT_COUNT = 27;
+    public static final int STOCK_SLOT_COUNT = 9;
+    public static final int RETURN_SLOT_COUNT = 18;
     public static final SlotSemantic RETURN_ROW_1 = SlotSemantics.register("DATA_SANCTUM_INTERFACE_RETURN_ROW_1", false);
     public static final SlotSemantic RETURN_ROW_2 = SlotSemantics.register("DATA_SANCTUM_INTERFACE_RETURN_ROW_2", false);
 
     private List<Slot> configSlots;
 
-    public DataSanctumInterfaceMenu(int id, Inventory playerInventory, InterfaceLogicHost host) {
+    public DataSanctumInterfaceMenu(int id, Inventory playerInventory, DataSanctumBlockEntity host) {
         super(ModMenus.DATA_SANCTUM_INTERFACE.get(), id, playerInventory, host);
         registerClientAction(ACTION_OPEN_SET_AMOUNT, Integer.class, this::openSetAmountMenu);
     }
@@ -40,14 +41,15 @@ public class DataSanctumInterfaceMenu extends UpgradeableMenu<InterfaceLogicHost
     @Override
     protected void setupInventorySlots() {
         var storage = this.getHost().getInterfaceLogic().getStorage().createMenuWrapper();
-        for (int i = 0; i < Math.min(CONFIG_SLOT_COUNT, storage.size()); i++) {
+        var returnInventory = this.getHost().getReturnInventory().createMenuWrapper();
+        for (int i = 0; i < Math.min(STOCK_SLOT_COUNT, storage.size()); i++) {
             this.addSlot(new AppEngSlot(storage, i), SlotSemantics.STORAGE);
         }
-        for (int i = CONFIG_SLOT_COUNT; i < Math.min(CONFIG_SLOT_COUNT * 2, storage.size()); i++) {
-            this.addSlot(new AppEngSlot(storage, i), RETURN_ROW_1);
+        for (int i = 0; i < Math.min(CONFIG_SLOT_COUNT, returnInventory.size()); i++) {
+            this.addSlot(new AppEngSlot(returnInventory, i), RETURN_ROW_1);
         }
-        for (int i = CONFIG_SLOT_COUNT * 2; i < Math.min(STORAGE_SLOT_COUNT, storage.size()); i++) {
-            this.addSlot(new AppEngSlot(storage, i), RETURN_ROW_2);
+        for (int i = CONFIG_SLOT_COUNT; i < Math.min(RETURN_SLOT_COUNT, returnInventory.size()); i++) {
+            this.addSlot(new AppEngSlot(returnInventory, i), RETURN_ROW_2);
         }
     }
 

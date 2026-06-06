@@ -32,8 +32,6 @@ public class DataSanctumInterfaceScreen extends UpgradeableScreen<DataSanctumInt
         this.fuzzyMode = new ServerSettingToggleButton<>(Settings.FUZZY_MODE, FuzzyMode.IGNORE_ALL);
         addToLeftToolbar(this.fuzzyMode);
 
-        widgets.addOpenPriorityButton();
-
         for (int i = 0; i < menu.getConfigSlots().size(); i++) {
             var button = new SetAmountButton(btn -> {
                 int index = amountButtons.indexOf(btn);

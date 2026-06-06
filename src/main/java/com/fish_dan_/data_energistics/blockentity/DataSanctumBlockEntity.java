@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
+import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
+import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -35,6 +38,7 @@ import appeng.core.definitions.AEItems;
 import appeng.helpers.InterfaceLogic;
 import appeng.helpers.InterfaceLogicHost;
 import appeng.me.helpers.BlockEntityNodeListener;
+import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
@@ -49,7 +53,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public static final double BASE_ENERGY_CAPACITY = 500_000.0D;
     public static final int ENERGY_UPGRADE_SLOTS = 3;
     private static final String ENERGY_UPGRADES_TAG = "energy_upgrades";
-
+    private static final String RETURN_INVENTORY_TAG = "returnInv";
     private static final IGridNodeListener<DataSanctumBlockEntity> NODE_LISTENER = new BlockEntityNodeListener<>() {
 
         @Override
@@ -60,7 +64,15 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     private boolean lastLinked;
     private int lastMode;
-    private final InterfaceLogic interfaceLogic = new InterfaceLogic(this.getMainNode(), this, ModBlocks.DATA_SANCTUM.get().asItem(), 27);
+    private final InterfaceLogic interfaceLogic = new InterfaceLogic(
+            this.getMainNode(),
+            this,
+            ModBlocks.DATA_SANCTUM.get().asItem(),
+            DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE);
+    private final DataSanctumReturnInventory returnInventory = new DataSanctumReturnInventory(
+            DataSanctumInterfaceConstants.RETURN_SLOTS_PER_PAGE,
+            this::onReturnInventoryChanged);
+    private final MachineSource actionSource = new MachineSource(this);
     private final IUpgradeInventory energyUpgrades = UpgradeInventories.forMachine(
             ModBlocks.DATA_SANCTUM.get(), ENERGY_UPGRADE_SLOTS, this::onEnergyUpgradesChanged);
     private final IInWorldGridNodeHost networkPortHost = new NetworkPortNodeHost(this);
@@ -73,6 +85,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.setInternalMaxPower(computeMaxPower(this.energyUpgrades));
         this.setInternalPublicPowerStorage(true);
         this.setInternalPowerFlow(AccessRestriction.READ_WRITE);
+        installInterfaceInventories();
     }
 
     @Override
@@ -86,6 +99,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         updateVisualState(this.getMainNode().isOnline(), this.lastMode);
+        injectReturnInventory();
     }
 
     public void setMode(int mode) {
@@ -109,6 +123,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         this.interfaceLogic.writeToNBT(data, registries);
+        this.returnInventory.writeToChildTag(data, RETURN_INVENTORY_TAG, registries);
         this.energyUpgrades.writeToNBT(data, ENERGY_UPGRADES_TAG, registries);
     }
 
@@ -116,6 +131,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         this.interfaceLogic.readFromNBT(data, registries);
+        this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
         this.energyUpgrades.readFromNBT(data, ENERGY_UPGRADES_TAG, registries);
         this.setInternalMaxPower(computeMaxPower(this.energyUpgrades));
         clampStoredPowerToCapacity();
@@ -155,13 +171,17 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         return this.energyUpgrades;
     }
 
+    public IInWorldGridNodeHost createNetworkPortHost() {
+        return this.networkPortHost;
+    }
+
+    public DataSanctumReturnInventory getReturnInventory() {
+        return this.returnInventory;
+    }
+
     @Override
     public InternalInventory getInternalInventory() {
         return InternalInventory.empty();
-    }
-
-    public IInWorldGridNodeHost createNetworkPortHost() {
-        return this.networkPortHost;
     }
 
     @Override
@@ -183,6 +203,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
         this.interfaceLogic.addDrops(drops);
+        this.returnInventory.addDrops(drops, level, pos);
         for (ItemStack stack : this.energyUpgrades) {
             if (!stack.isEmpty()) {
                 drops.add(stack.copy());
@@ -194,6 +215,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public void clearContent() {
         super.clearContent();
         this.interfaceLogic.clearContent();
+        this.returnInventory.clear();
         this.energyUpgrades.clear();
     }
 
@@ -203,6 +225,32 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return this.energyUpgrades;
         }
         return super.getSubInventory(id);
+    }
+
+    private void installInterfaceInventories() {
+        var config = DataSanctumInterfaceInventory.config(
+                DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE,
+                this.interfaceLogic::onConfigRowChanged);
+        var storage = DataSanctumInterfaceInventory.storage(
+                DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE,
+                this.interfaceLogic::isAllowedInStorageSlot,
+                this.interfaceLogic::onStorageChanged);
+        this.interfaceLogic.config = config;
+        this.interfaceLogic.storage = storage;
+    }
+
+    private void onReturnInventoryChanged() {
+        this.getMainNode().ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
+        this.saveChanges();
+    }
+
+    private void injectReturnInventory() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || this.returnInventory.isEmpty()) {
+            return;
+        }
+
+        this.returnInventory.injectIntoNetwork(node.getGrid().getStorageService().getInventory(), this.actionSource);
     }
 
     public double extractOperationPower(double amount, Actionable mode) {
