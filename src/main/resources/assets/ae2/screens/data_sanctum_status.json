@@ -1,41 +1,57 @@
 {
 	"$schema": "schema.json",
-	"includes": ["common/common.json"],
+	"includes": ["common/common.json", "common/player_inventory.json"],
 	"background": {
-		"texture": "guis/data_teleport_anchor.png",
-		"srcRect": [0, 0, 176, 183]
+		"texture": "guis/data_sanctum_status.png",
+		"srcRect": [0, 0, 176, 211]
+	},
+	"slots": {
+		"PLAYER_INVENTORY": {
+			"left": 7,
+			"top": 128,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 7,
+			"top": 186,
+			"grid": "HORIZONTAL"
+		}
 	},
 	"text": {
 		"dialog_title": {
 			"position": {
-				"left": 88,
+				"left": 8,
 				"top": 6
 			},
-			"align": "CENTER"
+			"maxWidth": 150
 		},
 		"online": {
 			"position": {
-				"left": 22,
+				"left": 18,
 				"top": 34
-			}
+			},
+			"maxWidth": 140
 		},
 		"active": {
 			"position": {
-				"left": 22,
+				"left": 18,
 				"top": 50
-			}
+			},
+			"maxWidth": 140
 		},
 		"mode": {
 			"position": {
-				"left": 22,
+				"left": 18,
 				"top": 66
-			}
+			},
+			"maxWidth": 140
 		},
 		"network_port": {
 			"position": {
-				"left": 22,
+				"left": 18,
 				"top": 82
-			}
+			},
+			"maxWidth": 140
 		}
 	}
 }

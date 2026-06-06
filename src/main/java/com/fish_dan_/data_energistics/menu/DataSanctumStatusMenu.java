@@ -31,6 +31,7 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
     public DataSanctumStatusMenu(int id, Inventory playerInventory, @Nullable DataSanctumBlockEntity host) {
         super(ModMenus.DATA_SANCTUM_STATUS.get(), id, playerInventory, host);
         this.host = host;
+        createPlayerInventorySlots(playerInventory);
     }
 
     @Override

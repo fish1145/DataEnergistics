@@ -19,8 +19,7 @@ public class DataSanctumStatusScreen extends AEBaseScreen<DataSanctumStatusMenu>
     protected void updateBeforeRender() {
         super.updateBeforeRender();
 
-        setTextContent("dialog_title", Component.translatable(
-                this.menu.online ? "screen.data_energistics.data_sanctum_status.title.online" : "screen.data_energistics.data_sanctum_status.title.offline"));
+        setTextContent("dialog_title", Component.translatable("block.data_energistics.data_sanctum"));
         setTextContent("online", Component.translatable(
                 this.menu.online ? "screen.data_energistics.status.online" : "screen.data_energistics.status.offline"));
         setTextContent("active", Component.translatable(
