@@ -38,6 +38,7 @@ import appeng.api.util.IConfigManager;
 import appeng.api.util.IConfigManagerBuilder;
 import appeng.core.definitions.AEItems;
 import appeng.items.parts.PartModels;
+import appeng.me.helpers.IGridConnectedBlockEntity;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.parts.PartModel;
@@ -292,11 +293,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
     @Nullable
     private GridTickTarget getGridTickTarget(BlockEntity blockEntity) {
-        if (!(blockEntity instanceof IActionHost actionHost)) {
-            return null;
-        }
-
-        IGridNode node = actionHost.getActionableNode();
+        IGridNode node = this.getGridNode(blockEntity);
         if (node == null || node.getGrid() == null) {
             return null;
         }
@@ -307,6 +304,22 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
         }
 
         return new GridTickTarget(node, tickable);
+    }
+
+    @Nullable
+    private IGridNode getGridNode(BlockEntity blockEntity) {
+        if (blockEntity instanceof IActionHost actionHost) {
+            IGridNode node = actionHost.getActionableNode();
+            if (node != null) {
+                return node;
+            }
+        }
+
+        if (blockEntity instanceof IGridConnectedBlockEntity gridConnectedBlockEntity) {
+            return gridConnectedBlockEntity.getMainNode().getNode();
+        }
+
+        return null;
     }
 
     @Nullable
@@ -369,6 +382,14 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private void performGridTicks(BlockEntity blockEntity, GridTickTarget gridTickTarget, int speed) {
+        if (gridTickTarget.tickable().getTickingRequest(gridTickTarget.node()).isSleeping()) {
+            var grid = gridTickTarget.node().getGrid();
+            if (grid != null) {
+                grid.getTickManager().sleepDevice(gridTickTarget.node());
+            }
+            return;
+        }
+
         for (int i = 0; i < speed - 1; i++) {
             try {
                 TickRateModulation modulation = gridTickTarget.tickable().tickingRequest(gridTickTarget.node(), 1);
