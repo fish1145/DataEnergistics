@@ -162,7 +162,7 @@ public class DataSanctumBlock extends AEBaseBlock implements EntityBlock {
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         BlockPos mainPos = DataSanctumBlockEntity.getMainPos(pos, state);
         if (!level.isClientSide() && level.getBlockEntity(mainPos) instanceof DataSanctumBlockEntity sanctum) {
-            if (DataSanctumBlockEntity.isScreenPart(state) && isScreenHit(state, pos, hitResult) && player instanceof ServerPlayer serverPlayer) {
+            if (DataSanctumBlockEntity.isScreenPart(state) && player instanceof ServerPlayer serverPlayer) {
                 serverPlayer.openMenu(new SimpleMenuProvider(
                         (containerId, playerInventory, menuPlayer) -> new DataSanctumStatusMenu(
                                 containerId,
@@ -329,20 +329,6 @@ public class DataSanctumBlock extends AEBaseBlock implements EntityBlock {
         return shapesByFacing;
     }
 
-    private static boolean isScreenHit(BlockState state, BlockPos pos, BlockHitResult hitResult) {
-        BlockPos mainPos = DataSanctumBlockEntity.getMainPos(pos, state);
-        double worldX = hitResult.getLocation().x() - mainPos.getX();
-        double worldY = hitResult.getLocation().y() - mainPos.getY();
-        double worldZ = hitResult.getLocation().z() - mainPos.getZ();
-        double[] modelPos = unrotatePointToNorth(worldX, worldZ, state.getValue(FACING));
-        for (ModelBox box : SCREEN_INTERACTION_BOXES) {
-            if (box.contains(modelPos[0], worldY, modelPos[1])) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static VoxelShape addBoxToShape(VoxelShape shape, ModelBox box, Direction facing, BlockPos partOffset) {
         Bounds rotated = rotateModelBoxFromNorth(box, facing);
         double minX = (rotated.minX() - partOffset.getX()) * 16.0D;
@@ -432,27 +418,11 @@ public class DataSanctumBlock extends AEBaseBlock implements EntityBlock {
         };
     }
 
-    private static double[] unrotatePointToNorth(double x, double z, Direction facing) {
-        double localX = x - 0.5D;
-        double localZ = z - 0.5D;
-        return switch (facing) {
-            case EAST -> new double[] { 0.5D + localZ, 0.5D - localX };
-            case SOUTH -> new double[] { 0.5D - localX, 0.5D - localZ };
-            case WEST -> new double[] { 0.5D - localZ, 0.5D + localX };
-            default -> new double[] { x, z };
-        };
-    }
-
     private static ModelBox modelBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
         return new ModelBox(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    private record ModelBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-
-        private boolean contains(double x, double y, double z) {
-            return x >= this.minX && x <= this.maxX && y >= this.minY && y <= this.maxY && z >= this.minZ && z <= this.maxZ;
-        }
-    }
+    private record ModelBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {}
 
     private record Bounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {}
 
