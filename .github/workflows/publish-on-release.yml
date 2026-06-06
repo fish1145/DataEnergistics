@@ -23,10 +23,9 @@ jobs:
         id: changelog
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          CONFIG: ${{ github.ref_name }}
         uses: mikepenz/release-changelog-builder-action@v5
         with:
-          configuration: './.github/json/config${{ env.CONFIG }}.json'
+          configuration: './.github/json/config-1.21.json'
           ignorePreReleases: true
           fetchViaCommits: true
           failOnError: true
@@ -34,7 +33,10 @@ jobs:
   publish-21:
     name: 1.21.1
     needs: [ meta ]
-    if: ${{ contains(github.ref_name, '1.21') || !contains(github.ref_name, '1.20.1') }}
+    if: ${{ contains(github.ref_name, '1.21') }}
+    permissions:
+      contents: write
+      pull-requests: write
     secrets: inherit
     uses: ./.github/workflows/publish.yml
     with:

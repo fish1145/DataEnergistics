@@ -11,7 +11,7 @@ on:
         required: true
         type: string
       version:
-        description: 'Version identifier; 1.20.1 or 1.21'
+        description: 'Version identifier; 1.21'
         required: true
         type: string
       release-body:
@@ -124,13 +124,13 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts-${{ inputs.tag-name }}
+          name: build-artifacts-${{ inputs.version }}
       - name: Publish Mod
         env:
-          MC_VERSION: ${{ inputs.version == '1.21' && '1.21.1' || '1.20.1' }}
-          LOADER: ${{ inputs.version == '1.21' && 'neoforge' || 'forge' }}
-          JAVA: ${{ inputs.version == '1.21' && '21' || '17' }}
-          VERSION_TYPE: ${{ inputs.version == '1.21' && 'alpha' || 'beta' }}
+          MC_VERSION: '1.21.1'
+          LOADER: neoforge
+          JAVA: '21'
+          VERSION_TYPE: alpha
         uses: Kir-Antipov/mc-publish@v3.3.0
         with:
           curseforge-id: 1565514
