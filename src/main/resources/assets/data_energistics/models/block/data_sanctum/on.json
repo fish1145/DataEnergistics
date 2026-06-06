@@ -1,8 +1,9 @@
 {
 	"loader": "neoforge:obj",
 	"parent": "block/block",
-	"model": "data_energistics:models/block/data_sanctum/model_0.obj",
+	"model": "data_energistics:models/block/data_sanctum/on.obj",
 	"flip_v": true,
+	"automatic_culling": false,
 	"render_type": "cutout",
 	"shade_quads": true,
 	"emissive_ambient": false,

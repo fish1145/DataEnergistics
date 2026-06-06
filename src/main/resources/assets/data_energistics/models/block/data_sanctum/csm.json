@@ -3,6 +3,7 @@
 	"parent": "block/block",
 	"model": "data_energistics:models/block/data_sanctum/csm.obj",
 	"flip_v": true,
+	"automatic_culling": false,
 	"render_type": "translucent",
 	"shade_quads": true,
 	"emissive_ambient": false,
