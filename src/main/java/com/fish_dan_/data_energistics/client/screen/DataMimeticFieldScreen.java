@@ -29,6 +29,7 @@ import java.util.List;
 public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMenu> {
 
     private final DataExtractorToggleButton redstoneControlButton;
+    private final DataExtractorToggleButton autoPullKeyInputButton;
     private final DataMimeticFieldOutputRoutingButton dropRoutingButton;
     private final OutputSideActionButton outputSideButton;
     private final ProgressBar powerBar;
@@ -43,6 +44,15 @@ public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMe
                 "button.data_energistics.redstone_control.disabled",
                 this.menu::sendSetRedstoneControlled);
         this.addToLeftToolbar(this.redstoneControlButton);
+
+        this.autoPullKeyInputButton = new DataExtractorToggleButton(
+                Icon.AUTO_EXPORT_ON,
+                Icon.AUTO_EXPORT_OFF,
+                "button.data_energistics.data_mimetic_field.auto_pull_key_input",
+                "button.data_energistics.data_mimetic_field.auto_pull_key_input.enabled",
+                "button.data_energistics.data_mimetic_field.auto_pull_key_input.disabled",
+                this.menu::sendSetAutoPullKeyInput);
+        this.addToLeftToolbar(this.autoPullKeyInputButton);
 
         this.dropRoutingButton = new DataMimeticFieldOutputRoutingButton(this.menu::sendSetDropRoutingMode);
         this.addToLeftToolbar(this.dropRoutingButton);
@@ -70,6 +80,7 @@ public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMe
     protected void updateBeforeRender() {
         super.updateBeforeRender();
         this.redstoneControlButton.setState(this.menu.redstoneControlled);
+        this.autoPullKeyInputButton.setState(this.menu.autoPullKeyInput);
         this.dropRoutingButton.setMode(this.menu.getDropRoutingMode());
         this.outputSideButton.setVisibility(this.menu.getDropRoutingMode() == DataExtractorDropRoutingMode.CONTAINER);
         this.powerBar.visible = this.menu.getMaxProgress() > 0;

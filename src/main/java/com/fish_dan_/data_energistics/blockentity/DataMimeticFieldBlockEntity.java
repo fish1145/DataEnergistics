@@ -101,6 +101,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final int UPGRADE_SLOTS = 4;
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
+    private static final String AUTO_PULL_KEY_INPUT_TAG = "auto_pull_key_input";
     private static final String DROP_ROUTING_MODE_TAG = "drop_routing_mode";
     private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String KEY_INPUT_TAG = "key_input";
@@ -112,6 +113,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
+    private boolean autoPullKeyInput;
     private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
     private int workTicks;
     private int hiddenBufferFlushCooldown;
@@ -186,6 +188,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         this.hiddenBuffer.readFromNBT(data, HIDDEN_BUFFER_TAG, registries);
         this.keyInputStack = data.contains(KEY_INPUT_TAG) ? GenericStack.readTag(registries, data.getCompound(KEY_INPUT_TAG)) : null;
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
+        this.autoPullKeyInput = data.getBoolean(AUTO_PULL_KEY_INPUT_TAG);
         this.dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(data.getInt(DROP_ROUTING_MODE_TAG));
         this.outputSides.clear();
         if (data.contains(OUTPUT_SIDES_TAG)) {
@@ -214,6 +217,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             data.put(KEY_INPUT_TAG, GenericStack.writeTag(registries, this.keyInputStack));
         }
         data.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
+        data.putBoolean(AUTO_PULL_KEY_INPUT_TAG, this.autoPullKeyInput);
         data.putInt(DROP_ROUTING_MODE_TAG, this.dropRoutingMode.ordinal());
         ListTag sides = new ListTag();
         for (Direction side : this.outputSides) {
@@ -284,7 +288,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         updatePowerUsageIfNeeded();
         tickHiddenBufferFlush();
         refillEnergyCache();
-        refillKeyFromNetwork();
+        if (this.autoPullKeyInput) {
+            refillKeyFromNetwork();
+        }
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
             resetWorkProgress();
             updateOnlineState();
@@ -337,6 +343,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         return this.redstoneControlled;
     }
 
+    public boolean isAutoPullKeyInput() {
+        return this.autoPullKeyInput;
+    }
+
     public DataExtractorDropRoutingMode getDropRoutingMode() {
         return this.dropRoutingMode;
     }
@@ -359,6 +369,17 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         updatePowerUsage();
         this.markForClientUpdate();
         return this.redstoneControlled;
+    }
+
+    public boolean setAutoPullKeyInput(boolean enabled) {
+        if (this.autoPullKeyInput == enabled) {
+            return this.autoPullKeyInput;
+        }
+
+        this.autoPullKeyInput = enabled;
+        this.setChanged();
+        this.markForClientUpdate();
+        return this.autoPullKeyInput;
     }
 
     public DataExtractorDropRoutingMode setDropRoutingMode(DataExtractorDropRoutingMode mode) {

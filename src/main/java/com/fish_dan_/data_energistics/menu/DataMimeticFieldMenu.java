@@ -26,6 +26,7 @@ import java.util.List;
 public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockEntity> implements IOptionalSlotHost, IProgressProvider {
 
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
+    private static final String ACTION_SET_AUTO_PULL_KEY_INPUT = "set_auto_pull_key_input";
     private static final String ACTION_SET_DROP_ROUTING_MODE = "set_drop_routing_mode";
     private static final String ACTION_SET_OUTPUT_SIDE = "set_output_side";
     public static final SlotSemantic EXTRA_STORAGE = SlotSemantics.register("DATA_MIMETIC_FIELD_EXTRA", false);
@@ -49,11 +50,14 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
     public int workProgress;
     @GuiSync(787)
     public int workMaxProgress;
+    @GuiSync(788)
+    public boolean autoPullKeyInput;
     private int lastEnabledCapacitySlots = -1;
 
     public DataMimeticFieldMenu(int id, Inventory playerInventory, DataMimeticFieldBlockEntity host) {
         super(ModMenus.DATA_MIMETIC_FIELD.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_REDSTONE_CONTROL, Boolean.class, this::setRedstoneControlled);
+        registerClientAction(ACTION_SET_AUTO_PULL_KEY_INPUT, Boolean.class, this::setAutoPullKeyInput);
         registerClientAction(ACTION_SET_DROP_ROUTING_MODE, Integer.class, this::setDropRoutingMode);
         registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
     }
@@ -76,6 +80,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
             returnOverflowCarriersToPlayerIfNeeded();
             this.online = this.getHost().isOnline();
             this.redstoneControlled = this.getHost().isRedstoneControlled();
+            this.autoPullKeyInput = this.getHost().isAutoPullKeyInput();
             this.currentPower = (int) Math.round(this.getHost().getAECurrentPower());
             this.maxPower = (int) Math.round(this.getHost().getAEMaxPower());
             this.dropRoutingModeOrdinal = this.getHost().getDropRoutingMode().ordinal();
@@ -99,6 +104,10 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
     public void sendSetRedstoneControlled(boolean enabled) {
         sendClientAction(ACTION_SET_REDSTONE_CONTROL, enabled);
+    }
+
+    public void sendSetAutoPullKeyInput(boolean enabled) {
+        sendClientAction(ACTION_SET_AUTO_PULL_KEY_INPUT, enabled);
     }
 
     public void sendSetDropRoutingMode(DataExtractorDropRoutingMode mode) {
@@ -143,6 +152,15 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
         }
 
         this.redstoneControlled = this.getHost().setRedstoneControlled(enabled);
+        broadcastChanges();
+    }
+
+    private void setAutoPullKeyInput(Boolean enabled) {
+        if (enabled == null || this.getHost() == null) {
+            return;
+        }
+
+        this.autoPullKeyInput = this.getHost().setAutoPullKeyInput(enabled);
         broadcastChanges();
     }
 
