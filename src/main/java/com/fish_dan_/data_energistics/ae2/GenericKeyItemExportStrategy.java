@@ -31,12 +31,10 @@ import java.util.Map;
 public class GenericKeyItemExportStrategy implements StackExportStrategy {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final long LOG_INTERVAL_MS = 2000L;
 
     private final AEKeyType keyType;
     private final BlockCapabilityCache<GenericInternalInventory, Direction> genericInventoryCache;
     private final BlockCapabilityCache<IItemHandler, Direction> cache;
-    private long nextLogTime;
 
     public GenericKeyItemExportStrategy(AEKeyType keyType, ServerLevel level, BlockPos fromPos, Direction fromSide) {
         this.keyType = keyType;
@@ -144,32 +142,11 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
     private long insertIntoTarget(AEKey what, long amount, Actionable mode) {
         GenericInternalInventory genericInventory = this.genericInventoryCache.getCapability();
         if (genericInventory != null && genericInventory.isSupportedType(what)) {
-            long inserted = insert(genericInventory, what, amount, mode);
-            logAttempt("generic", what, amount, mode, inserted);
-            return inserted;
+            return insert(genericInventory, what, amount, mode);
         }
 
         IItemHandler handler = this.cache.getCapability();
-        long inserted = handler == null ? 0L : insert(handler, what, amount, mode);
-        logAttempt(handler == null ? "none" : "item", what, amount, mode, inserted);
-        return inserted;
-    }
-
-    private void logAttempt(String path, AEKey what, long amount, Actionable mode, long inserted) {
-        long now = System.currentTimeMillis();
-        if (now < this.nextLogTime) {
-            return;
-        }
-
-        this.nextLogTime = now + LOG_INTERVAL_MS;
-        LOGGER.info(
-                "[DE depot export] type={} key={} path={} mode={} requested={} inserted={}",
-                this.keyType,
-                what,
-                path,
-                mode,
-                amount,
-                inserted);
+        return handler == null ? 0L : insert(handler, what, amount, mode);
     }
 
     private static long insert(GenericInternalInventory inventory, AEKey what, long amount, Actionable mode) {

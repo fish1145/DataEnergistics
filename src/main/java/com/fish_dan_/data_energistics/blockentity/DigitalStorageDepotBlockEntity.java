@@ -58,10 +58,8 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
-import com.mojang.logging.LogUtils;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -69,8 +67,6 @@ import java.util.List;
 import java.util.Set;
 
 public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity implements InternalInventoryHost, IUpgradeableObject, IPriorityHost {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static final int STORAGE_COLUMNS = 7;
     public static final int STORAGE_ROWS = 3;
@@ -130,7 +126,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
-    private long nextKeyInsertLogTime;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -1275,7 +1270,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 keyStacks[slot] = new GenericStack(what, currentAmount + inserted);
                 syncKeyMenusFromStacks();
                 onChange();
-                logExternalKeyInsert(slot, what, inserted, currentAmount + inserted);
             }
             return inserted;
         }
@@ -1349,22 +1343,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             markForClientUpdate();
             requestStorageUpdate();
         }
-    }
-
-    private void logExternalKeyInsert(int slot, AEKey what, long inserted, long total) {
-        long now = System.currentTimeMillis();
-        if (now < this.nextKeyInsertLogTime) {
-            return;
-        }
-
-        this.nextKeyInsertLogTime = now + 2000L;
-        LOGGER.info(
-                "[DE depot key input] pos={} slot={} key={} inserted={} total={}",
-                this.worldPosition,
-                slot,
-                what,
-                inserted,
-                total);
     }
 
     private final class DepotItemInventory extends AppEngInternalInventory {
