@@ -1,0 +1,155 @@
+{
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/data_sanctum_interface.png",
+		"srcRect": [0, 0, 176, 232]
+	},
+	"slots": {
+		"CONFIG": {
+			"left": 7,
+			"top": 54,
+			"grid": "HORIZONTAL"
+		},
+		"STORAGE": {
+			"left": 7,
+			"top": 72,
+			"grid": "HORIZONTAL"
+		},
+		"DATA_SANCTUM_INTERFACE_RETURN_ROW_1": {
+			"left": 7,
+			"top": 102,
+			"grid": "HORIZONTAL"
+		},
+		"DATA_SANCTUM_INTERFACE_RETURN_ROW_2": {
+			"left": 7,
+			"top": 120,
+			"grid": "HORIZONTAL"
+		},
+		"UPGRADE": {
+			"left": 152,
+			"top": 14,
+			"grid": "VERTICAL"
+		},
+		"PLAYER_INVENTORY": {
+			"left": 7,
+			"top": 156,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 7,
+			"top": 214,
+			"grid": "HORIZONTAL"
+		},
+		"TOOLBOX": {
+			"right": -20,
+			"bottom": 226,
+			"grid": "BREAK_AFTER_3COLS"
+		}
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "block.data_energistics.data_sanctum"
+			},
+			"position": {
+				"left": 8,
+				"top": 6
+			}
+		},
+		"config_title": {
+			"text": {
+				"translate": "screen.data_energistics.data_sanctum_interface.config"
+			},
+			"position": {
+				"left": 8,
+				"top": 26
+			}
+		},
+		"return_title": {
+			"text": {
+				"translate": "screen.data_energistics.data_sanctum_interface.return_slots"
+			},
+			"position": {
+				"left": 8,
+				"top": 91
+			}
+		}
+	},
+	"widgets": {
+		"openPriority": {
+			"left": 152,
+			"top": -5,
+			"width": 20,
+			"height": 20
+		},
+		"amtButton1": {
+			"left": 7,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton2": {
+			"left": 25,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton3": {
+			"left": 43,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton4": {
+			"left": 61,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton5": {
+			"left": 79,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton6": {
+			"left": 97,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton7": {
+			"left": 115,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton8": {
+			"left": 133,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"amtButton9": {
+			"left": 151,
+			"top": 36,
+			"width": 16,
+			"height": 16
+		},
+		"toolbox": {
+			"right": -19,
+			"bottom": 232,
+			"width": 59,
+			"height": 66
+		},
+		"upgrades": {
+			"left": 174,
+			"top": 0
+		}
+	}
+}

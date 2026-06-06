@@ -224,7 +224,8 @@ public class CommonProxy {
                         return null;
                     }
 
-                    return DataSanctumBlock.getMainBlockEntity(level, pos, state);
+                    DataSanctumBlockEntity sanctum = DataSanctumBlock.getMainBlockEntity(level, pos, state);
+                    return sanctum != null ? sanctum.createNetworkPortHost() : null;
                 },
                 ModBlocks.DATA_SANCTUM.get());
         event.registerBlockEntity(

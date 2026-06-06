@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
+import com.fish_dan_.data_energistics.menu.DataSanctumInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
@@ -83,6 +84,10 @@ public final class ModMenus {
         DataSanctumBlockEntity sanctum = blockEntity instanceof DataSanctumBlockEntity host ? host : null;
         return new DataSanctumStatusMenu(id, playerInventory, sanctum);
     }));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataSanctumInterfaceMenu>> DATA_SANCTUM_INTERFACE = MENUS.register("data_sanctum_interface", () -> MenuTypeBuilder
+            .create(DataSanctumInterfaceMenu::new, DataSanctumBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_sanctum_interface")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER = MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
             .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderHost.class)

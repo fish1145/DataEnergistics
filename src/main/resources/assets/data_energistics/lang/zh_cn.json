@@ -304,6 +304,8 @@
 	"block.data_energistics.fish_dan_": "Fish_Dan_ 玩偶",
 	"item.data_energistics.qiuyeqaq2024": "QiuYeQAQ2024 玩偶",
 	"block.data_energistics.qiuyeqaq2024": "QiuYeQAQ2024 玩偶",
+	"screen.data_energistics.data_sanctum_interface.config": "配置",
+	"screen.data_energistics.data_sanctum_interface.return_slots": "返回槽",
 	"block.data_energistics.data_sanctum": "维度解离总站",
 	"item.data_energistics.data_sanctum": "维度解离总站"
 }

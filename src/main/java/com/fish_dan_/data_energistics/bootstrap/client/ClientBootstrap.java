@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
+import com.fish_dan_.data_energistics.client.screen.DataSanctumInterfaceScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSanctumStatusScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
@@ -154,6 +155,7 @@ public final class ClientBootstrap {
             InitScreens.register(event, ModMenus.DIGITAL_STORAGE_DEPOT.get(), DigitalStorageDepotScreen::new, "/screens/digital_storage_depot.json");
             InitScreens.register(event, ModMenus.DATA_TELEPORT_ANCHOR.get(), DataTeleportAnchorScreen::new, "/screens/data_teleport_anchor.json");
             InitScreens.register(event, ModMenus.DATA_SANCTUM_STATUS.get(), DataSanctumStatusScreen::new, "/screens/data_sanctum_status.json");
+            InitScreens.register(event, ModMenus.DATA_SANCTUM_INTERFACE.get(), DataSanctumInterfaceScreen::new, "/screens/data_sanctum_interface.json");
             InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");
