@@ -381,7 +381,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
             }
             if (data != null && registries != null) {
                 CompoundTag tag = data.toLegacyTag(registries);
-                this.terminalData = data.terminalData().copy();
+                this.terminalData = tag.copy();
                 readAdapterConfigManagers(tag, registries);
                 String importedActive = data.activeTerminal();
                 if (!importedActive.isEmpty()) {
