@@ -36,11 +36,31 @@ public class Config {
             .comment("Maximum FE transferred per tick by a Data Distribution Tower network.")
             .defineInRange("dataDistributionTowerTransferPerTick", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
 
+    private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_ITEM_LIMIT = BUILDER
+            .comment("Maximum stocked item amount per Data Sanctum interface config/stock slot.")
+            .defineInRange("dataSanctumInterfaceItemLimit", 1024 * 8, 1, Integer.MAX_VALUE);
+
+    private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_FLUID_BUCKETS = BUILDER
+            .comment("Maximum stocked fluid buckets per Data Sanctum interface config/stock slot.")
+            .defineInRange("dataSanctumInterfaceFluidBuckets", 64 * 8, 1, Integer.MAX_VALUE);
+
+    private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_RETURN_ITEM_LIMIT = BUILDER
+            .comment("Maximum item amount per Data Sanctum interface return slot.")
+            .defineInRange("dataSanctumInterfaceReturnItemLimit", 1024 * 8 * 8, 1, Integer.MAX_VALUE);
+
+    private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_RETURN_FLUID_BUCKETS = BUILDER
+            .comment("Maximum fluid buckets per Data Sanctum interface return slot.")
+            .defineInRange("dataSanctumInterfaceReturnFluidBuckets", 64 * 8 * 8, 1, Integer.MAX_VALUE);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static int dataRipperBaseCost;
     public static int dataDistributionTowerRange;
     public static int dataDistributionTowerTransferPerTick;
+    public static int dataSanctumInterfaceItemLimit;
+    public static int dataSanctumInterfaceFluidBuckets;
+    public static int dataSanctumInterfaceReturnItemLimit;
+    public static int dataSanctumInterfaceReturnFluidBuckets;
     public static List<String> dataRipperBlacklist;
     public static List<String> dataRipperMultipliers;
     public static List<Pattern> dataRipperBlacklistCompiled = List.of();
@@ -51,6 +71,10 @@ public class Config {
         dataRipperBaseCost = DATA_RIPPER_BASE_COST.get();
         dataDistributionTowerRange = DATA_DISTRIBUTION_TOWER_RANGE.get();
         dataDistributionTowerTransferPerTick = DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK.get();
+        dataSanctumInterfaceItemLimit = DATA_SANCTUM_INTERFACE_ITEM_LIMIT.get();
+        dataSanctumInterfaceFluidBuckets = DATA_SANCTUM_INTERFACE_FLUID_BUCKETS.get();
+        dataSanctumInterfaceReturnItemLimit = DATA_SANCTUM_INTERFACE_RETURN_ITEM_LIMIT.get();
+        dataSanctumInterfaceReturnFluidBuckets = DATA_SANCTUM_INTERFACE_RETURN_FLUID_BUCKETS.get();
         dataRipperBlacklist = List.copyOf(DATA_RIPPER_BLACKLIST.get().stream().map(String::valueOf).toList());
         dataRipperMultipliers = List.copyOf(DATA_RIPPER_MULTIPLIERS.get().stream().map(String::valueOf).toList());
         dataRipperBlacklistCompiled = DataRipperConfigParsingUtils.precompilePatterns(dataRipperBlacklist);
