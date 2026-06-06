@@ -59,9 +59,11 @@ import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
 import com.mojang.logging.LogUtils;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -93,8 +95,11 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     private final AppEngInternalInventory storage = new DepotItemInventory();
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    @Getter
     private final InternalInventory externalInventory = new FilteredInternalInventory(this.storage, new SlotAccessFilter(true, true));
+    @Getter
     private final IItemHandler externalItemHandler = new DepotExternalItemHandler();
+    @Getter
     private final GenericInternalInventory externalKeyInventory = new DepotExternalKeyInventory();
     private final FluidTank[] fluidTanks = new FluidTank[] {
             new SyncFluidTank(0, FLUID_CAPACITY),
@@ -111,6 +116,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             createKeyMenuInventory(1),
             createKeyMenuInventory(2)
     };
+    @Getter
     private final IFluidHandler externalFluidHandler = new DepotFluidHandler();
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
@@ -119,6 +125,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final IStorageProvider storageProvider = new DepotStorageProvider();
     private boolean exportingToNetwork;
     private int priority;
+    @Getter
     private DataExtractorAutoExportMode autoExportMode = DataExtractorAutoExportMode.OFF;
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
@@ -150,22 +157,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     public AppEngInternalInventory getStorageInventory() {
         return this.storage;
-    }
-
-    public InternalInventory getExternalInventory() {
-        return this.externalInventory;
-    }
-
-    public IItemHandler getExternalItemHandler() {
-        return this.externalItemHandler;
-    }
-
-    public GenericInternalInventory getExternalKeyInventory() {
-        return this.externalKeyInventory;
-    }
-
-    public IFluidHandler getExternalFluidHandler() {
-        return this.externalFluidHandler;
     }
 
     public ConfigMenuInventory getFluidMenuInventory(int slot) {
@@ -231,10 +222,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         this.saveChanges();
         this.markForClientUpdate();
         this.requestStorageUpdate();
-    }
-
-    public DataExtractorAutoExportMode getAutoExportMode() {
-        return this.autoExportMode;
     }
 
     public DataExtractorAutoExportMode setAutoExportMode(DataExtractorAutoExportMode mode) {
@@ -438,9 +425,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         for (int i = 0; i < FLUID_SLOTS; i++) {
             this.fluidTanks[i].setFluid(FluidStack.EMPTY);
         }
-        for (int i = 0; i < KEY_SLOTS; i++) {
-            this.keyStacks[i] = null;
-        }
+        Arrays.fill(this.keyStacks, null);
         syncKeyMenusFromStacks();
     }
 
@@ -1740,15 +1725,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         }
     }
 
-    private static final class SlotAccessFilter implements IAEItemFilter {
-
-        private final boolean allowInsert;
-        private final boolean allowExtract;
-
-        private SlotAccessFilter(boolean allowInsert, boolean allowExtract) {
-            this.allowInsert = allowInsert;
-            this.allowExtract = allowExtract;
-        }
+    private record SlotAccessFilter(boolean allowInsert, boolean allowExtract) implements IAEItemFilter {
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
