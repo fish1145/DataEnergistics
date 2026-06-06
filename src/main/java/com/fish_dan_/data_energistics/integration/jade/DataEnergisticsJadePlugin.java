@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
@@ -27,6 +28,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
     private static final DataRipperReassemblerJadeProvider DATA_RIPPER_REASSEMBLER_PROVIDER = new DataRipperReassemblerJadeProvider();
     private static final DataSolarPanelJadeProvider SOLAR_PANEL_PROVIDER = new DataSolarPanelJadeProvider();
     private static final DataTeleportAnchorJadeProvider TELEPORT_ANCHOR_PROVIDER = new DataTeleportAnchorJadeProvider();
+    private static final DataSanctumJadeProvider DATA_SANCTUM_PROVIDER = new DataSanctumJadeProvider();
 
     @Override
     public void register(IWailaCommonRegistration registration) {
@@ -36,6 +38,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockDataProvider(DATA_RIPPER_REASSEMBLER_PROVIDER, DataRipperReassemblerBlockEntity.class);
         registration.registerBlockDataProvider(SOLAR_PANEL_PROVIDER, DataSolarPanelBlockEntity.class);
         registration.registerBlockDataProvider(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlockEntity.class);
+        registration.registerBlockDataProvider(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
     }
 
     @Override
@@ -46,5 +49,8 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(DATA_RIPPER_REASSEMBLER_PROVIDER, DataRipperReassemblerBlock.class);
         registration.registerBlockComponent(SOLAR_PANEL_PROVIDER, DataSolarPanelBlock.class);
         registration.registerBlockComponent(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlock.class);
+        registration.registerBlockComponent(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
+        registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
+        registration.addConfig(DataSanctumJadeProvider.PART_ID, false);
     }
 }
