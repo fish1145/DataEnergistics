@@ -1,0 +1,19 @@
+{
+	"variants": {
+		"facing=north": {
+			"model": "data_energistics:block/data_sanctum_interface"
+		},
+		"facing=east": {
+			"model": "data_energistics:block/data_sanctum_interface",
+			"y": 90
+		},
+		"facing=south": {
+			"model": "data_energistics:block/data_sanctum_interface",
+			"y": 180
+		},
+		"facing=west": {
+			"model": "data_energistics:block/data_sanctum_interface",
+			"y": 270
+		}
+	}
+}

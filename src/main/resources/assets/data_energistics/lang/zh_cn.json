@@ -317,6 +317,11 @@
 	"block.data_energistics.qiuyeqaq2024": "QiuYeQAQ2024 玩偶",
 	"screen.data_energistics.data_sanctum_interface.config": "配置",
 	"screen.data_energistics.data_sanctum_interface.return_slots": "返回槽",
+	"gui.data_energistics.set_active_pull_sides": "主动抽取面",
+	"gui.data_energistics.set_active_pull_sides.open": "配置主动抽取面",
+	"gui.data_energistics.set_active_pull_sides.clear": "清空主动抽取面",
 	"block.data_energistics.data_sanctum": "维度解离总站",
-	"item.data_energistics.data_sanctum": "维度解离总站"
+	"item.data_energistics.data_sanctum": "维度解离总站",
+	"block.data_energistics.data_sanctum_interface": "维度解离接口",
+	"item.data_energistics.data_sanctum_interface": "维度解离接口"
 }

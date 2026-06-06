@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
+import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
@@ -74,6 +75,11 @@ public final class ModBlocks {
             DataSanctumBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
+
+    public static final DeferredBlock<Block> DATA_SANCTUM_INTERFACE = BLOCKS.registerBlock(
+            "data_sanctum_interface",
+            DataSanctumInterfaceBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",

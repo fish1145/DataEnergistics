@@ -312,6 +312,11 @@
 	"block.data_energistics.qiuyeqaq2024": "QiuYeQAQ2024 Doll",
 	"screen.data_energistics.data_sanctum_interface.config": "Config",
 	"screen.data_energistics.data_sanctum_interface.return_slots": "Return Slots",
+	"gui.data_energistics.set_active_pull_sides": "Active Pull Sides",
+	"gui.data_energistics.set_active_pull_sides.open": "Configure active pull sides",
+	"gui.data_energistics.set_active_pull_sides.clear": "Clear active pull sides",
 	"block.data_energistics.data_sanctum": "维度解离总站",
-	"item.data_energistics.data_sanctum": "维度解离总站"
+	"item.data_energistics.data_sanctum": "维度解离总站",
+	"block.data_energistics.data_sanctum_interface": "Data Sanctum Interface",
+	"item.data_energistics.data_sanctum_interface": "Data Sanctum Interface"
 }

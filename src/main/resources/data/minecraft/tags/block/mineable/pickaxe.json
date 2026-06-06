@@ -20,6 +20,7 @@
 		"data_energistics:medium_data_crystal_bud",
 		"data_energistics:large_data_crystal_bud",
 		"data_energistics:data_crystal_cluster",
-		"data_energistics:data_sanctum"
+		"data_energistics:data_sanctum",
+		"data_energistics:data_sanctum_interface"
 	]
 }

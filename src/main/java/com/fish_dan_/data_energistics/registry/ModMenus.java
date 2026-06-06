@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
@@ -16,6 +17,7 @@ import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
 import com.fish_dan_.data_energistics.menu.DataSanctumInterfaceMenu;
+import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
@@ -88,6 +90,10 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DataSanctumInterfaceMenu>> DATA_SANCTUM_INTERFACE = MENUS.register("data_sanctum_interface", () -> MenuTypeBuilder
             .create(DataSanctumInterfaceMenu::new, DataSanctumBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_sanctum_interface")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataSanctumLargeInterfaceMenu>> DATA_SANCTUM_LARGE_INTERFACE = MENUS.register("data_sanctum_large_interface", () -> MenuTypeBuilder
+            .create(DataSanctumLargeInterfaceMenu::new, DataSanctumInterfaceBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_sanctum_large_interface")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER = MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
             .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderHost.class)

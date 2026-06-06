@@ -12,9 +12,16 @@ import java.util.List;
 
 public class OutputSideActionButton extends IconButton {
 
+    private final String messageKey;
+
     public OutputSideActionButton(Button.OnPress onPress) {
+        this(onPress, "gui.data_energistics.set_output_sides.open");
+    }
+
+    public OutputSideActionButton(Button.OnPress onPress, String messageKey) {
         super(onPress);
-        this.setMessage(Component.translatable("gui.data_energistics.set_output_sides.open"));
+        this.messageKey = messageKey;
+        this.setMessage(Component.translatable(messageKey));
     }
 
     @Override
@@ -35,7 +42,7 @@ public class OutputSideActionButton extends IconButton {
 
     @Override
     public List<Component> getTooltipMessage() {
-        return List.of(Component.translatable("gui.data_energistics.set_output_sides.open"));
+        return List.of(Component.translatable(this.messageKey));
     }
 
     private Blitter getBlitterIcon() {

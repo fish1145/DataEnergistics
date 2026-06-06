@@ -233,6 +233,14 @@ public class CommonProxy {
                 ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getReturnInventory());
         event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getReturnInventory());
+        event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> {
