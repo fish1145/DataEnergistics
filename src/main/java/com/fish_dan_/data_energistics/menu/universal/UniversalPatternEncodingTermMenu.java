@@ -353,7 +353,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void setPatternSourceEnabled(boolean enabled) {
+    public void data_energistics$setPatternSourceEnabled(boolean enabled) {
         if (this.isClientSide()) {
             sendClientAction(ACTION_SET_PATTERN_SOURCE_ENABLED, enabled);
         }

@@ -22,5 +22,5 @@ public interface PatternEncodingSourceAware {
 
     boolean data_energistics$isPatternSourceEnabled();
 
-    void setPatternSourceEnabled(boolean enabled);
+    void data_energistics$setPatternSourceEnabled(boolean enabled);
 }

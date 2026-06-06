@@ -715,7 +715,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return;
         }
 
-        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::setPatternSourceEnabled);
+        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::data_energistics$setPatternSourceEnabled);
         this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
         this.addRenderableWidget(this.patternSourceToggleButton);
     }

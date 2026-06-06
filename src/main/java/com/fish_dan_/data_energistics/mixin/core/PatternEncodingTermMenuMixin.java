@@ -534,7 +534,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         return this.dataEnergistics$patternSourceEnabled;
     }
 
-    @Unique
+    @Override
     public void data_energistics$setPatternSourceEnabled(boolean enabled) {
         if (this.isClientSide()) {
             sendClientAction(DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED, enabled);

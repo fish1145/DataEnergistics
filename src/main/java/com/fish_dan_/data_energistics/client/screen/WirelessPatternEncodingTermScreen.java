@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.PinyinUtil;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
@@ -570,7 +571,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return;
         }
 
-        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::setPatternSourceEnabled);
+        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::data_energistics$setPatternSourceEnabled);
         this.patternSourceToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
         this.addRenderableWidget(this.patternSourceToggleButton);
     }
@@ -675,7 +676,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return providers;
         }
 
-        String query = this.providerSearchBox != null ? this.providerSearchBox.getValue().trim().toLowerCase() : "";
+        String query = PinyinUtil.normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
         if (query.isEmpty()) {
             this.cachedVisibleProviders = providers;
             this.visibleProvidersCacheDirty = false;
@@ -684,9 +685,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
         for (var provider : providers) {
-            String display = provider.displayName().getString().toLowerCase();
-            String iconId = provider.iconItemId().toString().toLowerCase();
-            if (display.contains(query) || iconId.contains(query)) {
+            String source = provider.displayName().getString() + " " + provider.iconItemId();
+            if (PinyinUtil.matchesSearch(source, query)) {
                 filtered.add(provider);
             }
         }
