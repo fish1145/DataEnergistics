@@ -74,7 +74,9 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
             this,
             ModBlocks.DATA_SANCTUM_INTERFACE.get().asItem(),
             DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT);
-    private final DataSanctumReturnInventory returnInventory = new DataSanctumReturnInventory(this::onReturnInventoryChanged);
+    private final DataSanctumReturnInventory returnInventory = new DataSanctumReturnInventory(
+            this::onReturnInventoryChanged,
+            this::getInstalledCapacityCardCount);
     private final MachineSource actionSource = new MachineSource(this);
     private final EnumSet<Direction> activePullSides = EnumSet.noneOf(Direction.class);
 
@@ -167,10 +169,13 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     }
 
     private void installInterfaceInventories() {
-        var config = DataSanctumInterfaceInventory.config(this.interfaceLogic::onConfigRowChanged);
+        var config = DataSanctumInterfaceInventory.config(
+                this.interfaceLogic::onConfigRowChanged,
+                this::getInstalledCapacityCardCount);
         var storage = DataSanctumInterfaceInventory.storage(
                 this.interfaceLogic::isAllowedInStorageSlot,
-                this.interfaceLogic::onStorageChanged);
+                this.interfaceLogic::onStorageChanged,
+                this::getInstalledCapacityCardCount);
         this.interfaceLogic.config = config;
         this.interfaceLogic.storage = storage;
     }

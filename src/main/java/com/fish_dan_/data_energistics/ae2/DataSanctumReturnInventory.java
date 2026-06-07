@@ -20,22 +20,25 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntSupplier;
 
 public class DataSanctumReturnInventory extends ConfigInventory {
 
     private boolean injectingIntoNetwork;
+    private final IntSupplier capacityCardCountSupplier;
 
-    public DataSanctumReturnInventory(@Nullable Runnable listener) {
-        this(DataSanctumInterfaceConstants.RETURN_SLOT_COUNT, listener);
+    public DataSanctumReturnInventory(@Nullable Runnable listener, IntSupplier capacityCardCountSupplier) {
+        this(DataSanctumInterfaceConstants.RETURN_SLOT_COUNT, listener, capacityCardCountSupplier);
     }
 
-    public DataSanctumReturnInventory(int size, @Nullable Runnable listener) {
+    public DataSanctumReturnInventory(int size, @Nullable Runnable listener, IntSupplier capacityCardCountSupplier) {
         super(AEKeyTypes.getAll(),
                 null,
                 GenericStackInv.Mode.STORAGE,
                 size,
                 listener,
                 true);
+        this.capacityCardCountSupplier = capacityCardCountSupplier;
     }
 
     @Override
@@ -50,7 +53,7 @@ public class DataSanctumReturnInventory extends ConfigInventory {
 
     @Override
     public long getMaxAmount(AEKey key) {
-        long capacity = getConfiguredCapacity(key);
+        long capacity = getConfiguredCapacity(key, getCapacityCardCount());
         return capacity <= 0 ? 0 : capacity;
     }
 
@@ -60,7 +63,7 @@ public class DataSanctumReturnInventory extends ConfigInventory {
             if (!isSupportedType(stack.what()) || stack.amount() <= 0) {
                 stack = null;
             } else {
-                long maxAmount = getConfiguredCapacity(stack.what());
+                long maxAmount = getConfiguredCapacity(stack.what(), getCapacityCardCount());
                 if (stack.amount() > maxAmount) {
                     stack = new GenericStack(stack.what(), maxAmount);
                 }
@@ -90,7 +93,7 @@ public class DataSanctumReturnInventory extends ConfigInventory {
             return 0;
         }
 
-        long capacity = getConfiguredCapacity(what);
+        long capacity = getConfiguredCapacity(what, getCapacityCardCount());
         long insertable = Math.min(amount, Math.max(0, capacity - currentAmount));
         if (insertable <= 0) {
             return 0;
@@ -144,10 +147,33 @@ public class DataSanctumReturnInventory extends ConfigInventory {
         }
     }
 
-    private static long getConfiguredCapacity(AEKey key) {
+    private int getCapacityCardCount() {
+        return Math.max(0, Math.min(
+                DataSanctumInterfaceConstants.MAX_CAPACITY_CARDS,
+                this.capacityCardCountSupplier.getAsInt()));
+    }
+
+    private static long getConfiguredCapacity(AEKey key, int capacityCardCount) {
+        long baseCapacity;
         if (key.getType() == AEKeyType.fluids()) {
-            return (long) Config.dataSanctumInterfaceReturnFluidBuckets * AEFluidKey.AMOUNT_BUCKET;
+            baseCapacity = safeMultiply(Config.dataSanctumInterfaceReturnFluidBuckets, AEFluidKey.AMOUNT_BUCKET);
+        } else {
+            baseCapacity = Config.dataSanctumInterfaceReturnItemLimit;
         }
-        return Config.dataSanctumInterfaceReturnItemLimit;
+        return applyCapacityCards(baseCapacity, capacityCardCount);
+    }
+
+    private static long applyCapacityCards(long baseCapacity, int capacityCardCount) {
+        return safeMultiply(baseCapacity, 1L << capacityCardCount);
+    }
+
+    private static long safeMultiply(long value, long multiplier) {
+        if (value <= 0 || multiplier <= 0) {
+            return 0;
+        }
+        if (value > Long.MAX_VALUE / multiplier) {
+            return Long.MAX_VALUE;
+        }
+        return value * multiplier;
     }
 }

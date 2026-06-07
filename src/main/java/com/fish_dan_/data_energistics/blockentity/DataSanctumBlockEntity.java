@@ -77,7 +77,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE);
     private final DataSanctumReturnInventory returnInventory = new DataSanctumReturnInventory(
             DataSanctumInterfaceConstants.RETURN_SLOTS_PER_PAGE,
-            this::onReturnInventoryChanged);
+            this::onReturnInventoryChanged,
+            () -> 0);
     private final MachineSource actionSource = new MachineSource(this);
     private final IUpgradeInventory energyUpgrades = UpgradeInventories.forMachine(
             ModBlocks.DATA_SANCTUM.get(), ENERGY_UPGRADE_SLOTS, this::onEnergyUpgradesChanged);
@@ -270,11 +271,13 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private void installInterfaceInventories() {
         var config = DataSanctumInterfaceInventory.config(
                 DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE,
-                this.interfaceLogic::onConfigRowChanged);
+                this.interfaceLogic::onConfigRowChanged,
+                () -> 0);
         var storage = DataSanctumInterfaceInventory.storage(
                 DataSanctumInterfaceConstants.STOCK_SLOTS_PER_PAGE,
                 this.interfaceLogic::isAllowedInStorageSlot,
-                this.interfaceLogic::onStorageChanged);
+                this.interfaceLogic::onStorageChanged,
+                () -> 0);
         this.interfaceLogic.config = config;
         this.interfaceLogic.storage = storage;
     }

@@ -16,6 +16,9 @@ import java.util.regex.Pattern;
 public class Config {
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    private static final int DATA_SANCTUM_INTERFACE_MAX_CAPACITY_CARDS = 3;
+    private static final int DATA_SANCTUM_INTERFACE_MAX_CAPACITY_MULTIPLIER = 1 << DATA_SANCTUM_INTERFACE_MAX_CAPACITY_CARDS;
+    private static final int DATA_SANCTUM_INTERFACE_MAX_BASE_CAPACITY = Integer.MAX_VALUE / DATA_SANCTUM_INTERFACE_MAX_CAPACITY_MULTIPLIER;
 
     private static final ModConfigSpec.IntValue DATA_RIPPER_BASE_COST = BUILDER.comment("Base power cost for the data ripper power curve.")
             .defineInRange("dataRipperBaseCost", 512, 1, Integer.MAX_VALUE);
@@ -37,20 +40,20 @@ public class Config {
             .defineInRange("dataDistributionTowerTransferPerTick", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
 
     private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_ITEM_LIMIT = BUILDER
-            .comment("Maximum stocked item amount per Data Sanctum interface config/stock slot.")
-            .defineInRange("dataSanctumInterfaceItemLimit", 1024 * 8, 1, Integer.MAX_VALUE);
+            .comment("Base stocked item amount per Data Sanctum interface config/stock slot. Each capacity card doubles this value.")
+            .defineInRange("dataSanctumInterfaceItemLimit", 2048, 1, DATA_SANCTUM_INTERFACE_MAX_BASE_CAPACITY);
 
     private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_FLUID_BUCKETS = BUILDER
-            .comment("Maximum stocked fluid buckets per Data Sanctum interface config/stock slot.")
-            .defineInRange("dataSanctumInterfaceFluidBuckets", 64 * 8, 1, Integer.MAX_VALUE);
+            .comment("Base stocked fluid buckets per Data Sanctum interface config/stock slot. Each capacity card doubles this value.")
+            .defineInRange("dataSanctumInterfaceFluidBuckets", 2048, 1, DATA_SANCTUM_INTERFACE_MAX_BASE_CAPACITY);
 
     private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_RETURN_ITEM_LIMIT = BUILDER
-            .comment("Maximum item amount per Data Sanctum interface return slot.")
-            .defineInRange("dataSanctumInterfaceReturnItemLimit", 1024 * 8 * 8, 1, Integer.MAX_VALUE);
+            .comment("Base item amount per Data Sanctum interface return slot. Each capacity card doubles this value.")
+            .defineInRange("dataSanctumInterfaceReturnItemLimit", 2048, 1, DATA_SANCTUM_INTERFACE_MAX_BASE_CAPACITY);
 
     private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_RETURN_FLUID_BUCKETS = BUILDER
-            .comment("Maximum fluid buckets per Data Sanctum interface return slot.")
-            .defineInRange("dataSanctumInterfaceReturnFluidBuckets", 64 * 8 * 8, 1, Integer.MAX_VALUE);
+            .comment("Base fluid buckets per Data Sanctum interface return slot. Each capacity card doubles this value.")
+            .defineInRange("dataSanctumInterfaceReturnFluidBuckets", 2048, 1, DATA_SANCTUM_INTERFACE_MAX_BASE_CAPACITY);
 
     static final ModConfigSpec SPEC = BUILDER.build();
 

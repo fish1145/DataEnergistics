@@ -15,20 +15,25 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.IntSupplier;
 
 public class DataSanctumInterfaceInventory extends ConfigInventory {
+
+    private final IntSupplier capacityCardCountSupplier;
 
     public DataSanctumInterfaceInventory(Set<AEKeyType> supportedTypes,
                                          @Nullable AEKeySlotFilter slotFilter,
                                          GenericStackInv.Mode mode,
                                          int size,
-                                         @Nullable Runnable listener) {
+                                         @Nullable Runnable listener,
+                                         IntSupplier capacityCardCountSupplier) {
         super(supportedTypes, slotFilter, mode, size, listener, true);
+        this.capacityCardCountSupplier = capacityCardCountSupplier;
     }
 
     @Override
     public long getMaxAmount(AEKey key) {
-        long capacity = getConfiguredCapacity(key);
+        long capacity = getConfiguredCapacity(key, getCapacityCardCount());
         return capacity <= 0 ? 0 : capacity;
     }
 
@@ -51,7 +56,7 @@ public class DataSanctumInterfaceInventory extends ConfigInventory {
         }
 
         if (stack != null) {
-            long maxAmount = getConfiguredCapacity(stack.what());
+            long maxAmount = getConfiguredCapacity(stack.what(), getCapacityCardCount());
             if (stack.amount() > maxAmount) {
                 stack = new GenericStack(stack.what(), maxAmount);
             }
@@ -73,7 +78,7 @@ public class DataSanctumInterfaceInventory extends ConfigInventory {
             return 0;
         }
 
-        long capacity = getConfiguredCapacity(what);
+        long capacity = getConfiguredCapacity(what, getCapacityCardCount());
         AEKey currentWhat = getKey(slot);
         long currentAmount = getAmount(slot);
         if (currentWhat != null && !currentWhat.equals(what)) {
@@ -92,39 +97,63 @@ public class DataSanctumInterfaceInventory extends ConfigInventory {
         return insertable;
     }
 
-    private static long getConfiguredCapacity(AEKey key) {
+    private int getCapacityCardCount() {
+        return Math.max(0, Math.min(
+                DataSanctumInterfaceConstants.MAX_CAPACITY_CARDS,
+                this.capacityCardCountSupplier.getAsInt()));
+    }
+
+    private static long getConfiguredCapacity(AEKey key, int capacityCardCount) {
+        long baseCapacity;
         if (key.getType() == AEKeyType.items()) {
-            return Config.dataSanctumInterfaceItemLimit;
+            baseCapacity = Config.dataSanctumInterfaceItemLimit;
+        } else if (key.getType() == AEKeyType.fluids()) {
+            baseCapacity = safeMultiply(Config.dataSanctumInterfaceFluidBuckets, AEFluidKey.AMOUNT_BUCKET);
+        } else {
+            baseCapacity = Config.dataSanctumInterfaceItemLimit;
         }
-        if (key.getType() == AEKeyType.fluids()) {
-            return (long) Config.dataSanctumInterfaceFluidBuckets * AEFluidKey.AMOUNT_BUCKET;
-        }
-        return Config.dataSanctumInterfaceItemLimit;
+        return applyCapacityCards(baseCapacity, capacityCardCount);
     }
 
-    public static DataSanctumInterfaceInventory config(Runnable listener) {
-        return config(DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT, listener);
+    private static long applyCapacityCards(long baseCapacity, int capacityCardCount) {
+        return safeMultiply(baseCapacity, 1L << capacityCardCount);
     }
 
-    public static DataSanctumInterfaceInventory config(int size, Runnable listener) {
+    private static long safeMultiply(long value, long multiplier) {
+        if (value <= 0 || multiplier <= 0) {
+            return 0;
+        }
+        if (value > Long.MAX_VALUE / multiplier) {
+            return Long.MAX_VALUE;
+        }
+        return value * multiplier;
+    }
+
+    public static DataSanctumInterfaceInventory config(Runnable listener, IntSupplier capacityCardCountSupplier) {
+        return config(DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT, listener, capacityCardCountSupplier);
+    }
+
+    public static DataSanctumInterfaceInventory config(int size, Runnable listener, IntSupplier capacityCardCountSupplier) {
         return new DataSanctumInterfaceInventory(
                 AEKeyTypes.getAll(),
                 null,
                 GenericStackInv.Mode.CONFIG_STACKS,
                 size,
-                listener);
+                listener,
+                capacityCardCountSupplier);
     }
 
-    public static DataSanctumInterfaceInventory storage(AEKeySlotFilter slotFilter, Runnable listener) {
-        return storage(DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT, slotFilter, listener);
+    public static DataSanctumInterfaceInventory storage(AEKeySlotFilter slotFilter, Runnable listener, IntSupplier capacityCardCountSupplier) {
+        return storage(DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT, slotFilter, listener, capacityCardCountSupplier);
     }
 
-    public static DataSanctumInterfaceInventory storage(int size, AEKeySlotFilter slotFilter, Runnable listener) {
+    public static DataSanctumInterfaceInventory storage(int size, AEKeySlotFilter slotFilter, Runnable listener, IntSupplier capacityCardCountSupplier) {
         return new DataSanctumInterfaceInventory(
                 AEKeyTypes.getAll(),
                 slotFilter,
                 GenericStackInv.Mode.STORAGE,
                 size,
-                listener);
+                listener,
+                capacityCardCountSupplier);
     }
 }
