@@ -38,8 +38,8 @@ public class BlockAndPartUpgradeItem extends Item {
 
     protected <T extends BlockEntity> void addBlock(
             Class<T> sourceClass,
-            Block targetBlock,
-            BlockEntityType<? extends BlockEntity> targetType) {
+            Supplier<? extends Block> targetBlock,
+            Supplier<? extends BlockEntityType<? extends BlockEntity>> targetType) {
         this.blockTargets.put(sourceClass, new BlockUpgradeTarget(targetBlock, targetType));
     }
 
@@ -74,10 +74,12 @@ public class BlockAndPartUpgradeItem extends Item {
         }
 
         if (!level.isClientSide()) {
+            Block targetBlock = target.targetBlock().get();
+            BlockEntityType<? extends BlockEntity> targetType = target.targetType().get();
             BlockState oldState = level.getBlockState(pos);
-            BlockState newState = target.targetBlock().getStateForPlacement(new BlockPlaceContext(context));
+            BlockState newState = targetBlock.getStateForPlacement(new BlockPlaceContext(context));
             if (newState == null) {
-                newState = target.targetBlock().defaultBlockState();
+                newState = targetBlock.defaultBlockState();
             }
             newState = copyCompatibleProperties(oldState, newState);
 
@@ -86,7 +88,7 @@ public class BlockAndPartUpgradeItem extends Item {
             level.removeBlock(pos, false);
             level.setBlock(pos, newState, Block.UPDATE_ALL);
 
-            BlockEntity targetBlockEntity = target.targetType().create(pos, newState);
+            BlockEntity targetBlockEntity = targetType.create(pos, newState);
             if (targetBlockEntity == null) {
                 return false;
             }
@@ -173,5 +175,7 @@ public class BlockAndPartUpgradeItem extends Item {
         return cableBusBlockEntity.replacePart((IPartItem<IPart>) targetItem, side, context.getPlayer(), context.getHand());
     }
 
-    private record BlockUpgradeTarget(Block targetBlock, BlockEntityType<? extends BlockEntity> targetType) {}
+    private record BlockUpgradeTarget(
+            Supplier<? extends Block> targetBlock,
+            Supplier<? extends BlockEntityType<? extends BlockEntity>> targetType) {}
 }

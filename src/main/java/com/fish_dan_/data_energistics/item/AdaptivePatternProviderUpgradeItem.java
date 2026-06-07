@@ -13,8 +13,8 @@ public class AdaptivePatternProviderUpgradeItem extends BlockAndPartUpgradeItem 
         super(properties);
         addBlock(
                 PatternProviderBlockEntity.class,
-                ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(),
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get());
+                ModBlocks.ADAPTIVE_PATTERN_PROVIDER::get,
+                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY::get);
         addPart(PatternProviderPart.class, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART::get);
     }
 }

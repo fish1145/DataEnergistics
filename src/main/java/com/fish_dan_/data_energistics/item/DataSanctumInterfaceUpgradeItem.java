@@ -11,7 +11,7 @@ public class DataSanctumInterfaceUpgradeItem extends BlockAndPartUpgradeItem {
         super(properties);
         addBlock(
                 InterfaceBlockEntity.class,
-                ModBlocks.DATA_SANCTUM_INTERFACE.get(),
-                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get());
+                ModBlocks.DATA_SANCTUM_INTERFACE::get,
+                ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY::get);
     }
 }
