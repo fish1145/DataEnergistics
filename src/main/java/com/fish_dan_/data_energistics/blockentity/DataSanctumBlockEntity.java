@@ -25,6 +25,7 @@ import appeng.api.config.PowerMultiplier;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridHelper;
+import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IInWorldGridNodeHost;
@@ -42,6 +43,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -52,8 +54,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     public static final double BASE_ENERGY_CAPACITY = 500_000.0D;
     public static final int ENERGY_UPGRADE_SLOTS = 3;
-    private static final int NETWORK_PORT_DISCOVERY_REFRESH_TICKS = 40;
     private static final String ENERGY_UPGRADES_TAG = "energy_upgrades";
+    private static final String NETWORK_PORT_NODE_TAG = "network_port_node";
     private static final String RETURN_INVENTORY_TAG = "returnInv";
     private static final IGridNodeListener<DataSanctumBlockEntity> NODE_LISTENER = new BlockEntityNodeListener<>() {
 
@@ -77,7 +79,11 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private final IUpgradeInventory energyUpgrades = UpgradeInventories.forMachine(
             ModBlocks.DATA_SANCTUM.get(), ENERGY_UPGRADE_SLOTS, this::onEnergyUpgradesChanged);
     private final IInWorldGridNodeHost networkPortHost = new NetworkPortNodeHost(this);
-    private int networkPortDiscoveryRefreshTicks;
+    private final IManagedGridNode networkPortNode = GridHelper.createManagedNode(this, NODE_LISTENER)
+            .setVisualRepresentation(ModBlocks.DATA_SANCTUM.get())
+            .setIdlePowerUsage(0.0D)
+            .setInWorldNode(true);
+    private IGridConnection networkPortConnection;
 
     public DataSanctumBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -100,7 +106,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return;
         }
 
-        refreshNetworkPortDiscoveryIfNeeded();
+        createNetworkPortNode();
+        ensureNetworkPortConnection();
         updateVisualState(this.getMainNode().isOnline(), this.lastMode);
         injectReturnInventory();
     }
@@ -108,7 +115,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     @Override
     public void onReady() {
         super.onReady();
-        scheduleNetworkPortDiscoveryRefresh();
+        createNetworkPortNode();
+        ensureNetworkPortConnection();
     }
 
     public void setMode(int mode) {
@@ -125,7 +133,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public void onMainNodeStateChanged(IGridNodeListener.State reason) {
         if (this.getMainNode().hasGridBooted()) {
             this.interfaceLogic.notifyNeighbors();
-            scheduleNetworkPortDiscoveryRefresh();
+            ensureNetworkPortConnection();
         }
     }
 
@@ -135,6 +143,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.interfaceLogic.writeToNBT(data, registries);
         this.returnInventory.writeToChildTag(data, RETURN_INVENTORY_TAG, registries);
         this.energyUpgrades.writeToNBT(data, ENERGY_UPGRADES_TAG, registries);
+        CompoundTag networkPortNodeTag = new CompoundTag();
+        this.networkPortNode.saveToNBT(networkPortNodeTag);
+        data.put(NETWORK_PORT_NODE_TAG, networkPortNodeTag);
     }
 
     @Override
@@ -143,9 +154,18 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.interfaceLogic.readFromNBT(data, registries);
         this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
         this.energyUpgrades.readFromNBT(data, ENERGY_UPGRADES_TAG, registries);
+        if (data.contains(NETWORK_PORT_NODE_TAG)) {
+            this.networkPortNode.loadFromNBT(data.getCompound(NETWORK_PORT_NODE_TAG));
+        }
         this.setInternalMaxPower(computeMaxPower(this.energyUpgrades));
         clampStoredPowerToCapacity();
-        scheduleNetworkPortDiscoveryRefresh();
+    }
+
+    @Override
+    public void setRemoved() {
+        destroyNetworkPortConnection();
+        this.networkPortNode.destroy();
+        super.setRemoved();
     }
 
     @Override
@@ -336,41 +356,64 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.markForClientUpdate();
     }
 
-    private void scheduleNetworkPortDiscoveryRefresh() {
-        this.networkPortDiscoveryRefreshTicks = NETWORK_PORT_DISCOVERY_REFRESH_TICKS;
-    }
-
-    private void refreshNetworkPortDiscoveryIfNeeded() {
-        if (this.networkPortDiscoveryRefreshTicks <= 0 || this.level == null || this.level.isClientSide()) {
-            return;
-        }
-
-        this.networkPortDiscoveryRefreshTicks--;
-        refreshNetworkPortDiscovery();
-    }
-
-    private void refreshNetworkPortDiscovery() {
+    private void createNetworkPortNode() {
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
+        if (this.networkPortNode.isReady()) {
+            return;
+        }
 
+        BlockPos portPos = getNetworkPortPos();
+        if (portPos == null) {
+            return;
+        }
+        this.networkPortNode.create(this.level, portPos);
+    }
+
+    private void ensureNetworkPortConnection() {
+        if (this.networkPortConnection != null || !this.getMainNode().isReady() || !this.networkPortNode.isReady()) {
+            return;
+        }
+
+        IGridNode mainNode = this.getMainNode().getNode();
+        IGridNode portNode = this.networkPortNode.getNode();
+        if (mainNode == null || portNode == null) {
+            return;
+        }
+
+        try {
+            this.networkPortConnection = GridHelper.createConnection(mainNode, portNode);
+        } catch (IllegalStateException ignored) {
+            this.networkPortConnection = null;
+        }
+    }
+
+    private void destroyNetworkPortConnection() {
+        if (this.networkPortConnection == null) {
+            return;
+        }
+
+        this.networkPortConnection.destroy();
+        this.networkPortConnection = null;
+    }
+
+    private @Nullable BlockPos getNetworkPortPos() {
+        if (this.level == null) {
+            return null;
+        }
         BlockState mainState = this.level.getBlockState(this.worldPosition);
         if (!mainState.is(ModBlocks.DATA_SANCTUM.get()) || !isMainPart(mainState)) {
-            return;
+            return null;
         }
 
         Direction facing = mainState.getValue(DataSanctumBlock.FACING);
         BlockPos portPos = getPartPos(this.worldPosition, facing, 0, 2, 0);
         BlockState portState = this.level.getBlockState(portPos);
         if (!portState.is(ModBlocks.DATA_SANCTUM.get()) || !isNetworkPortPart(portState) || !getMainPos(portPos, portState).equals(this.worldPosition)) {
-            return;
+            return null;
         }
-
-        this.level.invalidateCapabilities(portPos);
-        this.level.updateNeighborsAt(portPos, portState.getBlock());
-        for (Direction direction : Direction.values()) {
-            this.level.updateNeighborsAt(portPos.relative(direction), portState.getBlock());
-        }
+        return portPos;
     }
 
     private void clampStoredPowerToCapacity() {
@@ -385,7 +428,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
         @Override
         public IGridNode getGridNode(Direction dir) {
-            return this.host.getMainNode().getNode();
+            return this.host.networkPortNode.getNode();
         }
 
         @Override
