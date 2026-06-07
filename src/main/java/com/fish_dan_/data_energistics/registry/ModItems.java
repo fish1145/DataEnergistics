@@ -3,7 +3,9 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.config.FlatteningTntConfig;
+import com.fish_dan_.data_energistics.item.AdaptivePatternProviderUpgradeItem;
 import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
+import com.fish_dan_.data_energistics.item.DataSanctumInterfaceUpgradeItem;
 import com.fish_dan_.data_energistics.item.ConfigurableTntBlockItem;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
@@ -88,7 +90,13 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> DATA_SANCTUM = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SANCTUM);
     public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SANCTUM_INTERFACE);
+    public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
+            "data_sanctum_interface_upgrade",
+            () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
+    public static final DeferredItem<AdaptivePatternProviderUpgradeItem> ADAPTIVE_PATTERN_PROVIDER_UPGRADE = ITEMS.register(
+            "adaptive_pattern_provider_upgrade",
+            () -> new AdaptivePatternProviderUpgradeItem(new Item.Properties()));
     public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.register(
             "tnt_configurable",
             () -> new ConfigurableTntBlockItem(ModBlocks.TNT_CONFIGURABLE.get(), new Item.Properties(),
