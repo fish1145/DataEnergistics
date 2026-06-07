@@ -336,12 +336,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public AABB getCoverageAabb() {
-        ChunkPos center = new ChunkPos(this.worldPosition);
         int chunkRadius = getChunkRadius();
-        int minX = (center.x - chunkRadius) << 4;
-        int minZ = (center.z - chunkRadius) << 4;
-        int maxX = (center.x + chunkRadius + 1) << 4;
-        int maxZ = (center.z + chunkRadius + 1) << 4;
+        double minX = getCoverageMinX(chunkRadius);
+        double minZ = getCoverageMinZ(chunkRadius);
+        double maxX = getCoverageMaxX(chunkRadius);
+        double maxZ = getCoverageMaxZ(chunkRadius);
         int minY = this.worldPosition.getY() - VERTICAL_RANGE_BELOW;
         int maxY = this.worldPosition.getY() + VERTICAL_RANGE_ABOVE + 1;
 
@@ -402,7 +401,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
+    }
 
     public int getBoundTargetCount() {
         return getBoundTargetSummaries(Integer.MAX_VALUE).size();
@@ -931,7 +931,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean isWithinTowerCoverage(BlockPos targetPos) {
-        return isWithinChunkRange(this.worldPosition, targetPos, getChunkRadius()) && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
+        return isWithinCenteredHorizontalRange(targetPos, getChunkRadius())
+                && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW
+                && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
     }
 
     private int getTransferBudgetPerTick() {
@@ -959,12 +961,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        ChunkPos center = new ChunkPos(this.worldPosition);
         int chunkRadius = getChunkRadius();
         this.indexedChunkRadius = chunkRadius;
-        for (int offsetX = -chunkRadius; offsetX <= chunkRadius; offsetX++) {
-            for (int offsetZ = -chunkRadius; offsetZ <= chunkRadius; offsetZ++) {
-                ChunkKey key = new ChunkKey(this.level, center.x + offsetX, center.z + offsetZ);
+        for (int chunkX = getCoverageMinChunkX(chunkRadius); chunkX <= getCoverageMaxChunkX(chunkRadius); chunkX++) {
+            for (int chunkZ = getCoverageMinChunkZ(chunkRadius); chunkZ <= getCoverageMaxChunkZ(chunkRadius); chunkZ++) {
+                ChunkKey key = new ChunkKey(this.level, chunkX, chunkZ);
                 TOWER_CHUNK_POSITIONS.computeIfAbsent(key, ignored -> new HashSet<>()).add(this.worldPosition.immutable());
             }
         }
@@ -975,11 +976,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        ChunkPos center = new ChunkPos(this.worldPosition);
         int chunkRadius = this.indexedChunkRadius >= 0 ? this.indexedChunkRadius : getChunkRadius();
-        for (int offsetX = -chunkRadius; offsetX <= chunkRadius; offsetX++) {
-            for (int offsetZ = -chunkRadius; offsetZ <= chunkRadius; offsetZ++) {
-                ChunkKey key = new ChunkKey(this.level, center.x + offsetX, center.z + offsetZ);
+        for (int chunkX = getCoverageMinChunkX(chunkRadius); chunkX <= getCoverageMaxChunkX(chunkRadius); chunkX++) {
+            for (int chunkZ = getCoverageMinChunkZ(chunkRadius); chunkZ <= getCoverageMaxChunkZ(chunkRadius); chunkZ++) {
+                ChunkKey key = new ChunkKey(this.level, chunkX, chunkZ);
                 Set<BlockPos> positions = TOWER_CHUNK_POSITIONS.get(key);
                 if (positions != null) {
                     positions.remove(this.worldPosition);
@@ -990,6 +990,55 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         this.indexedChunkRadius = -1;
+    }
+
+    private boolean isWithinCenteredHorizontalRange(BlockPos targetPos, int chunkRadius) {
+        double targetCenterX = targetPos.getX() + 0.5D;
+        double targetCenterZ = targetPos.getZ() + 0.5D;
+        return targetCenterX >= getCoverageMinX(chunkRadius)
+                && targetCenterX < getCoverageMaxX(chunkRadius)
+                && targetCenterZ >= getCoverageMinZ(chunkRadius)
+                && targetCenterZ < getCoverageMaxZ(chunkRadius);
+    }
+
+    private double getCoverageMinX(int chunkRadius) {
+        return this.worldPosition.getX() + 0.5D - getCoverageHalfWidth(chunkRadius);
+    }
+
+    private double getCoverageMinZ(int chunkRadius) {
+        return this.worldPosition.getZ() + 0.5D - getCoverageHalfWidth(chunkRadius);
+    }
+
+    private double getCoverageMaxX(int chunkRadius) {
+        return this.worldPosition.getX() + 0.5D + getCoverageHalfWidth(chunkRadius);
+    }
+
+    private double getCoverageMaxZ(int chunkRadius) {
+        return this.worldPosition.getZ() + 0.5D + getCoverageHalfWidth(chunkRadius);
+    }
+
+    private double getCoverageHalfWidth(int chunkRadius) {
+        return getCoverageDiameterBlocks(chunkRadius) / 2.0D;
+    }
+
+    private int getCoverageDiameterBlocks(int chunkRadius) {
+        return (chunkRadius * 2 + 1) * 16;
+    }
+
+    private int getCoverageMinChunkX(int chunkRadius) {
+        return Math.floorDiv((int) Math.floor(getCoverageMinX(chunkRadius)), 16);
+    }
+
+    private int getCoverageMinChunkZ(int chunkRadius) {
+        return Math.floorDiv((int) Math.floor(getCoverageMinZ(chunkRadius)), 16);
+    }
+
+    private int getCoverageMaxChunkX(int chunkRadius) {
+        return Math.floorDiv((int) Math.ceil(getCoverageMaxX(chunkRadius)) - 1, 16);
+    }
+
+    private int getCoverageMaxChunkZ(int chunkRadius) {
+        return Math.floorDiv((int) Math.ceil(getCoverageMaxZ(chunkRadius)) - 1, 16);
     }
 
     private void invalidateEndpointCache() {
@@ -1108,12 +1157,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         ArrayList<BlockEntity> results = new ArrayList<>();
-        ChunkPos center = new ChunkPos(this.worldPosition);
         int chunkRadius = getChunkRadius();
-        int minChunkX = center.x - chunkRadius;
-        int maxChunkX = center.x + chunkRadius;
-        int minChunkZ = center.z - chunkRadius;
-        int maxChunkZ = center.z + chunkRadius;
+        int minChunkX = getCoverageMinChunkX(chunkRadius);
+        int maxChunkX = getCoverageMaxChunkX(chunkRadius);
+        int minChunkZ = getCoverageMinChunkZ(chunkRadius);
+        int maxChunkZ = getCoverageMaxChunkZ(chunkRadius);
 
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -1954,7 +2002,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
             try {
                 newConnections.add(GridHelper.createConnection(selfNode, targetNode));
-            } catch (IllegalStateException ignored) {}
+            } catch (IllegalStateException ignored) {
+            }
         }
 
         if (newConnections.isEmpty()) {
@@ -2076,12 +2125,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             TOWER_CHUNK_POSITIONS.clear();
             boundServer = server;
         }
-    }
-
-    private static boolean isWithinChunkRange(BlockPos source, BlockPos target, int chunkRadius) {
-        ChunkPos sourceChunk = new ChunkPos(source);
-        ChunkPos targetChunk = new ChunkPos(target);
-        return Math.abs(sourceChunk.x - targetChunk.x) <= chunkRadius && Math.abs(sourceChunk.z - targetChunk.z) <= chunkRadius;
     }
 
     private static int compareBlockPos(BlockPos a, BlockPos b) {
@@ -2371,9 +2414,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {}
+    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {
+    }
 
-    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
+    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {
+    }
 
     private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
 
@@ -2391,7 +2436,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         private static final TransferScanSnapshot EMPTY = new TransferScanSnapshot(Long.MIN_VALUE, 0L, List.of(), List.of());
     }
 
-    public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count, ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {}
+    public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count,
+                                     ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {
+    }
 
     public enum ConnectionMode {
 
@@ -2450,9 +2497,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         FE
     }
 
-    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {}
+    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {
+    }
 
-    private record DisplayTarget(BlockPos pos, TargetKind kind) {}
+    private record DisplayTarget(BlockPos pos, TargetKind kind) {
+    }
 
     private class TowerEnergyStorage implements IEnergyStorage {
 
