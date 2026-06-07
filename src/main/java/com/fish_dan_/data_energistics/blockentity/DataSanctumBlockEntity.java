@@ -37,6 +37,7 @@ import appeng.api.config.PowerMultiplier;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridHelper;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
@@ -50,6 +51,7 @@ import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.InterfaceLogic;
 import appeng.helpers.InterfaceLogicHost;
+import appeng.items.tools.powered.WirelessTerminalItem;
 import appeng.me.helpers.BlockEntityNodeListener;
 import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
@@ -725,6 +727,10 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return false;
         }
 
+        if (entity instanceof ServerPlayer player && isProtectedBlackHolePlayer(player)) {
+            return false;
+        }
+
         ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
         if (entityId != null && isProtectedBlackHoleNamespace(entityId.getNamespace())) {
             return false;
@@ -736,6 +742,32 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         return true;
+    }
+
+    private boolean isProtectedBlackHolePlayer(ServerPlayer player) {
+        return player.isCreative() || player.hasPermissions(2) || isPlayerLinkedToBlackHoleGrid(player);
+    }
+
+    private boolean isPlayerLinkedToBlackHoleGrid(ServerPlayer player) {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null) {
+            return false;
+        }
+
+        IGrid grid = node.getGrid();
+        return hasLinkedWirelessTerminal(player.getInventory().items, player, grid)
+                || hasLinkedWirelessTerminal(player.getInventory().armor, player, grid)
+                || hasLinkedWirelessTerminal(player.getInventory().offhand, player, grid);
+    }
+
+    private static boolean hasLinkedWirelessTerminal(List<ItemStack> stacks, ServerPlayer player, IGrid grid) {
+        for (ItemStack stack : stacks) {
+            if (stack.getItem() instanceof WirelessTerminalItem wirelessTerminal
+                    && wirelessTerminal.getLinkedGrid(stack, player.level(), null) == grid) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isConsumableByBlackHole(BlockState state) {
