@@ -1,5 +1,5 @@
 {
 	"replace": false,
 	"entities": ["minecraft:player"],
-	"slots": ["head", "back"]
+	"slots": ["head", "left_shoulder", "right_shoulder"]
 }

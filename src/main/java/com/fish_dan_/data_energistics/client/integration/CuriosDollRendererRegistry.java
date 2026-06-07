@@ -36,14 +36,16 @@ public final class CuriosDollRendererRegistry {
     private static final class DollCurioRenderer implements ICurioRenderer {
 
         private static final String HEAD_SLOT = "head";
-        private static final String BACK_SLOT = "back";
+        private static final String LEFT_SHOULDER_SLOT = "left_shoulder";
+        private static final String RIGHT_SHOULDER_SLOT = "right_shoulder";
         private static final float HEAD_SCALE = 0.55F;
-        private static final float BACK_SCALE = 0.55F;
+        private static final float SHOULDER_SCALE = 0.34F;
         private static final double BLOCK_CENTER = 0.5D;
-        private static final double DOLL_BACK_Z = 14.7D / 16.0D;
         private static final double HEAD_Y = -0.50D;
-        private static final double BACK_Y = 0.34D;
-        private static final double BACK_Z = 0.12D;
+        private static final double SHOULDER_X = 0.40D;
+        private static final double SHOULDER_Y = 0.02D;
+        private static final double SHOULDER_Z = -0.06D;
+        private static final float SHOULDER_Y_ROTATION = 180.0F;
 
         @Override
         public <T extends LivingEntity, M extends EntityModel<T>> void render(ItemStack stack, SlotContext slotContext,
@@ -59,7 +61,8 @@ public final class CuriosDollRendererRegistry {
 
             switch (slotContext.identifier()) {
                 case HEAD_SLOT -> renderOnHead(stack, poseStack, buffer, light, humanoidModel);
-                case BACK_SLOT -> renderOnBack(stack, slotContext.entity(), poseStack, buffer, light, humanoidModel);
+                case LEFT_SHOULDER_SLOT -> renderOnShoulder(stack, poseStack, buffer, light, humanoidModel, true);
+                case RIGHT_SHOULDER_SLOT -> renderOnShoulder(stack, poseStack, buffer, light, humanoidModel, false);
                 default -> {}
             }
         }
@@ -75,23 +78,18 @@ public final class CuriosDollRendererRegistry {
             poseStack.popPose();
         }
 
-        private static void renderOnBack(ItemStack stack, LivingEntity entity, PoseStack poseStack,
-                                         MultiBufferSource buffer, int light, HumanoidModel<?> humanoidModel) {
+        private static void renderOnShoulder(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light,
+                                             HumanoidModel<?> humanoidModel, boolean leftShoulder) {
             poseStack.pushPose();
-            ICurioRenderer.translateIfSneaking(poseStack, entity);
             humanoidModel.body.translateAndRotate(poseStack);
-            poseStack.translate(0.0D, BACK_Y, BACK_Z);
-            poseStack.scale(BACK_SCALE, -BACK_SCALE, -BACK_SCALE);
-            renderDollBlock(stack, poseStack, buffer, light, DOLL_BACK_Z);
+            poseStack.translate(leftShoulder ? -SHOULDER_X : SHOULDER_X, SHOULDER_Y, SHOULDER_Z);
+            poseStack.mulPose(Axis.YP.rotationDegrees(leftShoulder ? -SHOULDER_Y_ROTATION : SHOULDER_Y_ROTATION));
+            poseStack.scale(SHOULDER_SCALE, -SHOULDER_SCALE, -SHOULDER_SCALE);
+            renderDollBlock(stack, poseStack, buffer, light);
             poseStack.popPose();
         }
 
         private static void renderDollBlock(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light) {
-            renderDollBlock(stack, poseStack, buffer, light, BLOCK_CENTER);
-        }
-
-        private static void renderDollBlock(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light,
-                                            double originZ) {
             if (!(stack.getItem() instanceof BlockItem blockItem)) {
                 return;
             }
@@ -101,7 +99,7 @@ public final class CuriosDollRendererRegistry {
                 state = state.setValue(DollBlock.FACING, Direction.NORTH);
             }
 
-            poseStack.translate(-BLOCK_CENTER, 0.0D, -originZ);
+            poseStack.translate(-BLOCK_CENTER, 0.0D, -BLOCK_CENTER);
             BlockRenderDispatcher blockRenderer = Minecraft.getInstance().getBlockRenderer();
             blockRenderer.renderSingleBlock(state, poseStack, buffer, light, OverlayTexture.NO_OVERLAY, ModelData.EMPTY,
                     RenderType.cutout());

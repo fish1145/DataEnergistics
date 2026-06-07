@@ -310,6 +310,8 @@
 	"message.data_energistics.data_extractor.range.disabled": "Extractor range display disabled",
 	"death.attack.data_energistics.data_corrosion_liquid": "%1$s was corroded into data",
 	"block.data_energistics.tnt_configurable": "Configurable Flattening TNT",
+	"curios.identifier.left_shoulder": "Left Shoulder",
+	"curios.identifier.right_shoulder": "Right Shoulder",
 	"item.data_energistics.fish_dan_": "Fish Dan Doll",
 	"block.data_energistics.fish_dan_": "Fish Dan Doll",
 	"item.data_energistics.qiuyeqaq2024": "QiuYeQAQ2024 Doll",
