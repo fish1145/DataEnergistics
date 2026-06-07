@@ -624,6 +624,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private void advanceBlackHoleExpansionRadius() {
         if (this.blackHoleExpansionRadius < BLACK_HOLE_BLOCK_RADIUS) {
             this.blackHoleExpansionRadius++;
+            saveChanges();
         }
     }
 
