@@ -5,7 +5,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -37,9 +36,9 @@ public class BlockAndPartUpgradeItem extends Item {
     }
 
     protected <T extends BlockEntity> void addBlock(
-            Class<T> sourceClass,
-            Supplier<? extends Block> targetBlock,
-            Supplier<? extends BlockEntityType<? extends BlockEntity>> targetType) {
+                                                    Class<T> sourceClass,
+                                                    Supplier<? extends Block> targetBlock,
+                                                    Supplier<? extends BlockEntityType<? extends BlockEntity>> targetType) {
         this.blockTargets.put(sourceClass, new BlockUpgradeTarget(targetBlock, targetType));
     }
 
@@ -157,9 +156,9 @@ public class BlockAndPartUpgradeItem extends Item {
     }
 
     private static <T extends Comparable<T>> BlockState copyProperty(
-            BlockState target,
-            Property<T> property,
-            Comparable<?> value) {
+                                                                     BlockState target,
+                                                                     Property<T> property,
+                                                                     Comparable<?> value) {
         if (!target.hasProperty(property)) {
             return target;
         }
@@ -168,14 +167,14 @@ public class BlockAndPartUpgradeItem extends Item {
 
     @SuppressWarnings("unchecked")
     private static @Nullable IPart replacePart(
-            CableBusBlockEntity cableBusBlockEntity,
-            IPartItem<? extends IPart> targetItem,
-            @Nullable Direction side,
-            UseOnContext context) {
+                                               CableBusBlockEntity cableBusBlockEntity,
+                                               IPartItem<? extends IPart> targetItem,
+                                               @Nullable Direction side,
+                                               UseOnContext context) {
         return cableBusBlockEntity.replacePart((IPartItem<IPart>) targetItem, side, context.getPlayer(), context.getHand());
     }
 
     private record BlockUpgradeTarget(
-            Supplier<? extends Block> targetBlock,
-            Supplier<? extends BlockEntityType<? extends BlockEntity>> targetType) {}
+                                      Supplier<? extends Block> targetBlock,
+                                      Supplier<? extends BlockEntityType<? extends BlockEntity>> targetType) {}
 }

@@ -188,8 +188,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     public int getUnlockedPageCount() {
         return Math.min(
                 DataSanctumInterfaceConstants.PAGE_COUNT,
-                DataSanctumInterfaceConstants.BASE_PAGE_COUNT
-                        + getInstalledCapacityCardCount() * DataSanctumInterfaceConstants.PAGES_PER_CAPACITY_CARD);
+                DataSanctumInterfaceConstants.BASE_PAGE_COUNT + getInstalledCapacityCardCount() * DataSanctumInterfaceConstants.PAGES_PER_CAPACITY_CARD);
     }
 
     public Set<Direction> getActivePullSides() {

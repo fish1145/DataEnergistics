@@ -200,8 +200,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumIn
 
         @Override
         public boolean mayPlace(net.minecraft.world.item.ItemStack stack) {
-            return (stack.is(AEItems.ENERGY_CARD.asItem()) || stack.is(AEItems.CAPACITY_CARD.asItem()))
-                    && super.mayPlace(stack);
+            return (stack.is(AEItems.ENERGY_CARD.asItem()) || stack.is(AEItems.CAPACITY_CARD.asItem())) && super.mayPlace(stack);
         }
     }
 
