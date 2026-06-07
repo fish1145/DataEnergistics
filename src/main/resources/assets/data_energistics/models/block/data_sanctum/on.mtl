@@ -1,7 +1,6 @@
 # Made in Blockbench 5.1.4
-newmtl m_825b82f6-8ed2-501b-9a50-e5846395849e
-map_Kd #base
-newmtl m_c176c872-a364-bc46-86d7-530357f0dd56
-map_Kd #crystal_off
+newmtl m_e8de4154-57f2-4ab8-434f-e582af15ce3a
+map_Kd data_sanctum.png
+newmtl m_b42c24be-aea7-3cba-5dc4-465169354988
+map_Kd crystal_off.png
 newmtl none
-map_Kd #none
