@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
@@ -12,12 +14,17 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
@@ -54,9 +61,21 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     public static final double BASE_ENERGY_CAPACITY = 500_000.0D;
     public static final int ENERGY_UPGRADE_SLOTS = 3;
+    private static final int BLACK_HOLE_MODE = 1;
+    private static final int BLACK_HOLE_WORK_INTERVAL_TICKS = 200;
+    private static final int BLACK_HOLE_BLOCKS_PER_CYCLE = 20;
+    private static final long BLACK_HOLE_DATA_FLOW_PER_CYCLE = 2_000L;
+    private static final double BLACK_HOLE_AE_COST_PER_BLOCK = 2_500.0D;
+    private static final int BLACK_HOLE_CHUNK_RADIUS = 2;
+    private static final int BLACK_HOLE_CHUNK_DIAMETER = BLACK_HOLE_CHUNK_RADIUS * 2 + 1;
+    private static final int BLACK_HOLE_COLUMNS_PER_CHUNK = 16 * 16;
+    private static final int BLACK_HOLE_TOTAL_COLUMNS = BLACK_HOLE_CHUNK_DIAMETER * BLACK_HOLE_CHUNK_DIAMETER * BLACK_HOLE_COLUMNS_PER_CHUNK;
+    private static final int BLACK_HOLE_UNINITIALIZED_Y = Integer.MIN_VALUE;
     private static final String ENERGY_UPGRADES_TAG = "energy_upgrades";
     private static final String NETWORK_PORT_NODE_TAG = "network_port_node";
     private static final String RETURN_INVENTORY_TAG = "returnInv";
+    private static final String BLACK_HOLE_WORK_TICKS_TAG = "black_hole_work_ticks";
+    private static final String BLACK_HOLE_COLUMN_CURSOR_TAG = "black_hole_column_cursor";
     private static final IGridNodeListener<DataSanctumBlockEntity> MAIN_NODE_LISTENER = new BlockEntityNodeListener<>() {
 
         @Override
@@ -88,6 +107,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             .setIdlePowerUsage(0.0D)
             .setInWorldNode(true);
     private IGridConnection networkPortConnection;
+    private int blackHoleWorkTicks;
+    private int blackHoleColumnCursor;
+    private int[] blackHoleTopY;
 
     public DataSanctumBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -114,7 +136,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
         createNetworkPortNode();
         ensureNetworkPortConnection();
+        refillEnergyCache();
         updateVisualState(this.getMainNode().isOnline(), this.lastMode);
+        performModeWork();
         injectReturnInventory();
     }
 
@@ -156,6 +180,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         CompoundTag networkPortNodeTag = new CompoundTag();
         this.networkPortNode.saveToNBT(networkPortNodeTag);
         data.put(NETWORK_PORT_NODE_TAG, networkPortNodeTag);
+        data.putInt(BLACK_HOLE_WORK_TICKS_TAG, this.blackHoleWorkTicks);
+        data.putInt(BLACK_HOLE_COLUMN_CURSOR_TAG, this.blackHoleColumnCursor);
     }
 
     @Override
@@ -169,6 +195,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
         this.setInternalMaxPower(computeMaxPower(this.energyUpgrades));
         clampStoredPowerToCapacity();
+        this.blackHoleWorkTicks = Math.max(0, data.getInt(BLACK_HOLE_WORK_TICKS_TAG));
+        this.blackHoleColumnCursor = Math.max(0, data.getInt(BLACK_HOLE_COLUMN_CURSOR_TAG)) % BLACK_HOLE_TOTAL_COLUMNS;
+        this.blackHoleTopY = null;
     }
 
     @Override
@@ -436,6 +465,176 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
     }
 
+    private void refillEnergyCache() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return;
+        }
+
+        double missing = this.getInternalMaxPower() - this.getInternalCurrentPower();
+        if (missing <= 0.0001D) {
+            return;
+        }
+
+        double extracted = node.getGrid().getEnergyService().extractAEPower(missing, Actionable.MODULATE, PowerMultiplier.ONE);
+        if (extracted > 0.0D) {
+            this.injectExternalPower(appeng.api.config.PowerUnit.AE, extracted, Actionable.MODULATE);
+        }
+    }
+
+    private void performModeWork() {
+        if (this.lastMode != BLACK_HOLE_MODE) {
+            resetBlackHoleWorkState(false);
+            return;
+        }
+
+        if (this.level == null || this.level.isClientSide() || !this.getMainNode().isOnline()) {
+            resetBlackHoleWorkState(true);
+            return;
+        }
+
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            resetBlackHoleWorkState(true);
+            return;
+        }
+
+        this.blackHoleWorkTicks++;
+        if (this.blackHoleWorkTicks < BLACK_HOLE_WORK_INTERVAL_TICKS) {
+            return;
+        }
+
+        this.blackHoleWorkTicks = 0;
+        long canBuffer = this.returnInventory.insert(DataFlowKey.of(), BLACK_HOLE_DATA_FLOW_PER_CYCLE, Actionable.SIMULATE, this.actionSource);
+        if (canBuffer < BLACK_HOLE_DATA_FLOW_PER_CYCLE) {
+            return;
+        }
+
+        int destroyedCount = consumeBlackHoleBlocks();
+        if (destroyedCount <= 0) {
+            this.blackHoleTopY = null;
+            return;
+        }
+
+        this.returnInventory.insert(
+                DataFlowKey.of(),
+                BLACK_HOLE_DATA_FLOW_PER_CYCLE,
+                Actionable.MODULATE,
+                this.actionSource);
+        saveChanges();
+    }
+
+    private void resetBlackHoleWorkState(boolean preserveCursor) {
+        this.blackHoleWorkTicks = 0;
+        if (!preserveCursor) {
+            this.blackHoleColumnCursor = 0;
+            this.blackHoleTopY = null;
+        }
+    }
+
+    private int consumeBlackHoleBlocks() {
+        if (!(this.level instanceof Level level)) {
+            return 0;
+        }
+
+        ensureBlackHoleTopYCache();
+        if (this.blackHoleTopY == null) {
+            return 0;
+        }
+
+        int destroyedCount = 0;
+        int attempts = 0;
+        while (destroyedCount < BLACK_HOLE_BLOCKS_PER_CYCLE && attempts < BLACK_HOLE_TOTAL_COLUMNS) {
+            int columnIndex = this.blackHoleColumnCursor;
+            this.blackHoleColumnCursor = (this.blackHoleColumnCursor + 1) % BLACK_HOLE_TOTAL_COLUMNS;
+            attempts++;
+
+            BlockPos targetPos = findNextConsumableBlock(level, columnIndex);
+            if (targetPos == null) {
+                continue;
+            }
+
+            if (extractOperationPower(BLACK_HOLE_AE_COST_PER_BLOCK, Actionable.SIMULATE) + 0.0001D < BLACK_HOLE_AE_COST_PER_BLOCK) {
+                break;
+            }
+
+            level.setBlock(targetPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+            extractOperationPower(BLACK_HOLE_AE_COST_PER_BLOCK, Actionable.MODULATE);
+            destroyedCount++;
+        }
+        return destroyedCount;
+    }
+
+    private void ensureBlackHoleTopYCache() {
+        if (this.blackHoleTopY == null || this.blackHoleTopY.length != BLACK_HOLE_TOTAL_COLUMNS) {
+            this.blackHoleTopY = new int[BLACK_HOLE_TOTAL_COLUMNS];
+            java.util.Arrays.fill(this.blackHoleTopY, BLACK_HOLE_UNINITIALIZED_Y);
+        }
+    }
+
+    private @Nullable BlockPos findNextConsumableBlock(Level level, int columnIndex) {
+        ColumnPos columnPos = getBlackHoleColumnPos(columnIndex);
+        LevelChunk chunk = level.getChunkSource().getChunk(columnPos.chunkX(), columnPos.chunkZ(), false);
+        if (chunk == null) {
+            this.blackHoleTopY[columnIndex] = BLACK_HOLE_UNINITIALIZED_Y;
+            return null;
+        }
+
+        int minY = level.getMinBuildHeight();
+        int maxY = level.getMaxBuildHeight() - 1;
+        int currentY = this.blackHoleTopY[columnIndex];
+        if (currentY == BLACK_HOLE_UNINITIALIZED_Y || currentY > maxY) {
+            currentY = Math.min(maxY, chunk.getHeight(Heightmap.Types.WORLD_SURFACE, columnPos.localX(), columnPos.localZ()) - 1);
+        }
+
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(columnPos.worldX(), currentY, columnPos.worldZ());
+        while (currentY >= minY) {
+            cursor.setY(currentY);
+            BlockState state = chunk.getBlockState(cursor);
+            if (isConsumableByBlackHole(state)) {
+                this.blackHoleTopY[columnIndex] = currentY - 1;
+                return cursor.immutable();
+            }
+            currentY--;
+        }
+
+        this.blackHoleTopY[columnIndex] = minY - 1;
+        return null;
+    }
+
+    private boolean isConsumableByBlackHole(BlockState state) {
+        if (state.isAir() || state.is(Blocks.BEDROCK)) {
+            return false;
+        }
+
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        if (blockId == null) {
+            return true;
+        }
+
+        String namespace = blockId.getNamespace();
+        return !"ae2".equals(namespace) && !Data_Energistics.MODID.equals(namespace);
+    }
+
+    private ColumnPos getBlackHoleColumnPos(int columnIndex) {
+        ChunkPos centerChunk = new ChunkPos(this.worldPosition);
+        int chunkIndex = columnIndex / BLACK_HOLE_COLUMNS_PER_CHUNK;
+        int localColumnIndex = columnIndex % BLACK_HOLE_COLUMNS_PER_CHUNK;
+        int chunkOffsetX = chunkIndex % BLACK_HOLE_CHUNK_DIAMETER - BLACK_HOLE_CHUNK_RADIUS;
+        int chunkOffsetZ = chunkIndex / BLACK_HOLE_CHUNK_DIAMETER - BLACK_HOLE_CHUNK_RADIUS;
+        int localX = localColumnIndex & 15;
+        int localZ = (localColumnIndex >> 4) & 15;
+        int chunkX = centerChunk.x + chunkOffsetX;
+        int chunkZ = centerChunk.z + chunkOffsetZ;
+        return new ColumnPos(
+                chunkX,
+                chunkZ,
+                localX,
+                localZ,
+                (chunkX << 4) + localX,
+                (chunkZ << 4) + localZ);
+    }
+
     private record NetworkPortNodeHost(DataSanctumBlockEntity host) implements IInWorldGridNodeHost {
 
         @Override
@@ -512,4 +711,6 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public static int decodeOffsetY(BlockState state) {
         return state.getValue(DataSanctumBlock.OFFSET_Y);
     }
+
+    private record ColumnPos(int chunkX, int chunkZ, int localX, int localZ, int worldX, int worldZ) {}
 }

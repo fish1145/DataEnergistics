@@ -3,7 +3,7 @@
 	"includes": ["common/common.json", "common/player_inventory.json"],
 	"background": {
 		"texture": "guis/data_sanctum_status.png",
-		"srcRect": [0, 0, 176, 211]
+		"srcRect": [0, 0, 200, 211]
 	},
 	"slots": {
 		"PLAYER_INVENTORY": {
@@ -23,35 +23,35 @@
 				"left": 8,
 				"top": 6
 			},
-			"maxWidth": 150
+			"maxWidth": 174
 		},
 		"online": {
 			"position": {
-				"left": 18,
+				"left": 9,
 				"top": 34
 			},
-			"maxWidth": 140
+			"maxWidth": 173
 		},
 		"active": {
 			"position": {
-				"left": 18,
+				"left": 9,
 				"top": 50
 			},
-			"maxWidth": 140
+			"maxWidth": 173
 		},
 		"mode": {
 			"position": {
-				"left": 18,
+				"left": 9,
 				"top": 66
 			},
-			"maxWidth": 140
+			"maxWidth": 173
 		},
 		"network_port": {
 			"position": {
-				"left": 18,
+				"left": 9,
 				"top": 82
 			},
-			"maxWidth": 140
+			"maxWidth": 173
 		}
 	}
 }
