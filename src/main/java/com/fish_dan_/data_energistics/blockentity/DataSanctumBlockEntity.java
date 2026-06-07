@@ -73,6 +73,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final int BLACK_HOLE_WORK_INTERVAL_TICKS = 200;
     private static final int BLACK_HOLE_BLOCKS_PER_CYCLE = 20;
     private static final long BLACK_HOLE_DATA_FLOW_PER_CYCLE = 2_000L;
+    private static final long BLACK_HOLE_DATA_FLOW_PER_ENTITY = BLACK_HOLE_DATA_FLOW_PER_CYCLE;
     private static final double BLACK_HOLE_AE_COST_PER_BLOCK = 2_500.0D;
     private static final int BLACK_HOLE_CHUNK_RADIUS = 2;
     private static final int BLACK_HOLE_CHUNK_DIAMETER = BLACK_HOLE_CHUNK_RADIUS * 2 + 1;
@@ -591,8 +592,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.blackHoleWorkTicks = 0;
         consumeBlackHoleEntities(this.level, BLACK_HOLE_BLOCK_RADIUS);
 
-        long canBuffer = this.returnInventory.insert(DataFlowKey.of(), BLACK_HOLE_DATA_FLOW_PER_CYCLE, Actionable.SIMULATE, this.actionSource);
-        if (canBuffer < BLACK_HOLE_DATA_FLOW_PER_CYCLE) {
+        if (!canBufferBlackHoleDataFlow(BLACK_HOLE_DATA_FLOW_PER_CYCLE)) {
             return;
         }
 
@@ -602,11 +602,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return;
         }
 
-        this.returnInventory.insert(
-                DataFlowKey.of(),
-                BLACK_HOLE_DATA_FLOW_PER_CYCLE,
-                Actionable.MODULATE,
-                this.actionSource);
+        bufferBlackHoleDataFlow(BLACK_HOLE_DATA_FLOW_PER_CYCLE);
         saveChanges();
     }
 
@@ -688,11 +684,11 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         return null;
     }
 
-    private void consumeBlackHoleCenterEntities(Level level) {
-        consumeBlackHoleEntities(level, BLACK_HOLE_CENTER_ENTITY_RADIUS);
+    private int consumeBlackHoleCenterEntities(Level level) {
+        return consumeBlackHoleEntities(level, BLACK_HOLE_CENTER_ENTITY_RADIUS);
     }
 
-    private void consumeBlackHoleEntities(Level level, double radius) {
+    private int consumeBlackHoleEntities(Level level, double radius) {
         AABB bounds = new AABB(
                 this.worldPosition.getX() + 0.5D - radius,
                 level.getMinBuildHeight(),
@@ -706,14 +702,60 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         List<Entity> entities = level.getEntities((Entity) null, bounds,
                 entity -> isConsumableEntityByBlackHole(entity)
                         && distanceToBlackHoleCenterSqr(entity, centerX, centerZ) <= radiusSqr);
+        if (entities.isEmpty()) {
+            return 0;
+        }
 
+        long canBuffer = this.returnInventory.insert(
+                DataFlowKey.of(),
+                safeMultiply(BLACK_HOLE_DATA_FLOW_PER_ENTITY, entities.size()),
+                Actionable.SIMULATE,
+                this.actionSource);
+        int consumableCount = (int) Math.min(entities.size(), canBuffer / BLACK_HOLE_DATA_FLOW_PER_ENTITY);
+        if (consumableCount <= 0) {
+            return 0;
+        }
+
+        int consumedCount = 0;
         for (Entity entity : entities) {
+            if (consumedCount >= consumableCount) {
+                break;
+            }
+
             if (entity instanceof ServerPlayer player) {
                 player.hurt(player.damageSources().fellOutOfWorld(), Float.MAX_VALUE);
-                continue;
+            } else {
+                entity.discard();
             }
-            entity.discard();
+            consumedCount++;
         }
+
+        if (consumedCount > 0) {
+            bufferBlackHoleDataFlow(safeMultiply(BLACK_HOLE_DATA_FLOW_PER_ENTITY, consumedCount));
+        }
+        return consumedCount;
+    }
+
+    private boolean canBufferBlackHoleDataFlow(long amount) {
+        return amount > 0
+                && this.returnInventory.insert(DataFlowKey.of(), amount, Actionable.SIMULATE, this.actionSource) >= amount;
+    }
+
+    private long bufferBlackHoleDataFlow(long amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+        return this.returnInventory.insert(DataFlowKey.of(), amount, Actionable.MODULATE, this.actionSource);
+    }
+
+    private static long safeMultiply(long value, long multiplier) {
+        if (value <= 0 || multiplier <= 0) {
+            return 0;
+        }
+        if (value > Long.MAX_VALUE / multiplier) {
+            return Long.MAX_VALUE;
+        }
+        return value * multiplier;
     }
 
     private static double distanceToBlackHoleCenterSqr(Entity entity, double centerX, double centerZ) {
