@@ -41,7 +41,7 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
     public void broadcastChanges() {
         if (this.host != null) {
             BlockState state = this.host.getBlockState();
-            this.online = this.host.getMainNode().isOnline();
+            this.online = this.host.isOnline();
             this.active = getActive(state);
             this.mode = this.host.getMode();
             this.networkPortAvailable = hasNetworkPortPart(this.host, state);

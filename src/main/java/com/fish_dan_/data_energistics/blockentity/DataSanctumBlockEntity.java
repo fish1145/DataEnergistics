@@ -13,17 +13,17 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import appeng.api.config.AccessRestriction;
@@ -137,7 +137,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         createNetworkPortNode();
         ensureNetworkPortConnection();
         refillEnergyCache();
-        updateVisualState(this.getMainNode().isOnline(), this.lastMode);
+        updateVisualState(isOnline(), this.lastMode);
         performModeWork();
         injectReturnInventory();
     }
@@ -156,7 +156,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return;
         }
 
-        updateVisualState(this.getMainNode().isOnline(), clampedMode);
+        updateVisualState(isOnline(), clampedMode);
     }
 
     public int getMode() {
@@ -344,7 +344,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     public boolean isOnline() {
-        return this.getMainNode().isOnline();
+        return this.getMainNode().isOnline() && hasExternalNetworkPortConnection();
     }
 
     public int getEnergyCardCount() {
@@ -437,6 +437,21 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
         this.networkPortConnection.destroy();
         this.networkPortConnection = null;
+    }
+
+    private boolean hasExternalNetworkPortConnection() {
+        IGridNode portNode = this.networkPortNode.getNode();
+        if (portNode == null) {
+            return false;
+        }
+
+        for (IGridConnection connection : portNode.getInWorldConnections().values()) {
+            if (connection != null && connection != this.networkPortConnection) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private @Nullable BlockPos getNetworkPortPos() {
