@@ -2118,6 +2118,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         var returnInv = getReturnInv();
+        var grid = getGrid();
+        MEStorage networkStorage = grid == null ? null : grid.getStorageService().getInventory();
         var sides = getActiveSidesFiltered();
         if (sides.isEmpty()) {
             return false;
@@ -2150,18 +2152,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 }
 
                 long request = Math.min(available, 4000);
-                long canBuffer = returnInv.insert(key, request, Actionable.SIMULATE, this.actionSource);
-                if (canBuffer <= 0) {
+                long canInsertIntoNetwork = networkStorage == null ? 0 : networkStorage.insert(key, request, Actionable.SIMULATE, this.actionSource);
+                long remainingRequest = request - canInsertIntoNetwork;
+                long canBuffer = remainingRequest <= 0 ? 0 : returnInv.insert(key, remainingRequest, Actionable.SIMULATE, this.actionSource);
+                long pullAmount = canInsertIntoNetwork + canBuffer;
+                if (pullAmount <= 0) {
                     continue;
                 }
 
-                long extracted = externalStorage.extract(key, canBuffer, Actionable.MODULATE, this.actionSource);
+                long extracted = externalStorage.extract(key, pullAmount, Actionable.MODULATE, this.actionSource);
                 if (extracted <= 0) {
                     continue;
                 }
 
-                long buffered = returnInv.insert(key, extracted, Actionable.MODULATE, this.actionSource);
-                long leftover = extracted - buffered;
+                long insertedIntoNetwork = networkStorage == null ? 0 : networkStorage.insert(key, extracted, Actionable.MODULATE, this.actionSource);
+                long leftover = extracted - insertedIntoNetwork;
+                long buffered = leftover <= 0 ? 0 : returnInv.insert(key, leftover, Actionable.MODULATE, this.actionSource);
+                leftover -= buffered;
                 if (leftover > 0) {
                     externalStorage.insert(key, leftover, Actionable.MODULATE, this.actionSource);
                 }
