@@ -11,7 +11,6 @@
 		"particle": "data_energistics:block/data_sanctum/sprite_0",
 		"base": "data_energistics:block/data_sanctum/sprite_0",
 		"crystal_on": "data_energistics:block/data_distribution_tower/crystal_on",
-		"end_portal": "minecraft:entity/end_portal",
-		"none": "data_energistics:block/data_sanctum/sprite_0"
+		"end_portal": "minecraft:entity/end_portal"
 	}
 }

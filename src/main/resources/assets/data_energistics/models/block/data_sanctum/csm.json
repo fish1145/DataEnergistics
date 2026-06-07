@@ -10,6 +10,5 @@
 	"textures": {
 		"particle": "data_energistics:block/data_sanctum/sprite_0",
 		"base": "data_energistics:block/data_sanctum/sprite_0",
-		"none": "data_energistics:block/data_sanctum/sprite_0"
 	}
 }
