@@ -88,6 +88,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final String RETURN_INVENTORY_TAG = "returnInv";
     private static final String BLACK_HOLE_WORK_TICKS_TAG = "black_hole_work_ticks";
     private static final String BLACK_HOLE_COLUMN_CURSOR_TAG = "black_hole_column_cursor";
+    private static final String BLACK_HOLE_EXPANSION_RADIUS_TAG = "black_hole_expansion_radius";
     private static final IGridNodeListener<DataSanctumBlockEntity> MAIN_NODE_LISTENER = new BlockEntityNodeListener<>() {
 
         @Override
@@ -123,6 +124,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private boolean showRange;
     private int blackHoleWorkTicks;
     private int blackHoleColumnCursor;
+    private int blackHoleExpansionRadius;
     private int[] blackHoleTopY;
 
     public DataSanctumBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -197,6 +199,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         data.put(NETWORK_PORT_NODE_TAG, networkPortNodeTag);
         data.putInt(BLACK_HOLE_WORK_TICKS_TAG, this.blackHoleWorkTicks);
         data.putInt(BLACK_HOLE_COLUMN_CURSOR_TAG, this.blackHoleColumnCursor);
+        data.putInt(BLACK_HOLE_EXPANSION_RADIUS_TAG, this.blackHoleExpansionRadius);
     }
 
     @Override
@@ -213,6 +216,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         clampStoredPowerToCapacity();
         this.blackHoleWorkTicks = Math.max(0, data.getInt(BLACK_HOLE_WORK_TICKS_TAG));
         this.blackHoleColumnCursor = Math.max(0, data.getInt(BLACK_HOLE_COLUMN_CURSOR_TAG)) % BLACK_HOLE_TOTAL_COLUMNS;
+        this.blackHoleExpansionRadius = Math.max(0, Math.min(BLACK_HOLE_BLOCK_RADIUS, data.getInt(BLACK_HOLE_EXPANSION_RADIUS_TAG)));
         this.blackHoleTopY = null;
     }
 
@@ -590,13 +594,14 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         this.blackHoleWorkTicks = 0;
-        consumeBlackHoleEntities(this.level, BLACK_HOLE_BLOCK_RADIUS);
+        advanceBlackHoleExpansionRadius();
+        consumeBlackHoleEntities(this.level, this.blackHoleExpansionRadius);
 
         if (!canBufferBlackHoleDataFlow(BLACK_HOLE_DATA_FLOW_PER_CYCLE)) {
             return;
         }
 
-        int destroyedCount = consumeBlackHoleBlocks();
+        int destroyedCount = consumeBlackHoleBlocks(this.blackHoleExpansionRadius);
         if (destroyedCount <= 0) {
             this.blackHoleTopY = null;
             return;
@@ -610,13 +615,28 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.blackHoleWorkTicks = 0;
         if (!preserveCursor) {
             this.blackHoleColumnCursor = 0;
+            this.blackHoleExpansionRadius = 0;
             this.blackHoleTopY = null;
         }
     }
 
-    private int consumeBlackHoleBlocks() {
+    private void advanceBlackHoleExpansionRadius() {
+        if (this.blackHoleExpansionRadius < BLACK_HOLE_BLOCK_RADIUS) {
+            this.blackHoleExpansionRadius++;
+        }
+    }
+
+    private int consumeBlackHoleBlocks(int radius) {
         if (!(this.level instanceof Level level)) {
             return 0;
+        }
+
+        int columnLimit = getBlackHoleColumnLimit(radius);
+        if (columnLimit <= 0) {
+            return 0;
+        }
+        if (this.blackHoleColumnCursor >= columnLimit) {
+            this.blackHoleColumnCursor = 0;
         }
 
         ensureBlackHoleTopYCache();
@@ -626,9 +646,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
         int destroyedCount = 0;
         int attempts = 0;
-        while (destroyedCount < BLACK_HOLE_BLOCKS_PER_CYCLE && attempts < BLACK_HOLE_TOTAL_COLUMNS) {
+        while (destroyedCount < BLACK_HOLE_BLOCKS_PER_CYCLE && attempts < columnLimit) {
             int columnIndex = this.blackHoleColumnCursor;
-            this.blackHoleColumnCursor = (this.blackHoleColumnCursor + 1) % BLACK_HOLE_TOTAL_COLUMNS;
+            this.blackHoleColumnCursor = (this.blackHoleColumnCursor + 1) % columnLimit;
             attempts++;
 
             BlockPos targetPos = findNextConsumableBlock(level, columnIndex);
@@ -645,6 +665,15 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             destroyedCount++;
         }
         return destroyedCount;
+    }
+
+    private static int getBlackHoleColumnLimit(int radius) {
+        int radiusSqr = Math.max(0, radius) * Math.max(0, radius);
+        int limit = 0;
+        while (limit < BLACK_HOLE_TOTAL_COLUMNS && BLACK_HOLE_COLUMN_ORDER[limit].distanceSqr() <= radiusSqr) {
+            limit++;
+        }
+        return limit;
     }
 
     private void ensureBlackHoleTopYCache() {
