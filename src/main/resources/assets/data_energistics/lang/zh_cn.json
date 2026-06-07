@@ -324,6 +324,8 @@
 	"screen.data_energistics.data_sanctum_interface.config": "配置",
 	"screen.data_energistics.data_sanctum_interface.return_slots": "返回槽",
 	"gui.data_energistics.set_active_pull_sides": "主动抽取面",
+	"gui.data_energistics.set_active_pull_sides.enable": "启用主动抽取",
+	"gui.data_energistics.set_active_pull_sides.disable": "禁用主动抽取",
 	"gui.data_energistics.set_active_pull_sides.open": "配置主动抽取面",
 	"gui.data_energistics.set_active_pull_sides.toggle": "切换主动抽取对面方块",
 	"gui.data_energistics.set_active_pull_sides.clear": "清空主动抽取面",

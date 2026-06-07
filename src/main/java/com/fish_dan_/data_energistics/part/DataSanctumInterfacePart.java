@@ -227,38 +227,20 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
     @Override
     public Set<Direction> getActivePullSides() {
-        Direction side = getSingleActivePullSide();
-        if (side != null && this.activePullSides.contains(side)) {
-            return EnumSet.of(side);
-        }
-        return EnumSet.noneOf(Direction.class);
+        return this.activePullSides.isEmpty() ? EnumSet.noneOf(Direction.class) : EnumSet.copyOf(this.activePullSides);
     }
 
     @Override
     public void setActivePullSideEnabled(Direction side, boolean enabled) {
-        Direction activeSide = getSingleActivePullSide();
-        if (activeSide == null) {
+        if (side == null) {
             return;
         }
 
-        boolean changed;
-        if (enabled) {
-            changed = this.activePullSides.size() != 1 || !this.activePullSides.contains(activeSide);
-            this.activePullSides.clear();
-            this.activePullSides.add(activeSide);
-        } else {
-            changed = !this.activePullSides.isEmpty();
-            this.activePullSides.clear();
-        }
+        boolean changed = enabled ? this.activePullSides.add(side) : this.activePullSides.remove(side);
         if (changed) {
             saveChanges();
             markForClientUpdate();
         }
-    }
-
-    @Override
-    public boolean hasActivePullSideSelection() {
-        return false;
     }
 
     @Override

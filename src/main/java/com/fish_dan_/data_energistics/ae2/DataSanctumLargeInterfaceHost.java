@@ -30,6 +30,11 @@ public interface DataSanctumLargeInterfaceHost extends InterfaceLogicHost {
         return null;
     }
 
+    default Direction getDefaultActivePullSide() {
+        Direction side = getSingleActivePullSide();
+        return side != null ? side : mapRelativeSide(RelativeSide.FRONT);
+    }
+
     @Nullable
     Level getInterfaceLevel();
 

@@ -12,7 +12,8 @@ import java.util.List;
 
 public class OutputSideActionButton extends IconButton {
 
-    private final String messageKey;
+    private String messageKey;
+    private String iconName = "PLACEMENT_TOOLBOX";
 
     public OutputSideActionButton(Button.OnPress onPress) {
         this(onPress, "gui.data_energistics.set_output_sides.open");
@@ -20,8 +21,16 @@ public class OutputSideActionButton extends IconButton {
 
     public OutputSideActionButton(Button.OnPress onPress, String messageKey) {
         super(onPress);
+        setMessageKey(messageKey);
+    }
+
+    public void setMessageKey(String messageKey) {
         this.messageKey = messageKey;
         this.setMessage(Component.translatable(messageKey));
+    }
+
+    public void setIconName(String iconName) {
+        this.iconName = iconName;
     }
 
     @Override
@@ -46,6 +55,6 @@ public class OutputSideActionButton extends IconButton {
     }
 
     private Blitter getBlitterIcon() {
-        return DataEnergisticsIcon.getBlitter("PLACEMENT_TOOLBOX");
+        return DataEnergisticsIcon.getBlitter(this.iconName);
     }
 }

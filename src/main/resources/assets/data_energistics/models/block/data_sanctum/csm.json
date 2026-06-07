@@ -8,7 +8,7 @@
 	"shade_quads": true,
 	"emissive_ambient": false,
 	"textures": {
-		"particle": "data_energistics:block/data_sanctum/sprite_0",
-		"base": "data_energistics:block/data_sanctum/sprite_0",
+		"particle": "data_energistics:block/data_sanctum/data_sanctum",
+		"base": "data_energistics:block/data_sanctum/data_sanctum",
 	}
 }

@@ -319,6 +319,8 @@
 	"screen.data_energistics.data_sanctum_interface.config": "Config",
 	"screen.data_energistics.data_sanctum_interface.return_slots": "Return Slots",
 	"gui.data_energistics.set_active_pull_sides": "Active Pull Sides",
+	"gui.data_energistics.set_active_pull_sides.enable": "Enable active pull",
+	"gui.data_energistics.set_active_pull_sides.disable": "Disable active pull",
 	"gui.data_energistics.set_active_pull_sides.open": "Configure active pull sides",
 	"gui.data_energistics.set_active_pull_sides.toggle": "Toggle active pull from facing block",
 	"gui.data_energistics.set_active_pull_sides.clear": "Clear active pull sides",
