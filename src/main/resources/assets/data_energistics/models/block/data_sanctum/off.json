@@ -10,7 +10,7 @@
 	"textures": {
 		"particle": "data_energistics:block/data_sanctum/sprite_0",
 		"base": "data_energistics:block/data_sanctum/sprite_0",
-		"crystal_off": "data_energistics:block/data_distribution_tower/crystal_on",
+		"crystal_off": "data_energistics:block/data_distribution_tower/crystal_off",
 		"none": "data_energistics:block/data_sanctum/sprite_0"
 	}
 }
