@@ -401,8 +401,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-    }
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     public int getBoundTargetCount() {
         return getBoundTargetSummaries(Integer.MAX_VALUE).size();
@@ -931,9 +930,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean isWithinTowerCoverage(BlockPos targetPos) {
-        return isWithinCenteredHorizontalRange(targetPos, getChunkRadius())
-                && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW
-                && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
+        return isWithinCenteredHorizontalRange(targetPos, getChunkRadius()) && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
     }
 
     private int getTransferBudgetPerTick() {
@@ -995,10 +992,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean isWithinCenteredHorizontalRange(BlockPos targetPos, int chunkRadius) {
         double targetCenterX = targetPos.getX() + 0.5D;
         double targetCenterZ = targetPos.getZ() + 0.5D;
-        return targetCenterX >= getCoverageMinX(chunkRadius)
-                && targetCenterX < getCoverageMaxX(chunkRadius)
-                && targetCenterZ >= getCoverageMinZ(chunkRadius)
-                && targetCenterZ < getCoverageMaxZ(chunkRadius);
+        return targetCenterX >= getCoverageMinX(chunkRadius) && targetCenterX < getCoverageMaxX(chunkRadius) && targetCenterZ >= getCoverageMinZ(chunkRadius) && targetCenterZ < getCoverageMaxZ(chunkRadius);
     }
 
     private double getCoverageMinX(int chunkRadius) {
@@ -2002,8 +1996,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
             try {
                 newConnections.add(GridHelper.createConnection(selfNode, targetNode));
-            } catch (IllegalStateException ignored) {
-            }
+            } catch (IllegalStateException ignored) {}
         }
 
         if (newConnections.isEmpty()) {
@@ -2414,11 +2407,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {
-    }
+    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {}
 
-    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {
-    }
+    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
 
     private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
 
@@ -2437,8 +2428,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count,
-                                     ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {
-    }
+                                     ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {}
 
     public enum ConnectionMode {
 
@@ -2497,11 +2487,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         FE
     }
 
-    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {
-    }
+    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {}
 
-    private record DisplayTarget(BlockPos pos, TargetKind kind) {
-    }
+    private record DisplayTarget(BlockPos pos, TargetKind kind) {}
 
     private class TowerEnergyStorage implements IEnergyStorage {
 
