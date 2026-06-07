@@ -2,12 +2,12 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
@@ -92,7 +92,7 @@ public final class ModMenus {
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_sanctum_interface")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataSanctumLargeInterfaceMenu>> DATA_SANCTUM_LARGE_INTERFACE = MENUS.register("data_sanctum_large_interface", () -> MenuTypeBuilder
-            .create(DataSanctumLargeInterfaceMenu::new, DataSanctumInterfaceBlockEntity.class)
+            .create(DataSanctumLargeInterfaceMenu::new, DataSanctumLargeInterfaceHost.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_sanctum_large_interface")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER = MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder

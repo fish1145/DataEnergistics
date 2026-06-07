@@ -1,11 +1,10 @@
-package com.fish_dan_.data_energistics.blockentity;
+package com.fish_dan_.data_energistics.part;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -19,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -34,91 +34,168 @@ import appeng.api.networking.GridHelper;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.orientation.RelativeSide;
+import appeng.api.parts.IPartCollisionHelper;
+import appeng.api.parts.IPartItem;
+import appeng.api.parts.IPartModel;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
-import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.InterfaceLogic;
-import appeng.me.helpers.BlockEntityNodeListener;
+import appeng.items.parts.PartModels;
 import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
+import appeng.menu.locator.MenuLocators;
+import appeng.parts.AEBasePart;
+import appeng.parts.PartModel;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity implements DataSanctumLargeInterfaceHost {
+public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumLargeInterfaceHost, IGridTickable {
 
     private static final String RETURN_INVENTORY_TAG = "returnInv";
     private static final String ACTIVE_PULL_SIDES_TAG = "active_pull_sides";
     private static final int ACTIVE_PULL_KEYS_PER_TICK = 32;
     private static final int ACTIVE_PULL_AMOUNT_PER_KEY = 4000;
     private static final int ACTIVE_PULL_FLUID_AMOUNT_PER_TICK = 4000;
+    private static final ResourceLocation MODEL_BASE = ResourceLocation.fromNamespaceAndPath(
+            Data_Energistics.MODID,
+            "part/data_sanctum_interface_base");
 
-    private static final IGridNodeListener<DataSanctumInterfaceBlockEntity> NODE_LISTENER = new BlockEntityNodeListener<>() {
+    private static final IGridNodeListener<DataSanctumInterfacePart> NODE_LISTENER = new NodeListener<>() {
 
         @Override
-        public void onGridChanged(DataSanctumInterfaceBlockEntity nodeOwner, IGridNode node) {
+        public void onGridChanged(DataSanctumInterfacePart nodeOwner, IGridNode node) {
+            super.onGridChanged(nodeOwner, node);
             nodeOwner.interfaceLogic.gridChanged();
         }
     };
 
-    private final InterfaceLogic interfaceLogic = new InterfaceLogic(
-            this.getMainNode(),
-            this,
-            ModBlocks.DATA_SANCTUM_INTERFACE.get().asItem(),
-            DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT);
+    @PartModels
+    private static final PartModel MODELS_OFF;
+    @PartModels
+    private static final PartModel MODELS_ON;
+    @PartModels
+    private static final PartModel MODELS_HAS_CHANNEL;
+
+    static {
+        MODELS_OFF = new PartModel(MODEL_BASE, ResourceLocation.fromNamespaceAndPath(
+                Data_Energistics.MODID,
+                "part/data_sanctum_interface_off"));
+        MODELS_ON = new PartModel(MODEL_BASE, ResourceLocation.fromNamespaceAndPath(
+                Data_Energistics.MODID,
+                "part/data_sanctum_interface_on"));
+        MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, ResourceLocation.fromNamespaceAndPath(
+                Data_Energistics.MODID,
+                "part/data_sanctum_interface_has_channel"));
+    }
+
+    private final InterfaceLogic interfaceLogic = createLogic();
     private final DataSanctumReturnInventory returnInventory = new DataSanctumReturnInventory(
             this::onReturnInventoryChanged,
             this::getInstalledCapacityCardCount);
     private final MachineSource actionSource = new MachineSource(this);
     private final EnumSet<Direction> activePullSides = EnumSet.noneOf(Direction.class);
 
-    public DataSanctumInterfaceBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), blockPos, blockState);
-        this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DATA_SANCTUM_INTERFACE.get())
-                .setIdlePowerUsage(0.0D);
+    public DataSanctumInterfacePart(IPartItem<?> partItem) {
+        super(partItem);
         installInterfaceInventories();
+    }
+
+    protected InterfaceLogic createLogic() {
+        return new InterfaceLogic(
+                getMainNode(),
+                this,
+                getPartItem().asItem(),
+                DataSanctumInterfaceConstants.LOGIC_SLOT_COUNT);
     }
 
     @Override
     protected IManagedGridNode createMainNode() {
-        return GridHelper.createManagedNode(this, NODE_LISTENER);
+        return GridHelper.createManagedNode(this, NODE_LISTENER)
+                .setIdlePowerUsage(0.0D)
+                .addService(IGridTickable.class, this);
     }
 
     @Override
-    public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
-        return EnumSet.allOf(Direction.class);
-    }
-
-    @Override
-    public AECableType getCableConnectionType(Direction dir) {
-        return AECableType.COVERED;
-    }
-
-    @Override
-    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
-        if (this.getMainNode().hasGridBooted()) {
+    protected void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        if (getMainNode().hasGridBooted()) {
             this.interfaceLogic.notifyNeighbors();
         }
     }
 
     @Override
-    public InterfaceLogic getInterfaceLogic() {
-        return this.interfaceLogic;
+    public void getBoxes(IPartCollisionHelper bch) {
+        bch.addBox(2, 2, 14, 14, 14, 16);
+        bch.addBox(5, 5, 12, 11, 11, 14);
     }
 
     @Override
-    public ItemStack getMainMenuIcon() {
-        return ModBlocks.DATA_SANCTUM_INTERFACE.toStack();
+    public void readFromNBT(CompoundTag data, HolderLookup.Provider registries) {
+        super.readFromNBT(data, registries);
+        this.interfaceLogic.readFromNBT(data, registries);
+        this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
+        decodeSides(data.getInt(ACTIVE_PULL_SIDES_TAG), this.activePullSides);
+    }
+
+    @Override
+    public void writeToNBT(CompoundTag data, HolderLookup.Provider registries) {
+        super.writeToNBT(data, registries);
+        this.interfaceLogic.writeToNBT(data, registries);
+        this.returnInventory.writeToChildTag(data, RETURN_INVENTORY_TAG, registries);
+        data.putInt(ACTIVE_PULL_SIDES_TAG, encodeSides(this.activePullSides));
+    }
+
+    @Override
+    public void addAdditionalDrops(List<ItemStack> drops, boolean wrenched) {
+        super.addAdditionalDrops(drops, wrenched);
+        this.interfaceLogic.addDrops(drops);
+        Level level = getInterfaceLevel();
+        if (level != null) {
+            this.returnInventory.addDrops(drops, level, getInterfaceBlockPos());
+        }
+    }
+
+    @Override
+    public void clearContent() {
+        super.clearContent();
+        this.interfaceLogic.clearContent();
+        this.returnInventory.clear();
+    }
+
+    @Override
+    public float getCableConnectionLength(AECableType cable) {
+        return 4;
+    }
+
+    @Nullable
+    @Override
+    public InternalInventory getSubInventory(ResourceLocation id) {
+        if (ISegmentedInventory.UPGRADES.equals(id)) {
+            return this.interfaceLogic.getUpgrades();
+        }
+        return super.getSubInventory(id);
+    }
+
+    @Override
+    public boolean onUseWithoutItem(Player player, Vec3 pos) {
+        if (!player.getCommandSenderWorld().isClientSide()) {
+            openMenu(player, MenuLocators.forPart(this));
+        }
+        return true;
     }
 
     @Override
@@ -132,41 +209,118 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     }
 
     @Override
-    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
-        super.saveAdditional(data, registries);
-        this.interfaceLogic.writeToNBT(data, registries);
-        this.returnInventory.writeToChildTag(data, RETURN_INVENTORY_TAG, registries);
-        data.putInt(ACTIVE_PULL_SIDES_TAG, encodeSides(this.activePullSides));
+    public InterfaceLogic getInterfaceLogic() {
+        return this.interfaceLogic;
     }
 
     @Override
-    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        super.loadTag(data, registries);
-        this.interfaceLogic.readFromNBT(data, registries);
-        this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
-        decodeSides(data.getInt(ACTIVE_PULL_SIDES_TAG), this.activePullSides);
+    public DataSanctumReturnInventory getReturnInventory() {
+        return this.returnInventory;
     }
 
     @Override
-    public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
-        super.addAdditionalDrops(level, pos, drops);
-        this.interfaceLogic.addDrops(drops);
-        this.returnInventory.addDrops(drops, level, pos);
+    public int getInstalledCapacityCardCount() {
+        return Math.max(0, Math.min(
+                DataSanctumInterfaceConstants.MAX_CAPACITY_CARDS,
+                this.interfaceLogic.getUpgrades().getInstalledUpgrades(AEItems.CAPACITY_CARD)));
     }
 
     @Override
-    public void clearContent() {
-        super.clearContent();
-        this.interfaceLogic.clearContent();
-        this.returnInventory.clear();
-    }
-
-    @Override
-    public InternalInventory getSubInventory(ResourceLocation id) {
-        if (ISegmentedInventory.UPGRADES.equals(id)) {
-            return this.interfaceLogic.getUpgrades();
+    public Set<Direction> getActivePullSides() {
+        Direction side = getSingleActivePullSide();
+        if (side != null && this.activePullSides.contains(side)) {
+            return EnumSet.of(side);
         }
-        return super.getSubInventory(id);
+        return EnumSet.noneOf(Direction.class);
+    }
+
+    @Override
+    public void setActivePullSideEnabled(Direction side, boolean enabled) {
+        Direction activeSide = getSingleActivePullSide();
+        if (activeSide == null) {
+            return;
+        }
+
+        boolean changed;
+        if (enabled) {
+            changed = this.activePullSides.size() != 1 || !this.activePullSides.contains(activeSide);
+            this.activePullSides.clear();
+            this.activePullSides.add(activeSide);
+        } else {
+            changed = !this.activePullSides.isEmpty();
+            this.activePullSides.clear();
+        }
+        if (changed) {
+            saveChanges();
+            markForClientUpdate();
+        }
+    }
+
+    @Override
+    public boolean hasActivePullSideSelection() {
+        return false;
+    }
+
+    @Override
+    public @Nullable Direction getSingleActivePullSide() {
+        return getSide();
+    }
+
+    @Override
+    public @Nullable Level getInterfaceLevel() {
+        BlockEntity blockEntity = getBlockEntity();
+        return blockEntity != null ? blockEntity.getLevel() : null;
+    }
+
+    @Override
+    public BlockPos getInterfaceBlockPos() {
+        BlockEntity blockEntity = getBlockEntity();
+        return blockEntity != null ? blockEntity.getBlockPos() : BlockPos.ZERO;
+    }
+
+    @Override
+    public Direction mapRelativeSide(RelativeSide relativeSide) {
+        Direction front = getSide();
+        return BlockOrientation.get(front != null ? front : Direction.NORTH).getSide(relativeSide);
+    }
+
+    @Override
+    public ItemStack getMainMenuIcon() {
+        return new ItemStack(getPartItem().asItem());
+    }
+
+    @Override
+    public IPartModel getStaticModels() {
+        if (this.isActive() && this.isPowered()) {
+            return MODELS_HAS_CHANNEL;
+        } else if (this.isPowered()) {
+            return MODELS_ON;
+        } else {
+            return MODELS_OFF;
+        }
+    }
+
+    @Override
+    public TickingRequest getTickingRequest(IGridNode node) {
+        return new TickingRequest(1, 1, false);
+    }
+
+    @Override
+    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+        if (!isActive()) {
+            return TickRateModulation.IDLE;
+        }
+
+        tryActivePull();
+        injectReturnInventory();
+        return TickRateModulation.IDLE;
+    }
+
+    @Override
+    public void saveChanges() {
+        if (getHost() != null) {
+            getHost().markForSave();
+        }
     }
 
     private void installInterfaceInventories() {
@@ -181,59 +335,18 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
         this.interfaceLogic.storage = storage;
     }
 
-    public DataSanctumReturnInventory getReturnInventory() {
-        return this.returnInventory;
-    }
-
-    public int getInstalledCapacityCardCount() {
-        return Math.max(0, Math.min(
-                DataSanctumInterfaceConstants.MAX_CAPACITY_CARDS,
-                this.interfaceLogic.getUpgrades().getInstalledUpgrades(AEItems.CAPACITY_CARD)));
-    }
-
-    public Set<Direction> getActivePullSides() {
-        return this.activePullSides.isEmpty() ? EnumSet.noneOf(Direction.class) : EnumSet.copyOf(this.activePullSides);
-    }
-
-    public void setActivePullSideEnabled(Direction side, boolean enabled) {
-        if (side == null) {
-            return;
+    private void markForClientUpdate() {
+        if (getHost() != null) {
+            getHost().markForUpdate();
         }
-
-        boolean changed = enabled ? this.activePullSides.add(side) : this.activePullSides.remove(side);
-        if (changed) {
-            this.saveChanges();
-            this.markForClientUpdate();
-        }
-    }
-
-    @Override
-    public Level getInterfaceLevel() {
-        return this.level;
-    }
-
-    @Override
-    public BlockPos getInterfaceBlockPos() {
-        return this.worldPosition;
-    }
-
-    @Override
-    public Direction mapRelativeSide(RelativeSide relativeSide) {
-        return getOrientation().getSide(relativeSide);
-    }
-
-    public void serverTick() {
-        if (this.level == null || this.level.isClientSide()) {
-            return;
-        }
-
-        tryActivePull();
-        injectReturnInventory();
     }
 
     private void onReturnInventoryChanged() {
-        this.getMainNode().ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
-        this.saveChanges();
+        IGridNode node = this.getMainNode().getNode();
+        if (node != null && node.getGrid() != null) {
+            node.getGrid().getTickManager().alertDevice(node);
+        }
+        saveChanges();
     }
 
     private void injectReturnInventory() {
@@ -246,13 +359,14 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     }
 
     private boolean tryActivePull() {
-        if (this.activePullSides.isEmpty() || !(this.level instanceof ServerLevel serverLevel) || !this.getMainNode().isActive()) {
+        Level level = getInterfaceLevel();
+        if (this.activePullSides.isEmpty() || !(level instanceof ServerLevel serverLevel) || !this.getMainNode().isActive()) {
             return false;
         }
 
         int keysScanned = 0;
-        for (Direction side : this.activePullSides) {
-            BlockPos targetPos = this.worldPosition.relative(side);
+        for (Direction side : getActivePullSides()) {
+            BlockPos targetPos = getInterfaceBlockPos().relative(side);
             if (!serverLevel.hasChunkAt(targetPos)) {
                 continue;
             }

@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
-import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
+import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.Direction;
@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntSupplier;
 
-public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumInterfaceBlockEntity> {
+public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLargeInterfaceHost> {
 
     public static final String ACTION_OPEN_SET_AMOUNT = "setAmount";
     public static final String ACTION_SET_PAGE = "set_page";
@@ -52,7 +52,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumIn
 
     private List<Slot> configSlots;
 
-    public DataSanctumLargeInterfaceMenu(int id, Inventory playerInventory, DataSanctumInterfaceBlockEntity host) {
+    public DataSanctumLargeInterfaceMenu(int id, Inventory playerInventory, DataSanctumLargeInterfaceHost host) {
         super(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), id, playerInventory, host);
         registerClientAction(ACTION_OPEN_SET_AMOUNT, Integer.class, this::openSetAmountMenu);
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);

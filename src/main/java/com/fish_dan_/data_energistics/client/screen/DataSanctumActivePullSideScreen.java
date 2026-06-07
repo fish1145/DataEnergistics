@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.client.widget.OutputSideDisplayButton;
 import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu;
 
@@ -14,7 +15,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import appeng.api.config.ActionItems;
 import appeng.api.orientation.RelativeSide;
 import appeng.api.parts.IPart;
-import appeng.blockentity.AEBaseBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.client.gui.AESubScreen;
 import appeng.client.gui.Icon;
@@ -33,12 +33,12 @@ public class DataSanctumActivePullSideScreen extends AESubScreen<DataSanctumLarg
 
     public DataSanctumActivePullSideScreen(
                                            DataSanctumLargeInterfaceScreen parent,
-                                           AEBaseBlockEntity host,
+                                           DataSanctumLargeInterfaceHost host,
                                            List<Direction> selectedSides,
                                            BiConsumer<Direction, Boolean> setter) {
         super(parent, "/screens/data_sanctum_active_pull_sides.json");
 
-        ItemStack icon = new ItemStack(host.getBlockState().getBlock());
+        ItemStack icon = host.getMainMenuIcon();
         TabButton backButton = new TabButton(Icon.BACK, icon.getHoverName(), btn -> this.returnToParent());
         this.widgets.add("return", backButton);
 
@@ -61,8 +61,9 @@ public class DataSanctumActivePullSideScreen extends AESubScreen<DataSanctumLarg
                 outputButton.flip();
                 setter.accept(side, outputButton.isOn());
             });
-            if (host.getLevel() != null) {
-                button.setDisplay(this.getDisplayIcon(host, host.getLevel(), side));
+            Level level = host.getInterfaceLevel();
+            if (level != null) {
+                button.setDisplay(this.getDisplayIcon(host, level, side));
             }
             this.buttons.put(side, button);
         }
@@ -75,7 +76,7 @@ public class DataSanctumActivePullSideScreen extends AESubScreen<DataSanctumLarg
         }
 
         for (RelativeSide relative : RelativeSide.values()) {
-            Direction side = host.getOrientation().getSide(relative);
+            Direction side = host.mapRelativeSide(relative);
             this.widgets.add(relative.name().toLowerCase(Locale.ROOT), this.buttons.get(side));
         }
     }
@@ -86,8 +87,8 @@ public class DataSanctumActivePullSideScreen extends AESubScreen<DataSanctumLarg
         this.setSlotsHidden(SlotSemantics.TOOLBOX, true);
     }
 
-    private ItemLike getDisplayIcon(AEBaseBlockEntity host, Level level, Direction side) {
-        BlockPos pos = host.getBlockPos().relative(side);
+    private ItemLike getDisplayIcon(DataSanctumLargeInterfaceHost host, Level level, Direction side) {
+        BlockPos pos = host.getInterfaceBlockPos().relative(side);
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof CableBusBlockEntity cableBus) {
             IPart part = cableBus.getPart(side.getOpposite());

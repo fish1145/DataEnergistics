@@ -115,6 +115,8 @@ public final class ModUpgrades {
         Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SANCTUM.get(), 3, "block.data_energistics.data_sanctum");
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_SANCTUM_INTERFACE.get(), 3,
                 "block.data_energistics.data_sanctum_interface");
+        Upgrades.add(AEItems.CAPACITY_CARD, ModItems.DATA_SANCTUM_INTERFACE_PART.get(), 3,
+                "item.data_energistics.data_sanctum_interface_part");
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
@@ -144,6 +146,8 @@ public final class ModUpgrades {
                 PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass()));
         PartModels.registerModels(
                 PartModelsHelper.createModels(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get().getPartClass()));
+        PartModels.registerModels(
+                PartModelsHelper.createModels(ModItems.DATA_SANCTUM_INTERFACE_PART.get().getPartClass()));
         PartModels.registerModels(
                 PartModelsHelper.createModels(ModItems.ME_SOLAR_PANEL_PART.get().getPartClass()));
         PartModels.registerModels(

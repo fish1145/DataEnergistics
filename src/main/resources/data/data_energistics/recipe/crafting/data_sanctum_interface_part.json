@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "data_energistics:data_sanctum_interface"
+		}
+	],
+	"result": {
+		"id": "data_energistics:data_sanctum_interface_part",
+		"count": 1
+	}
+}

@@ -318,11 +318,13 @@
 	"screen.data_energistics.data_sanctum_interface.return_slots": "Return Slots",
 	"gui.data_energistics.set_active_pull_sides": "Active Pull Sides",
 	"gui.data_energistics.set_active_pull_sides.open": "Configure active pull sides",
+	"gui.data_energistics.set_active_pull_sides.toggle": "Toggle active pull from facing block",
 	"gui.data_energistics.set_active_pull_sides.clear": "Clear active pull sides",
 	"block.data_energistics.data_sanctum": "维度解离总站",
 	"item.data_energistics.data_sanctum": "维度解离总站",
 	"block.data_energistics.data_sanctum_interface": "Extreme Capacity Interface",
 	"item.data_energistics.data_sanctum_interface": "Extreme Capacity Interface",
+	"item.data_energistics.data_sanctum_interface_part": "Extreme Capacity Interface",
 	"item.data_energistics.data_sanctum_interface_upgrade": "Extreme Capacity Interface Upgrade",
 	"item.data_energistics.adaptive_pattern_provider_upgrade": "Adaptive Pattern Provider Upgrade"
 }

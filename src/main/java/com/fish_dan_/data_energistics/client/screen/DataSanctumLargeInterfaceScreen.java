@@ -56,7 +56,7 @@ public class DataSanctumLargeInterfaceScreen extends UpgradeableScreen<DataSanct
 
         this.activePullSideButton = new OutputSideActionButton(
                 button -> openActivePullConfig(),
-                "gui.data_energistics.set_active_pull_sides.open");
+                getActivePullButtonMessageKey(menu));
         this.addToLeftToolbar(this.activePullSideButton);
 
         for (int i = 0; i < menu.getConfigSlots().size(); i++) {
@@ -73,8 +73,23 @@ public class DataSanctumLargeInterfaceScreen extends UpgradeableScreen<DataSanct
         }
     }
 
+    private static String getActivePullButtonMessageKey(DataSanctumLargeInterfaceMenu menu) {
+        if (menu.getHost() != null && !menu.getHost().hasActivePullSideSelection()) {
+            return "gui.data_energistics.set_active_pull_sides.toggle";
+        }
+        return "gui.data_energistics.set_active_pull_sides.open";
+    }
+
     private void openActivePullConfig() {
         if (this.menu.getHost() == null) {
+            return;
+        }
+
+        if (!this.menu.getHost().hasActivePullSideSelection()) {
+            var side = this.menu.getHost().getSingleActivePullSide();
+            if (side != null) {
+                this.menu.sendSetActivePullSide(side, !this.menu.getActivePullSides().contains(side));
+            }
             return;
         }
 

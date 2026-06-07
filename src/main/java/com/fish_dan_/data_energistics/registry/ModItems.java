@@ -23,6 +23,7 @@ import com.fish_dan_.data_energistics.item.PoweredShovelItem;
 import com.fish_dan_.data_energistics.item.PoweredSwordItem;
 import com.fish_dan_.data_energistics.item.UniversalTerminalPartItem;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
@@ -93,6 +94,9 @@ public final class ModItems {
     public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
             "data_sanctum_interface_upgrade",
             () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));
+    public static final DeferredItem<PartItem<DataSanctumInterfacePart>> DATA_SANCTUM_INTERFACE_PART = ITEMS.register(
+            "data_sanctum_interface_part",
+            () -> new PartItem<>(new Item.Properties(), DataSanctumInterfacePart.class, DataSanctumInterfacePart::new));
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
     public static final DeferredItem<AdaptivePatternProviderUpgradeItem> ADAPTIVE_PATTERN_PROVIDER_UPGRADE = ITEMS.register(
             "adaptive_pattern_provider_upgrade",
