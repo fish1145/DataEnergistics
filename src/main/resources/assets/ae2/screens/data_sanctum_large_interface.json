@@ -7,26 +7,26 @@
 	],
 	"background": {
 		"texture": "guis/data_sanctum_interface.png",
-		"srcRect": [0, 0, 176, 232]
+		"srcRect": [0, 0, 176, 239]
 	},
 	"slots": {
 		"CONFIG": {
-			"left": 7,
-			"top": 54,
+			"left": 8,
+			"top": 53,
 			"grid": "HORIZONTAL"
 		},
 		"STORAGE": {
-			"left": 7,
-			"top": 72,
+			"left": 8,
+			"top": 71,
 			"grid": "HORIZONTAL"
 		},
 		"DATA_SANCTUM_LARGE_INTERFACE_RETURN_ROW_1": {
-			"left": 7,
+			"left": 8,
 			"top": 102,
 			"grid": "HORIZONTAL"
 		},
 		"DATA_SANCTUM_LARGE_INTERFACE_RETURN_ROW_2": {
-			"left": 7,
+			"left": 8,
 			"top": 120,
 			"grid": "HORIZONTAL"
 		},
@@ -36,13 +36,13 @@
 			"grid": "VERTICAL"
 		},
 		"PLAYER_INVENTORY": {
-			"left": 7,
-			"top": 156,
+			"left": 8,
+			"top": 155,
 			"grid": "BREAK_AFTER_9COLS"
 		},
 		"PLAYER_HOTBAR": {
-			"left": 7,
-			"top": 214,
+			"left": 8,
+			"top": 213,
 			"grid": "HORIZONTAL"
 		},
 		"TOOLBOX": {
@@ -61,18 +61,9 @@
 				"top": 6
 			}
 		},
-		"config_title": {
-			"text": {
-				"translate": "screen.data_energistics.data_sanctum_interface.config"
-			},
-			"position": {
-				"left": 8,
-				"top": 26
-			}
-		},
 		"page_info": {
 			"position": {
-				"left": 68,
+				"left": 8,
 				"top": 26
 			}
 		},
@@ -94,55 +85,55 @@
 			"height": 20
 		},
 		"amtButton1": {
-			"left": 7,
+			"left": 8,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton2": {
-			"left": 25,
+			"left": 26,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton3": {
-			"left": 43,
+			"left": 44,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton4": {
-			"left": 61,
+			"left": 62,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton5": {
-			"left": 79,
+			"left": 80,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton6": {
-			"left": 97,
+			"left": 98,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton7": {
-			"left": 115,
+			"left": 116,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton8": {
-			"left": 133,
+			"left": 134,
 			"top": 36,
 			"width": 16,
 			"height": 16
 		},
 		"amtButton9": {
-			"left": 151,
+			"left": 152,
 			"top": 36,
 			"width": 16,
 			"height": 16
