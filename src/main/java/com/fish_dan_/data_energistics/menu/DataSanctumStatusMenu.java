@@ -16,6 +16,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class DataSanctumStatusMenu extends AEBaseMenu {
 
+    private static final String ACTION_SET_MODE = "set_mode";
+
     @Nullable
     private final DataSanctumBlockEntity host;
 
@@ -32,6 +34,7 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
         super(ModMenus.DATA_SANCTUM_STATUS.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
+        registerClientAction(ACTION_SET_MODE, Integer.class, this::setMode);
     }
 
     @Override
@@ -40,7 +43,7 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
             BlockState state = this.host.getBlockState();
             this.online = this.host.getMainNode().isOnline();
             this.active = getActive(state);
-            this.mode = getMode(state);
+            this.mode = this.host.getMode();
             this.networkPortAvailable = hasNetworkPortPart(this.host, state);
         } else {
             this.online = false;
@@ -56,8 +59,18 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
         return state.hasProperty(DataSanctumBlock.ACTIVE) && state.getValue(DataSanctumBlock.ACTIVE);
     }
 
-    private static int getMode(BlockState state) {
-        return state.hasProperty(DataSanctumBlock.MODE) ? state.getValue(DataSanctumBlock.MODE) : 0;
+    public void sendSetMode(int mode) {
+        sendClientAction(ACTION_SET_MODE, mode);
+    }
+
+    private void setMode(Integer mode) {
+        if (mode == null || this.host == null) {
+            return;
+        }
+
+        this.host.setMode(mode);
+        this.mode = Math.max(0, Math.min(2, mode));
+        broadcastChanges();
     }
 
     private static boolean hasNetworkPortPart(DataSanctumBlockEntity host, BlockState state) {

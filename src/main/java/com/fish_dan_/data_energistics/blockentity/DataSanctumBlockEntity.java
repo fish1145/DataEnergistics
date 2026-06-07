@@ -57,13 +57,16 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final String ENERGY_UPGRADES_TAG = "energy_upgrades";
     private static final String NETWORK_PORT_NODE_TAG = "network_port_node";
     private static final String RETURN_INVENTORY_TAG = "returnInv";
-    private static final IGridNodeListener<DataSanctumBlockEntity> NODE_LISTENER = new BlockEntityNodeListener<>() {
+    private static final IGridNodeListener<DataSanctumBlockEntity> MAIN_NODE_LISTENER = new BlockEntityNodeListener<>() {
 
         @Override
         public void onGridChanged(DataSanctumBlockEntity nodeOwner, IGridNode node) {
-            nodeOwner.interfaceLogic.gridChanged();
+            if (nodeOwner.getMainNode().getGrid() != null) {
+                nodeOwner.interfaceLogic.gridChanged();
+            }
         }
     };
+    private static final IGridNodeListener<DataSanctumBlockEntity> NETWORK_PORT_NODE_LISTENER = new BlockEntityNodeListener<>() {};
 
     private boolean lastLinked;
     private int lastMode;
@@ -79,7 +82,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private final IUpgradeInventory energyUpgrades = UpgradeInventories.forMachine(
             ModBlocks.DATA_SANCTUM.get(), ENERGY_UPGRADE_SLOTS, this::onEnergyUpgradesChanged);
     private final IInWorldGridNodeHost networkPortHost = new NetworkPortNodeHost(this);
-    private final IManagedGridNode networkPortNode = GridHelper.createManagedNode(this, NODE_LISTENER)
+    private final IManagedGridNode networkPortNode = GridHelper.createManagedNode(this, NETWORK_PORT_NODE_LISTENER)
             .setVisualRepresentation(ModBlocks.DATA_SANCTUM.get())
             .setIdlePowerUsage(0.0D)
             .setInWorldNode(true);
@@ -87,6 +90,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     public DataSanctumBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.lastLinked = blockState.hasProperty(DataSanctumBlock.ACTIVE) && blockState.getValue(DataSanctumBlock.ACTIVE);
+        this.lastMode = blockState.hasProperty(DataSanctumBlock.MODE) ? blockState.getValue(DataSanctumBlock.MODE) : 0;
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_SANCTUM.get())
                 .setIdlePowerUsage(0.0D);
@@ -98,7 +103,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     @Override
     protected IManagedGridNode createMainNode() {
-        return GridHelper.createManagedNode(this, NODE_LISTENER);
+        return GridHelper.createManagedNode(this, MAIN_NODE_LISTENER);
     }
 
     public void serverTick() {
@@ -127,6 +132,10 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         }
 
         updateVisualState(this.getMainNode().isOnline(), clampedMode);
+    }
+
+    public int getMode() {
+        return this.lastMode;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.widget.DataSanctumModeButton;
 import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
 
 import net.minecraft.network.chat.Component;
@@ -10,9 +11,19 @@ import appeng.client.gui.style.ScreenStyle;
 
 public class DataSanctumStatusScreen extends AEBaseScreen<DataSanctumStatusMenu> {
 
+    private final DataSanctumModeButton standbyButton;
+    private final DataSanctumModeButton blackHoleButton;
+    private final DataSanctumModeButton portalButton;
+
     public DataSanctumStatusScreen(DataSanctumStatusMenu menu, Inventory playerInventory, Component title,
                                    ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.standbyButton = new DataSanctumModeButton(0, this.menu::sendSetMode);
+        this.blackHoleButton = new DataSanctumModeButton(1, this.menu::sendSetMode);
+        this.portalButton = new DataSanctumModeButton(2, this.menu::sendSetMode);
+        addToLeftToolbar(this.standbyButton);
+        addToLeftToolbar(this.blackHoleButton);
+        addToLeftToolbar(this.portalButton);
     }
 
     @Override
@@ -31,5 +42,8 @@ public class DataSanctumStatusScreen extends AEBaseScreen<DataSanctumStatusMenu>
         setTextContent("network_port", Component.translatable(
                 "screen.data_energistics.data_sanctum_status.network_port",
                 Component.translatable(this.menu.networkPortAvailable ? "text.data_energistics.available" : "text.data_energistics.unavailable")));
+        this.standbyButton.setSelected(this.menu.mode == 0);
+        this.blackHoleButton.setSelected(this.menu.mode == 1);
+        this.portalButton.setSelected(this.menu.mode == 2);
     }
 }
