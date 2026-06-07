@@ -71,6 +71,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public static final int ENERGY_UPGRADE_SLOTS = 3;
     private static final int BLACK_HOLE_MODE = 1;
     private static final int BLACK_HOLE_WORK_INTERVAL_TICKS = 200;
+    private static final int BLACK_HOLE_DEV_WORK_INTERVAL_TICKS = 20;
     private static final int BLACK_HOLE_BLOCKS_PER_CYCLE = 20;
     private static final long BLACK_HOLE_DATA_FLOW_PER_CYCLE = 2_000L;
     private static final long BLACK_HOLE_DATA_FLOW_PER_ENTITY = BLACK_HOLE_DATA_FLOW_PER_CYCLE;
@@ -589,7 +590,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         consumeBlackHoleCenterEntities(this.level);
 
         this.blackHoleWorkTicks++;
-        if (this.blackHoleWorkTicks < BLACK_HOLE_WORK_INTERVAL_TICKS) {
+        if (this.blackHoleWorkTicks < getBlackHoleWorkIntervalTicks()) {
             return;
         }
 
@@ -624,6 +625,10 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         if (this.blackHoleExpansionRadius < BLACK_HOLE_BLOCK_RADIUS) {
             this.blackHoleExpansionRadius++;
         }
+    }
+
+    private static int getBlackHoleWorkIntervalTicks() {
+        return Data_Energistics.isDev() ? BLACK_HOLE_DEV_WORK_INTERVAL_TICKS : BLACK_HOLE_WORK_INTERVAL_TICKS;
     }
 
     private int consumeBlackHoleBlocks(int radius) {
