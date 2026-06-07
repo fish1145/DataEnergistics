@@ -202,6 +202,10 @@ public class CommonProxy {
                 ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getInternalInventory().toItemHandler());
         event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalKeyInventory());
+        event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);

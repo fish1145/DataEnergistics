@@ -51,6 +51,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
+import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
@@ -58,6 +59,8 @@ import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
@@ -113,6 +116,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
+    private final GenericInternalInventory externalKeyInventory = new DataFlowExternalInventory();
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
     private boolean autoPullKeyInput;
@@ -172,6 +176,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     public ConfigMenuInventory getKeyMenuInventory() {
         return this.keyMenuInventory.createMenuWrapper();
+    }
+
+    public GenericInternalInventory getExternalKeyInventory() {
+        return this.externalKeyInventory;
     }
 
     public @Nullable GenericStack getKeyInputStack() {
@@ -1392,6 +1400,173 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             this.workTicks = 0;
             setChanged();
             markForClientUpdate();
+        }
+    }
+
+    private final class DataFlowExternalInventory implements GenericInternalInventory {
+
+        private boolean batchDirty;
+        private int batchDepth;
+
+        @Override
+        public int size() {
+            return 1;
+        }
+
+        @Override
+        public @Nullable GenericStack getStack(int slot) {
+            return isValidSlot(slot) ? keyInputStack : null;
+        }
+
+        @Override
+        public @Nullable AEKey getKey(int slot) {
+            GenericStack stack = getStack(slot);
+            return stack == null ? null : stack.what();
+        }
+
+        @Override
+        public long getAmount(int slot) {
+            GenericStack stack = getStack(slot);
+            return stack == null ? 0L : stack.amount();
+        }
+
+        @Override
+        public long getMaxAmount(AEKey key) {
+            return isSupportedType(key) ? KEY_INPUT_CAPACITY : 0L;
+        }
+
+        @Override
+        public long getCapacity(AEKeyType keyType) {
+            return isSupportedType(keyType) ? KEY_INPUT_CAPACITY : 0L;
+        }
+
+        @Override
+        public boolean canInsert() {
+            return true;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return true;
+        }
+
+        @Override
+        public void setStack(int slot, @Nullable GenericStack newStack) {
+            if (!isValidSlot(slot)) {
+                return;
+            }
+            if (newStack != null && !isAllowedIn(slot, newStack.what())) {
+                return;
+            }
+
+            GenericStack clamped = clampDataFlowStack(newStack);
+            GenericStack current = keyInputStack;
+            boolean changed = current == null ? clamped != null : !current.equals(clamped);
+            if (!changed) {
+                return;
+            }
+
+            keyInputStack = clamped;
+            onChange();
+        }
+
+        @Override
+        public boolean isSupportedType(AEKeyType type) {
+            return type == DataFlowKeyType.TYPE;
+        }
+
+        @Override
+        public boolean isAllowedIn(int slot, AEKey what) {
+            return isValidSlot(slot) && what instanceof DataFlowKey;
+        }
+
+        @Override
+        public long insert(int slot, AEKey what, long amount, Actionable mode) {
+            if (!isAllowedIn(slot, what) || amount <= 0L) {
+                return 0L;
+            }
+
+            long stored = keyInputStack != null && keyInputStack.what() instanceof DataFlowKey ? keyInputStack.amount() : 0L;
+            long inserted = Math.min(amount, KEY_INPUT_CAPACITY - stored);
+            if (inserted <= 0L) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                keyInputStack = new GenericStack(DataFlowKey.of(), stored + inserted);
+                onChange();
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(int slot, AEKey what, long amount, Actionable mode) {
+            if (!isAllowedIn(slot, what) || amount <= 0L || keyInputStack == null || !(keyInputStack.what() instanceof DataFlowKey)) {
+                return 0L;
+            }
+
+            long extracted = Math.min(amount, keyInputStack.amount());
+            if (extracted <= 0L) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                long remaining = keyInputStack.amount() - extracted;
+                keyInputStack = remaining > 0L ? new GenericStack(DataFlowKey.of(), remaining) : null;
+                onChange();
+            }
+            return extracted;
+        }
+
+        @Override
+        public void beginBatch() {
+            this.batchDepth++;
+        }
+
+        @Override
+        public void endBatch() {
+            if (this.batchDepth > 0) {
+                this.batchDepth--;
+            }
+            if (this.batchDepth == 0 && this.batchDirty) {
+                this.batchDirty = false;
+                syncKeyMenuFromStack();
+                setChanged();
+                markForClientUpdate();
+            }
+        }
+
+        @Override
+        public void endBatchSuppressed() {
+            if (this.batchDepth > 0) {
+                this.batchDepth--;
+            }
+            if (this.batchDepth == 0) {
+                this.batchDirty = false;
+            }
+        }
+
+        @Override
+        public void onChange() {
+            if (this.batchDepth > 0) {
+                this.batchDirty = true;
+                return;
+            }
+
+            syncKeyMenuFromStack();
+            setChanged();
+            markForClientUpdate();
+        }
+
+        private boolean isValidSlot(int slot) {
+            return slot == 0;
+        }
+
+        private @Nullable GenericStack clampDataFlowStack(@Nullable GenericStack stack) {
+            if (stack == null || stack.amount() <= 0L || !(stack.what() instanceof DataFlowKey)) {
+                return null;
+            }
+            return new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, stack.amount()));
         }
     }
 
