@@ -15,7 +15,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
@@ -25,6 +29,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.AABB;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
@@ -53,6 +58,7 @@ import appeng.menu.locator.MenuHostLocator;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -68,9 +74,12 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final double BLACK_HOLE_AE_COST_PER_BLOCK = 2_500.0D;
     private static final int BLACK_HOLE_CHUNK_RADIUS = 2;
     private static final int BLACK_HOLE_CHUNK_DIAMETER = BLACK_HOLE_CHUNK_RADIUS * 2 + 1;
-    private static final int BLACK_HOLE_COLUMNS_PER_CHUNK = 16 * 16;
-    private static final int BLACK_HOLE_TOTAL_COLUMNS = BLACK_HOLE_CHUNK_DIAMETER * BLACK_HOLE_CHUNK_DIAMETER * BLACK_HOLE_COLUMNS_PER_CHUNK;
+    private static final int BLACK_HOLE_BLOCK_RADIUS = BLACK_HOLE_CHUNK_DIAMETER * 8;
+    private static final double BLACK_HOLE_CENTER_ENTITY_RADIUS = 4.0D;
+    private static final ColumnOffset[] BLACK_HOLE_COLUMN_ORDER = createBlackHoleColumnOrder();
+    private static final int BLACK_HOLE_TOTAL_COLUMNS = BLACK_HOLE_COLUMN_ORDER.length;
     private static final int BLACK_HOLE_UNINITIALIZED_Y = Integer.MIN_VALUE;
+    private static final String SHOW_RANGE_TAG = "show_range";
     private static final String ENERGY_UPGRADES_TAG = "energy_upgrades";
     private static final String NETWORK_PORT_NODE_TAG = "network_port_node";
     private static final String RETURN_INVENTORY_TAG = "returnInv";
@@ -85,7 +94,8 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             }
         }
     };
-    private static final IGridNodeListener<DataSanctumBlockEntity> NETWORK_PORT_NODE_LISTENER = new BlockEntityNodeListener<>() {};
+    private static final IGridNodeListener<DataSanctumBlockEntity> NETWORK_PORT_NODE_LISTENER = new BlockEntityNodeListener<>() {
+    };
 
     private boolean lastLinked;
     private int lastMode;
@@ -107,6 +117,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             .setIdlePowerUsage(0.0D)
             .setInWorldNode(true);
     private IGridConnection networkPortConnection;
+    private boolean showRange;
     private int blackHoleWorkTicks;
     private int blackHoleColumnCursor;
     private int[] blackHoleTopY;
@@ -177,6 +188,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.interfaceLogic.writeToNBT(data, registries);
         this.returnInventory.writeToChildTag(data, RETURN_INVENTORY_TAG, registries);
         this.energyUpgrades.writeToNBT(data, ENERGY_UPGRADES_TAG, registries);
+        data.putBoolean(SHOW_RANGE_TAG, this.showRange);
         CompoundTag networkPortNodeTag = new CompoundTag();
         this.networkPortNode.saveToNBT(networkPortNodeTag);
         data.put(NETWORK_PORT_NODE_TAG, networkPortNodeTag);
@@ -190,6 +202,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.interfaceLogic.readFromNBT(data, registries);
         this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
         this.energyUpgrades.readFromNBT(data, ENERGY_UPGRADES_TAG, registries);
+        this.showRange = data.getBoolean(SHOW_RANGE_TAG);
         if (data.contains(NETWORK_PORT_NODE_TAG)) {
             this.networkPortNode.loadFromNBT(data.getCompound(NETWORK_PORT_NODE_TAG));
         }
@@ -198,6 +211,23 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.blackHoleWorkTicks = Math.max(0, data.getInt(BLACK_HOLE_WORK_TICKS_TAG));
         this.blackHoleColumnCursor = Math.max(0, data.getInt(BLACK_HOLE_COLUMN_CURSOR_TAG)) % BLACK_HOLE_TOTAL_COLUMNS;
         this.blackHoleTopY = null;
+    }
+
+    @Override
+    protected void writeToStream(RegistryFriendlyByteBuf data) {
+        super.writeToStream(data);
+        data.writeBoolean(this.showRange);
+    }
+
+    @Override
+    protected boolean readFromStream(RegistryFriendlyByteBuf data) {
+        boolean changed = super.readFromStream(data);
+        boolean showRange = data.readBoolean();
+        if (showRange != this.showRange) {
+            this.showRange = showRange;
+            changed = true;
+        }
+        return changed;
     }
 
     @Override
@@ -345,6 +375,41 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     public boolean isOnline() {
         return this.getMainNode().isOnline() && hasExternalNetworkPortConnection();
+    }
+
+    public boolean setRangeDisplayEnabled(boolean enabled) {
+        if (this.showRange != enabled) {
+            this.showRange = enabled;
+            this.setChanged();
+            this.markForClientUpdate();
+        }
+        return this.showRange;
+    }
+
+    public boolean isRangeDisplayEnabled() {
+        return this.showRange;
+    }
+
+    public boolean canDisplayBlackHoleRange() {
+        BlockState state = getBlockState();
+        return this.showRange && state.hasProperty(DataSanctumBlock.MODE) && state.getValue(DataSanctumBlock.MODE) == BLACK_HOLE_MODE;
+    }
+
+    public AABB getBlackHoleCoverageAabb() {
+        ChunkPos centerChunk = new ChunkPos(this.worldPosition);
+        int minChunkX = centerChunk.x - BLACK_HOLE_CHUNK_RADIUS;
+        int minChunkZ = centerChunk.z - BLACK_HOLE_CHUNK_RADIUS;
+        int maxChunkX = centerChunk.x + BLACK_HOLE_CHUNK_RADIUS;
+        int maxChunkZ = centerChunk.z + BLACK_HOLE_CHUNK_RADIUS;
+        int minY = this.level == null ? this.worldPosition.getY() - 64 : this.level.getMinBuildHeight();
+        int maxY = this.level == null ? this.worldPosition.getY() + 320 : this.level.getMaxBuildHeight();
+        return new AABB(
+                minChunkX << 4,
+                minY,
+                minChunkZ << 4,
+                (maxChunkX << 4) + 16,
+                maxY,
+                (maxChunkZ << 4) + 16);
     }
 
     public int getEnergyCardCount() {
@@ -503,7 +568,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return;
         }
 
-        if (this.level == null || this.level.isClientSide() || !this.getMainNode().isOnline()) {
+        if (this.level == null || this.level.isClientSide() || !isOnline()) {
             resetBlackHoleWorkState(true);
             return;
         }
@@ -514,12 +579,16 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return;
         }
 
+        consumeBlackHoleCenterEntities(this.level);
+
         this.blackHoleWorkTicks++;
         if (this.blackHoleWorkTicks < BLACK_HOLE_WORK_INTERVAL_TICKS) {
             return;
         }
 
         this.blackHoleWorkTicks = 0;
+        consumeBlackHoleEntities(this.level, BLACK_HOLE_BLOCK_RADIUS);
+
         long canBuffer = this.returnInventory.insert(DataFlowKey.of(), BLACK_HOLE_DATA_FLOW_PER_CYCLE, Actionable.SIMULATE, this.actionSource);
         if (canBuffer < BLACK_HOLE_DATA_FLOW_PER_CYCLE) {
             return;
@@ -617,6 +686,58 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         return null;
     }
 
+    private void consumeBlackHoleCenterEntities(Level level) {
+        consumeBlackHoleEntities(level, BLACK_HOLE_CENTER_ENTITY_RADIUS);
+    }
+
+    private void consumeBlackHoleEntities(Level level, double radius) {
+        AABB bounds = new AABB(
+                this.worldPosition.getX() + 0.5D - radius,
+                level.getMinBuildHeight(),
+                this.worldPosition.getZ() + 0.5D - radius,
+                this.worldPosition.getX() + 0.5D + radius,
+                level.getMaxBuildHeight(),
+                this.worldPosition.getZ() + 0.5D + radius);
+        double centerX = this.worldPosition.getX() + 0.5D;
+        double centerZ = this.worldPosition.getZ() + 0.5D;
+        double radiusSqr = radius * radius;
+        List<Entity> entities = level.getEntities((Entity) null, bounds,
+                entity -> isConsumableEntityByBlackHole(entity)
+                        && distanceToBlackHoleCenterSqr(entity, centerX, centerZ) <= radiusSqr);
+
+        for (Entity entity : entities) {
+            if (entity instanceof ServerPlayer player) {
+                player.hurt(player.damageSources().fellOutOfWorld(), Float.MAX_VALUE);
+                continue;
+            }
+            entity.discard();
+        }
+    }
+
+    private static double distanceToBlackHoleCenterSqr(Entity entity, double centerX, double centerZ) {
+        double x = entity.getX() - centerX;
+        double z = entity.getZ() - centerZ;
+        return x * x + z * z;
+    }
+
+    private boolean isConsumableEntityByBlackHole(Entity entity) {
+        if (entity.isRemoved() || !entity.isAlive()) {
+            return false;
+        }
+
+        ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+        if (entityId != null && isProtectedBlackHoleNamespace(entityId.getNamespace())) {
+            return false;
+        }
+
+        if (entity instanceof ItemEntity itemEntity) {
+            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
+            return itemId == null || !isProtectedBlackHoleNamespace(itemId.getNamespace());
+        }
+
+        return true;
+    }
+
     private boolean isConsumableByBlackHole(BlockState state) {
         if (state.isAir() || state.is(Blocks.BEDROCK)) {
             return false;
@@ -627,27 +748,44 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return true;
         }
 
-        String namespace = blockId.getNamespace();
-        return !"ae2".equals(namespace) && !Data_Energistics.MODID.equals(namespace);
+        return !isProtectedBlackHoleNamespace(blockId.getNamespace());
+    }
+
+    private static boolean isProtectedBlackHoleNamespace(String namespace) {
+        return "ae2".equals(namespace) || Data_Energistics.MODID.equals(namespace);
     }
 
     private ColumnPos getBlackHoleColumnPos(int columnIndex) {
-        ChunkPos centerChunk = new ChunkPos(this.worldPosition);
-        int chunkIndex = columnIndex / BLACK_HOLE_COLUMNS_PER_CHUNK;
-        int localColumnIndex = columnIndex % BLACK_HOLE_COLUMNS_PER_CHUNK;
-        int chunkOffsetX = chunkIndex % BLACK_HOLE_CHUNK_DIAMETER - BLACK_HOLE_CHUNK_RADIUS;
-        int chunkOffsetZ = chunkIndex / BLACK_HOLE_CHUNK_DIAMETER - BLACK_HOLE_CHUNK_RADIUS;
-        int localX = localColumnIndex & 15;
-        int localZ = (localColumnIndex >> 4) & 15;
-        int chunkX = centerChunk.x + chunkOffsetX;
-        int chunkZ = centerChunk.z + chunkOffsetZ;
+        ColumnOffset offset = BLACK_HOLE_COLUMN_ORDER[columnIndex];
+        int worldX = this.worldPosition.getX() + offset.offsetX();
+        int worldZ = this.worldPosition.getZ() + offset.offsetZ();
+        int chunkX = worldX >> 4;
+        int chunkZ = worldZ >> 4;
         return new ColumnPos(
                 chunkX,
                 chunkZ,
-                localX,
-                localZ,
-                (chunkX << 4) + localX,
-                (chunkZ << 4) + localZ);
+                worldX & 15,
+                worldZ & 15,
+                worldX,
+                worldZ);
+    }
+
+    private static ColumnOffset[] createBlackHoleColumnOrder() {
+        ArrayList<ColumnOffset> columns = new ArrayList<>((BLACK_HOLE_BLOCK_RADIUS * 2 + 1) * (BLACK_HOLE_BLOCK_RADIUS * 2 + 1));
+        int radiusSqr = BLACK_HOLE_BLOCK_RADIUS * BLACK_HOLE_BLOCK_RADIUS;
+        for (int offsetX = -BLACK_HOLE_BLOCK_RADIUS; offsetX < BLACK_HOLE_BLOCK_RADIUS; offsetX++) {
+            for (int offsetZ = -BLACK_HOLE_BLOCK_RADIUS; offsetZ < BLACK_HOLE_BLOCK_RADIUS; offsetZ++) {
+                int distanceSqr = offsetX * offsetX + offsetZ * offsetZ;
+                if (distanceSqr <= radiusSqr) {
+                    columns.add(new ColumnOffset(offsetX, offsetZ, distanceSqr));
+                }
+            }
+        }
+
+        columns.sort(Comparator
+                .comparingInt(ColumnOffset::distanceSqr)
+                .thenComparingDouble(column -> Math.atan2(column.offsetZ(), column.offsetX())));
+        return columns.toArray(ColumnOffset[]::new);
     }
 
     private record NetworkPortNodeHost(DataSanctumBlockEntity host) implements IInWorldGridNodeHost {
@@ -727,5 +865,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         return state.getValue(DataSanctumBlock.OFFSET_Y);
     }
 
-    private record ColumnPos(int chunkX, int chunkZ, int localX, int localZ, int worldX, int worldZ) {}
+    private record ColumnPos(int chunkX, int chunkZ, int localX, int localZ, int worldX, int worldZ) {
+    }
+
+    private record ColumnOffset(int offsetX, int offsetZ, int distanceSqr) {
+    }
 }

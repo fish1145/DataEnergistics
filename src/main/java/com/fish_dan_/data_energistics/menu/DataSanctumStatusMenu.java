@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 public class DataSanctumStatusMenu extends AEBaseMenu {
 
     private static final String ACTION_SET_MODE = "set_mode";
+    private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
 
     @Nullable
     private final DataSanctumBlockEntity host;
@@ -29,12 +30,15 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
     public int mode;
     @GuiSync(853)
     public boolean networkPortAvailable;
+    @GuiSync(854)
+    public boolean rangeVisible;
 
     public DataSanctumStatusMenu(int id, Inventory playerInventory, @Nullable DataSanctumBlockEntity host) {
         super(ModMenus.DATA_SANCTUM_STATUS.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
         registerClientAction(ACTION_SET_MODE, Integer.class, this::setMode);
+        registerClientAction(ACTION_SET_RANGE_VISIBLE, Boolean.class, this::setRangeVisible);
     }
 
     @Override
@@ -45,11 +49,13 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
             this.active = getActive(state);
             this.mode = this.host.getMode();
             this.networkPortAvailable = hasNetworkPortPart(this.host, state);
+            this.rangeVisible = this.host.isRangeDisplayEnabled();
         } else {
             this.online = false;
             this.active = false;
             this.mode = 0;
             this.networkPortAvailable = false;
+            this.rangeVisible = false;
         }
 
         super.broadcastChanges();
@@ -63,6 +69,10 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
         sendClientAction(ACTION_SET_MODE, mode);
     }
 
+    public void sendSetRangeVisible(boolean visible) {
+        sendClientAction(ACTION_SET_RANGE_VISIBLE, visible);
+    }
+
     private void setMode(Integer mode) {
         if (mode == null || this.host == null) {
             return;
@@ -70,6 +80,15 @@ public class DataSanctumStatusMenu extends AEBaseMenu {
 
         this.host.setMode(mode);
         this.mode = Math.max(0, Math.min(2, mode));
+        broadcastChanges();
+    }
+
+    private void setRangeVisible(Boolean visible) {
+        if (visible == null || this.host == null) {
+            return;
+        }
+
+        this.rangeVisible = this.host.setRangeDisplayEnabled(visible);
         broadcastChanges();
     }
 
