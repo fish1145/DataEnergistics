@@ -673,9 +673,14 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         while (currentY >= minY) {
             cursor.setY(currentY);
             BlockState state = chunk.getBlockState(cursor);
-            if (isConsumableByBlackHole(state)) {
+            BlockConsumption consumption = getBlackHoleBlockConsumption(state);
+            if (consumption == BlockConsumption.CONSUME) {
                 this.blackHoleTopY[columnIndex] = currentY - 1;
                 return cursor.immutable();
+            }
+            if (consumption == BlockConsumption.BLOCKED) {
+                this.blackHoleTopY[columnIndex] = currentY;
+                return null;
             }
             currentY--;
         }
@@ -812,17 +817,20 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         return false;
     }
 
-    private boolean isConsumableByBlackHole(BlockState state) {
-        if (state.isAir() || state.is(Blocks.BEDROCK)) {
-            return false;
+    private BlockConsumption getBlackHoleBlockConsumption(BlockState state) {
+        if (state.isAir()) {
+            return BlockConsumption.PASS_THROUGH;
+        }
+        if (state.is(Blocks.BEDROCK)) {
+            return BlockConsumption.BLOCKED;
         }
 
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (blockId == null) {
-            return true;
+            return BlockConsumption.CONSUME;
         }
 
-        return !isProtectedBlackHoleNamespace(blockId.getNamespace());
+        return isProtectedBlackHoleNamespace(blockId.getNamespace()) ? BlockConsumption.BLOCKED : BlockConsumption.CONSUME;
     }
 
     private static boolean isProtectedBlackHoleNamespace(String namespace) {
@@ -943,5 +951,11 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     private record ColumnOffset(int offsetX, int offsetZ, int distanceSqr) {
+    }
+
+    private enum BlockConsumption {
+        CONSUME,
+        PASS_THROUGH,
+        BLOCKED
     }
 }
