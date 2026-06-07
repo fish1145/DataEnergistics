@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.ae2;
 
 public final class DataSanctumInterfaceConstants {
 
+    public static final int BASE_PAGE_COUNT = 2;
+    public static final int PAGES_PER_CAPACITY_CARD = 2;
+    public static final int MAX_CAPACITY_CARDS = 3;
     public static final int PAGE_COUNT = 6;
     public static final int CONFIG_SLOTS_PER_PAGE = 9;
     public static final int STOCK_SLOTS_PER_PAGE = 9;

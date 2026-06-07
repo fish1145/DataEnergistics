@@ -40,6 +40,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.core.definitions.AEItems;
 import appeng.helpers.InterfaceLogic;
 import appeng.helpers.InterfaceLogicHost;
 import appeng.me.helpers.BlockEntityNodeListener;
@@ -176,6 +177,19 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
 
     public DataSanctumReturnInventory getReturnInventory() {
         return this.returnInventory;
+    }
+
+    public int getInstalledCapacityCardCount() {
+        return Math.max(0, Math.min(
+                DataSanctumInterfaceConstants.MAX_CAPACITY_CARDS,
+                this.interfaceLogic.getUpgrades().getInstalledUpgrades(AEItems.CAPACITY_CARD)));
+    }
+
+    public int getUnlockedPageCount() {
+        return Math.min(
+                DataSanctumInterfaceConstants.PAGE_COUNT,
+                DataSanctumInterfaceConstants.BASE_PAGE_COUNT
+                        + getInstalledCapacityCardCount() * DataSanctumInterfaceConstants.PAGES_PER_CAPACITY_CARD);
     }
 
     public Set<Direction> getActivePullSides() {

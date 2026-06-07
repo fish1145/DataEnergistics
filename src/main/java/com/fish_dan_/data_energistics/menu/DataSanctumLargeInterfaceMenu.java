@@ -46,7 +46,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumIn
     @GuiSync(860)
     public int pageIndex;
     @GuiSync(861)
-    public int totalPages = DataSanctumInterfaceConstants.PAGE_COUNT;
+    public int totalPages = DataSanctumInterfaceConstants.BASE_PAGE_COUNT;
     @GuiSync(862)
     public int activePullSidesMask;
 
@@ -103,6 +103,8 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumIn
     @Override
     public void broadcastChanges() {
         if (isServerSide()) {
+            this.totalPages = this.getHost().getUnlockedPageCount();
+            this.pageIndex = clampPage(this.pageIndex);
             this.activePullSidesMask = encodeSides(this.getHost().getActivePullSides());
         }
 
@@ -174,8 +176,12 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumIn
         broadcastChanges();
     }
 
-    private static int clampPage(int page) {
-        return Math.max(0, Math.min(page, DataSanctumInterfaceConstants.PAGE_COUNT - 1));
+    private int clampPage(int page) {
+        int pages = Math.max(1, this.totalPages);
+        if (isServerSide() && this.getHost() != null) {
+            pages = Math.max(1, this.getHost().getUnlockedPageCount());
+        }
+        return Math.max(0, Math.min(page, pages - 1));
     }
 
     private static int encodeSides(Iterable<Direction> sides) {
@@ -194,7 +200,8 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumIn
 
         @Override
         public boolean mayPlace(net.minecraft.world.item.ItemStack stack) {
-            return stack.is(AEItems.ENERGY_CARD.asItem()) && super.mayPlace(stack);
+            return (stack.is(AEItems.ENERGY_CARD.asItem()) || stack.is(AEItems.CAPACITY_CARD.asItem()))
+                    && super.mayPlace(stack);
         }
     }
 
