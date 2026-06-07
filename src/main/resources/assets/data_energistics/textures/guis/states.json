@@ -111,17 +111,17 @@
 			"width": 16,
 			"height": 16
 		},
-        "POWER_UNIT_YES": {
-          "x": 96,
-          "y": 48,
-          "width": 16,
-          "height": 16
-        },
-        "POWER_UNIT_NO": {
-          "x": 112,
-          "y": 48,
-          "width": 16,
-          "height": 16
-      }
+		"POWER_UNIT_YES": {
+			"x": 96,
+			"y": 48,
+			"width": 16,
+			"height": 16
+		},
+		"POWER_UNIT_NO": {
+			"x": 112,
+			"y": 48,
+			"width": 16,
+			"height": 16
+		}
 	}
 }
