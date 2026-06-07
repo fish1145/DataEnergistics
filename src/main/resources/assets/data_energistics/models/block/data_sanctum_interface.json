@@ -1,3 +1,6 @@
 {
-	"parent": "data_energistics:block/data_extractor_off"
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "data_energistics:block/data_sanctum_interface"
+  }
 }
