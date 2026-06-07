@@ -320,6 +320,6 @@
 	"gui.data_energistics.set_active_pull_sides.clear": "Clear active pull sides",
 	"block.data_energistics.data_sanctum": "维度解离总站",
 	"item.data_energistics.data_sanctum": "维度解离总站",
-	"block.data_energistics.data_sanctum_interface": "Data Sanctum Interface",
-	"item.data_energistics.data_sanctum_interface": "Data Sanctum Interface"
+	"block.data_energistics.data_sanctum_interface": "Extreme Capacity Interface",
+	"item.data_energistics.data_sanctum_interface": "Extreme Capacity Interface"
 }

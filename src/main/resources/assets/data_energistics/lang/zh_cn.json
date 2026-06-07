@@ -325,6 +325,6 @@
 	"gui.data_energistics.set_active_pull_sides.clear": "清空主动抽取面",
 	"block.data_energistics.data_sanctum": "维度解离总站",
 	"item.data_energistics.data_sanctum": "维度解离总站",
-	"block.data_energistics.data_sanctum_interface": "维度解离接口",
-	"item.data_energistics.data_sanctum_interface": "维度解离接口"
+	"block.data_energistics.data_sanctum_interface": "极限承载接口",
+	"item.data_energistics.data_sanctum_interface": "极限承载接口"
 }
