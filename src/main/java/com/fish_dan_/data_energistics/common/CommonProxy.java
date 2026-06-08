@@ -193,6 +193,12 @@ public class CommonProxy {
         registerPoweredItemEnergyStorage(event, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get());
         registerPoweredItemEnergyStorage(event, ModItems.DATA_LIGHT_SABER.get());
         registerPoweredItemEnergyStorage(event, ModItems.DATA_SANCTIFIER.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_1K.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_4K.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16K.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64K.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get());
+        registerPoweredItemEnergyStorage(event, ModItems.DATA_CAPTURE_BALL.get());
         registerPoweredItemEnergyStorage(event, ModItems.MATTER_CONVERGING_CROSSBOW.get());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
@@ -326,10 +332,12 @@ public class CommonProxy {
                 ModBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
-    private static <T extends Item & IAEItemPowerStorage> void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, T item) {
+    private static void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, Item item) {
         event.registerItem(
                 Capabilities.EnergyStorage.ITEM,
-                (stack, context) -> new PoweredItemEnergyStorage(stack, item),
+                (stack, context) -> item instanceof IAEItemPowerStorage powerStorage
+                        ? new PoweredItemEnergyStorage(stack, powerStorage)
+                        : null,
                 item);
     }
 
