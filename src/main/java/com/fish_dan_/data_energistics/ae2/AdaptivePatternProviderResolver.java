@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
@@ -176,7 +177,9 @@ public final class AdaptivePatternProviderResolver {
 
     @Nullable
     public static ProviderProfile resolveProviderProfile(ItemStack stack) {
-        if (stack.isEmpty() || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())) {
+        if (stack.isEmpty()
+                || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())
+                || stack.is(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get())) {
             return null;
         }
 
