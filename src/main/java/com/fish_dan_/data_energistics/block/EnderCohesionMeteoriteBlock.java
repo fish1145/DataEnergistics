@@ -22,7 +22,6 @@ import appeng.core.definitions.AEItems;
 public class EnderCohesionMeteoriteBlock extends Block {
 
     private static final int TELEPORT_HALF_RANGE = 3;
-    private static final float FORTUNE_BONUS_PER_LEVEL = 0.03F;
     private final float dispersingDataChance;
     private final float enderDustChance;
     private final float skyDustChance;
@@ -54,45 +53,52 @@ public class EnderCohesionMeteoriteBlock extends Block {
         }
 
         RandomSource random = serverLevel.getRandom();
-        if (random.nextFloat() < this.getFortuneAdjustedChance(this.enderDustChance, fortuneLevel)) {
-            popResource(serverLevel, pos, new ItemStack(AEItems.ENDER_DUST.asItem()));
-        }
-        if (random.nextFloat() < this.getFortuneAdjustedChance(this.skyDustChance, fortuneLevel)) {
-            popResource(serverLevel, pos, new ItemStack(AEItems.SKY_DUST.asItem()));
-        }
+        this.dropFortuneScaledResource(serverLevel, pos, random, new ItemStack(AEItems.ENDER_DUST.asItem()), this.enderDustChance, fortuneLevel);
+        this.dropFortuneScaledResource(serverLevel, pos, random, new ItemStack(AEItems.SKY_DUST.asItem()), this.skyDustChance, fortuneLevel);
         if (this.teleportChance > 0.0F && random.nextFloat() < this.teleportChance && player instanceof ServerPlayer serverPlayer) {
             teleportRandomly(serverLevel, serverPlayer, random);
         }
     }
 
     private void spawnDispersingData(ServerLevel level, BlockPos pos, RandomSource random, int fortuneLevel) {
-        float dispersingDataChance = this.getFortuneAdjustedChance(this.dispersingDataChance, fortuneLevel);
-        if (dispersingDataChance <= 0.0F || random.nextFloat() >= dispersingDataChance) {
+        int rolls = getFortuneScaledRolls(this.dispersingDataChance, fortuneLevel, random);
+        if (rolls <= 0) {
             return;
         }
 
-        int count = this.teleportChance > 0.0F ? 1 + random.nextInt(2) : 1;
-        for (int i = 0; i < count; i++) {
-            DispersingDataEntity entity = ModEntities.DISPERSING_DATA.get().create(level);
-            if (entity == null) {
-                continue;
-            }
+        for (int roll = 0; roll < rolls; roll++) {
+            int count = this.teleportChance > 0.0F ? 1 + random.nextInt(2) : 1;
+            for (int i = 0; i < count; i++) {
+                DispersingDataEntity entity = ModEntities.DISPERSING_DATA.get().create(level);
+                if (entity == null) {
+                    continue;
+                }
 
-            double x = pos.getX() + 0.35D + random.nextDouble() * 0.3D;
-            double y = pos.getY() + 0.7D + random.nextDouble() * 0.4D;
-            double z = pos.getZ() + 0.35D + random.nextDouble() * 0.3D;
-            entity.setPos(x, y, z);
-            entity.setTextureVariant(random.nextInt(4));
-            entity.setDeltaMovement(
-                    (random.nextDouble() - 0.5D) * 0.08D,
-                    0.01D + random.nextDouble() * 0.03D,
-                    (random.nextDouble() - 0.5D) * 0.08D);
-            level.addFreshEntity(entity);
+                double x = pos.getX() + 0.35D + random.nextDouble() * 0.3D;
+                double y = pos.getY() + 0.7D + random.nextDouble() * 0.4D;
+                double z = pos.getZ() + 0.35D + random.nextDouble() * 0.3D;
+                entity.setPos(x, y, z);
+                entity.setTextureVariant(random.nextInt(4));
+                entity.setDeltaMovement(
+                        (random.nextDouble() - 0.5D) * 0.08D,
+                        0.01D + random.nextDouble() * 0.03D,
+                        (random.nextDouble() - 0.5D) * 0.08D);
+                level.addFreshEntity(entity);
+            }
         }
     }
 
-    private float getFortuneAdjustedChance(float baseChance, int fortuneLevel) {
-        return Math.min(1.0F, baseChance + fortuneLevel * FORTUNE_BONUS_PER_LEVEL);
+    private void dropFortuneScaledResource(ServerLevel level, BlockPos pos, RandomSource random, ItemStack stack, float baseChance, int fortuneLevel) {
+        int rolls = getFortuneScaledRolls(baseChance, fortuneLevel, random);
+        for (int i = 0; i < rolls; i++) {
+            popResource(level, pos, stack.copy());
+        }
+    }
+
+    private static int getFortuneScaledRolls(float baseChance, int fortuneLevel, RandomSource random) {
+        float scaledChance = baseChance * (Math.max(0, fortuneLevel) + 1);
+        int rolls = (int) scaledChance;
+        return random.nextFloat() < scaledChance - rolls ? rolls + 1 : rolls;
     }
 
     private static void teleportRandomly(ServerLevel level, ServerPlayer player, RandomSource random) {
