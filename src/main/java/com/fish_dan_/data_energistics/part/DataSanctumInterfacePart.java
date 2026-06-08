@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
+import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
+import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -66,6 +69,7 @@ import java.util.Set;
 public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumLargeInterfaceHost, IGridTickable {
 
     private static final String RETURN_INVENTORY_TAG = "returnInv";
+    private static final String ACTIVE_PULL_ENABLED_TAG = "active_pull_enabled";
     private static final String ACTIVE_PULL_SIDES_TAG = "active_pull_sides";
     private static final int ACTIVE_PULL_KEYS_PER_TICK = 32;
     private static final int ACTIVE_PULL_AMOUNT_PER_KEY = 4000;
@@ -108,10 +112,13 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             this::getInstalledCapacityCardCount);
     private final MachineSource actionSource = new MachineSource(this);
     private final EnumSet<Direction> activePullSides = EnumSet.noneOf(Direction.class);
+    private boolean activePullEnabled;
 
     public DataSanctumInterfacePart(IPartItem<?> partItem) {
         super(partItem);
+        expandUpgradeSlots();
         installInterfaceInventories();
+        getMainNode().addService(IGridTickable.class, this);
     }
 
     protected InterfaceLogic createLogic() {
@@ -149,6 +156,10 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
         this.interfaceLogic.readFromNBT(data, registries);
         this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
         decodeSides(data.getInt(ACTIVE_PULL_SIDES_TAG), this.activePullSides);
+        this.activePullEnabled = data.contains(ACTIVE_PULL_ENABLED_TAG)
+                ? data.getBoolean(ACTIVE_PULL_ENABLED_TAG)
+                : !this.activePullSides.isEmpty();
+        normalizeActivePullState();
     }
 
     @Override
@@ -156,7 +167,8 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
         super.writeToNBT(data, registries);
         this.interfaceLogic.writeToNBT(data, registries);
         this.returnInventory.writeToChildTag(data, RETURN_INVENTORY_TAG, registries);
-        data.putInt(ACTIVE_PULL_SIDES_TAG, encodeSides(this.activePullSides));
+        data.putBoolean(ACTIVE_PULL_ENABLED_TAG, this.activePullEnabled);
+        data.putInt(ACTIVE_PULL_SIDES_TAG, encodeSides(getActivePullSides()));
     }
 
     @Override
@@ -227,20 +239,32 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
 
     @Override
     public Set<Direction> getActivePullSides() {
-        return this.activePullSides.isEmpty() ? EnumSet.noneOf(Direction.class) : EnumSet.copyOf(this.activePullSides);
+        Direction fixedSide = getSingleActivePullSide();
+        if (!this.activePullEnabled || fixedSide == null) {
+            return EnumSet.noneOf(Direction.class);
+        }
+        return EnumSet.of(fixedSide);
     }
 
     @Override
     public void setActivePullSideEnabled(Direction side, boolean enabled) {
-        if (side == null) {
+        Direction fixedSide = getSingleActivePullSide();
+        if (fixedSide == null) {
             return;
         }
 
-        boolean changed = enabled ? this.activePullSides.add(side) : this.activePullSides.remove(side);
+        boolean changed = this.activePullEnabled != enabled;
+        this.activePullEnabled = enabled;
+        normalizeActivePullState();
         if (changed) {
             saveChanges();
             markForClientUpdate();
         }
+    }
+
+    @Override
+    public boolean hasActivePullSideSelection() {
+        return false;
     }
 
     @Override
@@ -290,12 +314,18 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
     @Override
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
         if (!isActive()) {
-            return TickRateModulation.IDLE;
+            return TickRateModulation.SLEEP;
         }
 
-        tryActivePull();
+        boolean pulled = tryActivePull();
         injectReturnInventory();
-        return TickRateModulation.IDLE;
+        InterfaceLogicTickAccessor logicTickAccessor = (InterfaceLogicTickAccessor) this.interfaceLogic;
+        boolean stocked = logicTickAccessor.dataEnergistics$invokeUpdateStorage();
+        boolean hasStockWork = logicTickAccessor.dataEnergistics$invokeHasWorkToDo();
+        if (hasStockWork) {
+            return stocked || pulled ? TickRateModulation.URGENT : TickRateModulation.SLOWER;
+        }
+        return pulled ? TickRateModulation.URGENT : TickRateModulation.IDLE;
     }
 
     @Override
@@ -315,6 +345,14 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
                 this::getInstalledCapacityCardCount);
         this.interfaceLogic.config = config;
         this.interfaceLogic.storage = storage;
+    }
+
+    private void expandUpgradeSlots() {
+        InterfaceLogicUpgradesAccessor accessor = (InterfaceLogicUpgradesAccessor) this.interfaceLogic;
+        accessor.dataEnergistics$setUpgradesField(new FixedSizeMachineUpgradeInventory(
+                getPartItem().asItem(),
+                DataSanctumInterfaceConstants.UPGRADE_SLOT_COUNT,
+                accessor::dataEnergistics$invokeOnUpgradesChanged));
     }
 
     private void markForClientUpdate() {
@@ -341,13 +379,15 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
     }
 
     private boolean tryActivePull() {
+        normalizeActivePullState();
         Level level = getInterfaceLevel();
-        if (this.activePullSides.isEmpty() || !(level instanceof ServerLevel serverLevel) || !this.getMainNode().isActive()) {
+        Set<Direction> activePullSides = getActivePullSides();
+        if (activePullSides.isEmpty() || !(level instanceof ServerLevel serverLevel) || !this.getMainNode().isActive()) {
             return false;
         }
 
         int keysScanned = 0;
-        for (Direction side : getActivePullSides()) {
+        for (Direction side : activePullSides) {
             BlockPos targetPos = getInterfaceBlockPos().relative(side);
             if (!serverLevel.hasChunkAt(targetPos)) {
                 continue;
@@ -555,6 +595,14 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             mask |= 1 << side.ordinal();
         }
         return mask;
+    }
+
+    private void normalizeActivePullState() {
+        Direction fixedSide = getSingleActivePullSide();
+        this.activePullSides.clear();
+        if (this.activePullEnabled && fixedSide != null) {
+            this.activePullSides.add(fixedSide);
+        }
     }
 
     private static void decodeSides(int mask, Set<Direction> target) {

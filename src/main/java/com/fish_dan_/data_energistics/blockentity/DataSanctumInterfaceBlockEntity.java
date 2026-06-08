@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
+import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
+import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -83,6 +85,7 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
 
     public DataSanctumInterfaceBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), blockPos, blockState);
+        expandUpgradeSlots();
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_SANCTUM_INTERFACE.get())
                 .setIdlePowerUsage(0.0D);
@@ -179,6 +182,14 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
                 this::getInstalledCapacityCardCount);
         this.interfaceLogic.config = config;
         this.interfaceLogic.storage = storage;
+    }
+
+    private void expandUpgradeSlots() {
+        InterfaceLogicUpgradesAccessor accessor = (InterfaceLogicUpgradesAccessor) this.interfaceLogic;
+        accessor.dataEnergistics$setUpgradesField(new FixedSizeMachineUpgradeInventory(
+                ModBlocks.DATA_SANCTUM_INTERFACE.get(),
+                DataSanctumInterfaceConstants.UPGRADE_SLOT_COUNT,
+                accessor::dataEnergistics$invokeOnUpgradesChanged));
     }
 
     public DataSanctumReturnInventory getReturnInventory() {

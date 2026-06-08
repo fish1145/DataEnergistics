@@ -37,6 +37,8 @@
 		"core.FarmBlockMixin",
 		"core.InscriberBlockEntityMixin",
 		"core.IOBusPartWrappedKeyMigrationMixin",
+		"core.InterfaceLogicTickAccessor",
+		"core.InterfaceLogicUpgradesAccessor",
 		"core.NetworkStatusMixin",
 		"core.PathingServiceMixin",
 		"core.PatternEncodingTermMenuMixin",

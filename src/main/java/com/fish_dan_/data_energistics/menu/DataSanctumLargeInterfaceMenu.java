@@ -130,6 +130,9 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
     }
 
     public void sendSetActivePullSide(Direction side, boolean enabled) {
+        if (side == null) {
+            return;
+        }
         sendClientAction(ACTION_SET_ACTIVE_PULL_SIDE, side.getName() + ":" + enabled);
     }
 
@@ -165,12 +168,16 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
         }
 
         Direction side = Direction.byName(payload.substring(0, separator));
-        if (side == null) {
+        boolean enabled = Boolean.parseBoolean(payload.substring(separator + 1));
+        Direction targetSide = side;
+        if (!this.getHost().hasActivePullSideSelection()) {
+            targetSide = this.getHost().getSingleActivePullSide();
+        }
+        if (targetSide == null) {
             return;
         }
 
-        boolean enabled = Boolean.parseBoolean(payload.substring(separator + 1));
-        this.getHost().setActivePullSideEnabled(side, enabled);
+        this.getHost().setActivePullSideEnabled(targetSide, enabled);
         this.activePullSidesMask = encodeSides(this.getHost().getActivePullSides());
         broadcastChanges();
     }
