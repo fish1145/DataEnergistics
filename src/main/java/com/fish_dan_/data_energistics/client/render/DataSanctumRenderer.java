@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -30,9 +30,7 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
     public static final ModelResourceLocation BLACK_HOLE_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_sanctum/hd"));
     public static final ModelResourceLocation PORTAL_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_sanctum/csm"));
 
-    @SuppressWarnings("unused")
-    public DataSanctumRenderer(BlockEntityRendererProvider.Context context) {
-    }
+    public DataSanctumRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
     public void render(@NotNull DataSanctumBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,

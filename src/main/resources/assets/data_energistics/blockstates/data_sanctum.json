@@ -1,220 +1,220 @@
 {
-  "multipart": [
-    {
-      "when": {
-        "active": "false",
-        "facing": "north",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/off"
-      }
-    },
-    {
-      "when": {
-        "active": "false",
-        "facing": "east",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/off",
-        "y": 90
-      }
-    },
-    {
-      "when": {
-        "active": "false",
-        "facing": "south",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/off",
-        "y": 180
-      }
-    },
-    {
-      "when": {
-        "active": "false",
-        "facing": "west",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/off",
-        "y": 270
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "north",
-        "mode": "0",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on"
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "east",
-        "mode": "0",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on",
-        "y": 90
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "south",
-        "mode": "0",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on",
-        "y": 180
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "west",
-        "mode": "0",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on",
-        "y": 270
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "north",
-        "mode": "1",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_hd"
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "east",
-        "mode": "1",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_hd",
-        "y": 90
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "south",
-        "mode": "1",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_hd",
-        "y": 180
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "west",
-        "mode": "1",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_hd",
-        "y": 270
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "north",
-        "mode": "2",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_csm"
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "east",
-        "mode": "2",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_csm",
-        "y": 90
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "south",
-        "mode": "2",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_csm",
-        "y": 180
-      }
-    },
-    {
-      "when": {
-        "active": "true",
-        "facing": "west",
-        "mode": "2",
-        "offset_x": "2",
-        "offset_z": "2",
-        "offset_y": "0"
-      },
-      "apply": {
-        "model": "data_energistics:block/data_sanctum/on_csm",
-        "y": 270
-      }
-    }
-  ]
+	"multipart": [
+		{
+			"when": {
+				"active": "false",
+				"facing": "north",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off"
+			}
+		},
+		{
+			"when": {
+				"active": "false",
+				"facing": "east",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"active": "false",
+				"facing": "south",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"active": "false",
+				"facing": "west",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/off",
+				"y": 270
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "north",
+				"mode": "0",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on"
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "east",
+				"mode": "0",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "south",
+				"mode": "0",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "west",
+				"mode": "0",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on",
+				"y": 270
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "north",
+				"mode": "1",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_hd"
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "east",
+				"mode": "1",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_hd",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "south",
+				"mode": "1",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_hd",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "west",
+				"mode": "1",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_hd",
+				"y": 270
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "north",
+				"mode": "2",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_csm"
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "east",
+				"mode": "2",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_csm",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "south",
+				"mode": "2",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_csm",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"active": "true",
+				"facing": "west",
+				"mode": "2",
+				"offset_x": "2",
+				"offset_z": "2",
+				"offset_y": "0"
+			},
+			"apply": {
+				"model": "data_energistics:block/data_sanctum/on_csm",
+				"y": 270
+			}
+		}
+	]
 }
