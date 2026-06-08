@@ -125,9 +125,7 @@ public class DataSanctumLargeInterfaceScreen extends UpgradeableScreen<DataSanct
         boolean activePullEnabled = !this.menu.getActivePullSides().isEmpty();
         this.activePullToggleButton.setIconName(activePullEnabled ? "POWER_UNIT_YES" : "POWER_UNIT_NO");
         this.activePullToggleButton.setMessageKey(activePullEnabled ? "gui.data_energistics.set_active_pull_sides.enable" : "gui.data_energistics.set_active_pull_sides.disable");
-        this.activePullConfigButton.visible = activePullEnabled
-                && this.menu.getHost() != null
-                && this.menu.getHost().hasActivePullSideSelection();
+        this.activePullConfigButton.visible = activePullEnabled && this.menu.getHost() != null && this.menu.getHost().hasActivePullSideSelection();
         setTextContent("page_info", Component.translatable(
                 "screen.data_energistics.page",
                 this.menu.pageIndex + 1,

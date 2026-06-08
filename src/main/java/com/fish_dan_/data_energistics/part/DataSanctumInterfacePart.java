@@ -156,9 +156,7 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
         this.interfaceLogic.readFromNBT(data, registries);
         this.returnInventory.readFromChildTag(data, RETURN_INVENTORY_TAG, registries);
         decodeSides(data.getInt(ACTIVE_PULL_SIDES_TAG), this.activePullSides);
-        this.activePullEnabled = data.contains(ACTIVE_PULL_ENABLED_TAG)
-                ? data.getBoolean(ACTIVE_PULL_ENABLED_TAG)
-                : !this.activePullSides.isEmpty();
+        this.activePullEnabled = data.contains(ACTIVE_PULL_ENABLED_TAG) ? data.getBoolean(ACTIVE_PULL_ENABLED_TAG) : !this.activePullSides.isEmpty();
         normalizeActivePullState();
     }
 
