@@ -177,9 +177,7 @@ public final class AdaptivePatternProviderResolver {
 
     @Nullable
     public static ProviderProfile resolveProviderProfile(ItemStack stack) {
-        if (stack.isEmpty()
-                || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())
-                || stack.is(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get())) {
+        if (stack.isEmpty() || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem()) || stack.is(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get())) {
             return null;
         }
 
