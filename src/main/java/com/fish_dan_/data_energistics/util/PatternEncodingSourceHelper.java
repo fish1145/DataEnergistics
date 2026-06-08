@@ -308,7 +308,7 @@ public final class PatternEncodingSourceHelper {
             keyInput = deserializeTransferKey(menu, transferKeyAware.dataEnergistics$getDisplayedTransferKeyInputSerialized());
         }
         if (keyInput == null) {
-            LOGGER.info("[DE][PatternKey] pending key is null");
+            LOGGER.debug("[DE][PatternKey] pending key is null");
             return;
         }
 
@@ -320,11 +320,11 @@ public final class PatternEncodingSourceHelper {
         ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
         int keySlot = DATA_RIPPER_KEY_INPUT_SLOT;
         if (keySlot < 0 || keySlot >= encodedInputsInv.size()) {
-            LOGGER.info("[DE][PatternKey] pending key slot {} out of bounds size={}", keySlot, encodedInputsInv.size());
+            LOGGER.debug("[DE][PatternKey] pending key slot {} out of bounds size={}", keySlot, encodedInputsInv.size());
             return;
         }
 
-        LOGGER.info("[DE][PatternKey] applying pending key {}", describeGenericStack(keyInput));
+        LOGGER.debug("[DE][PatternKey] applying pending key {}", describeGenericStack(keyInput));
         applyTransferKeyInputServer(encodedInputsInv, keySlot, keyInput);
     }
 
@@ -385,7 +385,7 @@ public final class PatternEncodingSourceHelper {
         ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
         ConfigInventory encodedOutputsInv = logic.getEncodedOutputInv();
         if (DATA_RIPPER_KEY_INPUT_SLOT >= encodedInputsInv.size()) {
-            LOGGER.info("[DE][PatternKey] resolve key slot {} out of bounds size={}",
+            LOGGER.debug("[DE][PatternKey] resolve key slot {} out of bounds size={}",
                     DATA_RIPPER_KEY_INPUT_SLOT, encodedInputsInv.size());
             return;
         }
@@ -399,10 +399,10 @@ public final class PatternEncodingSourceHelper {
             items.add(itemKey.toStack((int) Math.min(Integer.MAX_VALUE, stack.amount())));
         }
 
-        LOGGER.info("[DE][PatternKey] resolve items={}", describeItems(items));
+        LOGGER.debug("[DE][PatternKey] resolve items={}", describeItems(items));
 
         if (items.isEmpty()) {
-            LOGGER.info("[DE][PatternKey] resolve aborted: items empty");
+            LOGGER.debug("[DE][PatternKey] resolve aborted: items empty");
             return;
         }
 
@@ -416,7 +416,7 @@ public final class PatternEncodingSourceHelper {
             outputs.add(itemKey.toStack((int) Math.min(Integer.MAX_VALUE, stack.amount())));
         }
 
-        LOGGER.info("[DE][PatternKey] resolve outputs={}", describeItems(outputs));
+        LOGGER.debug("[DE][PatternKey] resolve outputs={}", describeItems(outputs));
         GenericStack keyOutput = extractDataRipperKeyStack(encodedOutputsInv);
         List<GenericStack> fluidOutputs = extractFluidStacks(encodedOutputsInv);
 
@@ -432,13 +432,13 @@ public final class PatternEncodingSourceHelper {
             }
 
             GenericStack keyInput = recipe.getKeyInput();
-            LOGGER.info("[DE][PatternKey] matched recipe={} key={}", holder.id(), describeGenericStack(keyInput));
+            LOGGER.debug("[DE][PatternKey] matched recipe={} key={}", holder.id(), describeGenericStack(keyInput));
             writePendingTransferKeyInput(menu.getPlayer(), keyInput);
             applyTransferKeyInputServer(encodedInputsInv, DATA_RIPPER_KEY_INPUT_SLOT, keyInput);
             return;
         }
 
-        LOGGER.info("[DE][PatternKey] no data_reassembler recipe matched");
+        LOGGER.debug("[DE][PatternKey] no data_reassembler recipe matched");
     }
 
     public static void applyPatternSource(ItemStack stack, PatternEncodingSourceAware sourceAware,
@@ -692,7 +692,7 @@ public final class PatternEncodingSourceHelper {
         if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
             transferKeyAware.dataEnergistics$setDisplayedTransferKeyInputSerialized(serializedKeyInput);
         }
-        LOGGER.info("[DE][PatternKey] transfer action key={}", describeGenericStack(keyInput));
+        LOGGER.debug("[DE][PatternKey] transfer action key={}", describeGenericStack(keyInput));
         writePendingTransferKeyInput(menu.getPlayer(), keyInput);
 
         if (menu.getMode() != EncodingMode.PROCESSING) {
@@ -710,7 +710,7 @@ public final class PatternEncodingSourceHelper {
         ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
         int keySlot = DATA_RIPPER_KEY_INPUT_SLOT;
         if (keySlot < 0 || keySlot >= encodedInputsInv.size()) {
-            LOGGER.info("[DE][PatternKey] transfer action key slot {} out of bounds size={}", keySlot, encodedInputsInv.size());
+            LOGGER.debug("[DE][PatternKey] transfer action key slot {} out of bounds size={}", keySlot, encodedInputsInv.size());
             return;
         }
 

@@ -273,7 +273,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         Holder<SoundEvent> sound = EnchantmentHelper.pickHighestLevel(stack, EnchantmentEffectComponents.TRIDENT_SOUND)
                 .orElse(SoundEvents.TRIDENT_THROW);
         if (!level.isClientSide) {
-            LOGGER.info("Light saber releaseUsing: item={}, useTicks={}, spinStrength={}, energy={}",
+            LOGGER.debug("Light saber releaseUsing: item={}, useTicks={}, spinStrength={}, energy={}",
                     stack.getItem(), useTicks, spinStrength, this.getAECurrentPower(stack));
             if (spinStrength == 0.0F) {
                 ItemStack thrownStack = stack.copyWithCount(1);
@@ -288,7 +288,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
                 }
 
                 boolean added = level.addFreshEntity(thrownLightSaber);
-                LOGGER.info("Light saber projectile spawn: entityType={}, added={}, uuid={}",
+                LOGGER.debug("Light saber projectile spawn: entityType={}, added={}, uuid={}",
                         thrownLightSaber.getType(), added, thrownLightSaber.getUUID());
                 level.playSound(null, thrownLightSaber, sound.value(), SoundSource.PLAYERS, 1.0F, 1.0F);
                 if (!player.hasInfiniteMaterials()) {

@@ -28,12 +28,12 @@ public final class UniversalTerminalMenuSupport {
     }
 
     public static void cycleTerminal(UniversalTerminalPart host, Player player, boolean reverse) {
-        LOGGER.info("UniversalTerminalMenuSupport.cycleTerminal called reverse={} player={}", reverse, player.getName().getString());
+        LOGGER.debug("UniversalTerminalMenuSupport.cycleTerminal called reverse={} player={}", reverse, player.getName().getString());
         if (host.cycleTerminal(player, reverse, false)) {
-            LOGGER.info("UniversalTerminalMenuSupport.cycleTerminal reopening active terminal");
+            LOGGER.debug("UniversalTerminalMenuSupport.cycleTerminal reopening active terminal");
             reopenTerminal(host, player);
         } else {
-            LOGGER.info("UniversalTerminalMenuSupport.cycleTerminal no switch performed");
+            LOGGER.debug("UniversalTerminalMenuSupport.cycleTerminal no switch performed");
         }
     }
 

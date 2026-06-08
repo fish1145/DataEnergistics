@@ -229,13 +229,13 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
 
     public boolean cycleTerminal(@Nullable Player player, boolean reverse, boolean announceChange) {
         if (this.getLevel() == null) {
-            LOGGER.info("UniversalTerminalPart.cycleTerminal aborted: level is null");
+            LOGGER.debug("UniversalTerminalPart.cycleTerminal aborted: level is null");
             return false;
         }
 
         List<String> terminals = getInstalledTerminalNames(this.getLevel().registryAccess());
         if (terminals.isEmpty()) {
-            LOGGER.info("UniversalTerminalPart.cycleTerminal aborted: no installed terminals");
+            LOGGER.debug("UniversalTerminalPart.cycleTerminal aborted: no installed terminals");
             return false;
         }
 
@@ -243,32 +243,32 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         int currentIndex = terminals.indexOf(resolvedActive);
         int offset = reverse ? -1 : 1;
         String nextTerminal = terminals.get((currentIndex + offset + terminals.size()) % terminals.size());
-        LOGGER.info("UniversalTerminalPart.cycleTerminal reverse={} current={} next={} installed={}",
+        LOGGER.debug("UniversalTerminalPart.cycleTerminal reverse={} current={} next={} installed={}",
                 reverse, resolvedActive, nextTerminal, terminals);
         return switchToTerminal(nextTerminal, player, announceChange);
     }
 
     public boolean switchToTerminal(String terminalName, @Nullable Player player, boolean announceChange) {
         if (this.getLevel() == null || terminalName == null || terminalName.isEmpty()) {
-            LOGGER.info("UniversalTerminalPart.switchToTerminal aborted: invalid input terminal={}", terminalName);
+            LOGGER.debug("UniversalTerminalPart.switchToTerminal aborted: invalid input terminal={}", terminalName);
             return false;
         }
 
         List<String> terminals = getInstalledTerminalNames(this.getLevel().registryAccess());
         if (!terminals.contains(terminalName)) {
-            LOGGER.info("UniversalTerminalPart.switchToTerminal aborted: terminal {} not in {}", terminalName, terminals);
+            LOGGER.debug("UniversalTerminalPart.switchToTerminal aborted: terminal {} not in {}", terminalName, terminals);
             return false;
         }
 
         if (terminalName.equals(resolveActiveTerminalName())) {
-            LOGGER.info("UniversalTerminalPart.switchToTerminal aborted: terminal {} already active", terminalName);
+            LOGGER.debug("UniversalTerminalPart.switchToTerminal aborted: terminal {} already active", terminalName);
             return false;
         }
 
         setActiveTerminal(terminalName);
         this.saveChanges();
         this.getHost().markForUpdate();
-        LOGGER.info("UniversalTerminalPart.switchToTerminal success: activeTerminal={}", this.activeTerminal);
+        LOGGER.debug("UniversalTerminalPart.switchToTerminal success: activeTerminal={}", this.activeTerminal);
 
         if (announceChange && player != null) {
             player.displayClientMessage(
@@ -292,7 +292,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
                         this.getInstalledTerminalNames(),
                         menuTerminal));
             }
-            LOGGER.info("UniversalTerminalPart.openActiveTerminal opening {} menuType={} returningFromSubmenu={}",
+            LOGGER.debug("UniversalTerminalPart.openActiveTerminal opening {} menuType={} returningFromSubmenu={}",
                     menuTerminal, UniversalTerminalData.getMenuType(menuTerminal), returningFromSubmenu);
             MenuOpener.open(
                     UniversalTerminalData.getMenuType(menuTerminal),
@@ -300,7 +300,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
                     usesCustomMenuLocator(menuTerminal) ? com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator.forPart(this, menuTerminal) : MenuLocators.forPart(this),
                     returningFromSubmenu);
         } else {
-            LOGGER.info("UniversalTerminalPart.openActiveTerminal aborted: resolved terminal is null");
+            LOGGER.debug("UniversalTerminalPart.openActiveTerminal aborted: resolved terminal is null");
         }
     }
 

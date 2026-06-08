@@ -594,12 +594,9 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         advanceBlackHoleExpansionRadius();
         consumeBlackHoleEntities(this.level, this.blackHoleExpansionRadius);
 
-        int pendingBeforeConsume = this.pendingBlackHoleBlocks.size();
         boolean canBufferDataFlow = canBufferBlackHoleDataFlow(BLACK_HOLE_DATA_FLOW_PER_CYCLE);
         int destroyedCount = canBufferDataFlow ? consumeBlackHoleBlocks() : 0;
-        int pendingAfterConsume = this.pendingBlackHoleBlocks.size();
-        int preparedCount = prepareBlackHoleBlocks(this.level, this.blackHoleExpansionRadius);
-        logBlackHoleWorkCycle(pendingBeforeConsume, canBufferDataFlow, destroyedCount, pendingAfterConsume, preparedCount);
+        prepareBlackHoleBlocks(this.level, this.blackHoleExpansionRadius);
         if (destroyedCount <= 0) {
             return;
         }
@@ -691,25 +688,6 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     private static int getBlackHoleBlockLimitPerCycle() {
         return Data_Energistics.isDev() ? Integer.MAX_VALUE : BLACK_HOLE_BLOCKS_PER_CYCLE;
-    }
-
-    private void logBlackHoleWorkCycle(int pendingBeforeConsume, boolean canBufferDataFlow, int destroyedCount,
-                                       int pendingAfterConsume, int preparedCount) {
-        if (!Data_Energistics.isDev()) {
-            return;
-        }
-
-        Data_Energistics.LOGGER.info(
-                "Data Sanctum black hole cycle pos={} radius={} preparedRadius={} pendingBefore={} canBuffer={} destroyed={} pendingAfter={} preparedNow={} cursor={}",
-                this.worldPosition,
-                this.blackHoleExpansionRadius,
-                this.preparedBlackHoleRadius,
-                pendingBeforeConsume,
-                canBufferDataFlow,
-                destroyedCount,
-                pendingAfterConsume,
-                preparedCount,
-                this.blackHoleBlockCursor);
     }
 
     private int consumeBlackHoleCenterEntities(Level level) {

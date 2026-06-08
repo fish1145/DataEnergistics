@@ -26,7 +26,7 @@ public final class DataCrystalPickaxeFtbUltimineCompat {
         @Override
         public Result breakBlock(Player player, BlockPos pos, BlockState state, Shape shape, BlockHitResult hitResult) {
             boolean duplicated = PoweredPickaxeItem.tryDropDuplicateOreLootFromFtbUltimine(player, pos, state);
-            Data_Energistics.LOGGER.info(
+            Data_Energistics.LOGGER.debug(
                     "Data crystal pickaxe FTB Ultimine block handler player={} pos={} block={} duplicated={}",
                     player.getName().getString(),
                     pos,
@@ -37,7 +37,7 @@ public final class DataCrystalPickaxeFtbUltimineCompat {
 
         @Override
         public void postBreak(Player player) {
-            Data_Energistics.LOGGER.info("Data crystal pickaxe FTB Ultimine postBreak player={}", player.getName().getString());
+            Data_Energistics.LOGGER.debug("Data crystal pickaxe FTB Ultimine postBreak player={}", player.getName().getString());
             PoweredPickaxeItem.clearFtbUltimineDuplicateMarkers();
         }
     }
