@@ -9,7 +9,6 @@
 	"emissive_ambient": false,
 	"textures": {
 		"particle": "data_energistics:block/data_sanctum/data_sanctum",
-		"base": "data_energistics:block/data_sanctum/data_sanctum",
-		"end_portal": "minecraft:entity/end_portal"
+		"base": "data_energistics:block/data_sanctum/data_sanctum"
 	}
 }

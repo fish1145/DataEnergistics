@@ -24,11 +24,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import org.jetbrains.annotations.NotNull;
+import org.joml.Matrix4f;
 
 public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlockEntity> {
 
     public static final ModelResourceLocation BLACK_HOLE_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_sanctum/hd"));
     public static final ModelResourceLocation PORTAL_MODEL = ModelResourceLocation.standalone(Data_Energistics.id("block/data_sanctum/csm"));
+    private static final int BLACK_HOLE_MODE = 1;
 
     public DataSanctumRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -54,6 +56,9 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
         poseStack.mulPose(Axis.YP.rotationDegrees(getYRotation(state.getValue(DataSanctumBlock.FACING))));
         poseStack.translate(-0.5F, -0.5F, -0.5F);
         renderModel(Minecraft.getInstance().getBlockRenderer(), model, state, poseStack, buffer, packedLight, packedOverlay);
+        if (state.getValue(DataSanctumBlock.MODE) == BLACK_HOLE_MODE) {
+            renderBlackHolePortal(poseStack, buffer);
+        }
         poseStack.popPose();
     }
 
@@ -94,6 +99,35 @@ public class DataSanctumRenderer implements BlockEntityRenderer<DataSanctumBlock
             case WEST -> 270.0F;
             default -> 0.0F;
         };
+    }
+
+    private static void renderBlackHolePortal(PoseStack poseStack, MultiBufferSource buffer) {
+        VertexConsumer consumer = buffer.getBuffer(RenderType.endPortal());
+        Matrix4f pose = poseStack.last().pose();
+        renderPortalCube(pose, consumer, 0.0625F, 1.96875F, 0.0625F, 0.9375F, 2.78125F, 0.9375F);
+        renderPortalCube(pose, consumer, 0.125F, 2.0F, 0.125F, 0.875F, 2.75F, 0.875F);
+    }
+
+    private static void renderPortalCube(Matrix4f pose, VertexConsumer consumer,
+                                         float minX, float minY, float minZ,
+                                         float maxX, float maxY, float maxZ) {
+        addQuad(pose, consumer, minX, maxY, maxZ, minX, minY, maxZ, maxX, minY, maxZ, maxX, maxY, maxZ);
+        addQuad(pose, consumer, maxX, maxY, minZ, maxX, minY, minZ, minX, minY, minZ, minX, maxY, minZ);
+        addQuad(pose, consumer, maxX, maxY, maxZ, maxX, minY, maxZ, maxX, minY, minZ, maxX, maxY, minZ);
+        addQuad(pose, consumer, minX, maxY, minZ, minX, minY, minZ, minX, minY, maxZ, minX, maxY, maxZ);
+        addQuad(pose, consumer, minX, maxY, minZ, minX, maxY, maxZ, maxX, maxY, maxZ, maxX, maxY, minZ);
+        addQuad(pose, consumer, minX, minY, maxZ, minX, minY, minZ, maxX, minY, minZ, maxX, minY, maxZ);
+    }
+
+    private static void addQuad(Matrix4f pose, VertexConsumer consumer,
+                                float x0, float y0, float z0,
+                                float x1, float y1, float z1,
+                                float x2, float y2, float z2,
+                                float x3, float y3, float z3) {
+        consumer.addVertex(pose, x0, y0, z0);
+        consumer.addVertex(pose, x1, y1, z1);
+        consumer.addVertex(pose, x2, y2, z2);
+        consumer.addVertex(pose, x3, y3, z3);
     }
 
     private static void renderModel(BlockRenderDispatcher blockRenderer, BakedModel model, BlockState state, PoseStack poseStack,
