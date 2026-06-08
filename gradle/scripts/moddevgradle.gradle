@@ -39,6 +39,16 @@ neoForge {
             systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
+        server {
+            server()
+            sourceSet = sourceSets.extra
+            ideName = "All Server"
+
+            gameDirectory.set(file('run/all/server'))
+            programArguments.addAll('--nogui', '--world', 'world-extra')
+            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
+        }
+
         loginClient {
             client()
             sourceSet = sourceSets.clientExtra
@@ -49,12 +59,12 @@ neoForge {
             systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
-        server {
+        loginserver {
             server()
             sourceSet = sourceSets.extra
-            ideName = "All Server"
+            ideName = "All Server (Dev Login)"
 
-            gameDirectory.set(file('run/all/server'))
+            gameDirectory.set(file('run/login/server'))
             programArguments.addAll('--nogui', '--world', 'world-extra')
             systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }

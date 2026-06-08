@@ -26,6 +26,8 @@ tasks.matching { it.name.startsWith('prepare') }.configureEach {
         mkdir('run/all/server')
         mkdir('run/clean/client')
         mkdir('run/clean/server')
+        mkdir('run/login/client')
+        mkdir('run/login/server')
         mkdir('run/gametest/client')
         mkdir('run/gametest/server')
         mkdir('run/data')
