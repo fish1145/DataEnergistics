@@ -9,7 +9,6 @@ import net.minecraft.world.inventory.Slot;
 
 import appeng.api.config.Settings;
 import appeng.api.util.IConfigManager;
-import appeng.core.definitions.AEItems;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.implementations.SetStockAmountMenu;
@@ -66,7 +65,7 @@ public class DataSanctumInterfaceMenu extends UpgradeableMenu<DataSanctumBlockEn
     protected void setupUpgrades() {
         var upgrades = this.getHost().getUpgrades();
         for (int i = 0; i < upgrades.size(); i++) {
-            this.addSlot(new EnergyUpgradeSlot(upgrades, i), SlotSemantics.UPGRADE);
+            this.addSlot(new RestrictedInputSlot(PlacableItemType.UPGRADES, upgrades, i), SlotSemantics.UPGRADE);
         }
     }
 
@@ -88,18 +87,6 @@ public class DataSanctumInterfaceMenu extends UpgradeableMenu<DataSanctumBlockEn
         var stack = getHost().getConfig().getStack(configSlot);
         if (stack != null) {
             SetStockAmountMenu.open((ServerPlayer) getPlayer(), getLocator(), configSlot, stack.what(), (int) stack.amount());
-        }
-    }
-
-    private static final class EnergyUpgradeSlot extends RestrictedInputSlot {
-
-        private EnergyUpgradeSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
-            super(PlacableItemType.UPGRADES, inv, invSlot);
-        }
-
-        @Override
-        public boolean mayPlace(net.minecraft.world.item.ItemStack stack) {
-            return stack.is(AEItems.ENERGY_CARD.asItem()) && super.mayPlace(stack);
         }
     }
 }

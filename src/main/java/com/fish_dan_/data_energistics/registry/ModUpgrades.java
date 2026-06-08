@@ -9,6 +9,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.block.Blocks;
 
 import appeng.api.parts.PartModels;
@@ -22,6 +23,8 @@ import appeng.items.parts.PartModelsHelper;
 public final class ModUpgrades {
 
     private static final String ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP = "block.data_energistics.adaptive_pattern_provider";
+    private static final String DATA_SANCTUM_INTERFACE_UPGRADE_TOOLTIP_GROUP = "block.data_energistics.data_sanctum_interface";
+    private static final String DATA_SANCTUM_INTERFACE_PART_UPGRADE_TOOLTIP_GROUP = "item.data_energistics.data_sanctum_interface_part";
 
     private ModUpgrades() {}
 
@@ -113,10 +116,9 @@ public final class ModUpgrades {
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
         Upgrades.add(AEItems.VOID_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 1, "block.data_energistics.data_mimetic_field");
         Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SANCTUM.get(), 3, "block.data_energistics.data_sanctum");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_SANCTUM_INTERFACE.get(), 3,
-                "block.data_energistics.data_sanctum_interface");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModItems.DATA_SANCTUM_INTERFACE_PART.get(), 3,
-                "item.data_energistics.data_sanctum_interface_part");
+        registerDataSanctumInterfaceUpgrade(AEItems.CAPACITY_CARD, 3);
+        registerDataSanctumInterfaceUpgrade(AEItems.CRAFTING_CARD, 1);
+        registerDataSanctumInterfaceUpgrade(AEItems.FUZZY_CARD, 1);
         Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
@@ -140,6 +142,7 @@ public final class ModUpgrades {
         Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
                 ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         registerExternalRedstoneTuningCardCompat();
+        registerExternalDataSanctumInterfaceCompat();
         registerAppliedFluxAdaptivePatternProviderCompat();
         registerAe2CrystalScienceAdaptivePatternProviderCompat();
         PartModels.registerModels(
@@ -153,6 +156,27 @@ public final class ModUpgrades {
         PartModels.registerModels(
                 PartModelsHelper.createModels(ModItems.UNIVERSAL_TERMINAL.get().getPartClass()));
         StorageCells.addCellHandler(InfiniteDataCellHandler.INSTANCE);
+    }
+
+    private static void registerDataSanctumInterfaceUpgrade(ItemLike upgradeCard, int maxInstalled) {
+        Upgrades.add(upgradeCard, ModBlocks.DATA_SANCTUM_INTERFACE.get(), maxInstalled,
+                DATA_SANCTUM_INTERFACE_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(upgradeCard, ModItems.DATA_SANCTUM_INTERFACE_PART.get(), maxInstalled,
+                DATA_SANCTUM_INTERFACE_PART_UPGRADE_TOOLTIP_GROUP);
+    }
+
+    private static void registerExternalDataSanctumInterfaceCompat() {
+        registerExternalDataSanctumInterfaceUpgrade("ae2cs", "crystal_growth_card", 1);
+        registerExternalDataSanctumInterfaceUpgrade("appflux", "induction_card", 1);
+        registerExternalDataSanctumInterfaceUpgrade("extendedae_plus", "channel_card", 1);
+    }
+
+    private static void registerExternalDataSanctumInterfaceUpgrade(String namespace, String path, int maxInstalled) {
+        Item upgradeCard = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(namespace, path));
+        if (upgradeCard == null || upgradeCard == Items.AIR) {
+            return;
+        }
+        registerDataSanctumInterfaceUpgrade(upgradeCard, maxInstalled);
     }
 
     private static void registerAppliedFluxAdaptivePatternProviderCompat() {

@@ -15,7 +15,6 @@ import appeng.api.config.Actionable;
 import appeng.api.config.Settings;
 import appeng.api.stacks.GenericStack;
 import appeng.api.util.IConfigManager;
-import appeng.core.definitions.AEItems;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
@@ -91,7 +90,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
     protected void setupUpgrades() {
         var upgrades = this.getHost().getUpgrades();
         for (int i = 0; i < upgrades.size(); i++) {
-            this.addSlot(new EnergyUpgradeSlot(upgrades, i), SlotSemantics.UPGRADE);
+            this.addSlot(new RestrictedInputSlot(PlacableItemType.UPGRADES, upgrades, i), SlotSemantics.UPGRADE);
         }
     }
 
@@ -190,18 +189,6 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
             mask |= 1 << side.ordinal();
         }
         return mask;
-    }
-
-    private static final class EnergyUpgradeSlot extends RestrictedInputSlot {
-
-        private EnergyUpgradeSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
-            super(PlacableItemType.UPGRADES, inv, invSlot);
-        }
-
-        @Override
-        public boolean mayPlace(net.minecraft.world.item.ItemStack stack) {
-            return (stack.is(AEItems.ENERGY_CARD.asItem()) || stack.is(AEItems.CAPACITY_CARD.asItem())) && super.mayPlace(stack);
-        }
     }
 
     private static final class PagedMenuInventory extends ConfigMenuInventory {
