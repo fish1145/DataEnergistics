@@ -21,6 +21,7 @@ dependencies {
     compileOnly(forge.applied.create)
     compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
+    compileOnly(forge.sut)
     compileOnly(forge.amek)
     compileOnly(forge.mek)
 
@@ -50,6 +51,7 @@ dependencies {
     localRuntime(forge.glodium)
     localRuntime(forge.geckolib)
     localRuntime(forge.cloth.config)
+    localRuntime(forge.sut)
     localRuntime(forge.pneumaticcraft)
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.create) {
