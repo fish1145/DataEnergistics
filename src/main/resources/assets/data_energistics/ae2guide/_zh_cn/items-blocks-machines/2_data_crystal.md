@@ -78,7 +78,7 @@ item_ids:
 | <ItemImage id="data_energistics:small_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 0% <ItemImage id="data_energistics:data_dust" /> |
 | <ItemImage id="data_energistics:medium_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 15% <ItemImage id="data_energistics:data_dust" /> |
 | <ItemImage id="data_energistics:large_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 25% <ItemImage id="data_energistics:data_dust" /> |
-| <ItemImage id="data_energistics:data_crystal_cluster" /> | <ItemImage id="data_energistics:data_dust" /> <ItemImage id="data_energistics:data_crystal" /> | 40% <ItemImage id="data_energistics:data_dust" />，否则 60% <ItemImage id="data_energistics:data_crystal" /> |
+| <ItemImage id="data_energistics:data_crystal_cluster" /> | <ItemImage id="data_energistics:data_crystal" /> | 4x <ItemImage id="data_energistics:data_crystal" />，受时运影响 |
 
 ## 数据水晶
 <Column>
