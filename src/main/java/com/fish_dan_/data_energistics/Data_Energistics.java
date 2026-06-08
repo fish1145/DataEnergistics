@@ -28,7 +28,7 @@ public class Data_Energistics {
             { "原神启动！", "前面的区域以后再探索吧" }
     };
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
 
     public Data_Energistics(IEventBus modEventBus, @Nullable ModContainer modContainer) {
         CommonBootstrap.init(modEventBus, modContainer);

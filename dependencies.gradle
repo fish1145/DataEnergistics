@@ -24,6 +24,9 @@ dependencies {
     compileOnly(forge.amek)
     compileOnly(forge.mek)
 
+    // FTB
+    compileOnly(forge.ftbultimine)
+
     // Recipe viewers
     compileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
@@ -33,6 +36,11 @@ dependencies {
 
     // Standard runtime mods
     localRuntime(forge.spark)
+
+    // FTB //
+    localRuntime(forge.architectury)
+    localRuntime(forge.ftblibrary)
+    localRuntime(forge.ftbultimine)
 
     localRuntime(forge.jade)
     localRuntime(forge.curios)

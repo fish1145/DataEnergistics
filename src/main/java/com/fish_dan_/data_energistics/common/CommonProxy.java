@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
+import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
@@ -120,7 +121,13 @@ public class CommonProxy {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-        event.enqueueWork(ModUpgrades::init);
+        event.enqueueWork(() -> {
+            ModUpgrades.init();
+            if (Data_Energistics.isModLoaded("ftbultimine")) {
+                Data_Energistics.LOGGER.info("Registering Data Crystal Pickaxe FTB Ultimine duplicate ore integration");
+                DataCrystalPickaxeFtbUltimineCompat.init();
+            }
+        });
     }
 
     private void registerDepotContainerItemStrategies(final FMLCommonSetupEvent event) {

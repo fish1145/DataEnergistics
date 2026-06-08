@@ -8,6 +8,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.common.Tags;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
@@ -93,7 +94,7 @@ public final class PoweredToolSaberEnergyHelper {
         return state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES);
     }
 
-    private static boolean isOreBlock(BlockState state) {
-        return state.is(BlockTags.COAL_ORES) || state.is(BlockTags.COPPER_ORES) || state.is(BlockTags.DIAMOND_ORES) || state.is(BlockTags.EMERALD_ORES) || state.is(BlockTags.GOLD_ORES) || state.is(BlockTags.IRON_ORES) || state.is(BlockTags.LAPIS_ORES) || state.is(BlockTags.REDSTONE_ORES);
+    public static boolean isOreBlock(BlockState state) {
+        return state.is(Tags.Blocks.ORES) || state.is(BlockTags.COAL_ORES) || state.is(BlockTags.COPPER_ORES) || state.is(BlockTags.DIAMOND_ORES) || state.is(BlockTags.EMERALD_ORES) || state.is(BlockTags.GOLD_ORES) || state.is(BlockTags.IRON_ORES) || state.is(BlockTags.LAPIS_ORES) || state.is(BlockTags.REDSTONE_ORES);
     }
 }

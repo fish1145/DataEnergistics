@@ -1,8 +1,12 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
@@ -14,16 +18,22 @@ import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
 
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
+    private static final ThreadLocal<Set<BlockPos>> FTB_ULTIMINE_DUPLICATED_POSITIONS = ThreadLocal.withInitial(HashSet::new);
 
     public PoweredPickaxeItem(Tier tier, Properties properties) {
         super(tier, properties, tier.createToolProperties(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE));
@@ -87,7 +97,9 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
         }
         boolean result = super.mineBlock(stack, level, state, pos, miningEntity);
         if (result && !level.isClientSide && state.getDestroySpeed(level, pos) != 0.0F) {
-            this.tryChainMineOre(stack, (ServerLevel) level, pos, state, miningEntity);
+            if (!consumeFtbUltimineDuplicateMarker(pos)) {
+                tryDropDuplicateOreLoot(stack, (ServerLevel) level, pos, state, miningEntity);
+            }
             this.consumeActionEnergy(stack);
         }
         return result;
@@ -146,32 +158,117 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
         return result;
     }
 
-    private void tryChainMineOre(ItemStack stack, ServerLevel level, BlockPos origin, BlockState originState, LivingEntity miner) {
-        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
-            return;
+    public static boolean tryDropDuplicateOreLoot(ItemStack stack, ServerLevel level, BlockPos pos, BlockState state, LivingEntity miner) {
+        if (!(stack.getItem() instanceof PoweredPickaxeItem pickaxe) || !stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get())) {
+            return false;
         }
 
-        // The origin block is already broken by the time mineBlock runs, so add its extra copy explicitly here.
-        dropDuplicateOreLoot(level, origin, originState, miner, stack);
+        if (!PoweredToolSaberEnergyHelper.isOreBlock(state)) {
+            logDuplicateOreResult("skip_not_ore", level, pos, state, miner, stack, 0);
+            return false;
+        }
+        if (!pickaxe.hasSufficientEnergy(stack)) {
+            logDuplicateOreResult("skip_no_ae_energy", level, pos, state, miner, stack, 0);
+            return false;
+        }
+        if (!PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, pickaxe)) {
+            logDuplicateOreResult("skip_no_saber_energy_card", level, pos, state, miner, stack, 0);
+            return false;
+        }
+        if (!PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+            logDuplicateOreResult("skip_no_data_flow", level, pos, state, miner, stack, 0);
+            return false;
+        }
 
-        for (BlockPos targetPos : PoweredToolSaberEnergyHelper.collectOreVein(level, origin, 128)) {
-            if (targetPos.equals(origin)) {
-                continue;
-            }
-            BlockState targetState = level.getBlockState(targetPos);
-            if (targetState.isAir() || targetState.getDestroySpeed(level, targetPos) < 0.0F) {
-                continue;
-            }
+        List<ItemStack> drops = createDuplicateOreDrops(state);
+        dropDuplicateOreLoot(level, pos, drops);
+        logDuplicateOreResult("duplicated", level, pos, state, miner, stack, drops);
+        return true;
+    }
 
-            dropDuplicateOreLoot(level, targetPos, targetState, miner, stack);
-            level.destroyBlock(targetPos, true, miner);
+    private static List<ItemStack> createDuplicateOreDrops(BlockState state) {
+        ItemLike item = state.getBlock();
+        ItemStack drop = new ItemStack(item);
+        return drop.isEmpty() ? List.of() : List.of(drop);
+    }
+
+    private static void dropDuplicateOreLoot(ServerLevel level, BlockPos pos, List<ItemStack> drops) {
+        for (ItemStack drop : drops) {
+            net.minecraft.world.level.block.Block.popResource(level, pos, drop.copy());
         }
     }
 
-    private static void dropDuplicateOreLoot(ServerLevel level, BlockPos pos, BlockState state, LivingEntity miner, ItemStack tool) {
-        for (ItemStack drop : Block.getDrops(state, level, pos, level.getBlockEntity(pos), miner, tool)) {
-            net.minecraft.world.level.block.Block.popResource(level, pos, drop.copy());
+    private static void logDuplicateOreResult(String result, ServerLevel level, BlockPos pos, BlockState state,
+                                              LivingEntity miner, ItemStack tool, int dropCount) {
+        logDuplicateOreResult(result, level, pos, state, miner, tool, List.of(), dropCount);
+    }
+
+    private static void logDuplicateOreResult(String result, ServerLevel level, BlockPos pos, BlockState state,
+                                              LivingEntity miner, ItemStack tool, List<ItemStack> drops) {
+        logDuplicateOreResult(result, level, pos, state, miner, tool, drops, countItems(drops));
+    }
+
+    private static void logDuplicateOreResult(String result, ServerLevel level, BlockPos pos, BlockState state,
+                                              LivingEntity miner, ItemStack tool, List<ItemStack> drops, int dropCount) {
+        Data_Energistics.LOGGER.info(
+                "Data crystal pickaxe duplicate ore result={} level={} pos={} block={} miner={} tool={} aeEnergy={} silkTouch={} fortune={} dataDrops={} drops={}",
+                result,
+                level.dimension().location(),
+                pos,
+                BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                miner.getName().getString(),
+                BuiltInRegistries.ITEM.getKey(tool.getItem()),
+                tool.getItem() instanceof PoweredPickaxeItem pickaxe ? pickaxe.getAECurrentPower(tool) : 0.0D,
+                EnchantmentHelper.getItemEnchantmentLevel(
+                        level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
+                        tool),
+                EnchantmentHelper.getItemEnchantmentLevel(
+                        level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
+                        tool),
+                dropCount,
+                formatDrops(drops));
+    }
+
+    private static int countItems(List<ItemStack> drops) {
+        int count = 0;
+        for (ItemStack drop : drops) {
+            count += drop.getCount();
         }
+        return count;
+    }
+
+    private static String formatDrops(List<ItemStack> drops) {
+        if (drops.isEmpty()) {
+            return "[]";
+        }
+
+        List<String> formattedDrops = new ArrayList<>(drops.size());
+        for (ItemStack drop : drops) {
+            formattedDrops.add(drop.getCount() + "x" + BuiltInRegistries.ITEM.getKey(drop.getItem()));
+        }
+        return formattedDrops.toString();
+    }
+
+    public static boolean tryDropDuplicateOreLootFromFtbUltimine(Player player, BlockPos pos, BlockState state) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return false;
+        }
+
+        ItemStack stack = serverPlayer.getMainHandItem();
+        if (!tryDropDuplicateOreLoot(stack, serverPlayer.serverLevel(), pos, state, serverPlayer)) {
+            return false;
+        }
+
+        FTB_ULTIMINE_DUPLICATED_POSITIONS.get().add(pos.immutable());
+        return true;
+    }
+
+    public static void clearFtbUltimineDuplicateMarkers() {
+        FTB_ULTIMINE_DUPLICATED_POSITIONS.get().clear();
+    }
+
+    private static boolean consumeFtbUltimineDuplicateMarker(BlockPos pos) {
+        return FTB_ULTIMINE_DUPLICATED_POSITIONS.get().remove(pos);
     }
 
     private float getSaberEnergyDestroySpeedBonus(ItemStack stack) {

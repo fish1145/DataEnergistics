@@ -13,10 +13,11 @@ create = "6.0.8-168"
 ponder = "1.0.64"
 flywheel = "1.0.5"
 curios = "9.4.2+1.21.1"
+architectury = "13.0.8"
 
 ## ftb mod ##
-ftblibrary = "2101.1.30"
-ftbteams = "2101.1.9"
+ftblibrary = "2101.1.31"
+ftbultimine  = "2101.1.13"
 
 ## modrinth maven ##
 jade = "15.10.0+neoforge"
@@ -67,6 +68,11 @@ ponder              = { module = "net.createmod.ponder:Ponder-NeoForge-1.21.1", 
 flywheel-forge-api  = { module = "dev.engine-room.flywheel:flywheel-neoforge-api-1.21.1", version.ref = "flywheel"}
 flywheel-forge      = { module = "dev.engine-room.flywheel:flywheel-neoforge-1.21.1", version.ref = "flywheel"}
 curios              = { module = "top.theillusivec4.curios:curios-neoforge", version.ref = "curios" }
+architectury        = { module = "dev.architectury:architectury-neoforge", version.ref = "architectury" }
+
+ftblibrary          = { module = "dev.ftb.mods:ftb-library-neoforge", version.ref = "ftblibrary" }
+ftbultimine         = { module = "dev.ftb.mods:ftb-ultimine-neoforge", version.ref = "ftbultimine" }
+
 jade                = { module = "maven.modrinth:jade", version.ref = "jade" }
 sodium              = { module = "maven.modrinth:sodium", version.ref = "sodium" }
 iris                = { module = "maven.modrinth:iris", version.ref = "iris" }
