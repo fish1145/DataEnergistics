@@ -21,7 +21,7 @@
 		},
 		{
 			"ingredient": {
-				"item": "ae2:meteorite_compass"
+				"item": "data_energistics:data_meteorite_compass"
 			},
 			"count": 2
 		},

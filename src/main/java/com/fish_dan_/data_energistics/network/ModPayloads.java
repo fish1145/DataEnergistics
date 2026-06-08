@@ -33,5 +33,13 @@ public final class ModPayloads {
                 DigitalStorageDepotBucketModePayload.TYPE,
                 DigitalStorageDepotBucketModePayload.STREAM_CODEC,
                 DigitalStorageDepotBucketModePayload::handle);
+        registrar.playToServer(
+                DataMeteoriteCompassRequestPayload.TYPE,
+                DataMeteoriteCompassRequestPayload.STREAM_CODEC,
+                DataMeteoriteCompassRequestPayload::handle);
+        registrar.playToClient(
+                DataMeteoriteCompassResponsePayload.TYPE,
+                DataMeteoriteCompassResponsePayload.STREAM_CODEC,
+                DataMeteoriteCompassResponsePayload::handle);
     }
 }

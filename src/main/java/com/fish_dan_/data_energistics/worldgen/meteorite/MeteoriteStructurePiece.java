@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
+import com.fish_dan_.data_energistics.world.DataMeteoriteSavedData;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 
 import net.minecraft.core.BlockPos;
@@ -13,8 +14,6 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
-
-import appeng.server.services.compass.ServerCompassService;
 
 public class MeteoriteStructurePiece extends StructurePiece {
 
@@ -68,6 +67,6 @@ public class MeteoriteStructurePiece extends StructurePiece {
 
     public void postProcess(WorldGenLevel level, StructureManager structureManager, ChunkGenerator chunkGenerator, RandomSource rand, BoundingBox bounds, ChunkPos chunkPos, BlockPos blockPos) {
         MeteoritePlacer.place(level, this.settings, bounds, rand);
-        ServerCompassService.updateArea(level.getLevel(), level.getChunk(chunkPos.x, chunkPos.z));
+        DataMeteoriteSavedData.get(level.getLevel()).add(this.settings.getPos());
     }
 }

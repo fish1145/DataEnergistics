@@ -340,6 +340,7 @@
 	"item.data_energistics.data_charger": "数据充能台",
 	"block.data_energistics.extended_data_charger": "扩展数据充能台",
 	"item.data_energistics.extended_data_charger": "扩展数据充能台",
+	"item.data_energistics.data_meteorite_compass": "数位化陨石罗盘",
 	"jade.data_energistics.yes": "是",
 	"jade.data_energistics.no": "否",
 	"jade.data_energistics.data_charger.data_flow": "数据流：%s / %s",

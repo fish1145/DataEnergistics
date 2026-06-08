@@ -38,6 +38,7 @@ import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.registry.ModStructures;
 import com.fish_dan_.data_energistics.registry.ModUpgrades;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
+import com.fish_dan_.data_energistics.world.DataMeteoritePreloader;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -108,6 +109,7 @@ public class CommonProxy {
         NeoForge.EVENT_BUS.register(new DataCaptureBallRightClickRecipeLogic());
         NeoForge.EVENT_BUS.register(new DataCrystalSwordAiStripLogic());
         NeoForge.EVENT_BUS.register(new PersistentFarmlandLogic());
+        NeoForge.EVENT_BUS.register(new DataMeteoritePreloader());
     }
 
     private void registerBuiltinDataPacks(AddPackFindersEvent event) {

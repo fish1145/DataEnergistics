@@ -60,6 +60,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.ENDER_COHESION_METEORITE_0);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_1);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_2);
+                        output.accept(ModItems.DATA_METEORITE_COMPASS);
                         output.accept(ModItems.DATA_CRYSTAL_BLOCK);
                         output.accept(ModItems.DIGITAL_STORAGE_DEPOT);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_0);

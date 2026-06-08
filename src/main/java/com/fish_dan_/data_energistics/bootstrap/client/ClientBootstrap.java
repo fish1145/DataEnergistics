@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.client.integration.CuriosDollRendererRegis
 import com.fish_dan_.data_energistics.client.render.DataChargerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
+import com.fish_dan_.data_energistics.client.render.DataMeteoriteCompassBakedModel;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
 import com.fish_dan_.data_energistics.client.render.DataSanctumRenderer;
 import com.fish_dan_.data_energistics.client.render.DigitalStorageDepotClientTooltipComponent;
@@ -57,6 +58,7 @@ import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.TntRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -87,6 +89,7 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import appeng.client.render.model.MeteoriteCompassBakedModel;
 import appeng.core.definitions.AEItems;
 import appeng.init.client.InitScreens;
 import appeng.items.misc.PaintBallItem;
@@ -192,8 +195,24 @@ public final class ClientBootstrap {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("item/data_meteorite_compass_base")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("item/data_meteorite_compass_pointer")));
             event.register(DataSanctumRenderer.BLACK_HOLE_MODEL);
             event.register(DataSanctumRenderer.PORTAL_MODEL);
+        }
+
+        @SubscribeEvent
+        public static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
+            ModelResourceLocation compass = ModelResourceLocation.inventory(Data_Energistics.id("data_meteorite_compass"));
+            ModelResourceLocation base = ModelResourceLocation.standalone(Data_Energistics.id("item/data_meteorite_compass_base"));
+            ModelResourceLocation pointer = ModelResourceLocation.standalone(Data_Energistics.id("item/data_meteorite_compass_pointer"));
+
+            BakedModel baseModel = event.getModels().get(base);
+            BakedModel pointerModel = event.getModels().get(pointer);
+            if (baseModel != null && pointerModel != null) {
+                event.getModels().put(compass, new DataMeteoriteCompassBakedModel(
+                        new MeteoriteCompassBakedModel(baseModel, pointerModel)));
+            }
         }
 
         private static void registerFluidRenderLayers() {

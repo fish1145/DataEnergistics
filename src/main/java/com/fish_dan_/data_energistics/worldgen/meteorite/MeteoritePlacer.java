@@ -23,7 +23,6 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 
-import appeng.block.misc.MysteriousCubeBlock;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEBlocks;
 import appeng.decorative.AEDecorativeBlock;
@@ -222,7 +221,7 @@ public final class MeteoritePlacer {
 
     private void placeChest() {
         if (AEConfig.instance().isSpawnPressesInMeteoritesEnabled()) {
-            this.putter.put(this.level, this.pos, ((MysteriousCubeBlock) AEBlocks.MYSTERIOUS_CUBE.block()).defaultBlockState());
+            this.putter.put(this.level, this.pos, AEBlocks.NOT_SO_MYSTERIOUS_CUBE.block().defaultBlockState());
         }
     }
 
