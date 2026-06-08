@@ -335,9 +335,7 @@ public class CommonProxy {
     private static void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, Item item) {
         event.registerItem(
                 Capabilities.EnergyStorage.ITEM,
-                (stack, context) -> item instanceof IAEItemPowerStorage powerStorage
-                        ? new PoweredItemEnergyStorage(stack, powerStorage)
-                        : null,
+                (stack, context) -> item instanceof IAEItemPowerStorage powerStorage ? new PoweredItemEnergyStorage(stack, powerStorage) : null,
                 item);
     }
 
