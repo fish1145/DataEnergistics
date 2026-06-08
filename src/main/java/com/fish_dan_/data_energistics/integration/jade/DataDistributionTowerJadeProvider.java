@@ -32,7 +32,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
     @Override
     public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
         CompoundTag serverData = accessor.getServerData();
-        if (serverData.isEmpty()) {
+        if (!serverData.contains(TAG_ONLINE)) {
             return;
         }
 

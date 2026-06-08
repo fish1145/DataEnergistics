@@ -9,7 +9,6 @@ import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
@@ -35,7 +34,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
 
     @Override
     public void register(IWailaCommonRegistration registration) {
-        registration.registerBlockDataProvider(TOWER_PROVIDER, DataDistributionTowerBlockEntity.class);
+        registration.registerBlockDataProvider(TOWER_PROVIDER, DataDistributionTowerBlock.class);
         registration.registerBlockDataProvider(EXTRACTOR_PROVIDER, DataExtractorBlockEntity.class);
         registration.registerBlockDataProvider(MIMETIC_FIELD_PROVIDER, DataMimeticFieldBlockEntity.class);
         registration.registerBlockDataProvider(DATA_RIPPER_REASSEMBLER_PROVIDER, DataRipperReassemblerBlockEntity.class);
