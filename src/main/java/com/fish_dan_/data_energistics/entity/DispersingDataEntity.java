@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.registry.ModEntities;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -11,6 +13,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -31,6 +34,7 @@ public class DispersingDataEntity extends Entity {
     private static final double DRIFT_STRENGTH = 0.015D;
     private static final double VERTICAL_DRIFT = 0.01D;
     private static final double HITBOX_Y_OFFSET = 0.0625D;
+    private static final int MAX_LIQUID_ESCAPE_DISTANCE = 64;
     private int age;
 
     public DispersingDataEntity(EntityType<? extends DispersingDataEntity> entityType, Level level) {
@@ -121,5 +125,39 @@ public class DispersingDataEntity extends Entity {
 
     public void setTextureVariant(int variant) {
         this.entityData.set(TEXTURE_VARIANT, Math.floorMod(variant, 4));
+    }
+
+    public static void spawnAt(ServerLevel level, BlockPos pos, RandomSource random) {
+        DispersingDataEntity entity = ModEntities.DISPERSING_DATA.get().create(level);
+        if (entity == null) {
+            return;
+        }
+
+        BlockPos spawnPos = findSpawnPos(level, pos);
+        double x = spawnPos.getX() + 0.35D + random.nextDouble() * 0.3D;
+        double y = spawnPos.getY() + 0.7D + random.nextDouble() * 0.4D;
+        double z = spawnPos.getZ() + 0.35D + random.nextDouble() * 0.3D;
+        entity.setPos(x, y, z);
+        entity.setTextureVariant(random.nextInt(4));
+        entity.setDeltaMovement(
+                (random.nextDouble() - 0.5D) * 0.08D,
+                0.01D + random.nextDouble() * 0.03D,
+                (random.nextDouble() - 0.5D) * 0.08D);
+        level.addFreshEntity(entity);
+    }
+
+    private static BlockPos findSpawnPos(ServerLevel level, BlockPos pos) {
+        if (level.getFluidState(pos).isEmpty()) {
+            return pos;
+        }
+
+        int maxY = Math.min(level.getMaxBuildHeight() - 1, pos.getY() + MAX_LIQUID_ESCAPE_DISTANCE);
+        for (int y = pos.getY() + 1; y <= maxY; y++) {
+            BlockPos candidate = new BlockPos(pos.getX(), y, pos.getZ());
+            if (level.getFluidState(candidate).isEmpty() && level.getBlockState(candidate).getCollisionShape(level, candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        return pos;
     }
 }

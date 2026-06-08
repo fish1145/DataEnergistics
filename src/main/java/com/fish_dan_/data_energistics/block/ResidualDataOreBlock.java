@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
-import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -94,21 +93,7 @@ public class ResidualDataOreBlock extends DropExperienceBlock {
             count += random.nextInt(2);
         }
         for (int i = 0; i < count; i++) {
-            DispersingDataEntity entity = ModEntities.DISPERSING_DATA.get().create(level);
-            if (entity == null) {
-                continue;
-            }
-
-            double x = pos.getX() + 0.35D + random.nextDouble() * 0.3D;
-            double y = pos.getY() + 0.7D + random.nextDouble() * 0.4D;
-            double z = pos.getZ() + 0.35D + random.nextDouble() * 0.3D;
-            entity.setPos(x, y, z);
-            entity.setTextureVariant(random.nextInt(4));
-            entity.setDeltaMovement(
-                    (random.nextDouble() - 0.5D) * 0.08D,
-                    0.01D + random.nextDouble() * 0.03D,
-                    (random.nextDouble() - 0.5D) * 0.08D);
-            level.addFreshEntity(entity);
+            DispersingDataEntity.spawnAt(level, pos, random);
         }
     }
 }
