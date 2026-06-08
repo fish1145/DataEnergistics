@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
 import com.mojang.logging.LogUtils;
@@ -37,6 +39,15 @@ public final class UniversalTerminalMenuSupport {
 
     private static void reopenTerminal(UniversalTerminalPart host, Player player) {
         player.closeContainer();
+        if (player instanceof ServerPlayer serverPlayer) {
+            ServerTickDelayQueue.runNextServerTick(serverPlayer.server, () -> {
+                if (!serverPlayer.hasDisconnected() && !serverPlayer.isRemoved() && host.getLevel() != null) {
+                    host.openActiveTerminal(serverPlayer, false);
+                }
+            });
+            return;
+        }
+
         host.openActiveTerminal(player, false);
     }
 }
