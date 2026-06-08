@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
+import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
@@ -7,6 +8,7 @@ import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
@@ -29,6 +31,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
     private static final DataSolarPanelJadeProvider SOLAR_PANEL_PROVIDER = new DataSolarPanelJadeProvider();
     private static final DataTeleportAnchorJadeProvider TELEPORT_ANCHOR_PROVIDER = new DataTeleportAnchorJadeProvider();
     private static final DataSanctumJadeProvider DATA_SANCTUM_PROVIDER = new DataSanctumJadeProvider();
+    private static final DataChargerJadeProvider DATA_CHARGER_PROVIDER = new DataChargerJadeProvider();
 
     @Override
     public void register(IWailaCommonRegistration registration) {
@@ -39,6 +42,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockDataProvider(SOLAR_PANEL_PROVIDER, DataSolarPanelBlockEntity.class);
         registration.registerBlockDataProvider(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlockEntity.class);
         registration.registerBlockDataProvider(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
+        registration.registerBlockDataProvider(DATA_CHARGER_PROVIDER, DataChargerBlockEntity.class);
     }
 
     @Override
@@ -50,6 +54,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(SOLAR_PANEL_PROVIDER, DataSolarPanelBlock.class);
         registration.registerBlockComponent(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlock.class);
         registration.registerBlockComponent(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
+        registration.registerBlockComponent(DATA_CHARGER_PROVIDER, DataChargerBlock.class);
         registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
         registration.addConfig(DataSanctumJadeProvider.PART_ID, false);
     }

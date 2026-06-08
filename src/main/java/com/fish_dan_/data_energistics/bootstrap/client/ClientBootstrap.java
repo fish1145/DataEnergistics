@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.integration.CuriosDollRendererRegistry;
+import com.fish_dan_.data_energistics.client.render.DataChargerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
@@ -176,6 +177,7 @@ public final class ClientBootstrap {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DataMimeticFieldRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), DataSanctumRenderer::new);
+            event.registerBlockEntityRenderer(ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(), DataChargerRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
             event.registerEntityRenderer(ModEntities.LIGHT_BLADE_CHARGE.get(), LightBladeChargeRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);

@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
+import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
@@ -80,6 +81,18 @@ public final class ModBlocks {
             "data_sanctum_interface",
             DataSanctumInterfaceBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_CHARGER = BLOCKS.registerBlock(
+            "data_charger",
+            DataChargerBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
+
+    public static final DeferredBlock<Block> EXTENDED_DATA_CHARGER = BLOCKS.registerBlock(
+            "extended_data_charger",
+            DataChargerBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",

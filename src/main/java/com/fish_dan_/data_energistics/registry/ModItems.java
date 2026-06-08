@@ -91,6 +91,8 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> DATA_SANCTUM = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SANCTUM);
     public static final DeferredItem<BlockItem> DATA_SANCTUM_INTERFACE = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SANCTUM_INTERFACE);
+    public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CHARGER);
+    public static final DeferredItem<BlockItem> EXTENDED_DATA_CHARGER = ITEMS.registerSimpleBlockItem(ModBlocks.EXTENDED_DATA_CHARGER);
     public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
             "data_sanctum_interface_upgrade",
             () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));

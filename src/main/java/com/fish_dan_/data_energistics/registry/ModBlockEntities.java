@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
@@ -62,6 +63,13 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSanctumInterfaceBlockEntity>> DATA_SANCTUM_INTERFACE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_sanctum_interface",
             () -> BlockEntityType.Builder.of(DataSanctumInterfaceBlockEntity::new, ModBlocks.DATA_SANCTUM_INTERFACE.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataChargerBlockEntity>> DATA_CHARGER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "data_charger",
+            () -> BlockEntityType.Builder.of(
+                    DataChargerBlockEntity::new,
+                    ModBlocks.DATA_CHARGER.get(),
+                    ModBlocks.EXTENDED_DATA_CHARGER.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdaptivePatternProviderBlockEntity>> ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "adaptive_pattern_provider",
