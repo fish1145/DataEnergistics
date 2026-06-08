@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.world.DataSanctumPortalLogic;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -67,6 +68,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public static final double BASE_ENERGY_CAPACITY = 500_000.0D;
     public static final int ENERGY_UPGRADE_SLOTS = 3;
     private static final int BLACK_HOLE_MODE = 1;
+    private static final int PORTAL_MODE = 2;
     private static final int BLACK_HOLE_WORK_INTERVAL_TICKS = 200;
     private static final int BLACK_HOLE_DEV_WORK_INTERVAL_TICKS = 20;
     private static final int BLACK_HOLE_BLOCKS_PER_CYCLE = 20;
@@ -238,6 +240,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     @Override
     public void setRemoved() {
+        DataSanctumPortalLogic.unregisterSourcePortal(this);
         destroyNetworkPortConnection();
         this.networkPortNode.destroy();
         super.setRemoved();
@@ -567,6 +570,13 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     private void performModeWork() {
+        if (this.lastMode == PORTAL_MODE) {
+            resetBlackHoleWorkState(false);
+            DataSanctumPortalLogic.tickSourcePortal(this);
+            return;
+        }
+
+        DataSanctumPortalLogic.unregisterSourcePortal(this);
         if (this.lastMode != BLACK_HOLE_MODE) {
             resetBlackHoleWorkState(false);
             return;

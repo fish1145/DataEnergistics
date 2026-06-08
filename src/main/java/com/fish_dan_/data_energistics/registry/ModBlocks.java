@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
+import com.fish_dan_.data_energistics.block.DataSanctumReturnPortalBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
@@ -81,6 +82,16 @@ public final class ModBlocks {
             "data_sanctum_interface",
             DataSanctumInterfaceBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_SANCTUM_RETURN_PORTAL = BLOCKS.registerBlock(
+            "data_sanctum_return_portal",
+            DataSanctumReturnPortalBlock::new,
+            BlockBehaviour.Properties.of()
+                    .noCollission()
+                    .noLootTable()
+                    .noOcclusion()
+                    .isViewBlocking((state, blockGetter, pos) -> false)
+                    .lightLevel(state -> 10));
 
     public static final DeferredBlock<Block> DATA_CHARGER = BLOCKS.registerBlock(
             "data_charger",
