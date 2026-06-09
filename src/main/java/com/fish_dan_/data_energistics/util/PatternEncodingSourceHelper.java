@@ -83,6 +83,8 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
+    private static final ResourceLocation SUT_ADVANCED_ALLOY_FURNACE_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("useless_mod", "advanced_alloy_furnace");
+    private static final ResourceLocation SUT_ADVANCED_ALLOY_FURNACE_BLOCK_ID = ResourceLocation.fromNamespaceAndPath("useless_mod", "advanced_alloy_furnace_block");
     private static final ResourceLocation MEKANISM_COMBINER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "combiner");
     private static final ResourceLocation MEKANISM_OSMIUM_COMPRESSOR_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "osmium_compressor");
     private static final ResourceLocation MEKANISM_CRUSHER_ID = ResourceLocation.fromNamespaceAndPath("mekanism", "crusher");
@@ -140,6 +142,16 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     public static ResourceLocation resolveWorkstationForTransfer(@Nullable Object recipe, @Nullable Object transferContext) {
+        ResourceLocation knownWorkstation = resolveKnownWorkstationFromTransferSource(recipe);
+        if (knownWorkstation != null) {
+            return knownWorkstation;
+        }
+
+        knownWorkstation = resolveKnownWorkstationFromTransferSource(transferContext);
+        if (knownWorkstation != null) {
+            return knownWorkstation;
+        }
+
         if (recipe instanceof RecipeHolder<?> holder) {
             ResourceLocation directRecipeWorkstation = resolveWorkstationForRecipe(holder.value());
             if (directRecipeWorkstation != null) {
@@ -170,6 +182,11 @@ public final class PatternEncodingSourceHelper {
     public static ResourceLocation resolveWorkstationForRecipe(@Nullable Recipe<?> recipe) {
         if (recipe == null) {
             return null;
+        }
+
+        ResourceLocation knownWorkstation = resolveKnownWorkstationFromTransferSource(recipe);
+        if (knownWorkstation != null) {
+            return knownWorkstation;
         }
 
         ResourceLocation recipeTypeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
@@ -1165,6 +1182,11 @@ public final class PatternEncodingSourceHelper {
             return null;
         }
 
+        ResourceLocation knownWorkstation = resolveKnownWorkstationFromTransferSource(context);
+        if (knownWorkstation != null) {
+            return knownWorkstation;
+        }
+
         ResourceLocation catalystWorkstation = resolveWorkstationFromCatalysts(context);
         if (catalystWorkstation != null) {
             return catalystWorkstation;
@@ -1201,6 +1223,71 @@ public final class PatternEncodingSourceHelper {
         }
 
         return null;
+    }
+
+    @Nullable
+    private static ResourceLocation resolveKnownWorkstationFromTransferSource(@Nullable Object source) {
+        return resolveKnownWorkstationFromTransferSource(source, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    @Nullable
+    private static ResourceLocation resolveKnownWorkstationFromTransferSource(@Nullable Object source, Set<Object> visited) {
+        if (source == null || !visited.add(source)) {
+            return null;
+        }
+
+        if (source instanceof RecipeHolder<?> holder) {
+            return resolveKnownWorkstationFromTransferSource(holder.value(), visited);
+        }
+
+        if (source instanceof Recipe<?> recipe) {
+            ResourceLocation recipeTypeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
+            if (SUT_ADVANCED_ALLOY_FURNACE_RECIPE_ID.equals(recipeTypeId)) {
+                return SUT_ADVANCED_ALLOY_FURNACE_BLOCK_ID;
+            }
+        }
+
+        String className = source.getClass().getName();
+        if ("com.sorrowmist.useless.content.recipe.AdvancedAlloyFurnaceRecipe".equals(className) || "com.sorrowmist.useless.compat.jei.AdvancedAlloyFurnaceRecipeCategory".equals(className)) {
+            return SUT_ADVANCED_ALLOY_FURNACE_BLOCK_ID;
+        }
+
+        ResourceLocation id = PatternEncodingReflectionAccess.tryReadResourceLocation(source, "getId");
+        if (SUT_ADVANCED_ALLOY_FURNACE_RECIPE_ID.equals(id)) {
+            return SUT_ADVANCED_ALLOY_FURNACE_BLOCK_ID;
+        }
+
+        Object category = PatternEncodingReflectionAccess.invokeNoArg(source, "getCategory");
+        ResourceLocation categoryWorkstation = resolveKnownWorkstationFromTransferSource(category, visited);
+        if (categoryWorkstation != null) {
+            return categoryWorkstation;
+        }
+
+        Object backingRecipe = PatternEncodingReflectionAccess.invokeNoArg(source, "getBackingRecipe");
+        ResourceLocation recipeWorkstation = resolveKnownWorkstationFromTransferSource(backingRecipe, visited);
+        if (recipeWorkstation != null) {
+            return recipeWorkstation;
+        }
+
+        if (hasAdvancedAlloyFurnaceTitle(source)) {
+            return SUT_ADVANCED_ALLOY_FURNACE_BLOCK_ID;
+        }
+
+        return null;
+    }
+
+    private static boolean hasAdvancedAlloyFurnaceTitle(Object source) {
+        List<String> hints = collectHintTexts(null, source,
+                PatternEncodingReflectionAccess.invokeNoArg(source, "getCategory"),
+                PatternEncodingReflectionAccess.invokeNoArg(source, "getTitle"),
+                PatternEncodingReflectionAccess.invokeNoArg(source, "getName"));
+        for (String hint : hints) {
+            String normalizedHint = normalizeHintText(hint);
+            if (normalizedHint.contains("advancedalloyfurnace") || normalizedHint.contains("万象合金炉")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable
