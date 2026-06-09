@@ -48,13 +48,16 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int POPUP_WIDTH = 192;
     private static final int POPUP_HEIGHT = 124;
     private static final int POPUP_TITLE_X = 12;
-    private static final int POPUP_TITLE_Y = 8;
+    private static final int POPUP_TITLE_Y = 6;
     private static final int POPUP_BUTTON_Y_OFFSET = 34;
-    private static final int POPUP_INFO_Y_OFFSET = 68;
+    private static final int POPUP_INFO_Y_OFFSET = 60;
     private static final int POPUP_LINE_GAP = 12;
     private static final float POPUP_TEXT_SCALE = 1.0F;
     private static final int POPUP_BUTTON_SCALE = 1;
     private static final int POPUP_CLOSE_SIZE = 16;
+    private static final int POPUP_CLOSE_RIGHT = 14;
+    private static final int POPUP_CLOSE_Y = 6;
+    private static final int POPUP_Z_OFFSET = 300;
     private static final int POPUP_EXCLUSION_PADDING = 4;
     private static final int SELECTED_ROW_COLOR = 0x803976D8;
     private static final int SEARCH_X = 94;
@@ -183,8 +186,34 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             }
             guiGraphics.drawString(this.font, line, LIST_X + 14, y, getRowColor(row.kind()), false);
         }
+    }
 
-        renderTargetPopup(guiGraphics);
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        renderTargetPopupOverlay(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    private void renderTargetPopupOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (getPopupRow() == null) {
+            return;
+        }
+
+        var pose = guiGraphics.pose();
+        pose.pushPose();
+        pose.translate(this.leftPos, this.topPos, 0.0F);
+        try {
+            renderTargetPopup(guiGraphics);
+        } finally {
+            pose.popPose();
+        }
+
+        if (this.targetChannelButton != null) {
+            this.targetChannelButton.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
+        if (this.targetEnergyButton != null) {
+            this.targetEnergyButton.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
     }
 
     @Override
@@ -375,14 +404,17 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         Rect2i popupBounds = getPopupBounds();
         int popupX = popupBounds.getX() - this.leftPos;
         int popupY = popupBounds.getY() - this.topPos;
-        drawListPanel(guiGraphics, popupX, popupY, POPUP_WIDTH, POPUP_HEIGHT);
+        var pose = guiGraphics.pose();
+        pose.pushPose();
+        pose.translate(0.0F, 0.0F, POPUP_Z_OFFSET);
 
-        enablePopupScissor(guiGraphics);
         try {
+            drawListPanel(guiGraphics, popupX, popupY, POPUP_WIDTH, POPUP_HEIGHT);
+            enablePopupScissor(guiGraphics);
             String title = trimTextToWidth(popupRow.displayText(), POPUP_WIDTH - POPUP_CLOSE_SIZE - 30);
             guiGraphics.drawString(this.font, title, popupX + POPUP_TITLE_X, popupY + POPUP_TITLE_Y, getRowColor(popupRow.kind()), false);
             Icon.CLEAR.getBlitter()
-                    .dest(popupX + POPUP_WIDTH - POPUP_CLOSE_SIZE - 10, popupY + 6, POPUP_CLOSE_SIZE, POPUP_CLOSE_SIZE)
+                    .dest(popupX + POPUP_WIDTH - POPUP_CLOSE_SIZE - POPUP_CLOSE_RIGHT, popupY + POPUP_CLOSE_Y, POPUP_CLOSE_SIZE, POPUP_CLOSE_SIZE)
                     .zOffset(4)
                     .blit(guiGraphics);
 
@@ -405,9 +437,10 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             drawPopupLine(guiGraphics, popupX, Component.translatable(
                     "screen.data_energistics.data_distribution_tower.target_energy_io",
                     formatBoolean(info.canExtractFe()),
-                    formatBoolean(info.canReceiveFe())).getString(), y, 0xA8A8A8);
+                    formatBoolean(info.canReceiveFe())).getString(), y, 0xDADADA);
         } finally {
             guiGraphics.disableScissor();
+            pose.popPose();
         }
     }
 
@@ -474,7 +507,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         int localY = (int) mouseY - this.topPos;
         int popupX = getPopupLocalX();
         int popupY = getPopupLocalY();
-        if (isInRect(localX, localY, popupX + POPUP_WIDTH - POPUP_CLOSE_SIZE - 10, popupY + 6, POPUP_CLOSE_SIZE, POPUP_CLOSE_SIZE)) {
+        if (isInRect(localX, localY, popupX + POPUP_WIDTH - POPUP_CLOSE_SIZE - POPUP_CLOSE_RIGHT, popupY + POPUP_CLOSE_Y, POPUP_CLOSE_SIZE, POPUP_CLOSE_SIZE)) {
             this.popupTarget = null;
             return true;
         }
@@ -573,6 +606,8 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         int buttonY = popupBounds.getY() + POPUP_BUTTON_Y_OFFSET;
         this.targetChannelButton.setVisualScale(POPUP_BUTTON_SCALE);
         this.targetEnergyButton.setVisualScale(POPUP_BUTTON_SCALE);
+        this.targetChannelButton.setVisualZOffset(POPUP_Z_OFFSET);
+        this.targetEnergyButton.setVisualZOffset(POPUP_Z_OFFSET);
         this.targetChannelButton.setX(popupX + 12);
         this.targetChannelButton.setY(buttonY);
         this.targetChannelButton.setState(popupRow.mode().allowsAe());

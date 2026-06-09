@@ -23,6 +23,7 @@ public class DataDistributionTowerTextureToggleButton extends Button implements 
     private final Consumer<Boolean> onChange;
     private boolean state;
     private float visualScale = 1.0F;
+    private int visualZOffset;
 
     public DataDistributionTowerTextureToggleButton(
                                                     String enabledIcon,
@@ -54,6 +55,10 @@ public class DataDistributionTowerTextureToggleButton extends Button implements 
         this.height = scale(16);
     }
 
+    public void setVisualZOffset(int visualZOffset) {
+        this.visualZOffset = visualZOffset;
+    }
+
     @Override
     protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (!this.visible) {
@@ -64,12 +69,12 @@ public class DataDistributionTowerTextureToggleButton extends Button implements 
         Icon background = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : this.isFocused() || this.state ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
         background.getBlitter()
                 .dest(this.getX() - scale(1), this.getY() + scale(yOffset), scale(18), scale(20))
-                .zOffset(2)
+                .zOffset(this.visualZOffset + 2)
                 .blit(guiGraphics);
 
         DataEnergisticsIcon.getBlitter(this.state ? this.enabledIcon : this.disabledIcon)
                 .dest(this.getX(), this.getY() + scale(1 + yOffset), scale(16), scale(16))
-                .zOffset(4)
+                .zOffset(this.visualZOffset + 4)
                 .blit(guiGraphics);
     }
 
