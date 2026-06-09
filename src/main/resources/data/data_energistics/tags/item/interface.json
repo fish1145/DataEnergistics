@@ -1,0 +1,7 @@
+{
+	"replace": false,
+	"values": [
+		"data_energistics:data_sanctum_interface",
+		"data_energistics:data_sanctum_interface_part"
+	]
+}

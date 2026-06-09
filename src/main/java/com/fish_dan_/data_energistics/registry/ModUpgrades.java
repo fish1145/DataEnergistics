@@ -57,7 +57,7 @@ public final class ModUpgrades {
                 "item.data_energistics.portable_data_flow_cell_256k");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 3,
                 "item.data_energistics.data_capture_ball");
-        Upgrades.add(ModItems.RANGE_CARD.get(), ModItems.DATA_CAPTURE_BALL.get(), 1,
+        Upgrades.add(AEItems.FUZZY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 1,
                 "item.data_energistics.data_capture_ball");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
                 "item.data_energistics.data_crystal_sword");

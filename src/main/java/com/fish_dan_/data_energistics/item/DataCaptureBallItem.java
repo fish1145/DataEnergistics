@@ -33,6 +33,7 @@ import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.upgrades.Upgrades;
+import appeng.core.definitions.AEItems;
 import appeng.core.localization.Tooltips;
 import appeng.util.ConfigInventory;
 
@@ -322,7 +323,7 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     }
 
     public boolean hasRangeCapture(ItemStack stack) {
-        return this.getUpgrades(stack).getInstalledUpgrades(ModItems.RANGE_CARD.get()) > 0;
+        return this.getUpgrades(stack).getInstalledUpgrades(AEItems.FUZZY_CARD) > 0;
     }
 
     public boolean canRunRightClickRecipe(ItemStack stack, DataCaptureBallRightClickRecipe recipe) {
