@@ -428,9 +428,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            boolean pushed = shouldUseAdvancedDirectionalWirelessPath(patternDetails)
-                    ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel)
-                    : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
+            boolean pushed = shouldUseAdvancedDirectionalWirelessPath(patternDetails) ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel) : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
             if (pushed) {
                 this.localRoundRobinIndex += i + 1;
                 consumeAe2LtTotalCost(totalCost);
