@@ -92,6 +92,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
+    private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
     private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
@@ -112,6 +113,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
     private final Set<BlockPos> linkedPositions = new LinkedHashSet<>();
     private final Map<BlockPos, List<IGridConnection>> linkedConnections = new HashMap<>();
+    private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
     private final Map<BlockPos, EnergyQuerySummary> cachedExtractQuerySummaries = new HashMap<>();
     private final Map<BlockPos, ReceiverQuerySummary> cachedReceiveQuerySummaries = new HashMap<>();
     private final Map<BlockPos, Integer> extractRoundRobinCursor = new HashMap<>();
@@ -203,12 +205,27 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.pendingLinkPositions.clear();
         this.linkedPositions.clear();
         this.linkedConnections.clear();
+        this.targetTransferModes.clear();
 
         Tag root = data.get(LINKED_POSITIONS_TAG);
         if (root instanceof ListTag list) {
             for (Tag tag : list) {
                 if (tag instanceof CompoundTag compound) {
                     NbtUtils.readBlockPos(compound, "pos").ifPresent(pos -> this.linkedPositions.add(pos.immutable()));
+                }
+            }
+        }
+
+        Tag targetTransferModesTag = data.get(TARGET_TRANSFER_MODES_TAG);
+        if (targetTransferModesTag instanceof ListTag list) {
+            for (Tag tag : list) {
+                if (tag instanceof CompoundTag compound) {
+                    NbtUtils.readBlockPos(compound, "pos").ifPresent(pos -> {
+                        TargetTransferMode mode = TargetTransferMode.fromSerializedName(compound.getString("mode"));
+                        if (mode != TargetTransferMode.AE_AND_FE) {
+                            this.targetTransferModes.put(pos.immutable(), mode);
+                        }
+                    });
                 }
             }
         }
@@ -228,6 +245,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             linked.add(entry);
         }
         data.put(LINKED_POSITIONS_TAG, linked);
+
+        ListTag targetTransferModes = new ListTag();
+        for (Map.Entry<BlockPos, TargetTransferMode> entry : this.targetTransferModes.entrySet()) {
+            if (entry.getValue() == TargetTransferMode.AE_AND_FE) {
+                continue;
+            }
+            CompoundTag compound = new CompoundTag();
+            compound.put("pos", NbtUtils.writeBlockPos(entry.getKey()));
+            compound.putString("mode", entry.getValue().getSerializedName());
+            targetTransferModes.add(compound);
+        }
+        data.put(TARGET_TRANSFER_MODES_TAG, targetTransferModes);
     }
 
     @Override
@@ -319,6 +348,40 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.connectionMode;
     }
 
+    public TargetTransferMode getTargetTransferMode(BlockPos targetPos) {
+        return this.targetTransferModes.getOrDefault(normalizeTargetPos(targetPos), TargetTransferMode.AE_AND_FE);
+    }
+
+    public TargetTransferMode cycleTargetTransferMode(BlockPos targetPos) {
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        TargetTransferMode nextMode = getTargetTransferMode(normalizedPos).next();
+        setTargetTransferMode(normalizedPos, nextMode);
+        return nextMode;
+    }
+
+    public void setTargetTransferMode(BlockPos targetPos, @Nullable TargetTransferMode mode) {
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        TargetTransferMode normalizedMode = mode == null ? TargetTransferMode.AE_AND_FE : mode;
+        if (normalizedMode == TargetTransferMode.AE_AND_FE) {
+            this.targetTransferModes.remove(normalizedPos);
+        } else {
+            this.targetTransferModes.put(normalizedPos, normalizedMode);
+        }
+
+        if (!normalizedMode.allowsAe()) {
+            destroyTargetConnections(normalizedPos);
+            this.pendingLinkPositions.remove(normalizedPos);
+            this.linkedPositions.remove(normalizedPos);
+        } else if (canMaintainGridLinkTo(normalizedPos)) {
+            queueLink(normalizedPos, 0);
+        }
+
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        this.setChanged();
+        this.markForClientUpdate();
+    }
+
     public void setConnectionMode(@Nullable ConnectionMode connectionMode) {
         ConnectionMode normalizedMode = connectionMode == null ? ConnectionMode.AE_AND_FE : connectionMode;
         if (this.connectionMode == normalizedMode) {
@@ -378,6 +441,44 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public int getAvailableFeForUi() {
         return clampStoredAmount(getTotalExtractableEnergy(null));
+    }
+
+    public TargetTransferInfo getTargetTransferInfo(BlockPos targetPos) {
+        if (this.level == null) {
+            return TargetTransferInfo.EMPTY;
+        }
+
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        int channelConnections = this.linkedConnections.getOrDefault(normalizedPos, List.of()).size();
+        long stored = 0L;
+        long capacity = 0L;
+        boolean canExtract = false;
+        boolean canReceive = false;
+        boolean hasEnergy = false;
+
+        for (var direction : net.minecraft.core.Direction.values()) {
+            IEnergyStorage storage = getEnergyStorageAt(normalizedPos, direction);
+            if (storage == null) {
+                continue;
+            }
+            hasEnergy = true;
+            stored = saturatingAdd(stored, storage.getEnergyStored());
+            capacity = saturatingAdd(capacity, storage.getMaxEnergyStored());
+            canExtract |= storage.canExtract();
+            canReceive |= storage.canReceive();
+        }
+
+        IEnergyStorage internal = getEnergyStorageAt(normalizedPos, null);
+        if (internal != null) {
+            hasEnergy = true;
+            stored = saturatingAdd(stored, internal.getEnergyStored());
+            capacity = saturatingAdd(capacity, internal.getMaxEnergyStored());
+            canExtract |= internal.canExtract();
+            canReceive |= internal.canReceive();
+        }
+
+        boolean hasAeTarget = this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, normalizedPos, null) != null;
+        return new TargetTransferInfo(channelConnections, hasAeTarget, hasEnergy, stored, capacity, canExtract, canReceive);
     }
 
     public boolean isNetworkNodeOnline() {
@@ -462,7 +563,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
             String displayName = resolveTargetDisplayName(state, blockEntity);
-            results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), target.kind()));
+            results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), target.kind(), getTargetTransferMode(pos), getTargetTransferInfo(pos)));
             if (results.size() >= maxEntries) {
                 break;
             }
@@ -519,7 +620,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         Item item = resolvePartItem(part);
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
         String displayName = resolvePartDisplayName(part, item, direction, prefix, suffix);
-        results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), kind));
+        results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), kind, getTargetTransferMode(pos), getTargetTransferInfo(pos)));
         return true;
     }
 
@@ -582,7 +683,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         LinkedHashMap<BlockPos, TargetKind> positions = new LinkedHashMap<>();
 
         for (BlockPos pos : this.linkedPositions) {
-            if (allowsAeTargets() && !this.level.getBlockState(pos).isAir()) {
+            if (allowsAeTargets() && targetAllowsAe(pos) && !this.level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = this.level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
                     positions.put(pos.immutable(), TargetKind.AE);
@@ -591,7 +692,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (BlockPos pos : getCachedAeDisplayTargets()) {
-            if (allowsAeTargets() && !this.level.getBlockState(pos).isAir()) {
+            if (allowsAeTargets() && targetAllowsAe(pos) && !this.level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = this.level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
                     positions.putIfAbsent(pos.immutable(), TargetKind.AE);
@@ -607,10 +708,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (blockEntity instanceof DataDistributionTowerBlockEntity) {
                 continue;
             }
+            if (!targetAllowsFe(pos)) {
+                continue;
+            }
             IEnergyStorage storage = findAccessibleEnergyStorage(pos, true);
             if (storage != null && storage.canReceive()) {
                 positions.putIfAbsent(pos.immutable(), TargetKind.FE);
             }
+        }
+
+        for (BlockPos pos : this.targetTransferModes.keySet()) {
+            if (!isWithinTowerCoverage(pos) || this.level.getBlockState(pos).isAir()) {
+                continue;
+            }
+            BlockEntity blockEntity = this.level.getBlockEntity(pos);
+            if (blockEntity instanceof DataDistributionTowerBlockEntity || shouldHideFromBoundTargetDisplay(blockEntity)) {
+                continue;
+            }
+            positions.putIfAbsent(pos.immutable(), hasDisplayableAeTarget(blockEntity) ? TargetKind.AE : TargetKind.FE);
         }
 
         collapseAeCraftingDisplayTargets(positions);
@@ -1131,10 +1246,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (isTowerBlock(pos)) {
                 continue;
             }
-            if (allowsFeTargets() && hasAnyEnergyCapability(pos)) {
+            if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
                 endpoints.add(pos);
             }
-            if (allowsAeTargets() && hasDisplayableAeTarget(blockEntity)) {
+            if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
                 aeDisplayTargets.add(pos);
             }
         }
@@ -1506,6 +1621,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (endpoints.containsKey(pos)) {
                     continue;
                 }
+                if (!tower.targetAllowsFe(pos)) {
+                    continue;
+                }
 
                 IEnergyStorage storage = tower.findAccessibleEnergyStorage(pos, forReceive);
                 if (storage != null) {
@@ -1791,6 +1909,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         long totalExtracted = 0;
         long remaining = amount;
 
+        if (AE2FluxIntegration.isAvailable()) {
+            long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remaining, simulate);
+            if (extracted > 0) {
+                totalExtracted += extracted;
+                remaining -= extracted;
+            }
+        }
+
         int endpointCount = endpoints.size();
         int startIndex = getExtractStartIndex(normalizedExcludedPos, endpointCount);
         int lastSuccessfulIndex = -1;
@@ -1816,10 +1942,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (lastSuccessfulIndex >= 0) {
             this.extractRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
-        }
-
-        if (remaining > 0 && AE2FluxIntegration.isAvailable()) {
-            totalExtracted += AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remaining, simulate);
         }
 
         if (!simulate && totalExtracted > 0) {
@@ -1863,11 +1985,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             totalStored = saturatingAdd(totalStored, endpoint.storage().getEnergyStored());
             totalCapacity = saturatingAdd(totalCapacity, endpoint.storage().getMaxEnergyStored());
         }
+        long aeExtractable = 0L;
         if (AE2FluxIntegration.isAvailable()) {
-            totalStored = saturatingAdd(totalStored, AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true));
+            aeExtractable = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true);
+            totalStored = saturatingAdd(totalStored, aeExtractable);
         }
 
-        EnergyQuerySummary summary = new EnergyQuerySummary(gameTime, totalStored, totalCapacity, !endpoints.isEmpty());
+        EnergyQuerySummary summary = new EnergyQuerySummary(gameTime, totalStored, totalCapacity, !endpoints.isEmpty() || aeExtractable > 0);
         this.cachedExtractQuerySummaries.put(normalizedExcludedPos, summary);
         return summary;
     }
@@ -1903,12 +2027,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void cleanupInvalidBoundTargets() {
-        if (this.level == null || this.linkedPositions.isEmpty()) {
+        if (this.level == null) {
             return;
         }
 
         ArrayList<BlockPos> invalidPositions = new ArrayList<>();
         for (BlockPos pos : this.linkedPositions) {
+            if (this.level.getBlockState(pos).isAir()) {
+                invalidPositions.add(pos);
+            }
+        }
+        for (BlockPos pos : this.targetTransferModes.keySet()) {
             if (this.level.getBlockState(pos).isAir()) {
                 invalidPositions.add(pos);
             }
@@ -1922,7 +2051,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private void removeTarget(BlockPos targetPos) {
         this.pendingLinkPositions.remove(targetPos);
         this.linkedPositions.remove(targetPos);
+        this.targetTransferModes.remove(targetPos);
+        destroyTargetConnections(targetPos);
 
+        this.invalidateEndpointCache();
+        this.invalidateClusterCache();
+        this.setChanged();
+    }
+
+    private void destroyTargetConnections(BlockPos targetPos) {
         List<IGridConnection> existingConnections = this.linkedConnections.remove(targetPos);
         if (existingConnections != null) {
             for (IGridConnection connection : existingConnections) {
@@ -1931,10 +2068,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
             }
         }
-
-        this.invalidateEndpointCache();
-        this.invalidateClusterCache();
-        this.setChanged();
     }
 
     private void destroyAllConnections() {
@@ -1950,14 +2083,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void reconnectTarget(IGridNode selfNode, BlockPos targetPos) {
-        List<IGridConnection> oldConnections = this.linkedConnections.remove(targetPos);
-        if (oldConnections != null) {
-            for (IGridConnection connection : oldConnections) {
-                if (connection != null) {
-                    connection.destroy();
-                }
-            }
-        }
+        destroyTargetConnections(targetPos);
 
         this.linkedPositions.remove(targetPos);
 
@@ -2149,6 +2275,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Nullable
     private static BlockPos normalizeExcludedPos(@Nullable BlockPos excludedPos) {
         return excludedPos == null ? null : excludedPos.immutable();
+    }
+
+    private static BlockPos normalizeTargetPos(BlockPos targetPos) {
+        return targetPos.immutable();
     }
 
     @Nullable
@@ -2346,6 +2476,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.level == null || this.worldPosition.equals(targetPos) || !isWithinTowerCoverage(targetPos)) {
             return false;
         }
+        if (!targetAllowsAe(targetPos)) {
+            return false;
+        }
 
         BlockEntity blockEntity = this.level.getBlockEntity(targetPos);
         if (blockEntity instanceof DataDistributionTowerBlockEntity) {
@@ -2363,6 +2496,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.connectionMode.allowsFeTargets();
     }
 
+    private boolean targetAllowsAe(BlockPos targetPos) {
+        return getTargetTransferMode(targetPos).allowsAe();
+    }
+
+    private boolean targetAllowsFe(BlockPos targetPos) {
+        return getTargetTransferMode(targetPos).allowsFe();
+    }
+
     private void pruneTargetsOutsideRange() {
         ArrayList<BlockPos> toRemove = new ArrayList<>();
         for (BlockPos pos : this.linkedPositions) {
@@ -2371,6 +2512,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         for (BlockPos pos : this.pendingLinkPositions.keySet()) {
+            if (!isWithinTowerCoverage(pos) && !toRemove.contains(pos)) {
+                toRemove.add(pos);
+            }
+        }
+        for (BlockPos pos : this.targetTransferModes.keySet()) {
             if (!isWithinTowerCoverage(pos) && !toRemove.contains(pos)) {
                 toRemove.add(pos);
             }
@@ -2428,7 +2574,68 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count,
-                                     ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {}
+                                     ResourceLocation dimensionId, BlockPos pos, TargetKind kind,
+                                     TargetTransferMode transferMode, TargetTransferInfo transferInfo) {}
+
+    public record TargetTransferInfo(int channelConnections, boolean hasAeTarget, boolean hasEnergyTarget,
+                                     long storedFe, long capacityFe, boolean canExtractFe, boolean canReceiveFe) {
+
+        private static final TargetTransferInfo EMPTY = new TargetTransferInfo(0, false, false, 0L, 0L, false, false);
+    }
+
+    public enum TargetTransferMode {
+
+        AE_AND_FE("af"),
+        AE_ONLY("ae"),
+        FE_ONLY("fe"),
+        DISABLED("off");
+
+        private final String serializedName;
+
+        TargetTransferMode(String serializedName) {
+            this.serializedName = serializedName;
+        }
+
+        public String getSerializedName() {
+            return this.serializedName;
+        }
+
+        public boolean allowsAe() {
+            return this == AE_AND_FE || this == AE_ONLY;
+        }
+
+        public boolean allowsFe() {
+            return this == AE_AND_FE || this == FE_ONLY;
+        }
+
+        public TargetTransferMode next() {
+            return switch (this) {
+                case AE_AND_FE -> AE_ONLY;
+                case AE_ONLY -> FE_ONLY;
+                case FE_ONLY -> DISABLED;
+                case DISABLED -> AE_AND_FE;
+            };
+        }
+
+        public static TargetTransferMode fromOrdinal(int ordinal) {
+            TargetTransferMode[] values = values();
+            if (ordinal < 0 || ordinal >= values.length) {
+                return AE_AND_FE;
+            }
+            return values[ordinal];
+        }
+
+        public static TargetTransferMode fromSerializedName(@Nullable String serializedName) {
+            if (serializedName != null) {
+                for (TargetTransferMode value : values()) {
+                    if (value.serializedName.equalsIgnoreCase(serializedName)) {
+                        return value;
+                    }
+                }
+            }
+            return AE_AND_FE;
+        }
+    }
 
     public enum ConnectionMode {
 

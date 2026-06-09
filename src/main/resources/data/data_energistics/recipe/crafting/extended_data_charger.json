@@ -3,23 +3,23 @@
 	"pattern": ["ABA", "CDE", "ABA"],
 	"key": {
 		"A": {
-			"tag": "c:dusts/data_dust"
+			"item": "data_energistics:data_charger"
 		},
 		"B": {
-			"item": "ae2:quartz_glass"
+			"tag": "c:gems/data_crystal"
 		},
 		"C": {
 			"item": "ae2:annihilation_core"
 		},
 		"D": {
-			"item": "ae2:interface"
+			"item": "ae2:sky_stone_tank"
 		},
 		"E": {
 			"item": "ae2:formation_core"
 		}
 	},
 	"result": {
-		"id": "data_energistics:data_sanctum_interface",
+		"id": "data_energistics:extended_data_charger",
 		"count": 1
 	}
 }

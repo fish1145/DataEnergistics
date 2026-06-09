@@ -2,9 +2,11 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.core.localization.ButtonToolTips;
@@ -22,6 +24,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     private static final String ACTION_FOCUS_TARGET = "focus_target";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
     private static final String ACTION_SET_CONNECTION_MODE = "set_connection_mode";
+    private static final String ACTION_SET_TARGET_TRANSFER_MODE = "set_target_transfer_mode";
     @Nullable
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
@@ -50,6 +53,10 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public String boundTargetKinds = "";
     @GuiSync(741)
     public int connectionMode = ConnectionMode.AE_AND_FE.ordinal();
+    @GuiSync(742)
+    public String boundTargetModes = "";
+    @GuiSync(743)
+    public String boundTargetTransferInfo = "";
 
     public DataDistributionTowerMenu(int id, Inventory playerInventory, @Nullable DataDistributionTowerBlockEntity host) {
         super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
@@ -64,6 +71,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         registerClientAction(ACTION_FOCUS_TARGET, TargetAction.class, this::onFocusTarget);
         registerClientAction(ACTION_SET_RANGE_VISIBLE, Boolean.class, this::setRangeVisible);
         registerClientAction(ACTION_SET_CONNECTION_MODE, Integer.class, this::setConnectionMode);
+        registerClientAction(ACTION_SET_TARGET_TRANSFER_MODE, TargetTransferModeAction.class, this::setTargetTransferMode);
     }
 
     @Override
@@ -99,6 +107,12 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
             this.boundTargetKinds = String.join("\n", summaries.stream()
                     .map(summary -> summary.kind().name())
                     .toList());
+            this.boundTargetModes = String.join("\n", summaries.stream()
+                    .map(summary -> summary.transferMode().name())
+                    .toList());
+            this.boundTargetTransferInfo = String.join("\n", summaries.stream()
+                    .map(summary -> summary.transferInfo().channelConnections() + "|" + summary.transferInfo().hasAeTarget() + "|" + summary.transferInfo().hasEnergyTarget() + "|" + summary.transferInfo().storedFe() + "|" + summary.transferInfo().capacityFe() + "|" + summary.transferInfo().canExtractFe() + "|" + summary.transferInfo().canReceiveFe())
+                    .toList());
         }
 
         super.broadcastChanges();
@@ -115,6 +129,12 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public void sendSetConnectionMode(ConnectionMode connectionMode) {
         sendClientAction(ACTION_SET_CONNECTION_MODE,
                 (connectionMode == null ? ConnectionMode.AE_AND_FE : connectionMode).ordinal());
+    }
+
+    public void sendSetTargetTransferMode(String dimensionId, int x, int y, int z, TargetTransferMode mode) {
+        sendClientAction(ACTION_SET_TARGET_TRANSFER_MODE,
+                new TargetTransferModeAction(dimensionId, x, y, z,
+                        (mode == null ? TargetTransferMode.AE_AND_FE : mode).ordinal()));
     }
 
     private void onFocusTarget(TargetAction action) {
@@ -177,5 +197,17 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         broadcastChanges();
     }
 
+    private void setTargetTransferMode(TargetTransferModeAction action) {
+        if (action == null || this.host == null) {
+            return;
+        }
+
+        this.host.setTargetTransferMode(new BlockPos(action.x(), action.y(), action.z()),
+                TargetTransferMode.fromOrdinal(action.mode()));
+        broadcastChanges();
+    }
+
     private record TargetAction(String dimensionId, int x, int y, int z, boolean teleport) {}
+
+    private record TargetTransferModeAction(String dimensionId, int x, int y, int z, int mode) {}
 }

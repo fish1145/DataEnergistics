@@ -83,7 +83,7 @@ Activating a Deactivated Data Crystal Motherrock yields a Powerless Data Crystal
 ## Data Crystal
 <Column>
     <Row>
-        <Recipe id="data_energistics:ae2/charger/data_crystal" />
+        <Recipe id="data_energistics:ae2/transform/data_crystal" />
         <RecipeFor id="data_energistics:data_crystal" />
         <Recipe id="data_energistics:crafting/data_crystal" />
     </Row>

@@ -5,14 +5,11 @@
 			"tag": "c:dusts/data_dust"
 		},
 		{
-			"tag": "c:dusts/data_dust"
-		},
-		{
-			"item": "data_energistics:data_crystal"
+			"item": "ae2:charged_certus_quartz_crystal"
 		}
 	],
 	"result": {
-		"count": 2,
+		"count": 1,
 		"id": "data_energistics:data_crystal"
 	}
 }

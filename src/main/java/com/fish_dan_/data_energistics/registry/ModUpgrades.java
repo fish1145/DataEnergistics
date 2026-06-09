@@ -4,6 +4,11 @@ import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellHandler;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
+import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.DataRipperPart;
+import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
+import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -147,17 +152,20 @@ public final class ModUpgrades {
         registerExternalDataSanctumInterfaceCompat();
         registerAppliedFluxAdaptivePatternProviderCompat();
         registerAe2CrystalScienceAdaptivePatternProviderCompat();
-        PartModels.registerModels(
-                PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass()));
-        PartModels.registerModels(
-                PartModelsHelper.createModels(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get().getPartClass()));
-        PartModels.registerModels(
-                PartModelsHelper.createModels(ModItems.DATA_SANCTUM_INTERFACE_PART.get().getPartClass()));
-        PartModels.registerModels(
-                PartModelsHelper.createModels(ModItems.ME_SOLAR_PANEL_PART.get().getPartClass()));
-        PartModels.registerModels(
-                PartModelsHelper.createModels(ModItems.UNIVERSAL_TERMINAL.get().getPartClass()));
         StorageCells.addCellHandler(InfiniteDataCellHandler.INSTANCE);
+    }
+
+    public static void registerPartModels() {
+        PartModels.registerModels(
+                PartModelsHelper.createModels(DataRipperPart.class));
+        PartModels.registerModels(
+                PartModelsHelper.createModels(AdaptivePatternProviderPart.class));
+        PartModels.registerModels(
+                PartModelsHelper.createModels(DataSanctumInterfacePart.class));
+        PartModels.registerModels(
+                PartModelsHelper.createModels(MeSolarPanelPart.class));
+        PartModels.registerModels(
+                PartModelsHelper.createModels(UniversalTerminalPart.class));
     }
 
     private static void registerDataSanctumInterfaceUpgrade(ItemLike upgradeCard, int maxInstalled) {
