@@ -134,7 +134,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public void sendSetTargetTransferMode(String dimensionId, int x, int y, int z, TargetTransferMode mode) {
         sendClientAction(ACTION_SET_TARGET_TRANSFER_MODE,
                 new TargetTransferModeAction(dimensionId, x, y, z,
-                        (mode == null ? TargetTransferMode.AE_AND_FE : mode).ordinal()));
+                        (mode == null ? TargetTransferMode.AUTO : mode).ordinal()));
     }
 
     private void onFocusTarget(TargetAction action) {

@@ -222,7 +222,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (tag instanceof CompoundTag compound) {
                     NbtUtils.readBlockPos(compound, "pos").ifPresent(pos -> {
                         TargetTransferMode mode = TargetTransferMode.fromSerializedName(compound.getString("mode"));
-                        if (mode != TargetTransferMode.AE_AND_FE) {
+                        if (mode != TargetTransferMode.AUTO) {
                             this.targetTransferModes.put(pos.immutable(), mode);
                         }
                     });
@@ -248,7 +248,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         ListTag targetTransferModes = new ListTag();
         for (Map.Entry<BlockPos, TargetTransferMode> entry : this.targetTransferModes.entrySet()) {
-            if (entry.getValue() == TargetTransferMode.AE_AND_FE) {
+            if (entry.getValue() == TargetTransferMode.AUTO) {
                 continue;
             }
             CompoundTag compound = new CompoundTag();
@@ -349,7 +349,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public TargetTransferMode getTargetTransferMode(BlockPos targetPos) {
-        return this.targetTransferModes.getOrDefault(normalizeTargetPos(targetPos), TargetTransferMode.AE_AND_FE);
+        return this.targetTransferModes.getOrDefault(normalizeTargetPos(targetPos), TargetTransferMode.AUTO);
     }
 
     public TargetTransferMode cycleTargetTransferMode(BlockPos targetPos) {
@@ -361,14 +361,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public void setTargetTransferMode(BlockPos targetPos, @Nullable TargetTransferMode mode) {
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        TargetTransferMode normalizedMode = mode == null ? TargetTransferMode.AE_AND_FE : mode;
-        if (normalizedMode == TargetTransferMode.AE_AND_FE) {
+        TargetTransferMode normalizedMode = mode == null ? TargetTransferMode.AUTO : mode;
+        if (normalizedMode == TargetTransferMode.AUTO) {
             this.targetTransferModes.remove(normalizedPos);
         } else {
             this.targetTransferModes.put(normalizedPos, normalizedMode);
         }
 
-        if (!normalizedMode.allowsAe()) {
+        if (normalizedMode == TargetTransferMode.DISABLED) {
             destroyTargetConnections(normalizedPos);
             this.pendingLinkPositions.remove(normalizedPos);
             this.linkedPositions.remove(normalizedPos);
@@ -2476,7 +2476,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.level == null || this.worldPosition.equals(targetPos) || !isWithinTowerCoverage(targetPos)) {
             return false;
         }
-        if (!targetAllowsAe(targetPos)) {
+        if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
             return false;
         }
 
@@ -2485,7 +2485,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return true;
         }
 
-        return allowsAeTargets() && this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, targetPos, null) != null;
+        return allowsAeTargets() && needsAeChannelLink(targetPos);
     }
 
     private boolean allowsAeTargets() {
@@ -2497,11 +2497,34 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean targetAllowsAe(BlockPos targetPos) {
-        return getTargetTransferMode(targetPos).allowsAe();
+        if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
+            return false;
+        }
+        return needsAeChannelLink(targetPos);
     }
 
     private boolean targetAllowsFe(BlockPos targetPos) {
-        return getTargetTransferMode(targetPos).allowsFe();
+        if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
+            return false;
+        }
+        return hasAnyEnergyCapability(targetPos);
+    }
+
+    private boolean hasAeNodeCapability(BlockPos targetPos) {
+        return this.level != null && this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, targetPos, null) != null;
+    }
+
+    private boolean needsAeChannelLink(BlockPos targetPos) {
+        if (this.level == null || !hasAeNodeCapability(targetPos)) {
+            return false;
+        }
+
+        for (IGridNode node : getConnectableNodes(this.level, targetPos)) {
+            if (node != null && !node.isOnline()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void pruneTargetsOutsideRange() {
@@ -2585,9 +2608,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public enum TargetTransferMode {
 
-        AE_AND_FE("af"),
-        AE_ONLY("ae"),
-        FE_ONLY("fe"),
+        AUTO("auto"),
         DISABLED("off");
 
         private final String serializedName;
@@ -2600,40 +2621,33 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return this.serializedName;
         }
 
-        public boolean allowsAe() {
-            return this == AE_AND_FE || this == AE_ONLY;
-        }
-
-        public boolean allowsFe() {
-            return this == AE_AND_FE || this == FE_ONLY;
-        }
-
         public TargetTransferMode next() {
             return switch (this) {
-                case AE_AND_FE -> AE_ONLY;
-                case AE_ONLY -> FE_ONLY;
-                case FE_ONLY -> DISABLED;
-                case DISABLED -> AE_AND_FE;
+                case AUTO -> DISABLED;
+                case DISABLED -> AUTO;
             };
         }
 
         public static TargetTransferMode fromOrdinal(int ordinal) {
             TargetTransferMode[] values = values();
             if (ordinal < 0 || ordinal >= values.length) {
-                return AE_AND_FE;
+                return AUTO;
             }
             return values[ordinal];
         }
 
         public static TargetTransferMode fromSerializedName(@Nullable String serializedName) {
             if (serializedName != null) {
+                if ("af".equalsIgnoreCase(serializedName) || "ae".equalsIgnoreCase(serializedName) || "fe".equalsIgnoreCase(serializedName)) {
+                    return AUTO;
+                }
                 for (TargetTransferMode value : values()) {
                     if (value.serializedName.equalsIgnoreCase(serializedName)) {
                         return value;
                     }
                 }
             }
-            return AE_AND_FE;
+            return AUTO;
         }
     }
 
