@@ -35,6 +35,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     @Override
     public void register(EmiRegistry registry) {
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
+        registry.addGenericExclusionArea(new DataDistributionTowerEmiExclusionArea());
         registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
 
         registry.addRecipeHandler(

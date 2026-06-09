@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -32,18 +33,25 @@ import java.util.Locale;
 
 public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTowerMenu> {
 
+    private static final ResourceLocation LIST_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/list.png");
+    private static final int LIST_TEXTURE_SIZE = 256;
+    private static final int LIST_PANEL_TEXTURE_WIDTH = 160;
+    private static final int LIST_PANEL_TEXTURE_HEIGHT = 144;
+    private static final int LIST_PANEL_SLICE = 6;
     private static final int LIST_X = 13;
     private static final int LIST_Y = 52;
     private static final int LIST_WIDTH = 150;
     private static final int LIST_ROW_HEIGHT = 14;
     private static final int LIST_VISIBLE_ROWS = 5;
-    private static final int POPUP_X = 20;
-    private static final int POPUP_Y = 62;
+    private static final int POPUP_MARGIN = -12;
+    private static final int POPUP_Y = 48;
     private static final int POPUP_WIDTH = 156;
     private static final int POPUP_HEIGHT = 86;
     private static final int POPUP_BUTTON_Y = POPUP_Y + 21;
-    private static final int POPUP_BUTTON_WIDTH = 68;
+    private static final int POPUP_BUTTON_WIDTH = 46;
     private static final int POPUP_BUTTON_HEIGHT = 14;
+    private static final int POPUP_EXCLUSION_PADDING = 4;
+    private static final int SELECTED_ROW_COLOR = 0x803976D8;
     private static final int SEARCH_X = 94;
     private static final int SEARCH_Y = 4;
     private static final int SEARCH_WIDTH = 70;
@@ -145,6 +153,9 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         for (int i = start; i < end; i++) {
             int y = LIST_Y + (i - start) * LIST_ROW_HEIGHT;
             BoundRow row = lines.get(i);
+            if (isPopupTarget(row)) {
+                guiGraphics.fill(LIST_X - 2, y - 3, LIST_X + LIST_WIDTH + 2, y + LIST_ROW_HEIGHT, SELECTED_ROW_COLOR);
+            }
             renderRowIcon(guiGraphics, row.iconStack(), LIST_X, y - 2);
             String line = row.displayText();
             if (this.font.width(line) > LIST_WIDTH) {
@@ -222,6 +233,20 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     public void refreshFromServer() {
         this.allRows = buildRows();
         applySearchFilter();
+    }
+
+    @Override
+    public List<Rect2i> getExclusionZones() {
+        List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
+        Rect2i popupExclusionArea = getTargetPopupExclusionArea();
+        if (popupExclusionArea != null) {
+            zones.add(popupExclusionArea);
+        }
+        return zones;
+    }
+
+    public Rect2i getTargetPopupExclusionArea() {
+        return getPopupRow() == null ? null : getPopupExclusionBounds();
     }
 
     private void applySearchFilter() {
@@ -311,58 +336,57 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return;
         }
 
-        guiGraphics.fill(POPUP_X, POPUP_Y, POPUP_X + POPUP_WIDTH, POPUP_Y + POPUP_HEIGHT, 0xEE10141A);
-        guiGraphics.fill(POPUP_X, POPUP_Y, POPUP_X + POPUP_WIDTH, POPUP_Y + 1, 0xFF7DA7C7);
-        guiGraphics.fill(POPUP_X, POPUP_Y + POPUP_HEIGHT - 1, POPUP_X + POPUP_WIDTH, POPUP_Y + POPUP_HEIGHT, 0xFF314250);
-        guiGraphics.fill(POPUP_X, POPUP_Y, POPUP_X + 1, POPUP_Y + POPUP_HEIGHT, 0xFF314250);
-        guiGraphics.fill(POPUP_X + POPUP_WIDTH - 1, POPUP_Y, POPUP_X + POPUP_WIDTH, POPUP_Y + POPUP_HEIGHT, 0xFF314250);
+        drawListPanel(guiGraphics, getPopupX(), POPUP_Y, POPUP_WIDTH, POPUP_HEIGHT);
 
-        String title = popupRow.displayText();
-        if (this.font.width(title) > POPUP_WIDTH - 25) {
-            title = this.font.plainSubstrByWidth(title, POPUP_WIDTH - 31) + "...";
+        enablePopupScissor(guiGraphics);
+        try {
+            int popupX = getPopupX();
+            String title = trimTextToWidth(popupRow.displayText(), POPUP_WIDTH - 27);
+            guiGraphics.drawString(this.font, title, popupX + 7, POPUP_Y + 6, getRowColor(popupRow.kind()), false);
+            guiGraphics.drawString(this.font, "x", popupX + POPUP_WIDTH - 11, POPUP_Y + 6, 0xB8B8B8, false);
+
+            int channelButtonX = popupX + 7;
+            int energyButtonX = popupX + 59;
+            drawToggleButton(guiGraphics,
+                    Component.translatable("screen.data_energistics.data_distribution_tower.target_channel_toggle").getString(),
+                    popupRow.mode().allowsAe(),
+                    channelButtonX,
+                    POPUP_BUTTON_Y,
+                    POPUP_BUTTON_WIDTH,
+                    POPUP_BUTTON_HEIGHT,
+                    0xD58CFF);
+            drawToggleButton(guiGraphics,
+                    Component.translatable("screen.data_energistics.data_distribution_tower.target_energy_toggle").getString(),
+                    popupRow.mode().allowsFe(),
+                    energyButtonX,
+                    POPUP_BUTTON_Y,
+                    POPUP_BUTTON_WIDTH,
+                    POPUP_BUTTON_HEIGHT,
+                    0x9FFFA8);
+
+            TransferInfo info = popupRow.transferInfo();
+            int y = POPUP_Y + 39;
+            drawPopupLine(guiGraphics, Component.translatable(
+                    "screen.data_energistics.data_distribution_tower.target_mode",
+                    Component.translatable("button.data_energistics.data_distribution_tower.target_mode." + popupRow.mode().serializedName())).getString(), y, getModeColor(popupRow.mode()));
+            y += 10;
+            drawPopupLine(guiGraphics, Component.translatable(
+                    "screen.data_energistics.data_distribution_tower.target_channels",
+                    info.channelConnections(),
+                    info.hasAeTarget() ? Component.translatable("screen.data_energistics.data_distribution_tower.available") : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable")).getString(), y, 0xD58CFF);
+            y += 10;
+            String feText = info.hasEnergyTarget() ? formatFeAmount(info.storedFe()) + " / " + formatFeAmount(info.capacityFe()) + " FE" : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable").getString();
+            drawPopupLine(guiGraphics, Component.translatable(
+                    "screen.data_energistics.data_distribution_tower.target_energy",
+                    feText).getString(), y, 0x9FFFA8);
+            y += 10;
+            drawPopupLine(guiGraphics, Component.translatable(
+                    "screen.data_energistics.data_distribution_tower.target_energy_io",
+                    formatBoolean(info.canExtractFe()),
+                    formatBoolean(info.canReceiveFe())).getString(), y, 0xA8A8A8);
+        } finally {
+            guiGraphics.disableScissor();
         }
-        guiGraphics.drawString(this.font, title, POPUP_X + 7, POPUP_Y + 6, getRowColor(popupRow.kind()), false);
-        guiGraphics.drawString(this.font, "x", POPUP_X + POPUP_WIDTH - 11, POPUP_Y + 6, 0xB8B8B8, false);
-
-        int channelButtonX = POPUP_X + 7;
-        int energyButtonX = POPUP_X + 81;
-        drawToggleButton(guiGraphics,
-                Component.translatable("screen.data_energistics.data_distribution_tower.target_channel_toggle").getString(),
-                popupRow.mode().allowsAe(),
-                channelButtonX,
-                POPUP_BUTTON_Y,
-                POPUP_BUTTON_WIDTH,
-                POPUP_BUTTON_HEIGHT,
-                0xD58CFF);
-        drawToggleButton(guiGraphics,
-                Component.translatable("screen.data_energistics.data_distribution_tower.target_energy_toggle").getString(),
-                popupRow.mode().allowsFe(),
-                energyButtonX,
-                POPUP_BUTTON_Y,
-                POPUP_BUTTON_WIDTH,
-                POPUP_BUTTON_HEIGHT,
-                0x9FFFA8);
-
-        TransferInfo info = popupRow.transferInfo();
-        int y = POPUP_Y + 39;
-        drawPopupLine(guiGraphics, Component.translatable(
-                "screen.data_energistics.data_distribution_tower.target_mode",
-                Component.translatable("button.data_energistics.data_distribution_tower.target_mode." + popupRow.mode().serializedName())).getString(), y, getModeColor(popupRow.mode()));
-        y += 10;
-        drawPopupLine(guiGraphics, Component.translatable(
-                "screen.data_energistics.data_distribution_tower.target_channels",
-                info.channelConnections(),
-                info.hasAeTarget() ? Component.translatable("screen.data_energistics.data_distribution_tower.available") : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable")).getString(), y, 0xD58CFF);
-        y += 10;
-        String feText = info.hasEnergyTarget() ? formatFeAmount(info.storedFe()) + " / " + formatFeAmount(info.capacityFe()) + " FE" : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable").getString();
-        drawPopupLine(guiGraphics, Component.translatable(
-                "screen.data_energistics.data_distribution_tower.target_energy",
-                feText).getString(), y, 0x9FFFA8);
-        y += 10;
-        drawPopupLine(guiGraphics, Component.translatable(
-                "screen.data_energistics.data_distribution_tower.target_energy_io",
-                formatBoolean(info.canExtractFe()),
-                formatBoolean(info.canReceiveFe())).getString(), y, 0xA8A8A8);
     }
 
     private void drawToggleButton(GuiGraphics guiGraphics, String label, boolean enabled, int x, int y, int width, int height, int color) {
@@ -374,19 +398,26 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         guiGraphics.fill(x, y, x + 1, y + height, border);
         guiGraphics.fill(x + width - 1, y, x + width, y + height, border);
 
-        String state = Component.translatable(enabled ? "screen.data_energistics.data_distribution_tower.on" : "screen.data_energistics.data_distribution_tower.off").getString();
-        String text = label + ":" + state;
-        if (this.font.width(text) > width - 6) {
-            text = this.font.plainSubstrByWidth(text, width - 12) + "...";
-        }
+        String text = label;
+        text = trimTextToWidth(text, width - 8);
         guiGraphics.drawString(this.font, text, x + 4, y + 3, enabled ? 0xFFFFFF : 0xA8A8A8, false);
     }
 
     private void drawPopupLine(GuiGraphics guiGraphics, String line, int y, int color) {
-        if (this.font.width(line) > POPUP_WIDTH - 14) {
-            line = this.font.plainSubstrByWidth(line, POPUP_WIDTH - 20) + "...";
+        line = trimTextToWidth(line, POPUP_WIDTH - 14);
+        guiGraphics.drawString(this.font, line, getPopupX() + 7, y, color, false);
+    }
+
+    private String trimTextToWidth(String text, int maxWidth) {
+        if (this.font.width(text) <= maxWidth) {
+            return text;
         }
-        guiGraphics.drawString(this.font, line, POPUP_X + 7, y, color, false);
+
+        int ellipsisWidth = this.font.width("...");
+        if (maxWidth <= ellipsisWidth) {
+            return "";
+        }
+        return this.font.plainSubstrByWidth(text, maxWidth - ellipsisWidth) + "...";
     }
 
     private Component formatBoolean(boolean value) {
@@ -420,17 +451,18 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
         int localX = (int) mouseX - this.leftPos;
         int localY = (int) mouseY - this.topPos;
-        if (localX >= POPUP_X + POPUP_WIDTH - 14 && localX <= POPUP_X + POPUP_WIDTH - 4 && localY >= POPUP_Y + 4 && localY <= POPUP_Y + 16) {
+        int popupX = getPopupX();
+        if (localX >= popupX + POPUP_WIDTH - 14 && localX <= popupX + POPUP_WIDTH - 4 && localY >= POPUP_Y + 4 && localY <= POPUP_Y + 16) {
             this.popupTarget = null;
             return true;
         }
 
-        if (isInRect(localX, localY, POPUP_X + 7, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
+        if (isInRect(localX, localY, popupX + 7, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
             setPopupTargetMode(popupRow, popupRow.mode().withAe(!popupRow.mode().allowsAe()));
             return true;
         }
 
-        if (isInRect(localX, localY, POPUP_X + 81, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
+        if (isInRect(localX, localY, popupX + 59, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
             setPopupTargetMode(popupRow, popupRow.mode().withFe(!popupRow.mode().allowsFe()));
             return true;
         }
@@ -450,11 +482,71 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private boolean isInsideTargetPopup(double mouseX, double mouseY) {
         int localX = (int) mouseX - this.leftPos;
         int localY = (int) mouseY - this.topPos;
-        return isInRect(localX, localY, POPUP_X, POPUP_Y, POPUP_WIDTH, POPUP_HEIGHT);
+        return isInRect(localX, localY, getPopupX(), POPUP_Y, POPUP_WIDTH, POPUP_HEIGHT);
     }
 
     private boolean isInRect(int x, int y, int rectX, int rectY, int width, int height) {
         return x >= rectX && x <= rectX + width && y >= rectY && y <= rectY + height;
+    }
+
+    private void enablePopupScissor(GuiGraphics guiGraphics) {
+        int x = this.leftPos + getPopupX();
+        int y = this.topPos + POPUP_Y;
+        guiGraphics.enableScissor(x, y, x + POPUP_WIDTH, y + POPUP_HEIGHT);
+    }
+
+    private int getPopupX() {
+        return this.imageWidth + POPUP_MARGIN;
+    }
+
+    private Rect2i getPopupExclusionBounds() {
+        return new Rect2i(
+                this.leftPos + getPopupX() - POPUP_EXCLUSION_PADDING,
+                this.topPos + POPUP_Y - POPUP_EXCLUSION_PADDING,
+                POPUP_WIDTH + POPUP_EXCLUSION_PADDING * 2,
+                POPUP_HEIGHT + POPUP_EXCLUSION_PADDING * 2);
+    }
+
+    private boolean isPopupTarget(BoundRow row) {
+        return this.popupTarget != null && this.popupTarget.equals(row.target());
+    }
+
+    private void drawListPanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
+        drawNineSlicedTexture(guiGraphics, LIST_TEXTURE, x, y, width, height,
+                LIST_PANEL_TEXTURE_WIDTH, LIST_PANEL_TEXTURE_HEIGHT,
+                LIST_PANEL_SLICE, LIST_PANEL_SLICE, LIST_PANEL_SLICE, LIST_PANEL_SLICE);
+    }
+
+    private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int width, int height,
+                                       int srcWidth, int srcHeight, int left, int top, int right, int bottom) {
+        int centerDstWidth = Math.max(0, width - left - right);
+        int centerDstHeight = Math.max(0, height - top - bottom);
+        blitTexture(guiGraphics, texture, x, y, 0, 0, left, top);
+        blitTexture(guiGraphics, texture, x + width - right, y, srcWidth - right, 0, right, top);
+        blitTexture(guiGraphics, texture, x, y + height - bottom, 0, srcHeight - bottom, left, bottom);
+        blitTexture(guiGraphics, texture, x + width - right, y + height - bottom,
+                srcWidth - right, srcHeight - bottom, right, bottom);
+
+        if (centerDstWidth > 0) {
+            blitTexture(guiGraphics, texture, x + left, y, left, 0, centerDstWidth, top);
+            blitTexture(guiGraphics, texture, x + left, y + height - bottom,
+                    left, srcHeight - bottom, centerDstWidth, bottom);
+        }
+
+        if (centerDstHeight > 0) {
+            blitTexture(guiGraphics, texture, x, y + top, 0, top, left, centerDstHeight);
+            blitTexture(guiGraphics, texture, x + width - right, y + top,
+                    srcWidth - right, top, right, centerDstHeight);
+        }
+
+        if (centerDstWidth > 0 && centerDstHeight > 0) {
+            blitTexture(guiGraphics, texture, x + left, y + top, left, top, centerDstWidth, centerDstHeight);
+        }
+    }
+
+    private void blitTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int srcX, int srcY, int width, int height) {
+        guiGraphics.blit(texture, x, y, 0, srcX, srcY, width, height,
+                LIST_TEXTURE_SIZE, LIST_TEXTURE_SIZE);
     }
 
     private String getEmptyStateText() {
