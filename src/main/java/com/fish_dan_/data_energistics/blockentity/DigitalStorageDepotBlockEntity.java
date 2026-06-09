@@ -1,12 +1,16 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.ae2.DigitalStorageDepotSettings;
+import com.fish_dan_.data_energistics.item.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -28,6 +32,7 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.config.Actionable;
+import appeng.api.config.Setting;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
@@ -47,13 +52,17 @@ import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
+import appeng.api.util.IConfigManager;
+import appeng.api.util.IConfigurableObject;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.IPriorityHost;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
+import appeng.util.ConfigManager;
 import appeng.util.ConfigMenuInventory;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
@@ -66,7 +75,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity implements InternalInventoryHost, IUpgradeableObject, IPriorityHost {
+public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, IPriorityHost {
 
     public static final int STORAGE_COLUMNS = 7;
     public static final int STORAGE_ROWS = 3;
@@ -114,6 +123,8 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     };
     @Getter
     private final IFluidHandler externalFluidHandler = new DepotFluidHandler();
+    private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
+    private boolean suppressConfigSync;
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
     private final GenericStack[] keyStacks = new GenericStack[KEY_SLOTS];
@@ -129,6 +140,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.configManager.registerSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, DataExtractorAutoExportMode.OFF);
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
                 .setVisualRepresentation(ModBlocks.DIGITAL_STORAGE_DEPOT.get())
@@ -225,9 +237,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return this.autoExportMode;
         }
 
-        this.autoExportMode = resolvedMode;
-        this.saveChanges();
-        this.markForClientUpdate();
+        this.configManager.putSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, resolvedMode);
         return this.autoExportMode;
     }
 
@@ -321,6 +331,11 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return this.upgrades;
     }
 
+    @Override
+    public IConfigManager getConfigManager() {
+        return this.configManager;
+    }
+
     public InternalInventory getInternalInventory() {
         return this.storage;
     }
@@ -353,31 +368,37 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        this.storage.readFromNBT(data, STORAGE_TAG, registries);
-        this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
-        this.priority = data.getInt(PRIORITY_TAG);
-        this.autoExportMode = DataExtractorAutoExportMode.fromOrdinal(data.getInt(AUTO_EXPORT_MODE_TAG));
-        boolean hasTypedOutputSides = data.contains(ITEM_OUTPUT_SIDES_TAG) || data.contains(FLUID_OUTPUT_SIDES_TAG) || data.contains(KEY_OUTPUT_SIDES_TAG);
-        if (hasTypedOutputSides) {
-            readOutputSides(data, ITEM_OUTPUT_SIDES_TAG, this.itemOutputSides);
-            readOutputSides(data, FLUID_OUTPUT_SIDES_TAG, this.fluidOutputSides);
-            readOutputSides(data, KEY_OUTPUT_SIDES_TAG, this.keyOutputSides);
-        } else if (data.contains(OUTPUT_SIDES_TAG)) {
-            Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
-            readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
-            copyOutputSidesToAllTypes(legacySides.isEmpty() ? EnumSet.allOf(Direction.class) : legacySides);
-        } else {
-            copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
+        this.suppressConfigSync = true;
+        try {
+            this.storage.readFromNBT(data, STORAGE_TAG, registries);
+            this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
+            this.priority = data.getInt(PRIORITY_TAG);
+            this.autoExportMode = DataExtractorAutoExportMode.fromOrdinal(data.getInt(AUTO_EXPORT_MODE_TAG));
+            syncConfigManagerAutoExportMode();
+            boolean hasTypedOutputSides = data.contains(ITEM_OUTPUT_SIDES_TAG) || data.contains(FLUID_OUTPUT_SIDES_TAG) || data.contains(KEY_OUTPUT_SIDES_TAG);
+            if (hasTypedOutputSides) {
+                readOutputSides(data, ITEM_OUTPUT_SIDES_TAG, this.itemOutputSides);
+                readOutputSides(data, FLUID_OUTPUT_SIDES_TAG, this.fluidOutputSides);
+                readOutputSides(data, KEY_OUTPUT_SIDES_TAG, this.keyOutputSides);
+            } else if (data.contains(OUTPUT_SIDES_TAG)) {
+                Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
+                readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
+                copyOutputSidesToAllTypes(legacySides.isEmpty() ? EnumSet.allOf(Direction.class) : legacySides);
+            } else {
+                copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
+            }
+            for (int i = 0; i < FLUID_SLOTS; i++) {
+                this.fluidTanks[i].readFromNBT(registries, data.getCompound(FLUID_TAG_PREFIX + i));
+            }
+            for (int i = 0; i < KEY_SLOTS; i++) {
+                this.keyStacks[i] = data.contains(KEY_TAG_PREFIX + i) ? GenericStack.readTag(registries, data.getCompound(KEY_TAG_PREFIX + i)) : null;
+            }
+            refreshDynamicCapacities();
+            syncMenuFluidsFromTanks();
+            syncKeyMenusFromStacks();
+        } finally {
+            this.suppressConfigSync = false;
         }
-        for (int i = 0; i < FLUID_SLOTS; i++) {
-            this.fluidTanks[i].readFromNBT(registries, data.getCompound(FLUID_TAG_PREFIX + i));
-        }
-        for (int i = 0; i < KEY_SLOTS; i++) {
-            this.keyStacks[i] = data.contains(KEY_TAG_PREFIX + i) ? GenericStack.readTag(registries, data.getCompound(KEY_TAG_PREFIX + i)) : null;
-        }
-        refreshDynamicCapacities();
-        syncMenuFluidsFromTanks();
-        syncKeyMenusFromStacks();
     }
 
     @Override
@@ -399,6 +420,32 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             if (keyStack != null && keyStack.what() != null && keyStack.amount() > 0) {
                 data.put(KEY_TAG_PREFIX + i, GenericStack.writeTag(registries, keyStack));
             }
+        }
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        builder.set(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get(), new DigitalStorageDepotMemoryCardData(
+                encodeOutputSides(this.itemOutputSides),
+                encodeOutputSides(this.fluidOutputSides),
+                encodeOutputSides(this.keyOutputSides)));
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        DigitalStorageDepotMemoryCardData outputSettings = input.get(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get());
+        if (outputSettings != null) {
+            applyOutputSettings(outputSettings);
         }
     }
 
@@ -707,12 +754,55 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         }
     }
 
+    private void syncConfigManagerAutoExportMode() {
+        if (this.configManager.getSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE) != this.autoExportMode) {
+            this.configManager.putSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, this.autoExportMode);
+        }
+    }
+
+    private void onConfigChanged(IConfigManager manager, Setting<?> setting) {
+        if (this.suppressConfigSync || setting != DigitalStorageDepotSettings.AUTO_EXPORT_MODE) {
+            return;
+        }
+
+        DataExtractorAutoExportMode resolvedMode = manager.getSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE);
+        if (this.autoExportMode == resolvedMode) {
+            return;
+        }
+
+        this.autoExportMode = resolvedMode;
+        this.saveChanges();
+        this.markForClientUpdate();
+    }
+
     private Set<Direction> getOutputSidesInternal(DigitalStorageDepotOutputType outputType) {
         return switch (outputType) {
             case ITEMS -> this.itemOutputSides;
             case FLUIDS -> this.fluidOutputSides;
             case KEYS -> this.keyOutputSides;
         };
+    }
+
+    private void applyOutputSettings(DigitalStorageDepotMemoryCardData outputSettings) {
+        boolean changed = false;
+        changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS, decodeOutputSides(outputSettings.itemOutputSidesMask()));
+        changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, decodeOutputSides(outputSettings.fluidOutputSidesMask()));
+        changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, decodeOutputSides(outputSettings.keyOutputSidesMask()));
+        if (changed) {
+            this.saveChanges();
+            this.markForClientUpdate();
+        }
+    }
+
+    private boolean replaceOutputSides(DigitalStorageDepotOutputType outputType, Set<Direction> updatedSides) {
+        Set<Direction> sides = getOutputSidesInternal(outputType);
+        if (sides.equals(updatedSides)) {
+            return false;
+        }
+
+        sides.clear();
+        sides.addAll(updatedSides);
+        return true;
     }
 
     private void copyOutputSidesToAllTypes(Set<Direction> sides) {
@@ -744,6 +834,24 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             tag.add(StringTag.valueOf(side.getName()));
         }
         return tag;
+    }
+
+    private static int encodeOutputSides(Iterable<Direction> sides) {
+        int mask = 0;
+        for (Direction side : sides) {
+            mask |= 1 << side.ordinal();
+        }
+        return mask;
+    }
+
+    private static Set<Direction> decodeOutputSides(int mask) {
+        Set<Direction> sides = EnumSet.noneOf(Direction.class);
+        for (Direction side : Direction.values()) {
+            if ((mask & (1 << side.ordinal())) != 0) {
+                sides.add(side);
+            }
+        }
+        return sides;
     }
 
     private GenericStackInv createFluidMenuInventory(int slotIndex) {
