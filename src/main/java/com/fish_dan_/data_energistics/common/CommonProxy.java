@@ -96,6 +96,7 @@ public class CommonProxy {
         ModMenus.register(modEventBus);
         ModRecipes.register(modEventBus);
         ModStructures.register(modEventBus);
+        ModUpgrades.registerPartModels();
         UniversalTerminalAdapters.init();
 
         modEventBus.addListener(instance::commonSetup);

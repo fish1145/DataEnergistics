@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
@@ -36,6 +37,13 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int LIST_WIDTH = 150;
     private static final int LIST_ROW_HEIGHT = 14;
     private static final int LIST_VISIBLE_ROWS = 5;
+    private static final int POPUP_X = 20;
+    private static final int POPUP_Y = 62;
+    private static final int POPUP_WIDTH = 156;
+    private static final int POPUP_HEIGHT = 86;
+    private static final int POPUP_BUTTON_Y = POPUP_Y + 21;
+    private static final int POPUP_BUTTON_WIDTH = 68;
+    private static final int POPUP_BUTTON_HEIGHT = 14;
     private static final int SEARCH_X = 94;
     private static final int SEARCH_Y = 4;
     private static final int SEARCH_WIDTH = 70;
@@ -47,6 +55,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private final DataDistributionTowerConnectionModeButton connectionModeButton;
     private List<BoundRow> allRows = List.of();
     private List<BoundRow> cachedRows = List.of();
+    private TargetRef popupTarget;
     private AETextField searchBox;
     private String searchQuery = "";
 
@@ -143,14 +152,29 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             }
             guiGraphics.drawString(this.font, line, LIST_X + 14, y, getRowColor(row.kind()), false);
         }
+
+        renderTargetPopup(guiGraphics);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean wasFocused = this.searchBox != null && this.searchBox.isFocused();
-        if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
-            BoundRow hoveredRow = findHoveredRow(mouseX, mouseY);
-            if (hoveredRow != null) {
+        BoundRow popupRow = getPopupRow();
+        if (popupRow != null && handleTargetPopupClick(mouseX, mouseY, button, popupRow)) {
+            return true;
+        }
+
+        BoundRow hoveredRow = findHoveredRow(mouseX, mouseY);
+        if (hoveredRow != null) {
+            if (hoveredRow.placeholder()) {
+                return true;
+            }
+            if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                this.popupTarget = hoveredRow.target();
+                return true;
+            }
+            if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+                this.popupTarget = null;
                 DataDistributionTowerSelectionHighlighter.highlight(hoveredRow.dimension(), hoveredRow.pos());
                 this.menu.sendFocusTarget(
                         hoveredRow.dimension().location().toString(),
@@ -165,6 +189,9 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             }
         }
         boolean handled = super.mouseClicked(mouseX, mouseY, button);
+        if (this.popupTarget != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !isInsideTargetPopup(mouseX, mouseY)) {
+            this.popupTarget = null;
+        }
         if (this.searchBox != null && wasFocused != this.searchBox.isFocused()) {
             updateSearchSuggestion();
         }
@@ -219,13 +246,18 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     Component.translatable("screen.data_energistics.data_distribution_tower.bound_none").getString(),
                     "",
                     new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0)),
-                    RowKind.FE));
+                    RowKind.FE,
+                    TargetMode.DISABLED,
+                    TransferInfo.EMPTY,
+                    true));
         }
 
         String[] names = this.menu.boundTargets.split("\\n");
         String[] icons = this.menu.boundTargetIcons == null || this.menu.boundTargetIcons.isBlank() ? new String[0] : this.menu.boundTargetIcons.split("\\n");
         String[] metas = this.menu.boundTargetMeta == null || this.menu.boundTargetMeta.isBlank() ? new String[0] : this.menu.boundTargetMeta.split("\\n");
         String[] kinds = this.menu.boundTargetKinds == null || this.menu.boundTargetKinds.isBlank() ? new String[0] : this.menu.boundTargetKinds.split("\\n");
+        String[] modes = this.menu.boundTargetModes == null || this.menu.boundTargetModes.isBlank() ? new String[0] : this.menu.boundTargetModes.split("\\n");
+        String[] transferInfo = this.menu.boundTargetTransferInfo == null || this.menu.boundTargetTransferInfo.isBlank() ? new String[0] : this.menu.boundTargetTransferInfo.split("\\n");
 
         ArrayList<BoundRow> rows = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
@@ -234,7 +266,10 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     names[i],
                     names[i],
                     i < metas.length ? parseMeta(metas[i]) : new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0)),
-                    i < kinds.length ? parseKind(kinds[i]) : RowKind.FE));
+                    i < kinds.length ? parseKind(kinds[i]) : RowKind.FE,
+                    i < modes.length ? parseMode(modes[i]) : TargetMode.AE_AND_FE,
+                    i < transferInfo.length ? parseTransferInfo(transferInfo[i]) : TransferInfo.EMPTY,
+                    false));
         }
         return rows;
     }
@@ -259,6 +294,167 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
     private int getRowColor(RowKind kind) {
         return kind == RowKind.AE ? 0xD58CFF : 0x9FFFA8;
+    }
+
+    private int getModeColor(TargetMode mode) {
+        return switch (mode) {
+            case AE_AND_FE -> 0xFFFFFF;
+            case AE_ONLY -> 0xD58CFF;
+            case FE_ONLY -> 0x9FFFA8;
+            case DISABLED -> 0x777777;
+        };
+    }
+
+    private void renderTargetPopup(GuiGraphics guiGraphics) {
+        BoundRow popupRow = getPopupRow();
+        if (popupRow == null) {
+            return;
+        }
+
+        guiGraphics.fill(POPUP_X, POPUP_Y, POPUP_X + POPUP_WIDTH, POPUP_Y + POPUP_HEIGHT, 0xEE10141A);
+        guiGraphics.fill(POPUP_X, POPUP_Y, POPUP_X + POPUP_WIDTH, POPUP_Y + 1, 0xFF7DA7C7);
+        guiGraphics.fill(POPUP_X, POPUP_Y + POPUP_HEIGHT - 1, POPUP_X + POPUP_WIDTH, POPUP_Y + POPUP_HEIGHT, 0xFF314250);
+        guiGraphics.fill(POPUP_X, POPUP_Y, POPUP_X + 1, POPUP_Y + POPUP_HEIGHT, 0xFF314250);
+        guiGraphics.fill(POPUP_X + POPUP_WIDTH - 1, POPUP_Y, POPUP_X + POPUP_WIDTH, POPUP_Y + POPUP_HEIGHT, 0xFF314250);
+
+        String title = popupRow.displayText();
+        if (this.font.width(title) > POPUP_WIDTH - 25) {
+            title = this.font.plainSubstrByWidth(title, POPUP_WIDTH - 31) + "...";
+        }
+        guiGraphics.drawString(this.font, title, POPUP_X + 7, POPUP_Y + 6, getRowColor(popupRow.kind()), false);
+        guiGraphics.drawString(this.font, "x", POPUP_X + POPUP_WIDTH - 11, POPUP_Y + 6, 0xB8B8B8, false);
+
+        int channelButtonX = POPUP_X + 7;
+        int energyButtonX = POPUP_X + 81;
+        drawToggleButton(guiGraphics,
+                Component.translatable("screen.data_energistics.data_distribution_tower.target_channel_toggle").getString(),
+                popupRow.mode().allowsAe(),
+                channelButtonX,
+                POPUP_BUTTON_Y,
+                POPUP_BUTTON_WIDTH,
+                POPUP_BUTTON_HEIGHT,
+                0xD58CFF);
+        drawToggleButton(guiGraphics,
+                Component.translatable("screen.data_energistics.data_distribution_tower.target_energy_toggle").getString(),
+                popupRow.mode().allowsFe(),
+                energyButtonX,
+                POPUP_BUTTON_Y,
+                POPUP_BUTTON_WIDTH,
+                POPUP_BUTTON_HEIGHT,
+                0x9FFFA8);
+
+        TransferInfo info = popupRow.transferInfo();
+        int y = POPUP_Y + 39;
+        drawPopupLine(guiGraphics, Component.translatable(
+                "screen.data_energistics.data_distribution_tower.target_mode",
+                Component.translatable("button.data_energistics.data_distribution_tower.target_mode." + popupRow.mode().serializedName())).getString(), y, getModeColor(popupRow.mode()));
+        y += 10;
+        drawPopupLine(guiGraphics, Component.translatable(
+                "screen.data_energistics.data_distribution_tower.target_channels",
+                info.channelConnections(),
+                info.hasAeTarget() ? Component.translatable("screen.data_energistics.data_distribution_tower.available") : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable")).getString(), y, 0xD58CFF);
+        y += 10;
+        String feText = info.hasEnergyTarget() ? formatFeAmount(info.storedFe()) + " / " + formatFeAmount(info.capacityFe()) + " FE" : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable").getString();
+        drawPopupLine(guiGraphics, Component.translatable(
+                "screen.data_energistics.data_distribution_tower.target_energy",
+                feText).getString(), y, 0x9FFFA8);
+        y += 10;
+        drawPopupLine(guiGraphics, Component.translatable(
+                "screen.data_energistics.data_distribution_tower.target_energy_io",
+                formatBoolean(info.canExtractFe()),
+                formatBoolean(info.canReceiveFe())).getString(), y, 0xA8A8A8);
+    }
+
+    private void drawToggleButton(GuiGraphics guiGraphics, String label, boolean enabled, int x, int y, int width, int height, int color) {
+        int background = enabled ? 0x552D5E52 : 0x5526282D;
+        int border = enabled ? color : 0xFF555B62;
+        guiGraphics.fill(x, y, x + width, y + height, background);
+        guiGraphics.fill(x, y, x + width, y + 1, border);
+        guiGraphics.fill(x, y + height - 1, x + width, y + height, border);
+        guiGraphics.fill(x, y, x + 1, y + height, border);
+        guiGraphics.fill(x + width - 1, y, x + width, y + height, border);
+
+        String state = Component.translatable(enabled ? "screen.data_energistics.data_distribution_tower.on" : "screen.data_energistics.data_distribution_tower.off").getString();
+        String text = label + ":" + state;
+        if (this.font.width(text) > width - 6) {
+            text = this.font.plainSubstrByWidth(text, width - 12) + "...";
+        }
+        guiGraphics.drawString(this.font, text, x + 4, y + 3, enabled ? 0xFFFFFF : 0xA8A8A8, false);
+    }
+
+    private void drawPopupLine(GuiGraphics guiGraphics, String line, int y, int color) {
+        if (this.font.width(line) > POPUP_WIDTH - 14) {
+            line = this.font.plainSubstrByWidth(line, POPUP_WIDTH - 20) + "...";
+        }
+        guiGraphics.drawString(this.font, line, POPUP_X + 7, y, color, false);
+    }
+
+    private Component formatBoolean(boolean value) {
+        return Component.translatable(value ? "screen.data_energistics.data_distribution_tower.yes" : "screen.data_energistics.data_distribution_tower.no");
+    }
+
+    private BoundRow getPopupRow() {
+        if (this.popupTarget == null) {
+            return null;
+        }
+        for (BoundRow row : this.allRows) {
+            if (row.target().equals(this.popupTarget)) {
+                return row;
+            }
+        }
+        this.popupTarget = null;
+        return null;
+    }
+
+    private boolean handleTargetPopupClick(double mouseX, double mouseY, int button, BoundRow popupRow) {
+        if (!isInsideTargetPopup(mouseX, mouseY)) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                this.popupTarget = null;
+            }
+            return false;
+        }
+
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+            return true;
+        }
+
+        int localX = (int) mouseX - this.leftPos;
+        int localY = (int) mouseY - this.topPos;
+        if (localX >= POPUP_X + POPUP_WIDTH - 14 && localX <= POPUP_X + POPUP_WIDTH - 4 && localY >= POPUP_Y + 4 && localY <= POPUP_Y + 16) {
+            this.popupTarget = null;
+            return true;
+        }
+
+        if (isInRect(localX, localY, POPUP_X + 7, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
+            setPopupTargetMode(popupRow, popupRow.mode().withAe(!popupRow.mode().allowsAe()));
+            return true;
+        }
+
+        if (isInRect(localX, localY, POPUP_X + 81, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
+            setPopupTargetMode(popupRow, popupRow.mode().withFe(!popupRow.mode().allowsFe()));
+            return true;
+        }
+
+        return true;
+    }
+
+    private void setPopupTargetMode(BoundRow row, TargetMode mode) {
+        this.menu.sendSetTargetTransferMode(
+                row.dimension().location().toString(),
+                row.pos().getX(),
+                row.pos().getY(),
+                row.pos().getZ(),
+                TargetTransferMode.fromOrdinal(mode.ordinal()));
+    }
+
+    private boolean isInsideTargetPopup(double mouseX, double mouseY) {
+        int localX = (int) mouseX - this.leftPos;
+        int localY = (int) mouseY - this.topPos;
+        return isInRect(localX, localY, POPUP_X, POPUP_Y, POPUP_WIDTH, POPUP_HEIGHT);
+    }
+
+    private boolean isInRect(int x, int y, int rectX, int rectY, int width, int height) {
+        return x >= rectX && x <= rectX + width && y >= rectY && y <= rectY + height;
     }
 
     private String getEmptyStateText() {
@@ -325,7 +521,32 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         return "AE".equalsIgnoreCase(kind) ? RowKind.AE : RowKind.FE;
     }
 
-    private record BoundRow(ItemStack iconStack, String displayText, String searchIndex, TargetRef target, RowKind kind) {
+    private TargetMode parseMode(String mode) {
+        try {
+            return TargetMode.valueOf(mode);
+        } catch (Exception ignored) {
+            return TargetMode.AE_AND_FE;
+        }
+    }
+
+    private TransferInfo parseTransferInfo(String info) {
+        try {
+            String[] parts = info.split("\\|");
+            return new TransferInfo(
+                    Integer.parseInt(parts[0]),
+                    Boolean.parseBoolean(parts[1]),
+                    Boolean.parseBoolean(parts[2]),
+                    Long.parseLong(parts[3]),
+                    Long.parseLong(parts[4]),
+                    Boolean.parseBoolean(parts[5]),
+                    Boolean.parseBoolean(parts[6]));
+        } catch (Exception ignored) {
+            return TransferInfo.EMPTY;
+        }
+    }
+
+    private record BoundRow(ItemStack iconStack, String displayText, String searchIndex, TargetRef target, RowKind kind,
+                            TargetMode mode, TransferInfo transferInfo, boolean placeholder) {
 
         private ResourceKey<Level> dimension() {
             return target.dimension();
@@ -341,5 +562,58 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private enum RowKind {
         AE,
         FE
+    }
+
+    private enum TargetMode {
+
+        AE_AND_FE("af"),
+        AE_ONLY("ae"),
+        FE_ONLY("fe"),
+        DISABLED("off");
+
+        private final String serializedName;
+
+        TargetMode(String serializedName) {
+            this.serializedName = serializedName;
+        }
+
+        private String serializedName() {
+            return this.serializedName;
+        }
+
+        private boolean allowsAe() {
+            return this == AE_AND_FE || this == AE_ONLY;
+        }
+
+        private boolean allowsFe() {
+            return this == AE_AND_FE || this == FE_ONLY;
+        }
+
+        private TargetMode withAe(boolean enabled) {
+            return fromFlags(enabled, allowsFe());
+        }
+
+        private TargetMode withFe(boolean enabled) {
+            return fromFlags(allowsAe(), enabled);
+        }
+
+        private static TargetMode fromFlags(boolean ae, boolean fe) {
+            if (ae && fe) {
+                return AE_AND_FE;
+            }
+            if (ae) {
+                return AE_ONLY;
+            }
+            if (fe) {
+                return FE_ONLY;
+            }
+            return DISABLED;
+        }
+    }
+
+    private record TransferInfo(int channelConnections, boolean hasAeTarget, boolean hasEnergyTarget, long storedFe,
+                                long capacityFe, boolean canExtractFe, boolean canReceiveFe) {
+
+        private static final TransferInfo EMPTY = new TransferInfo(0, false, false, 0L, 0L, false, false);
     }
 }
