@@ -428,7 +428,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            boolean pushed = isDirectionalPattern(patternDetails) ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel) : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
+            boolean pushed = shouldUseAdvancedDirectionalWirelessPath(patternDetails) ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel) : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
             if (pushed) {
                 this.localRoundRobinIndex += i + 1;
                 consumeAe2LtTotalCost(totalCost);
@@ -634,6 +634,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {
         return hasDirectionalInputs(patternDetails);
+    }
+
+    private boolean shouldUseAdvancedDirectionalWirelessPath(IPatternDetails patternDetails) {
+        return !isAe2LightningTechOverloadedPattern(patternDetails) && isDirectionalPattern(patternDetails);
     }
 
     private List<AdaptiveWirelessConnection> getOrderedWirelessConnections(ServerLevel level) {
