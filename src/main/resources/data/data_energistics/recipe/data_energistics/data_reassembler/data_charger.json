@@ -1,0 +1,40 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+              "tag": "c:gems/data_crystal"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_storagr_component_1k"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "ae2:charger"
+			},
+			"count": 1
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 200,
+			"#t": "ae2:f",
+			"id": "data_energistics:ender"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_charger",
+			"count": 2
+		}
+	],
+  "key_input": {
+    "#t": "data_energistics:data_flow",
+    "#": 1000
+  }
+}

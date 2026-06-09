@@ -1,0 +1,25 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDE", "ABA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_charger"
+		},
+		"B": {
+            "tag": "c:gems/data_crystal"
+		},
+		"C": {
+			"item": "ae2:annihilation_core"
+		},
+		"D": {
+            "item": "ae2:sky_stone_tank"
+		},
+		"E": {
+			"item": "ae2:formation_core"
+		}
+	},
+	"result": {
+		"id": "data_energistics:extended_data_charger",
+		"count": 1
+	}
+}
