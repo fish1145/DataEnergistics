@@ -41,13 +41,15 @@ public class EnderCohesionMeteoriteBlock extends Block {
             return;
         }
 
-        int silkTouchLevel = EnchantmentHelper.getItemEnchantmentLevel(
-                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
-                tool);
-        int fortuneLevel = EnchantmentHelper.getItemEnchantmentLevel(
-                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
-                tool);
-        if (silkTouchLevel <= 0) {
+        this.handleSpecialMining(serverLevel, player, pos, state, tool, hasSilkTouch(serverLevel, tool), getFortuneLevel(serverLevel, tool));
+    }
+
+    public void handleSpecialMining(ServerLevel serverLevel, Player player, BlockPos pos, BlockState state, ItemStack tool, boolean silkTouch, int fortuneLevel) {
+        if (!tool.isCorrectToolForDrops(state)) {
+            return;
+        }
+
+        if (!silkTouch) {
             this.spawnDispersingData(serverLevel, pos, serverLevel.getRandom(), fortuneLevel);
         }
 
@@ -57,6 +59,18 @@ public class EnderCohesionMeteoriteBlock extends Block {
         if (this.teleportChance > 0.0F && random.nextFloat() < this.teleportChance && player instanceof ServerPlayer serverPlayer) {
             teleportRandomly(serverLevel, serverPlayer, random);
         }
+    }
+
+    public static boolean hasSilkTouch(ServerLevel level, ItemStack tool) {
+        return EnchantmentHelper.getItemEnchantmentLevel(
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
+                tool) > 0;
+    }
+
+    public static int getFortuneLevel(ServerLevel level, ItemStack tool) {
+        return EnchantmentHelper.getItemEnchantmentLevel(
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
+                tool);
     }
 
     private void spawnDispersingData(ServerLevel level, BlockPos pos, RandomSource random, int fortuneLevel) {

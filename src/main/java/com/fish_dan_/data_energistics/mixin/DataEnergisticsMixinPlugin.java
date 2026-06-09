@@ -28,6 +28,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
         addModCompatMixin("jei", "jei.");
         addModCompatMixin("emi", "emi.");
         addModCompatMixin("neoecoae", "neoecoae.");
+        addModCompatMixin("useless_mod", "useless.");
     }
 
     private static void addModCompatMixin(String modId, String packageName) {
