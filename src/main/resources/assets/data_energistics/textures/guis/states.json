@@ -122,6 +122,18 @@
 			"y": 48,
 			"width": 16,
 			"height": 16
-		}
+		},
+        "POWER_UNIT_BLACK_LIST": {
+         "x": 128,
+          "y": 32,
+         "width": 16,
+          "height": 16
+        },
+        "POWER_UNIT_WHITE_LIST": {
+          "x": 128,
+          "y": 48,
+          "width": 16,
+          "height": 16
+        }
 	}
 }
