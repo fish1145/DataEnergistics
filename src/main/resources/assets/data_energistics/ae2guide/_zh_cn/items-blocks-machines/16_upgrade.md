@@ -24,7 +24,7 @@ item_ids:
   <ItemImage id="data_energistics:digital_storage_depot" />
 </Row>
 
-容量卡会同时提升物品槽、流体槽和 Key 槽的容量：  
+容量卡会同时提升物品槽、流体槽和包裹堆栈槽的容量：
 最终容量 = 基础容量 × (1 + 4 × 容量卡数量)
 
 若移除后现有内容超过降级后的上限，该容量卡将暂时无法取出。

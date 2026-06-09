@@ -33,7 +33,7 @@ Final Speed = Base Speed - Speed Cards x 40
 
 ## Reference Table
 
-| Speed Cards | Cycle | Output Per Carrier | Key Cost Per Carrier |
+| Speed Cards | Cycle | Output Per Carrier | Wrapped Stack Cost Per Carrier |
 |:----|:-----|:------|:-----------|
 | 0   | 200t | 48    | 150        |
 | 1   | 160t | 64    | 200        |
@@ -42,8 +42,8 @@ Final Speed = Base Speed - Speed Cards x 40
 | 4   | 40t  | 112   | 350        |  
   
 Mob/Ore/Crop Output = 48 + Speed Cards x 16   
-Key Cost Per Active Carrier = 150 + Speed Cards x 50  
-Total Key Cost = Active Carriers x (150 + Speed Cards x 50)  
+Wrapped Stack Cost Per Active Carrier = 150 + Speed Cards x 50
+Total Wrapped Stack Cost = Active Carriers x (150 + Speed Cards x 50)
 Idle Power Draw = Active Carriers x 500 AE/t
 
 ---

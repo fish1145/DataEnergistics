@@ -24,7 +24,7 @@ The Digital Storage Depot can install up to 4 Capacity Cards.
   <ItemImage id="data_energistics:digital_storage_depot" />
 </Row>
 
-Capacity Cards increase item, fluid, and Key slot capacities simultaneously.
+Capacity Cards increase item, fluid, and Wrapped Stack slot capacities simultaneously.
 Final Capacity = Base x (1 + 4 x Capacity Cards)
 
 If removing a Capacity Card would cause existing contents to exceed the downgraded limit, the card will be locked and cannot be removed.
