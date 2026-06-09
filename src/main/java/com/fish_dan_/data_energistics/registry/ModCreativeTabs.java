@@ -85,6 +85,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_LIGHT_SABER);
                         output.accept(ModItems.DATA_SANCTIFIER);
                         output.accept(ModItems.CARD_SABER_ENERGY);
+                        output.accept(ModItems.RANGE_CARD);
                         output.accept(ModItems.REDSTONE_TUNING_CARD);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(ModItems.DATA_DUST);

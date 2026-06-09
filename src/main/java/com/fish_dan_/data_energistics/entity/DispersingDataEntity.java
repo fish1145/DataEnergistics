@@ -96,7 +96,7 @@ public class DispersingDataEntity extends Entity {
             return InteractionResult.PASS;
         }
 
-        boolean captured = captureBallItem.captureDispersingData(heldStack, player, this);
+        boolean captured = captureBallItem.hasRangeCapture(heldStack) ? captureBallItem.captureNearbyDispersingData(heldStack, player, this.getBoundingBox().getCenter()) : captureBallItem.captureDispersingData(heldStack, player, this);
         return captured ? InteractionResult.sidedSuccess(this.level().isClientSide()) : InteractionResult.PASS;
     }
 

@@ -8,13 +8,17 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
@@ -32,6 +36,7 @@ import appeng.api.upgrades.Upgrades;
 import appeng.core.localization.Tooltips;
 import appeng.util.ConfigInventory;
 
+import java.util.Comparator;
 import java.util.List;
 
 public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IBasicCellItem {
@@ -44,6 +49,8 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     private static final int BYTES_PER_TYPE = 1;
     private static final int TOTAL_TYPES = 1;
     private static final int MAX_UPGRADES = 3;
+    private static final double RANGE_CAPTURE_RADIUS = 3.0D;
+    private static final double RANGE_CAPTURE_RADIUS_SQR = RANGE_CAPTURE_RADIUS * RANGE_CAPTURE_RADIUS;
 
     public DataCaptureBallItem(Properties properties) {
         super(properties);
@@ -82,6 +89,18 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
             return true;
         }
         return false;
+    }
+
+    @Override
+    public InteractionResult useOn(UseOnContext context) {
+        ItemStack stack = context.getItemInHand();
+        Player player = context.getPlayer();
+        if (player == null || !this.hasRangeCapture(stack)) {
+            return super.useOn(context);
+        }
+
+        boolean captured = this.captureNearbyDispersingData(stack, player, context.getClickLocation());
+        return captured ? InteractionResult.sidedSuccess(context.getLevel().isClientSide) : super.useOn(context);
     }
 
     @Override
@@ -267,6 +286,45 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
         return true;
     }
 
+    public boolean captureNearbyDispersingData(ItemStack stack, Player player, Vec3 center) {
+        if (!this.hasRangeCapture(stack) || !this.canCaptureOne(stack, player)) {
+            return false;
+        }
+
+        Level level = player.level();
+        AABB range = new AABB(
+                center.x - RANGE_CAPTURE_RADIUS,
+                center.y - RANGE_CAPTURE_RADIUS,
+                center.z - RANGE_CAPTURE_RADIUS,
+                center.x + RANGE_CAPTURE_RADIUS,
+                center.y + RANGE_CAPTURE_RADIUS,
+                center.z + RANGE_CAPTURE_RADIUS);
+        List<DispersingDataEntity> targets = level.getEntitiesOfClass(DispersingDataEntity.class, range,
+                entity -> entity.isAlive() && entity.getBoundingBox().getCenter().distanceToSqr(center) <= RANGE_CAPTURE_RADIUS_SQR);
+        if (targets.isEmpty()) {
+            return false;
+        }
+
+        targets.sort(Comparator.comparingDouble(entity -> entity.getBoundingBox().getCenter().distanceToSqr(center)));
+        if (level.isClientSide) {
+            return true;
+        }
+
+        boolean captured = false;
+        for (DispersingDataEntity target : targets) {
+            if (this.captureDispersingData(stack, player, target)) {
+                captured = true;
+            } else if (this.getAECurrentPower(stack) < ENERGY_PER_CAPTURE || !this.canCaptureOne(stack, player)) {
+                break;
+            }
+        }
+        return captured;
+    }
+
+    public boolean hasRangeCapture(ItemStack stack) {
+        return this.getUpgrades(stack).getInstalledUpgrades(ModItems.RANGE_CARD.get()) > 0;
+    }
+
     public boolean canRunRightClickRecipe(ItemStack stack, DataCaptureBallRightClickRecipe recipe) {
         return this.getAECurrentPower(stack) >= recipe.getEnergyCost() && this.getStoredDataAmount(stack) >= recipe.getDataCost();
     }
@@ -317,6 +375,15 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
 
     private static int getEnergyCapacityMultiplier(ItemStack stack) {
         return 1 + Upgrades.getEnergyCardMultiplier(UpgradeInventories.forItem(stack, MAX_UPGRADES)) * 2;
+    }
+
+    private boolean canCaptureOne(ItemStack stack, Player player) {
+        if (this.getAECurrentPower(stack) < ENERGY_PER_CAPTURE) {
+            return false;
+        }
+
+        var cellInventory = StorageCells.getCellInventory(stack, null);
+        return cellInventory != null && cellInventory.insert(DataKey.of(), 1, Actionable.SIMULATE, IActionSource.ofPlayer(player)) > 0;
     }
 
     private static long getStoredDataAmountStatic(ItemStack stack) {
