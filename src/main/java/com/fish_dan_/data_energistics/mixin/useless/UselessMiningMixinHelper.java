@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.mixin.useless;
 
+import net.minecraft.world.item.ItemStack;
+
 import com.sorrowmist.useless.api.enums.tool.EnchantMode;
 import com.sorrowmist.useless.core.component.UComponents;
-
-import net.minecraft.world.item.ItemStack;
 
 public final class UselessMiningMixinHelper {
 
