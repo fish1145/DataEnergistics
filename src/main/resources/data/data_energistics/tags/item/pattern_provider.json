@@ -1,0 +1,7 @@
+{
+	"replace": false,
+	"values": [
+		"data_energistics:adaptive_pattern_provider",
+		"data_energistics:adaptive_pattern_provider_part"
+	]
+}

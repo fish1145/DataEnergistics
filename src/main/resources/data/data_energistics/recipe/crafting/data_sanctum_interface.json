@@ -1,0 +1,25 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDE", "ABA"],
+	"key": {
+		"A": {
+			"tag": "c:dusts/data_dust"
+		},
+		"B": {
+			"item": "ae2:quartz_glass"
+		},
+		"C": {
+			"item": "ae2:annihilation_core"
+		},
+		"D": {
+            "item": "ae2:interface"
+		},
+		"E": {
+			"item": "ae2:formation_core"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_sanctum_interface",
+		"count": 1
+	}
+}

@@ -175,9 +175,6 @@ public final class ModItems {
     public static final DeferredItem<Item> CARD_SABER_ENERGY = ITEMS.register(
             "card_saber_energy",
             () -> Upgrades.createUpgradeCardItem(new Item.Properties()));
-    public static final DeferredItem<Item> RANGE_CARD = ITEMS.register(
-            "range_card",
-            () -> Upgrades.createUpgradeCardItem(new Item.Properties()));
     public static final DeferredItem<Item> REDSTONE_TUNING_CARD = ITEMS.register(
             "redstone_tuning_card",
             () -> Upgrades.createUpgradeCardItem(new Item.Properties()));

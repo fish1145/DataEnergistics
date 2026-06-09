@@ -9,7 +9,7 @@
 		},
 		{
 			"ingredient": {
-				"tag": "ae2:interface"
+				"tag": "data_energistics:interface"
 			},
 			"count": 1
 		},
