@@ -1000,12 +1000,27 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return true;
         }
         if (key instanceof AEItemKey itemKey) {
+            GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
+            if (wrapped != null && isAllowedMenuKey(wrapped.what())) {
+                return canAcceptWrappedKeyInput(state, wrapped, amount);
+            }
             return canAcceptItemInput(state, itemKey, amount);
         }
         if (key instanceof AEFluidKey fluidKey) {
             return canAcceptFluidInput(state, fluidKey, amount);
         }
         return canAcceptGenericKeyInput(state, key, amount);
+    }
+
+    private boolean canAcceptWrappedKeyInput(PatternPushState state, GenericStack wrapped, long amount) {
+        if (wrapped.amount() <= 0) {
+            return false;
+        }
+        if (amount > Long.MAX_VALUE / wrapped.amount()) {
+            return false;
+        }
+
+        return canAcceptGenericKeyInput(state, wrapped.what(), wrapped.amount() * amount);
     }
 
     private boolean canAcceptItemInput(PatternPushState state, AEItemKey itemKey, long amount) {
