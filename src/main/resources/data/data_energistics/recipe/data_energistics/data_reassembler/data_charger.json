@@ -3,7 +3,7 @@
 	"item_inputs": [
 		{
 			"ingredient": {
-              "tag": "c:gems/data_crystal"
+				"tag": "c:gems/data_crystal"
 			},
 			"count": 4
 		},
@@ -33,8 +33,8 @@
 			"count": 2
 		}
 	],
-  "key_input": {
-    "#t": "data_energistics:data_flow",
-    "#": 1000
-  }
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 1000
+	}
 }
