@@ -28,6 +28,10 @@ import java.util.List;
 
 public class DataMeteoriteCompassBakedModel extends BakedModelWrapper<MeteoriteCompassBakedModel> {
 
+    private static final double TARGET_REACHED_DISTANCE_SQ = 6.0D * 6.0D;
+    private static final long TARGET_REACHED_SPIN_MS = 500L;
+    private static final long IDLE_SPIN_MS = 3000L;
+
     public DataMeteoriteCompassBakedModel(MeteoriteCompassBakedModel originalModel) {
         super(originalModel);
     }
@@ -64,18 +68,25 @@ public class DataMeteoriteCompassBakedModel extends BakedModelWrapper<MeteoriteC
             ChunkPos chunkPos = new ChunkPos(BlockPos.containing(pos));
             BlockPos closestMeteorite = DataMeteoriteCompassClientCache.getClosestMeteorite(chunkPos, prefetch);
             if (closestMeteorite == null) {
-                long timeMillis = System.currentTimeMillis() % 500L;
-                return timeMillis / 500.0F * (float) Math.PI * 2.0F;
+                return getSpinningRotation(IDLE_SPIN_MS);
             }
 
-            double distanceSq = pos.distanceToSqr(closestMeteorite.getCenter());
-            if (distanceSq > 36.0D) {
+            double dx = pos.x() - closestMeteorite.getX();
+            double dz = pos.z() - closestMeteorite.getZ();
+            double horizontalDistanceSq = dx * dx + dz * dz;
+            if (horizontalDistanceSq > TARGET_REACHED_DISTANCE_SQ) {
                 return (float) rad(pos.x(), pos.z(), closestMeteorite.getX(), closestMeteorite.getZ()) + playerRotation;
             }
+
+            return getSpinningRotation(TARGET_REACHED_SPIN_MS);
         }
 
-        long timeMillis = System.currentTimeMillis() % 3000L;
-        return timeMillis / 3000.0F * (float) Math.PI * 2.0F;
+        return getSpinningRotation(IDLE_SPIN_MS);
+    }
+
+    private static float getSpinningRotation(long cycleMillis) {
+        long timeMillis = System.currentTimeMillis() % cycleMillis;
+        return timeMillis / (float) cycleMillis * (float) Math.PI * 2.0F;
     }
 
     private static double rad(double ax, double az, double bx, double bz) {
