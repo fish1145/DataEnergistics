@@ -53,10 +53,10 @@ public class DataDistributionTowerConnectionModeButton extends Button implements
             return;
         }
 
-        Icon icon = this.mode == ConnectionMode.AE_ONLY ? Icon.POWER_UNIT_AE : Icon.POWER_UNIT_RF;
-        icon.getBlitter()
+        String icon = this.mode == ConnectionMode.AE_ONLY ? "POWER_UNIT_I" : "POWER_UNIT_F";
+        DataEnergisticsIcon.getBlitter(icon)
                 .dest(this.getX(), this.getY() + 1 + yOffset)
-                .zOffset(3)
+                .zOffset(4)
                 .blit(guiGraphics);
     }
 

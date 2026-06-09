@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
+import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
@@ -35,8 +36,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
     private static final ResourceLocation LIST_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/list.png");
     private static final int LIST_TEXTURE_SIZE = 256;
-    private static final int LIST_PANEL_TEXTURE_WIDTH = 160;
-    private static final int LIST_PANEL_TEXTURE_HEIGHT = 144;
+    private static final int LIST_PANEL_SOURCE_SIZE = 128;
     private static final int LIST_PANEL_SLICE = 6;
     private static final int LIST_X = 13;
     private static final int LIST_Y = 52;
@@ -45,11 +45,16 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int LIST_VISIBLE_ROWS = 5;
     private static final int POPUP_MARGIN = -12;
     private static final int POPUP_Y = 48;
-    private static final int POPUP_WIDTH = 156;
-    private static final int POPUP_HEIGHT = 86;
-    private static final int POPUP_BUTTON_Y = POPUP_Y + 21;
-    private static final int POPUP_BUTTON_WIDTH = 46;
-    private static final int POPUP_BUTTON_HEIGHT = 14;
+    private static final int POPUP_WIDTH = 192;
+    private static final int POPUP_HEIGHT = 124;
+    private static final int POPUP_TITLE_X = 12;
+    private static final int POPUP_TITLE_Y = 8;
+    private static final int POPUP_BUTTON_Y_OFFSET = 34;
+    private static final int POPUP_INFO_Y_OFFSET = 68;
+    private static final int POPUP_LINE_GAP = 12;
+    private static final float POPUP_TEXT_SCALE = 1.0F;
+    private static final int POPUP_BUTTON_SCALE = 1;
+    private static final int POPUP_CLOSE_SIZE = 16;
     private static final int POPUP_EXCLUSION_PADDING = 4;
     private static final int SELECTED_ROW_COLOR = 0x803976D8;
     private static final int SEARCH_X = 94;
@@ -61,11 +66,15 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private final Scrollbar scrollbar;
     private final DataExtractorToggleButton rangeVisibleButton;
     private final DataDistributionTowerConnectionModeButton connectionModeButton;
+    private final DataDistributionTowerTextureToggleButton disabledTargetsButton;
+    private DataDistributionTowerTextureToggleButton targetChannelButton;
+    private DataDistributionTowerTextureToggleButton targetEnergyButton;
     private List<BoundRow> allRows = List.of();
     private List<BoundRow> cachedRows = List.of();
     private TargetRef popupTarget;
     private AETextField searchBox;
     private String searchQuery = "";
+    private boolean disabledTargetsOnly;
 
     public DataDistributionTowerScreen(DataDistributionTowerMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -80,6 +89,14 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         this.addToLeftToolbar(this.rangeVisibleButton);
         this.connectionModeButton = new DataDistributionTowerConnectionModeButton(this.menu::sendSetConnectionMode);
         this.addToLeftToolbar(this.connectionModeButton);
+        this.disabledTargetsButton = new DataDistributionTowerTextureToggleButton(
+                "POWER_UNIT_BLACK_LIST",
+                "POWER_UNIT_WHITE_LIST",
+                "button.data_energistics.data_distribution_tower.disabled_targets",
+                "button.data_energistics.data_distribution_tower.disabled_targets.enabled",
+                "button.data_energistics.data_distribution_tower.disabled_targets.disabled",
+                this::setDisabledTargetsOnly);
+        this.addToLeftToolbar(this.disabledTargetsButton);
         refreshFromServer();
     }
 
@@ -103,6 +120,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         });
         updateSearchSuggestion();
         this.addRenderableWidget(this.searchBox);
+        initTargetPopupButtons();
         applySearchFilter();
     }
 
@@ -126,10 +144,12 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                 this.menu.rangeVisible ? "screen.data_energistics.data_distribution_tower.range_visible.on" : "screen.data_energistics.data_distribution_tower.range_visible.off"));
         this.rangeVisibleButton.setState(this.menu.rangeVisible);
         this.connectionModeButton.setMode(ConnectionMode.fromOrdinal(this.menu.connectionMode));
+        this.disabledTargetsButton.setState(this.disabledTargetsOnly);
         setTextContent("bound_title", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.bound_title",
                 this.menu.boundTargetCount));
         setTextContent("player_inventory_title", Component.empty());
+        updateTargetPopupButtons();
     }
 
     private Component formatRangeText(int chunkRadius) {
@@ -154,7 +174,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             int y = LIST_Y + (i - start) * LIST_ROW_HEIGHT;
             BoundRow row = lines.get(i);
             if (isPopupTarget(row)) {
-                guiGraphics.fill(LIST_X - 2, y - 3, LIST_X + LIST_WIDTH + 2, y + LIST_ROW_HEIGHT, SELECTED_ROW_COLOR);
+                guiGraphics.fill(LIST_X, y - 3, LIST_X + LIST_WIDTH - 12, y + LIST_ROW_HEIGHT, SELECTED_ROW_COLOR);
             }
             renderRowIcon(guiGraphics, row.iconStack(), LIST_X, y - 2);
             String line = row.displayText();
@@ -252,11 +272,18 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private void applySearchFilter() {
         String filter = PinyinUtil.normalizeSearch(this.searchQuery);
         if (filter.isEmpty()) {
-            this.cachedRows = List.copyOf(this.allRows);
+            this.cachedRows = this.allRows.stream()
+                    .filter(this::matchesDisabledTargetsFilter)
+                    .toList();
         } else {
             this.cachedRows = this.allRows.stream()
+                    .filter(this::matchesDisabledTargetsFilter)
                     .filter(row -> PinyinUtil.matchesSearch(row.displayText(), filter))
                     .toList();
+        }
+
+        if (this.popupTarget != null && this.cachedRows.stream().noneMatch(row -> row.target().equals(this.popupTarget))) {
+            this.popupTarget = null;
         }
 
         int hiddenRows = Math.max(0, this.cachedRows.size() - LIST_VISIBLE_ROWS);
@@ -299,6 +326,15 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         return rows;
     }
 
+    private void setDisabledTargetsOnly(boolean disabledTargetsOnly) {
+        this.disabledTargetsOnly = disabledTargetsOnly;
+        applySearchFilter();
+    }
+
+    private boolean matchesDisabledTargetsFilter(BoundRow row) {
+        return !this.disabledTargetsOnly || row.placeholder() || row.mode() == TargetMode.DISABLED;
+    }
+
     private ItemStack toStack(String itemId) {
         try {
             var item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
@@ -336,51 +372,37 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return;
         }
 
-        drawListPanel(guiGraphics, getPopupX(), POPUP_Y, POPUP_WIDTH, POPUP_HEIGHT);
+        Rect2i popupBounds = getPopupBounds();
+        int popupX = popupBounds.getX() - this.leftPos;
+        int popupY = popupBounds.getY() - this.topPos;
+        drawListPanel(guiGraphics, popupX, popupY, POPUP_WIDTH, POPUP_HEIGHT);
 
         enablePopupScissor(guiGraphics);
         try {
-            int popupX = getPopupX();
-            String title = trimTextToWidth(popupRow.displayText(), POPUP_WIDTH - 27);
-            guiGraphics.drawString(this.font, title, popupX + 7, POPUP_Y + 6, getRowColor(popupRow.kind()), false);
-            guiGraphics.drawString(this.font, "x", popupX + POPUP_WIDTH - 11, POPUP_Y + 6, 0xB8B8B8, false);
-
-            int channelButtonX = popupX + 7;
-            int energyButtonX = popupX + 59;
-            drawToggleButton(guiGraphics,
-                    Component.translatable("screen.data_energistics.data_distribution_tower.target_channel_toggle").getString(),
-                    popupRow.mode().allowsAe(),
-                    channelButtonX,
-                    POPUP_BUTTON_Y,
-                    POPUP_BUTTON_WIDTH,
-                    POPUP_BUTTON_HEIGHT,
-                    0xD58CFF);
-            drawToggleButton(guiGraphics,
-                    Component.translatable("screen.data_energistics.data_distribution_tower.target_energy_toggle").getString(),
-                    popupRow.mode().allowsFe(),
-                    energyButtonX,
-                    POPUP_BUTTON_Y,
-                    POPUP_BUTTON_WIDTH,
-                    POPUP_BUTTON_HEIGHT,
-                    0x9FFFA8);
+            String title = trimTextToWidth(popupRow.displayText(), POPUP_WIDTH - POPUP_CLOSE_SIZE - 30);
+            guiGraphics.drawString(this.font, title, popupX + POPUP_TITLE_X, popupY + POPUP_TITLE_Y, getRowColor(popupRow.kind()), false);
+            Icon.CLEAR.getBlitter()
+                    .dest(popupX + POPUP_WIDTH - POPUP_CLOSE_SIZE - 10, popupY + 6, POPUP_CLOSE_SIZE, POPUP_CLOSE_SIZE)
+                    .zOffset(4)
+                    .blit(guiGraphics);
 
             TransferInfo info = popupRow.transferInfo();
-            int y = POPUP_Y + 39;
-            drawPopupLine(guiGraphics, Component.translatable(
+            int y = popupY + POPUP_INFO_Y_OFFSET;
+            drawPopupLine(guiGraphics, popupX, Component.translatable(
                     "screen.data_energistics.data_distribution_tower.target_mode",
                     Component.translatable("button.data_energistics.data_distribution_tower.target_mode." + popupRow.mode().serializedName())).getString(), y, getModeColor(popupRow.mode()));
-            y += 10;
-            drawPopupLine(guiGraphics, Component.translatable(
+            y += POPUP_LINE_GAP;
+            drawPopupLine(guiGraphics, popupX, Component.translatable(
                     "screen.data_energistics.data_distribution_tower.target_channels",
                     info.channelConnections(),
                     info.hasAeTarget() ? Component.translatable("screen.data_energistics.data_distribution_tower.available") : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable")).getString(), y, 0xD58CFF);
-            y += 10;
+            y += POPUP_LINE_GAP;
             String feText = info.hasEnergyTarget() ? formatFeAmount(info.storedFe()) + " / " + formatFeAmount(info.capacityFe()) + " FE" : Component.translatable("screen.data_energistics.data_distribution_tower.unavailable").getString();
-            drawPopupLine(guiGraphics, Component.translatable(
+            drawPopupLine(guiGraphics, popupX, Component.translatable(
                     "screen.data_energistics.data_distribution_tower.target_energy",
                     feText).getString(), y, 0x9FFFA8);
-            y += 10;
-            drawPopupLine(guiGraphics, Component.translatable(
+            y += POPUP_LINE_GAP;
+            drawPopupLine(guiGraphics, popupX, Component.translatable(
                     "screen.data_energistics.data_distribution_tower.target_energy_io",
                     formatBoolean(info.canExtractFe()),
                     formatBoolean(info.canReceiveFe())).getString(), y, 0xA8A8A8);
@@ -389,23 +411,17 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         }
     }
 
-    private void drawToggleButton(GuiGraphics guiGraphics, String label, boolean enabled, int x, int y, int width, int height, int color) {
-        int background = enabled ? 0x552D5E52 : 0x5526282D;
-        int border = enabled ? color : 0xFF555B62;
-        guiGraphics.fill(x, y, x + width, y + height, background);
-        guiGraphics.fill(x, y, x + width, y + 1, border);
-        guiGraphics.fill(x, y + height - 1, x + width, y + height, border);
-        guiGraphics.fill(x, y, x + 1, y + height, border);
-        guiGraphics.fill(x + width - 1, y, x + width, y + height, border);
-
-        String text = label;
-        text = trimTextToWidth(text, width - 8);
-        guiGraphics.drawString(this.font, text, x + 4, y + 3, enabled ? 0xFFFFFF : 0xA8A8A8, false);
-    }
-
-    private void drawPopupLine(GuiGraphics guiGraphics, String line, int y, int color) {
-        line = trimTextToWidth(line, POPUP_WIDTH - 14);
-        guiGraphics.drawString(this.font, line, getPopupX() + 7, y, color, false);
+    private void drawPopupLine(GuiGraphics guiGraphics, int popupX, String line, int y, int color) {
+        line = trimTextToWidth(line, POPUP_WIDTH - 24, POPUP_TEXT_SCALE);
+        var pose = guiGraphics.pose();
+        pose.pushPose();
+        pose.scale(POPUP_TEXT_SCALE, POPUP_TEXT_SCALE, 1.0F);
+        guiGraphics.drawString(this.font, line,
+                Math.round((popupX + 12) / POPUP_TEXT_SCALE),
+                Math.round(y / POPUP_TEXT_SCALE),
+                color,
+                false);
+        pose.popPose();
     }
 
     private String trimTextToWidth(String text, int maxWidth) {
@@ -418,6 +434,11 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return "";
         }
         return this.font.plainSubstrByWidth(text, maxWidth - ellipsisWidth) + "...";
+    }
+
+    private String trimTextToWidth(String text, int maxWidth, float scale) {
+        int scaledWidth = (int) Math.floor(maxWidth / scale);
+        return trimTextToWidth(text, scaledWidth);
     }
 
     private Component formatBoolean(boolean value) {
@@ -451,23 +472,14 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
         int localX = (int) mouseX - this.leftPos;
         int localY = (int) mouseY - this.topPos;
-        int popupX = getPopupX();
-        if (localX >= popupX + POPUP_WIDTH - 14 && localX <= popupX + POPUP_WIDTH - 4 && localY >= POPUP_Y + 4 && localY <= POPUP_Y + 16) {
+        int popupX = getPopupLocalX();
+        int popupY = getPopupLocalY();
+        if (isInRect(localX, localY, popupX + POPUP_WIDTH - POPUP_CLOSE_SIZE - 10, popupY + 6, POPUP_CLOSE_SIZE, POPUP_CLOSE_SIZE)) {
             this.popupTarget = null;
             return true;
         }
 
-        if (isInRect(localX, localY, popupX + 7, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
-            setPopupTargetMode(popupRow, popupRow.mode().withAe(!popupRow.mode().allowsAe()));
-            return true;
-        }
-
-        if (isInRect(localX, localY, popupX + 59, POPUP_BUTTON_Y, POPUP_BUTTON_WIDTH, POPUP_BUTTON_HEIGHT)) {
-            setPopupTargetMode(popupRow, popupRow.mode().withFe(!popupRow.mode().allowsFe()));
-            return true;
-        }
-
-        return true;
+        return false;
     }
 
     private void setPopupTargetMode(BoundRow row, TargetMode mode) {
@@ -482,7 +494,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private boolean isInsideTargetPopup(double mouseX, double mouseY) {
         int localX = (int) mouseX - this.leftPos;
         int localY = (int) mouseY - this.topPos;
-        return isInRect(localX, localY, getPopupX(), POPUP_Y, POPUP_WIDTH, POPUP_HEIGHT);
+        return isInRect(localX, localY, getPopupLocalX(), getPopupLocalY(), POPUP_WIDTH, POPUP_HEIGHT);
     }
 
     private boolean isInRect(int x, int y, int rectX, int rectY, int width, int height) {
@@ -490,21 +502,83 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     }
 
     private void enablePopupScissor(GuiGraphics guiGraphics) {
-        int x = this.leftPos + getPopupX();
-        int y = this.topPos + POPUP_Y;
-        guiGraphics.enableScissor(x, y, x + POPUP_WIDTH, y + POPUP_HEIGHT);
-    }
-
-    private int getPopupX() {
-        return this.imageWidth + POPUP_MARGIN;
+        Rect2i popupBounds = getPopupBounds();
+        guiGraphics.enableScissor(
+                popupBounds.getX(),
+                popupBounds.getY(),
+                popupBounds.getX() + POPUP_WIDTH,
+                popupBounds.getY() + POPUP_HEIGHT);
     }
 
     private Rect2i getPopupExclusionBounds() {
+        Rect2i popupBounds = getPopupBounds();
         return new Rect2i(
-                this.leftPos + getPopupX() - POPUP_EXCLUSION_PADDING,
-                this.topPos + POPUP_Y - POPUP_EXCLUSION_PADDING,
+                popupBounds.getX() - POPUP_EXCLUSION_PADDING,
+                popupBounds.getY() - POPUP_EXCLUSION_PADDING,
                 POPUP_WIDTH + POPUP_EXCLUSION_PADDING * 2,
                 POPUP_HEIGHT + POPUP_EXCLUSION_PADDING * 2);
+    }
+
+    private void initTargetPopupButtons() {
+        this.targetChannelButton = new DataDistributionTowerTextureToggleButton(
+                "POWER_UNIT_I",
+                "POWER_UNIT_NO",
+                "screen.data_energistics.data_distribution_tower.target_channel_toggle",
+                "screen.data_energistics.data_distribution_tower.on",
+                "screen.data_energistics.data_distribution_tower.off",
+                enabled -> {
+                    BoundRow row = getPopupRow();
+                    if (row != null) {
+                        setPopupTargetMode(row, row.mode().withAe(enabled));
+                    }
+                });
+        this.targetChannelButton.visible = false;
+        this.targetChannelButton.active = false;
+        this.addRenderableWidget(this.targetChannelButton);
+
+        this.targetEnergyButton = new DataDistributionTowerTextureToggleButton(
+                "POWER_UNIT_F",
+                "POWER_UNIT_NO",
+                "screen.data_energistics.data_distribution_tower.target_energy_toggle",
+                "screen.data_energistics.data_distribution_tower.on",
+                "screen.data_energistics.data_distribution_tower.off",
+                enabled -> {
+                    BoundRow row = getPopupRow();
+                    if (row != null) {
+                        setPopupTargetMode(row, row.mode().withFe(enabled));
+                    }
+                });
+        this.targetEnergyButton.visible = false;
+        this.targetEnergyButton.active = false;
+        this.addRenderableWidget(this.targetEnergyButton);
+    }
+
+    private void updateTargetPopupButtons() {
+        if (this.targetChannelButton == null || this.targetEnergyButton == null) {
+            return;
+        }
+
+        BoundRow popupRow = getPopupRow();
+        boolean visible = popupRow != null;
+        this.targetChannelButton.visible = visible;
+        this.targetChannelButton.active = visible;
+        this.targetEnergyButton.visible = visible;
+        this.targetEnergyButton.active = visible;
+        if (!visible) {
+            return;
+        }
+
+        Rect2i popupBounds = getPopupBounds();
+        int popupX = popupBounds.getX();
+        int buttonY = popupBounds.getY() + POPUP_BUTTON_Y_OFFSET;
+        this.targetChannelButton.setVisualScale(POPUP_BUTTON_SCALE);
+        this.targetEnergyButton.setVisualScale(POPUP_BUTTON_SCALE);
+        this.targetChannelButton.setX(popupX + 12);
+        this.targetChannelButton.setY(buttonY);
+        this.targetChannelButton.setState(popupRow.mode().allowsAe());
+        this.targetEnergyButton.setX(popupX + 36);
+        this.targetEnergyButton.setY(buttonY);
+        this.targetEnergyButton.setState(popupRow.mode().allowsFe());
     }
 
     private boolean isPopupTarget(BoundRow row) {
@@ -512,47 +586,79 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     }
 
     private void drawListPanel(GuiGraphics guiGraphics, int x, int y, int width, int height) {
-        drawNineSlicedTexture(guiGraphics, LIST_TEXTURE, x, y, width, height,
-                LIST_PANEL_TEXTURE_WIDTH, LIST_PANEL_TEXTURE_HEIGHT,
+        drawNineSlicedListPanel(guiGraphics, x, y, width, height,
                 LIST_PANEL_SLICE, LIST_PANEL_SLICE, LIST_PANEL_SLICE, LIST_PANEL_SLICE);
     }
 
-    private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int width, int height,
-                                       int srcWidth, int srcHeight, int left, int top, int right, int bottom) {
+    private void drawNineSlicedListPanel(GuiGraphics guiGraphics, int x, int y, int width, int height,
+                                         int left, int top, int right, int bottom) {
         int centerDstWidth = Math.max(0, width - left - right);
         int centerDstHeight = Math.max(0, height - top - bottom);
-        blitTexture(guiGraphics, texture, x, y, 0, 0, left, top);
-        blitTexture(guiGraphics, texture, x + width - right, y, srcWidth - right, 0, right, top);
-        blitTexture(guiGraphics, texture, x, y + height - bottom, 0, srcHeight - bottom, left, bottom);
-        blitTexture(guiGraphics, texture, x + width - right, y + height - bottom,
-                srcWidth - right, srcHeight - bottom, right, bottom);
+        int centerSrcWidth = LIST_PANEL_SOURCE_SIZE - left - right;
+        int centerSrcHeight = LIST_PANEL_SOURCE_SIZE - top - bottom;
+
+        drawScaledListRegion(guiGraphics, x, y, 0, 0, left, top, left, top);
+        drawScaledListRegion(guiGraphics, x + width - right, y, LIST_PANEL_SOURCE_SIZE - right, 0, right, top, right, top);
+        drawScaledListRegion(guiGraphics, x, y + height - bottom, 0, LIST_PANEL_SOURCE_SIZE - bottom, left, bottom, left, bottom);
+        drawScaledListRegion(guiGraphics, x + width - right, y + height - bottom,
+                LIST_PANEL_SOURCE_SIZE - right, LIST_PANEL_SOURCE_SIZE - bottom, right, bottom, right, bottom);
 
         if (centerDstWidth > 0) {
-            blitTexture(guiGraphics, texture, x + left, y, left, 0, centerDstWidth, top);
-            blitTexture(guiGraphics, texture, x + left, y + height - bottom,
-                    left, srcHeight - bottom, centerDstWidth, bottom);
+            drawScaledListRegion(guiGraphics, x + left, y, left, 0, centerSrcWidth, top, centerDstWidth, top);
+            drawScaledListRegion(guiGraphics, x + left, y + height - bottom,
+                    left, LIST_PANEL_SOURCE_SIZE - bottom, centerSrcWidth, bottom, centerDstWidth, bottom);
         }
 
         if (centerDstHeight > 0) {
-            blitTexture(guiGraphics, texture, x, y + top, 0, top, left, centerDstHeight);
-            blitTexture(guiGraphics, texture, x + width - right, y + top,
-                    srcWidth - right, top, right, centerDstHeight);
+            drawScaledListRegion(guiGraphics, x, y + top, 0, top, left, centerSrcHeight, left, centerDstHeight);
+            drawScaledListRegion(guiGraphics, x + width - right, y + top,
+                    LIST_PANEL_SOURCE_SIZE - right, top, right, centerSrcHeight, right, centerDstHeight);
         }
 
         if (centerDstWidth > 0 && centerDstHeight > 0) {
-            blitTexture(guiGraphics, texture, x + left, y + top, left, top, centerDstWidth, centerDstHeight);
+            drawScaledListRegion(guiGraphics, x + left, y + top, left, top,
+                    centerSrcWidth, centerSrcHeight, centerDstWidth, centerDstHeight);
         }
     }
 
-    private void blitTexture(GuiGraphics guiGraphics, ResourceLocation texture, int x, int y, int srcX, int srcY, int width, int height) {
-        guiGraphics.blit(texture, x, y, 0, srcX, srcY, width, height,
+    private void drawScaledListRegion(GuiGraphics guiGraphics, int x, int y, int srcX, int srcY,
+                                      int srcWidth, int srcHeight, int dstWidth, int dstHeight) {
+        if (srcWidth <= 0 || srcHeight <= 0 || dstWidth <= 0 || dstHeight <= 0) {
+            return;
+        }
+
+        var pose = guiGraphics.pose();
+        pose.pushPose();
+        pose.translate(x, y, 0.0F);
+        pose.scale(dstWidth / (float) srcWidth, dstHeight / (float) srcHeight, 1.0F);
+        guiGraphics.blit(LIST_TEXTURE, 0, 0, 0, srcX, srcY, srcWidth, srcHeight,
                 LIST_TEXTURE_SIZE, LIST_TEXTURE_SIZE);
+        pose.popPose();
+    }
+
+    private Rect2i getPopupBounds() {
+        int preferredX = this.leftPos + this.imageWidth + POPUP_MARGIN;
+        int preferredY = this.topPos + POPUP_Y;
+        int x = Math.max(4, Math.min(preferredX, this.width - POPUP_WIDTH - 4));
+        int y = Math.max(4, Math.min(preferredY, this.height - POPUP_HEIGHT - 4));
+        return new Rect2i(x, y, POPUP_WIDTH, POPUP_HEIGHT);
+    }
+
+    private int getPopupLocalX() {
+        return getPopupBounds().getX() - this.leftPos;
+    }
+
+    private int getPopupLocalY() {
+        return getPopupBounds().getY() - this.topPos;
     }
 
     private String getEmptyStateText() {
         if (!PinyinUtil.normalizeSearch(this.searchQuery).isEmpty()) {
             return Component.translatable(
                     "screen.data_energistics.data_distribution_tower.search_no_match").getString();
+        }
+        if (this.disabledTargetsOnly) {
+            return Component.translatable("screen.data_energistics.data_distribution_tower.disabled_none").getString();
         }
         return Component.translatable("screen.data_energistics.data_distribution_tower.bound_none").getString();
     }
