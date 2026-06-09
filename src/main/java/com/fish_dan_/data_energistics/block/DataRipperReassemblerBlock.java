@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.block.AEBaseBlock;
+import appeng.hooks.WrenchHook;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
@@ -82,7 +83,7 @@ public class DataRipperReassemblerBlock extends AEBaseBlock implements EntityBlo
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide() && level.getBlockEntity(pos) instanceof DataRipperReassemblerBlockEntity reassembler) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide() && !WrenchHook.isDisassembling() && level.getBlockEntity(pos) instanceof DataRipperReassemblerBlockEntity reassembler) {
             reassembler.dropContents(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);

@@ -34,6 +34,7 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.block.AEBaseBlock;
+import appeng.hooks.WrenchHook;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
@@ -110,7 +111,7 @@ public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide()) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide() && !WrenchHook.isDisassembling()) {
             dropAdditionalContents(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);

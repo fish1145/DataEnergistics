@@ -36,6 +36,7 @@ import appeng.api.orientation.IOrientationStrategy;
 import appeng.api.orientation.OrientationStrategies;
 import appeng.api.orientation.RelativeSide;
 import appeng.block.AEBaseBlock;
+import appeng.hooks.WrenchHook;
 import org.jetbrains.annotations.Nullable;
 
 public class DataChargerBlock extends AEBaseBlock implements EntityBlock {
@@ -141,7 +142,7 @@ public class DataChargerBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide() && level.getBlockEntity(pos) instanceof DataChargerBlockEntity charger) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide() && !WrenchHook.isDisassembling() && level.getBlockEntity(pos) instanceof DataChargerBlockEntity charger) {
             charger.dropContents(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);
