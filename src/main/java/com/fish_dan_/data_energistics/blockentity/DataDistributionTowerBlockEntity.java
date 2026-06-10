@@ -961,11 +961,26 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         readyTargets.sort(this::compareLinkTargetPriority);
         int remainingChannels = Math.max(0, getMaxLinkChannels() - selfNode.getUsedChannels());
-        int maxReconnectsThisTick = remainingChannels <= 0 ? 1 : Math.min(remainingChannels, readyTargets.size());
-        for (int i = 0; i < maxReconnectsThisTick; i++) {
-            BlockPos targetPos = readyTargets.get(i);
-            reconnectTarget(selfNode, targetPos);
+        if (remainingChannels <= 0) {
+            return;
+        }
+
+        for (BlockPos targetPos : readyTargets) {
+            List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
+            if (linkableNodes.isEmpty()) {
+                this.pendingLinkPositions.remove(targetPos);
+                continue;
+            }
+            if (linkableNodes.size() > remainingChannels) {
+                continue;
+            }
+
+            int connectedNodes = reconnectTarget(selfNode, targetPos, linkableNodes);
             this.pendingLinkPositions.remove(targetPos);
+            remainingChannels -= connectedNodes;
+            if (remainingChannels <= 0) {
+                break;
+            }
         }
     }
 
@@ -2118,44 +2133,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.invalidateClusterCache();
     }
 
-    private void reconnectTarget(IGridNode selfNode, BlockPos targetPos) {
+    private int reconnectTarget(IGridNode selfNode, BlockPos targetPos, List<IGridNode> targetNodes) {
         destroyTargetConnections(targetPos);
 
         this.linkedPositions.remove(targetPos);
 
-        if (!canMaintainGridLinkTo(targetPos)) {
-            this.setChanged();
-            return;
-        }
-
-        List<IGridNode> targetNodes = getConnectableNodes(this.level, targetPos);
         if (targetNodes.isEmpty()) {
             this.setChanged();
-            return;
+            return 0;
         }
 
         ArrayList<IGridConnection> newConnections = new ArrayList<>();
         for (IGridNode targetNode : targetNodes) {
-            if (targetNode == null || targetNode == selfNode) {
-                continue;
-            }
-
-            IGrid targetGrid = targetNode.getGrid();
-            IGrid selfGrid = selfNode.getGrid();
-            if (targetGrid != null && selfGrid != null) {
-                if (targetGrid == selfGrid) {
-                    if (targetNode.meetsChannelRequirements()) {
-                        continue;
-                    }
-                } else {
-                    ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
-                    ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
-                    if (targetControllerState != ControllerState.NO_CONTROLLER && selfControllerState != ControllerState.NO_CONTROLLER) {
-                        continue;
-                    }
-                }
-            }
-
             try {
                 newConnections.add(GridHelper.createConnection(selfNode, targetNode));
             } catch (IllegalStateException ignored) {}
@@ -2163,7 +2152,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (newConnections.isEmpty()) {
             this.setChanged();
-            return;
+            return 0;
         }
 
         this.linkedConnections.put(targetPos.immutable(), newConnections);
@@ -2171,6 +2160,49 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.invalidateEndpointCache();
         this.invalidateClusterCache();
         this.setChanged();
+        return newConnections.size();
+    }
+
+    private List<IGridNode> getLinkableTargetNodes(IGridNode selfNode, BlockPos targetPos) {
+        if (!canMaintainGridLinkTo(targetPos)) {
+            return List.of();
+        }
+
+        List<IGridNode> targetNodes = getConnectableNodes(this.level, targetPos);
+        if (targetNodes.isEmpty()) {
+            return List.of();
+        }
+
+        boolean towerTarget = this.level.getBlockEntity(targetPos) instanceof DataDistributionTowerBlockEntity;
+        ArrayList<IGridNode> linkableNodes = new ArrayList<>();
+        for (IGridNode targetNode : targetNodes) {
+            if (isLinkableTargetNode(selfNode, targetNode, towerTarget)) {
+                linkableNodes.add(targetNode);
+            }
+        }
+        return List.copyOf(linkableNodes);
+    }
+
+    private boolean isLinkableTargetNode(IGridNode selfNode, @Nullable IGridNode targetNode, boolean towerTarget) {
+        if (targetNode == null || targetNode == selfNode) {
+            return false;
+        }
+        if (!towerTarget && targetNode.isOnline()) {
+            return false;
+        }
+
+        IGrid targetGrid = targetNode.getGrid();
+        IGrid selfGrid = selfNode.getGrid();
+        if (targetGrid != null && selfGrid != null) {
+            if (targetGrid == selfGrid) {
+                return !targetNode.meetsChannelRequirements();
+            }
+
+            ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
+            ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
+            return targetControllerState == ControllerState.NO_CONTROLLER || selfControllerState == ControllerState.NO_CONTROLLER;
+        }
+        return true;
     }
 
     private void requeuePersistedLinks() {
