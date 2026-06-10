@@ -685,7 +685,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         LinkedHashMap<BlockPos, TargetKind> positions = new LinkedHashMap<>();
 
         for (BlockPos pos : this.linkedPositions) {
-            if (allowsAeTargets() && targetAllowsAe(pos) && !this.level.getBlockState(pos).isAir()) {
+            if (allowsAeTargets() && getTargetTransferMode(pos) != TargetTransferMode.DISABLED && !this.level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = this.level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
                     positions.put(pos.immutable(), TargetKind.AE);
