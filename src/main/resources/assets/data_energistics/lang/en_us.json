@@ -350,5 +350,8 @@
 	"jade.data_energistics.data_charger.accepts": "Accepts AE / Data Flow: %s / %s",
 	"item.data_energistics.data_sanctum_interface_part": "Extreme Capacity Interface",
 	"item.data_energistics.data_sanctum_interface_upgrade": "Extreme Capacity Interface Upgrade",
-	"item.data_energistics.adaptive_pattern_provider_upgrade": "Adaptive Pattern Provider Upgrade"
+	"item.data_energistics.adaptive_pattern_provider_upgrade": "Adaptive Pattern Provider Upgrade",
+	"exported_setting.data_energistics.machine_memory_card_settings": "Machine Settings",
+	"exported_setting.data_energistics.adaptive_pattern_provider_settings": "Adaptive Pattern Provider Settings",
+	"exported_setting.data_energistics.redstone_tuning_mode": "Redstone Tuning Mode"
 }

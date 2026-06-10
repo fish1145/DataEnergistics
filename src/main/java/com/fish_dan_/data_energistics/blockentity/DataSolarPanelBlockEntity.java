@@ -5,12 +5,15 @@ import com.fish_dan_.data_energistics.config.SolarPanelConfig;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -27,6 +30,8 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
+import appeng.util.SettingsFrom;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -154,6 +159,31 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         super.saveAdditional(data, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = new CompoundTag();
+        settings.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
+        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (settings != null && settings.contains(REDSTONE_CONTROLLED_TAG)) {
+            setRedstoneControlled(settings.getBoolean(REDSTONE_CONTROLLED_TAG));
+        }
     }
 
     @Override

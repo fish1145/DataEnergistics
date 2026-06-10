@@ -355,5 +355,8 @@
 	"jade.data_energistics.data_charger.accepts": "可接收 AE / 数据流：%s / %s",
 	"item.data_energistics.data_sanctum_interface_part": "极限承载接口",
 	"item.data_energistics.data_sanctum_interface_upgrade": "极限承载接口升级件",
-	"item.data_energistics.adaptive_pattern_provider_upgrade": "自适应样板供应器升级件"
+	"item.data_energistics.adaptive_pattern_provider_upgrade": "自适应样板供应器升级件",
+	"exported_setting.data_energistics.machine_memory_card_settings": "机器设置",
+	"exported_setting.data_energistics.adaptive_pattern_provider_settings": "自适应样板供应器设置",
+	"exported_setting.data_energistics.redstone_tuning_mode": "红石调整模式"
 }
