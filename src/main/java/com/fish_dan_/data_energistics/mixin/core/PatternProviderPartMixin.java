@@ -4,18 +4,14 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.parts.crafting.PatternProviderPart;
-import appeng.util.SettingsFrom;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -72,30 +68,6 @@ public abstract class PatternProviderPartMixin implements PatternProviderHostAcc
     private void dataEnergistics$writeTuning(CompoundTag data, HolderLookup.Provider registries, CallbackInfo ci) {
         this.dataEnergistics$ensureUpgradeInventory().writeToNBT(data, DATA_ENERGISTICS_REDSTONE_UPGRADES_TAG, registries);
         data.putString(DATA_ENERGISTICS_REDSTONE_TUNING_TAG, this.dataEnergistics$redstoneTuningMode.name());
-    }
-
-    @Inject(method = "exportSettings", at = @At("TAIL"))
-    private void dataEnergistics$exportTuning(SettingsFrom mode, DataComponentMap.Builder builder, CallbackInfo ci) {
-        if (mode == SettingsFrom.MEMORY_CARD) {
-            builder.set(ModDataComponents.REDSTONE_TUNING_MODE.get(), this.dataEnergistics$getRedstoneTuningMode().ordinal());
-        }
-    }
-
-    @Inject(method = "importSettings", at = @At("TAIL"))
-    private void dataEnergistics$importTuning(SettingsFrom mode, DataComponentMap input, Player player, CallbackInfo ci) {
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        Integer ordinal = input.get(ModDataComponents.REDSTONE_TUNING_MODE.get());
-        if (ordinal == null) {
-            return;
-        }
-
-        RedstoneTuningMode[] values = RedstoneTuningMode.values();
-        if (ordinal >= 0 && ordinal < values.length) {
-            this.dataEnergistics$setRedstoneTuningMode(values[ordinal]);
-        }
     }
 
     @Inject(method = "clearContent", at = @At("TAIL"))

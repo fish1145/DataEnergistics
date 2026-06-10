@@ -8,14 +8,11 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicTickAccessor;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -63,7 +60,6 @@ import appeng.menu.locator.MenuHostLocator;
 import appeng.menu.locator.MenuLocators;
 import appeng.parts.AEBasePart;
 import appeng.parts.PartModel;
-import appeng.util.SettingsFrom;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
@@ -174,31 +170,6 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
     }
 
     @Override
-    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder) {
-        super.exportSettings(mode, builder);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = new CompoundTag();
-        settings.putInt(ACTIVE_PULL_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(getActivePullSides()));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
-    }
-
-    @Override
-    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
-        super.importSettings(mode, input, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
-        if (settings != null) {
-            applyMemoryCardSettings(settings);
-        }
-    }
-
-    @Override
     public void addAdditionalDrops(List<ItemStack> drops, boolean wrenched) {
         super.addAdditionalDrops(drops, wrenched);
         this.interfaceLogic.addDrops(drops);
@@ -287,23 +258,6 @@ public class DataSanctumInterfacePart extends AEBasePart implements DataSanctumL
             saveChanges();
             markForClientUpdate();
         }
-    }
-
-    private void applyMemoryCardSettings(CompoundTag settings) {
-        if (!settings.contains(ACTIVE_PULL_SIDES_TAG)) {
-            return;
-        }
-
-        Direction fixedSide = getSingleActivePullSide();
-        boolean enabled = fixedSide != null && MemoryCardSettingsHelper.decodeSides(settings.getInt(ACTIVE_PULL_SIDES_TAG)).contains(fixedSide);
-        if (this.activePullEnabled == enabled) {
-            return;
-        }
-
-        this.activePullEnabled = enabled;
-        normalizeActivePullState();
-        saveChanges();
-        markForClientUpdate();
     }
 
     @Override
