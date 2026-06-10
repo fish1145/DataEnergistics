@@ -31,6 +31,7 @@ public final class CuriosDollRendererRegistry {
     public static void register() {
         CuriosRendererRegistry.register(ModBlocks.FISH_DAN.get().asItem(), DollCurioRenderer::new);
         CuriosRendererRegistry.register(ModBlocks.QIUYEQAQ2024.get().asItem(), DollCurioRenderer::new);
+        CuriosRendererRegistry.register(ModBlocks.TED_XENON.get().asItem(), DollCurioRenderer::new);
     }
 
     private static final class DollCurioRenderer implements ICurioRenderer {

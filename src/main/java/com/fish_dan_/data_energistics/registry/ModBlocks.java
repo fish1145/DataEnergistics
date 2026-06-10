@@ -228,6 +228,10 @@ public final class ModBlocks {
             "qiuyeqaq2024",
             DollBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
+    public static final DeferredBlock<Block> TED_XENON = BLOCKS.registerBlock(
+            "tedxenon",
+            DollBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
 
     private ModBlocks() {}
 

@@ -107,6 +107,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_RIPPER);
                         output.accept(ModItems.FISH_DAN);
                         output.accept(ModItems.QIUYEQAQ2024);
+                        output.accept(ModItems.TED_XENON);
                     })
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
                     .build());

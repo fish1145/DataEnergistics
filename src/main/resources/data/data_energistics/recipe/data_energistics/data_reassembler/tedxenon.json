@@ -1,0 +1,70 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "minecraft:black_wool"
+			},
+			"count": 3
+		},
+		{
+			"ingredient": {
+				"item": "minecraft:white_wool"
+			},
+			"count": 2
+		},
+		{
+			"ingredient": {
+				"item": "minecraft:orange_wool"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"tag": "c:gems/data_crystal"
+			},
+			"count": 2
+		},
+		{
+			"ingredient": {
+				"tag": "c:dusts/data_dust"
+			},
+			"count": 12
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:mob_data_carrier"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_circuit_board"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"tag": "c:ingots/digisidian_memorize"
+			},
+			"count": 1
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 1000,
+			"#t": "ae2:f",
+			"id": "minecraft:water"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:tedxenon",
+			"count": 1
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 1800
+	}
+}
