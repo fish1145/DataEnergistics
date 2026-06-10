@@ -74,9 +74,7 @@ public final class DataEnergisticsIcon {
             Resource resource = resourceManager.getResourceOrThrow(statesJson);
             try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-                ResourceLocation texture = root.has("texture")
-                        ? ResourceLocation.parse(root.get("texture").getAsString())
-                        : defaultTexture;
+                ResourceLocation texture = root.has("texture") ? ResourceLocation.parse(root.get("texture").getAsString()) : defaultTexture;
                 int textureWidth = root.has("width") ? root.get("width").getAsInt() : 256;
                 int textureHeight = root.has("height") ? root.get("height").getAsInt() : 256;
                 JsonObject icons = root.getAsJsonObject("icons");

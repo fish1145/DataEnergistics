@@ -166,8 +166,7 @@ public class DataDistributionConnectorItem extends Item {
             return InteractionResult.FAIL;
         }
 
-        String suffix = result.aeSupported() && result.feSupported() ? ".connected.af"
-                : result.aeSupported() ? ".connected.ae" : ".connected.fe";
+        String suffix = result.aeSupported() && result.feSupported() ? ".connected.af" : result.aeSupported() ? ".connected.ae" : ".connected.fe";
         player.displayClientMessage(Component.translatable(
                 KEY_PREFIX + suffix,
                 clickedPos.getX(),
