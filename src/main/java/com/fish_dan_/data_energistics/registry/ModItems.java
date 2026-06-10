@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.item.AdaptivePatternProviderUpgradeItem;
 import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.ConfigurableTntBlockItem;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataMeteoriteCompassItem;
@@ -191,6 +192,9 @@ public final class ModItems {
             () -> new BiologyDataCarrierItem(new Item.Properties(), true));
     public static final DeferredItem<Item> TIME_CORE = ITEMS.registerSimpleItem("time_core");
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
+    public static final DeferredItem<DataDistributionConnectorItem> DATA_DISTRIBUTION_CONNECTOR = ITEMS.register(
+            "data_distribution_connector",
+            () -> new DataDistributionConnectorItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");
     public static final DeferredItem<Item> DATA_CIRCUIT_BOARD = ITEMS.registerSimpleItem("data_circuit_board");
     public static final DeferredItem<Item> DATA_PROCESSOR = ITEMS.registerSimpleItem("data_processor");

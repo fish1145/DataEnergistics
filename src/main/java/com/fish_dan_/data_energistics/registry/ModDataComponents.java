@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.CropDataCarrierItemData;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorItemData;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
@@ -29,6 +30,14 @@ public final class ModDataComponents {
             () -> DataComponentType.<DigitalStorageDepotItemData>builder()
                     .persistent(DigitalStorageDepotItemData.CODEC)
                     .networkSynchronized(DigitalStorageDepotItemData.STREAM_CODEC)
+                    .cacheEncoding()
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<DataDistributionConnectorItemData>> DATA_DISTRIBUTION_CONNECTOR = DATA_COMPONENT_TYPES.register(
+            "data_distribution_connector",
+            () -> DataComponentType.<DataDistributionConnectorItemData>builder()
+                    .persistent(DataDistributionConnectorItemData.CODEC)
+                    .networkSynchronized(DataDistributionConnectorItemData.STREAM_CODEC)
                     .cacheEncoding()
                     .build());
 

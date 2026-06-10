@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -74,16 +75,25 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
@@ -98,8 +108,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
+    private static final String RANGE_ADJUSTMENT_MODE_TAG = "range_adjustment_mode";
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
+    private static final int AUTO_DISCOVERY_INTERVAL_TICKS = 20;
     private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
     private static final int TRANSFER_SCAN_CACHE_TICKS = 5;
     private static final int CLUSTER_CACHE_TICKS = 10;
@@ -112,7 +124,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int BOOSTERS_PER_CHUNK_RING = 8;
     private static final int VERTICAL_RANGE_ABOVE = 256;
     private static final int VERTICAL_RANGE_BELOW = 128;
+    private static final long DIRECT_ENERGY_INSERT_UNAVAILABLE = Long.MIN_VALUE;
+    private static final List<String> DIRECT_ENERGY_FIELD_NAMES = List.of("energy", "storedEnergy", "energyStored", "stored", "amount");
+    private static final List<String> DIRECT_ENERGY_CAPACITY_FIELD_NAMES = List.of("capacity", "maxEnergy", "maxEnergyStored", "maxStored", "maxStorage");
+    private static final List<String> DIRECT_ENERGY_WRAPPER_FIELD_NAMES = List.of("container", "storage", "delegate", "wrapped", "backingStorage");
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
+    private static final Map<Class<?>, Optional<DirectEnergyStorageAccess>> DIRECT_ENERGY_STORAGE_ACCESS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Optional<VarHandle>> DIRECT_ENERGY_WRAPPER_FIELD_CACHE = new ConcurrentHashMap<>();
     private static MinecraftServer boundServer;
 
     private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
@@ -163,9 +181,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
     private int cacheCleanupCooldown;
-    private boolean pendingInitialDiscovery = false;
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
-    private int pendingInitialDiscoveryDelay = 0;
+    private RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.POINT;
+    private int autoDiscoveryCooldown;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
 
@@ -185,7 +203,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             registerInChunkIndex();
             invalidateEndpointCache();
             requeuePersistedLinks();
-            scheduleInitialDiscoveryIfNeeded();
+            resetAutoDiscoveryCooldown();
         }
     }
 
@@ -204,6 +222,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super.loadTag(data, registries);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
         this.connectionMode = ConnectionMode.fromSerializedName(data.getString(CONNECTION_MODE_TAG));
+        this.rangeAdjustmentMode = RangeAdjustmentMode.fromSerializedName(data.getString(RANGE_ADJUSTMENT_MODE_TAG));
         this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
         this.syncedChunkRadius = computeChunkRadius();
         updateIdlePowerUsage();
@@ -241,6 +260,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super.saveAdditional(data, registries);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
         data.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
+        data.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
         ListTag linked = new ListTag();
@@ -274,6 +294,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         CompoundTag settings = new CompoundTag();
         settings.putBoolean(SHOW_RANGE_TAG, this.showRange);
         settings.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
+        settings.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         settings.put(TARGET_TRANSFER_MODES_TAG, createTargetTransferModesTag());
         builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
@@ -329,8 +350,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         syncClientOnlineState();
 
-        processPendingInitialDiscovery();
-
         if (--this.cacheCleanupCooldown <= 0) {
             this.cacheCleanupCooldown = CACHE_CLEANUP_INTERVAL_TICKS;
             trimCaches();
@@ -344,6 +363,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (selfNode == null || !selfNode.isActive()) {
             return;
         }
+
+        processAutoDiscovery();
 
         if (selfNode.getUsedChannels() < getMaxLinkChannels()) {
             processPendingLinks(selfNode);
@@ -378,6 +399,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public ConnectionMode getConnectionMode() {
         return this.connectionMode;
+    }
+
+    public RangeAdjustmentMode getRangeAdjustmentMode() {
+        return this.rangeAdjustmentMode;
+    }
+
+    public boolean isPointToPointMode() {
+        return this.rangeAdjustmentMode == RangeAdjustmentMode.POINT;
     }
 
     public TargetTransferMode getTargetTransferMode(BlockPos targetPos) {
@@ -426,9 +455,74 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.markForClientUpdate();
     }
 
+    public void setRangeAdjustmentMode(@Nullable RangeAdjustmentMode rangeAdjustmentMode) {
+        RangeAdjustmentMode normalizedMode = rangeAdjustmentMode == null ? RangeAdjustmentMode.POINT : rangeAdjustmentMode;
+        if (this.rangeAdjustmentMode == normalizedMode) {
+            return;
+        }
+
+        this.rangeAdjustmentMode = normalizedMode;
+        if (this.level != null && !this.level.isClientSide() && this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE) {
+            scanNearbyConnectableNodes();
+        }
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        this.setChanged();
+        this.markForClientUpdate();
+    }
+
+    public ConnectorBindResult bindTargetFromConnector(BlockPos targetPos) {
+        if (this.level == null || this.level.isClientSide()) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.UNSUPPORTED);
+        }
+        if (!isPointToPointMode()) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.NOT_POINT_MODE);
+        }
+
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        if (this.worldPosition.equals(normalizedPos) || isTowerBlock(normalizedPos)) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.SELF_TARGET);
+        }
+        if (!isWithinTowerCoverage(normalizedPos)) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.OUT_OF_RANGE);
+        }
+
+        boolean aeSupported = hasAeNodeCapability(normalizedPos);
+        boolean feSupported = canReceiveEnergy(findAccessibleEnergyStorage(normalizedPos, true));
+        if (!aeSupported && !feSupported) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.UNSUPPORTED);
+        }
+
+        ConnectionMode desiredMode = this.connectionMode;
+        if (aeSupported && !desiredMode.allowsAeTargets()) {
+            desiredMode = desiredMode.allowsFeTargets() ? ConnectionMode.AE_AND_FE : ConnectionMode.AE_ONLY;
+        }
+        if (feSupported && !desiredMode.allowsFeTargets()) {
+            desiredMode = desiredMode.allowsAeTargets() ? ConnectionMode.AE_AND_FE : ConnectionMode.FE_ONLY;
+        }
+        if (desiredMode != this.connectionMode) {
+            setConnectionMode(desiredMode);
+        }
+
+        this.linkedPositions.add(normalizedPos);
+        if (aeSupported && canMaintainGridLinkTo(normalizedPos)) {
+            queueLink(normalizedPos, 0);
+        } else {
+            this.pendingLinkPositions.remove(normalizedPos);
+            destroyTargetConnections(normalizedPos);
+        }
+
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        this.setChanged();
+        this.markForClientUpdate();
+        return ConnectorBindResult.success(aeSupported, feSupported);
+    }
+
     private void applyMemoryCardSettings(CompoundTag settings) {
         boolean changed = false;
         boolean refreshTargets = false;
+        boolean invalidateTargets = false;
 
         if (settings.contains(SHOW_RANGE_TAG)) {
             boolean showRange = MemoryCardSettingsHelper.readBoolean(settings, SHOW_RANGE_TAG, this.showRange);
@@ -447,6 +541,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
+        if (settings.contains(RANGE_ADJUSTMENT_MODE_TAG)) {
+            RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.fromSerializedName(settings.getString(RANGE_ADJUSTMENT_MODE_TAG));
+            if (this.rangeAdjustmentMode != rangeAdjustmentMode) {
+                this.rangeAdjustmentMode = rangeAdjustmentMode;
+                changed = true;
+                invalidateTargets = true;
+                if (this.level != null && !this.level.isClientSide() && this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE) {
+                    scanNearbyConnectableNodes();
+                }
+            }
+        }
+
         if (settings.contains(TARGET_TRANSFER_MODES_TAG)) {
             Map<BlockPos, TargetTransferMode> targetTransferModes = readTargetTransferModes(settings);
             if (!this.targetTransferModes.equals(targetTransferModes)) {
@@ -459,6 +565,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (refreshTargets) {
             refreshConnectionTargets();
+            invalidateEndpointCache();
+            invalidateClusterCache();
+        } else if (invalidateTargets) {
             invalidateEndpointCache();
             invalidateClusterCache();
         }
@@ -574,7 +683,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             stored = saturatingAdd(stored, storage.getEnergyStored());
             capacity = saturatingAdd(capacity, storage.getMaxEnergyStored());
             canExtract |= storage.canExtract();
-            canReceive |= storage.canReceive();
+            canReceive |= canReceiveEnergy(storage);
         }
 
         IEnergyStorage internal = getEnergyStorageAt(normalizedPos, null);
@@ -583,7 +692,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             stored = saturatingAdd(stored, internal.getEnergyStored());
             capacity = saturatingAdd(capacity, internal.getMaxEnergyStored());
             canExtract |= internal.canExtract();
-            canReceive |= internal.canReceive();
+            canReceive |= canReceiveEnergy(internal);
         }
 
         boolean hasAeTarget = this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, normalizedPos, null) != null;
@@ -792,7 +901,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         LinkedHashMap<BlockPos, TargetKind> positions = new LinkedHashMap<>();
 
         for (BlockPos pos : this.linkedPositions) {
-            if (allowsAeTargets() && targetAllowsAe(pos) && !this.level.getBlockState(pos).isAir()) {
+            if (allowsAeTargets() && getTargetTransferMode(pos) != TargetTransferMode.DISABLED && !this.level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = this.level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
                     positions.put(pos.immutable(), TargetKind.AE);
@@ -821,7 +930,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 continue;
             }
             IEnergyStorage storage = findAccessibleEnergyStorage(pos, true);
-            if (storage != null && storage.canReceive()) {
+            if (canReceiveEnergy(storage)) {
                 positions.putIfAbsent(pos.immutable(), TargetKind.FE);
             }
         }
@@ -957,6 +1066,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             Level level = serverLevelAccessor.getLevel();
             invalidateNearbyCaches(level, event.getPos());
             onPotentialNodeAdded(level, event.getPos());
+            autoConnectPlacedBlockWithOffhandConnector(level, event);
+        }
+    }
+
+    private static void autoConnectPlacedBlockWithOffhandConnector(Level level, BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getEntity() instanceof Player player) || event.getPlacedBlock().isAir()) {
+            return;
+        }
+
+        ItemStack offhandStack = player.getOffhandItem();
+        if (offhandStack.getItem() instanceof DataDistributionConnectorItem connectorItem) {
+            connectorItem.autoConnectPlacedBlock(offhandStack, player, level, event.getPos());
         }
     }
 
@@ -995,6 +1116,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+                if (!tower.allowsAutomaticRangeConnections()) {
+                    continue;
+                }
                 if (!tower.canMaintainGridLinkTo(targetPos)) {
                     continue;
                 }
@@ -1025,7 +1149,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public int scanNearbyConnectableNodes() {
-        if (this.level == null) {
+        if (this.level == null || !allowsAutomaticRangeConnections()) {
             return 0;
         }
 
@@ -1068,11 +1192,26 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         readyTargets.sort(this::compareLinkTargetPriority);
         int remainingChannels = Math.max(0, getMaxLinkChannels() - selfNode.getUsedChannels());
-        int maxReconnectsThisTick = remainingChannels <= 0 ? 1 : Math.min(remainingChannels, readyTargets.size());
-        for (int i = 0; i < maxReconnectsThisTick; i++) {
-            BlockPos targetPos = readyTargets.get(i);
-            reconnectTarget(selfNode, targetPos);
+        if (remainingChannels <= 0) {
+            return;
+        }
+
+        for (BlockPos targetPos : readyTargets) {
+            List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
+            if (linkableNodes.isEmpty()) {
+                this.pendingLinkPositions.remove(targetPos);
+                continue;
+            }
+            if (linkableNodes.size() > remainingChannels) {
+                continue;
+            }
+
+            int connectedNodes = reconnectTarget(selfNode, targetPos, linkableNodes);
             this.pendingLinkPositions.remove(targetPos);
+            remainingChannels -= connectedNodes;
+            if (remainingChannels <= 0) {
+                break;
+            }
         }
     }
 
@@ -1350,16 +1489,31 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         LinkedHashSet<BlockPos> endpoints = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> aeDisplayTargets = new LinkedHashSet<>();
-        for (BlockEntity blockEntity : getNearbyBlockEntities()) {
-            BlockPos pos = blockEntity.getBlockPos().immutable();
-            if (isTowerBlock(pos)) {
-                continue;
+        if (allowsAutomaticRangeConnections()) {
+            for (BlockEntity blockEntity : getNearbyBlockEntities()) {
+                BlockPos pos = blockEntity.getBlockPos().immutable();
+                if (isTowerBlock(pos)) {
+                    continue;
+                }
+                if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
+                    endpoints.add(pos);
+                }
+                if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
+                    aeDisplayTargets.add(pos);
+                }
             }
-            if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
-                endpoints.add(pos);
-            }
-            if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
-                aeDisplayTargets.add(pos);
+        } else {
+            for (BlockPos pos : getTrackedTargetPositions()) {
+                if (isTowerBlock(pos) || this.level.getBlockState(pos).isAir()) {
+                    continue;
+                }
+                BlockEntity blockEntity = this.level.getBlockEntity(pos);
+                if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
+                    endpoints.add(pos);
+                }
+                if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
+                    aeDisplayTargets.add(pos);
+                }
             }
         }
 
@@ -1367,6 +1521,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedAeDisplayTargets = List.copyOf(aeDisplayTargets);
         this.lastEndpointCacheTick = this.level.getGameTime();
         this.endpointCacheValid = true;
+    }
+
+    private List<BlockPos> getTrackedTargetPositions() {
+        LinkedHashSet<BlockPos> tracked = new LinkedHashSet<>(this.linkedPositions);
+        tracked.addAll(this.pendingLinkPositions.keySet());
+        tracked.addAll(this.targetTransferModes.keySet());
+        return List.copyOf(tracked);
     }
 
     private List<BlockEntity> getNearbyBlockEntities() {
@@ -1643,18 +1804,38 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Nullable
     private IEnergyStorage findAccessibleEnergyStorage(BlockPos pos, boolean forReceive) {
+        List<EnergyEndpoint> endpoints = findAccessibleEnergyEndpoints(pos, forReceive);
+        return endpoints.isEmpty() ? null : endpoints.getFirst().storage();
+    }
+
+    private List<EnergyEndpoint> findAccessibleEnergyEndpoints(BlockPos pos, boolean forReceive) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        ArrayList<EnergyEndpoint> endpoints = new ArrayList<>();
+        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        boolean collectAllSides = this.level.getBlockEntity(pos) instanceof CableBusBlockEntity;
+
         for (var direction : net.minecraft.core.Direction.values()) {
             IEnergyStorage storage = getEnergyStorageAt(pos, direction);
-            if (storage != null && (forReceive ? storage.canReceive() : storage.canExtract())) {
-                return storage;
+            if (isUsableEnergyStorage(storage, forReceive) && seenStorages.add(storage)) {
+                endpoints.add(new EnergyEndpoint(pos.immutable(), direction, storage));
+                if (!collectAllSides) {
+                    return List.copyOf(endpoints);
+                }
             }
         }
 
         IEnergyStorage internal = getEnergyStorageAt(pos, null);
-        if (internal != null && (forReceive ? internal.canReceive() : internal.canExtract())) {
-            return internal;
+        if (isUsableEnergyStorage(internal, forReceive) && seenStorages.add(internal)) {
+            endpoints.add(new EnergyEndpoint(pos.immutable(), null, internal));
         }
-        return null;
+        return List.copyOf(endpoints);
+    }
+
+    private static boolean isUsableEnergyStorage(@Nullable IEnergyStorage storage, boolean forReceive) {
+        return storage != null && (forReceive ? canReceiveEnergy(storage) : storage.canExtract());
     }
 
     private List<DataDistributionTowerBlockEntity> collectTowerCluster() {
@@ -1724,26 +1905,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private List<EnergyEndpoint> resolveEnergyEndpoints(List<DataDistributionTowerBlockEntity> towers, boolean forReceive) {
-        LinkedHashMap<BlockPos, IEnergyStorage> endpoints = new LinkedHashMap<>();
+        LinkedHashMap<EnergyEndpointKey, EnergyEndpoint> endpoints = new LinkedHashMap<>();
         for (DataDistributionTowerBlockEntity tower : towers) {
             for (BlockPos pos : tower.getCachedEndpoints()) {
-                if (endpoints.containsKey(pos)) {
-                    continue;
-                }
                 if (!tower.targetAllowsFe(pos)) {
                     continue;
                 }
 
-                IEnergyStorage storage = tower.findAccessibleEnergyStorage(pos, forReceive);
-                if (storage != null) {
-                    endpoints.put(pos, storage);
+                for (EnergyEndpoint endpoint : tower.findAccessibleEnergyEndpoints(pos, forReceive)) {
+                    endpoints.putIfAbsent(new EnergyEndpointKey(endpoint.pos(), endpoint.side()), endpoint);
                 }
             }
         }
 
-        ArrayList<EnergyEndpoint> result = new ArrayList<>(endpoints.size());
-        endpoints.forEach((pos, storage) -> result.add(new EnergyEndpoint(pos, storage)));
-        return result;
+        return List.copyOf(endpoints.values());
     }
 
     private List<EnergyEndpoint> excludeEnergyEndpoint(List<EnergyEndpoint> endpoints, @Nullable BlockPos excludedPos) {
@@ -1814,12 +1989,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
             long transferAmount = Math.min(simulatedExtract, Math.min(simulatedInsert, stepBudget));
             long actuallyExtracted = 0;
+            long remainingExtraction = transferAmount;
 
             if (AE2FluxIntegration.isAvailable()) {
-                actuallyExtracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, transferAmount, false);
+                long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remainingExtraction, false);
+                if (extracted > 0) {
+                    actuallyExtracted += extracted;
+                    remainingExtraction -= extracted;
+                }
             }
-            if (actuallyExtracted <= 0) {
-                actuallyExtracted = extractFromEndpointsRoundRobin(transferAmount, false, transferScanSnapshot.extractEndpoints());
+            if (remainingExtraction > 0) {
+                actuallyExtracted += extractFromEndpointsRoundRobin(remainingExtraction, false, transferScanSnapshot.extractEndpoints());
             }
             if (actuallyExtracted <= 0) {
                 break;
@@ -1870,7 +2050,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         ArrayList<EnergyEndpoint> activeReceiveEndpoints = new ArrayList<>(receiveEndpoints.size());
         for (EnergyEndpoint endpoint : receiveEndpoints) {
             IEnergyStorage storage = endpoint.storage();
-            if (storage.canReceive()) {
+            if (canReceiveEnergy(storage)) {
                 activeReceiveEndpoints.add(endpoint);
             }
         }
@@ -1889,11 +2069,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
 
+        long totalExtractable = 0;
         if (transferScanSnapshot.aeExtractable() > 0) {
-            return Math.min(amount, transferScanSnapshot.aeExtractable());
+            totalExtractable = Math.min(amount, transferScanSnapshot.aeExtractable());
         }
 
-        return extractFromEndpointsRoundRobin(amount, true, transferScanSnapshot.extractEndpoints());
+        long remaining = amount - totalExtractable;
+        if (remaining > 0) {
+            totalExtractable += extractFromEndpointsRoundRobin(remaining, true, transferScanSnapshot.extractEndpoints());
+        }
+        return Math.min(amount, totalExtractable);
     }
 
     private long extractFromEndpointsRoundRobin(long amount, boolean simulate, List<EnergyEndpoint> extractEndpoints) {
@@ -1901,26 +2086,36 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
 
+        long totalExtracted = 0;
+        long remaining = amount;
         int endpointCount = extractEndpoints.size();
         int startIndex = getExtractStartIndex(null, endpointCount);
         int lastSuccessfulIndex = -1;
 
         for (int offset = 0; offset < endpointCount; offset++) {
+            if (remaining <= 0) {
+                break;
+            }
+
             int endpointIndex = (startIndex + offset) % endpointCount;
             IEnergyStorage storage = extractEndpoints.get(endpointIndex).storage();
             if (!storage.canExtract() || storage.getEnergyStored() <= 0) {
                 continue;
             }
 
-            int extracted = storage.extractEnergy(clampEnergyRequest(amount), simulate);
+            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
             if (extracted > 0) {
+                totalExtracted += extracted;
+                remaining -= extracted;
                 lastSuccessfulIndex = endpointIndex;
-                this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
-                return extracted;
             }
         }
 
-        return 0;
+        if (lastSuccessfulIndex >= 0) {
+            this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
+        }
+
+        return totalExtracted;
     }
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos,
@@ -1949,11 +2144,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             int endpointIndex = (startIndex + offset) % endpointCount;
             EnergyEndpoint endpoint = endpoints.get(endpointIndex);
             IEnergyStorage storage = endpoint.storage();
-            if (!storage.canReceive()) {
+            if (!canReceiveEnergy(storage)) {
                 continue;
             }
 
-            int inserted = storage.receiveEnergy(clampEnergyRequest(remaining), simulate);
+            long inserted = insertEnergyIntoEndpoint(endpoint, remaining, simulate);
             if (inserted > 0) {
                 totalInserted += inserted;
                 remaining -= inserted;
@@ -1973,6 +2168,231 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
         return distributeEnergyInRange(amount, simulate, excludedPos, collectEnergyEndpoints(collectTowerCluster(), true));
+    }
+
+    private long insertEnergyIntoEndpoint(EnergyEndpoint endpoint, long amount, boolean simulate) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        IEnergyStorage storage = endpoint.storage();
+        long directInserted = insertEnergyDirectly(storage, amount, simulate);
+        if (directInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
+            if (directInserted > 0 || !storage.canReceive()) {
+                if (!simulate && directInserted > 0) {
+                    notifyDirectEnergyStorageChanged(endpoint);
+                }
+                return directInserted;
+            }
+        }
+        return storage.receiveEnergy(clampEnergyRequest(amount), simulate);
+    }
+
+    private void notifyDirectEnergyStorageChanged(EnergyEndpoint endpoint) {
+        ReflectionAccess.invokeNoArgBestEffort(endpoint.storage(), "onEnergyChanged");
+        ReflectionAccess.invokeNoArgBestEffort(endpoint.storage(), "onContentsChanged");
+        if (this.level == null) {
+            return;
+        }
+
+        BlockEntity blockEntity = this.level.getBlockEntity(endpoint.pos());
+        if (blockEntity != null) {
+            blockEntity.setChanged();
+        }
+    }
+
+    private static boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
+        return storage != null && (storage.canReceive() || getDirectEnergyStorageTarget(storage).isPresent());
+    }
+
+    private static long insertEnergyDirectly(IEnergyStorage storage, long amount, boolean simulate) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        Optional<DirectEnergyStorageTarget> target = getDirectEnergyStorageTarget(storage);
+        if (target.isEmpty()) {
+            return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+        }
+        return target.get().insert(storage, amount, simulate);
+    }
+
+    private static Optional<DirectEnergyStorageTarget> getDirectEnergyStorageTarget(IEnergyStorage storage) {
+        Optional<DirectEnergyStorageTarget> unwrapped = getUnwrappedDirectEnergyStorageTarget(storage);
+        if (unwrapped.isPresent()) {
+            return unwrapped;
+        }
+
+        return getDirectEnergyStorageAccess(storage.getClass())
+                .map(access -> new DirectEnergyStorageTarget(storage, access));
+    }
+
+    private static Optional<DirectEnergyStorageTarget> getUnwrappedDirectEnergyStorageTarget(IEnergyStorage storage) {
+        Optional<VarHandle> wrapperField = DIRECT_ENERGY_WRAPPER_FIELD_CACHE.computeIfAbsent(storage.getClass(), DataDistributionTowerBlockEntity::resolveDirectEnergyWrapperField);
+        if (wrapperField.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Object target = readDirectEnergyWrapperTarget(wrapperField.get(), storage);
+        if (target == null || target == storage) {
+            return Optional.empty();
+        }
+
+        Optional<DirectEnergyStorageAccess> access = getDirectEnergyStorageAccess(target.getClass());
+        if (access.isPresent()) {
+            return Optional.of(new DirectEnergyStorageTarget(target, access.get()));
+        }
+
+        if (target instanceof IEnergyStorage nestedStorage) {
+            return getDirectEnergyStorageTarget(nestedStorage);
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<DirectEnergyStorageAccess> getDirectEnergyStorageAccess(Class<?> storageClass) {
+        return DIRECT_ENERGY_STORAGE_ACCESS_CACHE.computeIfAbsent(storageClass, DataDistributionTowerBlockEntity::resolveDirectEnergyStorageAccess);
+    }
+
+    private static Optional<DirectEnergyStorageAccess> resolveDirectEnergyStorageAccess(Class<?> storageClass) {
+        Optional<Method> insertIgnoringLimit = findDirectInsertIgnoringLimit(storageClass);
+        Optional<DirectEnergyAmountMethods> amountMethods = findDirectEnergyAmountMethods(storageClass);
+        Optional<VarHandle> storedEnergy = findDirectNumericField(storageClass, DIRECT_ENERGY_FIELD_NAMES, true);
+        if (insertIgnoringLimit.isEmpty() && amountMethods.isEmpty() && storedEnergy.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Optional<VarHandle> capacity = findDirectNumericField(storageClass, DIRECT_ENERGY_CAPACITY_FIELD_NAMES, false);
+        return Optional.of(new DirectEnergyStorageAccess(storedEnergy.orElse(null), capacity.orElse(null), insertIgnoringLimit.orElse(null), amountMethods.orElse(null)));
+    }
+
+    private static Optional<VarHandle> resolveDirectEnergyWrapperField(Class<?> storageClass) {
+        return findDirectObjectField(storageClass, DIRECT_ENERGY_WRAPPER_FIELD_NAMES);
+    }
+
+    @Nullable
+    private static Object readDirectEnergyWrapperTarget(VarHandle handle, Object storage) {
+        try {
+            return handle.get(storage);
+        } catch (RuntimeException | LinkageError ignored) {
+            return null;
+        }
+    }
+
+    private static Optional<Method> findDirectInsertIgnoringLimit(Class<?> owner) {
+        Class<?> type = owner;
+        while (type != null) {
+            try {
+                Method method = type.getDeclaredMethod("insertIgnoringLimit", long.class, boolean.class);
+                method.setAccessible(true);
+                if (method.getReturnType() == long.class) {
+                    return Optional.of(method);
+                }
+                return Optional.empty();
+            } catch (NoSuchMethodException ignored) {
+                type = type.getSuperclass();
+            } catch (RuntimeException ignored) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<VarHandle> findDirectObjectField(Class<?> owner, List<String> fieldNames) {
+        for (String fieldName : fieldNames) {
+            Class<?> type = owner;
+            while (type != null) {
+                try {
+                    Field field = type.getDeclaredField(fieldName);
+                    int modifiers = field.getModifiers();
+                    if (Modifier.isStatic(modifiers) || field.getType().isPrimitive()) {
+                        break;
+                    }
+
+                    field.setAccessible(true);
+                    return Optional.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup()).unreflectVarHandle(field));
+                } catch (NoSuchFieldException ignored) {
+                    type = type.getSuperclass();
+                } catch (IllegalAccessException | RuntimeException | LinkageError ignored) {
+                    break;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<DirectEnergyAmountMethods> findDirectEnergyAmountMethods(Class<?> owner) {
+        Optional<Method> getAmount = findDirectNoArgLongMethod(owner, "getAmount");
+        Optional<Method> getCapacity = findDirectNoArgLongMethod(owner, "getCapacity");
+        Optional<Method> setAmount = findDirectSingleLongMethod(owner, "setAmount", void.class);
+        if (getAmount.isEmpty() || getCapacity.isEmpty() || setAmount.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new DirectEnergyAmountMethods(getAmount.get(), getCapacity.get(), setAmount.get()));
+    }
+
+    private static Optional<Method> findDirectNoArgLongMethod(Class<?> owner, String methodName) {
+        Class<?> type = owner;
+        while (type != null) {
+            try {
+                Method method = type.getDeclaredMethod(methodName);
+                method.setAccessible(true);
+                if (method.getReturnType() == long.class) {
+                    return Optional.of(method);
+                }
+                return Optional.empty();
+            } catch (NoSuchMethodException ignored) {
+                type = type.getSuperclass();
+            } catch (RuntimeException ignored) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<Method> findDirectSingleLongMethod(Class<?> owner, String methodName, Class<?> returnType) {
+        Class<?> type = owner;
+        while (type != null) {
+            try {
+                Method method = type.getDeclaredMethod(methodName, long.class);
+                method.setAccessible(true);
+                if (method.getReturnType() == returnType) {
+                    return Optional.of(method);
+                }
+                return Optional.empty();
+            } catch (NoSuchMethodException ignored) {
+                type = type.getSuperclass();
+            } catch (RuntimeException ignored) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<VarHandle> findDirectNumericField(Class<?> owner, List<String> fieldNames, boolean writable) {
+        for (String fieldName : fieldNames) {
+            Class<?> type = owner;
+            while (type != null) {
+                try {
+                    Field field = type.getDeclaredField(fieldName);
+                    int modifiers = field.getModifiers();
+                    if (Modifier.isStatic(modifiers) || writable && Modifier.isFinal(modifiers) || !isDirectEnergyFieldType(field.getType())) {
+                        break;
+                    }
+
+                    field.setAccessible(true);
+                    return Optional.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup()).unreflectVarHandle(field));
+                } catch (NoSuchFieldException ignored) {
+                    type = type.getSuperclass();
+                } catch (IllegalAccessException | RuntimeException | LinkageError ignored) {
+                    break;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean isDirectEnergyFieldType(Class<?> fieldType) {
+        return fieldType == int.class || fieldType == long.class;
     }
 
     private int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
@@ -2191,44 +2611,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.invalidateClusterCache();
     }
 
-    private void reconnectTarget(IGridNode selfNode, BlockPos targetPos) {
+    private int reconnectTarget(IGridNode selfNode, BlockPos targetPos, List<IGridNode> targetNodes) {
         destroyTargetConnections(targetPos);
 
         this.linkedPositions.remove(targetPos);
 
-        if (!canMaintainGridLinkTo(targetPos)) {
-            this.setChanged();
-            return;
-        }
-
-        List<IGridNode> targetNodes = getConnectableNodes(this.level, targetPos);
         if (targetNodes.isEmpty()) {
             this.setChanged();
-            return;
+            return 0;
         }
 
         ArrayList<IGridConnection> newConnections = new ArrayList<>();
         for (IGridNode targetNode : targetNodes) {
-            if (targetNode == null || targetNode == selfNode) {
-                continue;
-            }
-
-            IGrid targetGrid = targetNode.getGrid();
-            IGrid selfGrid = selfNode.getGrid();
-            if (targetGrid != null && selfGrid != null) {
-                if (targetGrid == selfGrid) {
-                    if (targetNode.meetsChannelRequirements()) {
-                        continue;
-                    }
-                } else {
-                    ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
-                    ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
-                    if (targetControllerState != ControllerState.NO_CONTROLLER && selfControllerState != ControllerState.NO_CONTROLLER) {
-                        continue;
-                    }
-                }
-            }
-
             try {
                 newConnections.add(GridHelper.createConnection(selfNode, targetNode));
             } catch (IllegalStateException ignored) {}
@@ -2236,7 +2630,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (newConnections.isEmpty()) {
             this.setChanged();
-            return;
+            return 0;
         }
 
         this.linkedConnections.put(targetPos.immutable(), newConnections);
@@ -2244,6 +2638,49 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.invalidateEndpointCache();
         this.invalidateClusterCache();
         this.setChanged();
+        return newConnections.size();
+    }
+
+    private List<IGridNode> getLinkableTargetNodes(IGridNode selfNode, BlockPos targetPos) {
+        if (!canMaintainGridLinkTo(targetPos)) {
+            return List.of();
+        }
+
+        List<IGridNode> targetNodes = getConnectableNodes(this.level, targetPos);
+        if (targetNodes.isEmpty()) {
+            return List.of();
+        }
+
+        boolean towerTarget = this.level.getBlockEntity(targetPos) instanceof DataDistributionTowerBlockEntity;
+        ArrayList<IGridNode> linkableNodes = new ArrayList<>();
+        for (IGridNode targetNode : targetNodes) {
+            if (isLinkableTargetNode(selfNode, targetNode, towerTarget)) {
+                linkableNodes.add(targetNode);
+            }
+        }
+        return List.copyOf(linkableNodes);
+    }
+
+    private boolean isLinkableTargetNode(IGridNode selfNode, @Nullable IGridNode targetNode, boolean towerTarget) {
+        if (targetNode == null || targetNode == selfNode) {
+            return false;
+        }
+        if (!towerTarget && targetNode.isOnline()) {
+            return false;
+        }
+
+        IGrid targetGrid = targetNode.getGrid();
+        IGrid selfGrid = selfNode.getGrid();
+        if (targetGrid != null && selfGrid != null) {
+            if (targetGrid == selfGrid) {
+                return !targetNode.meetsChannelRequirements();
+            }
+
+            ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
+            ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
+            return targetControllerState == ControllerState.NO_CONTROLLER || selfControllerState == ControllerState.NO_CONTROLLER;
+        }
+        return true;
     }
 
     private void requeuePersistedLinks() {
@@ -2259,34 +2696,25 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private void scheduleInitialDiscoveryIfNeeded() {
-        if (!this.pendingLinkPositions.isEmpty()) {
-            this.pendingInitialDiscovery = false;
-            this.pendingInitialDiscoveryDelay = 0;
-            return;
-        }
-
-        this.pendingInitialDiscovery = true;
-        this.pendingInitialDiscoveryDelay = INITIAL_PENDING_DELAY + Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
+    private void resetAutoDiscoveryCooldown() {
+        this.autoDiscoveryCooldown = Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
     }
 
-    private void processPendingInitialDiscovery() {
-        if (!this.pendingInitialDiscovery || this.level == null || this.level.isClientSide()) {
+    private void processAutoDiscovery() {
+        if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
-        if (!this.pendingLinkPositions.isEmpty()) {
-            this.pendingInitialDiscovery = false;
-            this.pendingInitialDiscoveryDelay = 0;
+        if (!allowsAutomaticRangeConnections()) {
             return;
         }
 
-        if (this.pendingInitialDiscoveryDelay > 0) {
-            this.pendingInitialDiscoveryDelay--;
+        if (this.autoDiscoveryCooldown > 0) {
+            this.autoDiscoveryCooldown--;
             return;
         }
 
-        this.pendingInitialDiscovery = false;
+        this.autoDiscoveryCooldown = AUTO_DISCOVERY_INTERVAL_TICKS;
         scanNearbyConnectableNodes();
     }
 
@@ -2549,7 +2977,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         pruneTargetsOutsideRange();
         invalidateEndpointCache();
-        scanNearbyConnectableNodes();
+        if (allowsAutomaticRangeConnections()) {
+            scanNearbyConnectableNodes();
+        }
     }
 
     private void refreshConnectionTargets() {
@@ -2578,7 +3008,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
-        scanNearbyConnectableNodes();
+        if (allowsAutomaticRangeConnections()) {
+            scanNearbyConnectableNodes();
+        }
     }
 
     private boolean canMaintainGridLinkTo(BlockPos targetPos) {
@@ -2595,6 +3027,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         return allowsAeTargets() && needsAeChannelLink(targetPos);
+    }
+
+    private boolean allowsAutomaticRangeConnections() {
+        return this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE;
     }
 
     private boolean allowsAeTargets() {
@@ -2685,7 +3121,179 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {}
+    private record EnergyEndpointKey(BlockPos pos, @Nullable net.minecraft.core.Direction side) {}
+
+    private record DirectEnergyStorageTarget(Object target, DirectEnergyStorageAccess access) {
+
+        private long insert(IEnergyStorage storage, long amount, boolean simulate) {
+            return this.access.insert(storage, this.target, amount, simulate);
+        }
+    }
+
+    private record DirectEnergyAmountMethods(Method getAmount, Method getCapacity, Method setAmount) {}
+
+    private record DirectEnergyStorageAccess(@Nullable VarHandle storedEnergy, @Nullable VarHandle capacity,
+                                             @Nullable Method insertIgnoringLimit,
+                                             @Nullable DirectEnergyAmountMethods amountMethods) {
+
+        private long insert(IEnergyStorage storage, Object target, long amount, boolean simulate) {
+            long methodInserted = insertIgnoringLimit(target, amount, simulate);
+            if (methodInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
+                if (!simulate && methodInserted > 0) {
+                    notifyDirectTargetChanged(target);
+                }
+                return methodInserted;
+            }
+
+            methodInserted = insertByAmountMethods(storage, target, amount, simulate);
+            if (methodInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
+                return methodInserted;
+            }
+
+            if (this.storedEnergy == null) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long current = readEnergyAmount(this.storedEnergy, target);
+            if (current == null || current < 0 || !matchesReportedAmount(current, storage.getEnergyStored())) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long directCapacity = this.capacity == null ? null : readEnergyAmount(this.capacity, target);
+            if (directCapacity != null && directCapacity < 0) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            long maxStored = directCapacity == null ? Math.max(0, storage.getMaxEnergyStored()) : directCapacity;
+            if (directCapacity != null && !matchesReportedCapacity(directCapacity, storage.getMaxEnergyStored())) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            maxStored = Math.min(maxStored, getMaxStoredValue());
+            if (maxStored <= current) {
+                return 0;
+            }
+
+            long inserted = Math.min(amount, maxStored - current);
+            if (inserted <= 0) {
+                return 0;
+            }
+            if (simulate) {
+                return inserted;
+            }
+
+            long targetAmount = current + inserted;
+            if (!writeEnergyAmount(this.storedEnergy, target, targetAmount)) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long updated = readEnergyAmount(this.storedEnergy, target);
+            if (updated == null || updated != targetAmount || !matchesReportedAmount(targetAmount, storage.getEnergyStored())) {
+                writeEnergyAmount(this.storedEnergy, target, current);
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+            notifyDirectTargetChanged(target);
+            return inserted;
+        }
+
+        private long getMaxStoredValue() {
+            return this.storedEnergy.varType() == int.class ? Integer.MAX_VALUE : Long.MAX_VALUE;
+        }
+
+        private long insertByAmountMethods(IEnergyStorage storage, Object target, long amount, boolean simulate) {
+            if (this.amountMethods == null) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long current = invokeLong(this.amountMethods.getAmount(), target);
+            if (current == null || current < 0 || !matchesReportedAmount(current, storage.getEnergyStored())) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long capacity = invokeLong(this.amountMethods.getCapacity(), target);
+            if (capacity == null || capacity < 0 || !matchesReportedCapacity(capacity, storage.getMaxEnergyStored())) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+            if (capacity <= current) {
+                return 0;
+            }
+
+            long inserted = Math.min(amount, capacity - current);
+            if (inserted <= 0) {
+                return 0;
+            }
+            if (simulate) {
+                return inserted;
+            }
+
+            long targetAmount = current + inserted;
+            ReflectionAccess.invoke(this.amountMethods.setAmount(), target, targetAmount);
+            Long updated = invokeLong(this.amountMethods.getAmount(), target);
+            if (updated == null || updated != targetAmount || !matchesReportedAmount(targetAmount, storage.getEnergyStored())) {
+                ReflectionAccess.invoke(this.amountMethods.setAmount(), target, current);
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+            notifyDirectTargetChanged(target);
+            return inserted;
+        }
+
+        private long insertIgnoringLimit(Object target, long amount, boolean simulate) {
+            if (this.insertIgnoringLimit == null) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Object result = ReflectionAccess.invoke(this.insertIgnoringLimit, target, amount, simulate);
+            return result instanceof Number number ? number.longValue() : DIRECT_ENERGY_INSERT_UNAVAILABLE;
+        }
+
+        @Nullable
+        private static Long invokeLong(Method method, Object target) {
+            Object result = ReflectionAccess.invoke(method, target);
+            return result instanceof Number number ? number.longValue() : null;
+        }
+
+        @Nullable
+        private static Long readEnergyAmount(VarHandle handle, Object target) {
+            try {
+                Object value = handle.get(target);
+                return value instanceof Number number ? number.longValue() : null;
+            } catch (RuntimeException | LinkageError ignored) {
+                return null;
+            }
+        }
+
+        private static boolean writeEnergyAmount(VarHandle handle, Object target, long amount) {
+            try {
+                if (handle.varType() == int.class) {
+                    if (amount > Integer.MAX_VALUE || amount < Integer.MIN_VALUE) {
+                        return false;
+                    }
+                    handle.set(target, (int) amount);
+                } else if (handle.varType() == long.class) {
+                    handle.set(target, amount);
+                } else {
+                    return false;
+                }
+                return true;
+            } catch (RuntimeException | LinkageError ignored) {
+                return false;
+            }
+        }
+
+        private static boolean matchesReportedAmount(long directAmount, int reportedAmount) {
+            return reportedAmount == clampStoredAmount(directAmount);
+        }
+
+        private static boolean matchesReportedCapacity(long directCapacity, int reportedCapacity) {
+            return reportedCapacity <= 0 || matchesReportedAmount(directCapacity, reportedCapacity);
+        }
+
+        private static void notifyDirectTargetChanged(Object target) {
+            ReflectionAccess.invokeNoArgBestEffort(target, "update");
+        }
+    }
+
+    private record EnergyEndpoint(BlockPos pos, @Nullable net.minecraft.core.Direction side, IEnergyStorage storage) {}
 
     private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
 
@@ -2713,6 +3321,25 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                                      long storedFe, long capacityFe, boolean canExtractFe, boolean canReceiveFe) {
 
         private static final TargetTransferInfo EMPTY = new TargetTransferInfo(0, false, false, 0L, 0L, false, false);
+    }
+
+    public record ConnectorBindResult(boolean success, ConnectorBindFailure failure, boolean aeSupported,
+                                      boolean feSupported) {
+
+        public static ConnectorBindResult success(boolean aeSupported, boolean feSupported) {
+            return new ConnectorBindResult(true, null, aeSupported, feSupported);
+        }
+
+        public static ConnectorBindResult fail(ConnectorBindFailure failure) {
+            return new ConnectorBindResult(false, failure, false, false);
+        }
+    }
+
+    public enum ConnectorBindFailure {
+        NOT_POINT_MODE,
+        OUT_OF_RANGE,
+        SELF_TARGET,
+        UNSUPPORTED
     }
 
     public enum TargetTransferMode {
@@ -2809,6 +3436,45 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
             }
             return AE_AND_FE;
+        }
+    }
+
+    public enum RangeAdjustmentMode {
+
+        POINT("point"),
+        SCOPE("scope");
+
+        private final String serializedName;
+
+        RangeAdjustmentMode(String serializedName) {
+            this.serializedName = serializedName;
+        }
+
+        public String getSerializedName() {
+            return this.serializedName;
+        }
+
+        public RangeAdjustmentMode next() {
+            return this == POINT ? SCOPE : POINT;
+        }
+
+        public static RangeAdjustmentMode fromOrdinal(int ordinal) {
+            RangeAdjustmentMode[] values = values();
+            if (ordinal < 0 || ordinal >= values.length) {
+                return POINT;
+            }
+            return values[ordinal];
+        }
+
+        public static RangeAdjustmentMode fromSerializedName(@Nullable String serializedName) {
+            if (serializedName != null) {
+                for (RangeAdjustmentMode value : values()) {
+                    if (value.serializedName.equalsIgnoreCase(serializedName)) {
+                        return value;
+                    }
+                }
+            }
+            return POINT;
         }
     }
 
