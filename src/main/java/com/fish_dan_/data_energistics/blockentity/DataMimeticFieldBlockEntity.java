@@ -17,6 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -24,6 +25,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -33,8 +35,11 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Instrument;
+import net.minecraft.world.item.Instruments;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -116,6 +121,18 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final String KEY_INPUT_TAG = "key_input";
     private static final String WORK_TICKS_TAG = "work_ticks";
     private static final String HIDDEN_BUFFER_TAG = "hidden_buffer";
+    private static final ResourceLocation GOAT_ENTITY_ID = ResourceLocation.parse("minecraft:goat");
+    private static final ResourceLocation ARMADILLO_ENTITY_ID = ResourceLocation.parse("minecraft:armadillo");
+    private static final ResourceLocation TURTLE_ENTITY_ID = ResourceLocation.parse("minecraft:turtle");
+    private static final List<ResourceKey<Instrument>> GOAT_HORN_INSTRUMENTS = List.of(
+            Instruments.PONDER_GOAT_HORN,
+            Instruments.SING_GOAT_HORN,
+            Instruments.SEEK_GOAT_HORN,
+            Instruments.FEEL_GOAT_HORN,
+            Instruments.ADMIRE_GOAT_HORN,
+            Instruments.CALL_GOAT_HORN,
+            Instruments.YEARN_GOAT_HORN,
+            Instruments.DREAM_GOAT_HORN);
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
@@ -805,19 +822,22 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return GeneratedLoot.empty();
         }
 
-        List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.MOB, entityId);
-        if (!configuredOutputs.isEmpty() && !hasOverflowDestructionCard()) {
-            return new GeneratedLoot(configuredOutputs, 0);
+        List<ItemStack> fixedOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.MOB, entityId);
+        if (fixedOutputs.isEmpty()) {
+            fixedOutputs = getBuiltInBiologyMimeticOutputs(serverLevel, entityId);
+        }
+        if (!fixedOutputs.isEmpty() && !hasOverflowDestructionCard()) {
+            return new GeneratedLoot(copyStacks(fixedOutputs), 0);
         }
 
         EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
         if (entityType == null) {
-            return new GeneratedLoot(configuredOutputs, 0);
+            return new GeneratedLoot(copyStacks(fixedOutputs), 0);
         }
 
         Entity entity = entityType.create(serverLevel);
         if (!(entity instanceof LivingEntity livingEntity)) {
-            return new GeneratedLoot(configuredOutputs, 0);
+            return new GeneratedLoot(copyStacks(fixedOutputs), 0);
         }
 
         livingEntity.setPos(Vec3.atCenterOf(this.worldPosition));
@@ -843,14 +863,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         ArrayList<ItemStack> drops = new ArrayList<>();
         long experience = 0L;
         for (int roll = 0; roll < getBiologyLootRollsPerCycle(); roll++) {
-            if (configuredOutputs.isEmpty()) {
+            if (fixedOutputs.isEmpty()) {
                 for (LivingEntity simulatedEntity : simulatedEntities) {
                     GeneratedLoot generatedLoot = simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer);
                     drops.addAll(generatedLoot.stacks());
                     experience = saturatedAdd(experience, generatedLoot.experience());
                 }
             } else {
-                drops.addAll(configuredOutputs);
+                addCopies(drops, fixedOutputs);
                 for (LivingEntity simulatedEntity : simulatedEntities) {
                     GeneratedLoot generatedLoot = simulateEntityExperience(serverLevel, simulatedEntity, fakePlayer);
                     experience = saturatedAdd(experience, generatedLoot.experience());
@@ -861,6 +881,48 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             simulatedEntity.discard();
         }
         return new GeneratedLoot(drops, experience);
+    }
+
+    private static List<ItemStack> getBuiltInBiologyMimeticOutputs(ServerLevel serverLevel, ResourceLocation entityId) {
+        if (GOAT_ENTITY_ID.equals(entityId)) {
+            return createGoatHornOutputs(serverLevel);
+        }
+        if (ARMADILLO_ENTITY_ID.equals(entityId)) {
+            return List.of(new ItemStack(Items.ARMADILLO_SCUTE));
+        }
+        if (TURTLE_ENTITY_ID.equals(entityId)) {
+            return List.of(new ItemStack(Items.TURTLE_SCUTE));
+        }
+        return List.of();
+    }
+
+    private static List<ItemStack> createGoatHornOutputs(ServerLevel serverLevel) {
+        var instruments = serverLevel.registryAccess().lookupOrThrow(Registries.INSTRUMENT);
+        List<ItemStack> outputs = new ArrayList<>(GOAT_HORN_INSTRUMENTS.size());
+        for (ResourceKey<Instrument> instrumentKey : GOAT_HORN_INSTRUMENTS) {
+            ItemStack horn = new ItemStack(Items.GOAT_HORN);
+            horn.set(DataComponents.INSTRUMENT, instruments.getOrThrow(instrumentKey));
+            outputs.add(horn);
+        }
+        return List.copyOf(outputs);
+    }
+
+    private static List<ItemStack> copyStacks(List<ItemStack> stacks) {
+        if (stacks.isEmpty()) {
+            return List.of();
+        }
+
+        List<ItemStack> copies = new ArrayList<>(stacks.size());
+        addCopies(copies, stacks);
+        return List.copyOf(copies);
+    }
+
+    private static void addCopies(List<ItemStack> target, List<ItemStack> stacks) {
+        for (ItemStack stack : stacks) {
+            if (!stack.isEmpty()) {
+                target.add(stack.copy());
+            }
+        }
     }
 
     private List<LivingEntity> collectSimulatedLivingEntities(LivingEntity rootEntity) {
