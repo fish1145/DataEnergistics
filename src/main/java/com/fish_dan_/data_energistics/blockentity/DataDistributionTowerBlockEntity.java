@@ -97,6 +97,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
+    private static final int AUTO_DISCOVERY_INTERVAL_TICKS = 20;
     private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
     private static final int TRANSFER_SCAN_CACHE_TICKS = 5;
     private static final int CLUSTER_CACHE_TICKS = 10;
@@ -160,9 +161,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
     private int cacheCleanupCooldown;
-    private boolean pendingInitialDiscovery = false;
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
-    private int pendingInitialDiscoveryDelay = 0;
+    private int autoDiscoveryCooldown;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
 
@@ -182,7 +182,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             registerInChunkIndex();
             invalidateEndpointCache();
             requeuePersistedLinks();
-            scheduleInitialDiscoveryIfNeeded();
+            resetAutoDiscoveryCooldown();
         }
     }
 
@@ -299,8 +299,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         syncClientOnlineState();
 
-        processPendingInitialDiscovery();
-
         if (--this.cacheCleanupCooldown <= 0) {
             this.cacheCleanupCooldown = CACHE_CLEANUP_INTERVAL_TICKS;
             trimCaches();
@@ -314,6 +312,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (selfNode == null || !selfNode.isActive()) {
             return;
         }
+
+        processAutoDiscovery();
 
         if (selfNode.getUsedChannels() < getMaxLinkChannels()) {
             processPendingLinks(selfNode);
@@ -2218,34 +2218,21 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private void scheduleInitialDiscoveryIfNeeded() {
-        if (!this.pendingLinkPositions.isEmpty()) {
-            this.pendingInitialDiscovery = false;
-            this.pendingInitialDiscoveryDelay = 0;
-            return;
-        }
-
-        this.pendingInitialDiscovery = true;
-        this.pendingInitialDiscoveryDelay = INITIAL_PENDING_DELAY + Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
+    private void resetAutoDiscoveryCooldown() {
+        this.autoDiscoveryCooldown = Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
     }
 
-    private void processPendingInitialDiscovery() {
-        if (!this.pendingInitialDiscovery || this.level == null || this.level.isClientSide()) {
+    private void processAutoDiscovery() {
+        if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
-        if (!this.pendingLinkPositions.isEmpty()) {
-            this.pendingInitialDiscovery = false;
-            this.pendingInitialDiscoveryDelay = 0;
+        if (this.autoDiscoveryCooldown > 0) {
+            this.autoDiscoveryCooldown--;
             return;
         }
 
-        if (this.pendingInitialDiscoveryDelay > 0) {
-            this.pendingInitialDiscoveryDelay--;
-            return;
-        }
-
-        this.pendingInitialDiscovery = false;
+        this.autoDiscoveryCooldown = AUTO_DISCOVERY_INTERVAL_TICKS;
         scanNearbyConnectableNodes();
     }
 
