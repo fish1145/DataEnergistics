@@ -17,6 +17,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.block.AEBaseEntityBlock;
@@ -40,6 +41,11 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
                                    Class<T> blockEntityClass,
                                    net.minecraft.world.level.block.entity.BlockEntityType<T> blockEntityType) {
         this.setBlockEntity(blockEntityClass, blockEntityType, null, null);
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new AdaptivePatternProviderBlockEntity(pos, state);
     }
 
     @Override
