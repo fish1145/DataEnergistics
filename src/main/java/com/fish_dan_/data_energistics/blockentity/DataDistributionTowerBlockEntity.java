@@ -69,6 +69,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -80,7 +84,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
@@ -110,7 +116,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int BOOSTERS_PER_CHUNK_RING = 8;
     private static final int VERTICAL_RANGE_ABOVE = 256;
     private static final int VERTICAL_RANGE_BELOW = 128;
+    private static final long DIRECT_ENERGY_INSERT_UNAVAILABLE = Long.MIN_VALUE;
+    private static final List<String> DIRECT_ENERGY_FIELD_NAMES = List.of("energy", "storedEnergy", "energyStored", "stored", "amount");
+    private static final List<String> DIRECT_ENERGY_CAPACITY_FIELD_NAMES = List.of("capacity", "maxEnergy", "maxEnergyStored", "maxStored", "maxStorage");
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
+    private static final Map<Class<?>, Optional<DirectEnergyStorageAccess>> DIRECT_ENERGY_STORAGE_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static MinecraftServer boundServer;
 
     private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
@@ -467,7 +477,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             stored = saturatingAdd(stored, storage.getEnergyStored());
             capacity = saturatingAdd(capacity, storage.getMaxEnergyStored());
             canExtract |= storage.canExtract();
-            canReceive |= storage.canReceive();
+            canReceive |= canReceiveEnergy(storage);
         }
 
         IEnergyStorage internal = getEnergyStorageAt(normalizedPos, null);
@@ -476,7 +486,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             stored = saturatingAdd(stored, internal.getEnergyStored());
             capacity = saturatingAdd(capacity, internal.getMaxEnergyStored());
             canExtract |= internal.canExtract();
-            canReceive |= internal.canReceive();
+            canReceive |= canReceiveEnergy(internal);
         }
 
         boolean hasAeTarget = this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, normalizedPos, null) != null;
@@ -714,7 +724,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 continue;
             }
             IEnergyStorage storage = findAccessibleEnergyStorage(pos, true);
-            if (storage != null && storage.canReceive()) {
+            if (canReceiveEnergy(storage)) {
                 positions.putIfAbsent(pos.immutable(), TargetKind.FE);
             }
         }
@@ -1582,7 +1592,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private static boolean isUsableEnergyStorage(@Nullable IEnergyStorage storage, boolean forReceive) {
-        return storage != null && (forReceive ? storage.canReceive() : storage.canExtract());
+        return storage != null && (forReceive ? canReceiveEnergy(storage) : storage.canExtract());
     }
 
     private List<DataDistributionTowerBlockEntity> collectTowerCluster() {
@@ -1797,7 +1807,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         ArrayList<EnergyEndpoint> activeReceiveEndpoints = new ArrayList<>(receiveEndpoints.size());
         for (EnergyEndpoint endpoint : receiveEndpoints) {
             IEnergyStorage storage = endpoint.storage();
-            if (storage.canReceive()) {
+            if (canReceiveEnergy(storage)) {
                 activeReceiveEndpoints.add(endpoint);
             }
         }
@@ -1891,11 +1901,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             int endpointIndex = (startIndex + offset) % endpointCount;
             EnergyEndpoint endpoint = endpoints.get(endpointIndex);
             IEnergyStorage storage = endpoint.storage();
-            if (!storage.canReceive()) {
+            if (!canReceiveEnergy(storage)) {
                 continue;
             }
 
-            int inserted = storage.receiveEnergy(clampEnergyRequest(remaining), simulate);
+            long inserted = insertEnergyIntoEndpoint(endpoint, remaining, simulate);
             if (inserted > 0) {
                 totalInserted += inserted;
                 remaining -= inserted;
@@ -1915,6 +1925,94 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
         return distributeEnergyInRange(amount, simulate, excludedPos, collectEnergyEndpoints(collectTowerCluster(), true));
+    }
+
+    private long insertEnergyIntoEndpoint(EnergyEndpoint endpoint, long amount, boolean simulate) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        IEnergyStorage storage = endpoint.storage();
+        long directInserted = insertEnergyDirectly(storage, amount, simulate);
+        if (directInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
+            if (directInserted > 0 || !storage.canReceive()) {
+                if (!simulate && directInserted > 0) {
+                    notifyDirectEnergyStorageChanged(endpoint);
+                }
+                return directInserted;
+            }
+        }
+        return storage.receiveEnergy(clampEnergyRequest(amount), simulate);
+    }
+
+    private void notifyDirectEnergyStorageChanged(EnergyEndpoint endpoint) {
+        ReflectionAccess.invokeNoArgBestEffort(endpoint.storage(), "onEnergyChanged");
+        ReflectionAccess.invokeNoArgBestEffort(endpoint.storage(), "onContentsChanged");
+        if (this.level == null) {
+            return;
+        }
+
+        BlockEntity blockEntity = this.level.getBlockEntity(endpoint.pos());
+        if (blockEntity != null) {
+            blockEntity.setChanged();
+        }
+    }
+
+    private static boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
+        return storage != null && (storage.canReceive() || getDirectEnergyStorageAccess(storage).isPresent());
+    }
+
+    private static long insertEnergyDirectly(IEnergyStorage storage, long amount, boolean simulate) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        Optional<DirectEnergyStorageAccess> access = getDirectEnergyStorageAccess(storage);
+        if (access.isEmpty()) {
+            return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+        }
+        return access.get().insert(storage, amount, simulate);
+    }
+
+    private static Optional<DirectEnergyStorageAccess> getDirectEnergyStorageAccess(IEnergyStorage storage) {
+        return DIRECT_ENERGY_STORAGE_ACCESS_CACHE.computeIfAbsent(storage.getClass(), DataDistributionTowerBlockEntity::resolveDirectEnergyStorageAccess);
+    }
+
+    private static Optional<DirectEnergyStorageAccess> resolveDirectEnergyStorageAccess(Class<?> storageClass) {
+        Optional<VarHandle> storedEnergy = findDirectNumericField(storageClass, DIRECT_ENERGY_FIELD_NAMES, true);
+        if (storedEnergy.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Optional<VarHandle> capacity = findDirectNumericField(storageClass, DIRECT_ENERGY_CAPACITY_FIELD_NAMES, false);
+        return Optional.of(new DirectEnergyStorageAccess(storedEnergy.get(), capacity.orElse(null)));
+    }
+
+    private static Optional<VarHandle> findDirectNumericField(Class<?> owner, List<String> fieldNames, boolean writable) {
+        for (String fieldName : fieldNames) {
+            Class<?> type = owner;
+            while (type != null) {
+                try {
+                    Field field = type.getDeclaredField(fieldName);
+                    int modifiers = field.getModifiers();
+                    if (Modifier.isStatic(modifiers) || writable && Modifier.isFinal(modifiers) || !isDirectEnergyFieldType(field.getType())) {
+                        break;
+                    }
+
+                    field.setAccessible(true);
+                    return Optional.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup()).unreflectVarHandle(field));
+                } catch (NoSuchFieldException ignored) {
+                    type = type.getSuperclass();
+                } catch (IllegalAccessException | RuntimeException | LinkageError ignored) {
+                    break;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean isDirectEnergyFieldType(Class<?> fieldType) {
+        return fieldType == int.class || fieldType == long.class;
     }
 
     private int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
@@ -2632,6 +2730,91 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private record EnergyEndpointKey(BlockPos pos, @Nullable net.minecraft.core.Direction side) {}
+
+    private record DirectEnergyStorageAccess(VarHandle storedEnergy, @Nullable VarHandle capacity) {
+
+        private long insert(IEnergyStorage storage, long amount, boolean simulate) {
+            Long current = readEnergyAmount(this.storedEnergy, storage);
+            if (current == null || current < 0 || !matchesReportedAmount(current, storage.getEnergyStored())) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long directCapacity = this.capacity == null ? null : readEnergyAmount(this.capacity, storage);
+            if (directCapacity != null && directCapacity < 0) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            long maxStored = directCapacity == null ? Math.max(0, storage.getMaxEnergyStored()) : directCapacity;
+            if (directCapacity != null && !matchesReportedCapacity(directCapacity, storage.getMaxEnergyStored())) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            maxStored = Math.min(maxStored, getMaxStoredValue());
+            if (maxStored <= current) {
+                return 0;
+            }
+
+            long inserted = Math.min(amount, maxStored - current);
+            if (inserted <= 0) {
+                return 0;
+            }
+            if (simulate) {
+                return inserted;
+            }
+
+            long target = current + inserted;
+            if (!writeEnergyAmount(this.storedEnergy, storage, target)) {
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+
+            Long updated = readEnergyAmount(this.storedEnergy, storage);
+            if (updated == null || updated != target || !matchesReportedAmount(target, storage.getEnergyStored())) {
+                writeEnergyAmount(this.storedEnergy, storage, current);
+                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
+            }
+            return inserted;
+        }
+
+        private long getMaxStoredValue() {
+            return this.storedEnergy.varType() == int.class ? Integer.MAX_VALUE : Long.MAX_VALUE;
+        }
+
+        @Nullable
+        private static Long readEnergyAmount(VarHandle handle, Object target) {
+            try {
+                Object value = handle.get(target);
+                return value instanceof Number number ? number.longValue() : null;
+            } catch (RuntimeException | LinkageError ignored) {
+                return null;
+            }
+        }
+
+        private static boolean writeEnergyAmount(VarHandle handle, Object target, long amount) {
+            try {
+                if (handle.varType() == int.class) {
+                    if (amount > Integer.MAX_VALUE || amount < Integer.MIN_VALUE) {
+                        return false;
+                    }
+                    handle.set(target, (int) amount);
+                } else if (handle.varType() == long.class) {
+                    handle.set(target, amount);
+                } else {
+                    return false;
+                }
+                return true;
+            } catch (RuntimeException | LinkageError ignored) {
+                return false;
+            }
+        }
+
+        private static boolean matchesReportedAmount(long directAmount, int reportedAmount) {
+            return reportedAmount == clampStoredAmount(directAmount);
+        }
+
+        private static boolean matchesReportedCapacity(long directCapacity, int reportedCapacity) {
+            return reportedCapacity <= 0 || matchesReportedAmount(directCapacity, reportedCapacity);
+        }
+    }
 
     private record EnergyEndpoint(BlockPos pos, @Nullable net.minecraft.core.Direction side, IEnergyStorage storage) {}
 
