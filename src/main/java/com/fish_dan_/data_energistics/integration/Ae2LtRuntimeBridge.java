@@ -133,6 +133,32 @@ public final class Ae2LtRuntimeBridge {
         }
     }
 
+    public static boolean canAccept(ServerLevel targetLevel,
+                                    BlockPos pos,
+                                    Direction face,
+                                    IPatternDetails patternDetails) {
+        if (!isAvailable() || patternDetails == null) {
+            return false;
+        }
+
+        try {
+            Access methods = access;
+            if (methods == null) {
+                return false;
+            }
+
+            Object adapter = methods.machineAdapterFind().invoke(targetLevel, pos);
+            if (adapter == null) {
+                return false;
+            }
+
+            Object result = methods.adapterCanAccept().invoke(adapter, targetLevel, pos, face, patternDetails);
+            return result instanceof Boolean accepted && accepted;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static boolean shouldBypassAdvancedBlocking(PatternProviderLogic logic,
                                                        PatternProviderTarget target,
                                                        IPatternDetails patternDetails) {
