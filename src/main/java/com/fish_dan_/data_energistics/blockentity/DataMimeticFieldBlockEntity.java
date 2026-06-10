@@ -6,17 +6,14 @@ import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.config.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
 import com.fish_dan_.data_energistics.util.CropDataCarrierData;
-import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -76,7 +73,6 @@ import appeng.core.definitions.AEItems;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigMenuInventory;
 import appeng.util.Platform;
-import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.filter.IAEItemFilter;
 import org.jetbrains.annotations.Nullable;
@@ -239,34 +235,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
         data.put(OUTPUT_SIDES_TAG, sides);
         data.putInt(WORK_TICKS_TAG, this.workTicks);
-    }
-
-    @Override
-    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
-        super.exportSettings(mode, builder, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = new CompoundTag();
-        settings.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
-        settings.putBoolean(AUTO_PULL_KEY_INPUT_TAG, this.autoPullKeyInput);
-        settings.putInt(DROP_ROUTING_MODE_TAG, this.dropRoutingMode.ordinal());
-        settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.outputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
-    }
-
-    @Override
-    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
-        super.importSettings(mode, input, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
-        if (settings != null) {
-            applyMemoryCardSettings(settings);
-        }
     }
 
     @Override
@@ -445,45 +413,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         this.adjacentHandlersDirty = true;
         this.setChanged();
         this.markForClientUpdate();
-    }
-
-    private void applyMemoryCardSettings(CompoundTag settings) {
-        boolean changed = false;
-        boolean powerUsageChanged = false;
-        if (settings.contains(REDSTONE_CONTROLLED_TAG)) {
-            boolean redstoneControlled = settings.getBoolean(REDSTONE_CONTROLLED_TAG);
-            if (this.redstoneControlled != redstoneControlled) {
-                this.redstoneControlled = redstoneControlled;
-                changed = true;
-                powerUsageChanged = true;
-            }
-        }
-        if (settings.contains(AUTO_PULL_KEY_INPUT_TAG)) {
-            boolean autoPullKeyInput = settings.getBoolean(AUTO_PULL_KEY_INPUT_TAG);
-            if (this.autoPullKeyInput != autoPullKeyInput) {
-                this.autoPullKeyInput = autoPullKeyInput;
-                changed = true;
-            }
-        }
-        if (settings.contains(DROP_ROUTING_MODE_TAG)) {
-            DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(settings.getInt(DROP_ROUTING_MODE_TAG));
-            if (this.dropRoutingMode != dropRoutingMode) {
-                this.dropRoutingMode = dropRoutingMode;
-                changed = true;
-            }
-        }
-        if (settings.contains(OUTPUT_SIDES_TAG) && MemoryCardSettingsHelper.replaceSides(this.outputSides, settings.getInt(OUTPUT_SIDES_TAG))) {
-            this.adjacentHandlersDirty = true;
-            changed = true;
-        }
-        if (powerUsageChanged) {
-            markPowerUsageDirty();
-            updatePowerUsage();
-        }
-        if (changed) {
-            this.setChanged();
-            this.markForClientUpdate();
-        }
     }
 
     @Override

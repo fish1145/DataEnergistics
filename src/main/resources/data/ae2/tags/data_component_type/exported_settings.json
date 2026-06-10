@@ -1,9 +1,4 @@
 {
 	"replace": false,
-	"values": [
-		"data_energistics:digital_storage_depot_output_settings",
-		"data_energistics:machine_memory_card_settings",
-		"data_energistics:adaptive_pattern_provider_settings",
-		"data_energistics:redstone_tuning_mode"
-	]
+	"values": ["data_energistics:digital_storage_depot_output_settings"]
 }

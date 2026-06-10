@@ -4,20 +4,16 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.util.SettingsFrom;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -69,30 +65,6 @@ public abstract class PatternProviderBlockEntityMixin implements PatternProvider
             } catch (IllegalArgumentException ignored) {
                 this.dataEnergistics$redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH;
             }
-        }
-    }
-
-    @Inject(method = "exportSettings", at = @At("TAIL"))
-    private void dataEnergistics$exportTuning(SettingsFrom mode, DataComponentMap.Builder builder, Player player, CallbackInfo ci) {
-        if (mode == SettingsFrom.MEMORY_CARD) {
-            builder.set(ModDataComponents.REDSTONE_TUNING_MODE.get(), this.dataEnergistics$getRedstoneTuningMode().ordinal());
-        }
-    }
-
-    @Inject(method = "importSettings", at = @At("TAIL"))
-    private void dataEnergistics$importTuning(SettingsFrom mode, DataComponentMap input, Player player, CallbackInfo ci) {
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        Integer ordinal = input.get(ModDataComponents.REDSTONE_TUNING_MODE.get());
-        if (ordinal == null) {
-            return;
-        }
-
-        RedstoneTuningMode[] values = RedstoneTuningMode.values();
-        if (ordinal >= 0 && ordinal < values.length) {
-            this.dataEnergistics$setRedstoneTuningMode(values[ordinal]);
         }
     }
 

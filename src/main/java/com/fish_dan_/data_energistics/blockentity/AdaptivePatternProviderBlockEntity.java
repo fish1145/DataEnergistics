@@ -12,13 +12,11 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -52,7 +50,6 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
-import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import org.jetbrains.annotations.Nullable;
@@ -362,29 +359,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         super.loadTag(data, registries);
         getAdaptiveState().readFromNBT(data, registries, this.upgrades);
         this.syncedPatternSlotCount = getConfiguredPatternSlotCount();
-    }
-
-    @Override
-    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
-        super.exportSettings(mode, builder, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        builder.set(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
-    }
-
-    @Override
-    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
-        super.importSettings(mode, input, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
-        if (settings != null && getAdaptiveState().readMemoryCardSettings(settings)) {
-            onAe2LtStateChanged();
-        }
     }
 
     @Override

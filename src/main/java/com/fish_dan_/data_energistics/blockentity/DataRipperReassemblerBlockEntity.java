@@ -6,21 +6,17 @@ import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
-import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
@@ -64,7 +60,6 @@ import appeng.core.definitions.AEItems;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigManager;
 import appeng.util.ConfigMenuInventory;
-import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
@@ -409,31 +404,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     @Override
-    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
-        super.exportSettings(mode, builder, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = new CompoundTag();
-        settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.outputSides));
-        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
-    }
-
-    @Override
-    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
-        super.importSettings(mode, input, player);
-        if (mode != SettingsFrom.MEMORY_CARD) {
-            return;
-        }
-
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
-        if (settings != null) {
-            applyMemoryCardSettings(settings);
-        }
-    }
-
-    @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
         this.saveChanges();
         this.markForClientUpdate();
@@ -507,15 +477,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             saveChanges();
             markForClientUpdate();
         }
-    }
-
-    private void applyMemoryCardSettings(CompoundTag settings) {
-        if (!settings.contains(OUTPUT_SIDES_TAG) || !MemoryCardSettingsHelper.replaceSides(this.outputSides, settings.getInt(OUTPUT_SIDES_TAG))) {
-            return;
-        }
-
-        this.saveChanges();
-        this.markForClientUpdate();
     }
 
     private void onUpgradesChanged() {
