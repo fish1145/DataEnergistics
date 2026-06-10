@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.block;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -93,6 +94,10 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
                                               net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+        ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(stack, level, pos, player);
+        if (memoryCardResult.consumesAction()) {
+            return memoryCardResult;
+        }
         if (InteractionUtil.canWrenchRotate(stack)) {
             this.setSide(level, pos, hitResult.getDirection());
             return ItemInteractionResult.sidedSuccess(level.isClientSide());

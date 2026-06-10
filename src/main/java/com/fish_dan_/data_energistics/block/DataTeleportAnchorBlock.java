@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.util.CuttingKnifeTeleportData;
 
 import net.minecraft.core.BlockPos;
@@ -99,6 +100,10 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                               Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+        ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(stack, level, pos, player);
+        if (memoryCardResult.consumesAction()) {
+            return memoryCardResult;
+        }
         if (stack.getItem() instanceof PoweredCuttingKnifeItem && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
             return tryHandleCuttingKnifeTeleportToAnchor(stack, level, pos, player, anchor);
         }
