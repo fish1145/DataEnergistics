@@ -7,10 +7,13 @@ import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -21,6 +24,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -61,6 +65,7 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEItems;
 import appeng.parts.CableBusContainer;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.AEItemDefinitionFilter;
@@ -260,6 +265,33 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = new CompoundTag();
+        settings.putBoolean(SHOW_RANGE_TAG, this.showRange);
+        settings.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
+        settings.put(TARGET_TRANSFER_MODES_TAG, createTargetTransferModesTag());
+        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (settings != null) {
+            applyMemoryCardSettings(settings);
+        }
+    }
+
+    @Override
     protected void writeToStream(RegistryFriendlyByteBuf data) {
         super.writeToStream(data);
         data.writeBoolean(this.showRange);
@@ -392,6 +424,83 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         refreshConnectionTargets();
         this.setChanged();
         this.markForClientUpdate();
+    }
+
+    private void applyMemoryCardSettings(CompoundTag settings) {
+        boolean changed = false;
+        boolean refreshTargets = false;
+
+        if (settings.contains(SHOW_RANGE_TAG)) {
+            boolean showRange = MemoryCardSettingsHelper.readBoolean(settings, SHOW_RANGE_TAG, this.showRange);
+            if (this.showRange != showRange) {
+                this.showRange = showRange;
+                changed = true;
+            }
+        }
+
+        if (settings.contains(CONNECTION_MODE_TAG)) {
+            ConnectionMode connectionMode = ConnectionMode.fromSerializedName(settings.getString(CONNECTION_MODE_TAG));
+            if (this.connectionMode != connectionMode) {
+                this.connectionMode = connectionMode;
+                changed = true;
+                refreshTargets = true;
+            }
+        }
+
+        if (settings.contains(TARGET_TRANSFER_MODES_TAG)) {
+            Map<BlockPos, TargetTransferMode> targetTransferModes = readTargetTransferModes(settings);
+            if (!this.targetTransferModes.equals(targetTransferModes)) {
+                this.targetTransferModes.clear();
+                this.targetTransferModes.putAll(targetTransferModes);
+                changed = true;
+                refreshTargets = true;
+            }
+        }
+
+        if (refreshTargets) {
+            refreshConnectionTargets();
+            invalidateEndpointCache();
+            invalidateClusterCache();
+        }
+
+        if (changed) {
+            this.setChanged();
+            this.markForClientUpdate();
+        }
+    }
+
+    private ListTag createTargetTransferModesTag() {
+        ListTag targetTransferModes = new ListTag();
+        for (Map.Entry<BlockPos, TargetTransferMode> entry : this.targetTransferModes.entrySet()) {
+            if (entry.getValue() == TargetTransferMode.AUTO) {
+                continue;
+            }
+            CompoundTag compound = new CompoundTag();
+            compound.put("pos", NbtUtils.writeBlockPos(entry.getKey()));
+            compound.putString("mode", entry.getValue().getSerializedName());
+            targetTransferModes.add(compound);
+        }
+        return targetTransferModes;
+    }
+
+    private static Map<BlockPos, TargetTransferMode> readTargetTransferModes(CompoundTag settings) {
+        Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
+        Tag targetTransferModesTag = settings.get(TARGET_TRANSFER_MODES_TAG);
+        if (!(targetTransferModesTag instanceof ListTag list)) {
+            return targetTransferModes;
+        }
+
+        for (Tag tag : list) {
+            if (tag instanceof CompoundTag compound) {
+                NbtUtils.readBlockPos(compound, "pos").ifPresent(pos -> {
+                    TargetTransferMode transferMode = TargetTransferMode.fromSerializedName(compound.getString("mode"));
+                    if (transferMode != TargetTransferMode.AUTO) {
+                        targetTransferModes.put(pos.immutable(), transferMode);
+                    }
+                });
+            }
+        }
+        return targetTransferModes;
     }
 
     public int getConfiguredChunkRadius() {

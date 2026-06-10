@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -36,6 +37,28 @@ public final class ModDataComponents {
             () -> DataComponentType.<DigitalStorageDepotMemoryCardData>builder()
                     .persistent(DigitalStorageDepotMemoryCardData.CODEC)
                     .networkSynchronized(DigitalStorageDepotMemoryCardData.STREAM_CODEC)
+                    .cacheEncoding()
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<CompoundTag>> MACHINE_MEMORY_CARD_SETTINGS = DATA_COMPONENT_TYPES.register(
+            "machine_memory_card_settings",
+            () -> DataComponentType.<CompoundTag>builder()
+                    .persistent(CompoundTag.CODEC)
+                    .networkSynchronized(ByteBufCodecs.COMPOUND_TAG)
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<CompoundTag>> ADAPTIVE_PATTERN_PROVIDER_SETTINGS = DATA_COMPONENT_TYPES.register(
+            "adaptive_pattern_provider_settings",
+            () -> DataComponentType.<CompoundTag>builder()
+                    .persistent(CompoundTag.CODEC)
+                    .networkSynchronized(ByteBufCodecs.COMPOUND_TAG)
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> REDSTONE_TUNING_MODE = DATA_COMPONENT_TYPES.register(
+            "redstone_tuning_mode",
+            () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
                     .cacheEncoding()
                     .build());
 

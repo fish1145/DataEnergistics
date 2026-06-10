@@ -222,6 +222,88 @@ public final class AdaptivePatternProviderState {
         }
     }
 
+    public CompoundTag writeMemoryCardSettings() {
+        CompoundTag data = new CompoundTag();
+        data.putBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG, this.advancedAeFilteredImport);
+        data.putBoolean(RESONATING_PULL_ENABLED_TAG, this.resonatingPullEnabled);
+        data.putString(AE2LT_PROVIDER_MODE_TAG, this.ae2LtProviderMode.name());
+        data.putString(AE2LT_RETURN_MODE_TAG, this.ae2LtReturnMode.name());
+        data.putString(AE2LT_WIRELESS_DISPATCH_MODE_TAG, this.ae2LtWirelessDispatchMode.name());
+        data.putString(AE2LT_WIRELESS_SPEED_MODE_TAG, this.ae2LtWirelessSpeedMode.name());
+        ListTag connectionList = new ListTag();
+        for (var connection : this.ae2LtConnections) {
+            connectionList.add(connection.toTag());
+        }
+        data.put(AE2LT_CONNECTIONS_TAG, connectionList);
+        return data;
+    }
+
+    public boolean readMemoryCardSettings(CompoundTag data) {
+        boolean changed = false;
+
+        if (data.contains(ADVANCED_AE_FILTERED_IMPORT_TAG)) {
+            boolean advancedAeFilteredImport = data.getBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG);
+            if (this.advancedAeFilteredImport != advancedAeFilteredImport) {
+                this.advancedAeFilteredImport = advancedAeFilteredImport;
+                changed = true;
+            }
+        }
+        if (data.contains(RESONATING_PULL_ENABLED_TAG)) {
+            boolean resonatingPullEnabled = data.getBoolean(RESONATING_PULL_ENABLED_TAG);
+            if (this.resonatingPullEnabled != resonatingPullEnabled) {
+                this.resonatingPullEnabled = resonatingPullEnabled;
+                changed = true;
+            }
+        }
+
+        AdaptivePatternProviderModes.Ae2LtProviderMode ae2LtProviderMode = readEnum(data, AE2LT_PROVIDER_MODE_TAG,
+                this.ae2LtProviderMode,
+                AdaptivePatternProviderModes.Ae2LtProviderMode.class);
+        if (this.ae2LtProviderMode != ae2LtProviderMode) {
+            this.ae2LtProviderMode = ae2LtProviderMode;
+            changed = true;
+        }
+
+        AdaptivePatternProviderModes.Ae2LtReturnMode ae2LtReturnMode = readEnum(data, AE2LT_RETURN_MODE_TAG,
+                this.ae2LtReturnMode,
+                AdaptivePatternProviderModes.Ae2LtReturnMode.class);
+        if (this.ae2LtReturnMode != ae2LtReturnMode) {
+            this.ae2LtReturnMode = ae2LtReturnMode;
+            changed = true;
+        }
+
+        AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode = readEnum(data, AE2LT_WIRELESS_DISPATCH_MODE_TAG,
+                this.ae2LtWirelessDispatchMode,
+                AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.class);
+        if (this.ae2LtWirelessDispatchMode != ae2LtWirelessDispatchMode) {
+            this.ae2LtWirelessDispatchMode = ae2LtWirelessDispatchMode;
+            changed = true;
+        }
+
+        AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode = readEnum(data, AE2LT_WIRELESS_SPEED_MODE_TAG,
+                this.ae2LtWirelessSpeedMode,
+                AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.class);
+        if (this.ae2LtWirelessSpeedMode != ae2LtWirelessSpeedMode) {
+            this.ae2LtWirelessSpeedMode = ae2LtWirelessSpeedMode;
+            changed = true;
+        }
+
+        if (data.contains(AE2LT_CONNECTIONS_TAG)) {
+            ListTag connectionList = data.getList(AE2LT_CONNECTIONS_TAG, CompoundTag.TAG_COMPOUND);
+            List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(connectionList.size());
+            for (int i = 0; i < connectionList.size(); i++) {
+                incomingConnections.add(AdaptiveWirelessConnection.fromTag(connectionList.getCompound(i)));
+            }
+            if (!this.ae2LtConnections.equals(incomingConnections)) {
+                this.ae2LtConnections.clear();
+                this.ae2LtConnections.addAll(incomingConnections);
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
     public void writeToStream(RegistryFriendlyByteBuf data) {
         data.writeNbt(getProviderStack().saveOptional(data.registryAccess()));
         data.writeBoolean(this.advancedAeFilteredImport);

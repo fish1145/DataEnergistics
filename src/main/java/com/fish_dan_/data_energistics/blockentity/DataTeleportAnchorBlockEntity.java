@@ -3,11 +3,13 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.world.TeleportAnchorSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -29,6 +31,8 @@ import appeng.api.config.PowerUnit;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
+import appeng.util.SettingsFrom;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -325,6 +329,69 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         data.putInt(TARGET_X_TAG, this.targetPos.getX());
         data.putInt(TARGET_Y_TAG, this.targetPos.getY());
         data.putInt(TARGET_Z_TAG, this.targetPos.getZ());
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable net.minecraft.world.entity.player.Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = new CompoundTag();
+        settings.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
+        settings.putBoolean(HAS_TARGET_TAG, this.hasTarget);
+        settings.putString(TARGET_DIMENSION_TAG, this.targetDimension.toString());
+        settings.putInt(TARGET_X_TAG, this.targetPos.getX());
+        settings.putInt(TARGET_Y_TAG, this.targetPos.getY());
+        settings.putInt(TARGET_Z_TAG, this.targetPos.getZ());
+        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable net.minecraft.world.entity.player.Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (settings != null) {
+            applyMemoryCardSettings(settings);
+        }
+    }
+
+    private void applyMemoryCardSettings(CompoundTag settings) {
+        boolean changed = false;
+        if (settings.contains(REDSTONE_CONTROLLED_TAG)) {
+            boolean redstoneControlled = settings.getBoolean(REDSTONE_CONTROLLED_TAG);
+            if (this.redstoneControlled != redstoneControlled) {
+                this.redstoneControlled = redstoneControlled;
+                changed = true;
+            }
+        }
+        if (settings.contains(HAS_TARGET_TAG)) {
+            boolean hasTarget = settings.getBoolean(HAS_TARGET_TAG);
+            ResourceLocation targetDimension = ResourceLocation.tryParse(settings.getString(TARGET_DIMENSION_TAG));
+            if (targetDimension == null) {
+                targetDimension = net.minecraft.world.level.Level.OVERWORLD.location();
+            }
+            BlockPos targetPos = new BlockPos(
+                    settings.getInt(TARGET_X_TAG),
+                    settings.getInt(TARGET_Y_TAG),
+                    settings.getInt(TARGET_Z_TAG));
+            if (this.hasTarget != hasTarget || !this.targetDimension.equals(targetDimension) || !this.targetPos.equals(targetPos)) {
+                this.hasTarget = hasTarget;
+                this.targetDimension = targetDimension;
+                this.targetPos = targetPos;
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.saveChanges();
+            updateOnlineState();
+            this.markForClientUpdate();
+        }
     }
 
     private boolean isReceivingRedstonePower() {
