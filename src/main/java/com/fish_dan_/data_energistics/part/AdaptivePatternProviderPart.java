@@ -11,11 +11,13 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHand
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -42,6 +44,7 @@ import appeng.menu.locator.MenuHostLocator;
 import appeng.menu.locator.MenuLocators;
 import appeng.parts.PartModel;
 import appeng.parts.crafting.PatternProviderPart;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import org.jetbrains.annotations.Nullable;
@@ -343,6 +346,29 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     public void writeToNBT(CompoundTag data, HolderLookup.Provider registries) {
         super.writeToNBT(data, registries);
         getAdaptiveState().writeToNBT(data, registries, this.upgrades);
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder) {
+        super.exportSettings(mode, builder);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        builder.set(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get(), getAdaptiveState().writeMemoryCardSettings());
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
+        if (settings != null && getAdaptiveState().readMemoryCardSettings(settings)) {
+            onAdaptiveStateChanged();
+        }
     }
 
     @Override

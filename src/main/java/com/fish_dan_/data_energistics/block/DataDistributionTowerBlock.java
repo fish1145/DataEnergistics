@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -349,6 +350,14 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     @Override
     protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos, Player player,
                                               InteractionHand hand, BlockHitResult hit) {
+        ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(
+                heldItem,
+                level,
+                getBasePos(pos, state),
+                player);
+        if (memoryCardResult.consumesAction()) {
+            return memoryCardResult;
+        }
         if (canDisassembleWithWrench(heldItem)) {
             if (player.isShiftKeyDown()) {
                 if (!level.isClientSide()) {

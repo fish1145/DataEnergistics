@@ -8,10 +8,13 @@ import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -63,6 +66,7 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEItems;
 import appeng.parts.CableBusContainer;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.AEItemDefinitionFilter;
@@ -281,6 +285,34 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = new CompoundTag();
+        settings.putBoolean(SHOW_RANGE_TAG, this.showRange);
+        settings.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
+        settings.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
+        settings.put(TARGET_TRANSFER_MODES_TAG, createTargetTransferModesTag());
+        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (settings != null) {
+            applyMemoryCardSettings(settings);
+        }
+    }
+
+    @Override
     protected void writeToStream(RegistryFriendlyByteBuf data) {
         super.writeToStream(data);
         data.writeBoolean(this.showRange);
@@ -485,6 +517,99 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.setChanged();
         this.markForClientUpdate();
         return ConnectorBindResult.success(aeSupported, feSupported);
+    }
+
+    private void applyMemoryCardSettings(CompoundTag settings) {
+        boolean changed = false;
+        boolean refreshTargets = false;
+        boolean invalidateTargets = false;
+
+        if (settings.contains(SHOW_RANGE_TAG)) {
+            boolean showRange = MemoryCardSettingsHelper.readBoolean(settings, SHOW_RANGE_TAG, this.showRange);
+            if (this.showRange != showRange) {
+                this.showRange = showRange;
+                changed = true;
+            }
+        }
+
+        if (settings.contains(CONNECTION_MODE_TAG)) {
+            ConnectionMode connectionMode = ConnectionMode.fromSerializedName(settings.getString(CONNECTION_MODE_TAG));
+            if (this.connectionMode != connectionMode) {
+                this.connectionMode = connectionMode;
+                changed = true;
+                refreshTargets = true;
+            }
+        }
+
+        if (settings.contains(RANGE_ADJUSTMENT_MODE_TAG)) {
+            RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.fromSerializedName(settings.getString(RANGE_ADJUSTMENT_MODE_TAG));
+            if (this.rangeAdjustmentMode != rangeAdjustmentMode) {
+                this.rangeAdjustmentMode = rangeAdjustmentMode;
+                changed = true;
+                invalidateTargets = true;
+                if (this.level != null && !this.level.isClientSide() && this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE) {
+                    scanNearbyConnectableNodes();
+                }
+            }
+        }
+
+        if (settings.contains(TARGET_TRANSFER_MODES_TAG)) {
+            Map<BlockPos, TargetTransferMode> targetTransferModes = readTargetTransferModes(settings);
+            if (!this.targetTransferModes.equals(targetTransferModes)) {
+                this.targetTransferModes.clear();
+                this.targetTransferModes.putAll(targetTransferModes);
+                changed = true;
+                refreshTargets = true;
+            }
+        }
+
+        if (refreshTargets) {
+            refreshConnectionTargets();
+            invalidateEndpointCache();
+            invalidateClusterCache();
+        } else if (invalidateTargets) {
+            invalidateEndpointCache();
+            invalidateClusterCache();
+        }
+
+        if (changed) {
+            this.setChanged();
+            this.markForClientUpdate();
+        }
+    }
+
+    private ListTag createTargetTransferModesTag() {
+        ListTag targetTransferModes = new ListTag();
+        for (Map.Entry<BlockPos, TargetTransferMode> entry : this.targetTransferModes.entrySet()) {
+            if (entry.getValue() == TargetTransferMode.AUTO) {
+                continue;
+            }
+            CompoundTag compound = new CompoundTag();
+            compound.put("pos", NbtUtils.writeBlockPos(entry.getKey()));
+            compound.putString("mode", entry.getValue().getSerializedName());
+            targetTransferModes.add(compound);
+        }
+        return targetTransferModes;
+    }
+
+    private static Map<BlockPos, TargetTransferMode> readTargetTransferModes(CompoundTag settings) {
+        Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
+        Tag targetTransferModesTag = settings.get(TARGET_TRANSFER_MODES_TAG);
+        if (!(targetTransferModesTag instanceof ListTag list)) {
+            return targetTransferModes;
+        }
+
+        for (Tag tag : list) {
+            if (tag instanceof CompoundTag compound) {
+                NbtUtils.readBlockPos(compound, "pos").ifPresent(pos -> {
+                    TargetTransferMode transferMode = TargetTransferMode.fromSerializedName(compound.getString("mode"));
+                    if (transferMode != TargetTransferMode.AUTO) {
+                        targetTransferModes.put(pos.immutable(), transferMode);
+                    }
+                });
+            }
+        }
+        return targetTransferModes;
     }
 
     public int getConfiguredChunkRadius() {

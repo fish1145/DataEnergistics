@@ -8,11 +8,14 @@ import com.fish_dan_.data_energistics.ae2.FixedSizeMachineUpgradeInventory;
 import com.fish_dan_.data_energistics.mixin.core.InterfaceLogicUpgradesAccessor;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -51,6 +54,8 @@ import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
+import appeng.util.SettingsFrom;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -151,6 +156,31 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     }
 
     @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = new CompoundTag();
+        settings.putInt(ACTIVE_PULL_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.activePullSides));
+        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (settings != null) {
+            applyMemoryCardSettings(settings);
+        }
+    }
+
+    @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
         this.interfaceLogic.addDrops(drops);
@@ -216,6 +246,15 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
             this.saveChanges();
             this.markForClientUpdate();
         }
+    }
+
+    private void applyMemoryCardSettings(CompoundTag settings) {
+        if (!settings.contains(ACTIVE_PULL_SIDES_TAG) || !MemoryCardSettingsHelper.replaceSides(this.activePullSides, settings.getInt(ACTIVE_PULL_SIDES_TAG))) {
+            return;
+        }
+
+        this.saveChanges();
+        this.markForClientUpdate();
     }
 
     @Override

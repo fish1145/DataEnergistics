@@ -8,12 +8,14 @@ import com.fish_dan_.data_energistics.ae2.DataSanctumReturnInventory;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.world.DataSanctumPortalLogic;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -55,6 +57,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
+import appeng.util.SettingsFrom;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -83,6 +86,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final int BLACK_HOLE_SURFACE_INNER_MARGIN = 3;
     private static final int BLACK_HOLE_SURFACE_OUTER_MARGIN = 3;
     private static final String SHOW_RANGE_TAG = "show_range";
+    private static final String MODE_TAG = "mode";
     private static final String ENERGY_UPGRADES_TAG = "energy_upgrades";
     private static final String NETWORK_PORT_NODE_TAG = "network_port_node";
     private static final String RETURN_INVENTORY_TAG = "returnInv";
@@ -219,6 +223,32 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         this.blackHoleExpansionRadius = Math.max(0, Math.min(BLACK_HOLE_BLOCK_RADIUS, data.getInt(BLACK_HOLE_EXPANSION_RADIUS_TAG)));
         this.preparedBlackHoleRadius = 0;
         this.pendingBlackHoleBlocks.clear();
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = new CompoundTag();
+        settings.putBoolean(SHOW_RANGE_TAG, this.showRange);
+        settings.putInt(MODE_TAG, getMode());
+        builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+        if (mode != SettingsFrom.MEMORY_CARD) {
+            return;
+        }
+
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (settings != null) {
+            applyMemoryCardSettings(settings);
+        }
     }
 
     @Override
@@ -402,6 +432,28 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     public boolean canDisplayBlackHoleRange() {
         BlockState state = getBlockState();
         return this.showRange && state.hasProperty(DataSanctumBlock.MODE) && state.getValue(DataSanctumBlock.MODE) == BLACK_HOLE_MODE;
+    }
+
+    private void applyMemoryCardSettings(CompoundTag settings) {
+        boolean changed = false;
+        if (settings.contains(SHOW_RANGE_TAG)) {
+            boolean showRange = settings.getBoolean(SHOW_RANGE_TAG);
+            if (this.showRange != showRange) {
+                this.showRange = showRange;
+                changed = true;
+            }
+        }
+        if (settings.contains(MODE_TAG)) {
+            int mode = Math.max(0, Math.min(2, settings.getInt(MODE_TAG)));
+            if (getMode() != mode) {
+                setMode(mode);
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.setChanged();
+            this.markForClientUpdate();
+        }
     }
 
     public AABB getBlackHoleCoverageAabb() {

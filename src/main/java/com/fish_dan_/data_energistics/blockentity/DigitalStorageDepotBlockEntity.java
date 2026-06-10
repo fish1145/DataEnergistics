@@ -431,6 +431,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         }
 
         builder.set(ModDataComponents.DIGITAL_STORAGE_DEPOT_OUTPUT_SETTINGS.get(), new DigitalStorageDepotMemoryCardData(
+                this.autoExportMode.ordinal(),
                 encodeOutputSides(this.itemOutputSides),
                 encodeOutputSides(this.fluidOutputSides),
                 encodeOutputSides(this.keyOutputSides)));
@@ -785,6 +786,12 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
     private void applyOutputSettings(DigitalStorageDepotMemoryCardData outputSettings) {
         boolean changed = false;
+        DataExtractorAutoExportMode autoExportMode = DataExtractorAutoExportMode.fromOrdinal(outputSettings.autoExportModeOrdinal());
+        if (this.autoExportMode != autoExportMode) {
+            this.autoExportMode = autoExportMode;
+            syncConfigManagerAutoExportMode();
+            changed = true;
+        }
         changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS, decodeOutputSides(outputSettings.itemOutputSidesMask()));
         changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, decodeOutputSides(outputSettings.fluidOutputSidesMask()));
         changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, decodeOutputSides(outputSettings.keyOutputSidesMask()));

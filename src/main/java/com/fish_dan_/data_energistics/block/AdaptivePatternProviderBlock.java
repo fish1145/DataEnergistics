@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.block;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -40,6 +42,11 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
                                    Class<T> blockEntityClass,
                                    net.minecraft.world.level.block.entity.BlockEntityType<T> blockEntityType) {
         this.setBlockEntity(blockEntityClass, blockEntityType, null, null);
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new AdaptivePatternProviderBlockEntity(pos, state);
     }
 
     @Override
@@ -87,6 +94,10 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
                                               net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+        ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(stack, level, pos, player);
+        if (memoryCardResult.consumesAction()) {
+            return memoryCardResult;
+        }
         if (InteractionUtil.canWrenchRotate(stack)) {
             this.setSide(level, pos, hitResult.getDirection());
             return ItemInteractionResult.sidedSuccess(level.isClientSide());

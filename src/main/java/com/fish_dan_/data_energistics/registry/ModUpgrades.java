@@ -47,6 +47,7 @@ public final class ModUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), ModBlocks.DATA_MIMETIC_FIELD.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), ModBlocks.DATA_TELEPORT_ANCHOR.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), ModBlocks.DATA_SANCTUM.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), ModBlocks.DATA_SANCTUM_INTERFACE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
