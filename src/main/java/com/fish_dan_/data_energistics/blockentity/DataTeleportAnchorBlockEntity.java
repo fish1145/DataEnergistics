@@ -340,11 +340,6 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
 
         CompoundTag settings = new CompoundTag();
         settings.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
-        settings.putBoolean(HAS_TARGET_TAG, this.hasTarget);
-        settings.putString(TARGET_DIMENSION_TAG, this.targetDimension.toString());
-        settings.putInt(TARGET_X_TAG, this.targetPos.getX());
-        settings.putInt(TARGET_Y_TAG, this.targetPos.getY());
-        settings.putInt(TARGET_Z_TAG, this.targetPos.getZ());
         builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
@@ -367,23 +362,6 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
             boolean redstoneControlled = settings.getBoolean(REDSTONE_CONTROLLED_TAG);
             if (this.redstoneControlled != redstoneControlled) {
                 this.redstoneControlled = redstoneControlled;
-                changed = true;
-            }
-        }
-        if (settings.contains(HAS_TARGET_TAG)) {
-            boolean hasTarget = settings.getBoolean(HAS_TARGET_TAG);
-            ResourceLocation targetDimension = ResourceLocation.tryParse(settings.getString(TARGET_DIMENSION_TAG));
-            if (targetDimension == null) {
-                targetDimension = net.minecraft.world.level.Level.OVERWORLD.location();
-            }
-            BlockPos targetPos = new BlockPos(
-                    settings.getInt(TARGET_X_TAG),
-                    settings.getInt(TARGET_Y_TAG),
-                    settings.getInt(TARGET_Z_TAG));
-            if (this.hasTarget != hasTarget || !this.targetDimension.equals(targetDimension) || !this.targetPos.equals(targetPos)) {
-                this.hasTarget = hasTarget;
-                this.targetDimension = targetDimension;
-                this.targetPos = targetPos;
                 changed = true;
             }
         }
