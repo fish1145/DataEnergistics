@@ -71,8 +71,10 @@ import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1534,18 +1536,38 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Nullable
     private IEnergyStorage findAccessibleEnergyStorage(BlockPos pos, boolean forReceive) {
+        List<EnergyEndpoint> endpoints = findAccessibleEnergyEndpoints(pos, forReceive);
+        return endpoints.isEmpty() ? null : endpoints.getFirst().storage();
+    }
+
+    private List<EnergyEndpoint> findAccessibleEnergyEndpoints(BlockPos pos, boolean forReceive) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        ArrayList<EnergyEndpoint> endpoints = new ArrayList<>();
+        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        boolean collectAllSides = this.level.getBlockEntity(pos) instanceof CableBusBlockEntity;
+
         for (var direction : net.minecraft.core.Direction.values()) {
             IEnergyStorage storage = getEnergyStorageAt(pos, direction);
-            if (storage != null && (forReceive ? storage.canReceive() : storage.canExtract())) {
-                return storage;
+            if (isUsableEnergyStorage(storage, forReceive) && seenStorages.add(storage)) {
+                endpoints.add(new EnergyEndpoint(pos.immutable(), direction, storage));
+                if (!collectAllSides) {
+                    return List.copyOf(endpoints);
+                }
             }
         }
 
         IEnergyStorage internal = getEnergyStorageAt(pos, null);
-        if (internal != null && (forReceive ? internal.canReceive() : internal.canExtract())) {
-            return internal;
+        if (isUsableEnergyStorage(internal, forReceive) && seenStorages.add(internal)) {
+            endpoints.add(new EnergyEndpoint(pos.immutable(), null, internal));
         }
-        return null;
+        return List.copyOf(endpoints);
+    }
+
+    private static boolean isUsableEnergyStorage(@Nullable IEnergyStorage storage, boolean forReceive) {
+        return storage != null && (forReceive ? storage.canReceive() : storage.canExtract());
     }
 
     private List<DataDistributionTowerBlockEntity> collectTowerCluster() {
@@ -1615,26 +1637,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private List<EnergyEndpoint> resolveEnergyEndpoints(List<DataDistributionTowerBlockEntity> towers, boolean forReceive) {
-        LinkedHashMap<BlockPos, IEnergyStorage> endpoints = new LinkedHashMap<>();
+        LinkedHashMap<EnergyEndpointKey, EnergyEndpoint> endpoints = new LinkedHashMap<>();
         for (DataDistributionTowerBlockEntity tower : towers) {
             for (BlockPos pos : tower.getCachedEndpoints()) {
-                if (endpoints.containsKey(pos)) {
-                    continue;
-                }
                 if (!tower.targetAllowsFe(pos)) {
                     continue;
                 }
 
-                IEnergyStorage storage = tower.findAccessibleEnergyStorage(pos, forReceive);
-                if (storage != null) {
-                    endpoints.put(pos, storage);
+                for (EnergyEndpoint endpoint : tower.findAccessibleEnergyEndpoints(pos, forReceive)) {
+                    endpoints.putIfAbsent(new EnergyEndpointKey(endpoint.pos(), endpoint.side()), endpoint);
                 }
             }
         }
 
-        ArrayList<EnergyEndpoint> result = new ArrayList<>(endpoints.size());
-        endpoints.forEach((pos, storage) -> result.add(new EnergyEndpoint(pos, storage)));
-        return result;
+        return List.copyOf(endpoints.values());
     }
 
     private List<EnergyEndpoint> excludeEnergyEndpoint(List<EnergyEndpoint> endpoints, @Nullable BlockPos excludedPos) {
@@ -1705,12 +1721,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
             long transferAmount = Math.min(simulatedExtract, Math.min(simulatedInsert, stepBudget));
             long actuallyExtracted = 0;
+            long remainingExtraction = transferAmount;
 
             if (AE2FluxIntegration.isAvailable()) {
-                actuallyExtracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, transferAmount, false);
+                long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remainingExtraction, false);
+                if (extracted > 0) {
+                    actuallyExtracted += extracted;
+                    remainingExtraction -= extracted;
+                }
             }
-            if (actuallyExtracted <= 0) {
-                actuallyExtracted = extractFromEndpointsRoundRobin(transferAmount, false, transferScanSnapshot.extractEndpoints());
+            if (remainingExtraction > 0) {
+                actuallyExtracted += extractFromEndpointsRoundRobin(remainingExtraction, false, transferScanSnapshot.extractEndpoints());
             }
             if (actuallyExtracted <= 0) {
                 break;
@@ -1780,11 +1801,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
 
+        long totalExtractable = 0;
         if (transferScanSnapshot.aeExtractable() > 0) {
-            return Math.min(amount, transferScanSnapshot.aeExtractable());
+            totalExtractable = Math.min(amount, transferScanSnapshot.aeExtractable());
         }
 
-        return extractFromEndpointsRoundRobin(amount, true, transferScanSnapshot.extractEndpoints());
+        long remaining = amount - totalExtractable;
+        if (remaining > 0) {
+            totalExtractable += extractFromEndpointsRoundRobin(remaining, true, transferScanSnapshot.extractEndpoints());
+        }
+        return Math.min(amount, totalExtractable);
     }
 
     private long extractFromEndpointsRoundRobin(long amount, boolean simulate, List<EnergyEndpoint> extractEndpoints) {
@@ -1792,26 +1818,36 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
 
+        long totalExtracted = 0;
+        long remaining = amount;
         int endpointCount = extractEndpoints.size();
         int startIndex = getExtractStartIndex(null, endpointCount);
         int lastSuccessfulIndex = -1;
 
         for (int offset = 0; offset < endpointCount; offset++) {
+            if (remaining <= 0) {
+                break;
+            }
+
             int endpointIndex = (startIndex + offset) % endpointCount;
             IEnergyStorage storage = extractEndpoints.get(endpointIndex).storage();
             if (!storage.canExtract() || storage.getEnergyStored() <= 0) {
                 continue;
             }
 
-            int extracted = storage.extractEnergy(clampEnergyRequest(amount), simulate);
+            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
             if (extracted > 0) {
+                totalExtracted += extracted;
+                remaining -= extracted;
                 lastSuccessfulIndex = endpointIndex;
-                this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
-                return extracted;
             }
         }
 
-        return 0;
+        if (lastSuccessfulIndex >= 0) {
+            this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
+        }
+
+        return totalExtracted;
     }
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos,
@@ -2576,7 +2612,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {}
+    private record EnergyEndpointKey(BlockPos pos, @Nullable net.minecraft.core.Direction side) {}
+
+    private record EnergyEndpoint(BlockPos pos, @Nullable net.minecraft.core.Direction side, IEnergyStorage storage) {}
 
     private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
 
