@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
@@ -47,6 +48,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private final Scrollbar scrollbar;
     private final DataExtractorToggleButton rangeVisibleButton;
     private final DataDistributionTowerConnectionModeButton connectionModeButton;
+    private final DataDistributionTowerTextureToggleButton rangeAdjustmentModeButton;
     private final DataDistributionTowerTextureToggleButton disabledTargetsButton;
     private List<BoundRow> allRows = List.of();
     private List<BoundRow> cachedRows = List.of();
@@ -67,6 +69,14 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         this.addToLeftToolbar(this.rangeVisibleButton);
         this.connectionModeButton = new DataDistributionTowerConnectionModeButton(this.menu::sendSetConnectionMode);
         this.addToLeftToolbar(this.connectionModeButton);
+        this.rangeAdjustmentModeButton = new DataDistributionTowerTextureToggleButton(
+                "POWER_UNIT_SCOPE",
+                "POWER_UNIT_POINT",
+                "button.data_energistics.data_distribution_tower.range_adjustment",
+                "button.data_energistics.data_distribution_tower.range_adjustment.enabled",
+                "button.data_energistics.data_distribution_tower.range_adjustment.disabled",
+                this.menu::sendSetRangeAdjustmentMode);
+        this.addToLeftToolbar(this.rangeAdjustmentModeButton);
         this.disabledTargetsButton = new DataDistributionTowerTextureToggleButton(
                 "POWER_UNIT_BLACK_LIST",
                 "POWER_UNIT_WHITE_LIST",
@@ -121,6 +131,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                 this.menu.rangeVisible ? "screen.data_energistics.data_distribution_tower.range_visible.on" : "screen.data_energistics.data_distribution_tower.range_visible.off"));
         this.rangeVisibleButton.setState(this.menu.rangeVisible);
         this.connectionModeButton.setMode(ConnectionMode.fromOrdinal(this.menu.connectionMode));
+        this.rangeAdjustmentModeButton.setState(RangeAdjustmentMode.fromOrdinal(this.menu.rangeAdjustmentMode) == RangeAdjustmentMode.SCOPE);
         this.disabledTargetsButton.setState(this.disabledTargetsOnly);
         setTextContent("bound_title", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.bound_title",

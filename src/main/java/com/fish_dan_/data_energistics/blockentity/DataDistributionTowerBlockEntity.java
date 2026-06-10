@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
@@ -21,6 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -101,6 +103,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
+    private static final String RANGE_ADJUSTMENT_MODE_TAG = "range_adjustment_mode";
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
     private static final int AUTO_DISCOVERY_INTERVAL_TICKS = 20;
@@ -172,6 +175,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean pendingRangeRefresh = false;
     private int cacheCleanupCooldown;
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
+    private RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.POINT;
     private int autoDiscoveryCooldown;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
@@ -211,6 +215,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super.loadTag(data, registries);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
         this.connectionMode = ConnectionMode.fromSerializedName(data.getString(CONNECTION_MODE_TAG));
+        this.rangeAdjustmentMode = RangeAdjustmentMode.fromSerializedName(data.getString(RANGE_ADJUSTMENT_MODE_TAG));
         this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
         this.syncedChunkRadius = computeChunkRadius();
         updateIdlePowerUsage();
@@ -248,6 +253,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         super.saveAdditional(data, registries);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
         data.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
+        data.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
         ListTag linked = new ListTag();
@@ -360,6 +366,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.connectionMode;
     }
 
+    public RangeAdjustmentMode getRangeAdjustmentMode() {
+        return this.rangeAdjustmentMode;
+    }
+
+    public boolean isPointToPointMode() {
+        return this.rangeAdjustmentMode == RangeAdjustmentMode.POINT;
+    }
+
     public TargetTransferMode getTargetTransferMode(BlockPos targetPos) {
         return this.targetTransferModes.getOrDefault(normalizeTargetPos(targetPos), TargetTransferMode.AUTO);
     }
@@ -404,6 +418,70 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         refreshConnectionTargets();
         this.setChanged();
         this.markForClientUpdate();
+    }
+
+    public void setRangeAdjustmentMode(@Nullable RangeAdjustmentMode rangeAdjustmentMode) {
+        RangeAdjustmentMode normalizedMode = rangeAdjustmentMode == null ? RangeAdjustmentMode.POINT : rangeAdjustmentMode;
+        if (this.rangeAdjustmentMode == normalizedMode) {
+            return;
+        }
+
+        this.rangeAdjustmentMode = normalizedMode;
+        if (this.level != null && !this.level.isClientSide() && this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE) {
+            scanNearbyConnectableNodes();
+        }
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        this.setChanged();
+        this.markForClientUpdate();
+    }
+
+    public ConnectorBindResult bindTargetFromConnector(BlockPos targetPos) {
+        if (this.level == null || this.level.isClientSide()) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.UNSUPPORTED);
+        }
+        if (!isPointToPointMode()) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.NOT_POINT_MODE);
+        }
+
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        if (this.worldPosition.equals(normalizedPos) || isTowerBlock(normalizedPos)) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.SELF_TARGET);
+        }
+        if (!isWithinTowerCoverage(normalizedPos)) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.OUT_OF_RANGE);
+        }
+
+        boolean aeSupported = hasAeNodeCapability(normalizedPos);
+        boolean feSupported = canReceiveEnergy(findAccessibleEnergyStorage(normalizedPos, true));
+        if (!aeSupported && !feSupported) {
+            return ConnectorBindResult.fail(ConnectorBindFailure.UNSUPPORTED);
+        }
+
+        ConnectionMode desiredMode = this.connectionMode;
+        if (aeSupported && !desiredMode.allowsAeTargets()) {
+            desiredMode = desiredMode.allowsFeTargets() ? ConnectionMode.AE_AND_FE : ConnectionMode.AE_ONLY;
+        }
+        if (feSupported && !desiredMode.allowsFeTargets()) {
+            desiredMode = desiredMode.allowsAeTargets() ? ConnectionMode.AE_AND_FE : ConnectionMode.FE_ONLY;
+        }
+        if (desiredMode != this.connectionMode) {
+            setConnectionMode(desiredMode);
+        }
+
+        this.linkedPositions.add(normalizedPos);
+        if (aeSupported && canMaintainGridLinkTo(normalizedPos)) {
+            queueLink(normalizedPos, 0);
+        } else {
+            this.pendingLinkPositions.remove(normalizedPos);
+            destroyTargetConnections(normalizedPos);
+        }
+
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        this.setChanged();
+        this.markForClientUpdate();
+        return ConnectorBindResult.success(aeSupported, feSupported);
     }
 
     public int getConfiguredChunkRadius() {
@@ -860,6 +938,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             Level level = serverLevelAccessor.getLevel();
             invalidateNearbyCaches(level, event.getPos());
             onPotentialNodeAdded(level, event.getPos());
+            autoConnectPlacedBlockWithOffhandConnector(level, event);
+        }
+    }
+
+    private static void autoConnectPlacedBlockWithOffhandConnector(Level level, BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getEntity() instanceof Player player) || event.getPlacedBlock().isAir()) {
+            return;
+        }
+
+        ItemStack offhandStack = player.getOffhandItem();
+        if (offhandStack.getItem() instanceof DataDistributionConnectorItem connectorItem) {
+            connectorItem.autoConnectPlacedBlock(offhandStack, player, level, event.getPos());
         }
     }
 
@@ -898,6 +988,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+                if (!tower.allowsAutomaticRangeConnections()) {
+                    continue;
+                }
                 if (!tower.canMaintainGridLinkTo(targetPos)) {
                     continue;
                 }
@@ -928,7 +1021,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public int scanNearbyConnectableNodes() {
-        if (this.level == null) {
+        if (this.level == null || !allowsAutomaticRangeConnections()) {
             return 0;
         }
 
@@ -1268,16 +1361,31 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         LinkedHashSet<BlockPos> endpoints = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> aeDisplayTargets = new LinkedHashSet<>();
-        for (BlockEntity blockEntity : getNearbyBlockEntities()) {
-            BlockPos pos = blockEntity.getBlockPos().immutable();
-            if (isTowerBlock(pos)) {
-                continue;
+        if (allowsAutomaticRangeConnections()) {
+            for (BlockEntity blockEntity : getNearbyBlockEntities()) {
+                BlockPos pos = blockEntity.getBlockPos().immutable();
+                if (isTowerBlock(pos)) {
+                    continue;
+                }
+                if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
+                    endpoints.add(pos);
+                }
+                if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
+                    aeDisplayTargets.add(pos);
+                }
             }
-            if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
-                endpoints.add(pos);
-            }
-            if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
-                aeDisplayTargets.add(pos);
+        } else {
+            for (BlockPos pos : getTrackedTargetPositions()) {
+                if (isTowerBlock(pos) || this.level.getBlockState(pos).isAir()) {
+                    continue;
+                }
+                BlockEntity blockEntity = this.level.getBlockEntity(pos);
+                if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
+                    endpoints.add(pos);
+                }
+                if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
+                    aeDisplayTargets.add(pos);
+                }
             }
         }
 
@@ -1285,6 +1393,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedAeDisplayTargets = List.copyOf(aeDisplayTargets);
         this.lastEndpointCacheTick = this.level.getGameTime();
         this.endpointCacheValid = true;
+    }
+
+    private List<BlockPos> getTrackedTargetPositions() {
+        LinkedHashSet<BlockPos> tracked = new LinkedHashSet<>(this.linkedPositions);
+        tracked.addAll(this.pendingLinkPositions.keySet());
+        tracked.addAll(this.targetTransferModes.keySet());
+        return List.copyOf(tracked);
     }
 
     private List<BlockEntity> getNearbyBlockEntities() {
@@ -2325,6 +2440,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
+        if (!allowsAutomaticRangeConnections()) {
+            return;
+        }
+
         if (this.autoDiscoveryCooldown > 0) {
             this.autoDiscoveryCooldown--;
             return;
@@ -2593,7 +2712,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         pruneTargetsOutsideRange();
         invalidateEndpointCache();
-        scanNearbyConnectableNodes();
+        if (allowsAutomaticRangeConnections()) {
+            scanNearbyConnectableNodes();
+        }
     }
 
     private void refreshConnectionTargets() {
@@ -2622,7 +2743,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
-        scanNearbyConnectableNodes();
+        if (allowsAutomaticRangeConnections()) {
+            scanNearbyConnectableNodes();
+        }
     }
 
     private boolean canMaintainGridLinkTo(BlockPos targetPos) {
@@ -2639,6 +2762,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         return allowsAeTargets() && needsAeChannelLink(targetPos);
+    }
+
+    private boolean allowsAutomaticRangeConnections() {
+        return this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE;
     }
 
     private boolean allowsAeTargets() {
@@ -2846,6 +2973,25 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         private static final TargetTransferInfo EMPTY = new TargetTransferInfo(0, false, false, 0L, 0L, false, false);
     }
 
+    public record ConnectorBindResult(boolean success, ConnectorBindFailure failure, boolean aeSupported,
+                                      boolean feSupported) {
+
+        public static ConnectorBindResult success(boolean aeSupported, boolean feSupported) {
+            return new ConnectorBindResult(true, null, aeSupported, feSupported);
+        }
+
+        public static ConnectorBindResult fail(ConnectorBindFailure failure) {
+            return new ConnectorBindResult(false, failure, false, false);
+        }
+    }
+
+    public enum ConnectorBindFailure {
+        NOT_POINT_MODE,
+        OUT_OF_RANGE,
+        SELF_TARGET,
+        UNSUPPORTED
+    }
+
     public enum TargetTransferMode {
 
         AUTO("auto"),
@@ -2940,6 +3086,45 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
             }
             return AE_AND_FE;
+        }
+    }
+
+    public enum RangeAdjustmentMode {
+
+        POINT("point"),
+        SCOPE("scope");
+
+        private final String serializedName;
+
+        RangeAdjustmentMode(String serializedName) {
+            this.serializedName = serializedName;
+        }
+
+        public String getSerializedName() {
+            return this.serializedName;
+        }
+
+        public RangeAdjustmentMode next() {
+            return this == POINT ? SCOPE : POINT;
+        }
+
+        public static RangeAdjustmentMode fromOrdinal(int ordinal) {
+            RangeAdjustmentMode[] values = values();
+            if (ordinal < 0 || ordinal >= values.length) {
+                return POINT;
+            }
+            return values[ordinal];
+        }
+
+        public static RangeAdjustmentMode fromSerializedName(@Nullable String serializedName) {
+            if (serializedName != null) {
+                for (RangeAdjustmentMode value : values()) {
+                    if (value.serializedName.equalsIgnoreCase(serializedName)) {
+                        return value;
+                    }
+                }
+            }
+            return POINT;
         }
     }
 

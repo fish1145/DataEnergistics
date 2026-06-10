@@ -134,6 +134,18 @@
 			"y": 64,
 			"width": 16,
 			"height": 16
-		}
+		},
+        "POWER_UNIT_SCOPE": {
+          "x": 80,
+          "y": 48,
+          "width": 16,
+          "height": 16
+        },
+        "POWER_UNIT_POINT": {
+          "x": 80,
+          "y": 64,
+          "width": 16,
+         "height": 16
+      }
 	}
 }

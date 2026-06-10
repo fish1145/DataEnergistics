@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -24,6 +25,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     private static final String ACTION_FOCUS_TARGET = "focus_target";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
     private static final String ACTION_SET_CONNECTION_MODE = "set_connection_mode";
+    private static final String ACTION_SET_RANGE_ADJUSTMENT_MODE = "set_range_adjustment_mode";
     private static final String ACTION_SET_TARGET_TRANSFER_MODE = "set_target_transfer_mode";
     @Nullable
     private final DataDistributionTowerBlockEntity host;
@@ -57,6 +59,8 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public String boundTargetModes = "";
     @GuiSync(743)
     public String boundTargetTransferInfo = "";
+    @GuiSync(744)
+    public int rangeAdjustmentMode = RangeAdjustmentMode.POINT.ordinal();
 
     public DataDistributionTowerMenu(int id, Inventory playerInventory, @Nullable DataDistributionTowerBlockEntity host) {
         super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
@@ -71,6 +75,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         registerClientAction(ACTION_FOCUS_TARGET, TargetAction.class, this::onFocusTarget);
         registerClientAction(ACTION_SET_RANGE_VISIBLE, Boolean.class, this::setRangeVisible);
         registerClientAction(ACTION_SET_CONNECTION_MODE, Integer.class, this::setConnectionMode);
+        registerClientAction(ACTION_SET_RANGE_ADJUSTMENT_MODE, Boolean.class, this::setRangeAdjustmentMode);
         registerClientAction(ACTION_SET_TARGET_TRANSFER_MODE, TargetTransferModeAction.class, this::setTargetTransferMode);
     }
 
@@ -93,6 +98,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
             this.online = tower.isNetworkNodeOnline();
             this.rangeVisible = tower.isRangeDisplayEnabled();
             this.connectionMode = tower.getConnectionMode().ordinal();
+            this.rangeAdjustmentMode = tower.getRangeAdjustmentMode().ordinal();
             this.boundTargetCount = tower.getBoundTargetCount();
             var summaries = tower.getBoundTargetSummaries(64);
             this.boundTargets = String.join("\n", summaries.stream()
@@ -129,6 +135,10 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public void sendSetConnectionMode(ConnectionMode connectionMode) {
         sendClientAction(ACTION_SET_CONNECTION_MODE,
                 (connectionMode == null ? ConnectionMode.AE_AND_FE : connectionMode).ordinal());
+    }
+
+    public void sendSetRangeAdjustmentMode(boolean scopeMode) {
+        sendClientAction(ACTION_SET_RANGE_ADJUSTMENT_MODE, scopeMode);
     }
 
     public void sendSetTargetTransferMode(String dimensionId, int x, int y, int z, TargetTransferMode mode) {
@@ -194,6 +204,16 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
 
         this.host.setConnectionMode(ConnectionMode.fromOrdinal(connectionMode));
         this.connectionMode = this.host.getConnectionMode().ordinal();
+        broadcastChanges();
+    }
+
+    private void setRangeAdjustmentMode(Boolean scopeMode) {
+        if (scopeMode == null || this.host == null) {
+            return;
+        }
+
+        this.host.setRangeAdjustmentMode(scopeMode ? RangeAdjustmentMode.SCOPE : RangeAdjustmentMode.POINT);
+        this.rangeAdjustmentMode = this.host.getRangeAdjustmentMode().ordinal();
         broadcastChanges();
     }
 
