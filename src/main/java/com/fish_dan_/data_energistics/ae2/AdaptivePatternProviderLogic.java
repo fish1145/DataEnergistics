@@ -715,8 +715,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LtFastSpeedMode() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.getAe2LtWirelessSpeedMode() == AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.FAST;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtWirelessSpeedMode() == AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.FAST;
     }
 
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {
@@ -800,8 +799,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                                                    ServerLevel targetLevel) {
         autoReturnAe2LtWirelessConnection(targetLevel, connection);
 
-        if (isAe2LtFastSpeedMode()
-                && !Ae2LtRuntimeBridge.canAccept(targetLevel, connection.pos(), connection.boundFace(), patternDetails)) {
+        if (isAe2LtFastSpeedMode() && !Ae2LtRuntimeBridge.canAccept(targetLevel, connection.pos(), connection.boundFace(), patternDetails)) {
             return false;
         }
 
