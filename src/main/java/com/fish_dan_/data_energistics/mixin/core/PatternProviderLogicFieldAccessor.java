@@ -20,4 +20,10 @@ public interface PatternProviderLogicFieldAccessor {
 
     @Accessor("sendList")
     List<GenericStack> dataEnergistics$getSendList();
+
+    @Accessor("unlockStack")
+    GenericStack dataEnergistics$getUnlockStack();
+
+    @Accessor("unlockStack")
+    void dataEnergistics$setUnlockStack(GenericStack unlockStack);
 }

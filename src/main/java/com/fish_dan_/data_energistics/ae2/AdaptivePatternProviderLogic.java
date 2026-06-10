@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
+import com.fish_dan_.data_energistics.mixin.core.PatternProviderLogicFieldAccessor;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -79,7 +80,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final String RESONATING_PATTERN_DETAILS_CLASS = "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
     private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE = "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
     private static final String AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE = "com.moakiee.ae2lt.overload.pattern.OverloadedProviderOnlyPatternDetails";
-    private static final String AE2LT_POWER_COST_UTIL_CLASS = "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
     private static final String AE2LT_ALLOWED_OUTPUT_FILTER_CLASS = "com.moakiee.ae2lt.logic.AllowedOutputFilter";
     private static final String AE2CS_GENERIC_STACK_INV_HELPER_CLASS = "io.github.lounode.ae2cs.api.util.GenericStackInvHelper";
     private static final String CREATE_MECHANICAL_CRAFTER_BE_CLASS = "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlockEntity";
@@ -91,6 +91,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final String NBT_ADVANCED_SEND_LIST = "adaptive_advanced_send_list";
     private static final String NBT_ADVANCED_SEND_DIRECTION = "adaptive_advanced_send_direction";
     private static final String NBT_ADVANCED_DIRECTION_MAP = "adaptive_advanced_direction_map";
+    private static final String NBT_AE2LT_WIRELESS_OVERFLOW = "data_energistics_ae2lt_wireless_overflow";
+    private static final String NBT_AE2LT_WIRELESS_OVERFLOW_CONNECTION = "connection";
+    private static final String NBT_AE2LT_WIRELESS_OVERFLOW_STACKS = "stacks";
+    private static final String NBT_AE2LT_WIRELESS_ROUND_ROBIN = "data_energistics_ae2lt_wireless_round_robin";
+    private static final String NBT_AE2LT_RETURN_ROUND_ROBIN = "data_energistics_ae2lt_return_round_robin";
+    private static final String NBT_AE2LT_UNLOCK_MATCH_MODE = "data_energistics_ae2lt_unlock_match_mode";
+    private static final String NBT_AE2LT_UNLOCK_TEMPLATE = "data_energistics_ae2lt_unlock_template";
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
@@ -98,9 +105,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private static final ConcurrentHashMap<Class<?>, Optional<MechanicalRecipeAccess>> MECHANICAL_RECIPE_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final Optional<AppliedCreateAccess> APPLIED_CREATE_ACCESS = findAppliedCreateAccess();
     private static final Optional<Ae2LtAllowedOutputFilterAccess> AE2LT_ALLOWED_OUTPUT_FILTER_ACCESS = findAe2LtAllowedOutputFilterAccess();
-    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadPatternAccess>> AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Class<?>, Optional<Ae2LtOverloadOutputSlotAccess>> AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE = new ConcurrentHashMap<>();
 
     private final PatternProviderLogicHost host;
     private final IManagedGridNode mainNode;
@@ -109,8 +113,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private final Object2LongOpenHashMap<AEKey> craftedContents = new Object2LongOpenHashMap<>();
     private final Object2LongOpenHashMap<AEKey> advancedDirectionalSendList = new Object2LongOpenHashMap<>();
     private final HashMap<AEKey, Direction> advancedDirectionalMap = new HashMap<>();
-    private final List<GenericStack> ae2ltWirelessSendList = new ArrayList<>();
-    private @Nullable AdaptiveWirelessConnection ae2ltWirelessSendConn;
+    private final Map<AdaptiveWirelessConnection, List<GenericStack>> ae2ltPendingOverflowByConnection = new HashMap<>();
     private final Set<AEKey> trackedCrafts = new HashSet<>();
     private final HashSet<AEKey> outputCache = new HashSet<>();
     private @Nullable Object ae2ltAllowedOutputFilter;
@@ -118,14 +121,16 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private @Nullable IStackWatcher craftingWatcher;
     private @Nullable Direction advancedSendDirection;
     private int worksInRound;
-    private final @Nullable MethodHandle ae2LtTotalCostMethod;
-    private final @Nullable MethodHandle ae2LtCanAffordMethod;
-    private final @Nullable MethodHandle ae2LtConsumeRawMethod;
     private final @Nullable MethodHandle ae2csAdjacentMeStorageMethod;
     private long ae2ltLastAutoReturnTick = -1L;
     private boolean dataEnergistics$dispatchPulsePending;
+    private int ae2ltWirelessRoundRobinIndex;
+    private int ae2ltReturnRoundRobinIndex;
+    private @Nullable String ae2ltPendingUnlockMatchMode;
+    private @Nullable ItemStack ae2ltPendingUnlockTemplate;
     private List<AdaptiveWirelessConnection> cachedOrderedWirelessConnections;
     private long cachedWirelessConnectionsTick = Long.MIN_VALUE;
+    private boolean ae2ltConnectionsDirty = true;
 
     public AdaptivePatternProviderLogic(IManagedGridNode mainNode, PatternProviderLogicHost host, int patternInventorySize) {
         super(mainNode, host, patternInventorySize);
@@ -134,9 +139,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 .addService(IGridTickable.class, new Ticker())
                 .addService(ICraftingWatcherNode.class, new AdaptiveCraftingWatcherNode());
         this.actionSource = new MachineSource(mainNode::getNode);
-        this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
-        this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
-        this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
         this.ae2csAdjacentMeStorageMethod = findAe2CsAdjacentMeStorageMethod();
         installExpandedReturnInventory();
     }
@@ -154,6 +156,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             rebuildPatternsIncludingAe2LtOverloadPatterns();
         } else {
             super.updatePatterns();
+        }
+        if (isAe2LightningTechOverloadedProviderSelected()) {
+            Ae2LtRuntimeBridge.applySmartDoubling(this, getAvailablePatterns());
         }
         this.ae2ltOutputFilterDirty = true;
         refreshAdaptivePatternTracking();
@@ -188,6 +193,16 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             directionMapTag.add(directionTag);
         }
         tag.put(NBT_ADVANCED_DIRECTION_MAP, directionMapTag);
+
+        tag.putInt(NBT_AE2LT_WIRELESS_ROUND_ROBIN, this.ae2ltWirelessRoundRobinIndex);
+        tag.putInt(NBT_AE2LT_RETURN_ROUND_ROBIN, this.ae2ltReturnRoundRobinIndex);
+        if (this.ae2ltPendingUnlockMatchMode != null) {
+            tag.putString(NBT_AE2LT_UNLOCK_MATCH_MODE, this.ae2ltPendingUnlockMatchMode);
+        }
+        if (this.ae2ltPendingUnlockTemplate != null && !this.ae2ltPendingUnlockTemplate.isEmpty()) {
+            tag.put(NBT_AE2LT_UNLOCK_TEMPLATE, this.ae2ltPendingUnlockTemplate.saveOptional(registries));
+        }
+        writeAe2LtWirelessOverflowToNBT(tag, registries);
     }
 
     @Override
@@ -222,12 +237,25 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             Direction direction = rawDirection == -1 ? null : Direction.from3DDataValue(rawDirection);
             this.advancedDirectionalMap.put(key, direction);
         }
+
+        this.ae2ltWirelessRoundRobinIndex = tag.getInt(NBT_AE2LT_WIRELESS_ROUND_ROBIN);
+        this.ae2ltReturnRoundRobinIndex = tag.getInt(NBT_AE2LT_RETURN_ROUND_ROBIN);
+        this.ae2ltPendingUnlockMatchMode = tag.contains(NBT_AE2LT_UNLOCK_MATCH_MODE, Tag.TAG_STRING) ? tag.getString(NBT_AE2LT_UNLOCK_MATCH_MODE) : null;
+        this.ae2ltPendingUnlockTemplate = null;
+        if (tag.contains(NBT_AE2LT_UNLOCK_TEMPLATE, Tag.TAG_COMPOUND)) {
+            ItemStack template = ItemStack.parseOptional(registries, tag.getCompound(NBT_AE2LT_UNLOCK_TEMPLATE));
+            this.ae2ltPendingUnlockTemplate = template.isEmpty() ? null : template;
+        }
+        readAe2LtWirelessOverflowFromNBT(tag, registries);
+        this.ae2ltAllowedOutputFilter = null;
+        this.ae2ltOutputFilterDirty = true;
+        invalidateAe2LtConnectionCache();
     }
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         boolean pushed;
-        if (isAe2LightningTechOverloadedPattern(patternDetails)) {
+        if (isAe2LightningTechOverloadedProviderSelected()) {
             pushed = pushAe2LightningTechOverloadedPattern(patternDetails, inputHolder);
             if (pushed) {
                 dataEnergistics$afterPushPattern();
@@ -373,8 +401,24 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         return true;
     }
 
+    @Override
+    public boolean isBusy() {
+        if (isAe2LightningTechOverloadedProviderSelected() && isAe2LtWirelessMode()) {
+            return false;
+        }
+        return super.isBusy();
+    }
+
     private boolean pushAe2LightningTechOverloadedPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-        if (!this.mainNode.isActive() || !getAvailablePatterns().contains(patternDetails)) {
+        boolean active = this.mainNode.isActive();
+        boolean available = isAe2LtPatternAvailable(patternDetails);
+        boolean bridgeAvailable = Ae2LtRuntimeBridge.isAvailable();
+
+        if (!active || !available) {
+            return false;
+        }
+
+        if (!bridgeAvailable) {
             return false;
         }
 
@@ -393,11 +437,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         } else if (isDirectionalPattern(patternDetails)) {
             pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder, true);
             if (pushed) {
+                syncAe2LtPendingUnlockRule(patternDetails);
                 consumeAe2LtTotalCost(totalCost);
             }
         } else {
             pushed = super.pushPattern(patternDetails, inputHolder);
             if (pushed) {
+                syncAe2LtPendingUnlockRule(patternDetails);
                 consumeAe2LtTotalCost(totalCost);
             }
         }
@@ -407,9 +453,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean pushAe2LtWirelessPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, double totalCost) {
         flushAe2LtWirelessOverflow();
-        if (!this.ae2ltWirelessSendList.isEmpty()) {
-            return false;
-        }
 
         var blockEntity = this.host.getBlockEntity();
         if (!(blockEntity.getLevel() instanceof ServerLevel level)) {
@@ -423,6 +466,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
         for (int i = 0; i < orderedConnections.size(); i++) {
             var connection = orderedConnections.get(i);
+            if (hasAe2LtWirelessOverflowWork(connection)) {
+                continue;
+            }
+
             var targetLevel = level.getServer().getLevel(connection.dimension());
             if (targetLevel == null || !targetLevel.isLoaded(connection.pos())) {
                 continue;
@@ -430,12 +477,17 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
             boolean pushed = shouldUseAdvancedDirectionalWirelessPath(patternDetails) ? tryPushAdvancedDirectionalToWirelessConnection(patternDetails, inputHolder, connection, targetLevel) : tryPushAe2LtWirelessConnection(patternDetails, inputHolder, connection, targetLevel);
             if (pushed) {
-                this.localRoundRobinIndex += i + 1;
+                if (isAe2LtEvenDistributionMode()) {
+                    advanceAe2LtWirelessRoundRobin(orderedConnections, i);
+                }
                 consumeAe2LtTotalCost(totalCost);
                 return true;
             }
         }
 
+        if (isAe2LtSingleTargetMode()) {
+            advanceAe2LtWirelessRoundRobin(orderedConnections, 0);
+        }
         return false;
     }
 
@@ -450,6 +502,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 key.addDrops(amount, drops, this.host.getBlockEntity().getLevel(), this.host.getBlockEntity().getBlockPos());
             }
         }
+
+        for (List<GenericStack> overflow : this.ae2ltPendingOverflowByConnection.values()) {
+            addGenericStackDrops(overflow, drops);
+        }
     }
 
     @Override
@@ -458,10 +514,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         this.advancedDirectionalSendList.clear();
         this.advancedDirectionalMap.clear();
         this.advancedSendDirection = null;
-        this.ae2ltWirelessSendList.clear();
-        this.ae2ltWirelessSendConn = null;
+        this.ae2ltPendingOverflowByConnection.clear();
         this.ae2ltAllowedOutputFilter = null;
         this.ae2ltOutputFilterDirty = true;
+        invalidateAe2LtConnectionCache();
+        clearAe2LtPendingUnlockRule();
     }
 
     private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, boolean skipAvailabilityCheck) {
@@ -577,7 +634,24 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LightningTechOverloadedPattern(IPatternDetails patternDetails) {
-        return isAe2LightningTechOverloadedProviderSelected() && implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE);
+        return getAe2LtOverloadedPattern(patternDetails) != null;
+    }
+
+    @Nullable
+    private IPatternDetails getAe2LtOverloadedPattern(IPatternDetails patternDetails) {
+        if (!isAe2LightningTechOverloadedProviderSelected()) {
+            return null;
+        }
+        if (implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE)) {
+            return patternDetails;
+        }
+
+        IPatternDetails unwrapped = Ae2LtRuntimeBridge.unwrapSmartDoublingPattern(patternDetails);
+        return implementsNamedInterface(unwrapped, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE) ? unwrapped : null;
+    }
+
+    private boolean isAe2LtPatternAvailable(IPatternDetails patternDetails) {
+        return Ae2LtRuntimeBridge.containsOrUnwrapped(getAvailablePatterns(), patternDetails);
     }
 
     private void rebuildPatternsIncludingAe2LtOverloadPatterns() {
@@ -632,6 +706,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == AdaptivePatternProviderModes.Ae2LtReturnMode.EJECT;
     }
 
+    private boolean isAe2LtSingleTargetMode() {
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtWirelessDispatchMode() == AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.SINGLE_TARGET;
+    }
+
+    private boolean isAe2LtEvenDistributionMode() {
+        return !isAe2LtSingleTargetMode();
+    }
+
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {
         return hasDirectionalInputs(patternDetails);
     }
@@ -646,15 +728,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
 
         long gameTime = level.getGameTime();
-        if (this.cachedOrderedWirelessConnections != null && this.cachedWirelessConnectionsTick == gameTime) {
+        if (!this.ae2ltConnectionsDirty && this.cachedOrderedWirelessConnections != null && this.cachedWirelessConnectionsTick == gameTime) {
             return this.cachedOrderedWirelessConnections;
         }
 
         List<AdaptiveWirelessConnection> valid = new ArrayList<>();
         for (var conn : adaptivePatternProviderHost.getConnections()) {
-            if (!conn.dimension().equals(level.dimension())) {
-                continue;
-            }
             ServerLevel targetLevel = level.getServer().getLevel(conn.dimension());
             if (targetLevel == null || !targetLevel.isLoaded(conn.pos()) || targetLevel.getBlockEntity(conn.pos()) == null) {
                 continue;
@@ -665,13 +744,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (valid.isEmpty()) {
             this.cachedOrderedWirelessConnections = List.of();
             this.cachedWirelessConnectionsTick = gameTime;
+            this.ae2ltConnectionsDirty = false;
             return List.of();
         }
 
-        int idx = Math.floorMod(this.localRoundRobinIndex, valid.size());
+        if (adaptivePatternProviderHost.getAe2LtWirelessDispatchMode() == AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.SINGLE_TARGET) {
+            int idx = Math.floorMod(this.ae2ltWirelessRoundRobinIndex, valid.size());
+            this.cachedOrderedWirelessConnections = List.of(valid.get(idx));
+            this.cachedWirelessConnectionsTick = gameTime;
+            this.ae2ltConnectionsDirty = false;
+            return this.cachedOrderedWirelessConnections;
+        }
+
+        int idx = Math.floorMod(this.ae2ltWirelessRoundRobinIndex, valid.size());
         if (idx == 0) {
             this.cachedOrderedWirelessConnections = valid;
             this.cachedWirelessConnectionsTick = gameTime;
+            this.ae2ltConnectionsDirty = false;
             return valid;
         }
 
@@ -680,31 +769,58 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         ordered.addAll(valid.subList(0, idx));
         this.cachedOrderedWirelessConnections = ordered;
         this.cachedWirelessConnectionsTick = gameTime;
+        this.ae2ltConnectionsDirty = false;
         return ordered;
+    }
+
+    private void advanceAe2LtWirelessRoundRobin(List<AdaptiveWirelessConnection> orderedConnections, int usedIndex) {
+        if (orderedConnections.isEmpty()) {
+            return;
+        }
+
+        this.ae2ltWirelessRoundRobinIndex += usedIndex + 1;
+        invalidateAe2LtConnectionCache();
+        this.host.saveChanges();
+    }
+
+    private void invalidateAe2LtConnectionCache() {
+        this.cachedOrderedWirelessConnections = null;
+        this.cachedWirelessConnectionsTick = Long.MIN_VALUE;
+        this.ae2ltConnectionsDirty = true;
     }
 
     private boolean tryPushAe2LtWirelessConnection(IPatternDetails patternDetails,
                                                    KeyCounter[] inputHolder,
                                                    AdaptiveWirelessConnection connection,
                                                    ServerLevel targetLevel) {
-        List<GenericStack> overflow = Ae2LtRuntimeBridge.pushWirelessConnection(
+        autoReturnAe2LtWirelessConnection(targetLevel, connection);
+
+        PatternProviderTarget fallbackTarget = getAe2LtWirelessFallbackTarget(targetLevel, connection);
+        boolean blocking = this.isBlocking();
+        if (blocking && fallbackTarget != null && Ae2LtRuntimeBridge.shouldBypassAdvancedBlocking(this, fallbackTarget, patternDetails)) {
+            blocking = false;
+        }
+
+        List<GenericStack> overflow = Ae2LtRuntimeBridge.pushConnection(
                 targetLevel,
-                connection,
+                connection.pos(),
+                connection.boundFace(),
                 patternDetails,
                 inputHolder,
-                this.isBlocking(),
+                blocking,
                 getPatternInputs(),
-                this.actionSource);
+                this.actionSource,
+                fallbackTarget);
         if (overflow == null) {
             return false;
         }
 
         if (!overflow.isEmpty()) {
-            this.ae2ltWirelessSendList.addAll(overflow);
-            this.ae2ltWirelessSendConn = connection;
+            queueAe2LtWirelessOverflow(connection, overflow);
         }
 
         invokePatternSuccess(patternDetails);
+        syncAe2LtPendingUnlockRule(patternDetails);
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
         this.host.saveChanges();
         return true;
@@ -752,11 +868,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         });
 
         if (!overflow.isEmpty()) {
-            this.ae2ltWirelessSendList.addAll(overflow);
-            this.ae2ltWirelessSendConn = connection;
+            queueAe2LtWirelessOverflow(connection, overflow);
         }
 
         invokePatternSuccess(patternDetails);
+        syncAe2LtPendingUnlockRule(patternDetails);
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
         this.host.saveChanges();
         return true;
@@ -1219,18 +1335,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         super.onPushPatternSuccess(patternDetails);
     }
 
-    @Nullable
-    private MethodHandle findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
-        try {
-            Class<?> owner = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
-            Method method = owner.getMethod(name, parameterTypes);
-            method.setAccessible(true);
-            return MethodHandles.privateLookupIn(owner, LOOKUP).unreflect(method);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
     private boolean invokeBaseDoWork() {
         return super.doWork();
     }
@@ -1384,8 +1488,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean flushAe2LtWirelessOverflow() {
-        if (this.ae2ltWirelessSendConn == null) {
-            this.ae2ltWirelessSendList.clear();
+        if (this.ae2ltPendingOverflowByConnection.isEmpty()) {
             return false;
         }
 
@@ -1393,23 +1496,41 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return false;
         }
 
-        ServerLevel targetLevel = level.getServer().getLevel(this.ae2ltWirelessSendConn.dimension());
-        if (targetLevel == null || !targetLevel.isLoaded(this.ae2ltWirelessSendConn.pos())) {
-            return false;
+        boolean didSomething = false;
+        var iterator = this.ae2ltPendingOverflowByConnection.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<AdaptiveWirelessConnection, List<GenericStack>> entry = iterator.next();
+            AdaptiveWirelessConnection connection = entry.getKey();
+            List<GenericStack> overflow = entry.getValue();
+            if (connection == null || overflow == null || overflow.isEmpty()) {
+                iterator.remove();
+                didSomething = true;
+                continue;
+            }
+
+            ServerLevel targetLevel = level.getServer().getLevel(connection.dimension());
+            if (targetLevel == null || !targetLevel.isLoaded(connection.pos())) {
+                continue;
+            }
+
+            boolean flushed = Ae2LtRuntimeBridge.flushOverflow(
+                    targetLevel,
+                    connection.pos(),
+                    connection.boundFace(),
+                    overflow,
+                    this.actionSource,
+                    getAe2LtWirelessFallbackTarget(targetLevel, connection));
+            if (flushed || overflow.isEmpty()) {
+                iterator.remove();
+                didSomething = true;
+            }
         }
 
-        boolean flushed = Ae2LtRuntimeBridge.flushWirelessOverflow(
-                targetLevel,
-                this.ae2ltWirelessSendConn,
-                this.ae2ltWirelessSendList,
-                this.actionSource);
-
-        if (flushed) {
-            this.ae2ltWirelessSendConn = null;
+        if (didSomething) {
             this.host.saveChanges();
         }
 
-        return flushed;
+        return didSomething;
     }
 
     private boolean hasAdvancedDirectionalWork() {
@@ -1417,11 +1538,187 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean hasAe2LtWirelessOverflowWork() {
-        return !this.ae2ltWirelessSendList.isEmpty();
+        return !this.ae2ltPendingOverflowByConnection.isEmpty();
+    }
+
+    private boolean hasAe2LtWirelessOverflowWork(AdaptiveWirelessConnection connection) {
+        List<GenericStack> overflow = this.ae2ltPendingOverflowByConnection.get(connection);
+        return overflow != null && !overflow.isEmpty();
     }
 
     private boolean hasAe2LtAutoReturnWork() {
         return isAe2LightningTechOverloadedProviderSelected() && isAe2LtAutoReturnEnabled();
+    }
+
+    private void queueAe2LtWirelessOverflow(AdaptiveWirelessConnection connection, List<GenericStack> overflow) {
+        if (overflow.isEmpty()) {
+            return;
+        }
+
+        List<GenericStack> bucket = this.ae2ltPendingOverflowByConnection.computeIfAbsent(connection, key -> new ArrayList<>());
+        for (GenericStack stack : overflow) {
+            if (stack != null && stack.what() != null && stack.amount() > 0) {
+                bucket.add(stack);
+            }
+        }
+        if (bucket.isEmpty()) {
+            this.ae2ltPendingOverflowByConnection.remove(connection);
+            return;
+        }
+
+        this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
+    }
+
+    private void addGenericStackDrops(List<GenericStack> stacks, List<ItemStack> drops) {
+        for (GenericStack stack : stacks) {
+            if (stack == null || stack.what() == null || stack.amount() <= 0) {
+                continue;
+            }
+            stack.what().addDrops(stack.amount(), drops, this.host.getBlockEntity().getLevel(), this.host.getBlockEntity().getBlockPos());
+        }
+    }
+
+    private void writeAe2LtWirelessOverflowToNBT(CompoundTag tag, HolderLookup.Provider registries) {
+        ListTag bucketTags = new ListTag();
+        for (Map.Entry<AdaptiveWirelessConnection, List<GenericStack>> entry : this.ae2ltPendingOverflowByConnection.entrySet()) {
+            List<GenericStack> stacks = entry.getValue();
+            if (entry.getKey() == null || stacks == null || stacks.isEmpty()) {
+                continue;
+            }
+
+            ListTag stackTags = new ListTag();
+            for (GenericStack stack : stacks) {
+                if (stack != null && stack.what() != null && stack.amount() > 0) {
+                    stackTags.add(GenericStack.writeTag(registries, stack));
+                }
+            }
+            if (stackTags.isEmpty()) {
+                continue;
+            }
+
+            CompoundTag bucketTag = new CompoundTag();
+            bucketTag.put(NBT_AE2LT_WIRELESS_OVERFLOW_CONNECTION, entry.getKey().toTag());
+            bucketTag.put(NBT_AE2LT_WIRELESS_OVERFLOW_STACKS, stackTags);
+            bucketTags.add(bucketTag);
+        }
+        tag.put(NBT_AE2LT_WIRELESS_OVERFLOW, bucketTags);
+    }
+
+    private void readAe2LtWirelessOverflowFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
+        this.ae2ltPendingOverflowByConnection.clear();
+        ListTag bucketTags = tag.getList(NBT_AE2LT_WIRELESS_OVERFLOW, Tag.TAG_COMPOUND);
+        for (int i = 0; i < bucketTags.size(); i++) {
+            CompoundTag bucketTag = bucketTags.getCompound(i);
+            if (!bucketTag.contains(NBT_AE2LT_WIRELESS_OVERFLOW_CONNECTION, Tag.TAG_COMPOUND)) {
+                continue;
+            }
+
+            AdaptiveWirelessConnection connection = AdaptiveWirelessConnection.fromTag(
+                    bucketTag.getCompound(NBT_AE2LT_WIRELESS_OVERFLOW_CONNECTION));
+            ListTag stackTags = bucketTag.getList(NBT_AE2LT_WIRELESS_OVERFLOW_STACKS, Tag.TAG_COMPOUND);
+            ArrayList<GenericStack> stacks = new ArrayList<>(stackTags.size());
+            for (int j = 0; j < stackTags.size(); j++) {
+                GenericStack stack = GenericStack.readTag(registries, stackTags.getCompound(j));
+                if (stack != null && stack.what() != null && stack.amount() > 0) {
+                    stacks.add(stack);
+                }
+            }
+            if (!stacks.isEmpty()) {
+                this.ae2ltPendingOverflowByConnection.put(connection, stacks);
+            }
+        }
+    }
+
+    private void syncAe2LtPendingUnlockRule(IPatternDetails patternDetails) {
+        clearAe2LtPendingUnlockRule();
+        IPatternDetails overloadPattern = getAe2LtOverloadedPattern(patternDetails);
+        if (getCraftingLockedReason() != LockCraftingMode.LOCK_UNTIL_RESULT || overloadPattern == null) {
+            return;
+        }
+
+        Object overloadDetails = Ae2LtRuntimeBridge.overloadPatternDetailsView(overloadPattern);
+        if (overloadDetails == null) {
+            return;
+        }
+
+        List<Object> overloadOutputs = Ae2LtRuntimeBridge.overloadOutputs(overloadDetails);
+        if (overloadOutputs == null || overloadOutputs.isEmpty()) {
+            return;
+        }
+
+        int outputIndex = resolveAe2LtUnlockOutputIndex(patternDetails, overloadOutputs.size());
+        if (outputIndex < 0 || outputIndex >= overloadOutputs.size()) {
+            return;
+        }
+
+        Object outputSlot = overloadOutputs.get(outputIndex);
+        this.ae2ltPendingUnlockMatchMode = Ae2LtRuntimeBridge.overloadOutputMatchMode(outputSlot);
+        this.ae2ltPendingUnlockTemplate = Ae2LtRuntimeBridge.overloadOutputTemplate(outputSlot);
+    }
+
+    private void clearAe2LtPendingUnlockRule() {
+        this.ae2ltPendingUnlockMatchMode = null;
+        this.ae2ltPendingUnlockTemplate = null;
+    }
+
+    private int resolveAe2LtUnlockOutputIndex(IPatternDetails patternDetails, int overloadOutputCount) {
+        List<GenericStack> outputs = patternDetails.getOutputs();
+        GenericStack primaryOutput = patternDetails.getPrimaryOutput();
+        if (primaryOutput == null || primaryOutput.what() == null) {
+            return outputs.isEmpty() || overloadOutputCount <= 0 ? -1 : 0;
+        }
+
+        int count = Math.min(outputs.size(), overloadOutputCount);
+        for (int i = 0; i < count; i++) {
+            GenericStack output = outputs.get(i);
+            if (output != null && primaryOutput.what().equals(output.what()) && primaryOutput.amount() == output.amount()) {
+                return i;
+            }
+        }
+        return count > 0 ? 0 : -1;
+    }
+
+    private boolean handleAe2LtOverloadUnlockOnReturnedStack(GenericStack returnedStack) {
+        if (!"ID_ONLY".equals(this.ae2ltPendingUnlockMatchMode)) {
+            return false;
+        }
+        if (getCraftingLockedReason() != LockCraftingMode.LOCK_UNTIL_RESULT) {
+            clearAe2LtPendingUnlockRule();
+            return false;
+        }
+
+        GenericStack unlockStack = ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getUnlockStack();
+        if (unlockStack == null || unlockStack.what() == null) {
+            resetCraftingLock();
+            clearAe2LtPendingUnlockRule();
+            return true;
+        }
+
+        if (!(returnedStack.what() instanceof AEItemKey returnedItemKey)) {
+            return false;
+        }
+
+        net.minecraft.world.item.Item unlockItem = null;
+        if (this.ae2ltPendingUnlockTemplate != null && !this.ae2ltPendingUnlockTemplate.isEmpty()) {
+            unlockItem = this.ae2ltPendingUnlockTemplate.getItem();
+        } else if (unlockStack.what() instanceof AEItemKey unlockItemKey) {
+            unlockItem = unlockItemKey.getItem();
+        }
+
+        if (unlockItem == null || returnedItemKey.getItem() != unlockItem) {
+            return false;
+        }
+
+        if (returnedStack.amount() >= unlockStack.amount()) {
+            resetCraftingLock();
+            clearAe2LtPendingUnlockRule();
+            return true;
+        }
+
+        ((PatternProviderLogicFieldAccessor) this).dataEnergistics$setUnlockStack(
+                new GenericStack(unlockStack.what(), unlockStack.amount() - returnedStack.amount()));
+        saveChanges();
+        return true;
     }
 
     private boolean implementsAdvancedAePatternInterface(IPatternDetails patternDetails) {
@@ -1448,35 +1745,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private double getAe2LtTotalCost(KeyCounter[] inputHolder) {
-        try {
-            if (this.ae2LtTotalCostMethod == null) {
-                return 0.0D;
-            }
-            Object result = this.ae2LtTotalCostMethod.invoke((Object) inputHolder);
-            return result instanceof Number number ? number.doubleValue() : 0.0D;
-        } catch (Throwable ignored) {
-            return 0.0D;
-        }
+        return Ae2LtRuntimeBridge.totalCost(inputHolder);
     }
 
     private boolean canAffordAe2LtTotalCost(double totalCost) {
-        try {
-            if (this.ae2LtCanAffordMethod == null) {
-                return true;
-            }
-            Object result = this.ae2LtCanAffordMethod.invoke(getGrid(), totalCost);
-            return !(result instanceof Boolean canAfford) || canAfford;
-        } catch (Throwable ignored) {
-            return true;
-        }
+        return Ae2LtRuntimeBridge.canAffordRaw(getGrid(), totalCost);
     }
 
     private void consumeAe2LtTotalCost(double totalCost) {
-        try {
-            if (this.ae2LtConsumeRawMethod != null) {
-                this.ae2LtConsumeRawMethod.invoke(getGrid(), totalCost);
-            }
-        } catch (Throwable ignored) {}
+        Ae2LtRuntimeBridge.consumeRaw(getGrid(), totalCost);
     }
 
     private boolean hasDirectionalInputs(IPatternDetails patternDetails) {
@@ -1648,22 +1925,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         }
     }
 
-    private static Optional<Ae2LtOverloadPatternAccess> findAe2LtOverloadPatternAccess(Class<?> type) {
-        Optional<MethodHandle> overloadPatternDetailsView = findDuckMethod(type, "overloadPatternDetailsView");
-        return overloadPatternDetailsView.map(Ae2LtOverloadPatternAccess::new);
-    }
-
-    private static Optional<MethodHandle> getAe2LtOverloadOutputsAccess(Class<?> type) {
-        return AE2LT_OVERLOAD_DETAILS_OUTPUTS_ACCESS_CACHE.computeIfAbsent(
-                type,
-                key -> findDuckMethod(key, "outputs"));
-    }
-
-    private static Optional<Ae2LtOverloadOutputSlotAccess> findAe2LtOverloadOutputSlotAccess(Class<?> type) {
-        Optional<MethodHandle> matchMode = findDuckMethod(type, "matchMode");
-        return matchMode.map(Ae2LtOverloadOutputSlotAccess::new);
-    }
-
     private static Optional<MethodHandle> findDuckMethod(Class<?> type, String name, Class<?>... parameterTypes) {
         try {
             Method method = type.getMethod(name, parameterTypes);
@@ -1741,7 +2002,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private void autoReturnAe2LtWireless(ServerLevel level, Object allowedOutputFilter) {
-        for (var conn : getOrderedWirelessConnections(level)) {
+        List<AdaptiveWirelessConnection> connections = getOrderedWirelessReturnConnections(level);
+        for (var conn : connections) {
             ServerLevel targetLevel = level.getServer().getLevel(conn.dimension());
             if (targetLevel == null || !targetLevel.isLoaded(conn.pos())) {
                 continue;
@@ -1755,6 +2017,64 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     this.actionSource);
             insertAe2LtOutputsToReturnInventory(outputs);
         }
+        advanceAe2LtReturnRoundRobin(connections);
+    }
+
+    private void autoReturnAe2LtWirelessConnection(ServerLevel targetLevel, AdaptiveWirelessConnection connection) {
+        if (!isAe2LtAutoReturnEnabled()) {
+            return;
+        }
+
+        Object allowedOutputFilter = getOrBuildAe2LtAllowedOutputFilter();
+        if (allowedOutputFilter == null || isAe2LtAllowedOutputFilterEmpty(allowedOutputFilter)) {
+            return;
+        }
+
+        List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
+                targetLevel,
+                connection.pos(),
+                connection.boundFace(),
+                allowedOutputFilter,
+                this.actionSource);
+        insertAe2LtOutputsToReturnInventory(outputs);
+    }
+
+    private List<AdaptiveWirelessConnection> getOrderedWirelessReturnConnections(ServerLevel level) {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)) {
+            return List.of();
+        }
+
+        List<AdaptiveWirelessConnection> valid = new ArrayList<>();
+        for (var conn : adaptivePatternProviderHost.getConnections()) {
+            ServerLevel targetLevel = level.getServer().getLevel(conn.dimension());
+            if (targetLevel == null || !targetLevel.isLoaded(conn.pos()) || targetLevel.getBlockEntity(conn.pos()) == null) {
+                continue;
+            }
+            valid.add(conn);
+        }
+
+        if (valid.isEmpty()) {
+            return List.of();
+        }
+
+        int idx = Math.floorMod(this.ae2ltReturnRoundRobinIndex, valid.size());
+        if (idx == 0) {
+            return valid;
+        }
+
+        ArrayList<AdaptiveWirelessConnection> ordered = new ArrayList<>(valid.size());
+        ordered.addAll(valid.subList(idx, valid.size()));
+        ordered.addAll(valid.subList(0, idx));
+        return ordered;
+    }
+
+    private void advanceAe2LtReturnRoundRobin(List<AdaptiveWirelessConnection> connections) {
+        if (connections.isEmpty()) {
+            return;
+        }
+
+        this.ae2ltReturnRoundRobinIndex++;
+        this.host.saveChanges();
     }
 
     private void insertAe2LtOutputsToReturnInventory(List<GenericStack> outputs) {
@@ -1775,11 +2095,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             long inserted = getReturnInv().insert(stack.what(), affordable, Actionable.MODULATE, this.actionSource);
             if (inserted > 0) {
                 Ae2LtRuntimeBridge.consume(grid, stack.what(), inserted);
+                handleAe2LtOverloadUnlockOnReturnedStack(new GenericStack(stack.what(), inserted));
             }
         }
     }
 
     public void onHostStateChanged() {
+        invalidateAe2LtConnectionCache();
         refreshAe2LtEjectRegistrations();
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
     }
@@ -1793,7 +2115,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (!this.dataEnergistics$dispatchPulsePending) {
             return;
         }
-        if (!this.sendList.isEmpty() || !this.advancedDirectionalSendList.isEmpty() || !this.ae2ltWirelessSendList.isEmpty()) {
+        if (!this.sendList.isEmpty() || !this.advancedDirectionalSendList.isEmpty() || hasAe2LtWirelessOverflowWork()) {
             return;
         }
         this.dataEnergistics$dispatchPulsePending = false;
@@ -1887,12 +2209,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
                 if (isAe2LightningTechOverloadedPattern(pattern)) {
                     List<GenericStack> ae2Outputs = pattern.getOutputs();
-                    Object overloadDetails = getAe2LtOverloadDetails(pattern);
+                    Object overloadDetails = Ae2LtRuntimeBridge.overloadPatternDetailsView(pattern);
                     if (overloadDetails == null) {
                         continue;
                     }
                     @SuppressWarnings("unchecked")
-                    List<Object> overloadOutputs = getAe2LtOverloadOutputs(overloadDetails);
+                    List<Object> overloadOutputs = Ae2LtRuntimeBridge.overloadOutputs(overloadDetails);
                     if (overloadOutputs == null) {
                         continue;
                     }
@@ -1904,8 +2226,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                         }
                         AEKey key = ae2Output.what();
                         Object outputSlot = overloadOutputs.get(i);
-                        Object matchMode = getAe2LtOverloadMatchMode(outputSlot);
-                        if ("ID_ONLY".equals(String.valueOf(matchMode))) {
+                        String matchMode = Ae2LtRuntimeBridge.overloadOutputMatchMode(outputSlot);
+                        if ("ID_ONLY".equals(matchMode)) {
                             filterMethods.allowIdOnly().invoke(filter, key);
                         } else {
                             filterMethods.allowStrict().invoke(filter, key);
@@ -1938,54 +2260,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return !(result instanceof Boolean empty) || empty;
         } catch (Throwable ignored) {
             return true;
-        }
-    }
-
-    @Nullable
-    private Object getAe2LtOverloadDetails(IPatternDetails pattern) {
-        Optional<Ae2LtOverloadPatternAccess> access = AE2LT_OVERLOAD_PATTERN_ACCESS_CACHE.computeIfAbsent(
-                pattern.getClass(),
-                AdaptivePatternProviderLogic::findAe2LtOverloadPatternAccess);
-        if (access.isEmpty()) {
-            return null;
-        }
-
-        try {
-            return access.get().overloadPatternDetailsView().invoke(pattern);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    @Nullable
-    @SuppressWarnings("unchecked")
-    private List<Object> getAe2LtOverloadOutputs(Object overloadDetails) {
-        Optional<MethodHandle> outputs = getAe2LtOverloadOutputsAccess(overloadDetails.getClass());
-        if (outputs.isEmpty()) {
-            return null;
-        }
-
-        try {
-            Object result = outputs.get().invoke(overloadDetails);
-            return result instanceof List<?> list ? (List<Object>) list : null;
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    @Nullable
-    private Object getAe2LtOverloadMatchMode(Object outputSlot) {
-        Optional<Ae2LtOverloadOutputSlotAccess> access = AE2LT_OVERLOAD_OUTPUT_SLOT_ACCESS_CACHE.computeIfAbsent(
-                outputSlot.getClass(),
-                AdaptivePatternProviderLogic::findAe2LtOverloadOutputSlotAccess);
-        if (access.isEmpty()) {
-            return null;
-        }
-
-        try {
-            return access.get().matchMode().invoke(outputSlot);
-        } catch (Throwable ignored) {
-            return null;
         }
     }
 
@@ -2216,6 +2490,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return stack;
         }
 
+        if (!simulate) {
+            handleAe2LtOverloadUnlockOnReturnedStack(new GenericStack(itemKey, inserted));
+        }
+
         if (inserted >= stack.getCount()) {
             return ItemStack.EMPTY;
         }
@@ -2230,11 +2508,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return 0;
         }
 
-        return getReturnInv().insert(
+        long inserted = getReturnInv().insert(
                 slot,
                 stack.what(),
                 stack.amount(),
                 simulate ? Actionable.SIMULATE : Actionable.MODULATE);
+        if (inserted > 0 && !simulate) {
+            handleAe2LtOverloadUnlockOnReturnedStack(new GenericStack(stack.what(), inserted));
+        }
+        return inserted;
     }
 
     public long insertReturnInventoryKey(AEKey key, long amount, boolean simulate) {
@@ -2242,11 +2524,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return 0;
         }
 
-        return getReturnInv().insert(
+        long inserted = getReturnInv().insert(
                 key,
                 amount,
                 simulate ? Actionable.SIMULATE : Actionable.MODULATE,
                 this.actionSource);
+        if (inserted > 0 && !simulate) {
+            handleAe2LtOverloadUnlockOnReturnedStack(new GenericStack(key, inserted));
+        }
+        return inserted;
     }
 
     private boolean isAdvancedAeFilteredImportEnabled() {
@@ -2388,6 +2674,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         return PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
     }
 
+    @Nullable
+    private PatternProviderTarget getAe2LtWirelessFallbackTarget(ServerLevel targetLevel, AdaptiveWirelessConnection connection) {
+        BlockEntity targetBlockEntity = targetLevel.getBlockEntity(connection.pos());
+        if (targetBlockEntity == null) {
+            return null;
+        }
+        return PatternProviderTarget.get(targetLevel, connection.pos(), targetBlockEntity, connection.boundFace(), this.actionSource);
+    }
+
     private <T> void rearrangeRoundRobin(List<T> list) {
         if (list.isEmpty()) {
             return;
@@ -2434,10 +2729,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                                                   MethodHandle allowIdOnly,
                                                   MethodHandle isEmpty) {}
 
-    private record Ae2LtOverloadPatternAccess(MethodHandle overloadPatternDetailsView) {}
-
-    private record Ae2LtOverloadOutputSlotAccess(MethodHandle matchMode) {}
-
     private record SparsePatternAccess(MethodHandle sparseInputs, MethodHandle targetForSparseInputIndex) {}
 
     private record ResolvedTargetAccess(MethodHandle position, MethodHandle face) {}
@@ -2450,9 +2741,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
         @Override
         public TickingRequest getTickingRequest(IGridNode node) {
+            boolean sleeping = !invokeBaseHasWorkToDo() && !hasAe2LtWirelessOverflowWork() && !hasAe2LtAutoReturnWork() && !hasAdvancedDirectionalWork() && craftedContents.isEmpty() && getReturnInv().isEmpty() && !isResonatingPullEnabled();
             return new TickingRequest(
                     TickRates.Interface,
-                    !invokeBaseHasWorkToDo() && craftedContents.isEmpty() && getReturnInv().isEmpty() && !isResonatingPullEnabled());
+                    sleeping);
         }
 
         @Override
