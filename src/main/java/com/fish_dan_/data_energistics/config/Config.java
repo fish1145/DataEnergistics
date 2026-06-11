@@ -35,9 +35,9 @@ public class Config {
             .comment("Base chunk coverage level for the Data Distribution Tower. 1=1x1 chunk, 2=3x3 chunks, etc.")
             .defineInRange("dataDistributionTowerRange", 1, 1, 128);
 
-    private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK = BUILDER
+    private static final ModConfigSpec.LongValue DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK = BUILDER
             .comment("Maximum FE transferred per tick by a Data Distribution Tower network.")
-            .defineInRange("dataDistributionTowerTransferPerTick", Integer.MAX_VALUE, 1, Integer.MAX_VALUE);
+            .defineInRange("dataDistributionTowerTransferPerTick", Long.MAX_VALUE, 1L, Long.MAX_VALUE);
 
     private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_ITEM_LIMIT = BUILDER
             .comment("Base stocked item amount per Data Sanctum interface config/stock slot. Each capacity card doubles this value.")
@@ -59,7 +59,7 @@ public class Config {
 
     public static int dataRipperBaseCost;
     public static int dataDistributionTowerRange;
-    public static int dataDistributionTowerTransferPerTick;
+    public static long dataDistributionTowerTransferPerTick;
     public static int dataSanctumInterfaceItemLimit;
     public static int dataSanctumInterfaceFluidBuckets;
     public static int dataSanctumInterfaceReturnItemLimit;

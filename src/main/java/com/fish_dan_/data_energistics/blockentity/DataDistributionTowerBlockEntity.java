@@ -665,8 +665,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return getMaxLinkChannels();
     }
 
-    public int getAvailableFeForUi() {
-        return clampStoredAmount(getTotalExtractableEnergy(null));
+    public long getAvailableFeForUi() {
+        return getTotalExtractableEnergy(null);
+    }
+
+    public long getEnergyCapacityForUi() {
+        return getTotalEnergyCapacity(null);
     }
 
     public TargetTransferInfo getTargetTransferInfo(BlockPos targetPos) {
@@ -1311,7 +1315,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return isWithinCenteredHorizontalRange(targetPos, getChunkRadius()) && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
     }
 
-    private int getTransferBudgetPerTick() {
+    private long getTransferBudgetPerTick() {
         return Config.dataDistributionTowerTransferPerTick;
     }
 
@@ -1972,7 +1976,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private void performActiveRangeTransfer() {
         long transferBudget = getTransferBudgetPerTick();
-        this.cachedTransferBudgetHint = transferBudget * TRANSFER_SUBSTEPS_PER_TICK;
+        this.cachedTransferBudgetHint = saturatingMultiply(transferBudget, TRANSFER_SUBSTEPS_PER_TICK);
         if (transferBudget <= 0) {
             return;
         }
@@ -2945,6 +2949,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return Long.MAX_VALUE;
         }
         return current + delta;
+    }
+
+    private static long saturatingMultiply(long value, int multiplier) {
+        if (value <= 0 || multiplier <= 0) {
+            return 0;
+        }
+        if (value > Long.MAX_VALUE / multiplier) {
+            return Long.MAX_VALUE;
+        }
+        return value * multiplier;
     }
 
     private static long divideCeil(long dividend, int divisor) {
