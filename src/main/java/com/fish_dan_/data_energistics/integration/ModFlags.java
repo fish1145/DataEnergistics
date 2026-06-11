@@ -70,6 +70,10 @@ public final class ModFlags {
         return isLoaded("appflux");
     }
 
+    public static boolean isOritechLoaded() {
+        return isLoaded("oritech");
+    }
+
     private static boolean isLoaded(String modId) {
         return Data_Energistics.isModLoaded(modId);
     }
