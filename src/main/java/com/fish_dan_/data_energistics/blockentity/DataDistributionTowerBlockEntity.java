@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
+import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -1081,7 +1082,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         ItemStack offhandStack = player.getOffhandItem();
         if (offhandStack.getItem() instanceof DataDistributionConnectorItem connectorItem) {
-            connectorItem.autoConnectPlacedBlock(offhandStack, player, level, event.getPos());
+            MinecraftServer server = level.getServer();
+            BlockPos placedPos = event.getPos().immutable();
+            BlockState placedState = event.getPlacedBlock();
+            ItemStack connectorStack = offhandStack.copy();
+            ServerTickDelayQueue.runNextServerTick(server, () -> {
+                if (!level.isLoaded(placedPos) || !level.getBlockState(placedPos).equals(placedState)) {
+                    return;
+                }
+
+                connectorItem.autoConnectPlacedBlock(connectorStack, player, level, placedPos);
+            });
         }
     }
 
