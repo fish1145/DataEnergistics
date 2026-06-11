@@ -36,7 +36,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     @GuiSync(731)
     public int maxChannels;
     @GuiSync(732)
-    public int availableFe;
+    public long availableFe;
     @GuiSync(733)
     public int chunkRadius;
     @GuiSync(734)

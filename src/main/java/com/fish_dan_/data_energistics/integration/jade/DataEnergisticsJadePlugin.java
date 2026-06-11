@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
@@ -29,6 +30,7 @@ import snownee.jade.api.WailaPlugin;
 public class DataEnergisticsJadePlugin implements IWailaPlugin {
 
     private static final DataDistributionTowerJadeProvider TOWER_PROVIDER = new DataDistributionTowerJadeProvider();
+    private static final DataDistributionTowerEnergyJadeProvider TOWER_ENERGY_PROVIDER = new DataDistributionTowerEnergyJadeProvider();
     private static final DataExtractorJadeProvider EXTRACTOR_PROVIDER = new DataExtractorJadeProvider();
     private static final DataMimeticFieldJadeProvider MIMETIC_FIELD_PROVIDER = new DataMimeticFieldJadeProvider();
     private static final DataRipperReassemblerJadeProvider DATA_RIPPER_REASSEMBLER_PROVIDER = new DataRipperReassemblerJadeProvider();
@@ -40,6 +42,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
     @Override
     public void register(IWailaCommonRegistration registration) {
         registration.registerBlockDataProvider(TOWER_PROVIDER, DataDistributionTowerBlock.class);
+        registration.registerEnergyStorage(TOWER_ENERGY_PROVIDER, DataDistributionTowerBlockEntity.class);
         registration.registerBlockDataProvider(EXTRACTOR_PROVIDER, DataExtractorBlockEntity.class);
         registration.registerBlockDataProvider(MIMETIC_FIELD_PROVIDER, DataMimeticFieldBlockEntity.class);
         registration.registerBlockDataProvider(DATA_RIPPER_REASSEMBLER_PROVIDER, DataRipperReassemblerBlockEntity.class);
@@ -55,6 +58,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
     @Override
     public void registerClient(IWailaClientRegistration registration) {
         registration.registerBlockComponent(TOWER_PROVIDER, DataDistributionTowerBlock.class);
+        registration.registerEnergyStorageClient(TOWER_ENERGY_PROVIDER);
         registration.registerBlockComponent(EXTRACTOR_PROVIDER, DataExtractorBlock.class);
         registration.registerBlockComponent(MIMETIC_FIELD_PROVIDER, DataMimeticFieldBlock.class);
         registration.registerBlockComponent(DATA_RIPPER_REASSEMBLER_PROVIDER, DataRipperReassemblerBlock.class);
