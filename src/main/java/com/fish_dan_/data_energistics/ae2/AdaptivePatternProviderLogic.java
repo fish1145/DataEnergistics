@@ -2005,7 +2005,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     dir.getOpposite(),
                     allowedOutputFilter,
                     this.actionSource);
-            insertAe2LtOutputsToReturnInventory(outputs);
+            insertAe2LtOutputsToNetwork(outputs);
         }
     }
 
@@ -2023,7 +2023,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     conn.boundFace(),
                     allowedOutputFilter,
                     this.actionSource);
-            insertAe2LtOutputsToReturnInventory(outputs);
+            insertAe2LtOutputsToNetwork(outputs);
         }
         advanceAe2LtReturnRoundRobin(connections);
     }
@@ -2044,7 +2044,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 connection.boundFace(),
                 allowedOutputFilter,
                 this.actionSource);
-        insertAe2LtOutputsToReturnInventory(outputs);
+        insertAe2LtOutputsToNetwork(outputs);
     }
 
     private List<AdaptiveWirelessConnection> getOrderedWirelessReturnConnections(ServerLevel level) {
@@ -2085,12 +2085,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         this.host.saveChanges();
     }
 
-    private void insertAe2LtOutputsToReturnInventory(List<GenericStack> outputs) {
+    private void insertAe2LtOutputsToNetwork(List<GenericStack> outputs) {
         if (outputs.isEmpty()) {
             return;
         }
 
         var grid = getGrid();
+        var storageService = grid == null ? null : grid.getStorageService();
+        MEStorage networkStorage = storageService == null ? null : storageService.getInventory();
+        if (networkStorage == null) {
+            return;
+        }
+
         for (var stack : outputs) {
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
                 continue;
@@ -2100,7 +2106,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             if (affordable <= 0) {
                 continue;
             }
-            long inserted = getReturnInv().insert(stack.what(), affordable, Actionable.MODULATE, this.actionSource);
+            long inserted = networkStorage.insert(stack.what(), affordable, Actionable.MODULATE, this.actionSource);
             if (inserted > 0) {
                 Ae2LtRuntimeBridge.consume(grid, stack.what(), inserted);
                 handleAe2LtOverloadUnlockOnReturnedStack(new GenericStack(stack.what(), inserted));
