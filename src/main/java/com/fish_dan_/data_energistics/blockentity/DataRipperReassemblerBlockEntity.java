@@ -70,12 +70,14 @@ import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEntity
@@ -112,19 +114,22 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
+    @Getter
     private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
 
     private final FluidTank fluidInputTankA = new SyncFluidTank(FLUID_INPUT_CAPACITY);
     private final FluidTank fluidInputTankB = new SyncFluidTank(FLUID_INPUT_CAPACITY);
     private final FluidTank fluidOutputTankA = new SyncFluidTank(FLUID_OUTPUT_CAPACITY);
     private final FluidTank fluidOutputTankB = new SyncFluidTank(FLUID_OUTPUT_CAPACITY);
-    private final GenericStackInv fluidMenuInventoryA = createFluidMenuInventory(this::syncTankAFromMenuFluid, FLUID_INPUT_CAPACITY, () -> this.fluidInputTankB.getFluid());
-    private final GenericStackInv fluidMenuInventoryB = createFluidMenuInventory(this::syncTankBFromMenuFluid, FLUID_INPUT_CAPACITY, () -> this.fluidInputTankA.getFluid());
-    private final GenericStackInv fluidOutputMenuInventoryA = createFluidMenuInventory(this::syncOutputTankAFromMenuFluid, FLUID_OUTPUT_CAPACITY, () -> this.fluidOutputTankB.getFluid());
-    private final GenericStackInv fluidOutputMenuInventoryB = createFluidMenuInventory(this::syncOutputTankBFromMenuFluid, FLUID_OUTPUT_CAPACITY, () -> this.fluidOutputTankA.getFluid());
+    private final GenericStackInv fluidMenuInventoryA = createFluidMenuInventory(this::syncTankAFromMenuFluid, FLUID_INPUT_CAPACITY, this.fluidInputTankB::getFluid);
+    private final GenericStackInv fluidMenuInventoryB = createFluidMenuInventory(this::syncTankBFromMenuFluid, FLUID_INPUT_CAPACITY, this.fluidInputTankA::getFluid);
+    private final GenericStackInv fluidOutputMenuInventoryA = createFluidMenuInventory(this::syncOutputTankAFromMenuFluid, FLUID_OUTPUT_CAPACITY, this.fluidOutputTankB::getFluid);
+    private final GenericStackInv fluidOutputMenuInventoryB = createFluidMenuInventory(this::syncOutputTankBFromMenuFluid, FLUID_OUTPUT_CAPACITY, this.fluidOutputTankA::getFluid);
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     private final GenericStackInv keyOutputMenuInventory = createKeyOutputMenuInventory();
+    @Getter
     private final IFluidHandler externalFluidHandler = new ReassemblerFluidHandler();
+    @Getter
     private final MEStorage externalPatternInputStorage = new PatternInputStorage();
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
     private boolean syncingFluidMenu;
@@ -132,7 +137,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private GenericStack keyInputStack;
     private GenericStack keyOutputStack;
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
+    @Getter
     private int progress;
+    @Getter
     private int maxProgress = MAX_PROGRESS;
     private ResourceLocation activeRecipeId;
 
@@ -229,18 +236,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return this.storage;
     }
 
-    public InternalInventory getExternalInventory() {
-        return this.externalInventory;
-    }
-
-    public IFluidHandler getExternalFluidHandler() {
-        return this.externalFluidHandler;
-    }
-
-    public MEStorage getExternalPatternInputStorage() {
-        return this.externalPatternInputStorage;
-    }
-
     public ConfigMenuInventory getFluidMenuInventoryA() {
         return this.fluidMenuInventoryA.createMenuWrapper();
     }
@@ -287,14 +282,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     public int getFluidOutputCapacity() {
         return this.fluidOutputTankA.getCapacity();
-    }
-
-    public int getProgress() {
-        return this.progress;
-    }
-
-    public int getMaxProgress() {
-        return this.maxProgress;
     }
 
     public boolean isAutoExportEnabled() {
@@ -689,8 +676,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return false;
             }
 
-            int amount = (int) Math.min(Integer.MAX_VALUE, requiredFluid.amount());
-            int remaining = amount;
+            int remaining = (int) Math.min(Integer.MAX_VALUE, requiredFluid.amount());
 
             if (matchesFluidKey(this.fluidInputTankA.getFluid(), requiredKeyFluid)) {
                 int drained = this.fluidInputTankA.drain(Math.min(remaining, this.fluidInputTankA.getFluidAmount()),
@@ -1215,15 +1201,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return key == null ? null : new GenericStack(key, fluid.getAmount());
     }
 
-    private static final class SlotFilter implements IAEItemFilter {
-
-        private final java.util.function.Predicate<ItemStack> insertPredicate;
-        private final boolean allowExtract;
-
-        private SlotFilter(java.util.function.Predicate<ItemStack> insertPredicate, boolean allowExtract) {
-            this.insertPredicate = insertPredicate;
-            this.allowExtract = allowExtract;
-        }
+    private record SlotFilter(Predicate<ItemStack> insertPredicate, boolean allowExtract) implements IAEItemFilter {
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
