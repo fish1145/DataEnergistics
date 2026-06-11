@@ -30,7 +30,8 @@
 							"name": "data_energistics:small_data_crystal_bud"
 						},
 						{
-							"type": "minecraft:empty"
+							"type": "minecraft:item",
+							"name": "data_energistics:data_dust"
 						}
 					]
 				}

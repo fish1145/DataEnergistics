@@ -75,10 +75,10 @@ item_ids:
 
 | 阶段 | 非精准采集下掉落 | 掉落物及概率 |
 | :-- | :-- | :-- |
-| <ItemImage id="data_energistics:small_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 0% <ItemImage id="data_energistics:data_dust" /> |
+| <ItemImage id="data_energistics:small_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 100% <ItemImage id="data_energistics:data_dust" /> |
 | <ItemImage id="data_energistics:medium_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 15% <ItemImage id="data_energistics:data_dust" /> |
 | <ItemImage id="data_energistics:large_data_crystal_bud" /> | <ItemImage id="data_energistics:data_dust" /> | 25% <ItemImage id="data_energistics:data_dust" /> |
-| <ItemImage id="data_energistics:data_crystal_cluster" /> | <ItemImage id="data_energistics:data_crystal" /> | 4x <ItemImage id="data_energistics:data_crystal" />，受时运影响 |
+| <ItemImage id="data_energistics:data_crystal_cluster" /> | <ItemImage id="data_energistics:data_crystal" /> | 1x <ItemImage id="data_energistics:data_crystal" />，受时运影响 |
 
 ## 数据水晶
 <Column>
