@@ -3,7 +3,7 @@
 	"pattern": ["ABJ", "EDC", "FFF"],
 	"key": {
 		"A": {
-			"tag": "c:ingots/iron"
+			"item": "data_energistics:data_processor"
 		},
 		"B": {
 			"item": "data_energistics:data_framework"

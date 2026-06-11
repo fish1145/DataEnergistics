@@ -49,7 +49,6 @@ public class DataSanctumInterfaceScreen extends UpgradeableScreen<DataSanctumInt
     @Override
     protected void updateBeforeRender() {
         super.updateBeforeRender();
-
         this.fuzzyMode.set(menu.getFuzzyMode());
         this.fuzzyMode.setVisibility(menu.hasUpgrade(AEItems.FUZZY_CARD));
 

@@ -1,0 +1,22 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "ABA"],
+	"key": {
+		"A": {
+			"tag": "c:nuggets/iron"
+		},
+		"B": {
+			"item": "ae2:quantum_entangled_singularity"
+		},
+		"C": {
+			"item": "minecraft:ender_eye"
+		},
+		"D": {
+			"item": "ae2:meteorite_compass"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_meteorite_compass",
+		"count": 1
+	}
+}

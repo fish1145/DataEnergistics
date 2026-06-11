@@ -24,13 +24,13 @@
 		{
 			"#": 200,
 			"#t": "ae2:f",
-			"id": "data_energistics:ender"
+			"id": "data_energistics:data_corrosion_liquid"
 		}
 	],
 	"item_outputs": [
 		{
 			"id": "data_energistics:data_charger",
-			"count": 2
+			"count": 1
 		}
 	],
 	"key_input": {
