@@ -112,6 +112,10 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
         return AECableType.COVERED;
     }
 
+    public boolean isOnline() {
+        return this.getMainNode().isOnline();
+    }
+
     @Override
     public void onMainNodeStateChanged(IGridNodeListener.State reason) {
         if (this.getMainNode().hasGridBooted()) {

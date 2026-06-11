@@ -31,6 +31,10 @@ public class DataFrameworkBlockEntity extends AENetworkedBlockEntity {
         updatePoweredState();
     }
 
+    public boolean isOnline() {
+        return this.getMainNode().isOnline();
+    }
+
     private void updatePoweredState() {
         if (this.level == null) {
             return;

@@ -3,17 +3,22 @@ package com.fish_dan_.data_energistics.integration.jade;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
+import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
+import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;
@@ -42,6 +47,9 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockDataProvider(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlockEntity.class);
         registration.registerBlockDataProvider(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
         registration.registerBlockDataProvider(DATA_CHARGER_PROVIDER, DataChargerBlockEntity.class);
+        registration.registerBlockDataProvider(NetworkStatusJadeProvider.DATA_FRAMEWORK, DataFrameworkBlock.class);
+        registration.registerBlockDataProvider(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlockEntity.class);
+        registration.registerBlockDataProvider(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlockEntity.class);
     }
 
     @Override
@@ -54,6 +62,9 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlock.class);
         registration.registerBlockComponent(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
         registration.registerBlockComponent(DATA_CHARGER_PROVIDER, DataChargerBlock.class);
+        registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_FRAMEWORK, DataFrameworkBlock.class);
+        registration.registerBlockComponent(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlock.class);
+        registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlock.class);
         registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
         registration.addConfig(DataSanctumJadeProvider.PART_ID, false);
     }

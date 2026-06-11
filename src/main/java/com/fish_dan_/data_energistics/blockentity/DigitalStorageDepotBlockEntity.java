@@ -162,6 +162,10 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         tryAutoExport();
     }
 
+    public boolean isOnline() {
+        return this.getMainNode().isOnline();
+    }
+
     public AppEngInternalInventory getStorageInventory() {
         return this.storage;
     }
