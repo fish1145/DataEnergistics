@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.OritechEnergyIntegration;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -13,6 +14,7 @@ import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -71,6 +73,7 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.AEItemDefinitionFilter;
 import com.mojang.logging.LogUtils;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -181,7 +184,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
     private int cacheCleanupCooldown;
+    @Getter
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
+    @Getter
     private RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.POINT;
     private int autoDiscoveryCooldown;
     private int indexedChunkRadius = -1;
@@ -263,13 +268,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         data.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
-        ListTag linked = new ListTag();
-        for (BlockPos pos : this.linkedPositions) {
-            CompoundTag entry = new CompoundTag();
-            entry.put("pos", NbtUtils.writeBlockPos(pos));
-            linked.add(entry);
-        }
-        data.put(LINKED_POSITIONS_TAG, linked);
+        data.put(LINKED_POSITIONS_TAG, createLinkedPositionsTag());
 
         ListTag targetTransferModes = new ListTag();
         for (Map.Entry<BlockPos, TargetTransferMode> entry : this.targetTransferModes.entrySet()) {
@@ -383,7 +382,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
         return this.cachedEnergyStorageViews.computeIfAbsent(
                 normalizedExcludedPos,
-                pos -> new TowerEnergyStorage(pos));
+                TowerEnergyStorage::new);
     }
 
     public boolean toggleRangeDisplay() {
@@ -395,14 +394,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public boolean isRangeDisplayEnabled() {
         return this.showRange;
-    }
-
-    public ConnectionMode getConnectionMode() {
-        return this.connectionMode;
-    }
-
-    public RangeAdjustmentMode getRangeAdjustmentMode() {
-        return this.rangeAdjustmentMode;
     }
 
     public boolean isPointToPointMode() {
@@ -592,6 +583,22 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return targetTransferModes;
     }
 
+    private ListTag createLinkedPositionsTag() {
+        ListTag linked = new ListTag();
+        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>(this.linkedPositions);
+        positions.addAll(this.pendingLinkPositions.keySet());
+        for (BlockPos pos : positions) {
+            if (getTargetTransferMode(pos) == TargetTransferMode.DISABLED) {
+                continue;
+            }
+
+            CompoundTag entry = new CompoundTag();
+            entry.put("pos", NbtUtils.writeBlockPos(pos));
+            linked.add(entry);
+        }
+        return linked;
+    }
+
     private static Map<BlockPos, TargetTransferMode> readTargetTransferModes(CompoundTag settings) {
         Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
         Tag targetTransferModesTag = settings.get(TARGET_TRANSFER_MODES_TAG);
@@ -719,9 +726,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.pendingRangeRefresh = true;
     }
 
-    @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
-
     public int getBoundTargetCount() {
         return getBoundTargetSummaries(Integer.MAX_VALUE).size();
     }
@@ -803,7 +807,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean appended = false;
         IPart centerPart = cableBus.getPart(null);
         if (centerPart != null) {
-            appended = appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "", "");
+            appended = appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "");
             if (results.size() >= maxEntries) {
                 return appended;
             }
@@ -820,7 +824,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (int i = 0; i < sideParts.size() && results.size() < maxEntries; i++) {
             CableBusDisplayPart sidePart = sideParts.get(i);
             String prefix = centerPart != null ? (i == sideParts.size() - 1 ? "└" : "├") : "";
-            if (appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix, "")) {
+            if (appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix)) {
                 appended = true;
             }
         }
@@ -829,15 +833,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind,
-                                      int maxEntries, @Nullable net.minecraft.core.Direction direction,
-                                      String prefix, String suffix) {
+                                      int maxEntries, @Nullable Direction direction,
+                                      String prefix) {
         if (part == null || this.level == null || results.size() >= maxEntries) {
             return false;
         }
 
         Item item = resolvePartItem(part);
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-        String displayName = resolvePartDisplayName(part, item, direction, prefix, suffix);
+        String displayName = resolvePartDisplayName(part, item, direction, prefix, "");
         results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), kind, getTargetTransferMode(pos), getTargetTransferInfo(pos)));
         return true;
     }
@@ -1755,11 +1759,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return true;
         }
 
-        if (blockEntity instanceof PatternProviderBlockEntity) {
-            return true;
-        }
-
-        return false;
+        return blockEntity instanceof PatternProviderBlockEntity;
     }
 
     private boolean hasWhitelistedCableBusDisplayPart(CableBusContainer cableBus) {
@@ -1799,7 +1799,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.level == null || isTowerBlock(pos)) {
             return null;
         }
-        return this.level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, side);
+        IEnergyStorage storage = this.level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, side);
+        return storage != null ? storage : OritechEnergyIntegration.findEnergyStorage(this.level, pos, side);
     }
 
     @Nullable
@@ -2211,10 +2212,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         Optional<DirectEnergyStorageTarget> target = getDirectEnergyStorageTarget(storage);
-        if (target.isEmpty()) {
-            return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-        }
-        return target.get().insert(storage, amount, simulate);
+        return target.map(directEnergyStorageTarget -> directEnergyStorageTarget.insert(storage, amount, simulate)).orElse(DIRECT_ENERGY_INSERT_UNAVAILABLE);
     }
 
     private static Optional<DirectEnergyStorageTarget> getDirectEnergyStorageTarget(IEnergyStorage storage) {
@@ -2614,8 +2612,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private int reconnectTarget(IGridNode selfNode, BlockPos targetPos, List<IGridNode> targetNodes) {
         destroyTargetConnections(targetPos);
 
-        this.linkedPositions.remove(targetPos);
-
         if (targetNodes.isEmpty()) {
             this.setChanged();
             return 0;
@@ -2689,8 +2685,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         List<BlockPos> persisted = List.copyOf(this.linkedPositions);
-        this.linkedPositions.clear();
-        this.invalidateClusterCache();
+        this.pendingLinkPositions.clear();
+        destroyAllConnections();
         for (BlockPos pos : persisted) {
             queueLink(pos, 0);
         }
@@ -2998,7 +2994,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         this.pendingLinkPositions.clear();
         destroyAllConnections();
-        this.linkedPositions.clear();
         invalidateEndpointCache();
         invalidateClusterCache();
 
@@ -3342,6 +3337,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         UNSUPPORTED
     }
 
+    @Getter
     public enum TargetTransferMode {
 
         AUTO("auto"),
@@ -3351,10 +3347,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         TargetTransferMode(String serializedName) {
             this.serializedName = serializedName;
-        }
-
-        public String getSerializedName() {
-            return this.serializedName;
         }
 
         public TargetTransferMode next() {
@@ -3387,6 +3379,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
+    @Getter
     public enum ConnectionMode {
 
         AE_ONLY("ae"),
@@ -3397,10 +3390,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         ConnectionMode(String serializedName) {
             this.serializedName = serializedName;
-        }
-
-        public String getSerializedName() {
-            return this.serializedName;
         }
 
         public boolean allowsAeTargets() {
@@ -3439,6 +3428,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
+    @Getter
     public enum RangeAdjustmentMode {
 
         POINT("point"),
@@ -3448,10 +3438,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         RangeAdjustmentMode(String serializedName) {
             this.serializedName = serializedName;
-        }
-
-        public String getSerializedName() {
-            return this.serializedName;
         }
 
         public RangeAdjustmentMode next() {
