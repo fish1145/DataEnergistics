@@ -1,16 +1,16 @@
 {
-  "type": "ae2:inscriber",
-  "ingredients": {
-    "middle": {
-      "item": "minecraft:iron_block"
-    },
-    "top": {
-      "item": "data_energistics:data_inscriber_template"
-    }
-  },
-  "mode": "inscribe",
-  "result": {
-    "count": 1,
-    "id": "data_energistics:data_inscriber_template"
-  }
+	"type": "ae2:inscriber",
+	"ingredients": {
+		"middle": {
+			"item": "minecraft:iron_block"
+		},
+		"top": {
+			"item": "data_energistics:data_inscriber_template"
+		}
+	},
+	"mode": "inscribe",
+	"result": {
+		"count": 1,
+		"id": "data_energistics:data_inscriber_template"
+	}
 }
