@@ -1,5 +1,31 @@
 # ChangeLog
 
+## Version [v1.3.0](https://github.com/fish1145/DataEnergistics/compare/v1.2.0-1.21...v1.3.0-1.21)
+### Added
+
+- 适配无用之物样板上传 by @QiuYe-123 in [#12](https://github.com/fish1145/DataEnergistics/pull/12)
+- 添加Mek数据水晶粉碎配方 by @QiuYe-123 in [#14](https://github.com/fish1145/DataEnergistics/pull/14)
+- 添加均分塔目标传输控制 by @QiuYe-123 in [#18](https://github.com/fish1145/DataEnergistics/pull/18)
+- 支持数位化存储仓内存卡保存输出设置 (#16) by @QiuYe-123 in [#20](https://github.com/fish1145/DataEnergistics/pull/20)
+- 调整均分塔目标自动分流 by @QiuYe-123 in [#22](https://github.com/fish1145/DataEnergistics/pull/22)
+- 支持可配置机器内存卡复制配置 by @QiuYe-123 in [#29](https://github.com/fish1145/DataEnergistics/pull/29)
+- 修复均分塔AE与FE传输 by @QiuYe-123 in [#28](https://github.com/fish1145/DataEnergistics/pull/28)
+- 添加生物拟生产出兼容 by @QiuYe-123 in [#32](https://github.com/fish1145/DataEnergistics/pull/32)
+- 修复数据重组器合成数据球消耗 by @QiuYe-123 in [#36](https://github.com/fish1145/DataEnergistics/pull/36)
+- 补充Jade设备在线状态提示 by @QiuYe-123 in [#38](https://github.com/fish1145/DataEnergistics/pull/38)
+- 重构数据均分塔FE计算 by @QiuYe-123 in [#40](https://github.com/fish1145/DataEnergistics/pull/40)
+
+### Fixed
+
+- 修复无用之物挖掘陨石数据生成 by @QiuYe-123 in [#13](https://github.com/fish1145/DataEnergistics/pull/13)
+- 修复自适应供应器过载样板无线发配 (#17) by @QiuYe-123 in [#19](https://github.com/fish1145/DataEnergistics/pull/19)
+- 修复自适应供应器过载发配适配 by @QiuYe-123 in [#23](https://github.com/fish1145/DataEnergistics/pull/23)
+- 修复自适应供应器过载探针模式容器预检 by @QiuYe-123 in [#24](https://github.com/fish1145/DataEnergistics/pull/24)
+- 修复均分塔Oritech能量兼容 by @QiuYe-123 in [#34](https://github.com/fish1145/DataEnergistics/pull/34)
+- 调整数据水晶晶簇掉落 by @QiuYe-123 in [#35](https://github.com/fish1145/DataEnergistics/pull/35)
+- 修复均分连接器副手放置绑定 by @QiuYe-123 in [#37](https://github.com/fish1145/DataEnergistics/pull/37)
+
+ 
 ## Version [v1.2.0](https://github.com/fish1145/DataEnergistics/compare/v1.1.0-1.21...v1.2.0-1.21)
 
 ### New Features
