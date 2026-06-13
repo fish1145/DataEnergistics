@@ -22,6 +22,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -240,18 +241,26 @@ public final class Ae2LtRuntimeBridge {
                 return List.of();
             }
 
-            Object outputs = methods.adapterExtractOutputs().invoke(adapter, level, pos, face, allowedOutputFilter, actionSource);
-            if (!(outputs instanceof List<?> list)) {
-                return List.of();
-            }
-
-            List<GenericStack> converted = new ArrayList<>(list.size());
-            for (Object entry : list) {
-                if (entry instanceof GenericStack stack) {
-                    converted.add(stack);
+            Class<?> outputSinkClass = methods.adapterOutputSinkClass();
+            if (outputSinkClass != null) {
+                List<GenericStack> converted = new ArrayList<>();
+                Object sink = createOutputSink(outputSinkClass, converted);
+                Object extracted = methods.adapterExtractOutputs().invoke(adapter, level, pos, face, allowedOutputFilter, actionSource, sink);
+                return Boolean.TRUE.equals(extracted) || !converted.isEmpty() ? converted : List.of();
+            } else {
+                Object outputs = methods.adapterExtractOutputs().invoke(adapter, level, pos, face, allowedOutputFilter, actionSource);
+                if (!(outputs instanceof List<?> list)) {
+                    return List.of();
                 }
+
+                List<GenericStack> converted = new ArrayList<>(list.size());
+                for (Object entry : list) {
+                    if (entry instanceof GenericStack stack) {
+                        converted.add(stack);
+                    }
+                }
+                return converted;
             }
-            return converted;
         } catch (Throwable ignored) {
             return List.of();
         }
@@ -578,14 +587,29 @@ public final class Ae2LtRuntimeBridge {
                     IActionSource.class,
                     PatternProviderTarget.class);
             Class<?> allowedOutputFilterClass = Class.forName("com.moakiee.ae2lt.logic.AllowedOutputFilter");
-            MethodHandle adapterExtractOutputs = findVirtual(
-                    machineAdapterClass,
-                    "extractOutputs",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    allowedOutputFilterClass,
-                    IActionSource.class);
+            Class<?> outputSinkClass = null;
+            MethodHandle adapterExtractOutputs;
+            try {
+                adapterExtractOutputs = findVirtual(
+                        machineAdapterClass,
+                        "extractOutputs",
+                        ServerLevel.class,
+                        BlockPos.class,
+                        Direction.class,
+                        allowedOutputFilterClass,
+                        IActionSource.class);
+            } catch (NoSuchMethodException oldSignatureMissing) {
+                outputSinkClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter$OutputSink");
+                adapterExtractOutputs = findVirtual(
+                        machineAdapterClass,
+                        "extractOutputs",
+                        ServerLevel.class,
+                        BlockPos.class,
+                        Direction.class,
+                        allowedOutputFilterClass,
+                        IActionSource.class,
+                        outputSinkClass);
+            }
 
             MethodHandle pushResultAcceptedCopies = findVirtual(pushResultClass, "acceptedCopies");
             MethodHandle pushResultOverflow = findVirtual(pushResultClass, "overflow");
@@ -636,6 +660,7 @@ public final class Ae2LtRuntimeBridge {
                     adapterPushCopies,
                     adapterFlushOverflow,
                     adapterExtractOutputs,
+                    outputSinkClass,
                     pushResultAcceptedCopies,
                     pushResultOverflow,
                     powerCostMaxAffordable,
@@ -657,6 +682,78 @@ public final class Ae2LtRuntimeBridge {
         } catch (ReflectiveOperationException | LinkageError | SecurityException ignored) {
             access = null;
         }
+    }
+
+    private static Object createOutputSink(Class<?> outputSinkClass, List<GenericStack> outputs) {
+        return Proxy.newProxyInstance(
+                outputSinkClass.getClassLoader(),
+                new Class<?>[] { outputSinkClass },
+                (proxy, method, args) -> {
+                    String methodName = method.getName();
+                    if ("maxAccept".equals(methodName)) {
+                        return Long.MAX_VALUE;
+                    }
+                    if ("accept".equals(methodName)) {
+                        return addOutputSinkStack(outputs, args);
+                    }
+                    if ("acceptOverflow".equals(methodName)) {
+                        addOutputSinkStack(outputs, args);
+                        return null;
+                    }
+                    if ("toString".equals(methodName)) {
+                        return "DataEnergisticsAe2LtOutputSink";
+                    }
+                    if ("hashCode".equals(methodName)) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("equals".equals(methodName)) {
+                        return args != null && args.length == 1 && proxy == args[0];
+                    }
+                    return defaultProxyReturnValue(method.getReturnType());
+                });
+    }
+
+    private static long addOutputSinkStack(List<GenericStack> outputs, @Nullable Object[] args) {
+        if (args == null || args.length < 2 || !(args[0] instanceof AEKey key) || !(args[1] instanceof Number amountNumber)) {
+            return 0L;
+        }
+
+        long amount = amountNumber.longValue();
+        if (amount > 0) {
+            outputs.add(new GenericStack(key, amount));
+        }
+        return Math.max(0L, amount);
+    }
+
+    private static @Nullable Object defaultProxyReturnValue(Class<?> returnType) {
+        if (returnType == void.class) {
+            return null;
+        }
+        if (returnType == boolean.class) {
+            return false;
+        }
+        if (returnType == byte.class) {
+            return (byte) 0;
+        }
+        if (returnType == short.class) {
+            return (short) 0;
+        }
+        if (returnType == int.class) {
+            return 0;
+        }
+        if (returnType == long.class) {
+            return 0L;
+        }
+        if (returnType == float.class) {
+            return 0.0F;
+        }
+        if (returnType == double.class) {
+            return 0.0D;
+        }
+        if (returnType == char.class) {
+            return '\0';
+        }
+        return null;
     }
 
     private static MethodHandle findStatic(Class<?> owner,
@@ -704,6 +801,7 @@ public final class Ae2LtRuntimeBridge {
                           MethodHandle adapterPushCopies,
                           MethodHandle adapterFlushOverflow,
                           MethodHandle adapterExtractOutputs,
+                          @Nullable Class<?> adapterOutputSinkClass,
                           MethodHandle pushResultAcceptedCopies,
                           MethodHandle pushResultOverflow,
                           MethodHandle powerCostMaxAffordable,
