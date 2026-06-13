@@ -212,6 +212,18 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
+    public boolean isAe2LtPackagedProviderSelected() {
+        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_PACKAGED || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED);
+    }
+
+    @Override
+    public boolean isAe2LtPackagedWirelessProviderSelected() {
+        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
+    }
+
+    @Override
     public boolean isAppliedCreateMechanicalProviderSelected() {
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;

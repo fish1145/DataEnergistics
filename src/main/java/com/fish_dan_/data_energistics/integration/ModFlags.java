@@ -46,6 +46,10 @@ public final class ModFlags {
         return isLoaded("ae2lt");
     }
 
+    public static boolean isAe2LtPackagedProviderLoaded() {
+        return isLoaded("ae2ltpp");
+    }
+
     public static boolean isCreateLoaded() {
         return isLoaded("create");
     }

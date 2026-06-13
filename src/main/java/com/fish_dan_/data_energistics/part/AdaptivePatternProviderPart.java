@@ -204,6 +204,17 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
+    public boolean isAe2LtPackagedProviderSelected() {
+        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_PACKAGED || kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
+    }
+
+    @Override
+    public boolean isAe2LtPackagedWirelessProviderSelected() {
+        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
+    }
+
+    @Override
     public boolean isAppliedCreateMechanicalProviderSelected() {
         if (!AdaptivePatternProviderExternalHandlers.supportsMechanicalProviders()) {
             return false;
