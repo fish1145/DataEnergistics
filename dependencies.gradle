@@ -17,6 +17,7 @@ dependencies {
     compileOnly(forge.eae)
     compileOnly(forge.aecs)
     compileOnly(forge.aelt)
+    compileOnly(forge.aeltpp)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
     compileOnly(forge.mega.cells)
@@ -64,6 +65,7 @@ dependencies {
     // Runtime AE2 addons
     localRuntime(forge.ae2ji)
     localRuntime(forge.guideme)
+    localRuntime(forge.aeltpp)
     localRuntime(forge.ae2wt)
     localRuntime(forge.eae)
     localRuntime(forge.aecs)

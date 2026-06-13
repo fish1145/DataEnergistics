@@ -12,7 +12,7 @@ kotlinforforge = "5.7.0"
 create = "6.0.8-168"
 ponder = "1.0.64"
 flywheel = "1.0.5"
-curios = "9.4.2+1.21.1"
+curios = "9.5.1+1.21.1"
 architectury = "13.0.8"
 
 ## ftb mod ##
@@ -34,7 +34,8 @@ ae2ji = "7727898"
 eae = "8025439"
 aae = "7849217"
 aecs = "8036407"
-aelt = "8135920"
+aelt = "8235417"
+aeltpp = "8235153"
 eco = "7884362"
 extendedae-plus = "7960385"
 applied-flux = "7429565"
@@ -86,6 +87,7 @@ eae                 = { module = "curse.maven:ex-pattern-provider-892005", versi
 aae                 = { module = "curse.maven:advancedae-1084104", version.ref = "aae" }
 aecs                = { module = "curse.maven:ae2-crystal-science-1435174", version.ref = "aecs" }
 aelt                = { module = "curse.maven:ae2-lightning-tech-1527395", version.ref = "aelt" }
+aeltpp              = { module = "curse.maven:ae2lt-packaged-pattern-provider-1572723", version.ref = "aeltpp" }
 eco                 = { module = "curse.maven:neo-eco-ae-extension-1460639", version.ref = "eco" }
 extendedae-plus     = { module = "curse.maven:extendedae-plus-1337639", version.ref = "extendedae-plus" }
 applied-flux        = { module = "curse.maven:applied-flux-965012", version.ref = "applied-flux" }
