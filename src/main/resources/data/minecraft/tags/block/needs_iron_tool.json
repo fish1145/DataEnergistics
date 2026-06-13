@@ -1,6 +1,7 @@
 {
 	"replace": false,
 	"values": [
+		"data_energistics:me_solar_panel",
 		"data_energistics:data_meteorite_0",
 		"data_energistics:data_meteorite_1",
 		"data_energistics:data_meteorite_2",

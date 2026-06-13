@@ -221,7 +221,7 @@ public final class MeteoritePlacer {
 
     private void placeChest() {
         if (AEConfig.instance().isSpawnPressesInMeteoritesEnabled()) {
-            this.putter.put(this.level, this.pos, AEBlocks.NOT_SO_MYSTERIOUS_CUBE.block().defaultBlockState());
+            this.putter.put(this.level, this.pos, AEBlocks.MYSTERIOUS_CUBE.block().defaultBlockState());
         }
     }
 

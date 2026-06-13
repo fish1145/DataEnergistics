@@ -49,7 +49,7 @@ public final class DataMeteoriteLocator {
     }
 
     private static Optional<BlockPos> findClosestLoadedMeteorite(ServerLevel level, ChunkPos originChunkPos) {
-        Block targetBlock = AEBlocks.NOT_SO_MYSTERIOUS_CUBE.block();
+        Block targetBlock = AEBlocks.MYSTERIOUS_CUBE.block();
         BlockPos origin = originChunkPos.getMiddleBlockPosition(0);
         BlockPos closest = null;
         double closestDistance = Double.MAX_VALUE;

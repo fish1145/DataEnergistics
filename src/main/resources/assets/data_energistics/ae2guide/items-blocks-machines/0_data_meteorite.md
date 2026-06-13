@@ -41,7 +41,7 @@ item_ids:
   <Block id="ae2:quartz_block" x="2" y="0" z="2" />
 
 
-  <Block id="ae2:not_so_mysterious_cube" x="1" y="1" z="1" />
+  <Block id="ae2:mysterious_cube" x="1" y="1" z="1" />
   <Block id="ae2:large_quartz_bud" x="1" y="1" z="0" />
   <Block id="ae2:small_quartz_bud" x="2" y="1" z="0" />
   <Block id="ae2:quartz_cluster" x="0" y="1" z="2" />

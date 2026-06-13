@@ -913,7 +913,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (allowsAeTargets() && getTargetTransferMode(pos) != TargetTransferMode.DISABLED && !this.level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = this.level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
-                    positions.put(pos.immutable(), TargetKind.AE);
+                    TargetKind kind = getPreferredDisplayKind(pos, blockEntity);
+                    if (kind != null) {
+                        positions.put(pos.immutable(), kind);
+                    }
                 }
             }
         }
@@ -952,7 +955,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (blockEntity instanceof DataDistributionTowerBlockEntity || shouldHideFromBoundTargetDisplay(blockEntity)) {
                 continue;
             }
-            positions.putIfAbsent(pos.immutable(), hasDisplayableAeTarget(blockEntity) ? TargetKind.AE : TargetKind.FE);
+            TargetKind kind = getPreferredDisplayKind(pos, blockEntity);
+            if (kind != null) {
+                positions.putIfAbsent(pos.immutable(), kind);
+            }
         }
 
         collapseAeCraftingDisplayTargets(positions);
@@ -1775,6 +1781,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         return blockEntity instanceof PatternProviderBlockEntity;
+    }
+
+    @Nullable
+    private TargetKind getPreferredDisplayKind(BlockPos pos, @Nullable BlockEntity blockEntity) {
+        if (this.level == null || blockEntity instanceof DataDistributionTowerBlockEntity || this.level.getBlockState(pos).isAir()) {
+            return null;
+        }
+        if (hasAeNodeCapability(pos)) {
+            return TargetKind.AE;
+        }
+        if (canReceiveEnergy(findAccessibleEnergyStorage(pos, true))) {
+            return TargetKind.FE;
+        }
+        return null;
     }
 
     private boolean hasWhitelistedCableBusDisplayPart(CableBusContainer cableBus) {
