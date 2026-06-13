@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
+import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -74,8 +75,11 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Nullable
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
+    @Getter
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getLogic);
+    @Getter
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getLogic);
+    @Getter
     private final Object externalReturnChemicalHandler = AdaptivePatternProviderExternalHandlers.createChemicalHandler(this::getLogic);
 
     public AdaptivePatternProviderPart(IPartItem<?> partItem) {
@@ -98,16 +102,9 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         return getAdaptiveState().getProviderInventory();
     }
 
-    public IItemHandler getExternalReturnItemHandler() {
-        return this.externalReturnItemHandler;
-    }
-
-    public IFluidHandler getExternalReturnFluidHandler() {
-        return this.externalReturnFluidHandler;
-    }
-
-    public Object getExternalReturnChemicalHandler() {
-        return this.externalReturnChemicalHandler;
+    @Override
+    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
+        return getAdaptiveState().getAe2LtPackagedAdapterInventory();
     }
 
     @Override

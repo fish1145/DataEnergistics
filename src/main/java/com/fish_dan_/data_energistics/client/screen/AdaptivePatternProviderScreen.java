@@ -194,9 +194,11 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.resonatingPullButton.setVisibility(showResonatingPull);
         this.resonatingPullButton.setState(this.menu.isResonatingPullEnabled());
 
-        boolean showAe2LtControls = this.menu.isAe2LtOverloadedProviderSelected();
-        this.ae2ltModeButton.visible = showAe2LtControls;
-        this.ae2ltModeButton.active = showAe2LtControls;
+        boolean showAe2LtControls = this.menu.isAe2LtProviderFamilySelected();
+        boolean showAe2LtMode = this.menu.isAe2LtModeSwitchVisible();
+        boolean showAe2LtWirelessControls = this.menu.isAe2LtWirelessControlsVisible();
+        this.ae2ltModeButton.visible = showAe2LtMode;
+        this.ae2ltModeButton.active = showAe2LtMode;
         this.ae2ltModeButton.setState(this.menu.isAe2LtWirelessMode());
 
         this.ae2ltReturnModeButton.visible = showAe2LtControls;
@@ -206,12 +208,12 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.ae2ltReturnModeButton.setTooltipAt(2, AE2LT_RETURN_MODE_TOOLTIP_EJECT);
         this.ae2ltReturnModeButton.setStateIndex(this.menu.getAe2LtReturnModeOrdinal());
 
-        this.ae2ltWirelessStrategyButton.visible = showAe2LtControls && this.menu.isAe2LtWirelessMode();
-        this.ae2ltWirelessStrategyButton.active = showAe2LtControls && this.menu.isAe2LtWirelessMode();
+        this.ae2ltWirelessStrategyButton.visible = showAe2LtWirelessControls;
+        this.ae2ltWirelessStrategyButton.active = showAe2LtWirelessControls;
         this.ae2ltWirelessStrategyButton.setState(this.menu.isAe2LtEvenDistributionMode());
 
-        this.ae2ltWirelessSpeedButton.visible = showAe2LtControls && this.menu.isAe2LtWirelessMode();
-        this.ae2ltWirelessSpeedButton.active = showAe2LtControls && this.menu.isAe2LtWirelessMode();
+        this.ae2ltWirelessSpeedButton.visible = showAe2LtWirelessControls;
+        this.ae2ltWirelessSpeedButton.active = showAe2LtWirelessControls;
         this.ae2ltWirelessSpeedButton.setState(this.menu.isAe2LtFastSpeedMode());
 
         this.setTextContent("dialog_title",
@@ -228,7 +230,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
             Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
-        } else if (slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PROVIDER_INPUT) {
+        } else if (slot.isActive() && slot.getItem().isEmpty() && (this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PROVIDER_INPUT || this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {
             DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);

@@ -500,6 +500,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     targetPos,
                     patternDetails,
                     inputHolder,
+                    getAe2LtPackagedAdapterStack(),
                     allowedOutputFilter,
                     this.actionSource,
                     getReturnInv())) {
@@ -537,6 +538,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     connection.pos(),
                     patternDetails,
                     inputHolder,
+                    getAe2LtPackagedAdapterStack(),
                     allowedOutputFilter,
                     this.actionSource,
                     getReturnInv())) {
@@ -801,6 +803,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean isAe2LtProviderFamilySelected() {
         return isAe2LightningTechOverloadedProviderSelected() || isAe2LtPackagedProviderSelected();
+    }
+
+    private ItemStack getAe2LtPackagedAdapterStack() {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)) {
+            return ItemStack.EMPTY;
+        }
+        return adaptivePatternProviderHost.getAe2LtPackagedAdapterInventory().getStackInSlot(0);
     }
 
     private boolean isAppliedCreateMechanicalProviderSelected() {

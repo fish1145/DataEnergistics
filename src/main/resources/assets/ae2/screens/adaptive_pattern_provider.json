@@ -28,6 +28,10 @@
 		"ADAPTIVE_PATTERN_PROVIDER_PROVIDER": {
 			"left": 149,
 			"top": 20
+		},
+		"ADAPTIVE_PATTERN_PROVIDER_AE2LTPP_ADAPTER": {
+			"left": 128,
+			"top": 20
 		}
 	},
 	"text": {

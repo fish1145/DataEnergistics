@@ -19,6 +19,8 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     AppEngInternalInventory getProviderInventory();
 
+    AppEngInternalInventory getAe2LtPackagedAdapterInventory();
+
     int getProviderSlotLimit();
 
     ItemStack extractProviderOverflow();

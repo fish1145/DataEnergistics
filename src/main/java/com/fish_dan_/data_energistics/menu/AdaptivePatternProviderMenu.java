@@ -48,6 +48,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     private static final int EXPANDED_RETURN_SLOTS = 18;
 
     public static final SlotSemantic PROVIDER_INPUT = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PROVIDER", false);
+    public static final SlotSemantic AE2LTPP_ADAPTER = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_AE2LTPP_ADAPTER", false);
     public static final SlotSemantic PAGE_PATTERN = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
     public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
 
@@ -85,6 +86,10 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     public boolean resonatingProviderSelected;
     @GuiSync(789)
     public boolean resonatingPullEnabled;
+    @GuiSync(790)
+    public boolean ae2LtPackagedProviderSelected;
+    @GuiSync(791)
+    public boolean ae2LtPackagedWirelessProviderSelected;
 
     public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
         super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
@@ -104,6 +109,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         addPatternPageSlots();
         addReturnSlots();
         addProviderSlot();
+        addAe2LtPackagedAdapterSlot();
         this.createPlayerInventorySlots(playerInventory);
 
         refreshPatternPagination();
@@ -121,6 +127,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         var semantic = this.getSlotSemantic(slot);
         if (semantic == PROVIDER_INPUT) {
             returnOverflowPatternsToPlayer();
+            returnHiddenAe2LtPackagedAdapterToPlayer();
             refreshPatternPagination();
             updatePatternSlotVisibility();
         } else if (semantic == SlotSemantics.UPGRADE) {
@@ -299,6 +306,26 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         return this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 
+    public boolean isAe2LtPackagedProviderSelected() {
+        return this.ae2LtPackagedProviderSelected;
+    }
+
+    public boolean isAe2LtPackagedWirelessProviderSelected() {
+        return this.ae2LtPackagedWirelessProviderSelected;
+    }
+
+    public boolean isAe2LtProviderFamilySelected() {
+        return isAe2LtOverloadedProviderSelected() || isAe2LtPackagedProviderSelected();
+    }
+
+    public boolean isAe2LtModeSwitchVisible() {
+        return isAe2LtOverloadedProviderSelected();
+    }
+
+    public boolean isAe2LtWirelessControlsVisible() {
+        return isAe2LtOverloadedProviderSelected() && isAe2LtWirelessMode() || isAe2LtPackagedWirelessProviderSelected();
+    }
+
     public boolean isResonatingProviderSelected() {
         return this.resonatingProviderSelected;
     }
@@ -378,7 +405,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     private void toggleAe2LtReturnMode() {
-        if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected()) {
+        if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected() && !this.host.isAe2LtPackagedProviderSelected()) {
             return;
         }
 
@@ -388,7 +415,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     private void toggleAe2LtWirelessDispatchMode() {
-        if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected()) {
+        if (this.host == null || !this.host.isAe2LtWirelessConnectableProviderSelected()) {
             return;
         }
 
@@ -398,7 +425,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     private void toggleAe2LtWirelessSpeedMode() {
-        if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected()) {
+        if (this.host == null || !this.host.isAe2LtWirelessConnectableProviderSelected()) {
             return;
         }
 
@@ -427,6 +454,8 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
 
         this.resonatingProviderSelected = this.host.isResonatingProviderSelected();
         this.resonatingPullEnabled = this.host.isResonatingPullEnabled();
+        this.ae2LtPackagedProviderSelected = this.host.isAe2LtPackagedProviderSelected();
+        this.ae2LtPackagedWirelessProviderSelected = this.host.isAe2LtPackagedWirelessProviderSelected();
         this.ae2ltProviderMode = this.host.getAe2LtProviderMode().ordinal();
         this.ae2ltReturnMode = this.host.getAe2LtReturnMode().ordinal();
         this.ae2ltWirelessDispatchMode = this.host.getAe2LtWirelessDispatchMode().ordinal();
@@ -475,6 +504,17 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         this.addSlot(providerSlot, PROVIDER_INPUT);
     }
 
+    private void addAe2LtPackagedAdapterSlot() {
+        var adapterSlot = new AppEngSlot(
+                this.host != null ? this.host.getAe2LtPackagedAdapterInventory() : new AppEngInternalInventory(1),
+                0);
+        adapterSlot.setIcon(null);
+        adapterSlot.setNotDraggable();
+        adapterSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(
+                Component.translatable("ae2ltpp.gui.adapter_slot")));
+        this.addSlot(adapterSlot, AE2LTPP_ADAPTER);
+    }
+
     private void returnOverflowPatternsToPlayer() {
         if (this.logic == null) {
             return;
@@ -517,6 +557,23 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         this.host.markForClientUpdate();
     }
 
+    private void returnHiddenAe2LtPackagedAdapterToPlayer() {
+        if (this.host == null || this.host.isAe2LtPackagedProviderSelected()) {
+            return;
+        }
+
+        AppEngInternalInventory adapterInventory = this.host.getAe2LtPackagedAdapterInventory();
+        ItemStack adapterStack = adapterInventory.getStackInSlot(0);
+        if (adapterStack.isEmpty()) {
+            return;
+        }
+
+        adapterInventory.setItemDirect(0, ItemStack.EMPTY);
+        this.getPlayerInventory().placeItemBackInInventory(adapterStack);
+        this.host.saveChanges();
+        this.host.markForClientUpdate();
+    }
+
     private void updatePatternSlotVisibility() {
         for (var slot : this.getSlots(PAGE_PATTERN)) {
             if (slot instanceof AppEngSlot appEngSlot && slot instanceof PagedPatternSlot pagedPatternSlot) {
@@ -530,6 +587,14 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
             if (slot instanceof AppEngSlot appEngSlot) {
                 appEngSlot.setActive(true);
                 appEngSlot.setSlotEnabled(true);
+            }
+        }
+
+        boolean showAdapterSlot = isAe2LtPackagedProviderSelected();
+        for (var slot : this.getSlots(AE2LTPP_ADAPTER)) {
+            if (slot instanceof AppEngSlot appEngSlot) {
+                appEngSlot.setActive(showAdapterSlot);
+                appEngSlot.setSlotEnabled(showAdapterSlot);
             }
         }
     }
@@ -552,6 +617,10 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
 
         if (!stack.isEmpty() && AdaptivePatternProviderResolver.isSupportedProviderStack(stack)) {
             moveIntoSemanticSlots(PROVIDER_INPUT, stack);
+        }
+
+        if (!stack.isEmpty() && isAe2LtPackagedProviderSelected()) {
+            moveIntoSemanticSlots(AE2LTPP_ADAPTER, stack);
         }
 
         if (!stack.isEmpty() && isPatternLike(stack)) {

@@ -95,6 +95,11 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return getAdaptiveState().getProviderInventory();
     }
 
+    @Override
+    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
+        return getAdaptiveState().getAe2LtPackagedAdapterInventory();
+    }
+
     @Nullable
     public IItemHandler getExternalReturnItemHandler(@Nullable Direction side) {
         if (side != null && !this.getTargets().contains(side)) {

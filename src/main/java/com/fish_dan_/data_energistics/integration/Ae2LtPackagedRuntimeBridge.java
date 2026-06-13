@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import appeng.api.config.Actionable;
@@ -28,13 +29,13 @@ public final class Ae2LtPackagedRuntimeBridge {
     private static final String BINDING_MODE_CLASS = "com.moakiee.ae2lt.packaged.logic.multiblock.binding.BindingMode";
     private static final String DISPATCH_RESULT_CLASS = "com.moakiee.ae2lt.packaged.logic.DispatchResult";
     private static final String ALLOWED_OUTPUT_FILTER_CLASS = "com.moakiee.ae2lt.logic.AllowedOutputFilter";
+    private static final String MULTIBLOCK_ADAPTER_ITEM_CLASS = "com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem";
 
     private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
     private static volatile @Nullable Access access;
     private static volatile boolean initialized;
 
-    private Ae2LtPackagedRuntimeBridge() {
-    }
+    private Ae2LtPackagedRuntimeBridge() {}
 
     public static boolean isAvailable() {
         if (!ModFlags.isAe2LtPackagedProviderLoaded()) {
@@ -52,6 +53,7 @@ public final class Ae2LtPackagedRuntimeBridge {
                                    BlockPos pos,
                                    IPatternDetails patternDetails,
                                    KeyCounter[] inputHolder,
+                                   ItemStack adapterStack,
                                    @Nullable Object allowedOutputFilter,
                                    IActionSource actionSource,
                                    PatternProviderReturnInventory returnInventory) {
@@ -77,7 +79,10 @@ public final class Ae2LtPackagedRuntimeBridge {
 
             Object requiredAdapterId = methods.adapterRequiredAdapterId().invoke(adapter, level, pos);
             if (requiredAdapterId instanceof ResourceLocation) {
-                return false;
+                Object covered = methods.adapterItemStackCovers().invoke(adapterStack, requiredAdapterId);
+                if (!Boolean.TRUE.equals(covered)) {
+                    return false;
+                }
             }
 
             Object binding = methods.adapterBind().invoke(adapter, level, pos, patternDetails);
@@ -146,6 +151,7 @@ public final class Ae2LtPackagedRuntimeBridge {
             Class<?> dispatchPlanClass = Class.forName(DISPATCH_PLAN_CLASS);
             Class<?> dispatchExecutorClass = Class.forName(DISPATCH_EXECUTOR_CLASS);
             Class<?> dispatchResultClass = Class.forName(DISPATCH_RESULT_CLASS);
+            Class<?> adapterItemClass = Class.forName(MULTIBLOCK_ADAPTER_ITEM_CLASS);
 
             MethodHandle multiblockAdapterFind = findStatic(
                     registryClass,
@@ -192,9 +198,15 @@ public final class Ae2LtPackagedRuntimeBridge {
                     BlockPos.class,
                     allowedOutputFilterClass,
                     IActionSource.class);
+            MethodHandle adapterItemStackCovers = findStatic(
+                    adapterItemClass,
+                    "stackCovers",
+                    boolean.class,
+                    ItemStack.class,
+                    ResourceLocation.class);
             MethodHandle bindingHandle = findVirtual(bindingResultClass, "handle", Object.class);
             MethodHandle bindingMode = findVirtual(bindingResultClass, "mode", bindingModeClass);
-            @SuppressWarnings({"unchecked", "rawtypes"})
+            @SuppressWarnings({ "unchecked", "rawtypes" })
             Object realBindingMode = Enum.valueOf((Class<? extends Enum>) bindingModeClass.asSubclass(Enum.class), "REAL");
             MethodHandle dispatchExecute = findStatic(
                     dispatchExecutorClass,
@@ -212,6 +224,7 @@ public final class Ae2LtPackagedRuntimeBridge {
                     adapterCanDispatch,
                     adapterPlanWithBinding,
                     adapterExtractOutputs,
+                    adapterItemStackCovers,
                     bindingHandle,
                     bindingMode,
                     realBindingMode,
@@ -236,10 +249,10 @@ public final class Ae2LtPackagedRuntimeBridge {
                           MethodHandle adapterCanDispatch,
                           MethodHandle adapterPlanWithBinding,
                           MethodHandle adapterExtractOutputs,
+                          MethodHandle adapterItemStackCovers,
                           MethodHandle bindingHandle,
                           MethodHandle bindingMode,
                           Object realBindingMode,
                           MethodHandle dispatchExecute,
-                          MethodHandle dispatchResultSuccess) {
-    }
+                          MethodHandle dispatchResultSuccess) {}
 }
