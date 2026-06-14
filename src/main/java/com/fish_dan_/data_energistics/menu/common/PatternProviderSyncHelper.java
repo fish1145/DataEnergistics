@@ -14,10 +14,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
@@ -209,12 +213,12 @@ public final class PatternProviderSyncHelper {
         return remainder;
     }
 
-    public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern) {
+    public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern, Level level) {
         if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
             return new TransferResult(encodedPattern, false, false);
         }
 
-        if (!allowsDuplicateEncodedPatternUpload(containers, encodedPattern) && containsEquivalentEncodedPattern(containers, encodedPattern)) {
+        if (containsBlockedEquivalentEncodedPattern(containers, encodedPattern, level)) {
             return new TransferResult(encodedPattern, false, true);
         }
 
@@ -257,11 +261,7 @@ public final class PatternProviderSyncHelper {
         return transferred ? remainder : encodedPattern;
     }
 
-    private static boolean allowsDuplicateEncodedPatternUpload(List<PatternContainer> containers, ItemStack encodedPattern) {
-        return ModFlags.isExtendedAePlusLoaded() && AE2_CRAFTING_PATTERN_ITEM_ID.equals(resolveItemId(encodedPattern)) && containers.stream().anyMatch(PatternProviderSyncHelper::isAssemblerMatrixPatternContainer);
-    }
-
-    private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
+    private static boolean containsBlockedEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern, Level level) {
         for (var container : containers) {
             if (container == null) {
                 continue;
@@ -274,13 +274,40 @@ public final class PatternProviderSyncHelper {
 
             for (int slot = 0; slot < inventory.size(); slot++) {
                 ItemStack existing = inventory.getStackInSlot(slot);
-                if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, encodedPattern)) {
+                if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, encodedPattern) && !allowsDuplicateEncodedPatternUpload(container, encodedPattern, level)) {
                     return true;
                 }
             }
         }
 
         return false;
+    }
+
+    private static boolean allowsDuplicateEncodedPatternUpload(PatternContainer container, ItemStack encodedPattern, Level level) {
+        return ModFlags.isExtendedAePlusLoaded() && AE2_CRAFTING_PATTERN_ITEM_ID.equals(resolveItemId(encodedPattern)) && isAssemblerMatrixPatternContainer(container) && isCraftingPatternWithoutPatternOutput(encodedPattern, level);
+    }
+
+    private static boolean isCraftingPatternWithoutPatternOutput(ItemStack encodedPattern, Level level) {
+        if (!AE2_CRAFTING_PATTERN_ITEM_ID.equals(resolveItemId(encodedPattern))) {
+            return false;
+        }
+
+        IPatternDetails details = PatternDetailsHelper.decodePattern(encodedPattern, level);
+        if (details == null) {
+            return false;
+        }
+
+        for (GenericStack output : details.getOutputs()) {
+            if (output != null && output.what() instanceof AEItemKey itemKey && isAe2PatternItemId(itemKey.getId())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean isAe2PatternItemId(ResourceLocation itemId) {
+        return AE2_CRAFTING_PATTERN_ITEM_ID.equals(itemId) || AE2_STONECUTTING_PATTERN_ITEM_ID.equals(itemId) || AE2_SMITHING_TABLE_PATTERN_ITEM_ID.equals(itemId);
     }
 
     public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound) {}

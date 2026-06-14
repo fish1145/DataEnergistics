@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -344,7 +345,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
-        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
+        Level level = this.getPlayer().level();
+        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern, level);
         if (transferResult.duplicateFound()) {
             dataEnergistics$returnEncodedPatternAsBlankToNetwork();
             this.getPlayer().sendSystemMessage(Component.translatable(
