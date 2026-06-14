@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(TerminalSettingsScreen.class)
 public abstract class TerminalSettingsScreenMixin
-        extends AESubScreen<MEStorageMenu, MEStorageScreen<MEStorageMenu>> {
+                                                  extends AESubScreen<MEStorageMenu, MEStorageScreen<MEStorageMenu>> {
 
     @Unique
     private static final int DATA_ENERGISTICS_UPLOAD_CHECKBOX_X = 10;
@@ -93,8 +93,7 @@ public abstract class TerminalSettingsScreenMixin
 
     @Unique
     private void dataEnergistics$repositionTerminalSettings() {
-        if (this.dataEnergistics$clearGridOnCloseCheckbox != null
-                && this.dataEnergistics$clearGridOnCloseOriginalY != Integer.MIN_VALUE) {
+        if (this.dataEnergistics$clearGridOnCloseCheckbox != null && this.dataEnergistics$clearGridOnCloseOriginalY != Integer.MIN_VALUE) {
             this.dataEnergistics$clearGridOnCloseCheckbox
                     .setY(this.dataEnergistics$clearGridOnCloseOriginalY + DATA_ENERGISTICS_CLEAR_GRID_OFFSET_Y);
         }
@@ -104,9 +103,7 @@ public abstract class TerminalSettingsScreenMixin
     private AECheckbox dataEnergistics$findCheckboxAbove(int maxY) {
         AECheckbox candidate = null;
         for (var renderable : this.renderables) {
-            if (renderable instanceof AECheckbox checkbox
-                    && checkbox != this.dataEnergistics$uploadEnabledCheckbox
-                    && checkbox.getY() < maxY) {
+            if (renderable instanceof AECheckbox checkbox && checkbox != this.dataEnergistics$uploadEnabledCheckbox && checkbox.getY() < maxY) {
                 if (candidate == null || checkbox.getY() > candidate.getY()) {
                     candidate = checkbox;
                 }

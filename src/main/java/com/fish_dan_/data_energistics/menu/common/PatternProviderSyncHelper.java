@@ -998,15 +998,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean isWorkbenchFamily(ResourceLocation workstationId) {
-        return CRAFTING_TABLE_ID.equals(workstationId)
-                || STONECUTTER_ID.equals(workstationId)
-                || SMITHING_TABLE_ID.equals(workstationId)
-                || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId)
-                || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)
-                || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId)
-                || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId)
-                || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId)
-                || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID.equals(workstationId);
+        return CRAFTING_TABLE_ID.equals(workstationId) || STONECUTTER_ID.equals(workstationId) || SMITHING_TABLE_ID.equals(workstationId) || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId) || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId) || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId) || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID.equals(workstationId);
     }
 
     private static boolean isPrimaryWorkbenchFamily(ResourceLocation workstationId) {
@@ -1061,9 +1053,7 @@ public final class PatternProviderSyncHelper {
             return true;
         }
 
-        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID)
-                || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID)
-                || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID)) {
+        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID) || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID) || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID)) {
             return true;
         }
 

@@ -782,9 +782,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     private void applyEncodeButtonHint() {
         if (this.encodePatternWidget != null) {
-            this.encodePatternWidget.setMessage(isUploadEnabled()
-                    ? ENCODE_BUTTON_HINT
-                    : this.originalEncodePatternMessage != null ? this.originalEncodePatternMessage : ENCODE_BUTTON_HINT);
+            this.encodePatternWidget.setMessage(isUploadEnabled() ? ENCODE_BUTTON_HINT : this.originalEncodePatternMessage != null ? this.originalEncodePatternMessage : ENCODE_BUTTON_HINT);
         }
     }
 
