@@ -20,7 +20,6 @@ import appeng.core.definitions.AEParts;
 public final class DataCaptureBallCraftingRemainderHelper {
 
     private static final long DATA_REASSEMBLER_DATA_COST = 8L;
-    private static final TagKey<Item> IRON_INGOTS = commonTag("ingots/iron");
     private static final TagKey<Item> OBSIDIAN_INGOTS = commonTag("ingots/obsidian");
 
     private DataCaptureBallCraftingRemainderHelper() {}
@@ -56,7 +55,7 @@ public final class DataCaptureBallCraftingRemainderHelper {
             return false;
         }
 
-        return input.getItem(0, 0).is(IRON_INGOTS) && input.getItem(1, 0).is(ModItems.DATA_FRAMEWORK.get()) && input.getItem(2, 0).is(ModItems.DATA_CAPTURE_BALL.get()) && input.getItem(0, 1).is(AEBlocks.ENERGY_CELL.asItem()) && input.getItem(1, 1).is(AEParts.TERMINAL.asItem()) && input.getItem(2, 1).is(AEBlocks.QUARTZ_GLASS.asItem()) && input.getItem(0, 2).is(OBSIDIAN_INGOTS) && input.getItem(1, 2).is(OBSIDIAN_INGOTS) && input.getItem(2, 2).is(OBSIDIAN_INGOTS);
+        return input.getItem(0, 0).is(ModItems.DATA_PROCESSOR.get()) && input.getItem(1, 0).is(ModItems.DATA_FRAMEWORK.get()) && input.getItem(2, 0).is(ModItems.DATA_CAPTURE_BALL.get()) && input.getItem(0, 1).is(AEBlocks.ENERGY_CELL.asItem()) && input.getItem(1, 1).is(AEParts.TERMINAL.asItem()) && input.getItem(2, 1).is(AEBlocks.QUARTZ_GLASS.asItem()) && input.getItem(0, 2).is(OBSIDIAN_INGOTS) && input.getItem(1, 2).is(OBSIDIAN_INGOTS) && input.getItem(2, 2).is(OBSIDIAN_INGOTS);
     }
 
     private static int findDataCaptureBallSlot(CraftingInput input) {
