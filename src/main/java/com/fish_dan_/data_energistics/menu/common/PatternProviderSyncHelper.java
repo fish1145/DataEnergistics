@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.menu.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.SomeUselessThingsCompat;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
@@ -214,7 +213,7 @@ public final class PatternProviderSyncHelper {
             return new TransferResult(encodedPattern, false, false);
         }
 
-        if (!allowsDuplicateEncodedPatternUpload(containers, encodedPattern) && containsEquivalentEncodedPattern(containers, encodedPattern)) {
+        if (containsEquivalentEncodedPattern(containers, encodedPattern)) {
             return new TransferResult(encodedPattern, false, true);
         }
 
@@ -255,10 +254,6 @@ public final class PatternProviderSyncHelper {
         }
 
         return transferred ? remainder : encodedPattern;
-    }
-
-    private static boolean allowsDuplicateEncodedPatternUpload(List<PatternContainer> containers, ItemStack encodedPattern) {
-        return ModFlags.isExtendedAePlusLoaded() && AE2_CRAFTING_PATTERN_ITEM_ID.equals(resolveItemId(encodedPattern)) && containers.stream().anyMatch(PatternProviderSyncHelper::isAssemblerMatrixPatternContainer);
     }
 
     private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
