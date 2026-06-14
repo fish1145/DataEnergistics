@@ -213,6 +213,7 @@
 	"button.data_energistics.pattern_encoding_source_toggle.disabled": "信息不可编写",
 	"button.data_energistics.pattern_encoding_source_toggle.detail": "已编写设备：%s",
 	"button.data_energistics.pattern_encoding_source_toggle.detail.none": "已编写设备：无",
+	"gui.data_energistics.terminal_settings.enable_upload": "启用Data_Energistics上传",
 	"key.categories.data_energistics": "Data Energistics",
 	"key.data_energistics.open_pattern_provider": "打开样板供应器界面",
 	"key.data_energistics.rename_pattern_provider": "重命名样板供应器",

@@ -11,6 +11,7 @@
 		"ae2:charger": "ae2:charger",
 		"data_energistics:data_reassembler": "data_energistics:data_reassembler",
 		"extendedae:crystal_assembler": "extendedae:crystal_assembler",
+		"extendedae_plus:assembler_matrix_upload_core": "extendedae:assembler_matrix_speed",
 		"useless_mod:advanced_alloy_furnace": "useless_mod:advanced_alloy_furnace_block",
 		"mekanism:combining": "mekanism:combiner",
 		"mekanism:compressing": "mekanism:osmium_compressor",

@@ -68,6 +68,7 @@ public final class PatternEncodingSourceHelper {
     private static final String TAG_PENDING = "pending";
     private static final String TAG_LAST = "last";
     private static final String TAG_ENABLED = "enabled";
+    private static final String TAG_UPLOAD_ENABLED = "upload_enabled";
     private static final String TAG_PENDING_KEY_INPUT = "pending_key_input";
     private static final String TAG_PENDING_KEY_OUTPUT = "pending_key_output";
     private static final String WORKSTATION_MAPPINGS_RESOURCE = "data_energistics/pattern_workstation_mappings.json";
@@ -1145,6 +1146,17 @@ public final class PatternEncodingSourceHelper {
             tag.remove(TAG_LAST);
             PatternEncodingSessionState.clearLastEncodedPatternSource(player.getUUID());
         }
+        cleanupPatternSourceData(player, tag);
+    }
+
+    public static boolean readUploadEnabled(Player player) {
+        CompoundTag tag = getPatternSourceData(player, false);
+        return tag == null || !tag.contains(TAG_UPLOAD_ENABLED) || tag.getBoolean(TAG_UPLOAD_ENABLED);
+    }
+
+    public static void writeUploadEnabled(Player player, boolean enabled) {
+        CompoundTag tag = getPatternSourceData(player, true);
+        tag.putBoolean(TAG_UPLOAD_ENABLED, enabled);
         cleanupPatternSourceData(player, tag);
     }
 

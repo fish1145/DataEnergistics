@@ -68,6 +68,7 @@ public final class PatternProviderSyncHelper {
     private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
+    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_upload_core");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
     private static final ResourceLocation AE2CS_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "resonating_pattern_provider");
@@ -75,6 +76,7 @@ public final class PatternProviderSyncHelper {
     private static final ResourceLocation AE2CS_EX_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "ex_resonating_pattern_provider");
     private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
     private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS = Set.of(
+            "assembler_matrix_upload_core",
             "assembler_matrix_crafter_plus",
             "assembler_matrix_pattern_plus",
             "assembler_matrix_speed_plus");
@@ -991,7 +993,15 @@ public final class PatternProviderSyncHelper {
     }
 
     private static boolean isWorkbenchFamily(ResourceLocation workstationId) {
-        return CRAFTING_TABLE_ID.equals(workstationId) || STONECUTTER_ID.equals(workstationId) || SMITHING_TABLE_ID.equals(workstationId) || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId) || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId);
+        return CRAFTING_TABLE_ID.equals(workstationId)
+                || STONECUTTER_ID.equals(workstationId)
+                || SMITHING_TABLE_ID.equals(workstationId)
+                || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId)
+                || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)
+                || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId)
+                || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId)
+                || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId)
+                || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID.equals(workstationId);
     }
 
     private static boolean isPrimaryWorkbenchFamily(ResourceLocation workstationId) {
@@ -1046,13 +1056,16 @@ public final class PatternProviderSyncHelper {
             return true;
         }
 
-        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID) || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID)) {
+        if (hasIdentityIconId(container, iconItemId, EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID)
+                || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID)
+                || hasIdentityIconId(container, iconItemId, EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID)) {
             return true;
         }
 
         return matchesIdentityTokens(container, displayName, iconItemId,
                 "装配矩阵",
                 "assemblermatrix",
+                "assemblermatrixuploadcore",
                 "assemblermatrixspeed",
                 "assemblermatrixcrafter",
                 "assemblermatrixpattern");

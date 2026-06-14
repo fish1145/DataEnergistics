@@ -23,4 +23,8 @@ public interface PatternEncodingSourceAware {
     boolean data_energistics$isPatternSourceEnabled();
 
     void data_energistics$setPatternSourceEnabled(boolean enabled);
+
+    boolean data_energistics$isUploadEnabled();
+
+    void data_energistics$setUploadEnabled(boolean enabled);
 }

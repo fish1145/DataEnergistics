@@ -112,6 +112,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
+    private static final int PERSISTED_LINK_RETRY_DELAY = 10;
+    private static final int PERSISTED_LINK_REQUEUE_TICKS = 40;
     private static final String RANGE_ADJUSTMENT_MODE_TAG = "range_adjustment_mode";
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
@@ -209,6 +211,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             registerInChunkIndex();
             invalidateEndpointCache();
             requeuePersistedLinks();
+            schedulePersistedLinkRequeue();
             resetAutoDiscoveryCooldown();
         }
     }
@@ -1141,7 +1144,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!tower.allowsAutomaticRangeConnections()) {
+                if (!tower.allowsAutomaticRangeConnections() && !tower.shouldReconnectTrackedTarget(targetPos)) {
                     continue;
                 }
                 if (!tower.canMaintainGridLinkTo(targetPos)) {
@@ -1224,7 +1227,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos targetPos : readyTargets) {
             List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
             if (linkableNodes.isEmpty()) {
-                this.pendingLinkPositions.remove(targetPos);
+                if (this.linkedPositions.contains(targetPos.immutable())) {
+                    this.pendingLinkPositions.put(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
+                } else {
+                    this.pendingLinkPositions.remove(targetPos);
+                }
                 continue;
             }
             if (linkableNodes.size() > remainingChannels) {
@@ -2672,6 +2679,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return newConnections.size();
     }
 
+    private boolean shouldReconnectTrackedTarget(BlockPos targetPos) {
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        return this.linkedPositions.contains(normalizedPos) || this.pendingLinkPositions.containsKey(normalizedPos);
+    }
+
     private List<IGridNode> getLinkableTargetNodes(IGridNode selfNode, BlockPos targetPos) {
         if (!canMaintainGridLinkTo(targetPos)) {
             return List.of();
@@ -2696,9 +2708,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (targetNode == null || targetNode == selfNode) {
             return false;
         }
-        if (!towerTarget && targetNode.isOnline()) {
-            return false;
-        }
 
         IGrid targetGrid = targetNode.getGrid();
         IGrid selfGrid = selfNode.getGrid();
@@ -2707,9 +2716,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 return !targetNode.meetsChannelRequirements();
             }
 
+            if (!towerTarget && targetNode.isOnline()) {
+                return false;
+            }
+
             ControllerState targetControllerState = targetGrid.getPathingService().getControllerState();
             ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
             return targetControllerState == ControllerState.NO_CONTROLLER || selfControllerState == ControllerState.NO_CONTROLLER;
+        }
+        if (!towerTarget && targetNode.isOnline()) {
+            return false;
         }
         return true;
     }
@@ -2724,6 +2740,52 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         destroyAllConnections();
         for (BlockPos pos : persisted) {
             queueLink(pos, 0);
+        }
+    }
+
+    private void schedulePersistedLinkRequeue() {
+        if (this.level == null || this.level.isClientSide() || allowsAutomaticRangeConnections() || this.linkedPositions.isEmpty()) {
+            return;
+        }
+        MinecraftServer server = this.level.getServer();
+        if (server == null) {
+            return;
+        }
+        schedulePersistedLinkRequeue(server, this.level, this.worldPosition.immutable(), PERSISTED_LINK_REQUEUE_TICKS);
+    }
+
+    private static void schedulePersistedLinkRequeue(MinecraftServer server, Level level, BlockPos towerPos, int remainingTicks) {
+        if (remainingTicks <= 0) {
+            return;
+        }
+        ServerTickDelayQueue.runNextServerTick(server, () -> {
+            if (!level.isLoaded(towerPos)) {
+                return;
+            }
+            BlockEntity blockEntity = level.getBlockEntity(towerPos);
+            if (!(blockEntity instanceof DataDistributionTowerBlockEntity tower) || tower.level == null || tower.level.isClientSide()) {
+                return;
+            }
+
+            tower.enqueueMissingPersistedLinks();
+            schedulePersistedLinkRequeue(server, level, towerPos, remainingTicks - 1);
+        });
+    }
+
+    private void enqueueMissingPersistedLinks() {
+        if (this.linkedPositions.isEmpty()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (BlockPos pos : List.copyOf(this.linkedPositions)) {
+            if (this.linkedConnections.containsKey(pos) || this.pendingLinkPositions.containsKey(pos)) {
+                continue;
+            }
+            changed |= queueLink(pos, 0);
+        }
+        if (changed) {
+            this.setChanged();
         }
     }
 
@@ -3105,7 +3167,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (IGridNode node : getConnectableNodes(this.level, targetPos)) {
-            if (node != null && !node.isOnline()) {
+            if (node != null && (!node.isOnline() || !node.meetsChannelRequirements())) {
                 return true;
             }
         }

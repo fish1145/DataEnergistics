@@ -66,7 +66,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     @Unique
+    private static final String DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED = "dataEnergistics$setUploadEnabled";
+    @Unique
     private static final String DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
+    @GuiSync(794)
+    @Unique
+    public boolean dataEnergistics$uploadEnabled = true;
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS = "dataEnergistics$depositCarriedBlankPatterns";
     @Unique
@@ -325,6 +330,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
 
+        if (!this.dataEnergistics$uploadEnabled) {
+            return;
+        }
+
         var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
         if (providers == null || providers.isEmpty()) {
             dataEnergistics$syncPatternProvidersFromNetwork();
@@ -549,6 +558,22 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
     }
 
+    @Override
+    public boolean data_energistics$isUploadEnabled() {
+        return this.dataEnergistics$uploadEnabled;
+    }
+
+    @Override
+    public void data_energistics$setUploadEnabled(boolean enabled) {
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED, enabled);
+        }
+        this.dataEnergistics$uploadEnabled = enabled;
+        if (this.isServerSide()) {
+            PatternEncodingSourceHelper.writeUploadEnabled(this.getPlayer(), enabled);
+        }
+    }
+
     @Inject(
             method = "<init>(Lnet/minecraft/world/inventory/MenuType;ILnet/minecraft/world/entity/player/Inventory;Lappeng/helpers/IPatternTerminalMenuHost;Z)V",
             at = @At("RETURN"))
@@ -577,6 +602,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$renamePatternProviderFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED, Boolean.class,
                 this::dataEnergistics$setPatternSourceEnabledFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED, Boolean.class,
+                this::dataEnergistics$setUploadEnabledFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE,
                 this::data_energistics$clearPatternSourceState);
         registerClientAction(DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS, Boolean.class,
@@ -586,6 +613,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         this.blankPatternSlot.setHideAmount(true);
         if (this.isServerSide()) {
             this.dataEnergistics$patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
+            this.dataEnergistics$uploadEnabled = PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
             this.dataEnergistics$pendingPatternSource = PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
             this.dataEnergistics$lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
             PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(),
@@ -655,6 +683,13 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private void dataEnergistics$setPatternSourceEnabledFromClient(Boolean enabled) {
         if (enabled != null) {
             data_energistics$setPatternSourceEnabled(enabled);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$setUploadEnabledFromClient(Boolean enabled) {
+        if (enabled != null) {
+            data_energistics$setUploadEnabled(enabled);
         }
     }
 

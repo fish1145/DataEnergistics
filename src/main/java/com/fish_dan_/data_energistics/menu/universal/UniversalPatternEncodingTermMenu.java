@@ -65,7 +65,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final VarHandle FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD = resolveInheritedField("dataEnergistics$lastEncodedPatternSource");
     @Nullable
     private static final VarHandle FALLBACK_PATTERN_SOURCE_ENABLED_FIELD = resolveInheritedField("dataEnergistics$patternSourceEnabled");
+    @Nullable
+    private static final VarHandle FALLBACK_UPLOAD_ENABLED_FIELD = resolveInheritedField("dataEnergistics$uploadEnabled");
     private static final String ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
+    private static final String ACTION_SET_UPLOAD_ENABLED = "dataEnergistics$setUploadEnabled";
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;
     private static final int CRAFTING_GRID_SLOTS = CRAFTING_GRID_WIDTH * CRAFTING_GRID_HEIGHT;
@@ -85,6 +88,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @GuiSync(895)
     @Nullable
     public net.minecraft.resources.ResourceLocation lastEncodedPatternSource;
+    @GuiSync(896)
+    public boolean uploadEnabled = true;
 
     private final Map<appeng.helpers.patternprovider.PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
     private final Map<Long, List<appeng.helpers.patternprovider.PatternContainer>> syncedPatternProvidersById = new HashMap<>();
@@ -106,11 +111,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         registerClientAction(ACTION_RENAME_PATTERN_PROVIDER, String.class,
                 this::renamePatternProviderFromClient);
         this.patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
+        this.uploadEnabled = PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
         this.lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
         if (this.isServerSide()) {
             PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(), this.lastEncodedPatternSource);
         }
         writeFallbackPatternSourceEnabled(this.patternSourceEnabled);
+        writeFallbackUploadEnabled(this.uploadEnabled);
         writeFallbackPendingPatternSource(PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer()));
         writeFallbackLastEncodedPatternSource(this.lastEncodedPatternSource);
         syncTerminalState();
@@ -202,6 +209,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     public void data_energistics$transferEncodedPatternToProvider(long providerId) {
         if (this.isClientSide()) {
             sendClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, providerId);
+            return;
+        }
+
+        if (!data_energistics$isUploadEnabled()) {
             return;
         }
 
@@ -367,6 +378,24 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         if (this.isServerSide()) {
             PatternEncodingSourceHelper.writePatternSourceEnabled(this.getPlayer(), enabled);
+        }
+    }
+
+    @Override
+    public boolean data_energistics$isUploadEnabled() {
+        Boolean fallback = readFallbackUploadEnabled();
+        return fallback != null ? fallback : PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
+    }
+
+    @Override
+    public void data_energistics$setUploadEnabled(boolean enabled) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_SET_UPLOAD_ENABLED, enabled);
+        }
+        this.uploadEnabled = enabled;
+        writeFallbackUploadEnabled(enabled);
+        if (this.isServerSide()) {
+            PatternEncodingSourceHelper.writeUploadEnabled(this.getPlayer(), enabled);
         }
     }
 
@@ -584,6 +613,16 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     private void writeFallbackPatternSourceEnabled(boolean enabled) {
         writeInheritedField(FALLBACK_PATTERN_SOURCE_ENABLED_FIELD, this, enabled);
+    }
+
+    @Nullable
+    private Boolean readFallbackUploadEnabled() {
+        Object value = readInheritedField(FALLBACK_UPLOAD_ENABLED_FIELD, this);
+        return value instanceof Boolean enabled ? enabled : null;
+    }
+
+    private void writeFallbackUploadEnabled(boolean enabled) {
+        writeInheritedField(FALLBACK_UPLOAD_ENABLED_FIELD, this, enabled);
     }
 
     private void clearEncodedPatternSlot() {

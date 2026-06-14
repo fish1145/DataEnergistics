@@ -117,6 +117,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private ResourceLocation lastLocatedWorkstationId;
     private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
     private AbstractWidget encodePatternWidget;
+    private Component originalEncodePatternMessage;
     private AETextField providerSearchBox;
     private AETextField providerRenameBox;
     private PatternSourceToggleButton patternSourceToggleButton;
@@ -134,6 +135,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     public void init() {
         super.init();
         this.encodePatternWidget = resolveEncodePatternWidget();
+        if (this.originalEncodePatternMessage == null && this.encodePatternWidget != null) {
+            this.originalEncodePatternMessage = this.encodePatternWidget.getMessage();
+        }
         applyEncodeButtonHint();
         initProviderSearchBox();
         initProviderRenameBox();
@@ -154,6 +158,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         updatePreviewScrollbar();
+        applyEncodeButtonHint();
     }
 
     @Override
@@ -171,6 +176,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
+            if (!isUploadEnabled()) {
+                this.previewVisible = false;
+                boolean handled = super.mouseClicked(mouseX, mouseY, button);
+                return handled || isOverEncodeButton(mouseX, mouseY);
+            }
+
             if (hasShiftDown()) {
                 this.previewVisible = false;
                 return true;
@@ -182,6 +193,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
+            if (!isUploadEnabled()) {
+                this.previewVisible = false;
+                this.menu.encode();
+                return true;
+            }
+
             if (this.previewVisible) {
                 if (hasShiftDown()) {
                     this.previewVisible = false;
@@ -211,7 +228,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().data_energistics$transferEncodedPatternToProvider(hit.provider().id());
+                if (isUploadEnabled()) {
+                    previewBridge().data_energistics$transferEncodedPatternToProvider(hit.provider().id());
+                }
                 return true;
             }
         }
@@ -678,7 +697,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     protected Component getEncodeButtonHint() {
-        return ENCODE_BUTTON_HINT;
+        if (isUploadEnabled()) {
+            return ENCODE_BUTTON_HINT;
+        }
+        return this.originalEncodePatternMessage != null ? this.originalEncodePatternMessage : ENCODE_BUTTON_HINT;
     }
 
     private void initProviderSearchBox() {
@@ -779,6 +801,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         Point clearButtonPosition = clearButtonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
         this.patternSourceToggleButton.setX(clearButtonPosition.getX() + 0);
         this.patternSourceToggleButton.setY(clearButtonPosition.getY() + 10);
+    }
+
+    private boolean isUploadEnabled() {
+        return !(this.menu instanceof PatternEncodingSourceAware sourceAware) || sourceAware.data_energistics$isUploadEnabled();
     }
 
     private boolean shouldBlockExtendedAePlusKey(int keyCode, int scanCode) {

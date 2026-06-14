@@ -57,6 +57,7 @@ public final class AdaptivePatternProviderResolver {
             "assembler_matrix_pattern",
             "assembler_matrix_speed");
     private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
+            "assembler_matrix_upload_core",
             "assembler_matrix_crafter_plus",
             "assembler_matrix_pattern_plus",
             "assembler_matrix_speed_plus");

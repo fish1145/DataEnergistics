@@ -107,6 +107,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private long renamingProviderId = -1L;
     private ResourceLocation lastLocatedWorkstationId;
     private AbstractWidget encodePatternWidget;
+    private Component originalEncodePatternMessage;
     private AETextField providerSearchBox;
     private AETextField providerRenameBox;
     private PatternSourceToggleButton patternSourceToggleButton;
@@ -123,6 +124,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     public void init() {
         super.init();
         this.encodePatternWidget = resolveEncodePatternWidget();
+        if (this.originalEncodePatternMessage == null && this.encodePatternWidget != null) {
+            this.originalEncodePatternMessage = this.encodePatternWidget.getMessage();
+        }
         applyEncodeButtonHint();
         initProviderSearchBox();
         initProviderRenameBox();
@@ -143,6 +147,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         updatePreviewScrollbar();
+        applyEncodeButtonHint();
     }
 
     @Override
@@ -168,6 +173,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
 
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
+            if (!isUploadEnabled()) {
+                this.previewVisible = false;
+                boolean handled = super.mouseClicked(mouseX, mouseY, button);
+                return handled || isOverEncodeButton(mouseX, mouseY);
+            }
+
             if (hasShiftDown()) {
                 this.previewVisible = false;
                 return true;
@@ -179,6 +190,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
 
         if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
+            if (!isUploadEnabled()) {
+                this.previewVisible = false;
+                this.menu.encode();
+                return true;
+            }
+
             if (this.previewVisible) {
                 if (hasShiftDown()) {
                     this.previewVisible = false;
@@ -208,7 +225,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().data_energistics$transferEncodedPatternToProvider(hit.provider().id());
+                if (isUploadEnabled()) {
+                    previewBridge().data_energistics$transferEncodedPatternToProvider(hit.provider().id());
+                }
                 return true;
             }
         }
@@ -601,6 +620,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         this.patternSourceToggleButton.setY(clearButtonPosition.getY() + 10);
     }
 
+    private boolean isUploadEnabled() {
+        return !(this.menu instanceof PatternEncodingSourceAware sourceAware) || sourceAware.data_energistics$isUploadEnabled();
+    }
+
     private void updatePreviewScrollbar() {
         int hiddenRows = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
         this.previewScrollbar.setPosition(new Point(PANEL_SCROLLBAR_X, PANEL_SCROLLBAR_Y));
@@ -759,7 +782,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     private void applyEncodeButtonHint() {
         if (this.encodePatternWidget != null) {
-            this.encodePatternWidget.setMessage(ENCODE_BUTTON_HINT);
+            this.encodePatternWidget.setMessage(isUploadEnabled()
+                    ? ENCODE_BUTTON_HINT
+                    : this.originalEncodePatternMessage != null ? this.originalEncodePatternMessage : ENCODE_BUTTON_HINT);
         }
     }
 
