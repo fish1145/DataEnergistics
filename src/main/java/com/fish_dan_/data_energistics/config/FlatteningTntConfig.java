@@ -15,8 +15,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
-@SuppressWarnings("removal")
-@EventBusSubscriber(modid = Data_Energistics.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Data_Energistics.MODID)
 public final class FlatteningTntConfig {
 
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -33,12 +32,18 @@ public final class FlatteningTntConfig {
 
     static {
         BUILDER.comment("Chunk-flattening TNT settings.",
-                "Chunk radius uses the center chunk as 0. Example: 1 = 3x3 chunks, 2 = 5x5 chunks.")
+                "可配置平地TNT设置。",
+                "Chunk radius uses the center chunk as 0. Example: 1 = 3x3 chunks, 2 = 5x5 chunks.",
+                "区块半径以中心区块为 0。例如：1 = 3x3 区块，2 = 5x5 区块。")
                 .push("flatteningTnt");
 
-        CONFIGURABLE_ENTRY = new Entry(BUILDER, "tntConfigurable", "Settings for the reserved configurable TNT block.",
+        CONFIGURABLE_ENTRY = new Entry(BUILDER, "tntConfigurable",
+                "Settings for the reserved configurable TNT block.",
+                "预留的可配置平地TNT方块设置。",
                 1, 0, 25, 1, -1, "minecraft:dirt", 0, 0, 0, false, false);
-        CONFIGURABLE_TNT_DISPLAY_NAME = BUILDER.comment("Display name shown for the configurable TNT item.")
+        CONFIGURABLE_TNT_DISPLAY_NAME = BUILDER
+                .comment("Display name shown for the configurable TNT item.",
+                        "可配置平地TNT物品显示的名称。")
                 .define("tntConfigurable.displayName", DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME);
 
         BUILDER.pop();
@@ -96,7 +101,7 @@ public final class FlatteningTntConfig {
         private final boolean defaultPreserveFluids;
         private final boolean defaultReplaceUnbreakableBlocks;
 
-        private Entry(ModConfigSpec.Builder builder, String key, String comment, int clearChunkRadius,
+        private Entry(ModConfigSpec.Builder builder, String key, String comment, String chineseComment, int clearChunkRadius,
                       int clearStartYOffset, int clearHeight, int fillChunkRadius, int fillYOffset, String fillBlockId,
                       int centerOffsetX, int centerOffsetY, int centerOffsetZ, boolean preserveFluids,
                       boolean replaceUnbreakableBlocks) {
@@ -111,29 +116,50 @@ public final class FlatteningTntConfig {
             this.defaultCenterOffsetZ = centerOffsetZ;
             this.defaultPreserveFluids = preserveFluids;
             this.defaultReplaceUnbreakableBlocks = replaceUnbreakableBlocks;
-            builder.comment(comment).push(key);
-            this.clearChunkRadius = builder.comment("Chunk radius for the cleared area. 1 = 3x3 chunks.")
+            builder.comment(comment, chineseComment).push(key);
+            this.clearChunkRadius = builder
+                    .comment("Chunk radius for the cleared area. 1 = 3x3 chunks.",
+                            "清除区域的区块半径。1 = 3x3 区块。")
                     .defineInRange("clearChunkRadius", clearChunkRadius, 0, 64);
-            this.clearStartYOffset = builder.comment("Vertical offset from the TNT position where clearing starts.")
+            this.clearStartYOffset = builder
+                    .comment("Vertical offset from the TNT position where clearing starts.",
+                            "清除起始位置相对 TNT 位置的垂直偏移。")
                     .defineInRange("clearStartYOffset", clearStartYOffset, -384, 384);
-            this.clearHeight = builder.comment("Number of vertical blocks to clear.")
+            this.clearHeight = builder
+                    .comment("Number of vertical blocks to clear.",
+                            "要清除的垂直方块数量。")
                     .defineInRange("clearHeight", clearHeight, 1, 512);
-            this.fillChunkRadius = builder.comment("Chunk radius for the filled floor area. 1 = 3x3 chunks.")
+            this.fillChunkRadius = builder
+                    .comment("Chunk radius for the filled floor area. 1 = 3x3 chunks.",
+                            "填充地板区域的区块半径。1 = 3x3 区块。")
                     .defineInRange("fillChunkRadius", fillChunkRadius, 0, 64);
-            this.fillYOffset = builder.comment("Vertical offset from the TNT position for the filled floor layer.")
+            this.fillYOffset = builder
+                    .comment("Vertical offset from the TNT position for the filled floor layer.",
+                            "填充地板层相对 TNT 位置的垂直偏移。")
                     .defineInRange("fillYOffset", fillYOffset, -384, 384);
-            this.fillBlockId = builder.comment("Block id used for the filled floor layer.")
+            this.fillBlockId = builder
+                    .comment("Block id used for the filled floor layer.",
+                            "用于填充地板层的方块 ID。")
                     .define("fillBlock", fillBlockId);
-            this.centerOffsetX = builder.comment("X offset applied to the TNT position before calculating clear/fill areas.")
+            this.centerOffsetX = builder
+                    .comment("X offset applied to the TNT position before calculating clear/fill areas.",
+                            "计算清除/填充区域前，对 TNT 位置应用的 X 偏移。")
                     .defineInRange("centerOffsetX", centerOffsetX, -512, 512);
-            this.centerOffsetY = builder.comment("Y offset applied to the TNT position before calculating clear/fill areas.")
+            this.centerOffsetY = builder
+                    .comment("Y offset applied to the TNT position before calculating clear/fill areas.",
+                            "计算清除/填充区域前，对 TNT 位置应用的 Y 偏移。")
                     .defineInRange("centerOffsetY", centerOffsetY, -512, 512);
-            this.centerOffsetZ = builder.comment("Z offset applied to the TNT position before calculating clear/fill areas.")
+            this.centerOffsetZ = builder
+                    .comment("Z offset applied to the TNT position before calculating clear/fill areas.",
+                            "计算清除/填充区域前，对 TNT 位置应用的 Z 偏移。")
                     .defineInRange("centerOffsetZ", centerOffsetZ, -512, 512);
-            this.preserveFluids = builder.comment("If true, water/lava blocks are not removed by the clearing step.")
+            this.preserveFluids = builder
+                    .comment("If true, water/lava blocks are not removed by the clearing step.",
+                            "为 true 时，清除步骤不会移除水/岩浆方块。")
                     .define("preserveFluids", preserveFluids);
             this.replaceUnbreakableBlocks = builder
-                    .comment("If true, blocks with negative destroy time can still be removed/replaced.")
+                    .comment("If true, blocks with negative destroy time can still be removed/replaced.",
+                            "为 true 时，破坏时间为负数的方块也可以被移除/替换。")
                     .define("replaceUnbreakableBlocks", replaceUnbreakableBlocks);
             builder.pop();
         }
