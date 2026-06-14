@@ -122,7 +122,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         BlockPos playerPos = player.blockPosition();
         for (var hostPos : dataEnergistics$getCachedProviderPositions(mc.level, playerPos)) {
             var be = mc.level.getBlockEntity(hostPos);
-            if (!(be instanceof AdaptivePatternProviderBlockEntity adaptive) || !adaptive.isAe2LightningTechOverloadedProviderSelected() || !adaptive.isAe2LtWirelessMode()) {
+            if (!(be instanceof AdaptivePatternProviderBlockEntity adaptive) || !adaptive.isAe2LtWirelessConnectableProviderSelected()) {
                 continue;
             }
 
@@ -141,7 +141,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
 
         if (hasSelection) {
             var selectedBe = mc.level.getBlockEntity(selectedPos);
-            if (hostProviderType != null && hostProviderType.equals(selectedHostType) && selectedBe instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LightningTechOverloadedProviderSelected() && adaptive.isAe2LtWirelessMode() && mc.hitResult instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK && !bhr.getBlockPos().equals(selectedPos) && mc.level.getBlockEntity(bhr.getBlockPos()) != null) {
+            if (hostProviderType != null && hostProviderType.equals(selectedHostType) && selectedBe instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LtWirelessConnectableProviderSelected() && mc.hitResult instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK && !bhr.getBlockPos().equals(selectedPos) && mc.level.getBlockEntity(bhr.getBlockPos()) != null) {
 
                 var previewTargets = Ae2LtWirelessBridge.collectTargets(
                         mc.level,
@@ -205,7 +205,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
                 var chunk = level.getChunk(cx, cz);
                 for (var bePos : chunk.getBlockEntitiesPos()) {
                     var be = chunk.getBlockEntity(bePos);
-                    if (be instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LightningTechOverloadedProviderSelected() && adaptive.isAe2LtWirelessMode()) {
+                    if (be instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LtWirelessConnectableProviderSelected()) {
                         providerPositions.add(bePos.immutable());
                     }
                 }

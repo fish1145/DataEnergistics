@@ -95,6 +95,11 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return getAdaptiveState().getProviderInventory();
     }
 
+    @Override
+    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
+        return getAdaptiveState().getAe2LtPackagedAdapterInventory();
+    }
+
     @Nullable
     public IItemHandler getExternalReturnItemHandler(@Nullable Direction side) {
         if (side != null && !this.getTargets().contains(side)) {
@@ -209,6 +214,18 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public boolean isAe2LightningTechOverloadedProviderSelected() {
         AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
         return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
+    }
+
+    @Override
+    public boolean isAe2LtPackagedProviderSelected() {
+        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        return profile != null && (profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_PACKAGED || profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED);
+    }
+
+    @Override
+    public boolean isAe2LtPackagedWirelessProviderSelected() {
+        AdaptivePatternProviderResolver.ProviderProfile profile = getProviderProfile();
+        return profile != null && profile.kind() == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
     }
 
     @Override

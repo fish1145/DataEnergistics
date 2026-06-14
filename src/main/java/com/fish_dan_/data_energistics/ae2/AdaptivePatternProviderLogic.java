@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
+import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.mixin.core.PatternProviderLogicFieldAccessor;
@@ -152,12 +153,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Override
     public void updatePatterns() {
-        if (isAe2LightningTechOverloadedProviderSelected()) {
+        if (isAe2LtProviderFamilySelected()) {
             rebuildPatternsIncludingAe2LtOverloadPatterns();
         } else {
             super.updatePatterns();
         }
-        if (isAe2LightningTechOverloadedProviderSelected()) {
+        if (isAe2LtProviderFamilySelected()) {
             Ae2LtRuntimeBridge.applySmartDoubling(this, getAvailablePatterns());
         }
         this.ae2ltOutputFilterDirty = true;
@@ -255,6 +256,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         boolean pushed;
+        if (isAe2LtPackagedProviderSelected()) {
+            pushed = pushAe2LtPackagedPattern(patternDetails, inputHolder);
+            if (pushed) {
+                dataEnergistics$afterPushPattern();
+            }
+            return pushed;
+        }
+
         if (isAe2LightningTechOverloadedProviderSelected()) {
             pushed = pushAe2LightningTechOverloadedPattern(patternDetails, inputHolder);
             if (pushed) {
@@ -451,6 +460,104 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         return pushed;
     }
 
+    private boolean pushAe2LtPackagedPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+        if (!this.mainNode.isActive() || !isAe2LtPatternAvailable(patternDetails) || !Ae2LtPackagedRuntimeBridge.isAvailable()) {
+            return false;
+        }
+
+        if (getCraftingLockedReason() != LockCraftingMode.NONE) {
+            return false;
+        }
+
+        double totalCost = getAe2LtTotalCost(inputHolder);
+        if (!canAffordAe2LtTotalCost(totalCost)) {
+            return false;
+        }
+
+        boolean pushed = isAe2LtPackagedWirelessProviderSelected() ? pushAe2LtPackagedWirelessPattern(patternDetails, inputHolder) : pushAe2LtPackagedNormalPattern(patternDetails, inputHolder);
+        if (pushed) {
+            syncAe2LtPendingUnlockRule(patternDetails);
+            consumeAe2LtTotalCost(totalCost);
+        }
+        return pushed;
+    }
+
+    private boolean pushAe2LtPackagedNormalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+        var blockEntity = this.host.getBlockEntity();
+        if (!(blockEntity.getLevel() instanceof ServerLevel level)) {
+            return false;
+        }
+
+        Object allowedOutputFilter = getOrBuildAe2LtAllowedOutputFilter();
+        for (Direction side : getActiveSidesFiltered()) {
+            BlockPos targetPos = blockEntity.getBlockPos().relative(side);
+            if (!level.isLoaded(targetPos)) {
+                continue;
+            }
+
+            if (Ae2LtPackagedRuntimeBridge.dispatch(
+                    level,
+                    targetPos,
+                    patternDetails,
+                    inputHolder,
+                    getAe2LtPackagedAdapterStack(),
+                    allowedOutputFilter,
+                    this.actionSource,
+                    getReturnInv())) {
+                invokePatternSuccess(patternDetails);
+                this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
+                this.host.saveChanges();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean pushAe2LtPackagedWirelessPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+        var blockEntity = this.host.getBlockEntity();
+        if (!(blockEntity.getLevel() instanceof ServerLevel level)) {
+            return false;
+        }
+
+        var orderedConnections = getOrderedWirelessConnections(level);
+        if (orderedConnections.isEmpty()) {
+            return false;
+        }
+
+        Object allowedOutputFilter = getOrBuildAe2LtAllowedOutputFilter();
+        for (int i = 0; i < orderedConnections.size(); i++) {
+            var connection = orderedConnections.get(i);
+            var targetLevel = level.getServer().getLevel(connection.dimension());
+            if (targetLevel == null || !targetLevel.isLoaded(connection.pos())) {
+                continue;
+            }
+
+            if (Ae2LtPackagedRuntimeBridge.dispatch(
+                    targetLevel,
+                    connection.pos(),
+                    patternDetails,
+                    inputHolder,
+                    getAe2LtPackagedAdapterStack(),
+                    allowedOutputFilter,
+                    this.actionSource,
+                    getReturnInv())) {
+                if (isAe2LtEvenDistributionMode()) {
+                    advanceAe2LtWirelessRoundRobin(orderedConnections, i);
+                }
+                invokePatternSuccess(patternDetails);
+                this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
+                this.host.saveChanges();
+                return true;
+            }
+        }
+
+        if (isAe2LtSingleTargetMode()) {
+            advanceAe2LtWirelessRoundRobin(orderedConnections, 0);
+        }
+        return false;
+    }
+
     private boolean pushAe2LtWirelessPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, double totalCost) {
         flushAe2LtWirelessOverflow();
 
@@ -639,7 +746,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Nullable
     private IPatternDetails getAe2LtOverloadedPattern(IPatternDetails patternDetails) {
-        if (!isAe2LightningTechOverloadedProviderSelected()) {
+        if (!isAe2LtProviderFamilySelected()) {
             return null;
         }
         if (implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE)) {
@@ -684,6 +791,25 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean isAe2LightningTechOverloadedProviderSelected() {
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
+    }
+
+    private boolean isAe2LtPackagedProviderSelected() {
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedProviderSelected();
+    }
+
+    private boolean isAe2LtPackagedWirelessProviderSelected() {
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedWirelessProviderSelected();
+    }
+
+    private boolean isAe2LtProviderFamilySelected() {
+        return isAe2LightningTechOverloadedProviderSelected() || isAe2LtPackagedProviderSelected();
+    }
+
+    private ItemStack getAe2LtPackagedAdapterStack() {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)) {
+            return ItemStack.EMPTY;
+        }
+        return adaptivePatternProviderHost.getAe2LtPackagedAdapterInventory().getStackInSlot(0);
     }
 
     private boolean isAppliedCreateMechanicalProviderSelected() {

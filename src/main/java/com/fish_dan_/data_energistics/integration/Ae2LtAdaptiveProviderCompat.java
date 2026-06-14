@@ -18,7 +18,7 @@ public final class Ae2LtAdaptiveProviderCompat {
     private Ae2LtAdaptiveProviderCompat() {}
 
     public static boolean isAdaptiveOverloadedProvider(@Nullable BlockEntity blockEntity) {
-        return blockEntity instanceof AdaptivePatternProviderBlockEntity adaptive && adaptive.isAe2LightningTechOverloadedProviderSelected();
+        return blockEntity instanceof AdaptivePatternProviderBlockEntity adaptive && (adaptive.isAe2LightningTechOverloadedProviderSelected() || adaptive.isAe2LtPackagedProviderSelected());
     }
 
     @Nullable
@@ -28,7 +28,7 @@ public final class Ae2LtAdaptiveProviderCompat {
 
     public static boolean isWirelessMode(@Nullable BlockEntity blockEntity) {
         AdaptivePatternProviderBlockEntity adaptive = asAdaptiveOverloadedProvider(blockEntity);
-        return adaptive != null && adaptive.isAe2LtWirelessMode();
+        return adaptive != null && adaptive.isAe2LtWirelessConnectableProviderSelected();
     }
 
     public static List<AdaptiveWirelessConnection> getConnections(@Nullable BlockEntity blockEntity) {

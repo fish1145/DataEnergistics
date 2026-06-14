@@ -19,6 +19,8 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     AppEngInternalInventory getProviderInventory();
 
+    AppEngInternalInventory getAe2LtPackagedAdapterInventory();
+
     int getProviderSlotLimit();
 
     ItemStack extractProviderOverflow();
@@ -36,6 +38,14 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
     boolean isAdvancedAeProviderSelected();
 
     boolean isAe2LightningTechOverloadedProviderSelected();
+
+    boolean isAe2LtPackagedProviderSelected();
+
+    boolean isAe2LtPackagedWirelessProviderSelected();
+
+    default boolean isAe2LtWirelessConnectableProviderSelected() {
+        return isAe2LtPackagedWirelessProviderSelected() || isAe2LightningTechOverloadedProviderSelected() && isAe2LtWirelessMode();
+    }
 
     boolean isResonatingProviderSelected();
 

@@ -25,6 +25,7 @@ import java.util.function.IntSupplier;
 public final class AdaptivePatternProviderState {
 
     private static final String PROVIDER_SLOT_TAG = "provider_slot";
+    private static final String AE2LTPP_ADAPTER_SLOT_TAG = "ae2ltpp_adapter_slot";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String ADVANCED_AE_FILTERED_IMPORT_TAG = "advanced_ae_filtered_import";
     private static final String RESONATING_PULL_ENABLED_TAG = "resonating_pull_enabled";
@@ -40,11 +41,12 @@ public final class AdaptivePatternProviderState {
     private static final int MAX_NETWORK_SAFE_MENU_SLOTS = Short.MAX_VALUE + 1;
     // Keep the large backing inventory headroom so future provider variants can scale up without another migration.
     // The adaptive menu now pages against proxy slots instead of registering one GUI slot for every backing slot.
-    private static final int FIXED_MENU_SLOT_OVERHEAD = 36 + 18 + 1 + 36 + (BASE_UPGRADE_SLOTS * 2) + 3;
+    private static final int FIXED_MENU_SLOT_OVERHEAD = 36 + 18 + 2 + 36 + (BASE_UPGRADE_SLOTS * 2) + 3;
     private static final int MENU_SLOT_SAFETY_MARGIN = 64;
     public static final int MAX_PATTERN_SLOTS = MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD - MENU_SLOT_SAFETY_MARGIN;
 
     private final AppEngInternalInventory providerInventory;
+    private final AppEngInternalInventory ae2LtPackagedAdapterInventory;
     private final IntSupplier providerSlotLimit;
     private final List<AdaptiveWirelessConnection> ae2LtConnections = new ArrayList<>();
     private boolean advancedAeFilteredImport;
@@ -57,12 +59,23 @@ public final class AdaptivePatternProviderState {
     public AdaptivePatternProviderState(InternalInventoryHost inventoryHost, IntSupplier providerSlotLimit) {
         this.providerSlotLimit = providerSlotLimit;
         this.providerInventory = new AppEngInternalInventory(inventoryHost, 1);
+        this.ae2LtPackagedAdapterInventory = new AppEngInternalInventory(inventoryHost, 1);
         refreshProviderSlotLimit();
         this.providerInventory.setFilter(new ProviderFilter());
+        this.ae2LtPackagedAdapterInventory.setFilter(new Ae2LtPackagedAdapterFilter());
+        this.ae2LtPackagedAdapterInventory.setMaxStackSize(0, 1);
     }
 
     public AppEngInternalInventory getProviderInventory() {
         return this.providerInventory;
+    }
+
+    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
+        return this.ae2LtPackagedAdapterInventory;
+    }
+
+    public ItemStack getAe2LtPackagedAdapterStack() {
+        return this.ae2LtPackagedAdapterInventory.getStackInSlot(0);
     }
 
     public ItemStack getProviderStack() {
@@ -183,6 +196,7 @@ public final class AdaptivePatternProviderState {
 
     public void writeToNBT(CompoundTag data, HolderLookup.Provider registries, IUpgradeInventory upgrades) {
         this.providerInventory.writeToNBT(data, PROVIDER_SLOT_TAG, registries);
+        this.ae2LtPackagedAdapterInventory.writeToNBT(data, AE2LTPP_ADAPTER_SLOT_TAG, registries);
         upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG, this.advancedAeFilteredImport);
         data.putBoolean(RESONATING_PULL_ENABLED_TAG, this.resonatingPullEnabled);
@@ -199,6 +213,7 @@ public final class AdaptivePatternProviderState {
 
     public void readFromNBT(CompoundTag data, HolderLookup.Provider registries, IUpgradeInventory upgrades) {
         this.providerInventory.readFromNBT(data, PROVIDER_SLOT_TAG, registries);
+        this.ae2LtPackagedAdapterInventory.readFromNBT(data, AE2LTPP_ADAPTER_SLOT_TAG, registries);
         upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         refreshProviderSlotLimit();
         this.advancedAeFilteredImport = data.getBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG);
@@ -306,6 +321,7 @@ public final class AdaptivePatternProviderState {
 
     public void writeToStream(RegistryFriendlyByteBuf data) {
         data.writeNbt(getProviderStack().saveOptional(data.registryAccess()));
+        data.writeNbt(getAe2LtPackagedAdapterStack().saveOptional(data.registryAccess()));
         data.writeBoolean(this.advancedAeFilteredImport);
         data.writeBoolean(this.resonatingPullEnabled);
         data.writeVarInt(this.ae2LtProviderMode.ordinal());
@@ -327,6 +343,13 @@ public final class AdaptivePatternProviderState {
         ItemStack providerStack = providerStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
         if (!ItemStack.matches(getProviderStack(), providerStack)) {
             this.providerInventory.setItemDirect(0, providerStack);
+            changed = true;
+        }
+
+        CompoundTag adapterStackTag = data.readNbt();
+        ItemStack adapterStack = adapterStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), adapterStackTag);
+        if (!ItemStack.matches(getAe2LtPackagedAdapterStack(), adapterStack)) {
+            this.ae2LtPackagedAdapterInventory.setItemDirect(0, adapterStack);
             changed = true;
         }
 
@@ -386,6 +409,7 @@ public final class AdaptivePatternProviderState {
 
     public void clearContent() {
         this.providerInventory.clear();
+        this.ae2LtPackagedAdapterInventory.clear();
         this.ae2LtConnections.clear();
     }
 
@@ -406,6 +430,30 @@ public final class AdaptivePatternProviderState {
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
             return AdaptivePatternProviderResolver.isSupportedProviderStack(stack);
+        }
+    }
+
+    private static final class Ae2LtPackagedAdapterFilter implements IAEItemFilter {
+
+        private static final String MULTIBLOCK_ADAPTER_ITEM_CLASS = "com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem";
+
+        private static Class<?> adapterItemClass;
+        private static boolean initialized;
+
+        @Override
+        public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
+            if (stack.isEmpty()) {
+                return false;
+            }
+            if (!initialized) {
+                initialized = true;
+                try {
+                    adapterItemClass = Class.forName(MULTIBLOCK_ADAPTER_ITEM_CLASS);
+                } catch (ReflectiveOperationException | LinkageError | SecurityException ignored) {
+                    adapterItemClass = null;
+                }
+            }
+            return adapterItemClass != null && adapterItemClass.isInstance(stack.getItem());
         }
     }
 }

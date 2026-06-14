@@ -47,6 +47,7 @@ import appeng.parts.crafting.PatternProviderPart;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -74,8 +75,11 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Nullable
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
+    @Getter
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getLogic);
+    @Getter
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getLogic);
+    @Getter
     private final Object externalReturnChemicalHandler = AdaptivePatternProviderExternalHandlers.createChemicalHandler(this::getLogic);
 
     public AdaptivePatternProviderPart(IPartItem<?> partItem) {
@@ -98,16 +102,9 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         return getAdaptiveState().getProviderInventory();
     }
 
-    public IItemHandler getExternalReturnItemHandler() {
-        return this.externalReturnItemHandler;
-    }
-
-    public IFluidHandler getExternalReturnFluidHandler() {
-        return this.externalReturnFluidHandler;
-    }
-
-    public Object getExternalReturnChemicalHandler() {
-        return this.externalReturnChemicalHandler;
+    @Override
+    public AppEngInternalInventory getAe2LtPackagedAdapterInventory() {
+        return getAdaptiveState().getAe2LtPackagedAdapterInventory();
     }
 
     @Override
@@ -201,6 +198,17 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Override
     public boolean isAe2LightningTechOverloadedProviderSelected() {
         return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.AE2LT_OVERLOADED;
+    }
+
+    @Override
+    public boolean isAe2LtPackagedProviderSelected() {
+        var kind = AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_PACKAGED || kind == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
+    }
+
+    @Override
+    public boolean isAe2LtPackagedWirelessProviderSelected() {
+        return AdaptivePatternProviderResolver.getResolvedProviderKind(getProviderStack()) == AdaptivePatternProviderResolver.ProviderKind.AE2LT_WIRELESS_PACKAGED;
     }
 
     @Override
