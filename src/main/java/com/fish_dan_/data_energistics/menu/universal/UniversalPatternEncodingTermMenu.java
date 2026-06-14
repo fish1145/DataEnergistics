@@ -227,8 +227,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
-        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
-                providers, encodedPattern, this.getPlayer().level());
+        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
         if (transferResult.duplicateFound()) {
             returnEncodedPatternAsBlankToNetwork();
             this.getPlayer().sendSystemMessage(Component.translatable(
