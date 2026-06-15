@@ -80,6 +80,10 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "-Xlint:-removal"
 }
 
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
 lombok {
     version = "1.18.38"
 }

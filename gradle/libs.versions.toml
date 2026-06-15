@@ -11,6 +11,7 @@ modaccessor = "1.1"
 jetbrains-annotations = "26.0.1"
 renderNurse = "0.0.26"
 mixin = "0.8.7"
+junit = "5.11.4"
 
 [libraries]
 minecraft               = { module = "com.mojang:minecraft", version.ref = "minecraft" }
@@ -19,6 +20,8 @@ testframework           = { module = "net.neoforged:testframework", version.ref 
 jetbrains-annotations   = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
 renderNurse             = { module = "net.neoforged:render-nurse", version.ref = "renderNurse" }
 mixin                   = { module = "org.spongepowered:mixin", version.ref = "mixin" }
+junit-jupiter           = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-launcher          = { module = "org.junit.platform:junit-platform-launcher" }
 
 [plugins]
 modDevGradle            = { id = "net.neoforged.moddev", version.ref = "modDevGradle" }

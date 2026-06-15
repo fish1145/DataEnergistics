@@ -6,8 +6,11 @@ import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -22,6 +25,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import appeng.block.AEBaseBlock;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class DataFrameworkBlock extends AEBaseBlock implements EntityBlock {
 
@@ -44,8 +48,8 @@ public class DataFrameworkBlock extends AEBaseBlock implements EntityBlock {
     }
 
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
-                                                                  BlockEntityType<T> blockEntityType) {
+    public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state,
+                                                                            BlockEntityType<T> blockEntityType) {
         if (!(level instanceof ServerLevel)) {
             return null;
         }
@@ -53,6 +57,26 @@ public class DataFrameworkBlock extends AEBaseBlock implements EntityBlock {
             return null;
         }
         return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((DataFrameworkBlockEntity) tickerBlockEntity).serverTick();
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        DataFrameworkBlockEntity.requestRecheckAround(level, pos);
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            DataFrameworkBlockEntity.requestRecheckAround(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
+    }
+
+    @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+        super.neighborChanged(state, level, pos, block, fromPos, isMoving);
+        DataFrameworkBlockEntity.requestRecheckAround(level, pos);
     }
 
     @Override

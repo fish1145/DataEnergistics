@@ -37,6 +37,7 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.registry.ModStructures;
 import com.fish_dan_.data_energistics.registry.ModUpgrades;
+import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 import com.fish_dan_.data_energistics.world.DataMeteoritePreloader;
@@ -96,6 +97,7 @@ public class CommonProxy {
         ModMenus.register(modEventBus);
         ModRecipes.register(modEventBus);
         ModStructures.register(modEventBus);
+        ModVerticalMultiBlocks.init();
         ModUpgrades.registerPartModels();
         UniversalTerminalAdapters.init();
 
