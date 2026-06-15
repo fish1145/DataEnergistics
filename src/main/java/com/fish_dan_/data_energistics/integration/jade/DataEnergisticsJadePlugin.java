@@ -36,6 +36,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
     private static final DataRipperReassemblerJadeProvider DATA_RIPPER_REASSEMBLER_PROVIDER = new DataRipperReassemblerJadeProvider();
     private static final DataSolarPanelJadeProvider SOLAR_PANEL_PROVIDER = new DataSolarPanelJadeProvider();
     private static final DataTeleportAnchorJadeProvider TELEPORT_ANCHOR_PROVIDER = new DataTeleportAnchorJadeProvider();
+    private static final DataFrameworkJadeProvider DATA_FRAMEWORK_PROVIDER = new DataFrameworkJadeProvider();
     private static final DataSanctumJadeProvider DATA_SANCTUM_PROVIDER = new DataSanctumJadeProvider();
     private static final DataChargerJadeProvider DATA_CHARGER_PROVIDER = new DataChargerJadeProvider();
 
@@ -50,7 +51,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockDataProvider(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlockEntity.class);
         registration.registerBlockDataProvider(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
         registration.registerBlockDataProvider(DATA_CHARGER_PROVIDER, DataChargerBlockEntity.class);
-        registration.registerBlockDataProvider(NetworkStatusJadeProvider.DATA_FRAMEWORK, DataFrameworkBlock.class);
+        registration.registerBlockDataProvider(DATA_FRAMEWORK_PROVIDER, DataFrameworkBlock.class);
         registration.registerBlockDataProvider(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlockEntity.class);
         registration.registerBlockDataProvider(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlockEntity.class);
     }
@@ -66,7 +67,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlock.class);
         registration.registerBlockComponent(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
         registration.registerBlockComponent(DATA_CHARGER_PROVIDER, DataChargerBlock.class);
-        registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_FRAMEWORK, DataFrameworkBlock.class);
+        registration.registerBlockComponent(DATA_FRAMEWORK_PROVIDER, DataFrameworkBlock.class);
         registration.registerBlockComponent(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlock.class);
         registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlock.class);
         registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
