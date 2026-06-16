@@ -941,6 +941,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (blockEntity instanceof DataDistributionTowerBlockEntity) {
                 continue;
             }
+            if (allowsAeTargets() && isDedicatedAeGridTarget(pos)) {
+                positions.putIfAbsent(pos.immutable(), TargetKind.AE);
+                continue;
+            }
             if (!targetAllowsFe(pos)) {
                 continue;
             }
@@ -1881,6 +1885,23 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return storage != null && (forReceive ? canReceiveEnergy(storage) : storage.canExtract());
     }
 
+    private boolean isDedicatedAeGridTarget(BlockPos pos) {
+        if (this.level == null || this.level.getBlockEntity(pos) instanceof CableBusBlockEntity) {
+            return false;
+        }
+
+        if (this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, pos, null) == null) {
+            return false;
+        }
+
+        for (IGridNode node : getConnectableNodes(this.level, pos)) {
+            if (node != null && node.getGrid() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private List<DataDistributionTowerBlockEntity> collectTowerCluster() {
         if (this.level == null) {
             return List.of(this);
@@ -1952,6 +1973,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (DataDistributionTowerBlockEntity tower : towers) {
             for (BlockPos pos : tower.getCachedEndpoints()) {
                 if (!tower.targetAllowsFe(pos)) {
+                    continue;
+                }
+                if (forReceive && tower.isDedicatedAeGridTarget(pos)) {
                     continue;
                 }
 
