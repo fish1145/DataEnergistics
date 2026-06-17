@@ -62,6 +62,9 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private static final String TAG_PATTERN_SOURCE_PENDING = "pattern_source_pending";
     private static final String TAG_PATTERN_SOURCE_LAST = "pattern_source_last";
     private static final String TAG_PATTERN_SOURCE_ENABLED = "pattern_source_enabled";
+    private static final String TAG_PREVIEW_PANEL_LAYOUT = "pattern_encoding_preview_layout";
+    private static final String TAG_PREVIEW_PANEL_OFFSET_X = "offset_x";
+    private static final String TAG_PREVIEW_PANEL_OFFSET_Y = "offset_y";
     @PartModels
     public static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_off");
     @PartModels
@@ -359,6 +362,32 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         if (!enabled) {
             this.terminalData.remove(TAG_PATTERN_SOURCE_LAST);
         }
+        persistTerminalDataChange();
+    }
+
+    public int getPersistentPreviewPanelOffsetX() {
+        return this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT).getInt(TAG_PREVIEW_PANEL_OFFSET_X);
+    }
+
+    public int getPersistentPreviewPanelOffsetY() {
+        return this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT).getInt(TAG_PREVIEW_PANEL_OFFSET_Y);
+    }
+
+    public void setPersistentPreviewPanelOffset(int offsetX, int offsetY) {
+        if (offsetX == 0 && offsetY == 0) {
+            resetPersistentPreviewPanelOffset();
+            return;
+        }
+
+        CompoundTag layout = this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT);
+        layout.putInt(TAG_PREVIEW_PANEL_OFFSET_X, offsetX);
+        layout.putInt(TAG_PREVIEW_PANEL_OFFSET_Y, offsetY);
+        this.terminalData.put(TAG_PREVIEW_PANEL_LAYOUT, layout);
+        persistTerminalDataChange();
+    }
+
+    public void resetPersistentPreviewPanelOffset() {
+        this.terminalData.remove(TAG_PREVIEW_PANEL_LAYOUT);
         persistTerminalDataChange();
     }
 

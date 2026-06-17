@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
@@ -7,6 +8,7 @@ import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
@@ -49,7 +51,8 @@ import java.util.List;
 import java.util.Map;
 
 public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
-                                              implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware {
+                                              implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware,
+                                              PatternEncodingPreviewLayoutAware {
 
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
@@ -90,6 +93,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     public net.minecraft.resources.ResourceLocation lastEncodedPatternSource;
     @GuiSync(896)
     public boolean uploadEnabled = true;
+    @GuiSync(897)
+    public int previewPanelOffsetX;
+    @GuiSync(898)
+    public int previewPanelOffsetY;
 
     private final Map<appeng.helpers.patternprovider.PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
     private final Map<Long, List<appeng.helpers.patternprovider.PatternContainer>> syncedPatternProvidersById = new HashMap<>();
@@ -110,9 +117,15 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this::openPatternProviderMenuFromClient);
         registerClientAction(ACTION_RENAME_PATTERN_PROVIDER, String.class,
                 this::renamePatternProviderFromClient);
+        registerClientAction(PatternEncodingPreviewLayoutHelper.ACTION_SET_PREVIEW_PANEL_OFFSET, String.class,
+                payload -> PatternEncodingPreviewLayoutHelper.applySetOffsetAction(this, payload));
+        registerClientAction(PatternEncodingPreviewLayoutHelper.ACTION_RESET_PREVIEW_PANEL_OFFSET,
+                this::data_energistics$resetPreviewPanelOffset);
         this.patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
         this.uploadEnabled = PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
         this.lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
+        this.previewPanelOffsetX = this.host.getPersistentPreviewPanelOffsetX();
+        this.previewPanelOffsetY = this.host.getPersistentPreviewPanelOffsetY();
         if (this.isServerSide()) {
             PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(), this.lastEncodedPatternSource);
         }
@@ -396,6 +409,41 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         writeFallbackUploadEnabled(enabled);
         if (this.isServerSide()) {
             PatternEncodingSourceHelper.writeUploadEnabled(this.getPlayer(), enabled);
+        }
+    }
+
+    @Override
+    public int data_energistics$getPreviewPanelOffsetX() {
+        return this.previewPanelOffsetX;
+    }
+
+    @Override
+    public int data_energistics$getPreviewPanelOffsetY() {
+        return this.previewPanelOffsetY;
+    }
+
+    @Override
+    public void data_energistics$setPreviewPanelOffset(int offsetX, int offsetY) {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingPreviewLayoutHelper.ACTION_SET_PREVIEW_PANEL_OFFSET,
+                    offsetX + "," + offsetY);
+        }
+        this.previewPanelOffsetX = offsetX;
+        this.previewPanelOffsetY = offsetY;
+        if (this.isServerSide()) {
+            this.host.setPersistentPreviewPanelOffset(offsetX, offsetY);
+        }
+    }
+
+    @Override
+    public void data_energistics$resetPreviewPanelOffset() {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingPreviewLayoutHelper.ACTION_RESET_PREVIEW_PANEL_OFFSET);
+        }
+        this.previewPanelOffsetX = 0;
+        this.previewPanelOffsetY = 0;
+        if (this.isServerSide()) {
+            this.host.resetPersistentPreviewPanelOffset();
         }
     }
 

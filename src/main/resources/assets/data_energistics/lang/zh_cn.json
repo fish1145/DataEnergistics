@@ -213,6 +213,7 @@
 	"screen.data_energistics.pattern_writer_preview.provider.open": "按 %s 打开供应器界面",
 	"screen.data_energistics.pattern_writer_preview.provider.rename": "按 %s 修改供应器名称",
 	"screen.data_energistics.pattern_writer_preview.provider.slots": "已写入 %s / %s",
+	"screen.data_energistics.pattern_writer_preview.drag_handle": "拖动上传面板；右键重置位置",
 	"button.data_energistics.pattern_encoding_source_toggle": "编写设备记录",
 	"button.data_energistics.pattern_encoding_source_toggle.enabled": "信息可编写",
 	"button.data_energistics.pattern_encoding_source_toggle.disabled": "信息不可编写",

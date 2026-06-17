@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.screen;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
@@ -12,6 +13,7 @@ import com.fish_dan_.data_energistics.util.ReflectionAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -25,6 +27,7 @@ import appeng.client.Point;
 import appeng.client.gui.Icon;
 import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.me.common.StackSizeRenderer;
+import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.style.WidgetStyle;
 import appeng.client.gui.widgets.AETextField;
@@ -53,6 +56,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
     private static final ResourceLocation AE2_BUTTON_HIGHLIGHTED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
     private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
+    private static final ResourceLocation AE2_SMALL_SCROLLBAR_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller");
+    private static final ResourceLocation AE2_SMALL_SCROLLBAR_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller_disabled");
     private static final Component PANEL_TITLE = Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
     private static final Component EMPTY_STATE_TEXT = Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
     private static final Component ENCODE_BUTTON_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
@@ -74,11 +79,6 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private static final int PANEL_BUTTON_BORDER_COLOR = 0xB0909090;
     private static final int PANEL_X_OFFSET = 0;
     private static final int PANEL_Y_OFFSET = 105;
-    private static final int PANEL_SCROLLBAR_X = 309;
-    private static final int PANEL_SCROLLBAR_Y = 119;
-    private static final int PANEL_SCROLLBAR_HEIGHT = 104;
-    private static final int PANEL_TOOLTIP_X = 190;
-    private static final int PANEL_TOOLTIP_Y = 60;
     private static final int PANEL_CONTENT_X = 10;
     private static final int PANEL_CONTENT_RIGHT = 6;
     private static final int PANEL_CONTENT_BOTTOM = 6;
@@ -87,6 +87,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private static final int PANEL_SEARCH_Y = 6;
     private static final int PANEL_SEARCH_WIDTH = 70;
     private static final int PANEL_SEARCH_HEIGHT = 12;
+    private static final int PREVIEW_DRAG_BUTTON_RIGHT_PADDING = 4;
+    private static final int PREVIEW_DRAG_BUTTON_TOP_PADDING = 2;
+    private static final int PANEL_SCROLLBAR_X = 114;
     private static final int PROVIDER_LIST_Y = 20;
     private static final int PROVIDER_VISIBLE_ROWS = 5;
     private static final int PROVIDER_BUTTON_WIDTH = 95;
@@ -111,8 +114,15 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private AETextField providerSearchBox;
     private AETextField providerRenameBox;
     private PatternSourceToggleButton patternSourceToggleButton;
+    private PatternEncodingPreviewDragButton previewDragButton;
     private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
     private boolean visibleProvidersCacheDirty = true;
+    private boolean previewPanelDragging;
+    private int previewPanelDragOffsetX;
+    private int previewPanelDragOffsetY;
+    private int previewPanelCurrentOffsetX;
+    private int previewPanelCurrentOffsetY;
+    private Rect2i previewPanelDragBaseBounds;
 
     public WirelessPatternEncodingTermScreen(WETMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -131,10 +141,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         initProviderSearchBox();
         initProviderRenameBox();
         initPatternSourceToggleButton();
+        initPreviewDragButton();
         invalidateVisibleProvidersCache();
         updateProviderSearchBox();
         updateProviderRenameBox();
         updatePatternSourceToggleButton();
+        updatePreviewDragButton();
         updatePreviewScrollbar();
     }
 
@@ -144,6 +156,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         updateProviderSearchBox();
         updateProviderRenameBox();
         updatePatternSourceToggleButton();
+        updatePreviewDragButton();
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         updatePreviewScrollbar();
@@ -170,6 +183,32 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
         if (isRenamingProvider() && this.providerRenameBox != null && this.providerRenameBox.isMouseOver(mouseX, mouseY)) {
             return this.providerRenameBox.mouseClicked(mouseX, mouseY, button);
+        }
+
+        if (this.previewVisible && this.previewDragButton != null && this.previewDragButton.isMouseOver(mouseX, mouseY)) {
+            if (button == 0) {
+                Rect2i previewBounds = getPreviewPanelBounds();
+                Rect2i defaultBounds = getDefaultPreviewPanelBounds();
+                this.previewPanelDragging = true;
+                this.previewPanelDragOffsetX = (int) Math.round(mouseX) - previewBounds.getX();
+                this.previewPanelDragOffsetY = (int) Math.round(mouseY) - previewBounds.getY();
+                this.previewPanelCurrentOffsetX = previewBounds.getX() - defaultBounds.getX();
+                this.previewPanelCurrentOffsetY = previewBounds.getY() - defaultBounds.getY();
+                this.previewPanelDragBaseBounds = defaultBounds;
+                return true;
+            }
+            if (button == 1) {
+                previewLayout().data_energistics$resetPreviewPanelOffset();
+                this.previewPanelCurrentOffsetX = 0;
+                this.previewPanelCurrentOffsetY = 0;
+                this.previewPanelDragging = false;
+                this.previewPanelDragBaseBounds = null;
+                updatePreviewDragButton();
+                updatePreviewScrollbar();
+                updateProviderSearchBox();
+                updateProviderRenameBox();
+                return true;
+            }
         }
 
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
@@ -296,6 +335,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (this.previewPanelDragging) {
+            this.previewPanelDragging = false;
+            savePreviewPanelDragOffset(mouseX, mouseY);
+            return true;
+        }
         if (this.previewScrollbarDragging) {
             this.previewScrollbar.onMouseUp(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), button);
             this.previewScrollbarDragging = false;
@@ -306,6 +350,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int mouseButton, double dragX, double dragY) {
+        if (this.previewVisible && this.previewPanelDragging) {
+            updatePreviewPanelDragOffset(mouseX, mouseY);
+            return true;
+        }
         if (this.previewVisible && this.previewScrollbarDragging && this.previewScrollbar.onMouseDrag(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), mouseButton)) {
             return true;
         }
@@ -318,6 +366,14 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        super.render(guiGraphics, mouseX, mouseY, partialTicks);
+        if (this.previewVisible) {
+            renderProviderTooltips(guiGraphics, mouseX, mouseY);
+        }
     }
 
     @Override
@@ -335,17 +391,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                 previewBounds.getWidth(), previewBounds.getHeight(),
                 PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
         drawProviderButtons(guiGraphics, mouseX, mouseY);
-    }
-
-    @Override
-    public void drawFG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY) {
-        super.drawFG(guiGraphics, offsetX, offsetY, mouseX, mouseY);
-        if (!this.previewVisible) {
-            return;
-        }
-
-        this.previewScrollbar.drawForegroundLayer(guiGraphics, getPreviewPanelBounds(), new Point(mouseX, mouseY));
-        renderProviderTooltips(guiGraphics, mouseX, mouseY);
+        drawPreviewScrollbarHandle(guiGraphics);
     }
 
     @Override
@@ -398,6 +444,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     private List<Rect2i> getPreviewInteractiveBounds() {
         List<Rect2i> zones = new ArrayList<>();
+        zones.add(getPreviewPanelBounds());
         zones.add(getProviderListBounds());
         zones.add(this.previewScrollbar.getBounds());
 
@@ -435,6 +482,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return bridge;
         }
         throw new IllegalStateException("Pattern encoding menu does not implement preview bridge: " + this.menu.getClass().getName());
+    }
+
+    private PatternEncodingPreviewLayoutAware previewLayout() {
+        if (this.menu instanceof PatternEncodingPreviewLayoutAware layoutAware) {
+            return layoutAware;
+        }
+        throw new IllegalStateException("Pattern encoding menu does not implement preview layout: " + this.menu.getClass().getName());
     }
 
     private void drawProviderButtons(GuiGraphics guiGraphics, int mouseX, int mouseY) {
@@ -508,7 +562,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
                 hit.provider().patternSlotCount()));
         guiGraphics.renderTooltip(this.font,
                 tooltip.stream().map(Component::getVisualOrderText).toList(),
-                PANEL_TOOLTIP_X, PANEL_TOOLTIP_Y);
+                getPreviewTooltipPosition(mouseX, mouseY, getPreviewPanelBounds()).getX(),
+                getPreviewTooltipPosition(mouseX, mouseY, getPreviewPanelBounds()).getY());
     }
 
     private Component getProviderRenameHint() {
@@ -549,6 +604,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         this.addRenderableWidget(this.providerRenameBox);
     }
 
+    private void initPreviewDragButton() {
+        this.previewDragButton = new PatternEncodingPreviewDragButton();
+        this.previewDragButton.setVisibility(false);
+        this.addRenderableWidget(this.previewDragButton);
+    }
+
     private void updateProviderSearchBox() {
         if (this.providerSearchBox == null) {
             return;
@@ -583,6 +644,21 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         this.providerRenameBox.setY(previewBounds.getY() + PANEL_SEARCH_Y);
         this.providerRenameBox.setWidth(PANEL_SEARCH_WIDTH);
         this.providerRenameBox.setHeight(PANEL_SEARCH_HEIGHT);
+    }
+
+    private void updatePreviewDragButton() {
+        if (this.previewDragButton == null) {
+            return;
+        }
+
+        this.previewDragButton.setVisibility(this.previewVisible);
+        if (!this.previewVisible) {
+            return;
+        }
+
+        Rect2i previewBounds = getPreviewPanelBounds();
+        this.previewDragButton.setX(previewBounds.getX() + previewBounds.getWidth() - this.previewDragButton.getWidth() - PREVIEW_DRAG_BUTTON_RIGHT_PADDING);
+        this.previewDragButton.setY(previewBounds.getY() + PREVIEW_DRAG_BUTTON_TOP_PADDING);
     }
 
     private void initPatternSourceToggleButton() {
@@ -620,15 +696,39 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         this.patternSourceToggleButton.setY(clearButtonPosition.getY() + 10);
     }
 
+    private void updatePreviewPanelDragOffset(double mouseX, double mouseY) {
+        Rect2i defaultBounds = this.previewPanelDragBaseBounds != null ? this.previewPanelDragBaseBounds : getDefaultPreviewPanelBounds();
+        Rect2i draggedBounds = clampPreviewPanelBounds(
+                (int) Math.round(mouseX) - this.previewPanelDragOffsetX,
+                (int) Math.round(mouseY) - this.previewPanelDragOffsetY,
+                defaultBounds.getWidth(),
+                defaultBounds.getHeight());
+        this.previewPanelCurrentOffsetX = draggedBounds.getX() - defaultBounds.getX();
+        this.previewPanelCurrentOffsetY = draggedBounds.getY() - defaultBounds.getY();
+        updatePreviewDragButton();
+        updatePreviewScrollbar();
+        updateProviderSearchBox();
+        updateProviderRenameBox();
+    }
+
+    private void savePreviewPanelDragOffset(double mouseX, double mouseY) {
+        updatePreviewPanelDragOffset(mouseX, mouseY);
+        previewLayout().data_energistics$setPreviewPanelOffset(
+                this.previewPanelCurrentOffsetX,
+                this.previewPanelCurrentOffsetY);
+        this.previewPanelDragBaseBounds = null;
+    }
+
     private boolean isUploadEnabled() {
         return !(this.menu instanceof PatternEncodingSourceAware sourceAware) || sourceAware.data_energistics$isUploadEnabled();
     }
 
     private void updatePreviewScrollbar() {
         int hiddenRows = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
-        this.previewScrollbar.setPosition(new Point(PANEL_SCROLLBAR_X, PANEL_SCROLLBAR_Y));
-        this.previewScrollbar.setHeight(PANEL_SCROLLBAR_HEIGHT);
-        this.previewScrollbar.setSize(this.previewScrollbar.getBounds().getWidth(), PANEL_SCROLLBAR_HEIGHT);
+        Rect2i scrollbarBounds = getPreviewScrollbarBounds();
+        this.previewScrollbar.setPosition(new Point(scrollbarBounds.getX(), scrollbarBounds.getY()));
+        this.previewScrollbar.setHeight(scrollbarBounds.getHeight());
+        this.previewScrollbar.setSize(scrollbarBounds.getWidth(), scrollbarBounds.getHeight());
         this.previewScrollbar.setRange(0, hiddenRows, 1);
         this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
         this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
@@ -674,6 +774,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     }
 
     private ProviderButtonHit getProviderButtonHit(double mouseX, double mouseY) {
+        if (!isOverProviderList(mouseX, mouseY)) {
+            return null;
+        }
+
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         int start = this.previewScrollbar.getCurrentScroll();
         int end = Math.min(providers.size(), start + PROVIDER_VISIBLE_ROWS);
@@ -723,14 +827,130 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     }
 
     private Rect2i getPreviewPanelBounds() {
-        int preferredX = this.leftPos + this.imageWidth + PANEL_X_OFFSET;
-        if (preferredX + PANEL_WIDTH > this.width - 4) {
-            preferredX = this.leftPos - PANEL_WIDTH + PANEL_X_OFFSET;
-        }
-        int x = Math.max(4, Math.min(preferredX, this.width - PANEL_WIDTH - 4));
+        Rect2i defaultBounds = getDefaultPreviewPanelBounds();
+        int offsetX = this.previewPanelDragging ? this.previewPanelCurrentOffsetX : previewLayout().data_energistics$getPreviewPanelOffsetX();
+        int offsetY = this.previewPanelDragging ? this.previewPanelCurrentOffsetY : previewLayout().data_energistics$getPreviewPanelOffsetY();
+        return clampPreviewPanelBounds(
+                defaultBounds.getX() + offsetX,
+                defaultBounds.getY() + offsetY,
+                defaultBounds.getWidth(),
+                defaultBounds.getHeight());
+    }
+
+    private Rect2i getDefaultPreviewPanelBounds() {
+        Rect2i encodeButtonBounds = getEncodeButtonBounds();
         int preferredY = this.topPos + PANEL_Y_OFFSET;
         int y = Math.max(4, Math.min(preferredY, this.height - PANEL_HEIGHT - 4));
-        return new Rect2i(x, y, PANEL_WIDTH, PANEL_HEIGHT);
+        Rect2i rightCandidate = clampPreviewPanelBounds(
+                encodeButtonBounds.getX() + encodeButtonBounds.getWidth() + PANEL_X_OFFSET,
+                y,
+                PANEL_WIDTH,
+                PANEL_HEIGHT);
+        Rect2i leftCandidate = clampPreviewPanelBounds(
+                encodeButtonBounds.getX() - PANEL_WIDTH + PANEL_X_OFFSET,
+                y,
+                PANEL_WIDTH,
+                PANEL_HEIGHT);
+        List<Rect2i> occupiedZones = getOccupiedPreviewAnchorZones();
+        boolean rightOccupied = intersectsAny(rightCandidate, occupiedZones);
+        boolean leftOccupied = intersectsAny(leftCandidate, occupiedZones);
+        if (rightOccupied != leftOccupied) {
+            return rightOccupied ? leftCandidate : rightCandidate;
+        }
+
+        int rightOverlap = computeOverlapArea(rightCandidate, occupiedZones);
+        int leftOverlap = computeOverlapArea(leftCandidate, occupiedZones);
+        if (leftOverlap < rightOverlap) {
+            return leftCandidate;
+        }
+        return rightCandidate;
+    }
+
+    private Rect2i getPreviewScrollbarBounds() {
+        Rect2i listBounds = getProviderListBounds();
+        int scrollbarWidth = this.previewScrollbar.getBounds().getWidth();
+        return new Rect2i(
+                getPreviewPanelBounds().getX() + PANEL_SCROLLBAR_X,
+                Math.max(4, listBounds.getY() - 1),
+                scrollbarWidth,
+                Math.max(1, listBounds.getHeight() + 2));
+    }
+
+    private Point getPreviewTooltipPosition(int mouseX, int mouseY, Rect2i previewBounds) {
+        int minX = previewBounds.getX() + 4;
+        int minY = previewBounds.getY() + 4;
+        int maxX = Math.max(minX, this.width - 12);
+        int maxY = Math.max(minY, this.height - 12);
+        int x = Math.max(minX, Math.min(mouseX + 12, maxX));
+        int y = Math.max(minY, Math.min(mouseY - 12, maxY));
+        return new Point(x, y);
+    }
+
+    private Rect2i getEncodeButtonBounds() {
+        if (this.encodePatternWidget != null && this.encodePatternWidget.visible) {
+            return new Rect2i(
+                    this.encodePatternWidget.getX(),
+                    this.encodePatternWidget.getY(),
+                    this.encodePatternWidget.getWidth(),
+                    this.encodePatternWidget.getHeight());
+        }
+
+        WidgetStyle buttonStyle = this.getStyle().getWidget("encodePattern");
+        Point position = buttonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
+        int width = buttonStyle.getWidth() > 0 ? buttonStyle.getWidth() : 16;
+        int height = buttonStyle.getHeight() > 0 ? buttonStyle.getHeight() : 16;
+        return new Rect2i(position.getX(), position.getY(), width, height);
+    }
+
+    private Rect2i clampPreviewPanelBounds(int x, int y, int width, int height) {
+        int clampedX = Math.max(4, Math.min(x, this.width - width - 4));
+        int clampedY = Math.max(4, Math.min(y, this.height - height - 4));
+        return new Rect2i(clampedX, clampedY, width, height);
+    }
+
+    private List<Rect2i> getOccupiedPreviewAnchorZones() {
+        List<Rect2i> zones = new ArrayList<>();
+        for (GuiEventListener child : this.children()) {
+            if (!(child instanceof AbstractWidget widget) || !widget.visible || shouldIgnorePreviewAnchorWidget(widget)) {
+                continue;
+            }
+            zones.add(new Rect2i(widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight()));
+        }
+        return zones;
+    }
+
+    private boolean shouldIgnorePreviewAnchorWidget(AbstractWidget widget) {
+        return widget == this.encodePatternWidget || widget == this.providerSearchBox || widget == this.providerRenameBox || widget == this.patternSourceToggleButton || widget == this.previewDragButton;
+    }
+
+    private boolean intersectsAny(Rect2i candidate, List<Rect2i> zones) {
+        for (Rect2i zone : zones) {
+            if (rectanglesIntersect(candidate, zone)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int computeOverlapArea(Rect2i candidate, List<Rect2i> zones) {
+        int overlapArea = 0;
+        for (Rect2i zone : zones) {
+            overlapArea += computeOverlapArea(candidate, zone);
+        }
+        return overlapArea;
+    }
+
+    private int computeOverlapArea(Rect2i first, Rect2i second) {
+        int overlapWidth = Math.min(first.getX() + first.getWidth(), second.getX() + second.getWidth()) - Math.max(first.getX(), second.getX());
+        int overlapHeight = Math.min(first.getY() + first.getHeight(), second.getY() + second.getHeight()) - Math.max(first.getY(), second.getY());
+        if (overlapWidth <= 0 || overlapHeight <= 0) {
+            return 0;
+        }
+        return overlapWidth * overlapHeight;
+    }
+
+    private boolean rectanglesIntersect(Rect2i first, Rect2i second) {
+        return computeOverlapArea(first, second) > 0;
     }
 
     private Rect2i getProviderButtonBounds(int visibleRow) {
@@ -738,6 +958,29 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         int x = listBounds.getX();
         int y = listBounds.getY() + visibleRow * (PROVIDER_BUTTON_HEIGHT + PROVIDER_BUTTON_GAP);
         return new Rect2i(x, y, PROVIDER_BUTTON_WIDTH, PROVIDER_BUTTON_HEIGHT);
+    }
+
+    private void drawPreviewScrollbarHandle(GuiGraphics guiGraphics) {
+        if (!this.previewScrollbar.isVisible()) {
+            return;
+        }
+
+        Rect2i scrollbarBounds = getPreviewScrollbarBounds();
+        int range = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
+        int handleYOffset = 0;
+        if (range > 0) {
+            int availableHeight = scrollbarBounds.getHeight() - getPreviewScrollbarHandleHeight();
+            handleYOffset = this.previewScrollbar.getCurrentScroll() * availableHeight / range;
+        }
+
+        ResourceLocation sprite = range == 0 ? AE2_SMALL_SCROLLBAR_DISABLED_TEXTURE : AE2_SMALL_SCROLLBAR_TEXTURE;
+        Blitter.guiSprite(sprite)
+                .dest(scrollbarBounds.getX(), scrollbarBounds.getY() + handleYOffset)
+                .blit(guiGraphics);
+    }
+
+    private int getPreviewScrollbarHandleHeight() {
+        return Scrollbar.SMALL.handleHeight();
     }
 
     private Rect2i getProviderListBounds() {
