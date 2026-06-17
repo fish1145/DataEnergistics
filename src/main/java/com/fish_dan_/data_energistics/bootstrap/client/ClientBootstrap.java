@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.integration.CuriosDollRendererRegistry;
+import com.fish_dan_.data_energistics.client.particle.DataDisorderParticle;
 import com.fish_dan_.data_energistics.client.render.DataChargerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
@@ -50,10 +51,13 @@ import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.ModMobEffects;
+import com.fish_dan_.data_energistics.registry.ModParticles;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.Input;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -67,6 +71,8 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -80,7 +86,9 @@ import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -130,6 +138,8 @@ public final class ClientBootstrap {
                 if (ModFlags.isCuriosLoaded()) {
                     CuriosDollRendererRegistry.register();
                 }
+                NeoForge.EVENT_BUS.addListener(ClientModEvents::onMovementInputUpdate);
+                NeoForge.EVENT_BUS.addListener(ClientModEvents::onInteractionKeyTriggered);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onClientTickPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onMouseScroll);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
@@ -173,6 +183,40 @@ public final class ClientBootstrap {
         @SubscribeEvent
         public static void onRegisterClientTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event) {
             event.register(DigitalStorageDepotTooltipComponent.class, DigitalStorageDepotClientTooltipComponent::new);
+        }
+
+        @SubscribeEvent
+        public static void onRegisterParticleProviders(RegisterParticleProvidersEvent event) {
+            event.registerSpriteSet(ModParticles.DATA_DISORDER.get(), DataDisorderParticle.Provider::new);
+        }
+
+        public static void onMovementInputUpdate(MovementInputUpdateEvent event) {
+            if (!event.getEntity().hasEffect(ModMobEffects.DATA_DISORDER)) {
+                return;
+            }
+
+            Input input = event.getInput();
+            input.leftImpulse = 0.0F;
+            input.forwardImpulse = 0.0F;
+            input.up = false;
+            input.down = false;
+            input.left = false;
+            input.right = false;
+            input.jumping = false;
+            input.shiftKeyDown = false;
+        }
+
+        public static void onInteractionKeyTriggered(InputEvent.InteractionKeyMappingTriggered event) {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.player == null || minecraft.screen != null
+                    || !minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER)) {
+                return;
+            }
+
+            if (event.isAttack() || event.isUseItem() || event.isPickBlock()) {
+                event.setCanceled(true);
+                event.setSwingHand(false);
+            }
         }
 
         @SubscribeEvent
@@ -305,6 +349,7 @@ public final class ClientBootstrap {
                 return;
             }
 
+            spawnDataDisorderParticles(minecraft);
             spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.MAIN_HAND);
             spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.OFF_HAND);
         }
@@ -404,6 +449,30 @@ public final class ClientBootstrap {
                 return;
             }
             minecraft.level.addParticle(particle, base.x, base.y, base.z, velocity.x, velocity.y, velocity.z);
+        }
+
+        private static void spawnDataDisorderParticles(Minecraft minecraft) {
+            if (minecraft.level == null) {
+                return;
+            }
+
+            for (Entity entity : minecraft.level.entitiesForRendering()) {
+                if (!(entity instanceof LivingEntity livingEntity)
+                        || !livingEntity.hasEffect(ModMobEffects.DATA_DISORDER)
+                        || livingEntity.isInvisible()) {
+                    continue;
+                }
+
+                double radius = Math.max(0.25D, livingEntity.getBbWidth() * 0.65D);
+                double angle = livingEntity.getRandom().nextDouble() * Math.PI * 2.0D;
+                double x = livingEntity.getX() + Math.cos(angle) * radius;
+                double y = livingEntity.getY() + livingEntity.getRandom().nextDouble() * livingEntity.getBbHeight();
+                double z = livingEntity.getZ() + Math.sin(angle) * radius;
+                double xSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
+                double ySpeed = 0.015D + livingEntity.getRandom().nextDouble() * 0.02D;
+                double zSpeed = (livingEntity.getRandom().nextDouble() - 0.5D) * 0.015D;
+                minecraft.level.addParticle(ModParticles.DATA_DISORDER.get(), x, y, z, xSpeed, ySpeed, zSpeed);
+            }
         }
 
         private static double getHandSide(HumanoidArm mainArm, InteractionHand hand) {
