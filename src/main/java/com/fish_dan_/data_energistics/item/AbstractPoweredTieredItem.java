@@ -34,8 +34,6 @@ public abstract class AbstractPoweredTieredItem extends PoweredItem {
 
     @Override
     public double getActionEnergyCost(ItemStack stack) {
-        return TIERED_ITEM_BASE_ENERGY_PER_ACTION
-                + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack)
-                + TIERED_ITEM_SABER_ENERGY_CARD_EXTRA_COST * this.getSaberEnergyCardCount(stack);
+        return TIERED_ITEM_BASE_ENERGY_PER_ACTION + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack) + TIERED_ITEM_SABER_ENERGY_CARD_EXTRA_COST * this.getSaberEnergyCardCount(stack);
     }
 }
