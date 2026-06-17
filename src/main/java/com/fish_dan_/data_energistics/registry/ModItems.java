@@ -109,6 +109,7 @@ public final class ModItems {
             "tnt_configurable",
             () -> new ConfigurableTntBlockItem(ModBlocks.TNT_CONFIGURABLE.get(), new Item.Properties(),
                     () -> FlatteningTntConfig.configurableTntDisplayName));
+    public static final DeferredItem<BlockItem> DATA_NUKE = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_NUKE);
     public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_0);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);

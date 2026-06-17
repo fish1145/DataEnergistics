@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.entity.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
@@ -49,6 +50,12 @@ public final class ModEntities {
             .clientTrackingRange(10)
             .updateInterval(10)
             .build("tnt_configurable_primed"));
+    public static final DeferredHolder<EntityType<?>, EntityType<DataNukePrimedEntity>> DATA_NUKE_PRIMED = ENTITY_TYPES.register("data_nuke_primed", () -> EntityType.Builder
+            .<DataNukePrimedEntity>of(DataNukePrimedEntity::new, MobCategory.MISC)
+            .sized(0.98F, 0.98F)
+            .clientTrackingRange(10)
+            .updateInterval(10)
+            .build("data_nuke_primed"));
 
     private ModEntities() {}
 

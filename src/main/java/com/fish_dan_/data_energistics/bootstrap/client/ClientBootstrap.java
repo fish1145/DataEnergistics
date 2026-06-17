@@ -188,6 +188,7 @@ public final class ClientBootstrap {
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
             event.registerEntityRenderer(ModEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
             event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
+            event.registerEntityRenderer(ModEntities.DATA_NUKE_PRIMED.get(), TntRenderer::new);
         }
 
         @SubscribeEvent

@@ -351,6 +351,7 @@
 	"message.data_energistics.data_extractor.range.disabled": "已关闭提取仪范围显示",
 	"death.attack.data_energistics.data_corrosion_liquid": "%1$s已被数据化腐蚀",
 	"block.data_energistics.tnt_configurable": "可配置平地TNT",
+	"block.data_energistics.data_nuke": "数据核弹",
 	"curios.identifier.left_shoulder": "左肩",
 	"curios.identifier.right_shoulder": "右肩",
 	"item.data_energistics.fish_dan_": "Fish_Dan_ 玩偶",

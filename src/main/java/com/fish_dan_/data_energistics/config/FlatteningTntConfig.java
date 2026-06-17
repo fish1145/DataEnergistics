@@ -24,11 +24,13 @@ public final class FlatteningTntConfig {
 
     private static final Entry CONFIGURABLE_ENTRY;
     private static final ModConfigSpec.ConfigValue<String> CONFIGURABLE_TNT_DISPLAY_NAME;
+    private static final DataNukeEntry DATA_NUKE_ENTRY;
 
     public static final ModConfigSpec SPEC;
 
     public static Definition configurableTnt;
     public static String configurableTntDisplayName;
+    public static DataNukeDefinition dataNuke;
 
     static {
         BUILDER.comment("Chunk-flattening TNT settings.",
@@ -45,12 +47,16 @@ public final class FlatteningTntConfig {
                 .comment("Display name shown for the configurable TNT item.",
                         "可配置平地TNT物品显示的名称。")
                 .define("tntConfigurable.displayName", DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME);
-
+        DATA_NUKE_ENTRY = new DataNukeEntry(BUILDER, "dataNuke",
+                "Settings for the data nuke TNT block.",
+                "数据核弹 TNT 方块设置。",
+                1, 2048, 4.0D);
         BUILDER.pop();
         SPEC = BUILDER.build();
 
         configurableTnt = CONFIGURABLE_ENTRY.resolveDefaults();
         configurableTntDisplayName = DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME;
+        dataNuke = DATA_NUKE_ENTRY.resolveDefaults();
     }
 
     private FlatteningTntConfig() {}
@@ -63,6 +69,7 @@ public final class FlatteningTntConfig {
 
         configurableTnt = CONFIGURABLE_ENTRY.resolve("tnt_configurable");
         configurableTntDisplayName = CONFIGURABLE_TNT_DISPLAY_NAME.get();
+        dataNuke = DATA_NUKE_ENTRY.resolve();
     }
 
     public record Definition(
@@ -75,6 +82,11 @@ public final class FlatteningTntConfig {
                              BlockPos explosionCenterOffset,
                              boolean preserveFluids,
                              boolean replaceUnbreakableBlocks) {}
+
+    public record DataNukeDefinition(
+                                     int workIntervalTicks,
+                                     int maxRadius,
+                                     double centerEntityConsumeRadius) {}
 
     private static final class Entry {
 
@@ -215,6 +227,51 @@ public final class FlatteningTntConfig {
 
             var block = BuiltInRegistries.BLOCK.get(location);
             return block == Blocks.AIR ? fallback : block.defaultBlockState();
+        }
+    }
+
+    private static final class DataNukeEntry {
+
+        private final ModConfigSpec.IntValue workIntervalTicks;
+        private final ModConfigSpec.IntValue maxRadius;
+        private final ModConfigSpec.DoubleValue centerEntityConsumeRadius;
+        private final int defaultWorkIntervalTicks;
+        private final int defaultMaxRadius;
+        private final double defaultCenterEntityConsumeRadius;
+
+        private DataNukeEntry(ModConfigSpec.Builder builder, String key, String comment, String chineseComment,
+                              int workIntervalTicks, int maxRadius, double centerEntityConsumeRadius) {
+            this.defaultWorkIntervalTicks = workIntervalTicks;
+            this.defaultMaxRadius = maxRadius;
+            this.defaultCenterEntityConsumeRadius = centerEntityConsumeRadius;
+            builder.comment(comment, chineseComment).push(key);
+            this.workIntervalTicks = builder
+                    .comment("Server ticks between each block-devouring work cycle.",
+                            "每次吞噬方块工作周期之间的服务器 tick 间隔。")
+                    .defineInRange("workIntervalTicks", workIntervalTicks, 1, 1200);
+            this.maxRadius = builder
+                    .comment("Maximum spherical radius in blocks that the data nuke can devour. Default 2048 = 128 chunks.",
+                            "数据核弹可吞噬的最大球形半径（方块）。默认 2048 = 128 区块。")
+                    .defineInRange("maxRadius", maxRadius, 1, 8192);
+            this.centerEntityConsumeRadius = builder
+                    .comment("Entity-devouring radius around the center checked every tick.",
+                            "每 tick 检查一次的中心实体吞噬半径。")
+                    .defineInRange("centerEntityConsumeRadius", centerEntityConsumeRadius, 0.0D, 128.0D);
+            builder.pop();
+        }
+
+        private DataNukeDefinition resolve() {
+            return new DataNukeDefinition(
+                    this.workIntervalTicks.get(),
+                    this.maxRadius.get(),
+                    this.centerEntityConsumeRadius.get());
+        }
+
+        private DataNukeDefinition resolveDefaults() {
+            return new DataNukeDefinition(
+                    this.defaultWorkIntervalTicks,
+                    this.defaultMaxRadius,
+                    this.defaultCenterEntityConsumeRadius);
         }
     }
 }
