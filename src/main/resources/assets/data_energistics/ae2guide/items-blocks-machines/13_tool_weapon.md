@@ -145,11 +145,11 @@ Normal ammo energy cost per shot = Base x 5. When installed, projectiles gain ho
 </Row>
 Saber Energy Card:  
 <ItemImage id="data_energistics:matter_converging_crossbow" /> : Final Damage = Base x (Saber Energy Cards x 2) x Current Velocity (3.15) [Crit x 1.5]. When using a charged <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> as ammo, also increases max % true damage.  
-<ItemImage id="data_energistics:data_light_saber" /> : Max Damage = Base x (Saber Energy Cards x 2), +500 AE usage. When fully charged, left-click attacks fire a blade projectile. <ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" /> becomes twice as large.  
+<ItemImage id="data_energistics:data_light_saber" /> : Max Damage = Base x (Saber Energy Cards x 2), +40 AE extra usage (50 AE total). When fully charged, left-click attacks fire a blade projectile. <ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" /> becomes twice as large.  
 <ItemImage id="data_energistics:data_crystal_cutting_knife" /> : Increases teleport range.  
 The following tools also gain a data flow storage slot:  
-<ItemImage id="data_energistics:data_crystal_sword" /> : Max Damage = Base x (Saber Energy Cards x 2), +500 AE usage. Attacks consume 20 data flow to disable the target entity AI for 20 ticks.  
-<ItemImage id="data_energistics:data_crystal_axe" /> : Consumes 20 data flow to fell an entire tree, +500 AE usage.  
-<ItemImage id="data_energistics:data_crystal_pickaxe" /> : Consumes 20 data flow to vein-mine nearby ores and duplicate them once, +500 AE usage.  
-<ItemImage id="data_energistics:data_crystal_hoe" /> : Consumes 20 data flow to keep tilled soil permanently hydrated, +500 AE usage.  
-<ItemImage id="data_energistics:data_crystal_shovel" /> : Shift-right-click to switch between 3x3 and 5x5 mining area, +500 AE usage, consumes 20 data flow while mining.  
+<ItemImage id="data_energistics:data_crystal_sword" /> : Max Damage = Base x (Saber Energy Cards x 2), +40 AE extra usage (50 AE total). Attacks consume 20 data flow to disable the target entity AI for 20 ticks.  
+<ItemImage id="data_energistics:data_crystal_axe" /> : Consumes 20 data flow to fell an entire tree, +40 AE extra usage (50 AE total).  
+<ItemImage id="data_energistics:data_crystal_pickaxe" /> : Consumes 20 data flow to vein-mine nearby ores and duplicate them once, +40 AE extra usage (50 AE total).  
+<ItemImage id="data_energistics:data_crystal_hoe" /> : Consumes 20 data flow to keep tilled soil permanently hydrated, +40 AE extra usage (50 AE total).  
+<ItemImage id="data_energistics:data_crystal_shovel" /> : Shift-right-click to switch between 3x3 and 5x5 mining area, +40 AE extra usage (50 AE total), consumes 20 data flow while mining.  

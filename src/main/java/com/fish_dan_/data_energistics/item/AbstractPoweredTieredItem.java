@@ -7,6 +7,8 @@ import net.minecraft.world.item.component.Tool;
 
 public abstract class AbstractPoweredTieredItem extends PoweredItem {
 
+    private static final double TIERED_ITEM_BASE_ENERGY_PER_ACTION = 10.0D;
+    private static final double TIERED_ITEM_SABER_ENERGY_CARD_EXTRA_COST = 40.0D;
     private final Tier tier;
 
     protected AbstractPoweredTieredItem(Tier tier, Properties properties, Tool toolComponent) {
@@ -28,5 +30,10 @@ public abstract class AbstractPoweredTieredItem extends PoweredItem {
                              net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.BlockPos pos,
                              net.minecraft.world.entity.LivingEntity miningEntity) {
         return stack.has(DataComponents.TOOL);
+    }
+
+    @Override
+    public double getActionEnergyCost(ItemStack stack) {
+        return TIERED_ITEM_BASE_ENERGY_PER_ACTION + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack) + TIERED_ITEM_SABER_ENERGY_CARD_EXTRA_COST * this.getSaberEnergyCardCount(stack);
     }
 }
