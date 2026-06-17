@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.registry.ModMobEffects;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -8,7 +10,6 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 public final class DataCrystalSwordAiStripLogic {
 
-    public static final String TAG_EXPIRE_TICK = "data_energistics:ai_strip_expire_tick";
     public static final String TAG_ORIGINAL_NO_AI = "data_energistics:ai_strip_original_no_ai";
 
     @SubscribeEvent
@@ -19,21 +20,22 @@ public final class DataCrystalSwordAiStripLogic {
         }
 
         CompoundTag persistentData = mob.getPersistentData();
-        if (!persistentData.contains(TAG_EXPIRE_TICK)) {
-            return;
-        }
-
-        long expireTick = persistentData.getLong(TAG_EXPIRE_TICK);
-        if (mob.level().getGameTime() < expireTick) {
+        if (mob.hasEffect(ModMobEffects.DATA_DISORDER)) {
+            if (!persistentData.contains(TAG_ORIGINAL_NO_AI)) {
+                persistentData.putBoolean(TAG_ORIGINAL_NO_AI, mob.isNoAi());
+            }
             if (!mob.isNoAi()) {
                 mob.setNoAi(true);
             }
             return;
         }
 
+        if (!persistentData.contains(TAG_ORIGINAL_NO_AI)) {
+            return;
+        }
+
         boolean originalNoAi = persistentData.getBoolean(TAG_ORIGINAL_NO_AI);
         mob.setNoAi(originalNoAi);
-        persistentData.remove(TAG_EXPIRE_TICK);
         persistentData.remove(TAG_ORIGINAL_NO_AI);
     }
 }

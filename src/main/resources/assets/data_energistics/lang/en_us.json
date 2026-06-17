@@ -30,6 +30,7 @@
 	"block.data_energistics.residual_data_ore": "Residual Data Ore",
 	"entity.data_energistics.dispersing_data": "Dispersing Data",
 	"entity.data_energistics.thrown_light_saber": "Thrown Light Saber",
+	"effect.data_energistics.data_disorder": "Data Disorder",
 	"screen.data_energistics.adaptive_pattern_provider.attached_machine": "%s[%s]",
 	"screen.data_energistics.adaptive_pattern_provider.provider_variant": "Adaptive[%s]",
 	"screen.data_energistics.adaptive_pattern_provider_part.provider_variant": "Adaptive Part[%s]",

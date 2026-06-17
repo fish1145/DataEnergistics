@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -18,7 +19,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -64,7 +64,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     private static final float LIGHT_BLADE_SPEED = 2.8F;
     private static final float LIGHT_BLADE_DAMAGE_RATIO = 5.0F / 6.0F;
     private static final long SWORD_AI_STRIP_DATA_FLOW_COST = 20L;
-    private static final int SWORD_AI_STRIP_DURATION_TICKS = 20;
+    private static final int DATA_DISORDER_DURATION_TICKS = 20;
     public static final float SANCTIFIER_THROWN_LIGHT_BLADE_SPEED = 2.4F;
     private final boolean throwable;
 
@@ -166,7 +166,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         }
         boolean result = true;
         if (result && !attacker.level().isClientSide) {
-            this.tryStripTargetAi(stack, target);
+            this.tryApplyDataDisorder(stack, target, attacker);
             if (this.canFireLightBlade(stack)) {
                 this.fireLightBlade((Level) attacker.level(), attacker, stack);
                 this.consumeActionEnergy(stack);
@@ -396,8 +396,8 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         return Math.max(0.0D, panelDamage);
     }
 
-    private void tryStripTargetAi(ItemStack stack, LivingEntity target) {
-        if (!stack.is(ModItems.DATA_CRYSTAL_SWORD.get()) || this.getSaberEnergyCardCount(stack) <= 0 || !(target instanceof Mob mob)) {
+    private void tryApplyDataDisorder(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+        if (!stack.is(ModItems.DATA_CRYSTAL_SWORD.get()) || this.getSaberEnergyCardCount(stack) <= 0) {
             return;
         }
 
@@ -412,13 +412,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
             return;
         }
 
-        var persistentData = mob.getPersistentData();
-        if (!persistentData.contains(DataCrystalSwordAiStripLogic.TAG_EXPIRE_TICK)) {
-            persistentData.putBoolean(DataCrystalSwordAiStripLogic.TAG_ORIGINAL_NO_AI, mob.isNoAi());
-        }
-        persistentData.putLong(DataCrystalSwordAiStripLogic.TAG_EXPIRE_TICK,
-                mob.level().getGameTime() + SWORD_AI_STRIP_DURATION_TICKS);
-        mob.setNoAi(true);
+        DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker);
     }
 
     private static List<ItemStack> collectUpgradeItems(appeng.api.upgrades.IUpgradeInventory upgrades) {
