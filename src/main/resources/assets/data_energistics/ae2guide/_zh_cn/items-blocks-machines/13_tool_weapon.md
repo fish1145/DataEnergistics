@@ -145,11 +145,11 @@ item_ids:
 </Row>
 聚能卡:  
 <ItemImage id="data_energistics:matter_converging_crossbow" /> : 最终伤害 = 基础伤害 × (聚能卡数量 × 2) × 当前速度(3.15) [暴击再 × 1.5]  当<ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />为弹药时增加5%最大百分比真实伤害  
-<ItemImage id="data_energistics:data_light_saber" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加500ae耗能, <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />左键攻击可以发射出光刃,<ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" />的体型会比原本大一倍  
+<ItemImage id="data_energistics:data_light_saber" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加40ae额外耗能（总耗电 50ae）, <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />左键攻击可以发射出光刃,<ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" />的体型会比原本大一倍  
 <ItemImage id="data_energistics:data_crystal_cutting_knife" /> : 扩大传送范围  
 以下工具还会增加一个数据流存储槽  
-<ItemImage id="data_energistics:data_crystal_sword" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加500ae耗能，攻击时消耗20数据流剥夺实体20Tick AI  
-<ItemImage id="data_energistics:data_crystal_axe" /> : 消耗20数据能连锁一整棵树，增加500ae耗能   
-<ItemImage id="data_energistics:data_crystal_pickaxe" /> : 消耗20数据连锁周边矿石，并将其复制一份，增加500ae耗能  
-<ItemImage id="data_energistics:data_crystal_hoe" /> : 消耗20数据耕地永不失水，增加500ae耗能  
-<ItemImage id="data_energistics:data_crystal_shovel" /> : 可以潜行右键调整3×3或5×5的破坏范围，增加500ae耗能，破坏时消耗20数据  
+<ItemImage id="data_energistics:data_crystal_sword" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加40ae额外耗能（总耗电 50ae），攻击时消耗20数据流剥夺实体20Tick AI  
+<ItemImage id="data_energistics:data_crystal_axe" /> : 消耗20数据能连锁一整棵树，增加40ae额外耗能（总耗电 50ae）   
+<ItemImage id="data_energistics:data_crystal_pickaxe" /> : 消耗20数据连锁周边矿石，并将其复制一份，增加40ae额外耗能（总耗电 50ae）  
+<ItemImage id="data_energistics:data_crystal_hoe" /> : 消耗20数据耕地永不失水，增加40ae额外耗能（总耗电 50ae）  
+<ItemImage id="data_energistics:data_crystal_shovel" /> : 可以潜行右键调整3×3或5×5的破坏范围，增加40ae额外耗能（总耗电 50ae），破坏时消耗20数据  
