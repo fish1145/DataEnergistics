@@ -1,11 +1,13 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
@@ -55,6 +57,7 @@ import java.util.Map;
 @Mixin(PatternEncodingTermMenu.class)
 public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                    implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
+                                                   PatternEncodingPreviewLayoutAware,
                                                    BlankPatternProxyMenu {
 
     @Unique
@@ -69,6 +72,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private static final String DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED = "dataEnergistics$setUploadEnabled";
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
+    @GuiSync(795)
+    @Unique
+    public int dataEnergistics$previewPanelOffsetX;
+    @GuiSync(796)
+    @Unique
+    public int dataEnergistics$previewPanelOffsetY;
     @GuiSync(794)
     @Unique
     public boolean dataEnergistics$uploadEnabled = true;
@@ -574,6 +583,41 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
     }
 
+    @Override
+    public int data_energistics$getPreviewPanelOffsetX() {
+        return this.dataEnergistics$previewPanelOffsetX;
+    }
+
+    @Override
+    public int data_energistics$getPreviewPanelOffsetY() {
+        return this.dataEnergistics$previewPanelOffsetY;
+    }
+
+    @Override
+    public void data_energistics$setPreviewPanelOffset(int offsetX, int offsetY) {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingPreviewLayoutHelper.ACTION_SET_PREVIEW_PANEL_OFFSET,
+                    offsetX + "," + offsetY);
+        }
+        this.dataEnergistics$previewPanelOffsetX = offsetX;
+        this.dataEnergistics$previewPanelOffsetY = offsetY;
+        if (this.isServerSide()) {
+            dataEnergistics$getLogicLayout().data_energistics$setPreviewPanelOffset(offsetX, offsetY);
+        }
+    }
+
+    @Override
+    public void data_energistics$resetPreviewPanelOffset() {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingPreviewLayoutHelper.ACTION_RESET_PREVIEW_PANEL_OFFSET);
+        }
+        this.dataEnergistics$previewPanelOffsetX = 0;
+        this.dataEnergistics$previewPanelOffsetY = 0;
+        if (this.isServerSide()) {
+            dataEnergistics$getLogicLayout().data_energistics$resetPreviewPanelOffset();
+        }
+    }
+
     @Inject(
             method = "<init>(Lnet/minecraft/world/inventory/MenuType;ILnet/minecraft/world/entity/player/Inventory;Lappeng/helpers/IPatternTerminalMenuHost;Z)V",
             at = @At("RETURN"))
@@ -606,6 +650,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$setUploadEnabledFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_CLEAR_PATTERN_SOURCE_STATE,
                 this::data_energistics$clearPatternSourceState);
+        registerClientAction(PatternEncodingPreviewLayoutHelper.ACTION_SET_PREVIEW_PANEL_OFFSET, String.class,
+                payload -> PatternEncodingPreviewLayoutHelper.applySetOffsetAction(this, payload));
+        registerClientAction(PatternEncodingPreviewLayoutHelper.ACTION_RESET_PREVIEW_PANEL_OFFSET,
+                this::data_energistics$resetPreviewPanelOffset);
         registerClientAction(DATA_ENERGISTICS_ACTION_DEPOSIT_CARRIED_BLANK_PATTERNS, Boolean.class,
                 this::dataEnergistics$depositCarriedBlankPatternsFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_PICKUP_BLANK_PATTERNS, Boolean.class,
@@ -616,6 +664,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             this.dataEnergistics$uploadEnabled = PatternEncodingSourceHelper.readUploadEnabled(this.getPlayer());
             this.dataEnergistics$pendingPatternSource = PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
             this.dataEnergistics$lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
+            this.dataEnergistics$previewPanelOffsetX = dataEnergistics$getLogicLayout()
+                    .data_energistics$getPreviewPanelOffsetX();
+            this.dataEnergistics$previewPanelOffsetY = dataEnergistics$getLogicLayout()
+                    .data_energistics$getPreviewPanelOffsetY();
             PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(),
                     this.dataEnergistics$lastEncodedPatternSource);
             dataEnergistics$flushBlankPatternSlotToNetwork();
@@ -701,6 +753,15 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     private void dataEnergistics$pickupBlankPatternsFromClient(Boolean single) {
         data_energistics$pickupBlankPatterns(Boolean.TRUE.equals(single));
+    }
+
+    @Unique
+    private PatternEncodingPreviewLayoutAware dataEnergistics$getLogicLayout() {
+        var logic = PatternEncodingPreviewLayoutHelper.getLogic((PatternEncodingTermMenu) (Object) this);
+        if (logic instanceof PatternEncodingPreviewLayoutAware layoutAware) {
+            return layoutAware;
+        }
+        throw new IllegalStateException("Pattern encoding logic does not implement preview layout storage: " + logic.getClass().getName());
     }
 
     @Unique

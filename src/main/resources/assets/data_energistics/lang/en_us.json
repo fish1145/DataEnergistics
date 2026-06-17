@@ -214,6 +214,7 @@
 	"screen.data_energistics.pattern_writer_preview.provider.open": "%s to open provider GUI",
 	"screen.data_energistics.pattern_writer_preview.provider.rename": "Press %s to rename this provider",
 	"screen.data_energistics.pattern_writer_preview.provider.slots": "Written %s / %s",
+	"screen.data_energistics.pattern_writer_preview.drag_handle": "Drag upload panel; right-click to reset position",
 	"gui.data_energistics.terminal_settings.enable_upload": "Enable Data_Energistics Upload",
 	"key.categories.data_energistics": "Data Energistics",
 	"key.data_energistics.open_pattern_provider": "Open Pattern Provider GUI",
