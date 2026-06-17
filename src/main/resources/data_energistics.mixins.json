@@ -41,6 +41,7 @@
 		"core.InterfaceLogicUpgradesAccessor",
 		"core.NetworkStatusMixin",
 		"core.PathingServiceMixin",
+		"core.PatternEncodingLogicPreviewLayoutMixin",
 		"core.PatternEncodingTermMenuMixin",
 		"core.PatternProviderBlockEntityMixin",
 		"core.PatternProviderLogicFieldAccessor",

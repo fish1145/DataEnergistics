@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.entity;
 
+import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.nbt.CompoundTag;
@@ -30,6 +31,7 @@ import net.minecraft.world.phys.Vec3;
 public class LightBladeChargeEntity extends ThrowableItemProjectile {
 
     private static final int LIFETIME_TICKS = 120;
+    private static final int DATA_DISORDER_DURATION_TICKS = 30;
     private static final double MAX_TRAVEL_DISTANCE = 128.0D;
     private static final double HOMING_HIT_MARGIN = 0.35D;
     private static final float SIZE_SCALE = 2.0F;
@@ -99,6 +101,9 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
         this.resetTargetInvulnerability(target);
         if (target.hurt(damageSource, damage) && this.level() instanceof ServerLevel serverLevel) {
             EnchantmentHelper.doPostAttackEffectsWithItemSource(serverLevel, target, damageSource, this.getWeaponStack());
+            if (target instanceof LivingEntity livingTarget) {
+                DataDisorderEffectLogic.applyOrBurst(livingTarget, DATA_DISORDER_DURATION_TICKS, owner);
+            }
         }
         this.discardWithEffects();
     }
