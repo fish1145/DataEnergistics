@@ -115,7 +115,7 @@ public class DataChargerBlock extends AEBaseBlock implements EntityBlock {
     protected ItemInteractionResult useItemOn(ItemStack heldItem, BlockState state, Level level, BlockPos pos,
                                               Player player, InteractionHand hand, BlockHitResult hit) {
         if (!heldItem.isEmpty() && level.getBlockEntity(pos) instanceof DataChargerBlockEntity charger) {
-            if (DataChargerBlockEntity.canChargeStack(heldItem)) {
+            if (charger.canAcceptStack(heldItem)) {
                 if (!level.isClientSide() && charger.tryInsertDisplayStack(heldItem)) {
                     player.setItemInHand(hand, heldItem);
                 }

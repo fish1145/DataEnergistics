@@ -239,6 +239,8 @@
 	"recipe.data_energistics.data_capture_ball_right_click.category": "数据捕捉球右键",
 	"recipe.data_energistics.data_capture_ball_right_click.cost": "消耗：%s 数据, %s AE",
 	"recipe.data_energistics.data_capture_ball_right_click.preset": "预设状态：%s 数据 / %s AE",
+	"recipe.data_energistics.data_charger": "数据充能",
+	"recipe.data_energistics.data_charger.cost": "%s 数据流 / %s AE",
 	"recipe.data_energistics.data_reassembler": "数据重组",
 	"recipe.data_energistics.data_reassembler.data_flow": "数据流：%s",
 	"recipe.data_energistics.data_reassembler.duration": "耗时：%s秒",

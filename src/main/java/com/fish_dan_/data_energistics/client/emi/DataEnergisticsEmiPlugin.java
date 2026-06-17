@@ -11,26 +11,38 @@ import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
+import com.mojang.logging.LogUtils;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiCraftingRecipe;
 import dev.emi.emi.api.recipe.EmiInfoRecipe;
+import dev.emi.emi.api.recipe.EmiRecipe;
+import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
+import dev.emi.emi.registry.EmiRecipes;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 @EmiEntrypoint
 public final class DataEnergisticsEmiPlugin implements EmiPlugin {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final ResourceLocation AE2_CHARGER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
 
     @Override
     public void register(EmiRegistry registry) {
@@ -57,6 +69,13 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)
                 .forEach(registry::addRecipe);
+        registerRecipeCategory(
+                registry,
+                DataChargerEmiRecipe.CATEGORY,
+                EmiStack.of(ModBlocks.DATA_CHARGER.get()),
+                EmiStack.of(ModBlocks.EXTENDED_DATA_CHARGER.get()),
+                DataChargerEmiRecipe::new,
+                registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()));
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
@@ -72,6 +91,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
                 1,
                 Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
+        registry.addDeferredRecipes(consumer -> registerAe2ChargerWorkstations(registry));
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
@@ -101,5 +121,38 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
     private static String sanitize(String terminalName) {
         return terminalName.replace(':', '_').replace('/', '_');
+    }
+
+    private static <R extends Recipe<?>> void registerRecipeCategory(
+                                                                     EmiRegistry registry,
+                                                                     EmiRecipeCategory category,
+                                                                     EmiStack workstation,
+                                                                     EmiStack extendedWorkstation,
+                                                                     Function<RecipeHolder<R>, ? extends EmiRecipe> mapper,
+                                                                     List<RecipeHolder<R>> recipes) {
+        registry.addCategory(category);
+        registry.addWorkstation(category, workstation);
+        registry.addWorkstation(category, extendedWorkstation);
+        recipes.stream()
+                .map(mapper)
+                .forEach(registry::addRecipe);
+    }
+
+    private static void registerAe2ChargerWorkstations(EmiRegistry registry) {
+        EmiRecipeCategory ae2ChargerCategory = findCategoryById(AE2_CHARGER_CATEGORY_ID);
+        if (ae2ChargerCategory == null) {
+            LOGGER.warn("AE2 charger EMI category was not registered; skipping Data Energistics charger workstations");
+            return;
+        }
+
+        registry.addWorkstation(ae2ChargerCategory, EmiStack.of(ModBlocks.DATA_CHARGER.get()));
+        registry.addWorkstation(ae2ChargerCategory, EmiStack.of(ModBlocks.EXTENDED_DATA_CHARGER.get()));
+    }
+
+    private static EmiRecipeCategory findCategoryById(ResourceLocation categoryId) {
+        return EmiRecipes.categories.stream()
+                .filter(category -> category.getId().equals(categoryId))
+                .findFirst()
+                .orElse(null);
     }
 }
