@@ -1,5 +1,3 @@
 {
-  "textures": [
-    "data_energistics:data_disorder"
-  ]
+	"textures": ["data_energistics:data_disorder"]
 }

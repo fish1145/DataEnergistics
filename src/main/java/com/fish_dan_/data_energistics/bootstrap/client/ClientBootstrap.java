@@ -57,8 +57,8 @@ import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.Input;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.Input;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.TntRenderer;
@@ -72,8 +72,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -86,13 +86,13 @@ import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
-import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
-import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -208,8 +208,7 @@ public final class ClientBootstrap {
 
         public static void onInteractionKeyTriggered(InputEvent.InteractionKeyMappingTriggered event) {
             Minecraft minecraft = Minecraft.getInstance();
-            if (minecraft.player == null || minecraft.screen != null
-                    || !minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER)) {
+            if (minecraft.player == null || minecraft.screen != null || !minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER)) {
                 return;
             }
 
@@ -457,9 +456,7 @@ public final class ClientBootstrap {
             }
 
             for (Entity entity : minecraft.level.entitiesForRendering()) {
-                if (!(entity instanceof LivingEntity livingEntity)
-                        || !livingEntity.hasEffect(ModMobEffects.DATA_DISORDER)
-                        || livingEntity.isInvisible()) {
+                if (!(entity instanceof LivingEntity livingEntity) || !livingEntity.hasEffect(ModMobEffects.DATA_DISORDER) || livingEntity.isInvisible()) {
                     continue;
                 }
 

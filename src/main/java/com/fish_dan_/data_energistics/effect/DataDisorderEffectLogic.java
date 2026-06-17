@@ -7,6 +7,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+
 import org.jetbrains.annotations.Nullable;
 
 public final class DataDisorderEffectLogic {
@@ -41,11 +42,7 @@ public final class DataDisorderEffectLogic {
             return;
         }
 
-        DamageSource damageSource = attacker instanceof Player player
-                ? target.damageSources().playerAttack(player)
-                : attacker instanceof LivingEntity livingAttacker
-                ? target.damageSources().mobAttack(livingAttacker)
-                : target.damageSources().magic();
+        DamageSource damageSource = attacker instanceof Player player ? target.damageSources().playerAttack(player) : attacker instanceof LivingEntity livingAttacker ? target.damageSources().mobAttack(livingAttacker) : target.damageSources().magic();
         target.hurt(damageSource, damage);
     }
 }
