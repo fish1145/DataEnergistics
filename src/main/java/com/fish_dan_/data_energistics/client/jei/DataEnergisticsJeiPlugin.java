@@ -16,18 +16,23 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 import appeng.core.definitions.AEBlocks;
-import com.mojang.logging.LogUtils;
+import appeng.recipes.handlers.ChargerRecipe;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
 import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
@@ -35,27 +40,37 @@ import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
+import mezz.jei.api.runtime.IIngredientVisibility;
 import mezz.jei.api.runtime.IJeiRuntime;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 @JeiPlugin
 public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-    private static final String CRAFTING_HANDLER_CLASS = "tamaized.ae2jeiintegration.integration.modules.jei.transfer.UseCraftingRecipeTransfer";
-    private static final String ENCODING_HANDLER_CLASS = "tamaized.ae2jeiintegration.integration.modules.jei.transfer.EncodePatternTransferHandler";
+    private static final String AE2_JEI_TRANSFER_PACKAGE = String.join(
+            ".",
+            "tamaized",
+            "ae2jeiintegration",
+            "integration",
+            "modules",
+            "jei",
+            "transfer");
+    private static final String CRAFTING_HANDLER_CLASS = AE2_JEI_TRANSFER_PACKAGE + ".UseCraftingRecipeTransfer";
+    private static final String ENCODING_HANDLER_CLASS = AE2_JEI_TRANSFER_PACKAGE + ".EncodePatternTransferHandler";
+    private static final ResourceLocation AE2_CHARGER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final RecipeType<RecipeHolder<ChargerRecipe>> AE2_CHARGER_RECIPE_TYPE = RecipeType.createRecipeHolderType(AE2_CHARGER_RECIPE_ID);
     private static final Class<?>[] CRAFTING_HANDLER_PARAMETERS = {
             Class.class,
-            net.minecraft.world.inventory.MenuType.class,
+            MenuType.class,
             IRecipeTransferHandlerHelper.class };
     private static final Class<?>[] ENCODING_HANDLER_PARAMETERS = {
-            net.minecraft.world.inventory.MenuType.class,
+            MenuType.class,
             Class.class,
             IRecipeTransferHandlerHelper.class,
-            mezz.jei.api.runtime.IIngredientVisibility.class };
+            IIngredientVisibility.class };
     private IJeiRuntime jeiRuntime;
 
     @Override
@@ -68,6 +83,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCategories(
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
+                new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
@@ -76,6 +92,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, DataCaptureBallCondenserCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(ModItems.DATA_CAPTURE_BALL.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(ModBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
+        registration.addRecipeCatalyst(ModBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
+        registerDataChargerCatalysts(registration, DataChargerRecipeCategory.RECIPE_TYPE);
     }
 
     @Override
@@ -113,6 +132,11 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                     level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                             .map(RecipeHolder::value)
                             .toList());
+            registerRecipeType(
+                    registration,
+                    DataChargerRecipeCategory.RECIPE_TYPE,
+                    level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()),
+                    RecipeHolder::value);
         }
         registration.addIngredientInfo(
                 new ItemStack(ModItems.DATA_CAPTURE_BALL.get()),
@@ -123,8 +147,19 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registerMatterConvergingCrossbowAnvilRecipes(registration);
     }
 
+    private static <R extends Recipe<?>, T> void registerRecipeType(IRecipeRegistration registration, RecipeType<T> recipeType,
+                                                                    List<RecipeHolder<R>> recipes,
+                                                                    Function<RecipeHolder<R>, T> mapper) {
+        registration.addRecipes(recipeType, recipes.stream().map(mapper).toList());
+    }
+
+    private static void registerDataChargerCatalysts(IRecipeCatalystRegistration registration, RecipeType<?> recipeType) {
+        registration.addRecipeCatalyst(ModBlocks.DATA_CHARGER.get(), recipeType);
+        registration.addRecipeCatalyst(ModBlocks.EXTENDED_DATA_CHARGER.get(), recipeType);
+    }
+
     private static void registerMatterConvergingCrossbowAnvilRecipes(IRecipeRegistration registration) {
-        HolderLookup.RegistryLookup<net.minecraft.world.item.enchantment.Enchantment> lookup = net.minecraft.client.Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        HolderLookup.RegistryLookup<Enchantment> lookup = Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         var power = lookup.getOrThrow(Enchantments.POWER);
 
         ItemStack baseCrossbow = ModItems.MATTER_CONVERGING_CROSSBOW.get().getDefaultInstance();
@@ -137,7 +172,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         powerBook.set(DataComponents.STORED_ENCHANTMENTS, builder.toImmutable());
 
         registration.addRecipes(
-                mezz.jei.api.constants.RecipeTypes.ANVIL,
+                RecipeTypes.ANVIL,
                 List.of(registration.getVanillaRecipeFactory().createAnvilRecipe(
                         baseCrossbow,
                         List.of(powerBook),
@@ -182,7 +217,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     }
 
     @SuppressWarnings("unchecked")
-    private static IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>> createCraftingHandler(IRecipeTransferHandlerHelper transferHelper) {
+    private static IRecipeTransferHandler<UniversalCraftingTermMenu, RecipeHolder<CraftingRecipe>> createCraftingHandler(IRecipeTransferHandlerHelper transferHelper) {
         Object handler = ReflectionAccess.newInstance(
                 CRAFTING_HANDLER_CLASS,
                 CRAFTING_HANDLER_PARAMETERS,
@@ -190,7 +225,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                 ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
                 transferHelper);
         if (handler instanceof IRecipeTransferHandler<?, ?> recipeTransferHandler) {
-            return (IRecipeTransferHandler<UniversalCraftingTermMenu, net.minecraft.world.item.crafting.RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe>>) recipeTransferHandler;
+            return (IRecipeTransferHandler<UniversalCraftingTermMenu, RecipeHolder<CraftingRecipe>>) recipeTransferHandler;
         }
         return null;
     }
@@ -198,7 +233,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @SuppressWarnings("unchecked")
     private static IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu> createEncodingHandler(
                                                                                                            IRecipeTransferHandlerHelper transferHelper,
-                                                                                                           mezz.jei.api.runtime.IIngredientVisibility ingredientVisibility) {
+                                                                                                           IIngredientVisibility ingredientVisibility) {
         Object handler = ReflectionAccess.newInstance(
                 ENCODING_HANDLER_CLASS,
                 ENCODING_HANDLER_PARAMETERS,

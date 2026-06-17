@@ -1,0 +1,12 @@
+{
+	"type": "data_energistics:data_charger",
+	"ingredient": {
+		"item": "minecraft:snowball"
+	},
+	"data_flow": 100,
+	"power": 1600.0,
+	"result": {
+		"count": 1,
+		"id": "minecraft:ender_pearl"
+	}
+}

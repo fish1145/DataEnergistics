@@ -234,6 +234,8 @@
 	"recipe.data_energistics.data_capture_ball_right_click.category": "Data Capture Ball Right Click",
 	"recipe.data_energistics.data_capture_ball_right_click.cost": "Cost: %s Data, %s AE",
 	"recipe.data_energistics.data_capture_ball_right_click.preset": "Preset: %s Data / %s AE",
+	"recipe.data_energistics.data_charger": "Data Charging",
+	"recipe.data_energistics.data_charger.cost": "%s Data Flow / %s AE",
 	"recipe.data_energistics.data_reassembler": "Data Reassembler",
 	"recipe.data_energistics.data_reassembler.data_flow": "Data Flow: %s",
 	"recipe.data_energistics.data_reassembler.duration": "Duration: %ss",

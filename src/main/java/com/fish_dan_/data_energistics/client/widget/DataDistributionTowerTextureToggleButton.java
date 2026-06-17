@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ITooltip;
+import lombok.Setter;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -21,8 +22,10 @@ public class DataDistributionTowerTextureToggleButton extends Button implements 
     private final String enabledKey;
     private final String disabledKey;
     private final Consumer<Boolean> onChange;
+    @Setter
     private boolean state;
     private float visualScale = 1.0F;
+    @Setter
     private int visualZOffset;
 
     public DataDistributionTowerTextureToggleButton(
@@ -45,18 +48,10 @@ public class DataDistributionTowerTextureToggleButton extends Button implements 
         this.onChange = onChange;
     }
 
-    public void setState(boolean state) {
-        this.state = state;
-    }
-
     public void setVisualScale(float visualScale) {
         this.visualScale = visualScale;
         this.width = scale(16);
         this.height = scale(16);
-    }
-
-    public void setVisualZOffset(int visualZOffset) {
-        this.visualZOffset = visualZOffset;
     }
 
     @Override

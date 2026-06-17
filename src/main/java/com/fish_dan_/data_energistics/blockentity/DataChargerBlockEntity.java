@@ -3,8 +3,11 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
+import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.DataChargerRecipeInput;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -12,6 +15,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -29,6 +33,8 @@ import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
+import appeng.recipes.AERecipeTypes;
+import appeng.recipes.handlers.ChargerRecipe;
 import appeng.util.Platform;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
@@ -37,6 +43,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implements InternalInventoryHost {
@@ -49,6 +56,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     public static final long EXTENDED_DATA_FLOW_CAPACITY = REGULAR_DATA_FLOW_CAPACITY * 4L;
     private static final double REGULAR_POWER_REFILL_PER_TICK = 800.0D;
     private static final double EXTENDED_POWER_REFILL_PER_TICK = REGULAR_POWER_REFILL_PER_TICK * 4.0D;
+    private static final double AE_CHARGER_RECIPE_POWER = 1600.0D;
     private static final long REGULAR_DATA_FLOW_REFILL_PER_TICK = 160L;
     private static final long EXTENDED_DATA_FLOW_REFILL_PER_TICK = REGULAR_DATA_FLOW_REFILL_PER_TICK * 4L;
     private static final String STORAGE_TAG = "storage";
@@ -145,7 +153,7 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     }
 
     public boolean tryInsertDisplayStack(ItemStack source) {
-        if (!canChargeStack(source)) {
+        if (!canAcceptStack(source)) {
             return false;
         }
         int activeSlotCount = getActiveSlotCount();
@@ -201,6 +209,10 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         for (int slot = 0; slot < activeSlotCount; slot++) {
             ItemStack stack = this.storage.getStackInSlot(slot);
             if (stack.isEmpty()) {
+                continue;
+            }
+            if (processRecipe(slot, stack)) {
+                changed = true;
                 continue;
             }
             changed |= chargeAePower(stack);
@@ -306,6 +318,10 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         return !stack.isEmpty() && (supportsAePower(stack) || supportsDataFlow(stack));
     }
 
+    public boolean canAcceptStack(ItemStack stack) {
+        return canChargeStack(stack) || findDataChargerRecipe(stack).isPresent() || findAeChargerRecipe(stack).isPresent();
+    }
+
     public static boolean supportsAePower(ItemStack stack) {
         return Platform.isChargeable(stack) && stack.getItem() instanceof IAEItemPowerStorage;
     }
@@ -376,6 +392,77 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         return true;
     }
 
+    private boolean processRecipe(int slot, ItemStack stack) {
+        Optional<RecipeHolder<DataChargerRecipe>> dataChargerRecipe = findDataChargerRecipe(stack);
+        if (dataChargerRecipe.isPresent() && processDataChargerRecipe(slot, stack, dataChargerRecipe.get().value())) {
+            return true;
+        }
+
+        Optional<RecipeHolder<ChargerRecipe>> aeChargerRecipe = findAeChargerRecipe(stack);
+        return aeChargerRecipe.isPresent() && processAeChargerRecipe(slot, stack, aeChargerRecipe.get().value());
+    }
+
+    private boolean processDataChargerRecipe(int slot, ItemStack stack, DataChargerRecipe recipe) {
+        ItemStack result = recipe.getResult();
+        if (result.isEmpty() || !canReplaceWithResult(stack, result)) {
+            return false;
+        }
+        if (this.getInternalCurrentPower() + 1.0E-4D < recipe.getPower() || this.storedDataFlow < recipe.getDataFlow()) {
+            return false;
+        }
+
+        this.extractAEPower(recipe.getPower(), Actionable.MODULATE, PowerMultiplier.ONE);
+        this.storedDataFlow = Math.max(0L, this.storedDataFlow - recipe.getDataFlow());
+        this.storage.setItemDirect(slot, result.copy());
+        this.working = true;
+        return true;
+    }
+
+    private boolean processAeChargerRecipe(int slot, ItemStack stack, ChargerRecipe recipe) {
+        ItemStack result = recipe.getResultItem();
+        if (result.isEmpty() || !canReplaceWithResult(stack, result)) {
+            return false;
+        }
+        if (this.getInternalCurrentPower() + 1.0E-4D < AE_CHARGER_RECIPE_POWER) {
+            return false;
+        }
+
+        this.extractAEPower(AE_CHARGER_RECIPE_POWER, Actionable.MODULATE, PowerMultiplier.ONE);
+        this.storage.setItemDirect(slot, result.copy());
+        this.working = true;
+        return true;
+    }
+
+    private Optional<RecipeHolder<DataChargerRecipe>> findDataChargerRecipe(ItemStack stack) {
+        if (this.level == null || stack.isEmpty()) {
+            return Optional.empty();
+        }
+
+        DataChargerRecipeInput input = new DataChargerRecipeInput(stack);
+        return this.level.getRecipeManager()
+                .getAllRecipesFor(ModRecipes.DATA_CHARGER_TYPE.get()).stream()
+                .filter(holder -> holder.value().matches(input, this.level))
+                .findFirst();
+    }
+
+    private Optional<RecipeHolder<ChargerRecipe>> findAeChargerRecipe(ItemStack stack) {
+        if (this.level == null || stack.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return this.level.getRecipeManager()
+                .getAllRecipesFor(AERecipeTypes.CHARGER).stream()
+                .filter(holder -> holder.value().getIngredient().test(stack))
+                .findFirst();
+    }
+
+    private static boolean canReplaceWithResult(ItemStack input, ItemStack result) {
+        if (input.getCount() != 1) {
+            return false;
+        }
+        return !ItemStack.isSameItemSameComponents(input, result);
+    }
+
     private void refillPowerBuffer() {
         IGridNode node = this.getMainNode().getNode();
         if (node == null || node.getGrid() == null) {
@@ -434,11 +521,11 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         return isExtended() ? EXTENDED_DATA_FLOW_REFILL_PER_TICK : REGULAR_DATA_FLOW_REFILL_PER_TICK;
     }
 
-    private static final class ChargerItemFilter implements IAEItemFilter {
+    private final class ChargerItemFilter implements IAEItemFilter {
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            return canChargeStack(stack);
+            return canAcceptStack(stack);
         }
     }
 }
