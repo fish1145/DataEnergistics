@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.block.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
@@ -126,6 +127,10 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> TNT_CONFIGURABLE = BLOCKS.registerBlock(
             "tnt_configurable",
             TntConfigurableBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.TNT));
+    public static final DeferredBlock<Block> DATA_NUKE = BLOCKS.registerBlock(
+            "data_nuke",
+            DataNukeBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.TNT));
 
     public static final DeferredBlock<Block> RESIDUAL_DATA_ORE = BLOCKS.registerBlock(
