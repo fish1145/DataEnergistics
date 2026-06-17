@@ -1,5 +1,23 @@
 # ChangeLog
 
+## Version [v1.4.0](https://github.com/fish1145/DataEnergistics/compare/v1.3.0-1.21...v1.4.0-1.21)
+### Added
+
+- 添加aeltpp封包供应器支持 by @QiuYe-123 in [#44](https://github.com/fish1145/DataEnergistics/pull/44)
+- 迁移配置弃用API by @QiuYe-123 in [#46](https://github.com/fish1145/DataEnergistics/pull/46)
+- 实现竖向多方块结构系统 by @QiuYe-123 in [#49](https://github.com/fish1145/DataEnergistics/pull/49)
+- 添加数据充能器配方兼容 by @QiuYe-123 in [#53](https://github.com/fish1145/DataEnergistics/pull/53)
+- 添加数据核弹 by @QiuYe-123 in [#54](https://github.com/fish1145/DataEnergistics/pull/54)
+
+### Fixed
+
+- 修复自适应供应器过载发配兼容 by @QiuYe-123 in [#43](https://github.com/fish1145/DataEnergistics/pull/43)
+- 修复EAEP重复合成样板上传拦截 by @QiuYe-123 in [#45](https://github.com/fish1145/DataEnergistics/pull/45)
+- 修复数据重组器配方校验 by @QiuYe-123 in [#47](https://github.com/fish1145/DataEnergistics/pull/47)
+- 修复EAEP样板合成样板重复检测 by @QiuYe-123 in [#48](https://github.com/fish1145/DataEnergistics/pull/48)
+- 修复数据均分塔向互联ME控制器传能异常 by @QiuYe-123 in [#52](https://github.com/fish1145/DataEnergistics/pull/52)
+
+ 
 ## Version [v1.3.0](https://github.com/fish1145/DataEnergistics/compare/v1.2.0-1.21...v1.3.0-1.21)
 ### Added
 
