@@ -81,11 +81,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final int DEFAULT_PANEL_TITLE_Y = 4;
     private static final int DEFAULT_SEARCH_BOX_X = 42;
     private static final int DEFAULT_SEARCH_BOX_Y = 6;
-    private static final int DEFAULT_SEARCH_BOX_WIDTH = 70;
+    private static final int DEFAULT_SEARCH_BOX_WIDTH = 55;
     private static final int DEFAULT_SEARCH_BOX_HEIGHT = 12;
     private static final int PREVIEW_DRAG_BUTTON_RIGHT_PADDING = 4;
-    private static final int PREVIEW_DRAG_BUTTON_TOP_PADDING = 2;
+    private static final int PREVIEW_DRAG_BUTTON_TOP_PADDING = -7;
     private static final int DEFAULT_PREVIEW_SCROLLBAR_X = 114;
+    private static final int PREVIEW_SCROLLBAR_Y_OFFSET = -3;
     private static final int DEFAULT_PROVIDER_LIST_Y = 20;
     private static final int DEFAULT_PROVIDER_BUTTON_GAP = -1;
     private static final int DEFAULT_PROVIDER_VISIBLE_ROWS = 5;
@@ -775,7 +776,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private void initProviderRenameBox() {
         String currentText = this.providerRenameBox != null ? this.providerRenameBox.getValue() : "";
         this.providerRenameBox = new AETextField(this.getStyle(), this.font, 0, 0,
-                getProviderButtonWidth(), Math.max(12, getProviderButtonHeight() - 4));
+                getSearchBoxWidth(), Math.max(12, getSearchBoxHeight()));
         this.providerRenameBox.setMaxLength(40);
         this.providerRenameBox.setBordered(false);
         this.providerRenameBox.setVisible(false);
@@ -808,6 +809,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         Rect2i previewBounds = getPreviewPanelBounds();
         this.providerSearchBox.setX(previewBounds.getX() + getSearchBoxX());
         this.providerSearchBox.setY(previewBounds.getY() + getSearchBoxY());
+        this.providerSearchBox.setWidth(getSearchBoxWidth());
+        this.providerSearchBox.setHeight(getSearchBoxHeight());
         boolean visible = this.previewVisible && !isRenamingProvider();
         this.providerSearchBox.setVisible(visible);
         this.providerSearchBox.active = visible;
@@ -1110,7 +1113,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         int scrollbarWidth = this.previewScrollbar.getBounds().getWidth();
         return new Rect2i(
                 getPreviewPanelBounds().getX() + getPreviewScrollbarX(),
-                Math.max(4, listBounds.getY() - 1),
+                Math.max(4, listBounds.getY() - 1 + PREVIEW_SCROLLBAR_Y_OFFSET),
                 scrollbarWidth,
                 Math.max(1, listBounds.getHeight() + 2));
     }

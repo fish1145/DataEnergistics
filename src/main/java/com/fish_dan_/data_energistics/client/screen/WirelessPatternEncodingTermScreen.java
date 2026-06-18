@@ -85,11 +85,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private static final int PANEL_TITLE_Y = 4;
     private static final int PANEL_SEARCH_X = 42;
     private static final int PANEL_SEARCH_Y = 6;
-    private static final int PANEL_SEARCH_WIDTH = 70;
+    private static final int PANEL_SEARCH_WIDTH = 55;
     private static final int PANEL_SEARCH_HEIGHT = 12;
     private static final int PREVIEW_DRAG_BUTTON_RIGHT_PADDING = 4;
-    private static final int PREVIEW_DRAG_BUTTON_TOP_PADDING = 2;
+    private static final int PREVIEW_DRAG_BUTTON_TOP_PADDING = -7;
     private static final int PANEL_SCROLLBAR_X = 114;
+    private static final int PANEL_SCROLLBAR_Y_OFFSET = -3;
     private static final int PROVIDER_LIST_Y = 20;
     private static final int PROVIDER_VISIBLE_ROWS = 5;
     private static final int PROVIDER_BUTTON_WIDTH = 95;
@@ -617,6 +618,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         Rect2i previewBounds = getPreviewPanelBounds();
         this.providerSearchBox.setX(previewBounds.getX() + PANEL_SEARCH_X);
         this.providerSearchBox.setY(previewBounds.getY() + PANEL_SEARCH_Y);
+        this.providerSearchBox.setWidth(PANEL_SEARCH_WIDTH);
+        this.providerSearchBox.setHeight(PANEL_SEARCH_HEIGHT);
         boolean visible = this.previewVisible && !isRenamingProvider();
         this.providerSearchBox.setVisible(visible);
         this.providerSearchBox.active = visible;
@@ -871,7 +874,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         int scrollbarWidth = this.previewScrollbar.getBounds().getWidth();
         return new Rect2i(
                 getPreviewPanelBounds().getX() + PANEL_SCROLLBAR_X,
-                Math.max(4, listBounds.getY() - 1),
+                Math.max(4, listBounds.getY() - 1 + PANEL_SCROLLBAR_Y_OFFSET),
                 scrollbarWidth,
                 Math.max(1, listBounds.getHeight() + 2));
     }
