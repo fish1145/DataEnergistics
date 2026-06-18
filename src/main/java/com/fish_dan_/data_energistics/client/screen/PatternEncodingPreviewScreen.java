@@ -59,6 +59,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller");
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller_disabled");
+    private static final float PREVIEW_LAYER_Z = 400.0F;
     private static final Component PANEL_TITLE = Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
     private static final int COLOR_PANEL_TITLE = 0x000000;
     private static final Component EMPTY_STATE_TEXT = Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
@@ -131,6 +132,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private int previewPanelCurrentOffsetX;
     private int previewPanelCurrentOffsetY;
     private Rect2i previewPanelDragBaseBounds;
+    private boolean previewLayerWidgetRenderingDeferred;
 
     public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -379,9 +381,17 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
-        super.render(guiGraphics, mouseX, mouseY, partialTicks);
+        deferPreviewLayerWidgets();
+        try {
+            super.render(guiGraphics, mouseX, mouseY, partialTicks);
+        } finally {
+            restorePreviewLayerWidgets();
+        }
+
         if (this.previewVisible) {
+            renderPreviewLayer(guiGraphics, mouseX, mouseY, partialTicks);
             renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
         }
     }
 
@@ -389,21 +399,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY,
                        float partialTicks) {
         super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
-
-        if (!this.previewVisible) {
-            return;
-        }
-
-        Rect2i previewBounds = getPreviewPanelBounds();
-        guiGraphics.blit(AE2_UPLOAD_TEXTURE,
-                previewBounds.getX(), previewBounds.getY(),
-                0,
-                PREVIEW_TEXTURE_U, PREVIEW_TEXTURE_V,
-                previewBounds.getWidth(), previewBounds.getHeight(),
-                PREVIEW_TEXTURE_WIDTH, PREVIEW_TEXTURE_HEIGHT);
-
-        drawProviderButtons(guiGraphics, mouseX, mouseY);
-        drawPreviewScrollbarHandle(guiGraphics);
     }
 
     @Override
@@ -477,6 +472,62 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         return zones;
+    }
+
+    private void deferPreviewLayerWidgets() {
+        if (!this.previewVisible) {
+            return;
+        }
+
+        this.previewLayerWidgetRenderingDeferred = true;
+    }
+
+    private void restorePreviewLayerWidgets() {
+        if (!this.previewLayerWidgetRenderingDeferred) {
+            return;
+        }
+
+        this.previewLayerWidgetRenderingDeferred = false;
+        updateProviderSearchBox();
+        updateProviderRenameBox();
+        updatePreviewDragButton();
+        updatePreviewScrollbar();
+    }
+
+    private void renderPreviewLayer(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        PoseStack poseStack = guiGraphics.pose();
+        poseStack.pushPose();
+        poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
+        try {
+            Rect2i previewBounds = getPreviewPanelBounds();
+            guiGraphics.blit(AE2_UPLOAD_TEXTURE,
+                    previewBounds.getX(), previewBounds.getY(),
+                    0,
+                    PREVIEW_TEXTURE_U, PREVIEW_TEXTURE_V,
+                    previewBounds.getWidth(), previewBounds.getHeight(),
+                    PREVIEW_TEXTURE_WIDTH, PREVIEW_TEXTURE_HEIGHT);
+
+            drawProviderButtons(guiGraphics, mouseX, mouseY);
+            drawPreviewScrollbarHandle(guiGraphics);
+            renderPreviewLayerWidget(this.providerSearchBox, guiGraphics, mouseX, mouseY, partialTicks);
+            renderPreviewLayerWidget(this.providerRenameBox, guiGraphics, mouseX, mouseY, partialTicks);
+            renderPreviewLayerWidget(this.previewDragButton, guiGraphics, mouseX, mouseY, partialTicks);
+        } finally {
+            poseStack.popPose();
+        }
+    }
+
+    private void renderPreviewLayerWidget(AbstractWidget widget, GuiGraphics guiGraphics, int mouseX, int mouseY,
+                                          float partialTicks) {
+        if (widget != null && widget.visible) {
+            widget.render(guiGraphics, mouseX, mouseY, partialTicks);
+        }
+    }
+
+    private void renderPreviewLayerWidgetTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (this.previewDragButton != null && this.previewDragButton.visible && this.previewDragButton.isMouseOver(mouseX, mouseY)) {
+            guiGraphics.renderTooltip(this.font, this.previewDragButton.getMessage(), mouseX, mouseY);
+        }
     }
 
     @Override
@@ -811,10 +862,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.providerSearchBox.setY(previewBounds.getY() + getSearchBoxY());
         this.providerSearchBox.setWidth(getSearchBoxWidth());
         this.providerSearchBox.setHeight(getSearchBoxHeight());
-        boolean visible = this.previewVisible && !isRenamingProvider();
+        boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && !isRenamingProvider();
         this.providerSearchBox.setVisible(visible);
         this.providerSearchBox.active = visible;
-        if (!visible) {
+        if (!visible && !this.previewLayerWidgetRenderingDeferred) {
             this.providerSearchBox.setFocused(false);
         }
     }
@@ -825,10 +876,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         var provider = getPatternProvider(this.renamingProviderId);
-        boolean visible = this.previewVisible && isProviderRenameEnabled() && provider != null && provider.renameable();
+        boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && isProviderRenameEnabled() && provider != null && provider.renameable();
         this.providerRenameBox.setVisible(visible);
         this.providerRenameBox.active = visible;
-        if (!visible) {
+        if (!visible && !this.previewLayerWidgetRenderingDeferred) {
             this.providerRenameBox.setFocused(false);
             return;
         }
@@ -869,7 +920,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return;
         }
 
-        this.previewDragButton.setVisibility(this.previewVisible);
+        this.previewDragButton.setVisibility(this.previewVisible && !this.previewLayerWidgetRenderingDeferred);
         if (!this.previewVisible) {
             return;
         }
