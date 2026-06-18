@@ -58,6 +58,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller");
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller_disabled");
+    private static final float PREVIEW_LAYER_Z = 400.0F;
     private static final Component PANEL_TITLE = Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
     private static final Component EMPTY_STATE_TEXT = Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
     private static final Component ENCODE_BUTTON_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
@@ -124,6 +125,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
     private int previewPanelCurrentOffsetX;
     private int previewPanelCurrentOffsetY;
     private Rect2i previewPanelDragBaseBounds;
+    private boolean previewLayerWidgetRenderingDeferred;
 
     public WirelessPatternEncodingTermScreen(WETMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -371,28 +373,23 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
-        super.render(guiGraphics, mouseX, mouseY, partialTicks);
+        deferPreviewLayerWidgets();
+        try {
+            super.render(guiGraphics, mouseX, mouseY, partialTicks);
+        } finally {
+            restorePreviewLayerWidgets();
+        }
+
         if (this.previewVisible) {
+            renderPreviewLayer(guiGraphics, mouseX, mouseY, partialTicks);
             renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
         }
     }
 
     @Override
     public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY, float partialTicks) {
         super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
-        if (!this.previewVisible) {
-            return;
-        }
-
-        Rect2i previewBounds = getPreviewPanelBounds();
-        guiGraphics.blit(AE2_UPLOAD_TEXTURE,
-                previewBounds.getX(), previewBounds.getY(),
-                0,
-                0, 0,
-                previewBounds.getWidth(), previewBounds.getHeight(),
-                PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
-        drawProviderButtons(guiGraphics, mouseX, mouseY);
-        drawPreviewScrollbarHandle(guiGraphics);
     }
 
     @Override
@@ -466,6 +463,61 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
 
         return zones;
+    }
+
+    private void deferPreviewLayerWidgets() {
+        if (!this.previewVisible) {
+            return;
+        }
+
+        this.previewLayerWidgetRenderingDeferred = true;
+    }
+
+    private void restorePreviewLayerWidgets() {
+        if (!this.previewLayerWidgetRenderingDeferred) {
+            return;
+        }
+
+        this.previewLayerWidgetRenderingDeferred = false;
+        updateProviderSearchBox();
+        updateProviderRenameBox();
+        updatePreviewDragButton();
+        updatePreviewScrollbar();
+    }
+
+    private void renderPreviewLayer(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        PoseStack poseStack = guiGraphics.pose();
+        poseStack.pushPose();
+        poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
+        try {
+            Rect2i previewBounds = getPreviewPanelBounds();
+            guiGraphics.blit(AE2_UPLOAD_TEXTURE,
+                    previewBounds.getX(), previewBounds.getY(),
+                    0,
+                    0, 0,
+                    previewBounds.getWidth(), previewBounds.getHeight(),
+                    PANEL_TEXTURE_WIDTH, PANEL_TEXTURE_HEIGHT);
+            drawProviderButtons(guiGraphics, mouseX, mouseY);
+            drawPreviewScrollbarHandle(guiGraphics);
+            renderPreviewLayerWidget(this.providerSearchBox, guiGraphics, mouseX, mouseY, partialTicks);
+            renderPreviewLayerWidget(this.providerRenameBox, guiGraphics, mouseX, mouseY, partialTicks);
+            renderPreviewLayerWidget(this.previewDragButton, guiGraphics, mouseX, mouseY, partialTicks);
+        } finally {
+            poseStack.popPose();
+        }
+    }
+
+    private void renderPreviewLayerWidget(AbstractWidget widget, GuiGraphics guiGraphics, int mouseX, int mouseY,
+                                          float partialTicks) {
+        if (widget != null && widget.visible) {
+            widget.render(guiGraphics, mouseX, mouseY, partialTicks);
+        }
+    }
+
+    private void renderPreviewLayerWidgetTooltips(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (this.previewDragButton != null && this.previewDragButton.visible && this.previewDragButton.isMouseOver(mouseX, mouseY)) {
+            guiGraphics.renderTooltip(this.font, this.previewDragButton.getMessage(), mouseX, mouseY);
+        }
     }
 
     @Override
@@ -620,10 +672,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         this.providerSearchBox.setY(previewBounds.getY() + PANEL_SEARCH_Y);
         this.providerSearchBox.setWidth(PANEL_SEARCH_WIDTH);
         this.providerSearchBox.setHeight(PANEL_SEARCH_HEIGHT);
-        boolean visible = this.previewVisible && !isRenamingProvider();
+        boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && !isRenamingProvider();
         this.providerSearchBox.setVisible(visible);
         this.providerSearchBox.active = visible;
-        if (!visible) {
+        if (!visible && !this.previewLayerWidgetRenderingDeferred) {
             this.providerSearchBox.setFocused(false);
         }
     }
@@ -634,10 +686,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         }
 
         var provider = getPatternProvider(this.renamingProviderId);
-        boolean visible = this.previewVisible && provider != null && provider.renameable();
+        boolean visible = this.previewVisible && !this.previewLayerWidgetRenderingDeferred && provider != null && provider.renameable();
         this.providerRenameBox.setVisible(visible);
         this.providerRenameBox.active = visible;
-        if (!visible) {
+        if (!visible && !this.previewLayerWidgetRenderingDeferred) {
             this.providerRenameBox.setFocused(false);
             return;
         }
@@ -654,7 +706,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             return;
         }
 
-        this.previewDragButton.setVisibility(this.previewVisible);
+        this.previewDragButton.setVisibility(this.previewVisible && !this.previewLayerWidgetRenderingDeferred);
         if (!this.previewVisible) {
             return;
         }
