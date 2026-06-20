@@ -63,7 +63,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     private static final float THROW_POWER = 2.5F;
     private static final float LIGHT_BLADE_SPEED = 2.8F;
     private static final float LIGHT_BLADE_DAMAGE_RATIO = 5.0F / 6.0F;
-    private static final long SWORD_AI_STRIP_DATA_FLOW_COST = 20L;
+    private static final long SWORD_DATA_DISORDER_DATA_FLOW_COST = 20L;
     private static final int DATA_DISORDER_DURATION_TICKS = 20;
     public static final float SANCTIFIER_THROWN_LIGHT_BLADE_SPEED = 2.4F;
     private final boolean throwable;
@@ -397,22 +397,39 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     private void tryApplyDataDisorder(ItemStack stack, LivingEntity target, LivingEntity attacker) {
-        if (!stack.is(ModItems.DATA_CRYSTAL_SWORD.get()) || this.getSaberEnergyCardCount(stack) <= 0) {
+        if (this.getSaberEnergyCardCount(stack) <= 0) {
             return;
         }
 
+        if (!(attacker instanceof Player player) || player.getAttackStrengthScale(0.5F) < 1.0F) {
+            return;
+        }
+
+        if (stack.is(ModItems.DATA_CRYSTAL_SWORD.get())) {
+            this.tryApplyDataCrystalSwordDisorder(stack, target, attacker);
+            return;
+        }
+
+        if (stack.is(ModItems.DATA_LIGHT_SABER.get())) {
+            DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker,
+                    (float) getPanelAttackDamage(stack));
+        }
+    }
+
+    private void tryApplyDataCrystalSwordDisorder(ItemStack stack, LivingEntity target, LivingEntity attacker) {
         var cellInventory = StorageCells.getCellInventory(stack, null);
         if (cellInventory == null) {
             return;
         }
 
-        long extracted = cellInventory.extract(DataFlowKey.of(), SWORD_AI_STRIP_DATA_FLOW_COST, Actionable.MODULATE,
-                IActionSource.empty());
-        if (extracted < SWORD_AI_STRIP_DATA_FLOW_COST) {
+        long extracted = cellInventory.extract(DataFlowKey.of(), SWORD_DATA_DISORDER_DATA_FLOW_COST,
+                Actionable.MODULATE, IActionSource.empty());
+        if (extracted < SWORD_DATA_DISORDER_DATA_FLOW_COST) {
             return;
         }
 
-        DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker);
+        DataDisorderEffectLogic.applyOrBurst(target, DATA_DISORDER_DURATION_TICKS, attacker,
+                (float) getPanelAttackDamage(stack));
     }
 
     private static List<ItemStack> collectUpgradeItems(appeng.api.upgrades.IUpgradeInventory upgrades) {

@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.entity;
 
 import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
+import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -101,8 +103,8 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
         this.resetTargetInvulnerability(target);
         if (target.hurt(damageSource, damage) && this.level() instanceof ServerLevel serverLevel) {
             EnchantmentHelper.doPostAttackEffectsWithItemSource(serverLevel, target, damageSource, this.getWeaponStack());
-            if (target instanceof LivingEntity livingTarget) {
-                DataDisorderEffectLogic.applyOrBurst(livingTarget, DATA_DISORDER_DURATION_TICKS, owner);
+            if (target instanceof LivingEntity livingTarget && this.canApplyDataDisorder()) {
+                DataDisorderEffectLogic.applyOrBurst(livingTarget, DATA_DISORDER_DURATION_TICKS, owner, damage);
             }
         }
         this.discardWithEffects();
@@ -184,6 +186,13 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
 
     public ItemStack getWeaponStack() {
         return this.entityData.get(DATA_WEAPON_STACK);
+    }
+
+    private boolean canApplyDataDisorder() {
+        ItemStack weaponStack = this.getWeaponStack();
+        return weaponStack.is(ModItems.DATA_LIGHT_SABER.get())
+                && weaponStack.getItem() instanceof PoweredEnergyItem poweredEnergyItem
+                && poweredEnergyItem.getSaberEnergyCardCount(weaponStack) > 0;
     }
 
     private void resetTargetInvulnerability(Entity target) {
