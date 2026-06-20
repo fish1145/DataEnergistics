@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataRipperSettings;
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.DataRipperConfigParsingUtils;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 
@@ -89,7 +90,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
     @Override
     protected int getUpgradeSlots() {
-        return 8;
+        return 11;
     }
 
     @Override
@@ -336,7 +337,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private int calculateSpeed() {
-        int cardCount = this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD);
+        int cardCount = this.getUpgrades().getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get());
         if (cardCount <= 0) {
             this.cachedSpeedCards = 0;
             this.cachedSpeedProduct = 0;

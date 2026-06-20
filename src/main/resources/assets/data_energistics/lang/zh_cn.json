@@ -228,7 +228,7 @@
 	"message.data_energistics.digital_storage_depot.bucket_mode_on": "数位化存储仓已切换为桶模式",
 	"message.data_energistics.digital_storage_depot.bucket_mode_off": "数位化存储仓已切换为方块模式",
 	"message.data_energistics.universal_terminal.mode": "通用终端模式：%s",
-	"item.data_energistics.data_ripper.tip.requirement": "需要放入 AE2 加速卡以启用加速",
+	"item.data_energistics.data_ripper.tip.requirement": "需要放入聚能卡以启用加速",
 	"item.data_energistics.data_ripper.tip.max": "最高可达 1024x 加速",
 	"item.data_energistics.data_ripper.tip.energy": "加速会消耗网络中的数据流，耗尽后将暂停",
 	"item.data_energistics.carrier.target": "目标生物：%s",

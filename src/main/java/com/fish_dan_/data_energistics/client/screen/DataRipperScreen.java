@@ -9,11 +9,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.api.config.YesNo;
+import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
-import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.menu.SlotSemantics;
 
-public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
+public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
 
     private final DataRipperSettingToggleButton accelerateButton;
     private final DataRipperSettingToggleButton redstoneControlButton;
@@ -21,6 +22,7 @@ public class DataRipperScreen extends UpgradeableScreen<DataRipperMenu> {
 
     public DataRipperScreen(DataRipperMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.setSlotsHidden(SlotSemantics.TOOLBOX, true);
 
         this.redstoneControlButton = new DataRipperSettingToggleButton(
                 DataRipperSettings.REDSTONE_CONTROL,
