@@ -68,12 +68,14 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
 
     public DataChargerBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(), pos, state);
+        var connectableSides = getGridConnectableSides(BlockOrientation.get(state));
         this.getMainNode()
                 .setVisualRepresentation(isExtended() ? ModBlocks.EXTENDED_DATA_CHARGER.get() : ModBlocks.DATA_CHARGER.get())
+                .setExposedOnSides(connectableSides)
                 .setIdlePowerUsage(0.0D);
         this.storage.setFilter(new ChargerItemFilter());
         this.setInternalMaxPower(getPowerCapacity());
-        this.setPowerSides(getGridConnectableSides(BlockOrientation.get(state)));
+        this.setPowerSides(connectableSides);
     }
 
     @Override
@@ -89,7 +91,9 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     @Override
     protected void onOrientationChanged(BlockOrientation orientation) {
         super.onOrientationChanged(orientation);
-        this.setPowerSides(getGridConnectableSides(orientation));
+        var connectableSides = getGridConnectableSides(orientation);
+        this.getMainNode().setExposedOnSides(connectableSides);
+        this.setPowerSides(connectableSides);
     }
 
     @Override
