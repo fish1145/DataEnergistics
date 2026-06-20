@@ -190,9 +190,7 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
 
     private boolean canApplyDataDisorder() {
         ItemStack weaponStack = this.getWeaponStack();
-        return weaponStack.is(ModItems.DATA_LIGHT_SABER.get())
-                && weaponStack.getItem() instanceof PoweredEnergyItem poweredEnergyItem
-                && poweredEnergyItem.getSaberEnergyCardCount(weaponStack) > 0;
+        return weaponStack.is(ModItems.DATA_LIGHT_SABER.get()) && weaponStack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(weaponStack) > 0;
     }
 
     private void resetTargetInvulnerability(Entity target) {
