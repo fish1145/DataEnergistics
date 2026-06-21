@@ -544,8 +544,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-    }
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
 
     @Override
     public boolean dataEnergistics$hasRedstoneTuningCard() {
@@ -865,8 +864,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                     }
                 }
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     protected String getProviderTranslationKey() {
