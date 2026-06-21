@@ -5,16 +5,28 @@ import com.fish_dan_.data_energistics.client.widget.DataRipperSettingToggleButto
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.util.DataRipperPowerUtils;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 import appeng.api.config.YesNo;
+import appeng.api.upgrades.Upgrades;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.core.localization.GuiText;
 import appeng.menu.SlotSemantics;
+import appeng.menu.slot.AppEngSlot;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
+
+    private static final int SLOT_SIZE = 16;
+    private static final int UPGRADE_BACKGROUND_SIZE = 12;
+    private static final int UPGRADE_BACKGROUND_OFFSET = (SLOT_SIZE - UPGRADE_BACKGROUND_SIZE) / 2;
 
     private final DataRipperSettingToggleButton accelerateButton;
     private final DataRipperSettingToggleButton redstoneControlButton;
@@ -23,6 +35,7 @@ public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
     public DataRipperScreen(DataRipperMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.setSlotsHidden(SlotSemantics.TOOLBOX, true);
+        this.configureUpgradeSlots();
 
         this.redstoneControlButton = new DataRipperSettingToggleButton(
                 DataRipperSettings.REDSTONE_CONTROL,
@@ -45,6 +58,50 @@ public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
                 "button.data_energistics.data_ripper.accelerate.disabled",
                 "button.data_energistics.data_ripper.accelerate.blocked");
         this.addToLeftToolbar(this.accelerateButton);
+    }
+
+    private void configureUpgradeSlots() {
+        for (var slot : this.menu.getSlots(SlotSemantics.UPGRADE)) {
+            if (slot instanceof AppEngSlot appEngSlot) {
+                appEngSlot.setIcon(null);
+            }
+        }
+    }
+
+    @Override
+    protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (this.menu.getCarried().isEmpty() && this.isEmptyUpgradeSlot(this.hoveredSlot)) {
+            this.drawTooltipWithHeader(guiGraphics, mouseX, mouseY, this.getCompatibleUpgradeTooltip());
+            return;
+        }
+
+        super.renderTooltip(guiGraphics, mouseX, mouseY);
+    }
+
+    @Override
+    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
+        if (this.isEmptyUpgradeSlot(slot)) {
+            this.renderUpgradeSlotBackground(guiGraphics, slot);
+        }
+
+        super.renderSlot(guiGraphics, slot);
+    }
+
+    private boolean isEmptyUpgradeSlot(Slot slot) {
+        return slot != null && slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == SlotSemantics.UPGRADE;
+    }
+
+    private List<Component> getCompatibleUpgradeTooltip() {
+        var tooltip = new ArrayList<Component>();
+        tooltip.add(GuiText.CompatibleUpgrades.text());
+        tooltip.addAll(Upgrades.getTooltipLinesForMachine(this.menu.getUpgrades().getUpgradableItem()));
+        return tooltip;
+    }
+
+    private void renderUpgradeSlotBackground(GuiGraphics guiGraphics, Slot slot) {
+        Icon.BACKGROUND_UPGRADE.getBlitter()
+                .dest(slot.x + UPGRADE_BACKGROUND_OFFSET, slot.y + UPGRADE_BACKGROUND_OFFSET, UPGRADE_BACKGROUND_SIZE, UPGRADE_BACKGROUND_SIZE)
+                .blit(guiGraphics);
     }
 
     @Override

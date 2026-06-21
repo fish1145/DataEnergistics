@@ -53,8 +53,8 @@
 	},
 	"slots": {
 		"UPGRADE": {
-			"left": 120,
-			"top": 14,
+			"left": 175,
+			"top": 7,
 			"grid": "BREAK_AFTER_3COLS"
 		}
 	}
