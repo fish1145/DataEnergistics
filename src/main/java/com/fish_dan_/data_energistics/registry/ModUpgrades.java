@@ -51,6 +51,7 @@ public final class ModUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
+        Upgrades.add(AEItems.INVERTER_CARD, ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_1K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_1k");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_4K.get(), 3,

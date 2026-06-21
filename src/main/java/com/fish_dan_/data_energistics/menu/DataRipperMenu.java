@@ -38,6 +38,8 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
     private YesNo accelerate = YesNo.YES;
     @GuiSync(722)
     private YesNo redstoneControl = YesNo.NO;
+    @GuiSync(723)
+    public int inverterCardCount;
 
     public DataRipperMenu(int id, Inventory playerInventory, DataRipperPart host) {
         super(ModMenus.DATA_RIPPER.get(), id, playerInventory, host);
@@ -70,6 +72,7 @@ public class DataRipperMenu extends UpgradeableMenu<DataRipperPart> {
             this.redstoneControl = this.logic.getConfigManager().getSetting(DataRipperSettings.REDSTONE_CONTROL);
             this.networkEnergySufficient = this.logic.isNetworkEnergySufficient() ? YesNo.YES : YesNo.NO;
             this.energyCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.ENERGY_CARD);
+            this.inverterCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.INVERTER_CARD);
             this.updateTargetStatus();
             this.updateEffectiveSpeed();
         }

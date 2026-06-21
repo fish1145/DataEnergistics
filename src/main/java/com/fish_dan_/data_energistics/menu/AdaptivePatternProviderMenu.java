@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
+import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.chat.Component;
@@ -18,6 +21,7 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.upgrades.Upgrades;
 import appeng.api.util.IConfigurableObject;
 import appeng.core.localization.Tooltips;
@@ -34,11 +38,12 @@ import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 
-public class AdaptivePatternProviderMenu extends AEBaseMenu {
+public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternProviderMenuAccessor {
 
     private static final String ACTION_SET_PAGE = "set_page";
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
     private static final String ACTION_SET_RESONATING_PULL = "set_resonating_pull";
+    private static final String ACTION_SET_REDSTONE_TUNING_MODE = "set_redstone_tuning_mode";
     private static final String ACTION_TOGGLE_AE2LT_MODE = "toggle_ae2lt_mode";
     private static final String ACTION_TOGGLE_AE2LT_RETURN_MODE = "toggle_ae2lt_return_mode";
     private static final String ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH = "toggle_ae2lt_wireless_dispatch";
@@ -90,6 +95,10 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     public boolean ae2LtPackagedProviderSelected;
     @GuiSync(791)
     public boolean ae2LtPackagedWirelessProviderSelected;
+    @GuiSync(792)
+    public boolean hasRedstoneTuningCard;
+    @GuiSync(793)
+    public int redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH.ordinal();
 
     public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
         super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
@@ -100,6 +109,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_SET_FILTERED_IMPORT, Boolean.class, this::setAdvancedAeFilteredImport);
         registerClientAction(ACTION_SET_RESONATING_PULL, Boolean.class, this::setResonatingPullEnabled);
+        registerClientAction(ACTION_SET_REDSTONE_TUNING_MODE, Integer.class, this::applyRedstoneTuningMode);
         registerClientAction(ACTION_TOGGLE_AE2LT_MODE, this::toggleAe2LtMode);
         registerClientAction(ACTION_TOGGLE_AE2LT_RETURN_MODE, this::toggleAe2LtReturnMode);
         registerClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH, this::toggleAe2LtWirelessDispatchMode);
@@ -271,7 +281,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
     }
 
     public IUpgradeInventory getUpgrades() {
-        return this.host != null ? this.host.getUpgrades() : appeng.api.upgrades.UpgradeInventories.empty();
+        return this.host != null ? this.host.getUpgrades() : UpgradeInventories.empty();
     }
 
     public YesNo getBlockingMode() {
@@ -350,6 +360,28 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         return this.ae2ltReturnMode;
     }
 
+    @Override
+    public boolean dataEnergistics$hasRedstoneTuningCard() {
+        return this.hasRedstoneTuningCard;
+    }
+
+    @Override
+    public int dataEnergistics$getRedstoneTuningMode() {
+        return this.redstoneTuningMode;
+    }
+
+    @Override
+    public void dataEnergistics$setRedstoneTuningMode(int ordinal) {
+        RedstoneTuningMode mode = redstoneTuningModeFromOrdinal(ordinal);
+        this.redstoneTuningMode = mode.ordinal();
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_SET_REDSTONE_TUNING_MODE, mode.ordinal());
+            return;
+        }
+
+        applyRedstoneTuningMode(mode.ordinal());
+    }
+
     private void loadSettingsFromHost() {
         if (this.host instanceof IConfigurableObject configurableObject) {
             var configManager = configurableObject.getConfigManager();
@@ -362,6 +394,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
             this.craftingLockedReason = this.logic.getCraftingLockedReason();
             this.unlockStack = this.logic.getUnlockStack();
         }
+        syncRedstoneTuningFromHost();
     }
 
     private void setPage(Integer pageIndex) {
@@ -391,6 +424,20 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
 
         this.host.setResonatingPullEnabled(enabled);
         syncStateFromHost();
+        broadcastChanges();
+    }
+
+    private void applyRedstoneTuningMode(Integer ordinal) {
+        RedstoneTuningAwareHost tuningHost = getRedstoneTuningHost();
+        if (tuningHost == null) {
+            return;
+        }
+
+        RedstoneTuningMode mode = redstoneTuningModeFromOrdinal(ordinal);
+        if (tuningHost.dataEnergistics$setRedstoneTuningMode(mode)) {
+            this.redstoneTuningMode = mode.ordinal();
+            this.hasRedstoneTuningCard = tuningHost.dataEnergistics$hasRedstoneTuningCard();
+        }
         broadcastChanges();
     }
 
@@ -460,6 +507,34 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         this.ae2ltReturnMode = this.host.getAe2LtReturnMode().ordinal();
         this.ae2ltWirelessDispatchMode = this.host.getAe2LtWirelessDispatchMode().ordinal();
         this.ae2ltWirelessSpeedMode = this.host.getAe2LtWirelessSpeedMode().ordinal();
+        syncRedstoneTuningFromHost();
+    }
+
+    private void syncRedstoneTuningFromHost() {
+        RedstoneTuningAwareHost tuningHost = getRedstoneTuningHost();
+        if (tuningHost == null) {
+            this.hasRedstoneTuningCard = false;
+            this.redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH.ordinal();
+            return;
+        }
+
+        this.hasRedstoneTuningCard = tuningHost.dataEnergistics$hasRedstoneTuningCard();
+        this.redstoneTuningMode = tuningHost.dataEnergistics$getRedstoneTuningMode().ordinal();
+    }
+
+    private RedstoneTuningAwareHost getRedstoneTuningHost() {
+        return this.host instanceof RedstoneTuningAwareHost tuningHost ? tuningHost : null;
+    }
+
+    private static RedstoneTuningMode redstoneTuningModeFromOrdinal(Integer ordinal) {
+        if (ordinal == null) {
+            throw new IllegalArgumentException("Redstone tuning mode ordinal is required");
+        }
+        RedstoneTuningMode[] values = RedstoneTuningMode.values();
+        if (ordinal < 0 || ordinal >= values.length) {
+            throw new IllegalArgumentException("Invalid redstone tuning mode ordinal: " + ordinal);
+        }
+        return values[ordinal];
     }
 
     private void addUpgradeSlots() {

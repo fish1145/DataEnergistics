@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
@@ -14,6 +15,7 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -55,6 +57,12 @@ import java.util.Optional;
 public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
 
     private static final int HIDDEN_SLOT_COORD = -9999;
+    private static final ResourceLocation EXTRA_PANELS_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/extra_panels.png");
+    private static final int EXTRA_PANELS_TEXTURE_SIZE = 128;
+    private static final int AE2LTPP_PANEL_U = 0;
+    private static final int AE2LTPP_PANEL_V = 0;
+    private static final int AE2LTPP_PANEL_WIDTH = 23;
+    private static final int AE2LTPP_PANEL_HEIGHT = 30;
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF = List.of(Component.translatable("ae2lt.gui.return_mode.off"));
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO = List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT = List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
@@ -74,6 +82,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     private final Ae2LtTextureToggleButton ae2ltWirelessSpeedButton;
     private final DataExtractorToggleButton filteredImportButton;
     private final AecsPullModeButton resonatingPullButton;
+    private final PatternProviderRedstoneTuningButton redstoneTuningButton;
     private final AdaptivePatternProviderLockReason lockReason;
     private final List<Slot> duplicateUpgradeSlots;
     private final List<Slot> duplicateToolboxSlots;
@@ -162,6 +171,9 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull.disabled",
                 this::setResonatingPull);
         this.addToLeftToolbar(this.resonatingPullButton);
+
+        this.redstoneTuningButton = new PatternProviderRedstoneTuningButton(menu);
+        this.addToLeftToolbar(this.redstoneTuningButton);
     }
 
     @Override
@@ -222,17 +234,36 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 "screen.data_energistics.page",
                 this.menu.totalPages <= 0 ? 1 : this.menu.pageIndex + 1,
                 Math.max(1, this.menu.totalPages)));
+        this.redstoneTuningButton.syncFromMenu();
     }
 
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PAGE_PATTERN) {
+        var semantic = this.menu.getSlotSemantic(slot);
+        if (slot.isActive() && semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER) {
+            guiGraphics.blit(
+                    EXTRA_PANELS_TEXTURE,
+                    slot.x - 2,
+                    slot.y - 6,
+                    0,
+                    AE2LTPP_PANEL_U,
+                    AE2LTPP_PANEL_V,
+                    AE2LTPP_PANEL_WIDTH,
+                    AE2LTPP_PANEL_HEIGHT,
+                    EXTRA_PANELS_TEXTURE_SIZE,
+                    EXTRA_PANELS_TEXTURE_SIZE);
+        }
+
+        if (slot.isActive() && slot.getItem().isEmpty() && semantic == AdaptivePatternProviderMenu.PAGE_PATTERN) {
             Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
-        } else if (slot.isActive() && slot.getItem().isEmpty() && (this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PROVIDER_INPUT || this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {
-            DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
-                    .dest(slot.x, slot.y)
+        } else if (slot.isActive() && (semantic == AdaptivePatternProviderMenu.PROVIDER_INPUT && slot.getItem().isEmpty() || semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {
+            String backgroundIcon = semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? "AE2LTPP_PROVIDER_COSE_BASE" : "BACKGROUND_BLOCK";
+            DataEnergisticsIcon.getBlitter(backgroundIcon)
+                    .dest(
+                            semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? slot.x - 1 : slot.x,
+                            semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? slot.y - 1 : slot.y)
                     .blit(guiGraphics);
         }
         super.renderSlot(guiGraphics, slot);

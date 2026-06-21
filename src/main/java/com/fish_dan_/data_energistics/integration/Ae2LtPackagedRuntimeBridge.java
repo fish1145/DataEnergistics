@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +32,8 @@ public final class Ae2LtPackagedRuntimeBridge {
     private static final String DISPATCH_RESULT_CLASS = "com.moakiee.ae2lt.packaged.logic.DispatchResult";
     private static final String ALLOWED_OUTPUT_FILTER_CLASS = "com.moakiee.ae2lt.logic.AllowedOutputFilter";
     private static final String MULTIBLOCK_ADAPTER_ITEM_CLASS = "com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem";
+    private static final String VIRTUAL_CRAFTING_ADAPTER_CLASS = "com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingAdapter";
+    private static final String VIRTUAL_CRAFTING_RESULT_CLASS = "com.moakiee.ae2lt.packaged.logic.multiblock.VirtualCraftingResult";
 
     private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
     private static volatile @Nullable Access access;
@@ -49,15 +53,17 @@ public final class Ae2LtPackagedRuntimeBridge {
         return access != null;
     }
 
-    public static boolean dispatch(ServerLevel level,
-                                   BlockPos pos,
-                                   IPatternDetails patternDetails,
-                                   KeyCounter[] inputHolder,
-                                   ItemStack adapterStack,
-                                   @Nullable Object allowedOutputFilter,
-                                   IActionSource actionSource,
-                                   PatternProviderReturnInventory returnInventory) {
-        if (!isAvailable() || patternDetails == null) {
+    public static boolean isAdapterItem(ItemStack stack) {
+        if (stack.isEmpty() || !isAvailable()) {
+            return false;
+        }
+
+        Access methods = access;
+        return methods != null && methods.adapterItemClass().isInstance(stack.getItem());
+    }
+
+    public static boolean isSupportedTarget(ServerLevel level, BlockPos pos) {
+        if (!isAvailable()) {
             return false;
         }
 
@@ -67,13 +73,59 @@ public final class Ae2LtPackagedRuntimeBridge {
                 return false;
             }
 
+            return findMultiblockAdapter(methods, level, pos) != null;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static boolean isAdapterStackCompatible(ServerLevel level, BlockPos pos, ItemStack adapterStack) {
+        if (!isAdapterItem(adapterStack)) {
+            return false;
+        }
+
+        try {
+            Access methods = access;
+            if (methods == null) {
+                return false;
+            }
+
+            Object adapter = findMultiblockAdapter(methods, level, pos);
+            return adapter != null && adapterStackMatchesTarget(methods, adapter, level, pos, adapterStack);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static boolean dispatch(ServerLevel level,
+                                   BlockPos pos,
+                                   IPatternDetails patternDetails,
+                                   KeyCounter[] inputHolder,
+                                   ItemStack adapterStack,
+                                   @Nullable Object allowedOutputFilter,
+                                   IActionSource actionSource,
+                                   PatternProviderReturnInventory returnInventory) {
+        if (!isAvailable() || patternDetails == null) {
+            logDispatch("dispatch aborted: bridge unavailable={} patternNull={} pos={}", !isAvailable(), patternDetails == null, pos);
+            return false;
+        }
+
+        try {
+            Access methods = access;
+            if (methods == null) {
+                logDispatch("dispatch aborted: access missing pos={}", pos);
+                return false;
+            }
+
             BlockEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity == null) {
+                logDispatch("dispatch aborted: block entity missing pos={}", pos);
                 return false;
             }
 
             Object adapter = methods.multiblockAdapterFind().invoke(level, pos, blockEntity);
             if (adapter == null) {
+                logDispatch("dispatch aborted: no multiblock adapter pos={} blockEntity={}", pos, blockEntity.getClass().getName());
                 return false;
             }
 
@@ -81,18 +133,28 @@ public final class Ae2LtPackagedRuntimeBridge {
             if (requiredAdapterId instanceof ResourceLocation) {
                 Object covered = methods.adapterItemStackCovers().invoke(adapterStack, requiredAdapterId);
                 if (!Boolean.TRUE.equals(covered)) {
+                    logDispatch("dispatch aborted: adapter mismatch pos={} required={} adapter={}", pos, requiredAdapterId, adapterStack);
                     return false;
                 }
             }
 
             Object binding = methods.adapterBind().invoke(adapter, level, pos, patternDetails);
             if (binding == null) {
+                logDispatch("dispatch aborted: binding null pos={} pattern={}", pos, patternDetails.getClass().getName());
                 return false;
             }
 
             Object handle = methods.bindingHandle().invoke(binding);
             Object mode = methods.bindingMode().invoke(binding);
-            if (handle == null || mode != methods.realBindingMode()) {
+            if (mode == methods.virtualBindingMode()) {
+                return executeVirtualDispatch(methods, adapter, level, pos, patternDetails, inputHolder, handle, actionSource, returnInventory);
+            }
+            if (mode != methods.realBindingMode()) {
+                logDispatch("dispatch aborted: binding invalid pos={} mode={} expectedReal={} expectedVirtual={}", pos, mode, methods.realBindingMode(), methods.virtualBindingMode());
+                return false;
+            }
+            if (handle == null) {
+                logDispatch("dispatch aborted: real binding handle missing pos={} mode={}", pos, mode);
                 return false;
             }
 
@@ -103,6 +165,7 @@ public final class Ae2LtPackagedRuntimeBridge {
 
             Object canDispatch = methods.adapterCanDispatch().invoke(adapter, level, pos, handle);
             if (!Boolean.TRUE.equals(canDispatch)) {
+                logDispatch("dispatch aborted: adapter cannot dispatch pos={}", pos);
                 return false;
             }
 
@@ -115,15 +178,115 @@ public final class Ae2LtPackagedRuntimeBridge {
                     handle,
                     actionSource);
             if (plan == null) {
+                logDispatch("dispatch aborted: dispatch plan null pos={}", pos);
                 return false;
             }
 
             Object result = methods.dispatchExecute().invoke(plan, actionSource, returnInventory);
             Object success = methods.dispatchResultSuccess().invoke(result);
-            return Boolean.TRUE.equals(success);
+            boolean succeeded = Boolean.TRUE.equals(success);
+            logDispatch("dispatch completed: pos={} success={}", pos, succeeded);
+            return succeeded;
         } catch (Throwable ignored) {
+            logDispatch("dispatch threw exception pos={} type={} message={}", pos, ignored.getClass().getName(), ignored.getMessage());
             return false;
         }
+    }
+
+    public static List<GenericStack> extractOutputs(ServerLevel level,
+                                                    BlockPos pos,
+                                                    @Nullable Object allowedOutputFilter,
+                                                    IActionSource actionSource) {
+        if (!isAvailable() || allowedOutputFilter == null) {
+            return List.of();
+        }
+
+        try {
+            Access methods = access;
+            if (methods == null) {
+                return List.of();
+            }
+
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity == null) {
+                return List.of();
+            }
+
+            Object adapter = methods.multiblockAdapterFind().invoke(level, pos, blockEntity);
+            if (adapter == null || methods.virtualCraftingAdapterClass().isInstance(adapter)) {
+                return List.of();
+            }
+
+            Object outputs = methods.adapterExtractOutputs().invoke(adapter, level, pos, allowedOutputFilter, actionSource);
+            if (!(outputs instanceof List<?> list) || list.isEmpty()) {
+                return List.of();
+            }
+
+            return collectGenericStacks(list);
+        } catch (Throwable ignored) {
+            return List.of();
+        }
+    }
+
+    private static boolean executeVirtualDispatch(Access methods,
+                                                  Object adapter,
+                                                  ServerLevel level,
+                                                  BlockPos pos,
+                                                  IPatternDetails patternDetails,
+                                                  KeyCounter[] inputHolder,
+                                                  Object handle,
+                                                  IActionSource actionSource,
+                                                  PatternProviderReturnInventory returnInventory) throws Throwable {
+        if (!methods.virtualCraftingAdapterClass().isInstance(adapter)) {
+            logDispatch("virtual dispatch aborted: adapter does not implement virtual crafting pos={} adapter={}", pos, adapter.getClass().getName());
+            return false;
+        }
+
+        Object result = methods.virtualPlanWithBinding().invoke(adapter, level, pos, patternDetails, inputHolder, handle, actionSource);
+        if (result == null) {
+            logDispatch("virtual dispatch aborted: virtual plan null pos={}", pos);
+            return false;
+        }
+
+        Object outputs = methods.virtualResultOutputs().invoke(result);
+        if (!(outputs instanceof List<?> list) || list.isEmpty()) {
+            logDispatch("virtual dispatch aborted: no outputs pos={}", pos);
+            return false;
+        }
+
+        insertOutputsToReturnInventory(list, returnInventory, actionSource);
+        methods.virtualOnBatchFlush().invoke(adapter, level, pos, handle, actionSource);
+        logDispatch("virtual dispatch completed: pos={} outputs={}", pos, list.size());
+        return true;
+    }
+
+    private static void logDispatch(String message, Object... args) {
+        if (!Data_Energistics.isDev()) {
+            return;
+        }
+        Data_Energistics.LOGGER.info("[DE][AE2LTPP][Dispatch] " + message, args);
+    }
+
+    private static @Nullable Object findMultiblockAdapter(Access methods, ServerLevel level, BlockPos pos) throws Throwable {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity == null) {
+            return null;
+        }
+
+        return methods.multiblockAdapterFind().invoke(level, pos, blockEntity);
+    }
+
+    private static boolean adapterStackMatchesTarget(Access methods,
+                                                     Object adapter,
+                                                     ServerLevel level,
+                                                     BlockPos pos,
+                                                     ItemStack adapterStack) throws Throwable {
+        Object requiredAdapterId = methods.adapterRequiredAdapterId().invoke(adapter, level, pos);
+        if (requiredAdapterId instanceof ResourceLocation resourceLocation) {
+            Object covered = methods.adapterItemStackCovers().invoke(adapterStack, resourceLocation);
+            return Boolean.TRUE.equals(covered);
+        }
+        return true;
     }
 
     private static void insertOutputsToReturnInventory(@Nullable Object outputs,
@@ -133,11 +296,23 @@ public final class Ae2LtPackagedRuntimeBridge {
             return;
         }
 
+        for (GenericStack stack : collectGenericStacks(list)) {
+            returnInventory.insert(stack.what(), stack.amount(), Actionable.MODULATE, actionSource);
+        }
+    }
+
+    private static List<GenericStack> collectGenericStacks(List<?> list) {
+        if (list.isEmpty()) {
+            return List.of();
+        }
+
+        java.util.ArrayList<GenericStack> converted = new java.util.ArrayList<>(list.size());
         for (Object entry : list) {
             if (entry instanceof GenericStack stack && stack.what() != null && stack.amount() > 0) {
-                returnInventory.insert(stack.what(), stack.amount(), Actionable.MODULATE, actionSource);
+                converted.add(stack);
             }
         }
+        return converted.isEmpty() ? List.of() : List.copyOf(converted);
     }
 
     private static void initialize() {
@@ -152,6 +327,8 @@ public final class Ae2LtPackagedRuntimeBridge {
             Class<?> dispatchExecutorClass = Class.forName(DISPATCH_EXECUTOR_CLASS);
             Class<?> dispatchResultClass = Class.forName(DISPATCH_RESULT_CLASS);
             Class<?> adapterItemClass = Class.forName(MULTIBLOCK_ADAPTER_ITEM_CLASS);
+            Class<?> virtualCraftingAdapterClass = Class.forName(VIRTUAL_CRAFTING_ADAPTER_CLASS);
+            Class<?> virtualCraftingResultClass = Class.forName(VIRTUAL_CRAFTING_RESULT_CLASS);
 
             MethodHandle multiblockAdapterFind = findStatic(
                     registryClass,
@@ -204,10 +381,31 @@ public final class Ae2LtPackagedRuntimeBridge {
                     boolean.class,
                     ItemStack.class,
                     ResourceLocation.class);
+            MethodHandle virtualPlanWithBinding = findVirtual(
+                    virtualCraftingAdapterClass,
+                    "planVirtualWithBinding",
+                    virtualCraftingResultClass,
+                    ServerLevel.class,
+                    BlockPos.class,
+                    IPatternDetails.class,
+                    KeyCounter[].class,
+                    Object.class,
+                    IActionSource.class);
+            MethodHandle virtualResultOutputs = findVirtual(virtualCraftingResultClass, "outputs", List.class);
+            MethodHandle virtualOnBatchFlush = findVirtual(
+                    virtualCraftingAdapterClass,
+                    "onVirtualBatchFlush",
+                    void.class,
+                    ServerLevel.class,
+                    BlockPos.class,
+                    Object.class,
+                    IActionSource.class);
             MethodHandle bindingHandle = findVirtual(bindingResultClass, "handle", Object.class);
             MethodHandle bindingMode = findVirtual(bindingResultClass, "mode", bindingModeClass);
             @SuppressWarnings({ "unchecked", "rawtypes" })
             Object realBindingMode = Enum.valueOf((Class<? extends Enum>) bindingModeClass.asSubclass(Enum.class), "REAL");
+            @SuppressWarnings({ "unchecked", "rawtypes" })
+            Object virtualBindingMode = Enum.valueOf((Class<? extends Enum>) bindingModeClass.asSubclass(Enum.class), "VIRTUAL");
             MethodHandle dispatchExecute = findStatic(
                     dispatchExecutorClass,
                     "execute",
@@ -224,10 +422,16 @@ public final class Ae2LtPackagedRuntimeBridge {
                     adapterCanDispatch,
                     adapterPlanWithBinding,
                     adapterExtractOutputs,
+                    adapterItemClass,
                     adapterItemStackCovers,
+                    virtualCraftingAdapterClass,
+                    virtualPlanWithBinding,
+                    virtualResultOutputs,
+                    virtualOnBatchFlush,
                     bindingHandle,
                     bindingMode,
                     realBindingMode,
+                    virtualBindingMode,
                     dispatchExecute,
                     dispatchResultSuccess);
         } catch (ReflectiveOperationException | LinkageError | SecurityException ignored) {
@@ -249,10 +453,16 @@ public final class Ae2LtPackagedRuntimeBridge {
                           MethodHandle adapterCanDispatch,
                           MethodHandle adapterPlanWithBinding,
                           MethodHandle adapterExtractOutputs,
+                          Class<?> adapterItemClass,
                           MethodHandle adapterItemStackCovers,
+                          Class<?> virtualCraftingAdapterClass,
+                          MethodHandle virtualPlanWithBinding,
+                          MethodHandle virtualResultOutputs,
+                          MethodHandle virtualOnBatchFlush,
                           MethodHandle bindingHandle,
                           MethodHandle bindingMode,
                           Object realBindingMode,
+                          Object virtualBindingMode,
                           MethodHandle dispatchExecute,
                           MethodHandle dispatchResultSuccess) {}
 }
