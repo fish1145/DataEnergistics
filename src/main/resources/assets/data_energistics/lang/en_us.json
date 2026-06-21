@@ -223,7 +223,7 @@
 	"message.data_energistics.digital_storage_depot.bucket_mode_on": "Digital Storage Depot switched to bucket mode",
 	"message.data_energistics.digital_storage_depot.bucket_mode_off": "Digital Storage Depot switched to block mode",
 	"message.data_energistics.universal_terminal.mode": "Universal Terminal Mode: %s",
-	"item.data_energistics.data_ripper.tip.requirement": "Requires an AE2 Speed Card to enable acceleration",
+	"item.data_energistics.data_ripper.tip.requirement": "Requires a Saber Energy Card to enable acceleration",
 	"item.data_energistics.data_ripper.tip.max": "Up to 1024x acceleration",
 	"item.data_energistics.data_ripper.tip.energy": "Acceleration consumes data flow from the network and pauses when it runs out",
 	"item.data_energistics.carrier.target": "Target: %s",

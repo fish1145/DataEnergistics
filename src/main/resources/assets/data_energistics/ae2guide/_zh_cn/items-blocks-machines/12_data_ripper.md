@@ -30,13 +30,13 @@ item_ids:
 
 # 升级
 
-<ItemLink id="ae2:speed_card"/>
+<ItemLink id="data_energistics:card_saber_energy"/>
 
 <Row>
-    <ItemImage id="ae2:speed_card" />
+    <ItemImage id="data_energistics:card_saber_energy" />
 </Row>
-加速卡：  
-1 张 = 16x，2 张 = 64x，3 张 = 256x，4 张 = 1024x
+聚能卡：  
+1 张 = 16x，2 张 = 64x，3 张 = 256x，4 张 = 512x，5 张及以上 = 1024x
 
 ---
 
