@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
@@ -81,6 +82,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     private final Ae2LtTextureToggleButton ae2ltWirelessSpeedButton;
     private final DataExtractorToggleButton filteredImportButton;
     private final AecsPullModeButton resonatingPullButton;
+    private final PatternProviderRedstoneTuningButton redstoneTuningButton;
     private final AdaptivePatternProviderLockReason lockReason;
     private final List<Slot> duplicateUpgradeSlots;
     private final List<Slot> duplicateToolboxSlots;
@@ -169,6 +171,9 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull.disabled",
                 this::setResonatingPull);
         this.addToLeftToolbar(this.resonatingPullButton);
+
+        this.redstoneTuningButton = new PatternProviderRedstoneTuningButton(menu);
+        this.addToLeftToolbar(this.redstoneTuningButton);
     }
 
     @Override
@@ -229,6 +234,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 "screen.data_energistics.page",
                 this.menu.totalPages <= 0 ? 1 : this.menu.pageIndex + 1,
                 Math.max(1, this.menu.totalPages)));
+        this.redstoneTuningButton.syncFromMenu();
     }
 
     @Override

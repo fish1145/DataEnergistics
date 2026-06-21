@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderExternalHandlers;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
@@ -10,9 +12,11 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHand
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
+import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -25,6 +29,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
@@ -39,6 +44,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
+import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
@@ -57,13 +63,16 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 
-public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
+public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost, RedstoneTuningAwareHost {
 
     protected static final String ADAPTIVE_PATTERN_PROVIDER_KEY = "adaptive_pattern_provider";
     private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID = ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
     private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
+    private static final String REDSTONE_TUNING_TAG = "data_energistics_redstone_tuning_mode";
+    private static final int REDSTONE_PULSE_TICKS = 1;
 
     @Nullable
     private AdaptivePatternProviderState adaptiveState;
@@ -72,6 +81,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getAdaptiveLogic);
     private final Object externalReturnChemicalHandler = AdaptivePatternProviderExternalHandlers.createChemicalHandler(this::getAdaptiveLogic);
     private int syncedPatternSlotCount = 0;
+    private RedstoneTuningMode redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH;
+    private int redstonePulseTicks;
+    private long lastPulseTickTime = Long.MIN_VALUE;
+    private boolean pendingRedstoneInputCheck;
+    private boolean lastRedstoneInputPowered;
+    private boolean redstoneInputPulsePending;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -180,7 +195,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public @Nullable appeng.api.implementations.blockentities.PatternContainerGroup getPrimaryAttachedMachineGroup() {
+    public @Nullable PatternContainerGroup getPrimaryAttachedMachineGroup() {
         var hostLevel = this.getLevel();
         if (hostLevel == null) {
             return null;
@@ -372,12 +387,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         getAdaptiveState().writeToNBT(data, registries, this.upgrades);
+        data.putString(REDSTONE_TUNING_TAG, this.redstoneTuningMode.name());
     }
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         getAdaptiveState().readFromNBT(data, registries, this.upgrades);
+        readRedstoneTuningMode(data);
         this.syncedPatternSlotCount = getConfiguredPatternSlotCount();
     }
 
@@ -441,6 +458,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         super.clearContent();
         getAdaptiveState().clearContent();
         this.upgrades.clear();
+        clearPulseState();
+        clearInputState();
     }
 
     @Override
@@ -482,7 +501,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public appeng.api.implementations.blockentities.PatternContainerGroup getTerminalGroup() {
+    public PatternContainerGroup getTerminalGroup() {
         var baseGroup = buildAdaptiveTerminalGroup();
         int unlockedSlots = getConfiguredPatternSlotCount();
         int totalSlots = getCurrentProviderMaxPatternCapacity();
@@ -493,7 +512,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 totalSlots);
 
         Component displayName = this instanceof Nameable nameable && nameable.hasCustomName() ? baseGroup.name() : getTerminalDisplayName();
-        return new appeng.api.implementations.blockentities.PatternContainerGroup(
+        return new PatternContainerGroup(
                 baseGroup.icon(),
                 displayName,
                 tooltip);
@@ -525,7 +544,110 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public void onChangeInventory(AppEngInternalInventory inv, int slot) {}
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
+    }
+
+    @Override
+    public boolean dataEnergistics$hasRedstoneTuningCard() {
+        return this.getUpgrades().getInstalledUpgrades(ModItems.REDSTONE_TUNING_CARD.get()) > 0;
+    }
+
+    @Override
+    public RedstoneTuningMode dataEnergistics$getRedstoneTuningMode() {
+        return this.redstoneTuningMode;
+    }
+
+    @Override
+    public boolean dataEnergistics$setRedstoneTuningMode(RedstoneTuningMode mode) {
+        if (mode == null || this.redstoneTuningMode == mode) {
+            return false;
+        }
+        clearPulseState();
+        clearInputState();
+        this.redstoneTuningMode = mode;
+        if (mode == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+            syncRedstoneInputBaseline();
+        }
+        this.saveChanges();
+        this.markForClientUpdate();
+        return true;
+    }
+
+    @Override
+    public void dataEnergistics$onRedstoneTuningDispatch() {
+        if (!this.dataEnergistics$hasRedstoneTuningCard() || this.redstoneTuningMode != RedstoneTuningMode.EMIT_ON_DISPATCH) {
+            return;
+        }
+        if (this.redstonePulseTicks > 0) {
+            return;
+        }
+
+        this.redstonePulseTicks = REDSTONE_PULSE_TICKS;
+        notifyPulseChanged();
+        schedulePulseTick();
+    }
+
+    @Override
+    public void dataEnergistics$serverTick() {
+        if (this.getLevel() == null) {
+            return;
+        }
+        long gameTime = this.getLevel().getGameTime();
+        if (this.lastPulseTickTime == gameTime) {
+            return;
+        }
+        this.lastPulseTickTime = gameTime;
+        if (this.pendingRedstoneInputCheck) {
+            this.pendingRedstoneInputCheck = false;
+            boolean powered = this.getLevel().hasNeighborSignal(this.getBlockPos());
+            if (powered && !this.lastRedstoneInputPowered) {
+                this.redstoneInputPulsePending = true;
+                tryForcePulseUnlock();
+            }
+            this.lastRedstoneInputPowered = powered;
+        }
+        if (this.redstonePulseTicks <= 0) {
+            return;
+        }
+        this.redstonePulseTicks--;
+        if (this.redstonePulseTicks > 0) {
+            schedulePulseTick();
+        } else {
+            notifyPulseChanged();
+        }
+    }
+
+    @Override
+    public boolean dataEnergistics$isRedstoneTuningPulseActive() {
+        return this.redstoneTuningMode == RedstoneTuningMode.EMIT_ON_DISPATCH && this.redstonePulseTicks > 0;
+    }
+
+    @Override
+    public void dataEnergistics$scheduleRedstoneInputCheck() {
+        if (this.getLevel() == null || this.getLevel().isClientSide()) {
+            return;
+        }
+        if (this.redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+            return;
+        }
+        boolean powered = this.getLevel().hasNeighborSignal(this.getBlockPos());
+        if (powered && !this.lastRedstoneInputPowered) {
+            this.redstoneInputPulsePending = true;
+            tryForcePulseUnlock();
+        }
+        this.lastRedstoneInputPowered = powered;
+        this.pendingRedstoneInputCheck = true;
+        if (this.getLevel() instanceof ServerLevel level) {
+            level.scheduleTick(this.getBlockPos(), this.getBlockState().getBlock(), 1);
+        }
+    }
+
+    @Override
+    public boolean dataEnergistics$consumeRedstoneInputPulse() {
+        boolean pending = this.redstoneInputPulsePending;
+        this.redstoneInputPulsePending = false;
+        return pending;
+    }
 
     private int getConfiguredPatternSlotCount() {
         return AdaptivePatternProviderDisplayHelper.getConfiguredPatternSlotCount(
@@ -578,15 +700,78 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
     }
 
+    private void readRedstoneTuningMode(CompoundTag data) {
+        if (!data.contains(REDSTONE_TUNING_TAG)) {
+            this.redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH;
+            return;
+        }
+
+        String modeName = data.getString(REDSTONE_TUNING_TAG);
+        try {
+            this.redstoneTuningMode = RedstoneTuningMode.valueOf(modeName);
+        } catch (IllegalArgumentException e) {
+            Data_Energistics.LOGGER.warn(
+                    "Invalid adaptive pattern provider redstone tuning mode '{}', falling back to {}",
+                    modeName,
+                    RedstoneTuningMode.EMIT_ON_DISPATCH,
+                    e);
+            this.redstoneTuningMode = RedstoneTuningMode.EMIT_ON_DISPATCH;
+        }
+    }
+
+    private void notifyPulseChanged() {
+        if (this.getLevel() != null) {
+            this.getLevel().updateNeighborsAt(this.getBlockPos(), this.getBlockState().getBlock());
+        }
+    }
+
+    private void schedulePulseTick() {
+        if (this.getLevel() instanceof ServerLevel level) {
+            level.scheduleTick(this.getBlockPos(), this.getBlockState().getBlock(), 1);
+        }
+    }
+
+    private void clearPulseState() {
+        if (this.redstonePulseTicks <= 0) {
+            this.lastPulseTickTime = Long.MIN_VALUE;
+            return;
+        }
+        this.redstonePulseTicks = 0;
+        this.lastPulseTickTime = Long.MIN_VALUE;
+        notifyPulseChanged();
+    }
+
+    private void clearInputState() {
+        this.pendingRedstoneInputCheck = false;
+        this.redstoneInputPulsePending = false;
+        this.lastRedstoneInputPowered = false;
+    }
+
+    private void syncRedstoneInputBaseline() {
+        if (this.getLevel() != null) {
+            this.lastRedstoneInputPowered = this.getLevel().hasNeighborSignal(this.getBlockPos());
+        }
+    }
+
+    private void tryForcePulseUnlock() {
+        if (!this.redstoneInputPulsePending || !this.dataEnergistics$hasRedstoneTuningCard() || this.redstoneTuningMode != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+            return;
+        }
+        AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+        if (logic != null && logic.dataEnergistics$forcePulseUnlock()) {
+            this.redstoneInputPulsePending = false;
+        }
+    }
+
     @Nullable
     public static Item getAppliedFluxInductionCard() {
         Item item = BuiltInRegistries.ITEM.get(APPFLUX_INDUCTION_CARD_ID);
         return item == null || item == Items.AIR ? null : item;
     }
 
-    private appeng.api.implementations.blockentities.PatternContainerGroup buildAdaptiveTerminalGroup() {
+    private PatternContainerGroup buildAdaptiveTerminalGroup() {
         if (this instanceof Nameable nameable && nameable.hasCustomName()) {
-            return new appeng.api.implementations.blockentities.PatternContainerGroup(
+            return new PatternContainerGroup(
                     this.getTerminalIcon(),
                     nameable.getCustomName(),
                     List.of());
@@ -595,7 +780,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         var logic = this.getLogic();
         if (logic == null) {
             var icon = this.getTerminalIcon();
-            return new appeng.api.implementations.blockentities.PatternContainerGroup(
+            return new PatternContainerGroup(
                     icon,
                     icon.getDisplayName(),
                     List.of());
@@ -609,20 +794,20 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Nullable
-    private appeng.api.implementations.blockentities.PatternContainerGroup getSingleAdjacentMachineGroup() {
+    private PatternContainerGroup getSingleAdjacentMachineGroup() {
         var groups = getAdjacentMachineGroups();
         return groups.size() == 1 ? groups.iterator().next() : null;
     }
 
-    private java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup> getAdjacentMachineGroups() {
+    private LinkedHashSet<PatternContainerGroup> getAdjacentMachineGroups() {
         var hostLevel = this.getLevel();
         if (hostLevel == null) {
-            return new java.util.LinkedHashSet<>();
+            return new LinkedHashSet<>();
         }
 
         var hostPos = this.getBlockPos();
         var sides = this.getTargets();
-        var groups = new java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup>(sides.size());
+        var groups = new LinkedHashSet<PatternContainerGroup>(sides.size());
         for (var side : sides) {
             var sidePos = hostPos.relative(side);
             var group = AdaptivePatternProviderDisplayHelper.resolveAdjacentMachineGroup(hostLevel, sidePos, side.getOpposite());
@@ -680,7 +865,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     protected String getProviderTranslationKey() {
