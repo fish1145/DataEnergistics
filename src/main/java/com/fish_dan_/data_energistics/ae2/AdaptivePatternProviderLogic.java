@@ -872,6 +872,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessMode();
     }
 
+    private boolean isAe2LtWirelessConnectableProviderSelected() {
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isAe2LtWirelessConnectableProviderSelected();
+    }
+
     private boolean isAe2LtAutoReturnEnabled() {
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.getAe2LtReturnMode() == AdaptivePatternProviderModes.Ae2LtReturnMode.AUTO;
     }
@@ -2169,7 +2174,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return;
         }
 
-        if (isAe2LtWirelessMode()) {
+        if (isAe2LtWirelessConnectableProviderSelected()) {
             autoReturnAe2LtWireless(level, allowedOutputFilter);
         } else {
             autoReturnAe2LtNormal(level, allowedOutputFilter);
@@ -2378,7 +2383,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 this.host.getBlockEntity(),
                 adaptive.getConnections(),
                 isAe2LtEjectModeEnabled(),
-                isAe2LtWirelessMode());
+                isAe2LtWirelessConnectableProviderSelected());
     }
 
     @Nullable
