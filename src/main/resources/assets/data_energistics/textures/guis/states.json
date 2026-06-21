@@ -146,6 +146,12 @@
 			"y": 64,
 			"width": 16,
 			"height": 16
-		}
+		},
+        "AE2LTPP_PROVIDER_COSE_BASE": {
+          "x": 0,
+          "y": 238,
+          "width": 18,
+          "height": 18
+        }
 	}
 }

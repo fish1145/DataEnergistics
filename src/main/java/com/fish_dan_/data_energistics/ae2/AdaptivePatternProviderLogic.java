@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
@@ -153,12 +154,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     @Override
     public void updatePatterns() {
-        if (isAe2LtProviderFamilySelected()) {
+        if (isAe2LightningTechOverloadedProviderSelected()) {
             rebuildPatternsIncludingAe2LtOverloadPatterns();
         } else {
             super.updatePatterns();
         }
-        if (isAe2LtProviderFamilySelected()) {
+        if (isAe2LightningTechOverloadedProviderSelected()) {
             Ae2LtRuntimeBridge.applySmartDoubling(this, getAvailablePatterns());
         }
         this.ae2ltOutputFilterDirty = true;
@@ -461,16 +462,27 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean pushAe2LtPackagedPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-        if (!this.mainNode.isActive() || !isAe2LtPatternAvailable(patternDetails) || !Ae2LtPackagedRuntimeBridge.isAvailable()) {
+        if (!this.mainNode.isActive()) {
+            logAe2LtPackaged("push aborted: main node inactive");
+            return false;
+        }
+        if (!isAe2LtPatternAvailable(patternDetails)) {
+            logAe2LtPackaged("push aborted: pattern not available in provider cache, pattern={}", patternDetails.getClass().getName());
+            return false;
+        }
+        if (!Ae2LtPackagedRuntimeBridge.isAvailable()) {
+            logAe2LtPackaged("push aborted: runtime bridge unavailable");
             return false;
         }
 
         if (getCraftingLockedReason() != LockCraftingMode.NONE) {
+            logAe2LtPackaged("push aborted: crafting locked, reason={}", getCraftingLockedReason());
             return false;
         }
 
         double totalCost = getAe2LtTotalCost(inputHolder);
         if (!canAffordAe2LtTotalCost(totalCost)) {
+            logAe2LtPackaged("push aborted: insufficient power, totalCost={}", totalCost);
             return false;
         }
 
@@ -478,6 +490,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         if (pushed) {
             syncAe2LtPendingUnlockRule(patternDetails);
             consumeAe2LtTotalCost(totalCost);
+        } else {
+            logAe2LtPackaged("push finished without dispatch success, wireless={} adapter={}", isAe2LtPackagedWirelessProviderSelected(), getAe2LtPackagedAdapterStack());
         }
         return pushed;
     }
@@ -485,6 +499,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private boolean pushAe2LtPackagedNormalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         var blockEntity = this.host.getBlockEntity();
         if (!(blockEntity.getLevel() instanceof ServerLevel level)) {
+            logAe2LtPackaged("normal push aborted: host level is not server, level={}", blockEntity.getLevel());
+            return false;
+        }
+
+        ItemStack adapterStack = getAe2LtPackagedAdapterStack();
+        if (adapterStack.isEmpty()) {
+            logAe2LtPackaged("normal push aborted: adapter slot is empty");
             return false;
         }
 
@@ -492,23 +513,33 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         for (Direction side : getActiveSidesFiltered()) {
             BlockPos targetPos = blockEntity.getBlockPos().relative(side);
             if (!level.isLoaded(targetPos)) {
+                logAe2LtPackaged("normal push skipped target: side={} pos={} not loaded", side, targetPos);
                 continue;
             }
 
+            logAe2LtPackaged(
+                    "normal push attempting: side={} pos={} supported={} compatible={} adapter={}",
+                    side,
+                    targetPos,
+                    Ae2LtPackagedRuntimeBridge.isSupportedTarget(level, targetPos),
+                    Ae2LtPackagedRuntimeBridge.isAdapterStackCompatible(level, targetPos, adapterStack),
+                    adapterStack);
             if (Ae2LtPackagedRuntimeBridge.dispatch(
                     level,
                     targetPos,
                     patternDetails,
                     inputHolder,
-                    getAe2LtPackagedAdapterStack(),
+                    adapterStack,
                     allowedOutputFilter,
                     this.actionSource,
                     getReturnInv())) {
                 invokePatternSuccess(patternDetails);
                 this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
                 this.host.saveChanges();
+                logAe2LtPackaged("normal push dispatched successfully: side={} pos={}", side, targetPos);
                 return true;
             }
+            logAe2LtPackaged("normal push dispatch returned false: side={} pos={}", side, targetPos);
         }
 
         return false;
@@ -517,11 +548,19 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private boolean pushAe2LtPackagedWirelessPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         var blockEntity = this.host.getBlockEntity();
         if (!(blockEntity.getLevel() instanceof ServerLevel level)) {
+            logAe2LtPackaged("wireless push aborted: host level is not server, level={}", blockEntity.getLevel());
             return false;
         }
 
         var orderedConnections = getOrderedWirelessConnections(level);
         if (orderedConnections.isEmpty()) {
+            logAe2LtPackaged("wireless push aborted: no wireless connections");
+            return false;
+        }
+
+        ItemStack adapterStack = getAe2LtPackagedAdapterStack();
+        if (adapterStack.isEmpty()) {
+            logAe2LtPackaged("wireless push aborted: adapter slot is empty");
             return false;
         }
 
@@ -530,15 +569,22 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             var connection = orderedConnections.get(i);
             var targetLevel = level.getServer().getLevel(connection.dimension());
             if (targetLevel == null || !targetLevel.isLoaded(connection.pos())) {
+                logAe2LtPackaged("wireless push skipped connection: connection={} targetLevel={} loaded={}", connection, targetLevel, targetLevel != null && targetLevel.isLoaded(connection.pos()));
                 continue;
             }
 
+            logAe2LtPackaged(
+                    "wireless push attempting: connection={} supported={} compatible={} adapter={}",
+                    connection,
+                    Ae2LtPackagedRuntimeBridge.isSupportedTarget(targetLevel, connection.pos()),
+                    Ae2LtPackagedRuntimeBridge.isAdapterStackCompatible(targetLevel, connection.pos(), adapterStack),
+                    adapterStack);
             if (Ae2LtPackagedRuntimeBridge.dispatch(
                     targetLevel,
                     connection.pos(),
                     patternDetails,
                     inputHolder,
-                    getAe2LtPackagedAdapterStack(),
+                    adapterStack,
                     allowedOutputFilter,
                     this.actionSource,
                     getReturnInv())) {
@@ -548,8 +594,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 invokePatternSuccess(patternDetails);
                 this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
                 this.host.saveChanges();
+                logAe2LtPackaged("wireless push dispatched successfully: connection={}", connection);
                 return true;
             }
+            logAe2LtPackaged("wireless push dispatch returned false: connection={}", connection);
         }
 
         if (isAe2LtSingleTargetMode()) {
@@ -838,6 +886,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
     private boolean isAe2LtEvenDistributionMode() {
         return !isAe2LtSingleTargetMode();
+    }
+
+    private void logAe2LtPackaged(String message, Object... args) {
+        if (!Data_Energistics.isDev()) {
+            return;
+        }
+        Data_Energistics.LOGGER.info("[DE][AE2LTPP] " + message, args);
     }
 
     private boolean isAe2LtFastSpeedMode() {
@@ -1681,7 +1736,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean hasAe2LtAutoReturnWork() {
-        return isAe2LightningTechOverloadedProviderSelected() && isAe2LtAutoReturnEnabled();
+        return isAe2LtProviderFamilySelected() && isAe2LtAutoReturnEnabled();
     }
 
     private void queueAe2LtWirelessOverflow(AdaptiveWirelessConnection connection, List<GenericStack> overflow) {
@@ -2125,12 +2180,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         BlockPos providerPos = this.host.getBlockEntity().getBlockPos();
         for (Direction dir : this.host.getTargets()) {
             BlockPos targetPos = providerPos.relative(dir);
-            List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
-                    level,
-                    targetPos,
-                    dir.getOpposite(),
-                    allowedOutputFilter,
-                    this.actionSource);
+            List<GenericStack> outputs = isAe2LtPackagedProviderSelected()
+                    ? Ae2LtPackagedRuntimeBridge.extractOutputs(level, targetPos, allowedOutputFilter, this.actionSource)
+                    : Ae2LtRuntimeBridge.extractOutputs(
+                            level,
+                            targetPos,
+                            dir.getOpposite(),
+                            allowedOutputFilter,
+                            this.actionSource);
             insertAe2LtOutputsToNetwork(outputs);
         }
     }
@@ -2143,12 +2200,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
-                    targetLevel,
-                    conn.pos(),
-                    conn.boundFace(),
-                    allowedOutputFilter,
-                    this.actionSource);
+            List<GenericStack> outputs = isAe2LtPackagedProviderSelected()
+                    ? Ae2LtPackagedRuntimeBridge.extractOutputs(targetLevel, conn.pos(), allowedOutputFilter, this.actionSource)
+                    : Ae2LtRuntimeBridge.extractOutputs(
+                            targetLevel,
+                            conn.pos(),
+                            conn.boundFace(),
+                            allowedOutputFilter,
+                            this.actionSource);
             insertAe2LtOutputsToNetwork(outputs);
         }
         advanceAe2LtReturnRoundRobin(connections);
@@ -2164,12 +2223,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return;
         }
 
-        List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
-                targetLevel,
-                connection.pos(),
-                connection.boundFace(),
-                allowedOutputFilter,
-                this.actionSource);
+        List<GenericStack> outputs = isAe2LtPackagedProviderSelected()
+                ? Ae2LtPackagedRuntimeBridge.extractOutputs(targetLevel, connection.pos(), allowedOutputFilter, this.actionSource)
+                : Ae2LtRuntimeBridge.extractOutputs(
+                        targetLevel,
+                        connection.pos(),
+                        connection.boundFace(),
+                        allowedOutputFilter,
+                        this.actionSource);
         insertAe2LtOutputsToNetwork(outputs);
     }
 

@@ -1,9 +1,12 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
@@ -42,6 +45,32 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
     boolean isAe2LtPackagedProviderSelected();
 
     boolean isAe2LtPackagedWirelessProviderSelected();
+
+    default boolean isAe2LtPackagedAdapterValid(ItemStack stack) {
+        if (!isAe2LtPackagedProviderSelected() || !Ae2LtPackagedRuntimeBridge.isAdapterItem(stack)) {
+            return false;
+        }
+
+        var blockEntity = getBlockEntity();
+        if (blockEntity == null || !(blockEntity.getLevel() instanceof ServerLevel serverLevel)) {
+            return true;
+        }
+
+        boolean foundSupportedTarget = false;
+        for (var side : getTargets()) {
+            BlockPos targetPos = blockEntity.getBlockPos().relative(side);
+            if (!Ae2LtPackagedRuntimeBridge.isSupportedTarget(serverLevel, targetPos)) {
+                continue;
+            }
+
+            foundSupportedTarget = true;
+            if (Ae2LtPackagedRuntimeBridge.isAdapterStackCompatible(serverLevel, targetPos, stack)) {
+                return true;
+            }
+        }
+
+        return !foundSupportedTarget;
+    }
 
     default boolean isAe2LtWirelessConnectableProviderSelected() {
         return isAe2LtPackagedWirelessProviderSelected() || isAe2LightningTechOverloadedProviderSelected() && isAe2LtWirelessMode();

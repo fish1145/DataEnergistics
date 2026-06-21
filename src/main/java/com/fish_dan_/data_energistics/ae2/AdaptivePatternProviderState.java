@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -15,6 +17,7 @@ import appeng.api.upgrades.IUpgradeInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,7 +65,8 @@ public final class AdaptivePatternProviderState {
         this.ae2LtPackagedAdapterInventory = new AppEngInternalInventory(inventoryHost, 1);
         refreshProviderSlotLimit();
         this.providerInventory.setFilter(new ProviderFilter());
-        this.ae2LtPackagedAdapterInventory.setFilter(new Ae2LtPackagedAdapterFilter());
+        this.ae2LtPackagedAdapterInventory.setFilter(new Ae2LtPackagedAdapterFilter(
+                inventoryHost instanceof AdaptivePatternProviderHost adaptiveHost ? adaptiveHost : null));
         this.ae2LtPackagedAdapterInventory.setMaxStackSize(0, 1);
     }
 
@@ -435,25 +439,18 @@ public final class AdaptivePatternProviderState {
 
     private static final class Ae2LtPackagedAdapterFilter implements IAEItemFilter {
 
-        private static final String MULTIBLOCK_ADAPTER_ITEM_CLASS = "com.moakiee.ae2lt.packaged.item.MultiblockAdapterItem";
+        private final @Nullable AdaptivePatternProviderHost host;
 
-        private static Class<?> adapterItemClass;
-        private static boolean initialized;
+        private Ae2LtPackagedAdapterFilter(@Nullable AdaptivePatternProviderHost host) {
+            this.host = host;
+        }
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            if (stack.isEmpty()) {
+            if (!Ae2LtPackagedRuntimeBridge.isAdapterItem(stack)) {
                 return false;
             }
-            if (!initialized) {
-                initialized = true;
-                try {
-                    adapterItemClass = Class.forName(MULTIBLOCK_ADAPTER_ITEM_CLASS);
-                } catch (ReflectiveOperationException | LinkageError | SecurityException ignored) {
-                    adapterItemClass = null;
-                }
-            }
-            return adapterItemClass != null && adapterItemClass.isInstance(stack.getItem());
+            return this.host == null || this.host.isAe2LtPackagedAdapterValid(stack);
         }
     }
 }

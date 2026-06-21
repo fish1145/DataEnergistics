@@ -501,6 +501,13 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
+        boolean providerInventoryChanged = inv == getAdaptiveState().getProviderInventory();
+        boolean adapterInventoryChanged = inv == getAdaptiveState().getAe2LtPackagedAdapterInventory();
+        AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+
+        if (providerInventoryChanged && logic != null) {
+            logic.updatePatterns();
+        }
         if (inv == this.upgrades) {
             getAdaptiveState().refreshProviderSlotLimit();
         }
@@ -509,6 +516,9 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         this.syncedPatternSlotCount = newSlotCount;
         this.saveChanges();
         this.markForClientUpdate();
+        if ((providerInventoryChanged || adapterInventoryChanged || inv == this.upgrades) && logic != null) {
+            logic.onHostStateChanged();
+        }
         if (oldSlotCount != newSlotCount) {
             requestPatternAccessTerminalRefresh();
         }
