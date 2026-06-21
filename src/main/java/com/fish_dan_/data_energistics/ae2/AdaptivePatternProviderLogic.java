@@ -873,8 +873,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LtWirelessConnectableProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
-                && adaptivePatternProviderHost.isAe2LtWirelessConnectableProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessConnectableProviderSelected();
     }
 
     private boolean isAe2LtAutoReturnEnabled() {
@@ -2185,14 +2184,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         BlockPos providerPos = this.host.getBlockEntity().getBlockPos();
         for (Direction dir : this.host.getTargets()) {
             BlockPos targetPos = providerPos.relative(dir);
-            List<GenericStack> outputs = isAe2LtPackagedProviderSelected()
-                    ? Ae2LtPackagedRuntimeBridge.extractOutputs(level, targetPos, allowedOutputFilter, this.actionSource)
-                    : Ae2LtRuntimeBridge.extractOutputs(
-                            level,
-                            targetPos,
-                            dir.getOpposite(),
-                            allowedOutputFilter,
-                            this.actionSource);
+            List<GenericStack> outputs = isAe2LtPackagedProviderSelected() ? Ae2LtPackagedRuntimeBridge.extractOutputs(level, targetPos, allowedOutputFilter, this.actionSource) : Ae2LtRuntimeBridge.extractOutputs(
+                    level,
+                    targetPos,
+                    dir.getOpposite(),
+                    allowedOutputFilter,
+                    this.actionSource);
             insertAe2LtOutputsToNetwork(outputs);
         }
     }
@@ -2205,14 +2202,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                 continue;
             }
 
-            List<GenericStack> outputs = isAe2LtPackagedProviderSelected()
-                    ? Ae2LtPackagedRuntimeBridge.extractOutputs(targetLevel, conn.pos(), allowedOutputFilter, this.actionSource)
-                    : Ae2LtRuntimeBridge.extractOutputs(
-                            targetLevel,
-                            conn.pos(),
-                            conn.boundFace(),
-                            allowedOutputFilter,
-                            this.actionSource);
+            List<GenericStack> outputs = isAe2LtPackagedProviderSelected() ? Ae2LtPackagedRuntimeBridge.extractOutputs(targetLevel, conn.pos(), allowedOutputFilter, this.actionSource) : Ae2LtRuntimeBridge.extractOutputs(
+                    targetLevel,
+                    conn.pos(),
+                    conn.boundFace(),
+                    allowedOutputFilter,
+                    this.actionSource);
             insertAe2LtOutputsToNetwork(outputs);
         }
         advanceAe2LtReturnRoundRobin(connections);
@@ -2228,14 +2223,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return;
         }
 
-        List<GenericStack> outputs = isAe2LtPackagedProviderSelected()
-                ? Ae2LtPackagedRuntimeBridge.extractOutputs(targetLevel, connection.pos(), allowedOutputFilter, this.actionSource)
-                : Ae2LtRuntimeBridge.extractOutputs(
-                        targetLevel,
-                        connection.pos(),
-                        connection.boundFace(),
-                        allowedOutputFilter,
-                        this.actionSource);
+        List<GenericStack> outputs = isAe2LtPackagedProviderSelected() ? Ae2LtPackagedRuntimeBridge.extractOutputs(targetLevel, connection.pos(), allowedOutputFilter, this.actionSource) : Ae2LtRuntimeBridge.extractOutputs(
+                targetLevel,
+                connection.pos(),
+                connection.boundFace(),
+                allowedOutputFilter,
+                this.actionSource);
         insertAe2LtOutputsToNetwork(outputs);
     }
 

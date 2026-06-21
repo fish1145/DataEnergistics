@@ -13,8 +13,8 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -252,11 +252,8 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
             Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
-        } else if (slot.isActive() && (semantic == AdaptivePatternProviderMenu.PROVIDER_INPUT && slot.getItem().isEmpty()
-                || semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {
-            String backgroundIcon = semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER
-                    ? "AE2LTPP_PROVIDER_COSE_BASE"
-                    : "BACKGROUND_BLOCK";
+        } else if (slot.isActive() && (semantic == AdaptivePatternProviderMenu.PROVIDER_INPUT && slot.getItem().isEmpty() || semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {
+            String backgroundIcon = semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? "AE2LTPP_PROVIDER_COSE_BASE" : "BACKGROUND_BLOCK";
             DataEnergisticsIcon.getBlitter(backgroundIcon)
                     .dest(
                             semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER ? slot.x - 1 : slot.x,
