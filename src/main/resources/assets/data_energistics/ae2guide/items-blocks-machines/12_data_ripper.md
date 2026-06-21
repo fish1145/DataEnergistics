@@ -30,13 +30,13 @@ By consuming data flow, it can accelerate machines, AE devices, and random ticks
 
 # Upgrades
 
-<ItemLink id="ae2:speed_card"/>
+<ItemLink id="data_energistics:card_saber_energy"/>
 
 <Row>
-    <ItemImage id="ae2:speed_card" />
+    <ItemImage id="data_energistics:card_saber_energy" />
 </Row>
-Speed Card:  
-1 card = 16x, 2 cards = 64x, 3 cards = 256x, 4 cards = 1024x
+Saber Energy Card:  
+1 card = 16x, 2 cards = 64x, 3 cards = 256x, 4 cards = 512x, 5+ cards = 1024x
 
 ---
 
