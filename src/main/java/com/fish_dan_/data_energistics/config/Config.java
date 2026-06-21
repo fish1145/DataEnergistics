@@ -32,7 +32,9 @@ public class Config {
     private static final ModConfigSpec.ConfigValue<List<? extends String>> DATA_RIPPER_MULTIPLIERS = BUILDER
             .comment("Regex-based power multipliers for the data ripper, formatted as pattern=value.",
                     "数据撕裂器基于正则表达式的额外消耗倍率，格式为 pattern=value。")
-            .defineList("dataRipperMultipliers", List.of(), () -> "", value -> value instanceof String);
+            .defineList("dataRipperMultipliers", List.of(
+                    "minecraft:hopper=1.5",
+                    "appeng:.*=2.0"), () -> "", value -> value instanceof String);
 
     private static final ModConfigSpec.IntValue DATA_DISTRIBUTION_TOWER_RANGE = BUILDER
             .comment("Base chunk coverage level for the Data Distribution Tower. 1=1x1 chunk, 2=3x3 chunks, etc.",

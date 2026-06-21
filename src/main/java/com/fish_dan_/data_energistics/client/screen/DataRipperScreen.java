@@ -25,7 +25,7 @@ import java.util.List;
 public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
 
     private static final int SLOT_SIZE = 16;
-    private static final int UPGRADE_BACKGROUND_SIZE = 12;
+    private static final int UPGRADE_BACKGROUND_SIZE = 16;
     private static final int UPGRADE_BACKGROUND_OFFSET = (SLOT_SIZE - UPGRADE_BACKGROUND_SIZE) / 2;
 
     private final DataRipperSettingToggleButton accelerateButton;
@@ -144,7 +144,9 @@ public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
 
         private void updateNormal() {
             int energyCardCount = DataRipperScreen.this.menu.energyCardCount;
-            double multiplier = DataRipperScreen.this.menu.multiplier;
+            double multiplier = DataRipperPowerUtils.getAdjustedExtraMultiplier(
+                    DataRipperScreen.this.menu.multiplier,
+                    DataRipperScreen.this.menu.inverterCardCount);
             int effectiveSpeed = DataRipperScreen.this.menu.effectiveSpeed;
             double finalPower = DataRipperPowerUtils.computeFinalPowerForProduct(effectiveSpeed, energyCardCount);
             double powerRatio = DataRipperPowerUtils.getRemainingRatio(energyCardCount);

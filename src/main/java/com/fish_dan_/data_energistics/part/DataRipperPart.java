@@ -352,10 +352,12 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
     private double calculateRequiredPower(int speed, double multiplier) {
         int energyCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.ENERGY_CARD);
+        int inverterCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.INVERTER_CARD);
         if (energyCardCount != this.cachedEnergyCards) {
             this.cachedEnergyCards = energyCardCount;
         }
-        return DataRipperPowerUtils.computeFinalPowerForProduct(speed, energyCardCount) * multiplier;
+        double adjustedMultiplier = DataRipperPowerUtils.getAdjustedExtraMultiplier(multiplier, inverterCardCount);
+        return DataRipperPowerUtils.computeFinalPowerForProduct(speed, energyCardCount) * adjustedMultiplier;
     }
 
     private <T extends BlockEntity> void performBlockEntityTicks(T blockEntity, BlockEntityTicker<T> ticker, int speed) {

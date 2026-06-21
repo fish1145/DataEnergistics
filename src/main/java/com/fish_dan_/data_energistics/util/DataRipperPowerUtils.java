@@ -50,6 +50,11 @@ public final class DataRipperPowerUtils {
         };
     }
 
+    public static double getAdjustedExtraMultiplier(double baseMultiplier, int inverterCardCount) {
+        int cappedCardCount = Math.min(Math.max(inverterCardCount, 0), 5);
+        return Math.max(0.0D, baseMultiplier - cappedCardCount * 0.05D);
+    }
+
     public static String formatPercentage(double value) {
         return String.format("%.2f%%", value * 100.0D);
     }

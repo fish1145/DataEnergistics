@@ -50,3 +50,14 @@ Does not increase speed; only reduces the data flow consumption ratio. Remaining
 0 cards = 100%, 1 card = 90%, 2 cards = 85.5%, 3 cards = 82.85%, 4 cards = 81%  
 5 cards = 79.79%, 6 cards = 78.85%, 7 cards = 78.1%, 8+ cards = 50%  
 Maximum of 8 cards.
+
+---
+
+<ItemLink id="ae2:inverter_card"/>
+
+<Row>
+    <ItemImage id="ae2:inverter_card" />
+</Row>
+Inverter Card:  
+Does not increase speed. Each card directly reduces the total multiplier by 0.05x.  
+Maximum of 5 cards.
