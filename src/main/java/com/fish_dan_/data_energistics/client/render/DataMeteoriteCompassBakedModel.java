@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,6 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -105,8 +107,8 @@ public class DataMeteoriteCompassBakedModel extends BakedModelWrapper<MeteoriteC
         }
 
         @Override
-        public List<BakedQuad> getQuads(@Nullable net.minecraft.world.level.block.state.BlockState state,
-                                        @Nullable net.minecraft.core.Direction side,
+        public List<BakedQuad> getQuads(@Nullable BlockState state,
+                                        @Nullable Direction side,
                                         RandomSource rand) {
             ModelData modelData = ModelData.builder()
                     .with(MeteoriteCompassBakedModel.ROTATION, this.rotation)

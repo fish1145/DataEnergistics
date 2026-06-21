@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.accessor.CondenserBlockEntityAccessor;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
+import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
@@ -73,13 +74,13 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
     }
 
     @Inject(method = "saveAdditional", at = @At("TAIL"))
-    private void dataEnergistics$saveDataCaptureBallMode(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries,
+    private void dataEnergistics$saveDataCaptureBallMode(CompoundTag data, Provider registries,
                                                          CallbackInfo ci) {
         data.putBoolean(DATA_ENERGISTICS_DATA_CAPTURE_BALL_MODE, this.dataEnergistics$dataCaptureBallMode);
     }
 
     @Inject(method = "loadTag", at = @At("TAIL"))
-    private void dataEnergistics$loadDataCaptureBallMode(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries,
+    private void dataEnergistics$loadDataCaptureBallMode(CompoundTag data, Provider registries,
                                                          CallbackInfo ci) {
         this.dataEnergistics$dataCaptureBallMode = data.getBoolean(DATA_ENERGISTICS_DATA_CAPTURE_BALL_MODE);
     }

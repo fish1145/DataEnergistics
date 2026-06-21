@@ -11,9 +11,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.StringRepresentable;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -42,6 +44,8 @@ import appeng.items.tools.powered.ColorApplicatorItem;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Set;
 
 public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock {
 
@@ -98,7 +102,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
-                                              Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+                                              Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (stack.getItem() instanceof PoweredCuttingKnifeItem && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
             return tryHandleCuttingKnifeTeleportToAnchor(stack, level, pos, player, anchor);
         }
@@ -158,7 +162,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
         double targetY = pos.getY() + 1.1D;
         double targetZ = pos.getZ() + 0.5D;
         if (player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.teleportTo(serverPlayer.serverLevel(), targetX, targetY, targetZ, java.util.Set.of(),
+            serverPlayer.teleportTo(serverPlayer.serverLevel(), targetX, targetY, targetZ, Set.of(),
                     serverPlayer.getYRot(), serverPlayer.getXRot());
         } else {
             player.teleportTo(targetX, targetY, targetZ);
@@ -218,32 +222,32 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     public enum ColorVariant implements StringRepresentable {
 
         DEFAULT("default", null),
-        BLACK("black", net.minecraft.world.item.DyeColor.BLACK),
-        BLUE("blue", net.minecraft.world.item.DyeColor.BLUE),
-        BROWN("brown", net.minecraft.world.item.DyeColor.BROWN),
-        CYAN("cyan", net.minecraft.world.item.DyeColor.CYAN),
-        GRAY("gray", net.minecraft.world.item.DyeColor.GRAY),
-        GREEN("green", net.minecraft.world.item.DyeColor.GREEN),
-        LIGHT_BLUE("light_blue", net.minecraft.world.item.DyeColor.LIGHT_BLUE),
-        LIGHT_GRAY("light_gray", net.minecraft.world.item.DyeColor.LIGHT_GRAY),
-        LIME("lime", net.minecraft.world.item.DyeColor.LIME),
-        MAGENTA("magenta", net.minecraft.world.item.DyeColor.MAGENTA),
-        ORANGE("orange", net.minecraft.world.item.DyeColor.ORANGE),
-        PINK("pink", net.minecraft.world.item.DyeColor.PINK),
-        PURPLE("purple", net.minecraft.world.item.DyeColor.PURPLE),
-        RED("red", net.minecraft.world.item.DyeColor.RED),
-        WHITE("white", net.minecraft.world.item.DyeColor.WHITE),
-        YELLOW("yellow", net.minecraft.world.item.DyeColor.YELLOW);
+        BLACK("black", DyeColor.BLACK),
+        BLUE("blue", DyeColor.BLUE),
+        BROWN("brown", DyeColor.BROWN),
+        CYAN("cyan", DyeColor.CYAN),
+        GRAY("gray", DyeColor.GRAY),
+        GREEN("green", DyeColor.GREEN),
+        LIGHT_BLUE("light_blue", DyeColor.LIGHT_BLUE),
+        LIGHT_GRAY("light_gray", DyeColor.LIGHT_GRAY),
+        LIME("lime", DyeColor.LIME),
+        MAGENTA("magenta", DyeColor.MAGENTA),
+        ORANGE("orange", DyeColor.ORANGE),
+        PINK("pink", DyeColor.PINK),
+        PURPLE("purple", DyeColor.PURPLE),
+        RED("red", DyeColor.RED),
+        WHITE("white", DyeColor.WHITE),
+        YELLOW("yellow", DyeColor.YELLOW);
 
         private final String name;
-        private final net.minecraft.world.item.DyeColor dyeColor;
+        private final DyeColor dyeColor;
 
-        ColorVariant(String name, net.minecraft.world.item.DyeColor dyeColor) {
+        ColorVariant(String name, DyeColor dyeColor) {
             this.name = name;
             this.dyeColor = dyeColor;
         }
 
-        public static ColorVariant fromDyeColor(net.minecraft.world.item.DyeColor dyeColor) {
+        public static ColorVariant fromDyeColor(DyeColor dyeColor) {
             for (ColorVariant value : values()) {
                 if (value.dyeColor == dyeColor) {
                     return value;

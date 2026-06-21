@@ -4,8 +4,10 @@ import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import appeng.api.crafting.IPatternDetails;
@@ -22,6 +24,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,16 +63,6 @@ public final class Ae2LtRuntimeBridge {
         }
 
         return access != null;
-    }
-
-    public static @Nullable List<GenericStack> pushWirelessConnection(ServerLevel targetLevel,
-                                                                      AdaptiveWirelessConnection connection,
-                                                                      IPatternDetails patternDetails,
-                                                                      KeyCounter[] inputHolder,
-                                                                      boolean blocking,
-                                                                      Set<AEKey> patternInputs,
-                                                                      IActionSource actionSource) {
-        return pushConnection(targetLevel, connection.pos(), connection.boundFace(), patternDetails, inputHolder, blocking, patternInputs, actionSource, null);
     }
 
     public static @Nullable List<GenericStack> pushConnection(ServerLevel targetLevel,
@@ -178,13 +171,6 @@ public final class Ae2LtRuntimeBridge {
         } catch (Throwable ignored) {
             return false;
         }
-    }
-
-    public static boolean flushWirelessOverflow(ServerLevel targetLevel,
-                                                AdaptiveWirelessConnection connection,
-                                                List<GenericStack> overflow,
-                                                IActionSource actionSource) {
-        return flushOverflow(targetLevel, connection.pos(), connection.boundFace(), overflow, actionSource, null);
     }
 
     public static boolean flushOverflow(ServerLevel targetLevel,
@@ -532,12 +518,12 @@ public final class Ae2LtRuntimeBridge {
             try {
                 Object dimension = methods.dimPosDimension().invoke(dimPos);
                 Object pos = methods.dimPosPos().invoke(dimPos);
-                if (!(dimension instanceof net.minecraft.resources.ResourceKey<?> key) || !(pos instanceof BlockPos blockPos)) {
+                if (!(dimension instanceof ResourceKey<?> key) || !(pos instanceof BlockPos blockPos)) {
                     continue;
                 }
 
                 @SuppressWarnings("unchecked")
-                ServerLevel targetLevel = server.getLevel((net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>) key);
+                ServerLevel targetLevel = server.getLevel((ResourceKey<Level>) key);
                 if (targetLevel != null) {
                     targetLevel.invalidateCapabilities(blockPos);
                 }
@@ -637,12 +623,12 @@ public final class Ae2LtRuntimeBridge {
                     ejectEntryClass,
                     WeakReference.class,
                     ghostClass,
-                    net.minecraft.resources.ResourceKey.class,
+                    ResourceKey.class,
                     BlockPos.class);
             MethodHandle ejectRegister = findStatic(
                     ejectRegistryClass,
                     "register",
-                    net.minecraft.resources.ResourceKey.class,
+                    ResourceKey.class,
                     long.class,
                     Direction.class,
                     ejectEntryClass);
@@ -652,7 +638,7 @@ public final class Ae2LtRuntimeBridge {
             MethodHandle dimPosPos = findVirtual(dimPosClass, "pos");
 
             MethodHandle ghostOutputConstructor = findConstructor(ghostClass, BlockPos.class);
-            MethodHandle ghostOutputSetLevel = findVirtual(ghostClass, "setLevel", net.minecraft.world.level.Level.class);
+            MethodHandle ghostOutputSetLevel = findVirtual(ghostClass, "setLevel", Level.class);
 
             access = new Access(
                     machineAdapterFind,
@@ -690,24 +676,26 @@ public final class Ae2LtRuntimeBridge {
                 new Class<?>[] { outputSinkClass },
                 (proxy, method, args) -> {
                     String methodName = method.getName();
-                    if ("maxAccept".equals(methodName)) {
-                        return Long.MAX_VALUE;
-                    }
-                    if ("accept".equals(methodName)) {
-                        return addOutputSinkStack(outputs, args);
-                    }
-                    if ("acceptOverflow".equals(methodName)) {
-                        addOutputSinkStack(outputs, args);
-                        return null;
-                    }
-                    if ("toString".equals(methodName)) {
-                        return "DataEnergisticsAe2LtOutputSink";
-                    }
-                    if ("hashCode".equals(methodName)) {
-                        return System.identityHashCode(proxy);
-                    }
-                    if ("equals".equals(methodName)) {
-                        return args != null && args.length == 1 && proxy == args[0];
+                    switch (methodName) {
+                        case "maxAccept" -> {
+                            return Long.MAX_VALUE;
+                        }
+                        case "accept" -> {
+                            return addOutputSinkStack(outputs, args);
+                        }
+                        case "acceptOverflow" -> {
+                            addOutputSinkStack(outputs, args);
+                            return null;
+                        }
+                        case "toString" -> {
+                            return "DataEnergisticsAe2LtOutputSink";
+                        }
+                        case "hashCode" -> {
+                            return System.identityHashCode(proxy);
+                        }
+                        case "equals" -> {
+                            return args != null && args.length == 1 && proxy == args[0];
+                        }
                     }
                     return defaultProxyReturnValue(method.getReturnType());
                 });
@@ -760,7 +748,7 @@ public final class Ae2LtRuntimeBridge {
                                            String methodName,
                                            Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
         for (var method : owner.getMethods()) {
-            if (java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+            if (Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
                 return PUBLIC_LOOKUP.unreflect(method);
             }
         }
@@ -771,7 +759,7 @@ public final class Ae2LtRuntimeBridge {
                                             String methodName,
                                             Class<?>... parameterTypes) throws NoSuchMethodException, IllegalAccessException {
         for (var method : owner.getMethods()) {
-            if (!java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+            if (!Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
                 return PUBLIC_LOOKUP.unreflect(method);
             }
         }
@@ -786,7 +774,7 @@ public final class Ae2LtRuntimeBridge {
     private static Optional<MethodHandle> findDuckMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {
         try {
             for (var method : type.getMethods()) {
-                if (!java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
+                if (!Modifier.isStatic(method.getModifiers()) && method.getName().equals(methodName) && Arrays.equals(method.getParameterTypes(), parameterTypes)) {
                     return Optional.of(PUBLIC_LOOKUP.unreflect(method));
                 }
             }

@@ -8,6 +8,10 @@ import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.core.localization.ButtonToolTips;
@@ -19,6 +23,8 @@ import appeng.menu.slot.RestrictedInputSlot;
 import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Set;
 
 public class DataDistributionTowerMenu extends AEBaseMenu {
 
@@ -152,11 +158,11 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
             return;
         }
 
-        var levelKey = net.minecraft.resources.ResourceKey.create(
-                net.minecraft.core.registries.Registries.DIMENSION,
-                net.minecraft.resources.ResourceLocation.parse(action.dimensionId()));
+        var levelKey = ResourceKey.create(
+                Registries.DIMENSION,
+                ResourceLocation.parse(action.dimensionId()));
 
-        getPlayer().sendSystemMessage(net.minecraft.network.chat.Component.translatable(
+        getPlayer().sendSystemMessage(Component.translatable(
                 "message.data_energistics.data_distribution_tower.target",
                 action.x(),
                 action.y(),
@@ -168,7 +174,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         }
 
         if (!getPlayer().hasPermissions(2)) {
-            getPlayer().displayClientMessage(net.minecraft.network.chat.Component.translatable(
+            getPlayer().displayClientMessage(Component.translatable(
                     "message.data_energistics.data_distribution_tower.teleport_requires_cheats"), true);
             return;
         }
@@ -185,7 +191,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
 
         getPlayer().closeContainer();
         getPlayer().teleportTo(targetLevel, action.x() + 0.5, action.y() + 1.1, action.z() + 0.5,
-                java.util.Set.of(), getPlayer().getYRot(), getPlayer().getXRot());
+                Set.of(), getPlayer().getYRot(), getPlayer().getXRot());
     }
 
     private void setRangeVisible(Boolean visible) {

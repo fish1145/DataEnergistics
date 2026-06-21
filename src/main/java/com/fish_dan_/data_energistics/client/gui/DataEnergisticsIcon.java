@@ -9,8 +9,7 @@ import net.minecraft.server.packs.resources.Resource;
 import appeng.client.gui.style.Blitter;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -20,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class DataEnergisticsIcon {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ResourceLocation STATES_JSON = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/guis/states.json");
     private static final ResourceLocation DEFAULT_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/guis/states.png");
     private static final ResourceLocation AE2_STATES_JSON = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/states.json");

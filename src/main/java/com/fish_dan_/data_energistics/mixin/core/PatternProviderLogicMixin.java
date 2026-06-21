@@ -5,9 +5,13 @@ import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 
+import net.minecraft.server.level.ServerLevel;
+
 import appeng.api.config.LockCraftingMode;
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import org.spongepowered.asm.mixin.Final;
@@ -49,8 +53,8 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
     private boolean dataEnergistics$dispatchPulsePending;
 
     @Inject(method = "pushPattern", at = @At("RETURN"))
-    private void dataEnergistics$afterPushPattern(appeng.api.crafting.IPatternDetails patternDetails,
-                                                  appeng.api.stacks.KeyCounter[] inputHolder,
+    private void dataEnergistics$afterPushPattern(IPatternDetails patternDetails,
+                                                  KeyCounter[] inputHolder,
                                                   CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             return;
@@ -82,7 +86,7 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
 
     @Override
     public boolean dataEnergistics$forcePulseUnlock() {
-        if (this.host instanceof RedstoneTuningAwareHost accessor && accessor.dataEnergistics$getRedstoneTuningMode() == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE && this.host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        if (this.host instanceof RedstoneTuningAwareHost accessor && accessor.dataEnergistics$getRedstoneTuningMode() == RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE && this.host.getBlockEntity().getLevel() instanceof ServerLevel serverLevel) {
             RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                     serverLevel,
                     this.host.getGrid(),
@@ -109,7 +113,7 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
 
     @Unique
     private void dataEnergistics$tryConsumePulseUnlock(RedstoneTuningAwareHost accessor) {
-        if (!accessor.dataEnergistics$hasRedstoneTuningCard() || accessor.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE || !accessor.dataEnergistics$consumeRedstoneInputPulse() || !(this.host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+        if (!accessor.dataEnergistics$hasRedstoneTuningCard() || accessor.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE || !accessor.dataEnergistics$consumeRedstoneInputPulse() || !(this.host.getBlockEntity().getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
         RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(

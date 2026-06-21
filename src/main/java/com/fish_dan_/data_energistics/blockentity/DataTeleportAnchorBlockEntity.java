@@ -11,6 +11,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -55,7 +56,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
 
     private boolean redstoneControlled;
     private boolean hasTarget;
-    private ResourceLocation targetDimension = net.minecraft.world.level.Level.OVERWORLD.location();
+    private ResourceLocation targetDimension = Level.OVERWORLD.location();
     private BlockPos targetPos = BlockPos.ZERO;
     private long lastAnchorPruneGameTime = Long.MIN_VALUE;
 
@@ -155,7 +156,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public String getAnchorDimensionId() {
-        return this.level == null ? net.minecraft.world.level.Level.OVERWORLD.location().toString() : this.level.dimension().location().toString();
+        return this.level == null ? Level.OVERWORLD.location().toString() : this.level.dimension().location().toString();
     }
 
     public String getAnchorDisplayName() {
@@ -222,7 +223,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
             return new TeleportResult(TeleportStatus.SELF_TARGET, 0);
         }
 
-        var targetLevelKey = net.minecraft.resources.ResourceKey.create(Registries.DIMENSION, targetDimensionId);
+        var targetLevelKey = ResourceKey.create(Registries.DIMENSION, targetDimensionId);
         ServerLevel targetLevel = sourceLevel.getServer().getLevel(targetLevelKey);
         if (targetLevel == null) {
             TeleportAnchorSavedData.get(sourceLevel.getServer()).removeAnchor(targetDimensionId, targetAnchorPos);
@@ -308,7 +309,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         if (data.contains(TARGET_DIMENSION_TAG)) {
             this.targetDimension = ResourceLocation.parse(data.getString(TARGET_DIMENSION_TAG));
         } else {
-            this.targetDimension = net.minecraft.world.level.Level.OVERWORLD.location();
+            this.targetDimension = Level.OVERWORLD.location();
         }
         this.targetPos = new BlockPos(
                 data.getInt(TARGET_X_TAG),
@@ -384,10 +385,6 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
 
         TeleportAnchorSavedData.get(serverLevel.getServer()).pruneMissingAnchors(serverLevel.getServer());
         this.lastAnchorPruneGameTime = gameTime;
-    }
-
-    private AnchorSummary toSummary() {
-        return new AnchorSummary(getAnchorDisplayName(), getAnchorDimensionId(), this.worldPosition.immutable(), getChannelId());
     }
 
     private void registerLoadedAnchor(ServerLevel serverLevel) {

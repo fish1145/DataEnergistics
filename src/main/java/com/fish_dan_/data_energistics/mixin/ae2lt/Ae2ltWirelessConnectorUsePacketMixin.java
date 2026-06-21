@@ -6,10 +6,15 @@ import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -144,15 +149,15 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             return vanilla;
         }
 
-        var tag = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-                net.minecraft.world.item.component.CustomData.EMPTY).copyTag();
+        var tag = stack.getOrDefault(DataComponents.CUSTOM_DATA,
+                CustomData.EMPTY).copyTag();
         if (!tag.contains("SelectedProvider")) {
             return null;
         }
 
         var sel = tag.getCompound("SelectedProvider");
-        var dimKey = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
-                net.minecraft.resources.ResourceLocation.parse(sel.getString("Dim")));
+        var dimKey = ResourceKey.create(Registries.DIMENSION,
+                ResourceLocation.parse(sel.getString("Dim")));
         var selectedPos = BlockPos.of(sel.getLong("Pos"));
         if (!level.dimension().equals(dimKey) || !level.isLoaded(selectedPos)) {
             return null;
@@ -162,7 +167,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
     }
 
     @Unique
-    private void dataEnergistics$addConnection(BlockEntity provider, net.minecraft.resources.ResourceKey<Level> dimension, BlockPos pos, Direction face) {
+    private void dataEnergistics$addConnection(BlockEntity provider, ResourceKey<Level> dimension, BlockPos pos, Direction face) {
         if (Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(provider)) {
             Ae2LtAdaptiveProviderCompat.addOrUpdateConnection(provider, dimension, pos, face);
         } else {

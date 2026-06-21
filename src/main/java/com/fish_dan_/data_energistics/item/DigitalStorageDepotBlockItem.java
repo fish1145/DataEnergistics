@@ -57,10 +57,6 @@ import java.util.Optional;
 
 public class DigitalStorageDepotBlockItem extends BlockItem {
 
-    private static final String TAG_SELECTED_FLUID_SLOT = "selected_fluid_slot";
-    private static final String TAG_SELECTED_KEY_SLOT = "selected_key_slot";
-    private static final String TAG_MARK_MODE = "mark_mode";
-    private static final String TAG_BUCKET_MODE = "bucket_mode";
     private static final int MARK_MODE_FLUID = 0;
     private static final int MARK_MODE_KEY = 1;
     private static final HolderLookup.Provider ITEM_CAPABILITY_REGISTRIES = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
@@ -150,10 +146,6 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             return getSelectedKeyStack(stack, registries);
         }
         return getSelectedFluidStack(stack, registries);
-    }
-
-    public static @Nullable GenericStack getSelectedTerminalStack(ItemStack stack, HolderLookup.Provider registries) {
-        return getSelectedMarkedStack(stack, registries);
     }
 
     public static @Nullable GenericStack getSelectedFluidStack(ItemStack stack, HolderLookup.Provider registries) {
@@ -365,7 +357,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
         }
 
         return FluidUtil.getFluidHandler(level, pos, hitResult.getDirection())
-                .map(handler -> handler.drain(FluidType.BUCKET_VOLUME, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.SIMULATE))
+                .map(handler -> handler.drain(FluidType.BUCKET_VOLUME, FluidAction.SIMULATE))
                 .filter(fluid -> !fluid.isEmpty());
     }
 
@@ -382,7 +374,7 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             return true;
         }
         Optional<FluidStack> drained = FluidUtil.getFluidHandler(level, pos, hitResult.getDirection())
-                .map(handler -> handler.drain(expectedFluid.copy(), net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE))
+                .map(handler -> handler.drain(expectedFluid.copy(), FluidAction.EXECUTE))
                 .filter(fluid -> !fluid.isEmpty() && FluidStack.isSameFluidSameComponents(fluid, expectedFluid) && fluid.getAmount() == expectedFluid.getAmount())
                 .stream()
                 .findFirst();

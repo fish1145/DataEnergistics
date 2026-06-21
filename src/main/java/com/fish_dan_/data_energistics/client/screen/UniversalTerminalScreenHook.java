@@ -1,17 +1,18 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.widgets.VerticalButtonBar;
 import appeng.menu.AEBaseMenu;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -25,7 +26,7 @@ import java.util.function.Supplier;
 
 public final class UniversalTerminalScreenHook {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final MethodHandle ADD_TO_LEFT_TOOLBAR = resolveMethod(AEBaseScreen.class, "addToLeftToolbar", Button.class, Button.class);
     private static final MethodHandle ADD_RENDERABLE_WIDGET = resolveMethod(Screen.class, "addRenderableWidget", GuiEventListener.class, GuiEventListener.class);
@@ -102,11 +103,11 @@ public final class UniversalTerminalScreenHook {
                 btn -> selectorPanel.toggleOpen(),
                 () -> {
                     AEBaseMenu currentMenu = menuSupplier.get();
-                    return currentMenu != null ? UniversalTerminalClientHelper.getActiveTerminalIcon(currentMenu) : net.minecraft.world.item.ItemStack.EMPTY;
+                    return currentMenu != null ? UniversalTerminalClientHelper.getActiveTerminalIcon(currentMenu) : ItemStack.EMPTY;
                 },
                 () -> {
                     AEBaseMenu currentMenu = menuSupplier.get();
-                    return currentMenu != null ? UniversalTerminalClientHelper.getSelectorTooltip(currentMenu) : java.util.List.of();
+                    return currentMenu != null ? UniversalTerminalClientHelper.getSelectorTooltip(currentMenu) : List.of();
                 },
                 selectorPanel::isOpen,
                 () -> new int[] { screen.getGuiLeft() - 18, screen.getGuiTop() + 2 });

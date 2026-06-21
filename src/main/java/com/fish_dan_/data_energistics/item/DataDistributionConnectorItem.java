@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -121,7 +122,7 @@ public class DataDistributionConnectorItem extends Item {
             return InteractionResult.FAIL;
         }
 
-        ResourceKey<Level> dimensionKey = ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
+        ResourceKey<Level> dimensionKey = ResourceKey.create(Registries.DIMENSION,
                 ResourceLocation.parse(data.dimensionId()));
         if (!level.dimension().equals(dimensionKey)) {
             if (showFailureMessages) {

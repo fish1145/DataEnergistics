@@ -12,13 +12,12 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public final class FlatteningTntConfig {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
     private static final String DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME = "自定义平地TNT";
 

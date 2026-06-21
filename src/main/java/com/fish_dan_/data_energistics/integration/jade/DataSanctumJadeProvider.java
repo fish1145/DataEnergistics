@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.core.localization.InGameTooltip;
 import appeng.util.Platform;
@@ -84,7 +85,7 @@ public class DataSanctumJadeProvider implements IBlockComponentProvider, IServer
         return state.hasProperty(DataSanctumBlock.MODE) ? state.getValue(DataSanctumBlock.MODE) : 0;
     }
 
-    private static int getPartKind(net.minecraft.world.level.block.state.BlockState state) {
+    private static int getPartKind(BlockState state) {
         if (DataSanctumBlockEntity.isNetworkPortPart(state)) {
             return 1;
         }

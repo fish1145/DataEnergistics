@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item.TooltipContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 
@@ -8,13 +10,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 @Mixin(targets = "appeng.crafting.pattern.EncodedPatternItem")
 public abstract class EncodedPatternItemMixin {
 
     @Inject(method = "appendHoverText", at = @At("TAIL"))
     private void dataEnergistics$appendPatternSourceTooltip(ItemStack stack,
-                                                            net.minecraft.world.item.Item.TooltipContext context,
-                                                            java.util.List<net.minecraft.network.chat.Component> lines,
+                                                            TooltipContext context,
+                                                            List<Component> lines,
                                                             TooltipFlag flags,
                                                             CallbackInfo ci) {}
 }

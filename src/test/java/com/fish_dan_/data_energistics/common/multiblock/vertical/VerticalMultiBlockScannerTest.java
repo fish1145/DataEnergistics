@@ -1,63 +1,89 @@
 package com.fish_dan_.data_energistics.common.multiblock.vertical;
 
-import org.junit.jupiter.api.Test;
+import com.fish_dan_.data_energistics.Data_Energistics;
+
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+@GameTestHolder(Data_Energistics.MODID)
+@PrefixGameTestTemplate(false)
+public final class VerticalMultiBlockScannerTest {
 
-class VerticalMultiBlockScannerTest {
+    private VerticalMultiBlockScannerTest() {}
 
-    @Test
-    void detectsValidHeightWithinBounds() {
+    @TestHolder("vertical_multiblock_scanner_detects_valid_height_within_bounds")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void detectsValidHeightWithinBounds(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = squareDefinition(3, 4);
         Map<VerticalMultiBlockPos, String> world = new HashMap<>();
         place(world, definition, new VerticalMultiBlockPos(10, 64, 10), VerticalMultiBlockDirection.NORTH, 3);
 
         Optional<VerticalMultiBlockContext<String>> result = scan(world, definition, new VerticalMultiBlockPos(10, 64, 10));
 
-        assertTrue(result.isPresent());
-        assertEquals(3, result.orElseThrow().height());
-        assertEquals(12, result.orElseThrow().matchedPositions().size());
+        helper.assertTrue(result.isPresent(), "Expected scanner to detect a valid 3-high structure");
+        VerticalMultiBlockContext<String> context = result.orElseThrow();
+        helper.assertValueEqual(context.height(), 3, "Detected height should match the placed structure height");
+        helper.assertValueEqual(context.matchedPositions().size(), 12, "Matched position count should include all 3 layers");
+        helper.succeed();
     }
 
-    @Test
-    void rejectsStructuresBelowMinimumHeight() {
+    @TestHolder("vertical_multiblock_scanner_rejects_structures_below_minimum_height")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsStructuresBelowMinimumHeight(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = squareDefinition(3, 4);
         Map<VerticalMultiBlockPos, String> world = new HashMap<>();
         place(world, definition, new VerticalMultiBlockPos(0, 0, 0), VerticalMultiBlockDirection.NORTH, 2);
 
-        assertFalse(scan(world, definition, new VerticalMultiBlockPos(0, 0, 0)).isPresent());
+        helper.assertFalse(
+                scan(world, definition, new VerticalMultiBlockPos(0, 0, 0)).isPresent(),
+                "Scanner should reject a structure below the minimum height");
+        helper.succeed();
     }
 
-    @Test
-    void rejectsStructuresAboveMaximumHeight() {
+    @TestHolder("vertical_multiblock_scanner_rejects_structures_above_maximum_height")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsStructuresAboveMaximumHeight(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = squareDefinition(3, 4);
         Map<VerticalMultiBlockPos, String> world = new HashMap<>();
         place(world, definition, new VerticalMultiBlockPos(0, 0, 0), VerticalMultiBlockDirection.NORTH, 5);
 
-        assertFalse(scan(world, definition, new VerticalMultiBlockPos(0, 0, 0)).isPresent());
+        helper.assertFalse(
+                scan(world, definition, new VerticalMultiBlockPos(0, 0, 0)).isPresent(),
+                "Scanner should reject a structure above the maximum height");
+        helper.succeed();
     }
 
-    @Test
-    void prefersLongestValidMatchWhenTemplatesOverlap() {
+    @TestHolder("vertical_multiblock_scanner_prefers_longest_valid_match_when_templates_overlap")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void prefersLongestValidMatchWhenTemplatesOverlap(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = uniformDefinition(2, 4);
         Map<VerticalMultiBlockPos, String> world = new HashMap<>();
         place(world, definition, new VerticalMultiBlockPos(0, 0, 0), VerticalMultiBlockDirection.NORTH, 4);
 
         Optional<VerticalMultiBlockContext<String>> result = scan(world, definition, new VerticalMultiBlockPos(0, 0, 0));
 
-        assertTrue(result.isPresent());
-        assertEquals(4, result.orElseThrow().height());
+        helper.assertTrue(result.isPresent(), "Expected scanner to detect the overlapping uniform structure");
+        helper.assertValueEqual(result.orElseThrow().height(), 4, "Scanner should prefer the longest valid match");
+        helper.succeed();
     }
 
-    @Test
-    void detectsAllHorizontalDirectionsWithRectangularLayers() {
+    @TestHolder("vertical_multiblock_scanner_detects_all_horizontal_directions_with_rectangular_layers")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void detectsAllHorizontalDirectionsWithRectangularLayers(GameTestHelper helper) {
         for (VerticalMultiBlockDirection direction : VerticalMultiBlockDirection.horizontal()) {
             VerticalMultiBlockDefinition<String> definition = rectangularDefinition(3, 4);
             Map<VerticalMultiBlockPos, String> world = new HashMap<>();
@@ -67,13 +93,19 @@ class VerticalMultiBlockScannerTest {
 
             Optional<VerticalMultiBlockContext<String>> result = scan(world, definition, controller);
 
-            assertTrue(result.isPresent(), "Direction failed: " + direction);
-            assertEquals(direction, result.orElseThrow().direction());
+            helper.assertTrue(result.isPresent(), "Scanner should detect direction " + direction);
+            helper.assertValueEqual(
+                    result.orElseThrow().direction(),
+                    direction,
+                    "Detected direction should match the placed direction " + direction);
         }
+        helper.succeed();
     }
 
-    @Test
-    void invalidatesAndRecoversWhenMatchedBlockChanges() {
+    @TestHolder("vertical_multiblock_scanner_invalidates_and_recovers_when_matched_block_changes")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void invalidatesAndRecoversWhenMatchedBlockChanges(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = squareDefinition(3, 4);
         Map<VerticalMultiBlockPos, String> world = new HashMap<>();
         VerticalMultiBlockPos origin = new VerticalMultiBlockPos(0, 0, 0);
@@ -81,17 +113,20 @@ class VerticalMultiBlockScannerTest {
         VerticalMultiBlockPos changedBlock = new VerticalMultiBlockPos(1, 1, 1);
         String originalState = world.get(changedBlock);
 
-        assertTrue(scan(world, definition, origin).isPresent());
+        helper.assertTrue(scan(world, definition, origin).isPresent(), "Initial structure should be valid");
 
         world.remove(changedBlock);
-        assertFalse(scan(world, definition, origin).isPresent());
+        helper.assertFalse(scan(world, definition, origin).isPresent(), "Structure should be invalid after a matched block is removed");
 
         world.put(changedBlock, originalState);
-        assertTrue(scan(world, definition, origin).isPresent());
+        helper.assertTrue(scan(world, definition, origin).isPresent(), "Structure should recover after the matched block is restored");
+        helper.succeed();
     }
 
-    @Test
-    void acceptsOnlyCandidateThatMatchesDefinition() {
+    @TestHolder("vertical_multiblock_scanner_accepts_only_candidate_that_matches_definition")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void acceptsOnlyCandidateThatMatchesDefinition(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = VerticalMultiBlockDefinition.<String>builder("test:candidates")
                 .bottomLayer(squareLayer("C", "B1", "B2", "B3"))
                 .middleLayer(squareLayer("M1", "M2", "M3", "M4"))
@@ -105,8 +140,9 @@ class VerticalMultiBlockScannerTest {
 
         Optional<VerticalMultiBlockContext<String>> result = scan(world, definition, origin);
 
-        assertTrue(result.isPresent());
-        assertEquals(origin, result.orElseThrow().origin());
+        helper.assertTrue(result.isPresent(), "Scanner should accept the matching controller candidate");
+        helper.assertValueEqual(result.orElseThrow().origin(), origin, "Scanner should resolve the matching candidate origin");
+        helper.succeed();
     }
 
     private static Optional<VerticalMultiBlockContext<String>> scan(Map<VerticalMultiBlockPos, String> world,

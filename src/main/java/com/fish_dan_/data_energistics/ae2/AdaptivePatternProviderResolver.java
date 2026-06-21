@@ -26,6 +26,7 @@ import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEParts;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import appeng.parts.crafting.PatternProviderPart;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -158,20 +159,20 @@ public final class AdaptivePatternProviderResolver {
 
         var cableBus = cableBusBlockEntity.getCableBus();
         IPart centerPart = cableBus.getPart(null);
-        if (centerPart instanceof appeng.parts.crafting.PatternProviderPart) {
+        if (centerPart instanceof PatternProviderPart) {
             return true;
         }
 
         if (side == null) {
             for (Direction direction : Direction.values()) {
-                if (cableBus.getPart(direction) instanceof appeng.parts.crafting.PatternProviderPart) {
+                if (cableBus.getPart(direction) instanceof PatternProviderPart) {
                     return true;
                 }
             }
             return false;
         }
 
-        return cableBus.getPart(side) instanceof appeng.parts.crafting.PatternProviderPart;
+        return cableBus.getPart(side) instanceof PatternProviderPart;
     }
 
     public static Component decorateAdaptiveProviderName(Component providerName) {

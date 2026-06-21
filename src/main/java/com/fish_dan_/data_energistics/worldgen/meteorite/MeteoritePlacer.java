@@ -37,10 +37,6 @@ import java.util.stream.Stream;
 
 public final class MeteoritePlacer {
 
-    private static final float CRACKED_METEORITE_CHANCE = 0.27F;
-    private static final float EXPOSED_METEORITE_CHANCE = 0.12F;
-    private static final float SHATTERED_METEORITE_CHANCE = 0.05F;
-    private static final float END_STONE_METEORITE_CHANCE = 0.06F;
     private static final float CHARGED_DATA_CRYSTAL_CHANCE = 0.27F;
     private static final float CERTUS_MOTHER_ROCK_CHANCE = 0.55F;
     private static final int CORE_RADIUS = 1;
@@ -50,7 +46,6 @@ public final class MeteoritePlacer {
     private final BlockState crackedMeteorite;
     private final BlockState exposedMeteorite;
     private final BlockState shatteredMeteorite;
-    private final BlockState endStone;
     private final BlockState deactivatedDataCrystalMotherRock;
     private final BlockState chargedDataCrystalMotherRock;
     private final List<BlockState> certusMotherRocks;
@@ -99,7 +94,6 @@ public final class MeteoritePlacer {
         this.crackedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
         this.exposedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
         this.shatteredMeteorite = ModBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
-        this.endStone = Blocks.END_STONE.defaultBlockState();
         this.deactivatedDataCrystalMotherRock = ModBlocks.BUDDING_DATA_CRYSTAL_0.get().defaultBlockState();
         this.chargedDataCrystalMotherRock = ModBlocks.BUDDING_DATA_CRYSTAL_4.get().defaultBlockState();
         this.certusMotherRocks = this.getCertusMotherRocks();

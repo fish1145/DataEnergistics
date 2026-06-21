@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
@@ -14,6 +15,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -37,6 +40,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -380,8 +384,8 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
 
         if (!player.isShiftKeyDown()) {
             if (player instanceof ServerPlayer serverPlayer) {
-                serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                        (containerId, playerInventory, menuPlayer) -> new com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu(
+                serverPlayer.openMenu(new SimpleMenuProvider(
+                        (containerId, playerInventory, menuPlayer) -> new DataDistributionTowerMenu(
                                 containerId,
                                 playerInventory,
                                 tower),
@@ -445,8 +449,8 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
 
     @Override
     public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
-        BlockEntity blockEntity = builder.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.BLOCK_ENTITY);
-        net.minecraft.world.entity.Entity looter = builder.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.THIS_ENTITY);
+        BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
+        Entity looter = builder.getOptionalParameter(LootContextParams.THIS_ENTITY);
         Player player = looter instanceof Player lootPlayer ? lootPlayer : null;
         return List.of(createTowerItemDrop(blockEntity, player));
     }

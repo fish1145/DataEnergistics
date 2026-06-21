@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -17,7 +18,7 @@ public record DataTeleportAnchorKnifeTeleportPayload(BlockPos anchorPos, boolean
         implements CustomPacketPayload {
 
     public static final Type<DataTeleportAnchorKnifeTeleportPayload> TYPE = new Type<>(Data_Energistics.id("data_teleport_anchor_knife_teleport"));
-    public static final net.minecraft.network.codec.StreamCodec<RegistryFriendlyByteBuf, DataTeleportAnchorKnifeTeleportPayload> STREAM_CODEC = CustomPacketPayload.codec(DataTeleportAnchorKnifeTeleportPayload::write, DataTeleportAnchorKnifeTeleportPayload::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, DataTeleportAnchorKnifeTeleportPayload> STREAM_CODEC = CustomPacketPayload.codec(DataTeleportAnchorKnifeTeleportPayload::write, DataTeleportAnchorKnifeTeleportPayload::new);
 
     private DataTeleportAnchorKnifeTeleportPayload(RegistryFriendlyByteBuf buf) {
         this(buf.readBlockPos(), buf.readBoolean());

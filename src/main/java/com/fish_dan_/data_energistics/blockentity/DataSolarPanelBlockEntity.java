@@ -12,6 +12,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
@@ -30,6 +31,7 @@ import appeng.core.definitions.AEItems;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject, DataSolarPanelMenuHost {
 
@@ -54,12 +56,12 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     @Override
-    public java.util.Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
+    public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
         return EnumSet.of(Direction.DOWN);
     }
 
     @Override
-    public AECableType getCableConnectionType(net.minecraft.core.Direction dir) {
+    public AECableType getCableConnectionType(Direction dir) {
         return dir == Direction.DOWN ? AECableType.COVERED : AECableType.NONE;
     }
 
@@ -157,7 +159,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     @Override
-    public void addAdditionalDrops(net.minecraft.world.level.Level level, BlockPos pos, List<ItemStack> drops) {
+    public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
         for (ItemStack stack : this.upgrades) {
             if (!stack.isEmpty()) {

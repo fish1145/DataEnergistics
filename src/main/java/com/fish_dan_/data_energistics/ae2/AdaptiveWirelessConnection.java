@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -27,7 +28,7 @@ public record AdaptiveWirelessConnection(ResourceKey<Level> dimension, BlockPos 
 
     public static AdaptiveWirelessConnection fromTag(CompoundTag tag) {
         ResourceKey<Level> dimension = ResourceKey.create(
-                net.minecraft.core.registries.Registries.DIMENSION,
+                Registries.DIMENSION,
                 ResourceLocation.parse(tag.getString(TAG_DIM)));
         BlockPos pos = BlockPos.of(tag.getLong(TAG_POS));
         Direction face = Direction.from3DDataValue(tag.getInt(TAG_FACE));

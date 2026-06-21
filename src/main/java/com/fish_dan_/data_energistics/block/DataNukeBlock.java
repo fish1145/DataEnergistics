@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.block;
 import com.fish_dan_.data_energistics.entity.DataNukePrimedEntity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -31,7 +32,7 @@ public class DataNukeBlock extends TntBlock {
     }
 
     @Override
-    public void onCaughtFire(BlockState state, Level level, BlockPos pos, @Nullable net.minecraft.core.Direction face,
+    public void onCaughtFire(BlockState state, Level level, BlockPos pos, @Nullable Direction face,
                              @Nullable LivingEntity igniter) {
         prime(level, pos, igniter, 80);
     }

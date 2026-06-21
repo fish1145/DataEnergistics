@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -16,6 +17,7 @@ import appeng.core.definitions.AEItems;
 import appeng.items.misc.WrappedGenericStack;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.slot.FakeSlot;
+import appeng.parts.encoding.EncodingMode;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -77,7 +79,7 @@ public class NativePatternEncodingTermScreen extends PatternEncodingPreviewScree
         return new StackWithBounds(wrappedKeyStack, new Rect2i(this.leftPos + slot.x, this.topPos + slot.y, 16, 16));
     }
 
-    private boolean isWrappedGenericProxyItem(net.minecraft.world.item.ItemStack stack) {
+    private boolean isWrappedGenericProxyItem(ItemStack stack) {
         return !stack.isEmpty() && AEItems.WRAPPED_GENERIC_STACK.is(stack);
     }
 
@@ -98,7 +100,7 @@ public class NativePatternEncodingTermScreen extends PatternEncodingPreviewScree
     }
 
     private boolean isProcessingInputSlot(@Nullable Slot slot) {
-        if (slot == null || this.menu.getMode() != appeng.parts.encoding.EncodingMode.PROCESSING) {
+        if (slot == null || this.menu.getMode() != EncodingMode.PROCESSING) {
             return false;
         }
         for (FakeSlot inputSlot : getVisibleProcessingInputSlots()) {

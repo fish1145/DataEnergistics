@@ -1235,7 +1235,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private GenericStackInv createFluidMenuInventory(Runnable syncAction, int capacity, Supplier<FluidStack> pairedFluidSupplier) {
-        var inv = new GenericStackInv(java.util.Set.of(AEKeyType.fluids()), syncAction, GenericStackInv.Mode.STORAGE, 1) {
+        var inv = new GenericStackInv(Set.of(AEKeyType.fluids()), syncAction, GenericStackInv.Mode.STORAGE, 1) {
 
             {
                 this.setFilter((slot, what) -> {
@@ -1248,14 +1248,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         };
         inv.setCapacity(AEKeyType.fluids(), capacity);
         return inv;
-    }
-
-    private GenericStackInv createFluidMenuInventory(Runnable syncAction) {
-        return createFluidMenuInventory(syncAction, FLUID_INPUT_CAPACITY, () -> FluidStack.EMPTY);
-    }
-
-    private GenericStackInv createFluidOutputMenuInventory(Runnable syncAction) {
-        return createFluidMenuInventory(syncAction, FLUID_OUTPUT_CAPACITY, () -> FluidStack.EMPTY);
     }
 
     private GenericStackInv createKeyMenuInventory() {

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.registry;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 import com.fish_dan_.data_energistics.util.UniversalTerminalConfigProfile;
@@ -19,23 +20,25 @@ import appeng.api.parts.IPartItem;
 import appeng.api.storage.IPatternAccessTermMenuHost;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.util.IConfigManager;
+import appeng.api.util.IConfigManagerBuilder;
 import appeng.core.definitions.AEParts;
 import appeng.helpers.IPatternTerminalMenuHost;
 import appeng.parts.encoding.PatternEncodingTerminalPart;
 import appeng.parts.reporting.AbstractTerminalPart;
 import appeng.parts.reporting.CraftingTerminalPart;
 import appeng.parts.reporting.PatternAccessTerminalPart;
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public final class UniversalTerminalAdapters {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static boolean initialized;
     private static boolean discovered;
 
@@ -181,8 +184,8 @@ public final class UniversalTerminalAdapters {
         return AbstractTerminalPart.class.isAssignableFrom(partClass) || ITerminalHost.class.isAssignableFrom(partClass);
     }
 
-    private static @Nullable java.util.function.Supplier<MenuType<?>> findExternalMenuTypeSupplier(
-                                                                                                   ResourceLocation itemId, Class<?> partClass) {
+    private static @Nullable Supplier<MenuType<?>> findExternalMenuTypeSupplier(
+                                                                                ResourceLocation itemId, Class<?> partClass) {
         String itemPath = itemId.getPath();
         String partSimpleName = partClass.getSimpleName();
         if (!looksLikeTerminal(itemPath, partSimpleName)) {
@@ -313,7 +316,7 @@ public final class UniversalTerminalAdapters {
                                                   String menuFieldName,
                                                   UniversalTerminalConfigProfile configProfile,
                                                   boolean requiresCustomMenuLocator,
-                                                  @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory,
+                                                  @Nullable Function<Runnable, IConfigManager> configManagerFactory,
                                                   Map<String, Item> partItemsByClassName) {
         var menuTypeSupplier = resolveMenuTypeSupplier(menuOwnerClassName, menuFieldName);
         if (menuTypeSupplier == null) {
@@ -327,10 +330,10 @@ public final class UniversalTerminalAdapters {
     }
 
     private static void registerReflectiveAdapter(String partClassName,
-                                                  java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> menuTypeSupplier,
+                                                  Supplier<MenuType<?>> menuTypeSupplier,
                                                   UniversalTerminalConfigProfile configProfile,
                                                   boolean requiresCustomMenuLocator,
-                                                  @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory,
+                                                  @Nullable Function<Runnable, IConfigManager> configManagerFactory,
                                                   Map<String, Item> partItemsByClassName) {
         Item terminalItem = partItemsByClassName.get(partClassName);
         if (terminalItem == null) {
@@ -358,14 +361,14 @@ public final class UniversalTerminalAdapters {
         LOGGER.info("Registered reflected universal terminal adapter for {} using wrapped menu type", itemId);
     }
 
-    private static @Nullable java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> resolveMenuTypeSupplier(
-                                                                                                                            String ownerClassName, String fieldName) {
+    private static @Nullable Supplier<MenuType<?>> resolveMenuTypeSupplier(
+                                                                           String ownerClassName, String fieldName) {
         try {
             Object value = ReflectionAccess.getField(ReflectionAccess.findStaticField(ownerClassName, fieldName), null);
-            if (value instanceof java.util.function.Supplier<?> supplier) {
-                return () -> (net.minecraft.world.inventory.MenuType<?>) supplier.get();
+            if (value instanceof Supplier<?> supplier) {
+                return () -> (MenuType<?>) supplier.get();
             }
-            if (value instanceof net.minecraft.world.inventory.MenuType<?> menuType) {
+            if (value instanceof MenuType<?> menuType) {
                 return () -> menuType;
             }
         } catch (LinkageError e) {
@@ -388,7 +391,7 @@ public final class UniversalTerminalAdapters {
             Object setting = ReflectionAccess.getField(ReflectionAccess.findStaticField(settingsClass, "TERMINAL_SHOW_QUANTUM_CRAFTERS"), null);
             Enum<?> visible = Enum.valueOf(visibleClass, "VISIBLE");
             var builder = IConfigManager.builder(saveAction);
-            ((appeng.api.util.IConfigManagerBuilder) builder).registerSetting((Setting) setting, (Enum) visible);
+            ((IConfigManagerBuilder) builder).registerSetting((Setting) setting, (Enum) visible);
             return builder.build();
         } catch (ReflectiveOperationException e) {
             LOGGER.warn("Could not create AdvancedAE universal terminal config manager", e);
@@ -397,7 +400,7 @@ public final class UniversalTerminalAdapters {
     }
 
     private record DetectedTerminalProfile(
-                                           java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> menuTypeSupplier,
+                                           Supplier<MenuType<?>> menuTypeSupplier,
                                            UniversalTerminalConfigProfile configProfile,
-                                           @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory) {}
+                                           @Nullable Function<Runnable, IConfigManager> configManagerFactory) {}
 }

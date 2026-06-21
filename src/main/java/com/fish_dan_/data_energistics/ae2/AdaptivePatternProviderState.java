@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -396,7 +397,7 @@ public final class AdaptivePatternProviderState {
         int connectionCount = data.readVarInt();
         List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(connectionCount);
         for (int i = 0; i < connectionCount; i++) {
-            var dimension = ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, data.readResourceLocation());
+            var dimension = ResourceKey.create(Registries.DIMENSION, data.readResourceLocation());
             var pos = data.readBlockPos();
             var face = data.readEnum(Direction.class);
             incomingConnections.add(new AdaptiveWirelessConnection(dimension, pos, face));

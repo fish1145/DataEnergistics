@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.OritechEnergyIntegration;
+import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccessImpl;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -48,6 +50,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
 import appeng.api.AECapabilities;
 import appeng.api.networking.GridFlags;
@@ -73,17 +77,11 @@ import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.AEItemDefinitionFilter;
-import com.mojang.logging.LogUtils;
 import lombok.Getter;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -93,16 +91,16 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
+    private static final DirectEnergyAccess DIRECT_ENERGY_ACCESS = new DirectEnergyAccessImpl();
     private static final String NEOECOAE_BLOCK_ENTITY_PREFIX = "cn.dancingsnow.neoecoae.blocks.entity.";
     private static final Set<String> PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES = Set.of(
             "cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity",
@@ -130,13 +128,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int BOOSTERS_PER_CHUNK_RING = 8;
     private static final int VERTICAL_RANGE_ABOVE = 256;
     private static final int VERTICAL_RANGE_BELOW = 128;
-    private static final long DIRECT_ENERGY_INSERT_UNAVAILABLE = Long.MIN_VALUE;
-    private static final List<String> DIRECT_ENERGY_FIELD_NAMES = List.of("energy", "storedEnergy", "energyStored", "stored", "amount");
-    private static final List<String> DIRECT_ENERGY_CAPACITY_FIELD_NAMES = List.of("capacity", "maxEnergy", "maxEnergyStored", "maxStored", "maxStorage");
-    private static final List<String> DIRECT_ENERGY_WRAPPER_FIELD_NAMES = List.of("container", "storage", "delegate", "wrapped", "backingStorage");
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
-    private static final Map<Class<?>, Optional<DirectEnergyStorageAccess>> DIRECT_ENERGY_STORAGE_ACCESS_CACHE = new ConcurrentHashMap<>();
-    private static final Map<Class<?>, Optional<VarHandle>> DIRECT_ENERGY_WRAPPER_FIELD_CACHE = new ConcurrentHashMap<>();
     private static MinecraftServer boundServer;
 
     private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
@@ -151,7 +143,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<ExtractSimulationKey, Integer> cachedSimulatedExtracts = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private final ArrayList<EnergyEndpoint> reusableEndpointFilter = new ArrayList<>();
-    private long lastEndpointCacheTick = Long.MIN_VALUE;
     private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private List<BlockPos> cachedAeDisplayTargets = List.of();
@@ -163,7 +154,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean receiveEndpointResolutionValid;
     private boolean extractEndpointResolutionValid;
     private BlockPos cachedClusterCoordinatorPos;
-    private long cachedTransferBudgetHint = 0L;
     private long cachedSimulatedExtractTick = Long.MIN_VALUE;
     private long diagnosticWindowStartTick = Long.MIN_VALUE;
     private int diagnosticRealExtractCalls;
@@ -378,7 +368,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    public IEnergyStorage getEnergyStorageForQuery(BlockPos accessPos, @Nullable net.minecraft.core.Direction side) {
+    public IEnergyStorage getEnergyStorageForQuery(BlockPos accessPos, @Nullable Direction side) {
         BlockPos excludedPos = side == null ? null : accessPos.relative(side);
         BlockPos normalizedExcludedPos = normalizeExcludedPos(excludedPos);
         if (normalizedExcludedPos == null) {
@@ -689,7 +679,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean canReceive = false;
         boolean hasEnergy = false;
 
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             IEnergyStorage storage = getEnergyStorageAt(normalizedPos, direction);
             if (storage == null) {
                 continue;
@@ -822,7 +812,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         ArrayList<CableBusDisplayPart> sideParts = new ArrayList<>();
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             IPart part = cableBus.getPart(direction);
             if (part != null) {
                 sideParts.add(new CableBusDisplayPart(part, direction));
@@ -868,7 +858,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return Items.BARRIER;
     }
 
-    private String resolvePartDisplayName(IPart part, Item item, @Nullable net.minecraft.core.Direction direction,
+    private String resolvePartDisplayName(IPart part, Item item, @Nullable Direction direction,
                                           String prefix, String groupSuffix) {
         String directionSuffix = direction == null ? "" : " [" + formatDirection(direction) + "]";
         String suffix = directionSuffix + groupSuffix;
@@ -892,7 +882,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return prefix + part.getClass().getSimpleName() + suffix;
     }
 
-    private String formatDirection(net.minecraft.core.Direction direction) {
+    private String formatDirection(Direction direction) {
         return switch (direction) {
             case NORTH -> "\u5317";
             case SOUTH -> "\u5357";
@@ -1124,12 +1114,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @SubscribeEvent
-    public static void onServerStarting(net.neoforged.neoforge.event.server.ServerStartingEvent event) {
+    public static void onServerStarting(ServerStartingEvent event) {
         ensureBound(event.getServer());
     }
 
     @SubscribeEvent
-    public static void onServerStopped(net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+    public static void onServerStopped(ServerStoppedEvent event) {
         TOWER_CHUNK_POSITIONS.clear();
         boundServer = null;
     }
@@ -1435,7 +1425,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void invalidateEndpointCache() {
-        this.lastEndpointCacheTick = Long.MIN_VALUE;
         this.cachedEndpoints = List.of();
         this.cachedAeDisplayTargets = List.of();
         this.endpointCacheValid = false;
@@ -1472,7 +1461,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         invalidateClusterCache();
         this.cachedEnergyStorageViews.clear();
         this.reusableEndpointFilter.clear();
-        this.cachedTransferBudgetHint = 0L;
         trimCaches();
     }
 
@@ -1555,7 +1543,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         this.cachedEndpoints = List.copyOf(endpoints);
         this.cachedAeDisplayTargets = List.copyOf(aeDisplayTargets);
-        this.lastEndpointCacheTick = this.level.getGameTime();
         this.endpointCacheValid = true;
     }
 
@@ -1689,7 +1676,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 representative = currentPos;
             }
 
-            for (var direction : net.minecraft.core.Direction.values()) {
+            for (var direction : Direction.values()) {
                 BlockPos neighborPos = currentPos.relative(direction);
                 if (!visited.add(neighborPos)) {
                     continue;
@@ -1705,15 +1692,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         return representative;
-    }
-
-    private boolean isRepresentativeAeCraftingComponent(@Nullable BlockEntity blockEntity) {
-        if (!isAeCraftingClusterComponent(blockEntity) || this.level == null) {
-            return false;
-        }
-
-        BlockPos representative = findAeCraftingClusterRepresentative(blockEntity);
-        return representative != null && representative.equals(blockEntity.getBlockPos());
     }
 
     private boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
@@ -1733,14 +1711,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (isAeCraftingDisplayComponent(blockEntity) || blockEntity instanceof PatternProviderBlockEntity) {
             return false;
         }
-        if (blockEntity instanceof CableBusBlockEntity cableBusBlockEntity) {
+        if (blockEntity instanceof CableBusBlockEntity) {
             return false;
         } else if (this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, blockEntity.getBlockPos(), null) == null) {
             return false;
         }
 
         BlockPos pos = blockEntity.getBlockPos();
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             BlockEntity neighbor = this.level.getBlockEntity(pos.relative(direction));
             if (isAeCraftingClusterNode(neighbor)) {
                 return true;
@@ -1749,12 +1727,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return false;
     }
 
-    private boolean hasDisplayableCableBusPart(CableBusContainer cableBus) {
-        return hasAnyCableBusPart(cableBus);
-    }
-
     private boolean hasAnyEnergyCapability(BlockPos pos) {
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             if (getEnergyStorageAt(pos, direction) != null) {
                 return true;
             }
@@ -1763,7 +1737,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean hasStoredEnergy(BlockPos pos) {
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             IEnergyStorage storage = getEnergyStorageAt(pos, direction);
             if (storage != null && storage.getEnergyStored() > 0) {
                 return true;
@@ -1808,26 +1782,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return null;
     }
 
-    private boolean hasWhitelistedCableBusDisplayPart(CableBusContainer cableBus) {
-        if (cableBus.getPart(null) != null) {
-            return true;
-        }
-
-        for (var direction : net.minecraft.core.Direction.values()) {
-            if (cableBus.getPart(direction) != null) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private boolean hasAnyCableBusPart(CableBusContainer cableBus) {
         if (cableBus.getPart(null) != null) {
             return true;
         }
 
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             if (cableBus.getPart(direction) != null) {
                 return true;
             }
@@ -1841,7 +1801,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Nullable
-    private IEnergyStorage getEnergyStorageAt(BlockPos pos, @Nullable net.minecraft.core.Direction side) {
+    private IEnergyStorage getEnergyStorageAt(BlockPos pos, @Nullable Direction side) {
         if (this.level == null || isTowerBlock(pos)) {
             return null;
         }
@@ -1864,7 +1824,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
         boolean collectAllSides = this.level.getBlockEntity(pos) instanceof CableBusBlockEntity;
 
-        for (var direction : net.minecraft.core.Direction.values()) {
+        for (var direction : Direction.values()) {
             IEnergyStorage storage = getEnergyStorageAt(pos, direction);
             if (isUsableEnergyStorage(storage, forReceive) && seenStorages.add(storage)) {
                 endpoints.add(new EnergyEndpoint(pos.immutable(), direction, storage));
@@ -2027,7 +1987,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private void performActiveRangeTransfer() {
         long transferBudget = getTransferBudgetPerTick();
-        this.cachedTransferBudgetHint = saturatingMultiply(transferBudget, TRANSFER_SUBSTEPS_PER_TICK);
         if (transferBudget <= 0) {
             return;
         }
@@ -2244,7 +2203,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         IEnergyStorage storage = endpoint.storage();
         long directInserted = insertEnergyDirectly(storage, amount, simulate);
-        if (directInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
+        if (directInserted != DirectEnergyAccess.INSERT_UNAVAILABLE) {
             if (directInserted > 0 || !storage.canReceive()) {
                 if (!simulate && directInserted > 0) {
                     notifyDirectEnergyStorageChanged(endpoint);
@@ -2256,8 +2215,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void notifyDirectEnergyStorageChanged(EnergyEndpoint endpoint) {
-        ReflectionAccess.invokeNoArgBestEffort(endpoint.storage(), "onEnergyChanged");
-        ReflectionAccess.invokeNoArgBestEffort(endpoint.storage(), "onContentsChanged");
+        DIRECT_ENERGY_ACCESS.notifyStorageChanged(endpoint.storage());
         if (this.level == null) {
             return;
         }
@@ -2269,194 +2227,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private static boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
-        return storage != null && (storage.canReceive() || getDirectEnergyStorageTarget(storage).isPresent());
+        return storage != null && (storage.canReceive() || DIRECT_ENERGY_ACCESS.canReceive(storage));
     }
 
     private static long insertEnergyDirectly(IEnergyStorage storage, long amount, boolean simulate) {
-        if (amount <= 0) {
-            return 0;
-        }
-
-        Optional<DirectEnergyStorageTarget> target = getDirectEnergyStorageTarget(storage);
-        return target.map(directEnergyStorageTarget -> directEnergyStorageTarget.insert(storage, amount, simulate)).orElse(DIRECT_ENERGY_INSERT_UNAVAILABLE);
-    }
-
-    private static Optional<DirectEnergyStorageTarget> getDirectEnergyStorageTarget(IEnergyStorage storage) {
-        Optional<DirectEnergyStorageTarget> unwrapped = getUnwrappedDirectEnergyStorageTarget(storage);
-        if (unwrapped.isPresent()) {
-            return unwrapped;
-        }
-
-        return getDirectEnergyStorageAccess(storage.getClass())
-                .map(access -> new DirectEnergyStorageTarget(storage, access));
-    }
-
-    private static Optional<DirectEnergyStorageTarget> getUnwrappedDirectEnergyStorageTarget(IEnergyStorage storage) {
-        Optional<VarHandle> wrapperField = DIRECT_ENERGY_WRAPPER_FIELD_CACHE.computeIfAbsent(storage.getClass(), DataDistributionTowerBlockEntity::resolveDirectEnergyWrapperField);
-        if (wrapperField.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Object target = readDirectEnergyWrapperTarget(wrapperField.get(), storage);
-        if (target == null || target == storage) {
-            return Optional.empty();
-        }
-
-        Optional<DirectEnergyStorageAccess> access = getDirectEnergyStorageAccess(target.getClass());
-        if (access.isPresent()) {
-            return Optional.of(new DirectEnergyStorageTarget(target, access.get()));
-        }
-
-        if (target instanceof IEnergyStorage nestedStorage) {
-            return getDirectEnergyStorageTarget(nestedStorage);
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<DirectEnergyStorageAccess> getDirectEnergyStorageAccess(Class<?> storageClass) {
-        return DIRECT_ENERGY_STORAGE_ACCESS_CACHE.computeIfAbsent(storageClass, DataDistributionTowerBlockEntity::resolveDirectEnergyStorageAccess);
-    }
-
-    private static Optional<DirectEnergyStorageAccess> resolveDirectEnergyStorageAccess(Class<?> storageClass) {
-        Optional<Method> insertIgnoringLimit = findDirectInsertIgnoringLimit(storageClass);
-        Optional<DirectEnergyAmountMethods> amountMethods = findDirectEnergyAmountMethods(storageClass);
-        Optional<VarHandle> storedEnergy = findDirectNumericField(storageClass, DIRECT_ENERGY_FIELD_NAMES, true);
-        if (insertIgnoringLimit.isEmpty() && amountMethods.isEmpty() && storedEnergy.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Optional<VarHandle> capacity = findDirectNumericField(storageClass, DIRECT_ENERGY_CAPACITY_FIELD_NAMES, false);
-        return Optional.of(new DirectEnergyStorageAccess(storedEnergy.orElse(null), capacity.orElse(null), insertIgnoringLimit.orElse(null), amountMethods.orElse(null)));
-    }
-
-    private static Optional<VarHandle> resolveDirectEnergyWrapperField(Class<?> storageClass) {
-        return findDirectObjectField(storageClass, DIRECT_ENERGY_WRAPPER_FIELD_NAMES);
-    }
-
-    @Nullable
-    private static Object readDirectEnergyWrapperTarget(VarHandle handle, Object storage) {
-        try {
-            return handle.get(storage);
-        } catch (RuntimeException | LinkageError ignored) {
-            return null;
-        }
-    }
-
-    private static Optional<Method> findDirectInsertIgnoringLimit(Class<?> owner) {
-        Class<?> type = owner;
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod("insertIgnoringLimit", long.class, boolean.class);
-                method.setAccessible(true);
-                if (method.getReturnType() == long.class) {
-                    return Optional.of(method);
-                }
-                return Optional.empty();
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (RuntimeException ignored) {
-                return Optional.empty();
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<VarHandle> findDirectObjectField(Class<?> owner, List<String> fieldNames) {
-        for (String fieldName : fieldNames) {
-            Class<?> type = owner;
-            while (type != null) {
-                try {
-                    Field field = type.getDeclaredField(fieldName);
-                    int modifiers = field.getModifiers();
-                    if (Modifier.isStatic(modifiers) || field.getType().isPrimitive()) {
-                        break;
-                    }
-
-                    field.setAccessible(true);
-                    return Optional.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup()).unreflectVarHandle(field));
-                } catch (NoSuchFieldException ignored) {
-                    type = type.getSuperclass();
-                } catch (IllegalAccessException | RuntimeException | LinkageError ignored) {
-                    break;
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<DirectEnergyAmountMethods> findDirectEnergyAmountMethods(Class<?> owner) {
-        Optional<Method> getAmount = findDirectNoArgLongMethod(owner, "getAmount");
-        Optional<Method> getCapacity = findDirectNoArgLongMethod(owner, "getCapacity");
-        Optional<Method> setAmount = findDirectSingleLongMethod(owner, "setAmount", void.class);
-        if (getAmount.isEmpty() || getCapacity.isEmpty() || setAmount.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(new DirectEnergyAmountMethods(getAmount.get(), getCapacity.get(), setAmount.get()));
-    }
-
-    private static Optional<Method> findDirectNoArgLongMethod(Class<?> owner, String methodName) {
-        Class<?> type = owner;
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                if (method.getReturnType() == long.class) {
-                    return Optional.of(method);
-                }
-                return Optional.empty();
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (RuntimeException ignored) {
-                return Optional.empty();
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<Method> findDirectSingleLongMethod(Class<?> owner, String methodName, Class<?> returnType) {
-        Class<?> type = owner;
-        while (type != null) {
-            try {
-                Method method = type.getDeclaredMethod(methodName, long.class);
-                method.setAccessible(true);
-                if (method.getReturnType() == returnType) {
-                    return Optional.of(method);
-                }
-                return Optional.empty();
-            } catch (NoSuchMethodException ignored) {
-                type = type.getSuperclass();
-            } catch (RuntimeException ignored) {
-                return Optional.empty();
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<VarHandle> findDirectNumericField(Class<?> owner, List<String> fieldNames, boolean writable) {
-        for (String fieldName : fieldNames) {
-            Class<?> type = owner;
-            while (type != null) {
-                try {
-                    Field field = type.getDeclaredField(fieldName);
-                    int modifiers = field.getModifiers();
-                    if (Modifier.isStatic(modifiers) || writable && Modifier.isFinal(modifiers) || !isDirectEnergyFieldType(field.getType())) {
-                        break;
-                    }
-
-                    field.setAccessible(true);
-                    return Optional.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup()).unreflectVarHandle(field));
-                } catch (NoSuchFieldException ignored) {
-                    type = type.getSuperclass();
-                } catch (IllegalAccessException | RuntimeException | LinkageError ignored) {
-                    break;
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static boolean isDirectEnergyFieldType(Class<?> fieldType) {
-        return fieldType == int.class || fieldType == long.class;
+        return DIRECT_ENERGY_ACCESS.insert(storage, amount, simulate);
     }
 
     private int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
@@ -2687,7 +2462,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (IGridNode targetNode : targetNodes) {
             try {
                 newConnections.add(GridHelper.createConnection(selfNode, targetNode));
-            } catch (IllegalStateException ignored) {}
+            } catch (IllegalStateException exception) {
+                LOGGER.debug("Failed to reconnect data distribution tower at {} to target {}", this.worldPosition, targetPos, exception);
+            }
         }
 
         if (newConnections.isEmpty()) {
@@ -2848,7 +2625,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (center != null) {
                 nodes.add(center.getGridNode());
             }
-            for (var direction : net.minecraft.core.Direction.values()) {
+            for (var direction : Direction.values()) {
                 IPart part = cableBus.getPart(direction);
                 if (part != null) {
                     nodes.add(part.getGridNode());
@@ -2856,7 +2633,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
             }
         } else {
-            for (var direction : net.minecraft.core.Direction.values()) {
+            for (var direction : Direction.values()) {
                 IGridNode node = nodeHost.getGridNode(direction);
                 if (node != null) {
                     nodes.add(node);
@@ -3057,16 +2834,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return current + delta;
     }
 
-    private static long saturatingMultiply(long value, int multiplier) {
-        if (value <= 0 || multiplier <= 0) {
-            return 0;
-        }
-        if (value > Long.MAX_VALUE / multiplier) {
-            return Long.MAX_VALUE;
-        }
-        return value * multiplier;
-    }
-
     private static long divideCeil(long dividend, int divisor) {
         if (dividend <= 0 || divisor <= 0) {
             return 0;
@@ -3076,13 +2843,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private static String formatFeAmount(long amount) {
         if (amount >= 1_000_000_000L) {
-            return String.format(java.util.Locale.ROOT, "%.1fG", amount / 1_000_000_000.0);
+            return String.format(Locale.ROOT, "%.1fG", amount / 1_000_000_000.0);
         }
         if (amount >= 1_000_000L) {
-            return String.format(java.util.Locale.ROOT, "%.1fM", amount / 1_000_000.0);
+            return String.format(Locale.ROOT, "%.1fM", amount / 1_000_000.0);
         }
         if (amount >= 1_000L) {
-            return String.format(java.util.Locale.ROOT, "%.1fk", amount / 1_000.0);
+            return String.format(Locale.ROOT, "%.1fk", amount / 1_000.0);
         }
         return Long.toString(amount);
     }
@@ -3247,179 +3014,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpointKey(BlockPos pos, @Nullable net.minecraft.core.Direction side) {}
+    private record EnergyEndpointKey(BlockPos pos, @Nullable Direction side) {}
 
-    private record DirectEnergyStorageTarget(Object target, DirectEnergyStorageAccess access) {
-
-        private long insert(IEnergyStorage storage, long amount, boolean simulate) {
-            return this.access.insert(storage, this.target, amount, simulate);
-        }
-    }
-
-    private record DirectEnergyAmountMethods(Method getAmount, Method getCapacity, Method setAmount) {}
-
-    private record DirectEnergyStorageAccess(@Nullable VarHandle storedEnergy, @Nullable VarHandle capacity,
-                                             @Nullable Method insertIgnoringLimit,
-                                             @Nullable DirectEnergyAmountMethods amountMethods) {
-
-        private long insert(IEnergyStorage storage, Object target, long amount, boolean simulate) {
-            long methodInserted = insertIgnoringLimit(target, amount, simulate);
-            if (methodInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
-                if (!simulate && methodInserted > 0) {
-                    notifyDirectTargetChanged(target);
-                }
-                return methodInserted;
-            }
-
-            methodInserted = insertByAmountMethods(storage, target, amount, simulate);
-            if (methodInserted != DIRECT_ENERGY_INSERT_UNAVAILABLE) {
-                return methodInserted;
-            }
-
-            if (this.storedEnergy == null) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            Long current = readEnergyAmount(this.storedEnergy, target);
-            if (current == null || current < 0 || !matchesReportedAmount(current, storage.getEnergyStored())) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            Long directCapacity = this.capacity == null ? null : readEnergyAmount(this.capacity, target);
-            if (directCapacity != null && directCapacity < 0) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            long maxStored = directCapacity == null ? Math.max(0, storage.getMaxEnergyStored()) : directCapacity;
-            if (directCapacity != null && !matchesReportedCapacity(directCapacity, storage.getMaxEnergyStored())) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            maxStored = Math.min(maxStored, getMaxStoredValue());
-            if (maxStored <= current) {
-                return 0;
-            }
-
-            long inserted = Math.min(amount, maxStored - current);
-            if (inserted <= 0) {
-                return 0;
-            }
-            if (simulate) {
-                return inserted;
-            }
-
-            long targetAmount = current + inserted;
-            if (!writeEnergyAmount(this.storedEnergy, target, targetAmount)) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            Long updated = readEnergyAmount(this.storedEnergy, target);
-            if (updated == null || updated != targetAmount || !matchesReportedAmount(targetAmount, storage.getEnergyStored())) {
-                writeEnergyAmount(this.storedEnergy, target, current);
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-            notifyDirectTargetChanged(target);
-            return inserted;
-        }
-
-        private long getMaxStoredValue() {
-            return this.storedEnergy.varType() == int.class ? Integer.MAX_VALUE : Long.MAX_VALUE;
-        }
-
-        private long insertByAmountMethods(IEnergyStorage storage, Object target, long amount, boolean simulate) {
-            if (this.amountMethods == null) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            Long current = invokeLong(this.amountMethods.getAmount(), target);
-            if (current == null || current < 0 || !matchesReportedAmount(current, storage.getEnergyStored())) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            Long capacity = invokeLong(this.amountMethods.getCapacity(), target);
-            if (capacity == null || capacity < 0 || !matchesReportedCapacity(capacity, storage.getMaxEnergyStored())) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-            if (capacity <= current) {
-                return 0;
-            }
-
-            long inserted = Math.min(amount, capacity - current);
-            if (inserted <= 0) {
-                return 0;
-            }
-            if (simulate) {
-                return inserted;
-            }
-
-            long targetAmount = current + inserted;
-            ReflectionAccess.invoke(this.amountMethods.setAmount(), target, targetAmount);
-            Long updated = invokeLong(this.amountMethods.getAmount(), target);
-            if (updated == null || updated != targetAmount || !matchesReportedAmount(targetAmount, storage.getEnergyStored())) {
-                ReflectionAccess.invoke(this.amountMethods.setAmount(), target, current);
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-            notifyDirectTargetChanged(target);
-            return inserted;
-        }
-
-        private long insertIgnoringLimit(Object target, long amount, boolean simulate) {
-            if (this.insertIgnoringLimit == null) {
-                return DIRECT_ENERGY_INSERT_UNAVAILABLE;
-            }
-
-            Object result = ReflectionAccess.invoke(this.insertIgnoringLimit, target, amount, simulate);
-            return result instanceof Number number ? number.longValue() : DIRECT_ENERGY_INSERT_UNAVAILABLE;
-        }
-
-        @Nullable
-        private static Long invokeLong(Method method, Object target) {
-            Object result = ReflectionAccess.invoke(method, target);
-            return result instanceof Number number ? number.longValue() : null;
-        }
-
-        @Nullable
-        private static Long readEnergyAmount(VarHandle handle, Object target) {
-            try {
-                Object value = handle.get(target);
-                return value instanceof Number number ? number.longValue() : null;
-            } catch (RuntimeException | LinkageError ignored) {
-                return null;
-            }
-        }
-
-        private static boolean writeEnergyAmount(VarHandle handle, Object target, long amount) {
-            try {
-                if (handle.varType() == int.class) {
-                    if (amount > Integer.MAX_VALUE || amount < Integer.MIN_VALUE) {
-                        return false;
-                    }
-                    handle.set(target, (int) amount);
-                } else if (handle.varType() == long.class) {
-                    handle.set(target, amount);
-                } else {
-                    return false;
-                }
-                return true;
-            } catch (RuntimeException | LinkageError ignored) {
-                return false;
-            }
-        }
-
-        private static boolean matchesReportedAmount(long directAmount, int reportedAmount) {
-            return reportedAmount == clampStoredAmount(directAmount);
-        }
-
-        private static boolean matchesReportedCapacity(long directCapacity, int reportedCapacity) {
-            return reportedCapacity <= 0 || matchesReportedAmount(directCapacity, reportedCapacity);
-        }
-
-        private static void notifyDirectTargetChanged(Object target) {
-            ReflectionAccess.invokeNoArgBestEffort(target, "update");
-        }
-    }
-
-    private record EnergyEndpoint(BlockPos pos, @Nullable net.minecraft.core.Direction side, IEnergyStorage storage) {}
+    private record EnergyEndpoint(BlockPos pos, @Nullable Direction side, IEnergyStorage storage) {}
 
     private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
 
@@ -3600,7 +3197,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         FE
     }
 
-    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {}
+    private record CableBusDisplayPart(IPart part, @Nullable Direction direction) {}
 
     private record DisplayTarget(BlockPos pos, TargetKind kind) {}
 

@@ -168,14 +168,14 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.storage.setFilter(new IAEItemFilter() {
 
             @Override
-            public boolean allowInsert(appeng.api.inventories.InternalInventory inv, int slot, ItemStack stack) {
+            public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
                 return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get()) || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS) || slot == ORE_SLOT && isOreOrRawOre(stack) || slot == CROP_SLOT && isSupportedCrop(stack);
             }
         });
     }
 
     @Override
-    public AECableType getCableConnectionType(net.minecraft.core.Direction dir) {
+    public AECableType getCableConnectionType(Direction dir) {
         if (!isCableSideExposed(dir)) {
             return AECableType.NONE;
         }
@@ -442,7 +442,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return this.cachedEnergyCardCount;
     }
 
-    public static int computeDamagePerCycle(ItemStack sword, @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
+    public static int computeDamagePerCycle(ItemStack sword, @Nullable HolderLookup.Provider registries) {
         return Math.round(DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword) + getStaticSwordEnchantmentDamage(sword, registries));
     }
 
@@ -1099,7 +1099,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         tickDroppedItemCollection(List.of(), networkStorage);
     }
 
-    private void exportCompletedCarrier(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+    private void exportCompletedCarrier(List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
         ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
         if (!isCompletedCarrier(carrier)) {
             return;
@@ -1115,7 +1115,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.markForClientUpdate();
     }
 
-    private void tickDroppedItemCollection(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+    private void tickDroppedItemCollection(List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
         if (this.dropCollectionCooldown > 0) {
             this.dropCollectionCooldown--;
             return;
@@ -1125,7 +1125,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         collectAndExportDroppedItems(adjacentHandlers, networkStorage);
     }
 
-    private void collectAndExportDroppedItems(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+    private void collectAndExportDroppedItems(List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -1152,7 +1152,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
-    private ItemStack routeAutoExportItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+    private ItemStack routeAutoExportItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
         return this.autoExportMode == DataExtractorAutoExportMode.AE ? insertIntoNetwork(stack, networkStorage) : insertIntoAdjacentHandlers(stack, adjacentHandlers);
     }
 
@@ -1167,7 +1167,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return remaining;
     }
 
-    private ItemStack insertIntoNetwork(ItemStack stack, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+    private ItemStack insertIntoNetwork(ItemStack stack, @Nullable MEStorage networkStorage) {
         if (stack.isEmpty() || networkStorage == null) {
             return stack;
         }
@@ -1219,7 +1219,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return this.cachedAdjacentHandlers;
     }
 
-    @org.jetbrains.annotations.Nullable
+    @Nullable
     private MEStorage getConnectedItemNetwork() {
         IGridNode node = this.getMainNode().getNode();
         if (node == null || node.getGrid() == null || !node.isActive()) {
@@ -1377,7 +1377,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
     public static float getStaticSwordEnchantmentDamage(
                                                         ItemStack sword,
-                                                        @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
+                                                        @Nullable HolderLookup.Provider registries) {
         if (!sword.is(ItemTags.SWORDS) || sword.isEmpty() || registries == null) {
             return 0.0F;
         }

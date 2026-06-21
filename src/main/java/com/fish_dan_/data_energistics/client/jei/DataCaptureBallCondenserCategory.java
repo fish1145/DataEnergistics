@@ -23,6 +23,8 @@ import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.AbstractRecipeCategory;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<DataCaptureBallCondenserRecipe> {
 
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/condenser.png");
@@ -65,7 +67,7 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
     public void setRecipe(IRecipeLayoutBuilder builder, DataCaptureBallCondenserRecipe recipe, IFocusGroup focuses) {
         builder.addOutputSlot(57, 27).addItemStack(DataCaptureBallItem.createChargedStack());
         builder.addSlot(RecipeIngredientRole.CATALYST, 53, 1)
-                .addItemStacks(java.util.List.of(
+                .addItemStacks(List.of(
                         ModItems.DATA_STORAGE_COMPONENT_16K.toStack(),
                         ModItems.DATA_STORAGE_COMPONENT_64K.toStack(),
                         ModItems.DATA_STORAGE_COMPONENT_256K.toStack()));

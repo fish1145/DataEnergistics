@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class Ae2LtPackagedRuntimeBridge {
@@ -306,7 +307,7 @@ public final class Ae2LtPackagedRuntimeBridge {
             return List.of();
         }
 
-        java.util.ArrayList<GenericStack> converted = new java.util.ArrayList<>(list.size());
+        ArrayList<GenericStack> converted = new ArrayList<>(list.size());
         for (Object entry : list) {
             if (entry instanceof GenericStack stack && stack.what() != null && stack.amount() > 0) {
                 converted.add(stack);

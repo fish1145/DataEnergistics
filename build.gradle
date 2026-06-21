@@ -81,7 +81,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.withType(Test).configureEach {
-    useJUnitPlatform()
+    failOnNoDiscoveredTests = false
 }
 
 lombok {

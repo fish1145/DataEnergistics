@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -356,13 +357,13 @@ public final class PatternProviderMenuOpenHelper {
         return methods;
     }
 
-    private static java.util.Optional<MethodHandle> toMethodHandle(Method method) {
+    private static Optional<MethodHandle> toMethodHandle(Method method) {
         try {
             method.setAccessible(true);
-            return java.util.Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), MethodHandles.lookup())
+            return Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), MethodHandles.lookup())
                     .unreflect(method));
         } catch (IllegalAccessException | SecurityException ignored) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
     }
 

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.common.multiblock.vertical;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Objects;

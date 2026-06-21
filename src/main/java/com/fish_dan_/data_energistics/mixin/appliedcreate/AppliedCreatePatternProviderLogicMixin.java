@@ -4,6 +4,10 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderHostAccessor;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.mixin.core.PatternProviderLogicFieldAccessor;
 
+import net.minecraft.server.level.ServerLevel;
+
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import com.loliball.appliedcreate.patternprovider.MechanicalCraftingPatternLogic;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,8 +23,8 @@ public abstract class AppliedCreatePatternProviderLogicMixin {
     private boolean dataEnergistics$dispatchPulsePending;
 
     @Inject(method = "pushPattern", at = @At("HEAD"))
-    private void dataEnergistics$scheduleAutoRequestPulse(appeng.api.crafting.IPatternDetails patternDetails,
-                                                          appeng.api.stacks.KeyCounter[] inputHolder,
+    private void dataEnergistics$scheduleAutoRequestPulse(IPatternDetails patternDetails,
+                                                          KeyCounter[] inputHolder,
                                                           CallbackInfoReturnable<Boolean> cir) {
         var host = ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getHost();
         if (!(host instanceof PatternProviderHostAccessor accessor)) {
@@ -30,8 +34,8 @@ public abstract class AppliedCreatePatternProviderLogicMixin {
     }
 
     @Inject(method = "pushPattern", at = @At("RETURN"))
-    private void dataEnergistics$afterPushPattern(appeng.api.crafting.IPatternDetails patternDetails,
-                                                  appeng.api.stacks.KeyCounter[] inputHolder,
+    private void dataEnergistics$afterPushPattern(IPatternDetails patternDetails,
+                                                  KeyCounter[] inputHolder,
                                                   CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             return;
@@ -51,7 +55,7 @@ public abstract class AppliedCreatePatternProviderLogicMixin {
         this.dataEnergistics$dispatchPulsePending = false;
         var host = ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getHost();
         if (host instanceof PatternProviderHostAccessor accessor) {
-            if (accessor.dataEnergistics$consumeRedstoneInputPulse() && host.getBlockEntity().getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            if (accessor.dataEnergistics$consumeRedstoneInputPulse() && host.getBlockEntity().getLevel() instanceof ServerLevel serverLevel) {
                 RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
                         serverLevel,
                         host.getGrid(),

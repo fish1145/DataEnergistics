@@ -16,6 +16,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGrid;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.helpers.patternprovider.PatternContainer;
@@ -29,6 +30,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -69,11 +71,9 @@ public final class PatternProviderSyncHelper {
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
     private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID = ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_upload_core");
-    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
     private static final ResourceLocation AE2CS_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "resonating_pattern_provider");
     private static final ResourceLocation AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "extended_resonating_pattern_provider");
-    private static final ResourceLocation AE2CS_EX_RESONATING_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "ex_resonating_pattern_provider");
     private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID = ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
     private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS = Set.of(
             "assembler_matrix_upload_core",
@@ -169,16 +169,6 @@ public final class PatternProviderSyncHelper {
     }
 
     @Nullable
-    public static PatternContainer findProviderById(Map<PatternContainer, Long> syncedPatternProviderIds, long providerId) {
-        for (var entry : syncedPatternProviderIds.entrySet()) {
-            if (entry.getValue() != null && entry.getValue() == providerId) {
-                return entry.getKey();
-            }
-        }
-        return null;
-    }
-
-    @Nullable
     public static List<PatternContainer> findProvidersById(Map<Long, List<PatternContainer>> syncedProviderTargetsById,
                                                            long providerId) {
         return syncedProviderTargetsById.get(providerId);
@@ -232,28 +222,6 @@ public final class PatternProviderSyncHelper {
         }
 
         return new TransferResult(transferred ? remainder : encodedPattern, transferred, false);
-    }
-
-    public static ItemStack transferEncodedPatternToProviders(List<PatternContainer> containers, ItemStack encodedPattern) {
-        if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
-            return encodedPattern;
-        }
-
-        ItemStack remainder = encodedPattern.copy();
-        boolean transferred = false;
-        for (var container : containers) {
-            if (remainder.isEmpty()) {
-                break;
-            }
-
-            ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
-            if (nextRemainder.getCount() != remainder.getCount()) {
-                transferred = true;
-            }
-            remainder = nextRemainder;
-        }
-
-        return transferred ? remainder : encodedPattern;
     }
 
     private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
@@ -403,10 +371,6 @@ public final class PatternProviderSyncHelper {
 
     private static boolean isNeoEcoCraftingSubsystemContainer(DiscoveredPatternProvider provider) {
         return isNeoEcoCraftingSubsystemIcon(provider.iconItemId()) || isNeoEcoCraftingSubsystemClassName(provider.container()) || isNeoEcoCraftingSubsystemName(provider.displayName().getString());
-    }
-
-    private static boolean isNeoEcoCraftingSubsystemContainer(PatternContainer container) {
-        return isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container)) || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container)) || isNeoEcoCraftingSubsystemClassName(container) || isNeoEcoCraftingSubsystemName(resolveProviderDisplayName(container).getString());
     }
 
     private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
@@ -723,7 +687,7 @@ public final class PatternProviderSyncHelper {
         return reflectedIcon;
     }
 
-    private static int countUsedPatternSlots(appeng.api.inventories.InternalInventory inventory) {
+    private static int countUsedPatternSlots(InternalInventory inventory) {
         int usedSlots = 0;
         for (int slot = 0; slot < inventory.size(); slot++) {
             if (!inventory.getStackInSlot(slot).isEmpty()) {
@@ -946,10 +910,10 @@ public final class PatternProviderSyncHelper {
             return 0;
         }
 
-        Set<Integer> leftCharacters = new java.util.HashSet<>();
+        Set<Integer> leftCharacters = new HashSet<>();
         left.codePoints().forEach(leftCharacters::add);
 
-        Set<Integer> sharedCharacters = new java.util.HashSet<>();
+        Set<Integer> sharedCharacters = new HashSet<>();
         right.codePoints().forEach(codePoint -> {
             if (leftCharacters.contains(codePoint)) {
                 sharedCharacters.add(codePoint);
@@ -990,10 +954,6 @@ public final class PatternProviderSyncHelper {
         }
 
         return 90;
-    }
-
-    private static boolean isWorkbenchFamily(ResourceLocation workstationId) {
-        return CRAFTING_TABLE_ID.equals(workstationId) || STONECUTTER_ID.equals(workstationId) || SMITHING_TABLE_ID.equals(workstationId) || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId) || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId) || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId) || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId) || EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_UPLOAD_CORE_ID.equals(workstationId);
     }
 
     private static boolean isPrimaryWorkbenchFamily(ResourceLocation workstationId) {
@@ -1251,7 +1211,7 @@ public final class PatternProviderSyncHelper {
 
     private static List<String> collectProviderIdentityStrings(PatternContainer container, Component displayName,
                                                                ResourceLocation iconItemId) {
-        Set<String> identities = new java.util.LinkedHashSet<>();
+        Set<String> identities = new LinkedHashSet<>();
         identities.add(displayName.getString());
         identities.add(container.getClass().getSimpleName());
         identities.add(container.getClass().getName());

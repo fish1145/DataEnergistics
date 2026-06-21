@@ -20,6 +20,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
@@ -373,7 +374,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         final double[] addMultipliedBase = { 0.0D };
         final double[] addMultipliedTotal = { 0.0D };
 
-        weapon.forEachModifier(EquipmentSlot.MAINHAND, (Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, AttributeModifier modifier) -> {
+        weapon.forEachModifier(EquipmentSlot.MAINHAND, (Holder<Attribute> attribute, AttributeModifier modifier) -> {
             if (!attribute.equals(Attributes.ATTACK_DAMAGE)) {
                 return;
             }

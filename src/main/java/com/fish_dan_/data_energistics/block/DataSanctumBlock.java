@@ -45,6 +45,7 @@ import appeng.block.AEBaseBlock;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 
@@ -374,7 +375,7 @@ public class DataSanctumBlock extends AEBaseBlock implements EntityBlock {
     }
 
     private static Iterable<PlacementPart> iterPlacementParts(BlockPos mainPos, Direction facing) {
-        List<PlacementPart> parts = new java.util.ArrayList<>(64);
+        List<PlacementPart> parts = new ArrayList<>(64);
         for (int offsetX = -2; offsetX <= 2; offsetX++) {
             for (int offsetZ = -2; offsetZ <= 2; offsetZ++) {
                 parts.add(new PlacementPart(

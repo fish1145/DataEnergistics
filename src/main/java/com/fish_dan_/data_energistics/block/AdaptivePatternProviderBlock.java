@@ -9,13 +9,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -26,6 +29,7 @@ import appeng.block.crafting.PatternProviderBlock;
 import appeng.block.crafting.PushDirection;
 import appeng.menu.locator.MenuLocators;
 import appeng.util.InteractionUtil;
+import appeng.util.Platform;
 
 public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlockEntity> extends AEBaseEntityBlock<T> {
 
@@ -35,12 +39,12 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     }
 
     public void bindBlockEntity() {
-        bindBlockEntity((Class<T>) AdaptivePatternProviderBlockEntity.class, (net.minecraft.world.level.block.entity.BlockEntityType<T>) ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get());
+        bindBlockEntity((Class<T>) AdaptivePatternProviderBlockEntity.class, (BlockEntityType<T>) ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get());
     }
 
     protected void bindBlockEntity(
                                    Class<T> blockEntityClass,
-                                   net.minecraft.world.level.block.entity.BlockEntityType<T> blockEntityType) {
+                                   BlockEntityType<T> blockEntityType) {
         this.setBlockEntity(blockEntityClass, blockEntityType, null, null);
     }
 
@@ -50,7 +54,7 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     }
 
     @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
         builder.add(PatternProviderBlock.PUSH_DIRECTION);
     }
@@ -84,7 +88,7 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
     }
 
     @Override
-    public void neighborChanged(BlockState state, Level level, BlockPos pos, net.minecraft.world.level.block.Block block, BlockPos fromPos, boolean isMoving) {
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
         T blockEntity = this.getBlockEntity(level, pos);
         if (blockEntity != null) {
             blockEntity.getLogic().updateRedstoneState();
@@ -93,7 +97,7 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
-                                              net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+                                              InteractionHand hand, BlockHitResult hitResult) {
         ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(stack, level, pos, player);
         if (memoryCardResult.consumesAction()) {
             return memoryCardResult;
@@ -128,7 +132,7 @@ public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlock
         } else if (currentDirection == null) {
             nextDirection = PushDirection.fromDirection(side.getOpposite());
         } else {
-            nextDirection = PushDirection.fromDirection(appeng.util.Platform.rotateAround(currentDirection, side));
+            nextDirection = PushDirection.fromDirection(Platform.rotateAround(currentDirection, side));
         }
         level.setBlockAndUpdate(pos, state.setValue(PatternProviderBlock.PUSH_DIRECTION, nextDirection));
     }

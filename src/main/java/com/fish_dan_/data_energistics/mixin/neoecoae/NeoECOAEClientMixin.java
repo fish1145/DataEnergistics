@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.mixin.neoecoae;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.core.BlockPos;
 import net.neoforged.neoforge.client.event.AddSectionGeometryEvent;
 
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
@@ -22,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class NeoECOAEClientMixin {
 
     @Unique
-    private static final Logger data_energistics$LOGGER = LogUtils.getLogger();
+    private static final Logger data_energistics$LOGGER = Data_Energistics.LOGGER;
     @Unique
     private static final int MAX_WARNINGS = 5;
     @Unique

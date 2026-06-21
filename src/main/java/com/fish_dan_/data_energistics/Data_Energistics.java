@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.RandomSource;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
@@ -14,25 +15,27 @@ import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.data.loading.DatagenModLoader;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 @Mod(Data_Energistics.MODID)
 public class Data_Energistics {
 
     public static final String MODID = "data_energistics";
 
+    public static final String MODNAME = "Data Energistics";
+
     private static final String[][] STARTUP_SHUTDOWN_LOG_PAIRS = {
             { "Ciallo～(∠・ω< )⌒☆", "柚子厨真恶心！" },
             { "原神启动！", "前面的区域以后再探索吧" }
     };
 
-    public static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogManager.getLogger(MODNAME);
 
     public Data_Energistics(IEventBus modEventBus, @Nullable ModContainer modContainer) {
         CommonBootstrap.init(modEventBus, modContainer);
-        String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[net.minecraft.util.RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
+        String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
         LOGGER.info(selectedLogPair[0]);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> LOGGER.info(selectedLogPair[1]),
                 "data-energistics-shutdown-log"));

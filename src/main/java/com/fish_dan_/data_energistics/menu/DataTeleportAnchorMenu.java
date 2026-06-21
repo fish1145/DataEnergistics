@@ -3,8 +3,10 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.menu.AEBaseMenu;
@@ -105,7 +107,7 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
     }
 
     private void recordCurrentTarget(Boolean ignored) {
-        if (!(getPlayer() instanceof net.minecraft.server.level.ServerPlayer serverPlayer)) {
+        if (!(getPlayer() instanceof ServerPlayer serverPlayer)) {
             return;
         }
 
@@ -126,7 +128,7 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
 
         DataTeleportAnchorBlockEntity.TeleportResult result = this.host.teleportEntitiesTo(
                 ResourceLocation.parse(action.dimensionId()),
-                new net.minecraft.core.BlockPos(action.x(), action.y(), action.z()));
+                new BlockPos(action.x(), action.y(), action.z()));
 
         Component message = switch (result.status()) {
             case SUCCESS -> Component.translatable(

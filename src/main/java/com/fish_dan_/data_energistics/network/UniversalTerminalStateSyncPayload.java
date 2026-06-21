@@ -9,6 +9,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public record UniversalTerminalStateSyncPayload(List<String> installedTerminalNames,
@@ -44,7 +45,7 @@ public record UniversalTerminalStateSyncPayload(List<String> installedTerminalNa
 
     private static List<String> readInstalledTerminalNames(RegistryFriendlyByteBuf buf) {
         int size = buf.readVarInt();
-        java.util.ArrayList<String> names = new java.util.ArrayList<>(size);
+        ArrayList<String> names = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             names.add(buf.readUtf());
         }

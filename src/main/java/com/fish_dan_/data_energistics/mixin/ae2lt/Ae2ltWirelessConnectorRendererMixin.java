@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
 import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,6 +15,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
@@ -90,7 +92,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         }
 
         ItemStack stack = ItemStack.EMPTY;
-        for (var hand : net.minecraft.world.InteractionHand.values()) {
+        for (var hand : InteractionHand.values()) {
             var held = player.getItemInHand(hand);
             if (Ae2LtWirelessBridge.isConnectorItem(held)) {
                 stack = held;
@@ -146,7 +148,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
                 var previewTargets = Ae2LtWirelessBridge.collectTargets(
                         mc.level,
                         bhr.getBlockPos(),
-                        net.minecraft.client.gui.screens.Screen.hasControlDown());
+                        Screen.hasControlDown());
                 Direction lookFace = bhr.getDirection();
                 var existingConnections = dataEnergistics$collectConnectionsForFace(
                         adaptive.getConnections(),

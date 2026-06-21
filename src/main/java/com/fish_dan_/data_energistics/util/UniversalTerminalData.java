@@ -26,11 +26,6 @@ import java.util.Optional;
 
 public final class UniversalTerminalData {
 
-    private static final String TAG_TERMINALS = "installed_terminals";
-    private static final String TAG_NAME = "name";
-    private static final String TAG_STACK = "stack";
-    private static final String TAG_ACTIVE = "active_terminal";
-
     public static final String TERMINAL_ITEM = "terminal";
     public static final String TERMINAL_CRAFTING = "crafting";
     public static final String TERMINAL_PATTERN_ACCESS = "pattern_access";
@@ -145,12 +140,6 @@ public final class UniversalTerminalData {
     public static MenuType<?> getMenuType(String terminalName) {
         Optional<UniversalTerminalAdapter> definition = getDefinition(terminalName);
         return definition.isPresent() ? definition.get().getMenuType() : ModMenus.UNIVERSAL_CRAFTING_TERM.get();
-    }
-
-    public static UniversalTerminalConfigProfile getConfigProfile(@Nullable String terminalName) {
-        return getDefinition(terminalName)
-                .map(UniversalTerminalAdapter::configProfile)
-                .orElse(UniversalTerminalConfigProfile.STANDARD);
     }
 
     public static @Nullable IConfigManager createConfigManager(String terminalName, Runnable saveAction) {

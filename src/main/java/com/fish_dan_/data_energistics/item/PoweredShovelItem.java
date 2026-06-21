@@ -1,17 +1,23 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
@@ -20,6 +26,10 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.gameevent.GameEvent.Context;
+import net.neoforged.neoforge.common.ItemAbilities;
+import net.neoforged.neoforge.common.ItemAbility;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,11 +40,11 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
     public PoweredShovelItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(net.minecraft.tags.BlockTags.MINEABLE_WITH_SHOVEL));
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_SHOVEL));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
-        return net.minecraft.world.item.DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
+        return DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
     }
 
     @Override
@@ -54,7 +64,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_SHOVEL.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(ModItems.DATA_CRYSTAL_SHOVEL.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -118,7 +128,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown() && context.getItemInHand().is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(context.getItemInHand(), this)) {
+        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown() && context.getItemInHand().is(ModItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(context.getItemInHand(), this)) {
             if (!context.getLevel().isClientSide) {
                 this.toggleBreakSize(context.getItemInHand());
                 int size = this.getBreakSize(context.getItemInHand());
@@ -139,7 +149,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (player.isShiftKeyDown() && stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
+        if (player.isShiftKeyDown() && stack.is(ModItems.DATA_CRYSTAL_SHOVEL.get()) && PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)) {
             if (!level.isClientSide) {
                 this.toggleBreakSize(stack);
                 int size = this.getBreakSize(stack);
@@ -171,7 +181,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     }
 
     private void tryAreaMine(ItemStack stack, ServerLevel level, BlockPos origin, BlockState originState, LivingEntity miner) {
-        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_SHOVEL.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(ModItems.DATA_CRYSTAL_SHOVEL.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
@@ -197,7 +207,7 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     private int getBreakRadius(ItemStack stack) {
         Integer radius = stack.get(ModDataComponents.POWERED_SHOVEL_BREAK_RADIUS.get());
         if (radius == null) {
-            radius = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
+            radius = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
                     .getInt(TAG_BREAK_RADIUS);
         }
         return radius == 2 ? 2 : 1;
@@ -208,8 +218,8 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
     }
 
     @Override
-    public boolean canPerformAction(ItemStack stack, net.neoforged.neoforge.common.ItemAbility itemAbility) {
-        return net.neoforged.neoforge.common.ItemAbilities.DEFAULT_SHOVEL_ACTIONS.contains(itemAbility);
+    public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
+        return ItemAbilities.DEFAULT_SHOVEL_ACTIONS.contains(itemAbility);
     }
 
     private InteractionResult tryFlattenOrDouse(UseOnContext context) {
@@ -220,12 +230,12 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         BlockState state = level.getBlockState(pos);
-        BlockState transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.SHOVEL_FLATTEN, false);
+        BlockState transformed = state.getToolModifiedState(context, ItemAbilities.SHOVEL_FLATTEN, false);
         if (transformed != null && level.getBlockState(pos.above()).isAir()) {
-            level.playSound(context.getPlayer(), pos, net.minecraft.sounds.SoundEvents.SHOVEL_FLATTEN,
-                    net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+            level.playSound(context.getPlayer(), pos, SoundEvents.SHOVEL_FLATTEN,
+                    SoundSource.BLOCKS, 1.0F, 1.0F);
         } else {
-            transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.SHOVEL_DOUSE, false);
+            transformed = state.getToolModifiedState(context, ItemAbilities.SHOVEL_DOUSE, false);
             if (transformed != null && !level.isClientSide) {
                 level.levelEvent(null, 1009, pos, 0);
             }
@@ -237,8 +247,8 @@ public class PoweredShovelItem extends AbstractPoweredTieredItem implements Cond
 
         if (!level.isClientSide) {
             level.setBlock(pos, transformed, 11);
-            level.gameEvent(net.minecraft.world.level.gameevent.GameEvent.BLOCK_CHANGE, pos,
-                    net.minecraft.world.level.gameevent.GameEvent.Context.of(context.getPlayer(), transformed));
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos,
+                    Context.of(context.getPlayer(), transformed));
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }

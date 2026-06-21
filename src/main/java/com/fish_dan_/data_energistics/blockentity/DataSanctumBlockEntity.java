@@ -34,6 +34,7 @@ import net.minecraft.world.phys.AABB;
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridHelper;
@@ -617,7 +618,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
 
         double extracted = node.getGrid().getEnergyService().extractAEPower(missing, Actionable.MODULATE, PowerMultiplier.ONE);
         if (extracted > 0.0D) {
-            this.injectExternalPower(appeng.api.config.PowerUnit.AE, extracted, Actionable.MODULATE);
+            this.injectExternalPower(PowerUnit.AE, extracted, Actionable.MODULATE);
         }
     }
 

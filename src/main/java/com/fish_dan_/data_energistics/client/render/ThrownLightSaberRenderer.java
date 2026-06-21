@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -60,7 +61,7 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
     }
 
     private static boolean hasSaberEnergyCard(ItemStack stack) {
-        return stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(stack) > 0;
+        return stack.getItem() instanceof PoweredEnergyItem poweredEnergyItem && poweredEnergyItem.getSaberEnergyCardCount(stack) > 0;
     }
 
     private static float getSanctifierSpinDegrees(ThrownLightSaberEntity entity, float partialTick) {

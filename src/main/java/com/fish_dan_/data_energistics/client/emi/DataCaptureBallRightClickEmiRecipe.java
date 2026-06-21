@@ -14,6 +14,8 @@ import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.TextWidget;
 import dev.emi.emi.api.widget.WidgetHolder;
 
+import java.util.List;
+
 public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
 
     private static final int WIDTH = 148;
@@ -45,7 +47,7 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
     public void addWidgets(WidgetHolder widgets) {
         widgets.addSlot(this.inputs.get(0), INPUT_ITEM_X, INPUT_ITEM_Y);
         widgets.addTooltipText(
-                java.util.List.of(Component.translatable(
+                List.of(Component.translatable(
                         "recipe.data_energistics.data_capture_ball_right_click.preset",
                         this.recipe.getDataCost(), formatEnergy(this.recipe.getEnergyCost()))),
                 INPUT_ITEM_X, INPUT_ITEM_Y, 18, 18);

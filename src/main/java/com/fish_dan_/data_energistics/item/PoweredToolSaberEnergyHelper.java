@@ -16,6 +16,7 @@ import appeng.api.storage.StorageCells;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public final class PoweredToolSaberEnergyHelper {
 
@@ -57,7 +58,7 @@ public final class PoweredToolSaberEnergyHelper {
     }
 
     private static void floodFill(Level level, BlockPos startPos, int maxBlocks, Set<BlockPos> result,
-                                  java.util.function.Predicate<BlockState> predicate) {
+                                  Predicate<BlockState> predicate) {
         Set<BlockPos> frontier = new HashSet<>();
         frontier.add(startPos.immutable());
 

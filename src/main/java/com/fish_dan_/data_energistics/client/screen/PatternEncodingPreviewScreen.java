@@ -10,7 +10,6 @@ import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -40,6 +39,7 @@ import appeng.helpers.InventoryAction;
 import appeng.menu.SlotSemantics;
 import appeng.menu.me.common.GridInventoryEntry;
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
 import appeng.util.ReadableNumberConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
 
@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T> {
@@ -102,7 +103,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final float PROVIDER_COUNT_TEXT_SCALE = 0.68F;
     private static final int COLOR_PANEL_TEXT = 0xE7E7E7;
     private static final int COLOR_EMPTY_STATE_TEXT = 0x000000;
-    private static final int COLOR_PANEL_MUTED = 0x9C9C9C;
     private static final int COLOR_PROVIDER_COUNT_NORMAL = 0x9CD3FF;
     private static final int COLOR_PROVIDER_COUNT_WARNING = 0xC83A32;
     private static final int COLOR_BUTTON = 0x6A111111;
@@ -291,10 +291,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (shouldBlockExtendedAePlusKey(keyCode, scanCode)) {
-            return true;
-        }
-
         if (isRenamingProvider()) {
             if (keyCode == 256) {
                 cancelProviderRename();
@@ -688,7 +684,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         ResourceLocation workstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(sourceAware);
-        if (java.util.Objects.equals(this.lastLocatedWorkstationId, workstationId)) {
+        if (Objects.equals(this.lastLocatedWorkstationId, workstationId)) {
             return;
         }
 
@@ -704,18 +700,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
         return null;
-    }
-
-    private int getVisibleProviderIndex(long providerId) {
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
-        int start = this.previewScrollbar.getCurrentScroll();
-        int end = Math.min(providers.size(), start + getProviderVisibleRows());
-        for (int rowIndex = start; rowIndex < end; rowIndex++) {
-            if (providers.get(rowIndex).id() == providerId) {
-                return rowIndex - start;
-            }
-        }
-        return -1;
     }
 
     private boolean isRenamingProvider() {
@@ -906,7 +890,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             this.patternSourceToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_source_toggle.detail.none"));
         }
-        boolean visible = this.menu.getMode() == appeng.parts.encoding.EncodingMode.PROCESSING;
+        boolean visible = this.menu.getMode() == EncodingMode.PROCESSING;
         this.patternSourceToggleButton.visible = visible;
         this.patternSourceToggleButton.active = visible;
         WidgetStyle clearButtonStyle = this.getStyle().getWidget("processingClearPattern");
@@ -955,25 +939,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private boolean isUploadEnabled() {
         return !(this.menu instanceof PatternEncodingSourceAware sourceAware) || sourceAware.data_energistics$isUploadEnabled();
-    }
-
-    private boolean shouldBlockExtendedAePlusKey(int keyCode, int scanCode) {
-        return false;
-    }
-
-    private boolean matchesForeignKeyMapping(String translationKey, int keyCode, int scanCode) {
-        Minecraft minecraft = this.minecraft;
-        if (minecraft == null || minecraft.options == null) {
-            return false;
-        }
-
-        for (KeyMapping keyMapping : minecraft.options.keyMappings) {
-            if (translationKey.equals(keyMapping.getName()) && keyMapping.matches(keyCode, scanCode)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     protected boolean isProviderOpenEnabled() {

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -25,7 +26,7 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
             return;
         }
 
-        if (menu instanceof appeng.menu.me.items.PatternEncodingTermMenu patternEncodingTermMenu) {
+        if (menu instanceof PatternEncodingTermMenu patternEncodingTermMenu) {
             PatternEncodingSourceHelper.rememberTransferSource(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyInput(patternEncodingTermMenu, recipe, recipeSlots);
             PatternEncodingSourceHelper.rememberTransferKeyOutput(patternEncodingTermMenu, recipe, recipeSlots);

@@ -7,11 +7,13 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 final class PatternEncodingReflectionAccess {
 
-    private static final java.util.Map<SlotViewsLookupKey, Optional<SlotViewsInvoker>> SLOT_VIEWS_METHOD_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<SlotViewsLookupKey, Optional<SlotViewsInvoker>> SLOT_VIEWS_METHOD_CACHE = new ConcurrentHashMap<>();
 
     private PatternEncodingReflectionAccess() {}
 

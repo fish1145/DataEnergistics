@@ -70,6 +70,7 @@ import appeng.util.inv.filter.IAEItemFilter;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -706,7 +707,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return List.of();
         }
 
-        List<IItemHandler> handlers = new java.util.ArrayList<>();
+        List<IItemHandler> handlers = new ArrayList<>();
         for (Direction direction : outputSides) {
             BlockPos targetPos = this.worldPosition.relative(direction);
             BlockState targetState = this.level.getBlockState(targetPos);
@@ -732,7 +733,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             return List.of();
         }
 
-        List<IFluidHandler> handlers = new java.util.ArrayList<>();
+        List<IFluidHandler> handlers = new ArrayList<>();
         for (Direction direction : outputSides) {
             BlockPos targetPos = this.worldPosition.relative(direction);
             BlockState targetState = this.level.getBlockState(targetPos);

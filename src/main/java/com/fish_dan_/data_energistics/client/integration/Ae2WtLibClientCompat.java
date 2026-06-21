@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
+import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.style.StyleManager;
 import appeng.menu.AEBaseMenu;
 
@@ -58,7 +59,7 @@ public final class Ae2WtLibClientCompat {
                             wetMenuClass,
                             Inventory.class,
                             Component.class,
-                            appeng.client.gui.style.ScreenStyle.class },
+                            ScreenStyle.class },
                     wetMenuClass.cast(rawMenu),
                     baseMenu.getPlayerInventory(),
                     screen.getTitle(),

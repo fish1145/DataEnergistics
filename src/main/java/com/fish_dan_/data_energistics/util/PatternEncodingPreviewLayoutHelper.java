@@ -1,9 +1,12 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 
 import net.minecraft.nbt.CompoundTag;
 
+import appeng.helpers.IPatternTerminalMenuHost;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.PatternEncodingLogic;
 
 public final class PatternEncodingPreviewLayoutHelper {
@@ -51,13 +54,13 @@ public final class PatternEncodingPreviewLayoutHelper {
             int offsetY = Integer.parseInt(payload.substring(separator + 1));
             layoutAware.data_energistics$setPreviewPanelOffset(offsetX, offsetY);
         } catch (NumberFormatException e) {
-            com.mojang.logging.LogUtils.getLogger()
+            Data_Energistics.LOGGER
                     .error("Invalid Data Energistics preview panel offset payload: {}", payload, e);
         }
     }
 
-    public static PatternEncodingLogic getLogic(appeng.menu.me.items.PatternEncodingTermMenu menu) {
-        if (!(menu.getHost() instanceof appeng.helpers.IPatternTerminalMenuHost host)) {
+    public static PatternEncodingLogic getLogic(PatternEncodingTermMenu menu) {
+        if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
             throw new IllegalStateException("Pattern terminal host does not expose encoding logic: " + menu.getHost().getClass().getName());
         }
         return host.getLogic();
