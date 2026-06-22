@@ -26,6 +26,7 @@ dependencies {
     compileOnly(forge.sut)
     compileOnly(forge.amek)
     compileOnly(forge.mek)
+    compileOnly(forge.eco)
 
     // FTB
     compileOnly(forge.ftbultimine)
