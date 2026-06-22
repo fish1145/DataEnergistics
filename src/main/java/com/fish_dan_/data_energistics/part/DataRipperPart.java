@@ -66,7 +66,8 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private YesNo networkEnergySufficient = YesNo.YES;
-    private int cachedSpeedCards = -1;
+    private int cachedAeSpeedCards = -1;
+    private int cachedSaberSpeedCards = -1;
     private int cachedSpeedProduct = -1;
     private int cachedEnergyCards = -1;
     @Nullable
@@ -89,7 +90,7 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
 
     @Override
     protected int getUpgradeSlots() {
-        return 12;
+        return 18;
     }
 
     @Override
@@ -336,14 +337,18 @@ public class DataRipperPart extends UpgradeablePart implements IGridTickable {
     }
 
     private int calculateSpeed() {
-        int cardCount = this.getUpgrades().getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get());
-        if (cardCount <= 0) {
-            this.cachedSpeedCards = 0;
+        int aeSpeedCardCount = this.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD);
+        int saberCardCount = this.getUpgrades().getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get());
+        if (aeSpeedCardCount <= 0 && saberCardCount <= 0) {
+            this.cachedAeSpeedCards = 0;
+            this.cachedSaberSpeedCards = 0;
             this.cachedSpeedProduct = 0;
             return 0;
         }
-        if (cardCount != this.cachedSpeedCards) {
-            this.cachedSpeedCards = cardCount;
+
+        if (aeSpeedCardCount != this.cachedAeSpeedCards || saberCardCount != this.cachedSaberSpeedCards) {
+            this.cachedAeSpeedCards = aeSpeedCardCount;
+            this.cachedSaberSpeedCards = saberCardCount;
             this.cachedSpeedProduct = DataRipperPowerUtils.computeProductWithCap(this.getUpgrades());
         }
         return this.cachedSpeedProduct;

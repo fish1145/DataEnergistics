@@ -15,6 +15,7 @@ import appeng.api.upgrades.Upgrades;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ToolboxPanel;
 import appeng.core.localization.GuiText;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
@@ -34,8 +35,10 @@ public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
 
     public DataRipperScreen(DataRipperMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.setSlotsHidden(SlotSemantics.TOOLBOX, true);
         this.configureUpgradeSlots();
+        if (menu.getToolbox().isPresent()) {
+            this.widgets.add("toolbox", new ToolboxPanel(style, menu.getToolbox().getName()));
+        }
 
         this.redstoneControlButton = new DataRipperSettingToggleButton(
                 DataRipperSettings.REDSTONE_CONTROL,
@@ -148,7 +151,7 @@ public class DataRipperScreen extends AEBaseScreen<DataRipperMenu> {
                     DataRipperScreen.this.menu.multiplier,
                     DataRipperScreen.this.menu.inverterCardCount);
             int effectiveSpeed = DataRipperScreen.this.menu.effectiveSpeed;
-            double finalPower = DataRipperPowerUtils.computeFinalPowerForProduct(effectiveSpeed, energyCardCount);
+            double finalPower = DataRipperPowerUtils.computeFinalPowerForProduct(effectiveSpeed, energyCardCount) * multiplier;
             double powerRatio = DataRipperPowerUtils.getRemainingRatio(energyCardCount);
 
             this.set(
