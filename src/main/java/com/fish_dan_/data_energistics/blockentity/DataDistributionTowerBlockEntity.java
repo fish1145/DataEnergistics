@@ -3,51 +3,58 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverage;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverageImpl;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributor;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorContext;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyDistributorImpl;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpoint;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverImpl;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraphImpl;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
-import com.fish_dan_.data_energistics.integration.OritechEnergyIntegration;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
+import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
+import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 import com.fish_dan_.data_energistics.util.ServerTickDelayQueue;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
@@ -64,10 +71,6 @@ import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
 import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
-import appeng.blockentity.crafting.CraftingBlockEntity;
-import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.AEConfig;
@@ -84,11 +87,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -97,15 +97,12 @@ import java.util.Objects;
 import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
-public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
+public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost,
+                                              InternalInventoryHost, TowerEnergyEndpointResolverContext, TowerEnergyDistributorContext,
+                                              TowerTargetDisplayResolverContext {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final DirectEnergyAccess DIRECT_ENERGY_ACCESS = new DirectEnergyAccessImpl();
-    private static final String NEOECOAE_BLOCK_ENTITY_PREFIX = "cn.dancingsnow.neoecoae.blocks.entity.";
-    private static final Set<String> PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES = Set.of(
-            "cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity",
-            "cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity",
-            "cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity");
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
@@ -116,45 +113,31 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
     private static final int AUTO_DISCOVERY_INTERVAL_TICKS = 20;
-    private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
-    private static final int TRANSFER_SCAN_CACHE_TICKS = 5;
+    private static final int RANGE_SCAN_CHUNKS_PER_TICK = 1;
     private static final int CLUSTER_CACHE_TICKS = 10;
     private static final int DIAGNOSTIC_LOG_INTERVAL_TICKS = 100;
     private static final int CACHE_CLEANUP_INTERVAL_TICKS = 6000;
     private static final int MAX_ENERGY_STORAGE_VIEWS = 256;
-    private static final int MAX_CURSOR_ENTRIES = 128;
     private static final double BASE_IDLE_POWER_USAGE = 4.0;
     private static final double IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK = 8.0;
-    private static final int BOOSTERS_PER_CHUNK_RING = 8;
-    private static final int VERTICAL_RANGE_ABOVE = 256;
-    private static final int VERTICAL_RANGE_BELOW = 128;
     private static final Map<ChunkKey, Set<BlockPos>> TOWER_CHUNK_POSITIONS = new HashMap<>();
     private static MinecraftServer boundServer;
 
-    private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
-    private final Set<BlockPos> linkedPositions = new LinkedHashSet<>();
-    private final Map<BlockPos, List<IGridConnection>> linkedConnections = new HashMap<>();
+    private final TowerCoverage coverage;
+    private final TowerLinkGraph linkGraph = new TowerLinkGraphImpl();
+    private final NeoEcoAeTowerBridge neoEcoAeBridge = new NeoEcoAeTowerBridge();
+    private final TowerEnergyEndpointResolver energyEndpointResolver;
+    private final TowerEnergyDistributor energyDistributor;
+    private final TowerTargetDisplayResolver targetDisplayResolver;
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
-    private final Map<BlockPos, EnergyQuerySummary> cachedExtractQuerySummaries = new HashMap<>();
-    private final Map<BlockPos, ReceiverQuerySummary> cachedReceiveQuerySummaries = new HashMap<>();
-    private final Map<BlockPos, Integer> extractRoundRobinCursor = new HashMap<>();
-    private final Map<BlockPos, Integer> receiveRoundRobinCursor = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
-    private final Map<ExtractSimulationKey, Integer> cachedSimulatedExtracts = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
-    private final ArrayList<EnergyEndpoint> reusableEndpointFilter = new ArrayList<>();
     private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private List<BlockPos> cachedAeDisplayTargets = List.of();
     private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
-    private List<EnergyEndpoint> cachedReceiveEnergyEndpoints = List.of();
-    private List<EnergyEndpoint> cachedExtractEnergyEndpoints = List.of();
-    private TransferScanSnapshot cachedTransferScanSnapshot = TransferScanSnapshot.EMPTY;
     private boolean endpointCacheValid;
-    private boolean receiveEndpointResolutionValid;
-    private boolean extractEndpointResolutionValid;
     private BlockPos cachedClusterCoordinatorPos;
-    private long cachedSimulatedExtractTick = Long.MIN_VALUE;
     private long diagnosticWindowStartTick = Long.MIN_VALUE;
     private int diagnosticRealExtractCalls;
     private int diagnosticSimulatedExtractCalls;
@@ -182,11 +165,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Getter
     private RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.POINT;
     private int autoDiscoveryCooldown;
+    private RangeScanCursor rangeScanCursor;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.coverage = new TowerCoverageImpl(blockPos);
+        OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
+        AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
+        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(this, oritechEnergyBridge, DIRECT_ENERGY_ACCESS);
+        this.energyDistributor = new TowerEnergyDistributorImpl(this, this.energyEndpointResolver, DIRECT_ENERGY_ACCESS);
+        this.targetDisplayResolver = new TowerTargetDisplayResolverImpl(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL, GridFlags.DENSE_CAPACITY)
@@ -225,16 +215,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
         this.syncedChunkRadius = computeChunkRadius();
         updateIdlePowerUsage();
-        this.pendingLinkPositions.clear();
-        this.linkedPositions.clear();
-        this.linkedConnections.clear();
+        this.linkGraph.clear();
         this.targetTransferModes.clear();
 
         Tag root = data.get(LINKED_POSITIONS_TAG);
         if (root instanceof ListTag list) {
             for (Tag tag : list) {
                 if (tag instanceof CompoundTag compound) {
-                    NbtUtils.readBlockPos(compound, "pos").ifPresent(pos -> this.linkedPositions.add(pos.immutable()));
+                    NbtUtils.readBlockPos(compound, "pos").ifPresent(this.linkGraph::addLinked);
                 }
             }
         }
@@ -358,6 +346,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         processAutoDiscovery();
+        processRangeScanBatch();
 
         if (selfNode.getUsedChannels() < getMaxLinkChannels()) {
             processPendingLinks(selfNode);
@@ -398,13 +387,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.targetTransferModes.getOrDefault(normalizeTargetPos(targetPos), TargetTransferMode.AUTO);
     }
 
-    public TargetTransferMode cycleTargetTransferMode(BlockPos targetPos) {
-        BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        TargetTransferMode nextMode = getTargetTransferMode(normalizedPos).next();
-        setTargetTransferMode(normalizedPos, nextMode);
-        return nextMode;
-    }
-
     public void setTargetTransferMode(BlockPos targetPos, @Nullable TargetTransferMode mode) {
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
         TargetTransferMode normalizedMode = mode == null ? TargetTransferMode.AUTO : mode;
@@ -416,8 +398,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (normalizedMode == TargetTransferMode.DISABLED) {
             destroyTargetConnections(normalizedPos);
-            this.pendingLinkPositions.remove(normalizedPos);
-            this.linkedPositions.remove(normalizedPos);
+            this.linkGraph.removePending(normalizedPos);
+            this.linkGraph.removeLinked(normalizedPos);
         } else if (canMaintainGridLinkTo(normalizedPos)) {
             queueLink(normalizedPos, 0);
         }
@@ -448,7 +430,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         this.rangeAdjustmentMode = normalizedMode;
         if (this.level != null && !this.level.isClientSide() && this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE) {
-            scanNearbyConnectableNodes();
+            requestNearbyConnectableNodeScan();
         }
         invalidateEndpointCache();
         invalidateClusterCache();
@@ -473,7 +455,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         boolean aeSupported = hasAeNodeCapability(normalizedPos);
-        boolean feSupported = canReceiveEnergy(findAccessibleEnergyStorage(normalizedPos, true));
+        boolean feSupported = canReceiveEnergy(findReceiveEnergyStorage(normalizedPos));
         if (!aeSupported && !feSupported) {
             return ConnectorBindResult.fail(ConnectorBindFailure.UNSUPPORTED);
         }
@@ -489,11 +471,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             setConnectionMode(desiredMode);
         }
 
-        this.linkedPositions.add(normalizedPos);
+        this.linkGraph.addLinked(normalizedPos);
         if (aeSupported && canMaintainGridLinkTo(normalizedPos)) {
             queueLink(normalizedPos, 0);
         } else {
-            this.pendingLinkPositions.remove(normalizedPos);
+            this.linkGraph.removePending(normalizedPos);
             destroyTargetConnections(normalizedPos);
         }
 
@@ -533,7 +515,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 changed = true;
                 invalidateTargets = true;
                 if (this.level != null && !this.level.isClientSide() && this.rangeAdjustmentMode == RangeAdjustmentMode.SCOPE) {
-                    scanNearbyConnectableNodes();
+                    requestNearbyConnectableNodeScan();
                 }
             }
         }
@@ -579,8 +561,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private ListTag createLinkedPositionsTag() {
         ListTag linked = new ListTag();
-        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>(this.linkedPositions);
-        positions.addAll(this.pendingLinkPositions.keySet());
+        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>(this.linkGraph.linkedPositions());
+        positions.addAll(this.linkGraph.pendingPositions());
         for (BlockPos pos : positions) {
             if (getTargetTransferMode(pos) == TargetTransferMode.DISABLED) {
                 continue;
@@ -619,30 +601,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public AABB getCoverageAabb() {
         int chunkRadius = getChunkRadius();
-        double minX = getCoverageMinX(chunkRadius);
-        double minZ = getCoverageMinZ(chunkRadius);
-        double maxX = getCoverageMaxX(chunkRadius);
-        double maxZ = getCoverageMaxZ(chunkRadius);
-        int minY = this.worldPosition.getY() - VERTICAL_RANGE_BELOW;
-        int maxY = this.worldPosition.getY() + VERTICAL_RANGE_ABOVE + 1;
-
-        if (this.level == null) {
-            return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
-        }
-
-        return new AABB(
-                minX,
-                Math.max(this.level.getMinBuildHeight(), minY),
-                minZ,
-                maxX,
-                Math.min(this.level.getMaxBuildHeight(), maxY),
-                maxZ);
-    }
-
-    public String getChannelDisplayText() {
-        IGridNode node = this.getMainNode().getNode();
-        int used = node == null ? 0 : node.getUsedChannels();
-        return used + "/" + getMaxLinkChannels();
+        return this.coverage.aabb(this.level, chunkRadius);
     }
 
     public String getEnergyDisplayText() {
@@ -672,7 +631,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        int channelConnections = this.linkedConnections.getOrDefault(normalizedPos, List.of()).size();
+        int channelConnections = this.linkGraph.connectionCount(normalizedPos);
         long stored = 0L;
         long capacity = 0L;
         boolean canExtract = false;
@@ -725,341 +684,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public int getBoundTargetCount() {
-        return getBoundTargetSummaries(Integer.MAX_VALUE).size();
-    }
-
-    public List<String> getBoundTargetDisplayLines(int maxLines) {
-        if (this.level == null || maxLines <= 0) {
-            return List.of();
-        }
-
-        ArrayList<String> lines = new ArrayList<>();
-        for (BlockPos pos : this.linkedPositions) {
-            BlockEntity blockEntity = this.level.getBlockEntity(pos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity) {
-                continue;
-            }
-
-            BlockState state = this.level.getBlockState(pos);
-            Block block = state.getBlock();
-            String name = block.getName().getString();
-            lines.add(name);
-        }
-
-        lines.sort(String::compareToIgnoreCase);
-        if (lines.size() > maxLines) {
-            return List.copyOf(lines.subList(0, maxLines));
-        }
-        return List.copyOf(lines);
+        return this.targetDisplayResolver.boundTargetCount();
     }
 
     public List<BoundTargetSummary> getBoundTargetSummaries(int maxEntries) {
-        if (this.level == null || maxEntries <= 0) {
-            return List.of();
-        }
-
-        cleanupInvalidBoundTargets();
-
-        ArrayList<BoundTargetSummary> results = new ArrayList<>();
-        for (DisplayTarget target : collectDisplayTargets()) {
-            BlockPos pos = target.pos();
-            BlockEntity blockEntity = this.level.getBlockEntity(pos);
-            if (shouldHideFromBoundTargetDisplay(blockEntity)) {
-                continue;
-            }
-            if (appendCableBusSummaries(results, blockEntity, pos, target.kind(), maxEntries)) {
-                if (results.size() >= maxEntries) {
-                    break;
-                }
-                continue;
-            }
-
-            BlockState state = this.level.getBlockState(pos);
-            Block block = state.getBlock();
-            Item item = block.asItem();
-            if (item == Items.AIR) {
-                item = Items.BARRIER;
-            }
-
-            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-            String displayName = resolveTargetDisplayName(state, blockEntity);
-            results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), target.kind(), getTargetTransferMode(pos), getTargetTransferInfo(pos)));
-            if (results.size() >= maxEntries) {
-                break;
-            }
-        }
-
-        if (results.size() > maxEntries) {
-            return List.copyOf(results.subList(0, maxEntries));
-        }
-        return List.copyOf(results);
-    }
-
-    private boolean appendCableBusSummaries(List<BoundTargetSummary> results, @Nullable BlockEntity blockEntity, BlockPos pos,
-                                            TargetKind kind, int maxEntries) {
-        if (!(blockEntity instanceof CableBusBlockEntity cableBusBlockEntity)) {
-            return false;
-        }
-
-        CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
-        boolean appended = false;
-        IPart centerPart = cableBus.getPart(null);
-        if (centerPart != null) {
-            appended = appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "");
-            if (results.size() >= maxEntries) {
-                return appended;
-            }
-        }
-
-        ArrayList<CableBusDisplayPart> sideParts = new ArrayList<>();
-        for (var direction : Direction.values()) {
-            IPart part = cableBus.getPart(direction);
-            if (part != null) {
-                sideParts.add(new CableBusDisplayPart(part, direction));
-            }
-        }
-
-        for (int i = 0; i < sideParts.size() && results.size() < maxEntries; i++) {
-            CableBusDisplayPart sidePart = sideParts.get(i);
-            String prefix = centerPart != null ? (i == sideParts.size() - 1 ? "└" : "├") : "";
-            if (appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix)) {
-                appended = true;
-            }
-        }
-
-        return appended;
-    }
-
-    private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind,
-                                      int maxEntries, @Nullable Direction direction,
-                                      String prefix) {
-        if (part == null || this.level == null || results.size() >= maxEntries) {
-            return false;
-        }
-
-        Item item = resolvePartItem(part);
-        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
-        String displayName = resolvePartDisplayName(part, item, direction, prefix, "");
-        results.add(new BoundTargetSummary(itemId, displayName, 1, this.level.dimension().location(), pos.immutable(), kind, getTargetTransferMode(pos), getTargetTransferInfo(pos)));
-        return true;
-    }
-
-    private Item resolvePartItem(IPart part) {
-        IPartItem<?> partItem = part.getPartItem();
-        if (partItem instanceof Item item) {
-            return item;
-        }
-        if (partItem instanceof ItemLike itemLike) {
-            Item item = itemLike.asItem();
-            if (item != Items.AIR) {
-                return item;
-            }
-        }
-        return Items.BARRIER;
-    }
-
-    private String resolvePartDisplayName(IPart part, Item item, @Nullable Direction direction,
-                                          String prefix, String groupSuffix) {
-        String directionSuffix = direction == null ? "" : " [" + formatDirection(direction) + "]";
-        String suffix = directionSuffix + groupSuffix;
-        if (part instanceof Nameable nameable) {
-            Component displayName = nameable.getDisplayName();
-            if (displayName != null) {
-                String resolved = displayName.getString();
-                if (!resolved.isBlank()) {
-                    return prefix + resolved + suffix;
-                }
-            }
-        }
-
-        if (item != Items.AIR) {
-            String itemName = new ItemStack(item).getHoverName().getString();
-            if (!itemName.isBlank()) {
-                return prefix + itemName + suffix;
-            }
-        }
-
-        return prefix + part.getClass().getSimpleName() + suffix;
-    }
-
-    private String formatDirection(Direction direction) {
-        return switch (direction) {
-            case NORTH -> "\u5317";
-            case SOUTH -> "\u5357";
-            case WEST -> "\u897f";
-            case EAST -> "\u4e1c";
-            case UP -> "\u4e0a";
-            case DOWN -> "\u4e0b";
-        };
-    }
-
-    private List<DisplayTarget> collectDisplayTargets() {
-        if (this.level == null) {
-            return List.of();
-        }
-
-        cleanupInvalidBoundTargets();
-
-        LinkedHashMap<BlockPos, TargetKind> positions = new LinkedHashMap<>();
-
-        for (BlockPos pos : this.linkedPositions) {
-            if (allowsAeTargets() && getTargetTransferMode(pos) != TargetTransferMode.DISABLED && !this.level.getBlockState(pos).isAir()) {
-                BlockEntity blockEntity = this.level.getBlockEntity(pos);
-                if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
-                    TargetKind kind = getPreferredDisplayKind(pos, blockEntity);
-                    if (kind != null) {
-                        positions.put(pos.immutable(), kind);
-                    }
-                }
-            }
-        }
-
-        for (BlockPos pos : getCachedAeDisplayTargets()) {
-            if (allowsAeTargets() && targetAllowsAe(pos) && !this.level.getBlockState(pos).isAir()) {
-                BlockEntity blockEntity = this.level.getBlockEntity(pos);
-                if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
-                    positions.putIfAbsent(pos.immutable(), TargetKind.AE);
-                }
-            }
-        }
-
-        for (BlockPos pos : getCachedEndpoints()) {
-            if (this.level.getBlockState(pos).isAir()) {
-                continue;
-            }
-            BlockEntity blockEntity = this.level.getBlockEntity(pos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity) {
-                continue;
-            }
-            if (allowsAeTargets() && isDedicatedAeGridTarget(pos)) {
-                positions.putIfAbsent(pos.immutable(), TargetKind.AE);
-                continue;
-            }
-            if (!targetAllowsFe(pos)) {
-                continue;
-            }
-            IEnergyStorage storage = findAccessibleEnergyStorage(pos, true);
-            if (canReceiveEnergy(storage)) {
-                positions.putIfAbsent(pos.immutable(), TargetKind.FE);
-            }
-        }
-
-        for (BlockPos pos : this.targetTransferModes.keySet()) {
-            if (!isWithinTowerCoverage(pos) || this.level.getBlockState(pos).isAir()) {
-                continue;
-            }
-            BlockEntity blockEntity = this.level.getBlockEntity(pos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity || shouldHideFromBoundTargetDisplay(blockEntity)) {
-                continue;
-            }
-            TargetKind kind = getPreferredDisplayKind(pos, blockEntity);
-            if (kind != null) {
-                positions.putIfAbsent(pos.immutable(), kind);
-            }
-        }
-
-        collapseAeCraftingDisplayTargets(positions);
-
-        ArrayList<DisplayTarget> results = new ArrayList<>(positions.size());
-        positions.forEach((pos, kind) -> results.add(new DisplayTarget(pos, kind)));
-        return List.copyOf(results);
-    }
-
-    private void collapseAeCraftingDisplayTargets(LinkedHashMap<BlockPos, TargetKind> positions) {
-        if (this.level == null || positions.isEmpty()) {
-            return;
-        }
-
-        ArrayList<BlockPos> craftingPositions = new ArrayList<>();
-        HashMap<BlockPos, BlockPos> clusterRepresentatives = new HashMap<>();
-        for (Map.Entry<BlockPos, TargetKind> entry : positions.entrySet()) {
-            if (entry.getValue() != TargetKind.AE) {
-                continue;
-            }
-
-            BlockPos pos = entry.getKey();
-            BlockEntity blockEntity = this.level.getBlockEntity(pos);
-            if (!isAeCraftingClusterComponent(blockEntity)) {
-                continue;
-            }
-
-            BlockPos representativePos = findAeCraftingClusterRepresentative(blockEntity);
-            if (representativePos == null) {
-                continue;
-            }
-
-            craftingPositions.add(pos);
-            clusterRepresentatives.put(pos, representativePos);
-        }
-
-        if (craftingPositions.size() <= 1) {
-            return;
-        }
-
-        for (BlockPos pos : craftingPositions) {
-            BlockPos representativePos = clusterRepresentatives.get(pos);
-            if (representativePos != null && !pos.equals(representativePos)) {
-                positions.remove(pos);
-            }
-        }
-    }
-
-    private int compareAeCraftingDisplayTargets(BlockPos leftPos, BlockPos rightPos) {
-        if (this.level == null) {
-            return compareBlockPos(leftPos, rightPos);
-        }
-
-        int leftPriority = getAeCraftingDisplayPriority(this.level.getBlockEntity(leftPos));
-        int rightPriority = getAeCraftingDisplayPriority(this.level.getBlockEntity(rightPos));
-        if (leftPriority != rightPriority) {
-            return Integer.compare(rightPriority, leftPriority);
-        }
-
-        return compareBlockPos(leftPos, rightPos);
-    }
-
-    private int getAeCraftingDisplayPriority(@Nullable BlockEntity blockEntity) {
-        if (blockEntity instanceof MolecularAssemblerBlockEntity) {
-            return 1;
-        }
-        if (blockEntity instanceof CraftingBlockEntity craftingBlockEntity) {
-            return craftingBlockEntity.isCoreBlock() ? 3 : 2;
-        }
-        if (isReflectiveAeCraftingDisplayComponent(blockEntity)) {
-            return isReflectiveAeCraftingCoreBlock(blockEntity) ? 3 : 2;
-        }
-        return 0;
-    }
-
-    private boolean isAeCraftingClusterComponent(@Nullable BlockEntity blockEntity) {
-        return isAeCraftingDisplayComponent(blockEntity) && !(blockEntity instanceof MolecularAssemblerBlockEntity);
-    }
-
-    private String resolveTargetDisplayName(BlockState state, @Nullable BlockEntity blockEntity) {
-        if (blockEntity instanceof Nameable nameable) {
-            Component displayName = nameable.getDisplayName();
-            if (displayName != null) {
-                String resolved = displayName.getString();
-                if (!resolved.isBlank() && !isFallbackAirName(resolved)) {
-                    return resolved;
-                }
-            }
-        }
-
-        Block block = state.getBlock();
-        Item item = block.asItem();
-        if (item != Items.AIR) {
-            String itemName = new ItemStack(item).getHoverName().getString();
-            if (!itemName.isBlank()) {
-                return itemName;
-            }
-        }
-
-        return block.getName().getString();
-    }
-
-    private boolean isFallbackAirName(String displayName) {
-        return displayName.equals(Items.AIR.getDescription().getString()) || displayName.equals(Blocks.AIR.getName().getString());
+        return this.targetDisplayResolver.boundTargetSummaries(maxEntries);
     }
 
     @Override
@@ -1170,33 +799,98 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    public int scanNearbyConnectableNodes() {
+    private void requestNearbyConnectableNodeScan() {
         if (this.level == null || !allowsAutomaticRangeConnections()) {
-            return 0;
+            return;
         }
 
+        int chunkRadius = getChunkRadius();
+        int minChunkX = this.coverage.minChunkX(chunkRadius);
+        int maxChunkX = this.coverage.maxChunkX(chunkRadius);
+        int minChunkZ = this.coverage.minChunkZ(chunkRadius);
+        int maxChunkZ = this.coverage.maxChunkZ(chunkRadius);
+        this.rangeScanCursor = new RangeScanCursor(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+    }
+
+    private void requestNearbyConnectableNodeScanIfIdle() {
+        if (this.level == null || !allowsAutomaticRangeConnections()) {
+            return;
+        }
+
+        int chunkRadius = getChunkRadius();
+        int minChunkX = this.coverage.minChunkX(chunkRadius);
+        int maxChunkX = this.coverage.maxChunkX(chunkRadius);
+        int minChunkZ = this.coverage.minChunkZ(chunkRadius);
+        int maxChunkZ = this.coverage.maxChunkZ(chunkRadius);
+        if (this.rangeScanCursor != null && this.rangeScanCursor.matches(minChunkX, maxChunkX, minChunkZ, maxChunkZ)) {
+            return;
+        }
+
+        this.rangeScanCursor = new RangeScanCursor(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+    }
+
+    private void processRangeScanBatch() {
+        if (this.level == null || this.level.isClientSide() || this.rangeScanCursor == null) {
+            return;
+        }
+        if (!allowsAutomaticRangeConnections()) {
+            this.rangeScanCursor = null;
+            return;
+        }
+
+        int processedChunks = 0;
         int added = 0;
-        ArrayList<BlockEntity> nearbyBlockEntities = new ArrayList<>(getNearbyBlockEntities());
-        nearbyBlockEntities.sort(this::compareLinkTargetPriority);
-        for (BlockEntity blockEntity : nearbyBlockEntities) {
-            BlockPos pos = blockEntity.getBlockPos().immutable();
-            if (pos.equals(this.worldPosition)) {
-                continue;
+        while (this.rangeScanCursor != null && processedChunks < RANGE_SCAN_CHUNKS_PER_TICK) {
+            if (this.rangeScanCursor.isComplete()) {
+                this.rangeScanCursor = null;
+                break;
             }
-            if (queueLink(pos, 0)) {
-                added++;
+
+            added += scanRangeChunk(this.rangeScanCursor.chunkX(), this.rangeScanCursor.chunkZ());
+            this.rangeScanCursor.advance();
+            processedChunks++;
+            if (this.rangeScanCursor.isComplete()) {
+                this.rangeScanCursor = null;
             }
         }
 
         if (added > 0) {
             this.setChanged();
         }
+    }
+
+    private int scanRangeChunk(int chunkX, int chunkZ) {
+        if (this.level == null) {
+            return 0;
+        }
+
+        LevelChunk chunk = this.level.getChunkSource().getChunk(chunkX, chunkZ, false);
+        if (chunk == null) {
+            return 0;
+        }
+
+        int added = 0;
+        ArrayList<BlockEntity> blockEntities = new ArrayList<>(chunk.getBlockEntities().values());
+        blockEntities.sort(this::compareLinkTargetPriority);
+        for (BlockEntity blockEntity : blockEntities) {
+            BlockPos pos = blockEntity.getBlockPos().immutable();
+            if (pos.equals(this.worldPosition) || !isWithinTowerCoverage(pos)) {
+                continue;
+            }
+            if (queueLink(pos, 0)) {
+                added++;
+            }
+        }
         return added;
     }
 
     private void processPendingLinks(IGridNode selfNode) {
+        if (this.level == null) {
+            return;
+        }
+
         ArrayList<BlockPos> readyTargets = new ArrayList<>();
-        for (Map.Entry<BlockPos, Integer> entry : this.pendingLinkPositions.entrySet()) {
+        for (Map.Entry<BlockPos, Integer> entry : this.linkGraph.pendingEntries()) {
             if (entry.getValue() > 0) {
                 entry.setValue(entry.getValue() - 1);
                 continue;
@@ -1221,10 +915,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos targetPos : readyTargets) {
             List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
             if (linkableNodes.isEmpty()) {
-                if (this.linkedPositions.contains(targetPos.immutable())) {
-                    this.pendingLinkPositions.put(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
+                if (this.linkGraph.containsLinked(targetPos.immutable())) {
+                    this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
                 } else {
-                    this.pendingLinkPositions.remove(targetPos);
+                    this.linkGraph.removePending(targetPos);
                 }
                 continue;
             }
@@ -1233,7 +927,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
 
             int connectedNodes = reconnectTarget(selfNode, targetPos, linkableNodes);
-            this.pendingLinkPositions.remove(targetPos);
+            this.linkGraph.removePending(targetPos);
             remainingChannels -= connectedNodes;
             if (remainingChannels <= 0) {
                 break;
@@ -1241,7 +935,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private boolean isTowerActive() {
+    @Override
+    public boolean isTowerActive() {
         return this.getMainNode().isActive();
     }
 
@@ -1302,12 +997,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private int computeChunkRadius() {
         ItemStack boosterStack = this.wirelessBoosters.getStackInSlot(0);
         int boosterCount = boosterStack.isEmpty() ? 0 : boosterStack.getCount();
-        return Math.max(0, Config.dataDistributionTowerRange - 1 + boosterCount / BOOSTERS_PER_CHUNK_RING);
+        return this.coverage.computeChunkRadius(boosterCount);
     }
 
     private int getCoveredChunkCount() {
-        int diameter = computeChunkRadius() * 2 + 1;
-        return diameter * diameter;
+        return this.coverage.coveredChunkCount(computeChunkRadius());
     }
 
     private double computeIdlePowerUsage() {
@@ -1318,12 +1012,51 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.getMainNode().setIdlePowerUsage(computeIdlePowerUsage());
     }
 
-    private boolean isWithinTowerCoverage(BlockPos targetPos) {
-        return isWithinCenteredHorizontalRange(targetPos, getChunkRadius()) && targetPos.getY() >= this.worldPosition.getY() - VERTICAL_RANGE_BELOW && targetPos.getY() <= this.worldPosition.getY() + VERTICAL_RANGE_ABOVE;
+    @Override
+    public boolean isWithinTowerCoverage(BlockPos targetPos) {
+        return this.coverage.contains(targetPos, getChunkRadius());
     }
 
-    private long getTransferBudgetPerTick() {
+    @Override
+    public long transferBudgetPerTick() {
         return Config.dataDistributionTowerTransferPerTick;
+    }
+
+    @Override
+    public AENetworkedBlockEntity aeNetworkHost() {
+        return this;
+    }
+
+    @Override
+    public void markEndpointChanged(BlockPos pos) {
+        if (this.level == null) {
+            return;
+        }
+
+        BlockEntity blockEntity = this.level.getBlockEntity(pos);
+        if (blockEntity != null) {
+            blockEntity.setChanged();
+        }
+    }
+
+    @Override
+    public void recordMaxExtractEndpoints(int endpointCount) {
+        this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpointCount);
+    }
+
+    @Override
+    public void recordMaxReceiveEndpoints(int endpointCount) {
+        this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpointCount);
+    }
+
+    @Override
+    public void recordSimulatedCacheHit() {
+        this.diagnosticSimulatedCacheHits++;
+    }
+
+    @Override
+    public void recordSimulatedCacheMiss() {
+        this.diagnosticSimulatedCacheMisses++;
     }
 
     private int getMaxLinkChannels() {
@@ -1349,8 +1082,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         int chunkRadius = getChunkRadius();
         this.indexedChunkRadius = chunkRadius;
-        for (int chunkX = getCoverageMinChunkX(chunkRadius); chunkX <= getCoverageMaxChunkX(chunkRadius); chunkX++) {
-            for (int chunkZ = getCoverageMinChunkZ(chunkRadius); chunkZ <= getCoverageMaxChunkZ(chunkRadius); chunkZ++) {
+        for (int chunkX = this.coverage.minChunkX(chunkRadius); chunkX <= this.coverage.maxChunkX(chunkRadius); chunkX++) {
+            for (int chunkZ = this.coverage.minChunkZ(chunkRadius); chunkZ <= this.coverage.maxChunkZ(chunkRadius); chunkZ++) {
                 ChunkKey key = new ChunkKey(this.level, chunkX, chunkZ);
                 TOWER_CHUNK_POSITIONS.computeIfAbsent(key, ignored -> new HashSet<>()).add(this.worldPosition.immutable());
             }
@@ -1363,8 +1096,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         int chunkRadius = this.indexedChunkRadius >= 0 ? this.indexedChunkRadius : getChunkRadius();
-        for (int chunkX = getCoverageMinChunkX(chunkRadius); chunkX <= getCoverageMaxChunkX(chunkRadius); chunkX++) {
-            for (int chunkZ = getCoverageMinChunkZ(chunkRadius); chunkZ <= getCoverageMaxChunkZ(chunkRadius); chunkZ++) {
+        for (int chunkX = this.coverage.minChunkX(chunkRadius); chunkX <= this.coverage.maxChunkX(chunkRadius); chunkX++) {
+            for (int chunkZ = this.coverage.minChunkZ(chunkRadius); chunkZ <= this.coverage.maxChunkZ(chunkRadius); chunkZ++) {
                 ChunkKey key = new ChunkKey(this.level, chunkX, chunkZ);
                 Set<BlockPos> positions = TOWER_CHUNK_POSITIONS.get(key);
                 if (positions != null) {
@@ -1376,52 +1109,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         this.indexedChunkRadius = -1;
-    }
-
-    private boolean isWithinCenteredHorizontalRange(BlockPos targetPos, int chunkRadius) {
-        double targetCenterX = targetPos.getX() + 0.5D;
-        double targetCenterZ = targetPos.getZ() + 0.5D;
-        return targetCenterX >= getCoverageMinX(chunkRadius) && targetCenterX < getCoverageMaxX(chunkRadius) && targetCenterZ >= getCoverageMinZ(chunkRadius) && targetCenterZ < getCoverageMaxZ(chunkRadius);
-    }
-
-    private double getCoverageMinX(int chunkRadius) {
-        return this.worldPosition.getX() + 0.5D - getCoverageHalfWidth(chunkRadius);
-    }
-
-    private double getCoverageMinZ(int chunkRadius) {
-        return this.worldPosition.getZ() + 0.5D - getCoverageHalfWidth(chunkRadius);
-    }
-
-    private double getCoverageMaxX(int chunkRadius) {
-        return this.worldPosition.getX() + 0.5D + getCoverageHalfWidth(chunkRadius);
-    }
-
-    private double getCoverageMaxZ(int chunkRadius) {
-        return this.worldPosition.getZ() + 0.5D + getCoverageHalfWidth(chunkRadius);
-    }
-
-    private double getCoverageHalfWidth(int chunkRadius) {
-        return getCoverageDiameterBlocks(chunkRadius) / 2.0D;
-    }
-
-    private int getCoverageDiameterBlocks(int chunkRadius) {
-        return (chunkRadius * 2 + 1) * 16;
-    }
-
-    private int getCoverageMinChunkX(int chunkRadius) {
-        return Math.floorDiv((int) Math.floor(getCoverageMinX(chunkRadius)), 16);
-    }
-
-    private int getCoverageMinChunkZ(int chunkRadius) {
-        return Math.floorDiv((int) Math.floor(getCoverageMinZ(chunkRadius)), 16);
-    }
-
-    private int getCoverageMaxChunkX(int chunkRadius) {
-        return Math.floorDiv((int) Math.ceil(getCoverageMaxX(chunkRadius)) - 1, 16);
-    }
-
-    private int getCoverageMaxChunkZ(int chunkRadius) {
-        return Math.floorDiv((int) Math.ceil(getCoverageMaxZ(chunkRadius)) - 1, 16);
     }
 
     private void invalidateEndpointCache() {
@@ -1439,28 +1126,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void invalidateResolvedEnergyEndpointCache() {
-        this.cachedReceiveEnergyEndpoints = List.of();
-        this.cachedExtractEnergyEndpoints = List.of();
-        this.receiveEndpointResolutionValid = false;
-        this.extractEndpointResolutionValid = false;
-        this.extractRoundRobinCursor.clear();
-        this.receiveRoundRobinCursor.clear();
-        invalidateEnergyQueryCache();
-    }
-
-    private void invalidateEnergyQueryCache() {
-        this.cachedExtractQuerySummaries.clear();
-        this.cachedReceiveQuerySummaries.clear();
-        this.cachedSimulatedExtracts.clear();
-        this.cachedSimulatedExtractTick = Long.MIN_VALUE;
-        this.cachedTransferScanSnapshot = TransferScanSnapshot.EMPTY;
+        this.energyEndpointResolver.invalidateResolvedCache();
+        this.energyDistributor.invalidateResolvedEndpointCache();
     }
 
     private void clearRuntimeCaches() {
         invalidateEndpointCache();
         invalidateClusterCache();
         this.cachedEnergyStorageViews.clear();
-        this.reusableEndpointFilter.clear();
+        this.energyEndpointResolver.clearReusableCache();
         trimCaches();
     }
 
@@ -1468,18 +1142,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.cachedEnergyStorageViews.size() > MAX_ENERGY_STORAGE_VIEWS) {
             this.cachedEnergyStorageViews.clear();
         }
-        if (this.extractRoundRobinCursor.size() > MAX_CURSOR_ENTRIES) {
-            this.extractRoundRobinCursor.clear();
-        }
-        if (this.receiveRoundRobinCursor.size() > MAX_CURSOR_ENTRIES) {
-            this.receiveRoundRobinCursor.clear();
-        }
-        if (this.cachedExtractQuerySummaries.size() > MAX_CURSOR_ENTRIES) {
-            this.cachedExtractQuerySummaries.clear();
-        }
-        if (this.cachedReceiveQuerySummaries.size() > MAX_CURSOR_ENTRIES) {
-            this.cachedReceiveQuerySummaries.clear();
-        }
+        this.energyDistributor.trimCaches();
     }
 
     private List<BlockPos> getCachedEndpoints() {
@@ -1522,7 +1185,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
                     endpoints.add(pos);
                 }
-                if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
+                if (allowsAeTargets() && targetAllowsAe(pos) && this.targetDisplayResolver.hasDisplayableAeTarget(blockEntity)) {
                     aeDisplayTargets.add(pos);
                 }
             }
@@ -1535,7 +1198,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
                     endpoints.add(pos);
                 }
-                if (allowsAeTargets() && targetAllowsAe(pos) && hasDisplayableAeTarget(blockEntity)) {
+                if (allowsAeTargets() && targetAllowsAe(pos) && this.targetDisplayResolver.hasDisplayableAeTarget(blockEntity)) {
                     aeDisplayTargets.add(pos);
                 }
             }
@@ -1547,8 +1210,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private List<BlockPos> getTrackedTargetPositions() {
-        LinkedHashSet<BlockPos> tracked = new LinkedHashSet<>(this.linkedPositions);
-        tracked.addAll(this.pendingLinkPositions.keySet());
+        LinkedHashSet<BlockPos> tracked = new LinkedHashSet<>(this.linkGraph.trackedPositions());
         tracked.addAll(this.targetTransferModes.keySet());
         return List.copyOf(tracked);
     }
@@ -1560,10 +1222,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         ArrayList<BlockEntity> results = new ArrayList<>();
         int chunkRadius = getChunkRadius();
-        int minChunkX = getCoverageMinChunkX(chunkRadius);
-        int maxChunkX = getCoverageMaxChunkX(chunkRadius);
-        int minChunkZ = getCoverageMinChunkZ(chunkRadius);
-        int maxChunkZ = getCoverageMaxChunkZ(chunkRadius);
+        int minChunkX = this.coverage.minChunkX(chunkRadius);
+        int maxChunkX = this.coverage.maxChunkX(chunkRadius);
+        int minChunkZ = this.coverage.minChunkZ(chunkRadius);
+        int maxChunkZ = this.coverage.maxChunkZ(chunkRadius);
 
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -1601,130 +1263,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
         BlockEntity blockEntity = this.level.getBlockEntity(pos);
-        return isPreferredEcoSubsystemHost(blockEntity) ? 1 : 0;
-    }
-
-    private boolean isPreferredEcoSubsystemHost(@Nullable BlockEntity blockEntity) {
-        return blockEntity != null && PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES.contains(blockEntity.getClass().getName());
-    }
-
-    private boolean isEcoSubsystemComponent(@Nullable BlockEntity blockEntity) {
-        return blockEntity != null && blockEntity.getClass().getName().startsWith(NEOECOAE_BLOCK_ENTITY_PREFIX);
-    }
-
-    private boolean isAeCraftingDisplayComponent(@Nullable BlockEntity blockEntity) {
-        if (blockEntity == null || blockEntity instanceof PatternProviderBlockEntity) {
-            return false;
-        }
-        if (blockEntity instanceof CraftingBlockEntity || blockEntity instanceof MolecularAssemblerBlockEntity) {
-            return true;
-        }
-        Block block = blockEntity.getBlockState().getBlock();
-        if (block.getClass().getName().contains("CraftingUnitBlock")) {
-            return true;
-        }
-        return isReflectiveAeCraftingDisplayComponent(blockEntity);
-    }
-
-    private boolean isAeCraftingClusterBridge(@Nullable BlockEntity blockEntity) {
-        return blockEntity instanceof PatternProviderBlockEntity;
-    }
-
-    private boolean isAeCraftingClusterNode(@Nullable BlockEntity blockEntity) {
-        return isAeCraftingDisplayComponent(blockEntity) || isAeCraftingClusterBridge(blockEntity);
-    }
-
-    private boolean isReflectiveAeCraftingDisplayComponent(@Nullable BlockEntity blockEntity) {
-        if (blockEntity == null) {
-            return false;
-        }
-
-        Class<?> type = blockEntity.getClass();
-        String className = type.getName();
-        return className.contains("Crafting") && hasZeroArgMethod(type, "isCoreBlock") && hasZeroArgMethod(type, "getStorageBytes") && hasZeroArgMethod(type, "getAcceleratorThreads");
-    }
-
-    private boolean isReflectiveAeCraftingCoreBlock(@Nullable BlockEntity blockEntity) {
-        if (blockEntity == null || !hasZeroArgMethod(blockEntity.getClass(), "isCoreBlock")) {
-            return false;
-        }
-
-        Object value = ReflectionAccess.invokeNoArg(blockEntity, "isCoreBlock");
-        return value instanceof Boolean bool && bool;
-    }
-
-    private boolean hasZeroArgMethod(Class<?> type, String methodName) {
-        return ReflectionAccess.hasNoArgMethod(type, methodName);
-    }
-
-    @Nullable
-    private BlockPos findAeCraftingClusterRepresentative(@Nullable BlockEntity blockEntity) {
-        if (!isAeCraftingClusterComponent(blockEntity) || this.level == null) {
-            return null;
-        }
-
-        BlockPos startPos = blockEntity.getBlockPos();
-        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
-        HashSet<BlockPos> visited = new HashSet<>();
-        queue.add(startPos);
-        visited.add(startPos);
-        BlockPos representative = startPos;
-
-        while (!queue.isEmpty()) {
-            BlockPos currentPos = queue.removeFirst();
-            if (compareAeCraftingDisplayTargets(currentPos, representative) < 0) {
-                representative = currentPos;
-            }
-
-            for (var direction : Direction.values()) {
-                BlockPos neighborPos = currentPos.relative(direction);
-                if (!visited.add(neighborPos)) {
-                    continue;
-                }
-
-                BlockEntity neighbor = this.level.getBlockEntity(neighborPos);
-                if (!isAeCraftingClusterComponent(neighbor) && !isAeCraftingClusterBridge(neighbor)) {
-                    continue;
-                }
-
-                queue.addLast(neighborPos);
-            }
-        }
-
-        return representative;
-    }
-
-    private boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
-        if (isEcoSubsystemComponent(blockEntity)) {
-            return !isPreferredEcoSubsystemHost(blockEntity);
-        }
-        if (isAeCraftingNoiseTarget(blockEntity)) {
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isAeCraftingNoiseTarget(@Nullable BlockEntity blockEntity) {
-        if (blockEntity == null || this.level == null) {
-            return false;
-        }
-        if (isAeCraftingDisplayComponent(blockEntity) || blockEntity instanceof PatternProviderBlockEntity) {
-            return false;
-        }
-        if (blockEntity instanceof CableBusBlockEntity) {
-            return false;
-        } else if (this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, blockEntity.getBlockPos(), null) == null) {
-            return false;
-        }
-
-        BlockPos pos = blockEntity.getBlockPos();
-        for (var direction : Direction.values()) {
-            BlockEntity neighbor = this.level.getBlockEntity(pos.relative(direction));
-            if (isAeCraftingClusterNode(neighbor)) {
-                return true;
-            }
-        }
-        return false;
+        return this.neoEcoAeBridge.isPreferredSubsystemHost(blockEntity) ? 1 : 0;
     }
 
     private boolean hasAnyEnergyCapability(BlockPos pos) {
@@ -1748,104 +1287,90 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return internal != null && internal.getEnergyStored() > 0;
     }
 
-    private boolean hasDisplayableAeTarget(BlockEntity blockEntity) {
-        if (this.level == null) {
-            return false;
-        }
-
-        if (shouldHideFromBoundTargetDisplay(blockEntity)) {
-            return false;
-        }
-
-        if (blockEntity instanceof CableBusBlockEntity cableBusBlockEntity) {
-            return hasAnyCableBusPart(cableBusBlockEntity.getCableBus());
-        }
-
-        if (isAeCraftingDisplayComponent(blockEntity)) {
-            return true;
-        }
-
-        return blockEntity instanceof PatternProviderBlockEntity;
-    }
-
+    @Override
     @Nullable
-    private TargetKind getPreferredDisplayKind(BlockPos pos, @Nullable BlockEntity blockEntity) {
+    public TargetKind preferredDisplayKind(BlockPos pos) {
+        BlockEntity blockEntity = this.level == null ? null : this.level.getBlockEntity(pos);
         if (this.level == null || blockEntity instanceof DataDistributionTowerBlockEntity || this.level.getBlockState(pos).isAir()) {
             return null;
         }
         if (hasAeNodeCapability(pos)) {
             return TargetKind.AE;
         }
-        if (canReceiveEnergy(findAccessibleEnergyStorage(pos, true))) {
+        if (canReceiveEnergy(findReceiveEnergyStorage(pos))) {
             return TargetKind.FE;
         }
         return null;
     }
 
-    private boolean hasAnyCableBusPart(CableBusContainer cableBus) {
-        if (cableBus.getPart(null) != null) {
-            return true;
-        }
-
-        for (var direction : Direction.values()) {
-            if (cableBus.getPart(direction) != null) {
-                return true;
-            }
-        }
-
-        return false;
+    @Override
+    @Nullable
+    public Level level() {
+        return this.level;
     }
 
-    private boolean isTowerBlock(BlockPos pos) {
+    @Override
+    public Set<BlockPos> linkedPositions() {
+        return this.linkGraph.linkedPositions();
+    }
+
+    @Override
+    public List<BlockPos> configuredTargetPositions() {
+        return List.copyOf(this.targetTransferModes.keySet());
+    }
+
+    @Override
+    public List<BlockPos> cachedAeDisplayTargets() {
+        return getCachedAeDisplayTargets();
+    }
+
+    @Override
+    public List<BlockPos> cachedEndpointPositions() {
+        return getCachedEndpoints();
+    }
+
+    @Override
+    public boolean allowsAeDisplayTargets() {
+        return allowsAeTargets();
+    }
+
+    @Override
+    public boolean hasReceiveEnergyTarget(BlockPos pos) {
+        return canReceiveEnergy(findReceiveEnergyStorage(pos));
+    }
+
+    @Override
+    public TargetTransferMode targetTransferMode(BlockPos pos) {
+        return getTargetTransferMode(pos);
+    }
+
+    @Override
+    public TargetTransferInfo targetTransferInfo(BlockPos pos) {
+        return getTargetTransferInfo(pos);
+    }
+
+    @Override
+    public boolean isTowerBlock(BlockPos pos) {
         return this.level != null && this.level.getBlockState(pos).is(ModBlocks.DATA_DISTRIBUTION_TOWER.get());
     }
 
     @Nullable
     private IEnergyStorage getEnergyStorageAt(BlockPos pos, @Nullable Direction side) {
-        if (this.level == null || isTowerBlock(pos)) {
-            return null;
-        }
-        IEnergyStorage storage = this.level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, side);
-        return storage != null ? storage : OritechEnergyIntegration.findEnergyStorage(this.level, pos, side);
+        return this.energyEndpointResolver.getEnergyStorageAt(pos, side);
     }
 
     @Nullable
-    private IEnergyStorage findAccessibleEnergyStorage(BlockPos pos, boolean forReceive) {
-        List<EnergyEndpoint> endpoints = findAccessibleEnergyEndpoints(pos, forReceive);
-        return endpoints.isEmpty() ? null : endpoints.getFirst().storage();
+    private IEnergyStorage findReceiveEnergyStorage(BlockPos pos) {
+        return this.energyEndpointResolver.findAccessibleEnergyStorage(pos, true);
     }
 
-    private List<EnergyEndpoint> findAccessibleEnergyEndpoints(BlockPos pos, boolean forReceive) {
-        if (this.level == null) {
-            return List.of();
-        }
-
-        ArrayList<EnergyEndpoint> endpoints = new ArrayList<>();
-        Set<IEnergyStorage> seenStorages = Collections.newSetFromMap(new IdentityHashMap<>());
-        boolean collectAllSides = this.level.getBlockEntity(pos) instanceof CableBusBlockEntity;
-
-        for (var direction : Direction.values()) {
-            IEnergyStorage storage = getEnergyStorageAt(pos, direction);
-            if (isUsableEnergyStorage(storage, forReceive) && seenStorages.add(storage)) {
-                endpoints.add(new EnergyEndpoint(pos.immutable(), direction, storage));
-                if (!collectAllSides) {
-                    return List.copyOf(endpoints);
-                }
-            }
-        }
-
-        IEnergyStorage internal = getEnergyStorageAt(pos, null);
-        if (isUsableEnergyStorage(internal, forReceive) && seenStorages.add(internal)) {
-            endpoints.add(new EnergyEndpoint(pos.immutable(), null, internal));
-        }
-        return List.copyOf(endpoints);
+    @Override
+    public List<TowerEnergyEndpoint> accessibleEnergyEndpoints(DataDistributionTowerBlockEntity tower, BlockPos pos, boolean forReceive) {
+        return tower.energyEndpointResolver.findAccessibleEnergyEndpoints(pos, forReceive);
     }
 
-    private static boolean isUsableEnergyStorage(@Nullable IEnergyStorage storage, boolean forReceive) {
-        return storage != null && (forReceive ? canReceiveEnergy(storage) : storage.canExtract());
-    }
-
-    private boolean isDedicatedAeGridTarget(BlockPos pos) {
+    @Override
+    public boolean isDedicatedAeGridTarget(BlockPos pos) {
         if (this.level == null || this.level.getBlockEntity(pos) instanceof CableBusBlockEntity) {
             return false;
         }
@@ -1862,7 +1387,23 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return false;
     }
 
-    private List<DataDistributionTowerBlockEntity> collectTowerCluster() {
+    @Override
+    public boolean isDedicatedAeGridTarget(DataDistributionTowerBlockEntity tower, BlockPos pos) {
+        return tower.isDedicatedAeGridTarget(pos);
+    }
+
+    @Override
+    public List<BlockPos> cachedEndpointPositions(DataDistributionTowerBlockEntity tower) {
+        return tower.getCachedEndpoints();
+    }
+
+    @Override
+    public boolean targetAllowsFe(DataDistributionTowerBlockEntity tower, BlockPos pos) {
+        return tower.targetAllowsFe(pos);
+    }
+
+    @Override
+    public List<DataDistributionTowerBlockEntity> collectTowerCluster() {
         if (this.level == null) {
             return List.of(this);
         }
@@ -1882,7 +1423,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             DataDistributionTowerBlockEntity tower = queue.removeFirst();
             towers.add(tower);
 
-            for (BlockPos linkedPos : tower.linkedPositions) {
+            for (BlockPos linkedPos : tower.linkGraph.linkedPositions()) {
                 if (!visited.add(linkedPos)) {
                     continue;
                 }
@@ -1898,68 +1439,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.lastClusterCacheTick = gameTime;
         this.cachedClusterCoordinatorPos = findCoordinatorPos(towers);
         return this.cachedTowerCluster;
-    }
-
-    private List<EnergyEndpoint> collectEnergyEndpoints(boolean forReceive, @Nullable BlockPos excludedPos) {
-        return excludeEnergyEndpoint(getCachedResolvedEnergyEndpoints(forReceive), excludedPos);
-    }
-
-    private List<EnergyEndpoint> collectEnergyEndpoints(List<DataDistributionTowerBlockEntity> towers, boolean forReceive) {
-        return resolveEnergyEndpoints(towers, forReceive);
-    }
-
-    private List<EnergyEndpoint> getCachedResolvedEnergyEndpoints(boolean forReceive) {
-        if (this.level == null) {
-            return List.of();
-        }
-
-        if (forReceive) {
-            if (!this.receiveEndpointResolutionValid) {
-                this.cachedReceiveEnergyEndpoints = List.copyOf(resolveEnergyEndpoints(collectTowerCluster(), true));
-                this.receiveEndpointResolutionValid = true;
-            }
-            return this.cachedReceiveEnergyEndpoints;
-        }
-
-        if (!this.extractEndpointResolutionValid) {
-            this.cachedExtractEnergyEndpoints = List.copyOf(resolveEnergyEndpoints(collectTowerCluster(), false));
-            this.extractEndpointResolutionValid = true;
-        }
-        return this.cachedExtractEnergyEndpoints;
-    }
-
-    private List<EnergyEndpoint> resolveEnergyEndpoints(List<DataDistributionTowerBlockEntity> towers, boolean forReceive) {
-        LinkedHashMap<EnergyEndpointKey, EnergyEndpoint> endpoints = new LinkedHashMap<>();
-        for (DataDistributionTowerBlockEntity tower : towers) {
-            for (BlockPos pos : tower.getCachedEndpoints()) {
-                if (!tower.targetAllowsFe(pos)) {
-                    continue;
-                }
-                if (forReceive && tower.isDedicatedAeGridTarget(pos)) {
-                    continue;
-                }
-
-                for (EnergyEndpoint endpoint : tower.findAccessibleEnergyEndpoints(pos, forReceive)) {
-                    endpoints.putIfAbsent(new EnergyEndpointKey(endpoint.pos(), endpoint.side()), endpoint);
-                }
-            }
-        }
-
-        return List.copyOf(endpoints.values());
-    }
-
-    private List<EnergyEndpoint> excludeEnergyEndpoint(List<EnergyEndpoint> endpoints, @Nullable BlockPos excludedPos) {
-        if (excludedPos == null || endpoints.isEmpty()) {
-            return endpoints;
-        }
-
-        this.reusableEndpointFilter.clear();
-        for (EnergyEndpoint endpoint : endpoints) {
-            if (!excludedPos.equals(endpoint.pos())) {
-                this.reusableEndpointFilter.add(endpoint);
-            }
-        }
-        return this.reusableEndpointFilter;
     }
 
     private boolean isClusterCoordinator() {
@@ -1986,399 +1465,35 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void performActiveRangeTransfer() {
-        long transferBudget = getTransferBudgetPerTick();
-        if (transferBudget <= 0) {
-            return;
-        }
-
-        TransferScanSnapshot transferScanSnapshot = getTransferScanSnapshot();
-        if (transferScanSnapshot.receiveEndpoints().isEmpty()) {
-            return;
-        }
-
-        long remainingBudget = transferBudget;
-        for (int substep = 0; substep < TRANSFER_SUBSTEPS_PER_TICK; substep++) {
-            if (remainingBudget <= 0) {
-                break;
-            }
-
-            long stepBudget = divideCeil(remainingBudget, TRANSFER_SUBSTEPS_PER_TICK - substep);
-            long simulatedExtract = simulateCachedTransferExtract(stepBudget, transferScanSnapshot);
-            if (simulatedExtract <= 0) {
-                break;
-            }
-
-            long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, null, transferScanSnapshot.receiveEndpoints());
-            if (simulatedInsert <= 0) {
-                break;
-            }
-
-            long transferAmount = Math.min(simulatedExtract, Math.min(simulatedInsert, stepBudget));
-            long actuallyExtracted = 0;
-            long remainingExtraction = transferAmount;
-
-            if (AE2FluxIntegration.isAvailable()) {
-                long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remainingExtraction, false);
-                if (extracted > 0) {
-                    actuallyExtracted += extracted;
-                    remainingExtraction -= extracted;
-                }
-            }
-            if (remainingExtraction > 0) {
-                actuallyExtracted += extractFromEndpointsRoundRobin(remainingExtraction, false, transferScanSnapshot.extractEndpoints());
-            }
-            if (actuallyExtracted <= 0) {
-                break;
-            }
-
-            long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, null, transferScanSnapshot.receiveEndpoints());
-            if (actuallyInserted <= 0) {
-                LOGGER.warn("Active range transfer extracted {} FE but failed to insert it; aborting to avoid further loss.", actuallyExtracted);
-                break;
-            }
-
-            if (actuallyInserted < actuallyExtracted) {
-                LOGGER.warn("Active range transfer inserted only {} / {} FE after simulation; stopping to avoid desync.", actuallyInserted, actuallyExtracted);
-                break;
-            }
-
-            remainingBudget -= actuallyInserted;
-        }
-    }
-
-    private TransferScanSnapshot getTransferScanSnapshot() {
-        if (this.level == null) {
-            return TransferScanSnapshot.EMPTY;
-        }
-
-        long gameTime = this.level.getGameTime();
-        TransferScanSnapshot cached = this.cachedTransferScanSnapshot;
-        if (cached.tick() != Long.MIN_VALUE && gameTime - cached.tick() < TRANSFER_SCAN_CACHE_TICKS) {
-            return cached;
-        }
-
-        List<EnergyEndpoint> extractEndpoints = getCachedResolvedEnergyEndpoints(false);
-        List<EnergyEndpoint> receiveEndpoints = getCachedResolvedEnergyEndpoints(true);
-
-        long aeExtractable = 0;
-        if (AE2FluxIntegration.isAvailable()) {
-            aeExtractable = Math.max(0L, AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true));
-        }
-
-        ArrayList<EnergyEndpoint> activeExtractEndpoints = new ArrayList<>(extractEndpoints.size());
-        for (EnergyEndpoint endpoint : extractEndpoints) {
-            IEnergyStorage storage = endpoint.storage();
-            if (storage.canExtract() && storage.getEnergyStored() > 0) {
-                activeExtractEndpoints.add(endpoint);
-            }
-        }
-
-        ArrayList<EnergyEndpoint> activeReceiveEndpoints = new ArrayList<>(receiveEndpoints.size());
-        for (EnergyEndpoint endpoint : receiveEndpoints) {
-            IEnergyStorage storage = endpoint.storage();
-            if (canReceiveEnergy(storage)) {
-                activeReceiveEndpoints.add(endpoint);
-            }
-        }
-
-        TransferScanSnapshot snapshot = new TransferScanSnapshot(
-                gameTime,
-                aeExtractable,
-                List.copyOf(activeExtractEndpoints),
-                List.copyOf(activeReceiveEndpoints));
-        this.cachedTransferScanSnapshot = snapshot;
-        return snapshot;
-    }
-
-    private long simulateCachedTransferExtract(long amount, TransferScanSnapshot transferScanSnapshot) {
-        if (amount <= 0) {
-            return 0;
-        }
-
-        long totalExtractable = 0;
-        if (transferScanSnapshot.aeExtractable() > 0) {
-            totalExtractable = Math.min(amount, transferScanSnapshot.aeExtractable());
-        }
-
-        long remaining = amount - totalExtractable;
-        if (remaining > 0) {
-            totalExtractable += extractFromEndpointsRoundRobin(remaining, true, transferScanSnapshot.extractEndpoints());
-        }
-        return Math.min(amount, totalExtractable);
-    }
-
-    private long extractFromEndpointsRoundRobin(long amount, boolean simulate, List<EnergyEndpoint> extractEndpoints) {
-        if (amount <= 0 || extractEndpoints.isEmpty()) {
-            return 0;
-        }
-
-        long totalExtracted = 0;
-        long remaining = amount;
-        int endpointCount = extractEndpoints.size();
-        int startIndex = getExtractStartIndex(null, endpointCount);
-        int lastSuccessfulIndex = -1;
-
-        for (int offset = 0; offset < endpointCount; offset++) {
-            if (remaining <= 0) {
-                break;
-            }
-
-            int endpointIndex = (startIndex + offset) % endpointCount;
-            IEnergyStorage storage = extractEndpoints.get(endpointIndex).storage();
-            if (!storage.canExtract() || storage.getEnergyStored() <= 0) {
-                continue;
-            }
-
-            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
-            if (extracted > 0) {
-                totalExtracted += extracted;
-                remaining -= extracted;
-                lastSuccessfulIndex = endpointIndex;
-            }
-        }
-
-        if (lastSuccessfulIndex >= 0) {
-            this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
-        }
-
-        return totalExtracted;
-    }
-
-    private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos,
-                                         List<EnergyEndpoint> receiveEndpoints) {
-        if (!isTowerActive() || amount <= 0) {
-            return 0;
-        }
-
-        BlockPos normalizedExcludedPos = normalizeReceiveExcludedPos(excludedPos);
-        List<EnergyEndpoint> endpoints = excludeEnergyEndpoint(receiveEndpoints, normalizedExcludedPos);
-        this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpoints.size());
-        if (endpoints.isEmpty()) {
-            return 0;
-        }
-
-        long totalInserted = 0;
-        long remaining = amount;
-        int endpointCount = endpoints.size();
-        int startIndex = getReceiveStartIndex(normalizedExcludedPos, endpointCount);
-        int lastSuccessfulIndex = -1;
-        for (int offset = 0; offset < endpointCount; offset++) {
-            if (remaining <= 0) {
-                break;
-            }
-
-            int endpointIndex = (startIndex + offset) % endpointCount;
-            EnergyEndpoint endpoint = endpoints.get(endpointIndex);
-            IEnergyStorage storage = endpoint.storage();
-            if (!canReceiveEnergy(storage)) {
-                continue;
-            }
-
-            long inserted = insertEnergyIntoEndpoint(endpoint, remaining, simulate);
-            if (inserted > 0) {
-                totalInserted += inserted;
-                remaining -= inserted;
-                lastSuccessfulIndex = endpointIndex;
-            }
-        }
-
-        if (lastSuccessfulIndex >= 0) {
-            this.receiveRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
-        }
-
-        if (!simulate && totalInserted > 0) {
-            invalidateEnergyQueryCache();
-        }
-        return totalInserted;
+        this.energyDistributor.performActiveRangeTransfer();
     }
 
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        return distributeEnergyInRange(amount, simulate, excludedPos, collectEnergyEndpoints(collectTowerCluster(), true));
+        return this.energyDistributor.distributeEnergyInRange(amount, simulate, excludedPos);
     }
 
-    private long insertEnergyIntoEndpoint(EnergyEndpoint endpoint, long amount, boolean simulate) {
-        if (amount <= 0) {
-            return 0;
-        }
-
-        IEnergyStorage storage = endpoint.storage();
-        long directInserted = insertEnergyDirectly(storage, amount, simulate);
-        if (directInserted != DirectEnergyAccess.INSERT_UNAVAILABLE) {
-            if (directInserted > 0 || !storage.canReceive()) {
-                if (!simulate && directInserted > 0) {
-                    notifyDirectEnergyStorageChanged(endpoint);
-                }
-                return directInserted;
-            }
-        }
-        return storage.receiveEnergy(clampEnergyRequest(amount), simulate);
-    }
-
-    private void notifyDirectEnergyStorageChanged(EnergyEndpoint endpoint) {
-        DIRECT_ENERGY_ACCESS.notifyStorageChanged(endpoint.storage());
-        if (this.level == null) {
-            return;
-        }
-
-        BlockEntity blockEntity = this.level.getBlockEntity(endpoint.pos());
-        if (blockEntity != null) {
-            blockEntity.setChanged();
-        }
-    }
-
-    private static boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
-        return storage != null && (storage.canReceive() || DIRECT_ENERGY_ACCESS.canReceive(storage));
-    }
-
-    private static long insertEnergyDirectly(IEnergyStorage storage, long amount, boolean simulate) {
-        return DIRECT_ENERGY_ACCESS.insert(storage, amount, simulate);
+    private boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
+        return this.energyEndpointResolver.canReceiveEnergy(storage);
     }
 
     private int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        if (simulate) {
-            return getCachedSimulatedExtract(amount, excludedPos);
-        }
-        return clampStoredAmount(extractEnergyFromRangeLong(amount, simulate, excludedPos));
-    }
-
-    private int getCachedSimulatedExtract(int amount, @Nullable BlockPos excludedPos) {
-        if (amount <= 0 || this.level == null) {
-            return 0;
-        }
-
-        long gameTime = this.level.getGameTime();
-        if (this.cachedSimulatedExtractTick != gameTime) {
-            this.cachedSimulatedExtracts.clear();
-            this.cachedSimulatedExtractTick = gameTime;
-        }
-
-        BlockPos normalizedExcludedPos = normalizeExtractExcludedPos(excludedPos);
-        ExtractSimulationKey key = new ExtractSimulationKey(normalizedExcludedPos, amount);
-        Integer cached = this.cachedSimulatedExtracts.get(key);
-        if (cached != null) {
-            this.diagnosticSimulatedCacheHits++;
-            return cached;
-        }
-
-        this.diagnosticSimulatedCacheMisses++;
-        int simulated = clampStoredAmount(extractEnergyFromRangeLong(amount, true, normalizedExcludedPos));
-        this.cachedSimulatedExtracts.put(key, simulated);
-        return simulated;
-    }
-
-    private long extractEnergyFromRangeLong(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        if (!isTowerActive() || amount <= 0) {
-            return 0;
-        }
-
-        BlockPos normalizedExcludedPos = normalizeExtractExcludedPos(excludedPos);
-        List<EnergyEndpoint> endpoints = collectEnergyEndpoints(false, normalizedExcludedPos);
-        this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpoints.size());
-        long totalExtracted = 0;
-        long remaining = amount;
-
-        if (AE2FluxIntegration.isAvailable()) {
-            long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remaining, simulate);
-            if (extracted > 0) {
-                totalExtracted += extracted;
-                remaining -= extracted;
-            }
-        }
-
-        int endpointCount = endpoints.size();
-        int startIndex = getExtractStartIndex(normalizedExcludedPos, endpointCount);
-        int lastSuccessfulIndex = -1;
-        for (int offset = 0; offset < endpointCount; offset++) {
-            if (remaining <= 0) {
-                break;
-            }
-
-            int endpointIndex = (startIndex + offset) % endpointCount;
-            EnergyEndpoint endpoint = endpoints.get(endpointIndex);
-            IEnergyStorage storage = endpoint.storage();
-            if (!storage.canExtract()) {
-                continue;
-            }
-
-            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
-            if (extracted > 0) {
-                totalExtracted += extracted;
-                remaining -= extracted;
-                lastSuccessfulIndex = endpointIndex;
-            }
-        }
-
-        if (lastSuccessfulIndex >= 0) {
-            this.extractRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
-        }
-
-        if (!simulate && totalExtracted > 0) {
-            invalidateEnergyQueryCache();
-        }
-        return totalExtracted;
+        return this.energyDistributor.extractEnergyFromRange(amount, simulate, excludedPos);
     }
 
     private long getTotalExtractableEnergy(@Nullable BlockPos excludedPos) {
-        return getExtractQuerySummary(excludedPos).totalStored();
+        return this.energyDistributor.getTotalExtractableEnergy(excludedPos);
     }
 
     private long getTotalEnergyCapacity(@Nullable BlockPos excludedPos) {
-        return getExtractQuerySummary(excludedPos).totalCapacity();
+        return this.energyDistributor.getTotalEnergyCapacity(excludedPos);
     }
 
     private boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
-        return getReceiveQuerySummary(excludedPos).hasReceiver();
+        return this.energyDistributor.hasAnyReceiver(excludedPos);
     }
 
     private boolean hasAnySource(@Nullable BlockPos excludedPos) {
-        return getExtractQuerySummary(excludedPos).hasSource();
-    }
-
-    private EnergyQuerySummary getExtractQuerySummary(@Nullable BlockPos excludedPos) {
-        if (!isTowerActive() || this.level == null) {
-            return EnergyQuerySummary.EMPTY;
-        }
-
-        BlockPos normalizedExcludedPos = normalizeExtractExcludedPos(excludedPos);
-        long gameTime = this.level.getGameTime();
-        EnergyQuerySummary cached = this.cachedExtractQuerySummaries.get(normalizedExcludedPos);
-        if (cached != null && cached.tick() == gameTime) {
-            return cached;
-        }
-
-        long totalStored = 0L;
-        long totalCapacity = 0L;
-        List<EnergyEndpoint> endpoints = collectEnergyEndpoints(false, normalizedExcludedPos);
-        for (EnergyEndpoint endpoint : endpoints) {
-            totalStored = saturatingAdd(totalStored, endpoint.storage().getEnergyStored());
-            totalCapacity = saturatingAdd(totalCapacity, endpoint.storage().getMaxEnergyStored());
-        }
-        long aeExtractable = 0L;
-        if (AE2FluxIntegration.isAvailable()) {
-            aeExtractable = AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true);
-            totalStored = saturatingAdd(totalStored, aeExtractable);
-        }
-
-        EnergyQuerySummary summary = new EnergyQuerySummary(gameTime, totalStored, totalCapacity, !endpoints.isEmpty() || aeExtractable > 0);
-        this.cachedExtractQuerySummaries.put(normalizedExcludedPos, summary);
-        return summary;
-    }
-
-    private ReceiverQuerySummary getReceiveQuerySummary(@Nullable BlockPos excludedPos) {
-        if (!isTowerActive() || this.level == null) {
-            return ReceiverQuerySummary.EMPTY;
-        }
-
-        BlockPos normalizedExcludedPos = normalizeReceiveExcludedPos(excludedPos);
-        long gameTime = this.level.getGameTime();
-        ReceiverQuerySummary cached = this.cachedReceiveQuerySummaries.get(normalizedExcludedPos);
-        if (cached != null && cached.tick() == gameTime) {
-            return cached;
-        }
-
-        ReceiverQuerySummary summary = new ReceiverQuerySummary(gameTime, !collectEnergyEndpoints(true, normalizedExcludedPos).isEmpty());
-        this.cachedReceiveQuerySummaries.put(normalizedExcludedPos, summary);
-        return summary;
+        return this.energyDistributor.hasAnySource(excludedPos);
     }
 
     private boolean queueLink(BlockPos targetPos, int delay) {
@@ -2386,21 +1501,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
 
-        Integer existingDelay = this.pendingLinkPositions.get(targetPos);
-        if (existingDelay == null || existingDelay > delay) {
-            this.pendingLinkPositions.put(targetPos.immutable(), delay);
-            return true;
-        }
-        return false;
+        return this.linkGraph.queuePending(targetPos, delay);
     }
 
-    private void cleanupInvalidBoundTargets() {
+    @Override
+    public void cleanupInvalidDisplayTargets() {
         if (this.level == null) {
             return;
         }
 
         ArrayList<BlockPos> invalidPositions = new ArrayList<>();
-        for (BlockPos pos : this.linkedPositions) {
+        for (BlockPos pos : this.linkGraph.linkedPositions()) {
             if (this.level.getBlockState(pos).isAir()) {
                 invalidPositions.add(pos);
             }
@@ -2417,8 +1528,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void removeTarget(BlockPos targetPos) {
-        this.pendingLinkPositions.remove(targetPos);
-        this.linkedPositions.remove(targetPos);
+        this.linkGraph.removePending(targetPos);
+        this.linkGraph.removeLinked(targetPos);
         this.targetTransferModes.remove(targetPos);
         destroyTargetConnections(targetPos);
 
@@ -2428,25 +1539,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void destroyTargetConnections(BlockPos targetPos) {
-        List<IGridConnection> existingConnections = this.linkedConnections.remove(targetPos);
-        if (existingConnections != null) {
-            for (IGridConnection connection : existingConnections) {
-                if (connection != null) {
-                    connection.destroy();
-                }
-            }
-        }
+        this.linkGraph.destroyTargetConnections(targetPos);
     }
 
     private void destroyAllConnections() {
-        for (List<IGridConnection> connections : this.linkedConnections.values()) {
-            for (IGridConnection connection : connections) {
-                if (connection != null) {
-                    connection.destroy();
-                }
-            }
-        }
-        this.linkedConnections.clear();
+        this.linkGraph.destroyAllConnections();
         this.invalidateClusterCache();
     }
 
@@ -2472,8 +1569,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
 
-        this.linkedConnections.put(targetPos.immutable(), newConnections);
-        this.linkedPositions.add(targetPos.immutable());
+        this.linkGraph.putConnections(targetPos, newConnections);
         this.invalidateEndpointCache();
         this.invalidateClusterCache();
         this.setChanged();
@@ -2482,7 +1578,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private boolean shouldReconnectTrackedTarget(BlockPos targetPos) {
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        return this.linkedPositions.contains(normalizedPos) || this.pendingLinkPositions.containsKey(normalizedPos);
+        return this.linkGraph.containsLinked(normalizedPos) || this.linkGraph.containsPending(normalizedPos);
     }
 
     private List<IGridNode> getLinkableTargetNodes(IGridNode selfNode, BlockPos targetPos) {
@@ -2490,12 +1586,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return List.of();
         }
 
-        List<IGridNode> targetNodes = getConnectableNodes(this.level, targetPos);
+        Level level = this.level;
+        if (level == null) {
+            return List.of();
+        }
+
+        List<IGridNode> targetNodes = getConnectableNodes(level, targetPos);
         if (targetNodes.isEmpty()) {
             return List.of();
         }
 
-        boolean towerTarget = this.level.getBlockEntity(targetPos) instanceof DataDistributionTowerBlockEntity;
+        boolean towerTarget = level.getBlockEntity(targetPos) instanceof DataDistributionTowerBlockEntity;
         ArrayList<IGridNode> linkableNodes = new ArrayList<>();
         for (IGridNode targetNode : targetNodes) {
             if (isLinkableTargetNode(selfNode, targetNode, towerTarget)) {
@@ -2532,12 +1633,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void requeuePersistedLinks() {
-        if (this.linkedPositions.isEmpty()) {
+        if (this.linkGraph.linkedPositions().isEmpty()) {
             return;
         }
 
-        List<BlockPos> persisted = List.copyOf(this.linkedPositions);
-        this.pendingLinkPositions.clear();
+        List<BlockPos> persisted = List.copyOf(this.linkGraph.linkedPositions());
+        this.linkGraph.clearPending();
         destroyAllConnections();
         for (BlockPos pos : persisted) {
             queueLink(pos, 0);
@@ -2545,7 +1646,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void schedulePersistedLinkRequeue() {
-        if (this.level == null || this.level.isClientSide() || allowsAutomaticRangeConnections() || this.linkedPositions.isEmpty()) {
+        if (this.level == null || this.level.isClientSide() || allowsAutomaticRangeConnections() || this.linkGraph.linkedPositions().isEmpty()) {
             return;
         }
         MinecraftServer server = this.level.getServer();
@@ -2574,13 +1675,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void enqueueMissingPersistedLinks() {
-        if (this.linkedPositions.isEmpty()) {
+        if (this.linkGraph.linkedPositions().isEmpty()) {
             return;
         }
 
         boolean changed = false;
-        for (BlockPos pos : List.copyOf(this.linkedPositions)) {
-            if (this.linkedConnections.containsKey(pos) || this.pendingLinkPositions.containsKey(pos)) {
+        for (BlockPos pos : List.copyOf(this.linkGraph.linkedPositions())) {
+            if (this.linkGraph.hasConnections(pos) || this.linkGraph.containsPending(pos)) {
                 continue;
             }
             changed |= queueLink(pos, 0);
@@ -2609,7 +1710,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         this.autoDiscoveryCooldown = AUTO_DISCOVERY_INTERVAL_TICKS;
-        scanNearbyConnectableNodes();
+        requestNearbyConnectableNodeScanIfIdle();
     }
 
     public static List<IGridNode> getConnectableNodes(Level level, BlockPos pos) {
@@ -2689,13 +1790,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return Integer.compare(a.getZ(), b.getZ());
     }
 
-    private static int clampEnergyRequest(long amount) {
-        if (amount <= 0) {
-            return 0;
-        }
-        return (int) Math.min(amount, Integer.MAX_VALUE);
-    }
-
     private static int clampStoredAmount(long amount) {
         if (amount <= 0) {
             return 0;
@@ -2710,50 +1804,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private static BlockPos normalizeTargetPos(BlockPos targetPos) {
         return targetPos.immutable();
-    }
-
-    @Nullable
-    private BlockPos normalizeExtractExcludedPos(@Nullable BlockPos excludedPos) {
-        BlockPos normalizedExcludedPos = normalizeExcludedPos(excludedPos);
-        if (normalizedExcludedPos == null) {
-            return null;
-        }
-
-        for (EnergyEndpoint endpoint : getCachedResolvedEnergyEndpoints(false)) {
-            if (normalizedExcludedPos.equals(endpoint.pos())) {
-                return normalizedExcludedPos;
-            }
-        }
-        return null;
-    }
-
-    @Nullable
-    private BlockPos normalizeReceiveExcludedPos(@Nullable BlockPos excludedPos) {
-        BlockPos normalizedExcludedPos = normalizeExcludedPos(excludedPos);
-        if (normalizedExcludedPos == null) {
-            return null;
-        }
-
-        for (EnergyEndpoint endpoint : getCachedResolvedEnergyEndpoints(true)) {
-            if (normalizedExcludedPos.equals(endpoint.pos())) {
-                return normalizedExcludedPos;
-            }
-        }
-        return null;
-    }
-
-    private int getExtractStartIndex(@Nullable BlockPos excludedPos, int endpointCount) {
-        if (endpointCount <= 0) {
-            return 0;
-        }
-        return Math.floorMod(this.extractRoundRobinCursor.getOrDefault(excludedPos, 0), endpointCount);
-    }
-
-    private int getReceiveStartIndex(@Nullable BlockPos excludedPos, int endpointCount) {
-        if (endpointCount <= 0) {
-            return 0;
-        }
-        return Math.floorMod(this.receiveRoundRobinCursor.getOrDefault(excludedPos, 0), endpointCount);
     }
 
     private void emitDiagnosticLogIfNeeded() {
@@ -2834,13 +1884,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return current + delta;
     }
 
-    private static long divideCeil(long dividend, int divisor) {
-        if (dividend <= 0 || divisor <= 0) {
-            return 0;
-        }
-        return 1L + (dividend - 1L) / divisor;
-    }
-
     private static String formatFeAmount(long amount) {
         if (amount >= 1_000_000_000L) {
             return String.format(Locale.ROOT, "%.1fG", amount / 1_000_000_000.0);
@@ -2872,7 +1915,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         pruneTargetsOutsideRange();
         invalidateEndpointCache();
         if (allowsAutomaticRangeConnections()) {
-            scanNearbyConnectableNodes();
+            requestNearbyConnectableNodeScan();
         }
     }
 
@@ -2883,14 +1926,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        ArrayList<BlockPos> retainedTargets = new ArrayList<>(this.linkedPositions);
-        for (BlockPos pos : this.pendingLinkPositions.keySet()) {
+        ArrayList<BlockPos> retainedTargets = new ArrayList<>(this.linkGraph.linkedPositions());
+        for (BlockPos pos : this.linkGraph.pendingPositions()) {
             if (!retainedTargets.contains(pos)) {
                 retainedTargets.add(pos);
             }
         }
 
-        this.pendingLinkPositions.clear();
+        this.linkGraph.clearPending();
         destroyAllConnections();
         invalidateEndpointCache();
         invalidateClusterCache();
@@ -2902,7 +1945,52 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         if (allowsAutomaticRangeConnections()) {
-            scanNearbyConnectableNodes();
+            requestNearbyConnectableNodeScan();
+        }
+    }
+
+    private static final class RangeScanCursor {
+
+        private final int minChunkX;
+        private final int maxChunkX;
+        private final int minChunkZ;
+        private final int maxChunkZ;
+        private int nextChunkX;
+        private int nextChunkZ;
+
+        private RangeScanCursor(int minChunkX, int maxChunkX, int minChunkZ, int maxChunkZ) {
+            this.minChunkX = minChunkX;
+            this.maxChunkX = maxChunkX;
+            this.minChunkZ = minChunkZ;
+            this.maxChunkZ = maxChunkZ;
+            this.nextChunkX = minChunkX;
+            this.nextChunkZ = minChunkZ;
+        }
+
+        private boolean matches(int minChunkX, int maxChunkX, int minChunkZ, int maxChunkZ) {
+            return this.minChunkX == minChunkX && this.maxChunkX == maxChunkX && this.minChunkZ == minChunkZ && this.maxChunkZ == maxChunkZ;
+        }
+
+        private boolean isComplete() {
+            return this.nextChunkZ > this.maxChunkZ;
+        }
+
+        private int chunkX() {
+            return this.nextChunkX;
+        }
+
+        private int chunkZ() {
+            return this.nextChunkZ;
+        }
+
+        private void advance() {
+            if (this.nextChunkX < this.maxChunkX) {
+                this.nextChunkX++;
+                return;
+            }
+
+            this.nextChunkX = this.minChunkX;
+            this.nextChunkZ++;
         }
     }
 
@@ -2934,21 +2022,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.connectionMode.allowsFeTargets();
     }
 
-    private boolean targetAllowsAe(BlockPos targetPos) {
+    @Override
+    public boolean targetAllowsAe(BlockPos targetPos) {
         if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
             return false;
         }
         return needsAeChannelLink(targetPos);
     }
 
-    private boolean targetAllowsFe(BlockPos targetPos) {
+    @Override
+    public boolean targetAllowsFe(BlockPos targetPos) {
         if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
             return false;
         }
         return hasAnyEnergyCapability(targetPos);
     }
 
-    private boolean hasAeNodeCapability(BlockPos targetPos) {
+    @Override
+    public boolean hasAeNodeCapability(BlockPos targetPos) {
         return this.level != null && this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, targetPos, null) != null;
     }
 
@@ -2967,12 +2058,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private void pruneTargetsOutsideRange() {
         ArrayList<BlockPos> toRemove = new ArrayList<>();
-        for (BlockPos pos : this.linkedPositions) {
+        for (BlockPos pos : this.linkGraph.linkedPositions()) {
             if (!isWithinTowerCoverage(pos)) {
                 toRemove.add(pos);
             }
         }
-        for (BlockPos pos : this.pendingLinkPositions.keySet()) {
+        for (BlockPos pos : this.linkGraph.pendingPositions()) {
             if (!isWithinTowerCoverage(pos) && !toRemove.contains(pos)) {
                 toRemove.add(pos);
             }
@@ -3014,28 +2105,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private record EnergyEndpointKey(BlockPos pos, @Nullable Direction side) {}
-
-    private record EnergyEndpoint(BlockPos pos, @Nullable Direction side, IEnergyStorage storage) {}
-
-    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
-
-    private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
-
-        private static final EnergyQuerySummary EMPTY = new EnergyQuerySummary(Long.MIN_VALUE, 0L, 0L, false);
-    }
-
-    private record ReceiverQuerySummary(long tick, boolean hasReceiver) {
-
-        private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, false);
-    }
-
-    private record TransferScanSnapshot(long tick, long aeExtractable, List<EnergyEndpoint> extractEndpoints,
-                                        List<EnergyEndpoint> receiveEndpoints) {
-
-        private static final TransferScanSnapshot EMPTY = new TransferScanSnapshot(Long.MIN_VALUE, 0L, List.of(), List.of());
-    }
-
     public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count,
                                      ResourceLocation dimensionId, BlockPos pos, TargetKind kind,
                                      TargetTransferMode transferMode, TargetTransferInfo transferInfo) {}
@@ -3075,13 +2144,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         TargetTransferMode(String serializedName) {
             this.serializedName = serializedName;
-        }
-
-        public TargetTransferMode next() {
-            return switch (this) {
-                case AUTO -> DISABLED;
-                case DISABLED -> AUTO;
-            };
         }
 
         public static TargetTransferMode fromOrdinal(int ordinal) {
@@ -3168,10 +2230,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             this.serializedName = serializedName;
         }
 
-        public RangeAdjustmentMode next() {
-            return this == POINT ? SCOPE : POINT;
-        }
-
         public static RangeAdjustmentMode fromOrdinal(int ordinal) {
             RangeAdjustmentMode[] values = values();
             if (ordinal < 0 || ordinal >= values.length) {
@@ -3196,10 +2254,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         AE,
         FE
     }
-
-    private record CableBusDisplayPart(IPart part, @Nullable Direction direction) {}
-
-    private record DisplayTarget(BlockPos pos, TargetKind kind) {}
 
     private class TowerEnergyStorage implements IEnergyStorage {
 
