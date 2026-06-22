@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
+@Getter
 public enum DigitalStorageDepotOutputType {
 
     ITEMS("items"),
@@ -12,10 +14,6 @@ public enum DigitalStorageDepotOutputType {
 
     DigitalStorageDepotOutputType(String serializedName) {
         this.serializedName = serializedName;
-    }
-
-    public String getSerializedName() {
-        return this.serializedName;
     }
 
     public DigitalStorageDepotOutputType next() {
