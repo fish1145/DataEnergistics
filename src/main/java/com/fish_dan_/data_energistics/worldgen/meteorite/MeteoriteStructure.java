@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
@@ -59,7 +60,7 @@ public class MeteoriteStructure extends Structure {
         int yOffset = (int) Math.ceil(meteoriteRadius) + 1;
         Set<Holder<Biome>> t2 = generator.getBiomeSource().getBiomesWithin(centerX, generator.getSeaLevel(), centerZ, 0, context.randomState().sampler());
         Holder<Biome> spawnBiome = t2.stream().findFirst().orElseThrow();
-        boolean isOcean = spawnBiome.is(net.minecraft.tags.BiomeTags.IS_OCEAN);
+        boolean isOcean = spawnBiome.is(BiomeTags.IS_OCEAN);
         Heightmap.Types heightmapType = isOcean ? Heightmap.Types.OCEAN_FLOOR_WG : Heightmap.Types.WORLD_SURFACE_WG;
         StatsAccumulator stats = new StatsAccumulator();
         int scanRadius = (int) Math.max(1.0F, meteoriteRadius * 2.0F);
@@ -116,7 +117,7 @@ public class MeteoriteStructure extends Structure {
     private static CraterType determineCraterType(BlockPos pos, Holder<Biome> biomeHolder, WorldgenRandom random) {
         Biome biome = biomeHolder.value();
         float temp = biome.getBaseTemperature();
-        if (biomeHolder.is(net.minecraft.tags.BiomeTags.IS_OCEAN)) {
+        if (biomeHolder.is(BiomeTags.IS_OCEAN)) {
             return CraterType.NONE;
         }
 

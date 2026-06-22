@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.useless;
 
-import com.fish_dan_.data_energistics.integration.SomeUselessThingsCompat;
+import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -8,11 +8,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
+import com.sorrowmist.useless.utils.mining.ForceChainMiningStrategy;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-@Mixin(targets = "com.sorrowmist.useless.utils.mining.ForceChainMiningStrategy", remap = false)
+@Mixin(value = ForceChainMiningStrategy.class, remap = false)
 public abstract class UselessForceChainMiningStrategyMixin {
 
     @Redirect(

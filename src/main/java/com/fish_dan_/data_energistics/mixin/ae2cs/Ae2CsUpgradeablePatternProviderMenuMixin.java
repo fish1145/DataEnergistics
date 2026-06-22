@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 
+import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
@@ -25,7 +26,7 @@ public abstract class Ae2CsUpgradeablePatternProviderMenuMixin extends AEBaseMen
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_SET_REDSTONE_TUNING_MODE = "dataEnergistics$setRedstoneTuningMode";
     @Unique
-    private appeng.helpers.patternprovider.PatternProviderLogicHost dataEnergistics$host;
+    private PatternProviderLogicHost dataEnergistics$host;
 
     @GuiSync(921)
     @Unique
@@ -42,7 +43,7 @@ public abstract class Ae2CsUpgradeablePatternProviderMenuMixin extends AEBaseMen
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataEnergistics$initEnhancements(MenuType<? extends UpgradeablePatternProviderMenu> menuType, int id,
                                                   Inventory playerInventory,
-                                                  appeng.helpers.patternprovider.PatternProviderLogicHost host,
+                                                  PatternProviderLogicHost host,
                                                   CallbackInfo ci) {
         this.dataEnergistics$host = host;
         this.registerClientAction(DATA_ENERGISTICS_ACTION_SET_REDSTONE_TUNING_MODE, Integer.class,

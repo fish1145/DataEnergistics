@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.effect.DataDisorderEffectLogic;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
@@ -7,6 +8,7 @@ import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Position;
@@ -18,9 +20,13 @@ import net.minecraft.stats.Stats;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.SlotAccess;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
@@ -32,6 +38,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ProjectileItem;
+import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
@@ -40,6 +47,7 @@ import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
@@ -47,18 +55,19 @@ import net.neoforged.neoforge.common.ItemAbility;
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.StorageCells;
+import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.util.AEColor;
 import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.items.tools.powered.ColorApplicatorItem;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class PoweredSwordItem extends AbstractPoweredTieredItem implements ProjectileItem, ConditionalDataFlowCellItem {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final int THROW_THRESHOLD_TIME = 10;
     private static final float THROW_POWER = 2.5F;
     private static final float LIGHT_BLADE_SPEED = 2.8F;
@@ -86,11 +95,11 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     public static Tool createDefaultSwordTool() {
-        return net.minecraft.world.item.SwordItem.createToolProperties();
+        return SwordItem.createToolProperties();
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
-        return net.minecraft.world.item.SwordItem.createAttributes(tier, attackDamage, attackSpeed);
+        return SwordItem.createAttributes(tier, attackDamage, attackSpeed);
     }
 
     @Override
@@ -139,8 +148,8 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     @Override
-    public boolean canAttackBlock(net.minecraft.world.level.block.state.BlockState state, Level level,
-                                  net.minecraft.core.BlockPos pos, Player player) {
+    public boolean canAttackBlock(BlockState state, Level level,
+                                  BlockPos pos, Player player) {
         return !player.isCreative();
     }
 
@@ -363,7 +372,7 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
     }
 
     private static int getLightBladeColor(Level level, ItemStack stack) {
-        if (stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_SANCTIFIER.get())) {
+        if (stack.is(ModItems.DATA_SANCTIFIER.get())) {
             return LightSaberColorData.getSanctifierAnimatedColor(level.getGameTime());
         }
         return LightSaberColorData.getBladeColor(stack);
@@ -375,17 +384,17 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
         final double[] addMultipliedBase = { 0.0D };
         final double[] addMultipliedTotal = { 0.0D };
 
-        stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
-                (Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, net.minecraft.world.entity.ai.attributes.AttributeModifier modifier) -> {
+        stack.forEachModifier(EquipmentSlot.MAINHAND,
+                (Holder<Attribute> attribute, AttributeModifier modifier) -> {
                     if (!attribute.equals(Attributes.ATTACK_DAMAGE)) {
                         return;
                     }
 
-                    if (modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE) {
+                    if (modifier.operation() == Operation.ADD_VALUE) {
                         addValue[0] += modifier.amount();
-                    } else if (modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
+                    } else if (modifier.operation() == Operation.ADD_MULTIPLIED_BASE) {
                         addMultipliedBase[0] += modifier.amount();
-                    } else if (modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
+                    } else if (modifier.operation() == Operation.ADD_MULTIPLIED_TOTAL) {
                         addMultipliedTotal[0] += modifier.amount();
                     }
                 });
@@ -432,8 +441,8 @@ public class PoweredSwordItem extends AbstractPoweredTieredItem implements Proje
                 (float) getPanelAttackDamage(stack));
     }
 
-    private static List<ItemStack> collectUpgradeItems(appeng.api.upgrades.IUpgradeInventory upgrades) {
-        List<ItemStack> upgradeItems = new java.util.ArrayList<>(upgrades.size());
+    private static List<ItemStack> collectUpgradeItems(IUpgradeInventory upgrades) {
+        List<ItemStack> upgradeItems = new ArrayList<>(upgrades.size());
         for (int i = 0; i < upgrades.size(); i++) {
             ItemStack upgrade = upgrades.getStackInSlot(i);
             if (!upgrade.isEmpty()) {

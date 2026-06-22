@@ -126,16 +126,6 @@ public final class PoweredRepairRecipeFilter {
         return first != null && first == second && first == output;
     }
 
-    private static Item getSingleTrackedItem(List<? extends EmiIngredient> ingredients) {
-        for (EmiIngredient ingredient : ingredients) {
-            Item item = getSingleTrackedItemFromEmiStacks(ingredient.getEmiStacks());
-            if (item != null) {
-                return item;
-            }
-        }
-        return null;
-    }
-
     private static Item getSingleTrackedItemFromEmiStacks(List<EmiStack> stacks) {
         for (EmiStack stack : stacks) {
             Item item = getTrackedItem(stack.getItemStack());

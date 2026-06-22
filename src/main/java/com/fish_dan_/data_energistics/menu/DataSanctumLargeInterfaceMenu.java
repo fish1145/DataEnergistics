@@ -15,6 +15,7 @@ import appeng.api.config.Actionable;
 import appeng.api.config.Settings;
 import appeng.api.stacks.GenericStack;
 import appeng.api.util.IConfigManager;
+import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
@@ -202,7 +203,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
 
         private final IntSupplier backingSlotSupplier;
 
-        private PagedMenuInventory(appeng.helpers.externalstorage.GenericStackInv inv, IntSupplier backingSlotSupplier) {
+        private PagedMenuInventory(GenericStackInv inv, IntSupplier backingSlotSupplier) {
             super(inv);
             this.backingSlotSupplier = backingSlotSupplier;
         }

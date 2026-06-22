@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
+import com.fish_dan_.data_energistics.accessor.PatternProviderLogicFieldAccess;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
-import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
-import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
-import com.fish_dan_.data_energistics.mixin.core.PatternProviderLogicFieldAccessor;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtRuntimeBridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -19,8 +19,10 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -39,6 +41,7 @@ import appeng.api.implementations.blockentities.ICraftingMachine;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.IStackWatcher;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingWatcherNode;
 import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
@@ -51,6 +54,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+import appeng.core.definitions.AEItems;
 import appeng.core.settings.TickRates;
 import appeng.helpers.InterfaceLogicHost;
 import appeng.helpers.patternprovider.PatternProviderLogic;
@@ -65,6 +69,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -146,7 +151,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     @Override
-    public void onChangeInventory(appeng.util.inv.AppEngInternalInventory inv, int slot) {
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         super.onChangeInventory(inv, slot);
         this.ae2ltOutputFilterDirty = true;
         refreshAdaptivePatternTracking();
@@ -422,7 +427,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private boolean pushAe2LightningTechOverloadedPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         boolean active = this.mainNode.isActive();
         boolean available = isAe2LtPatternAvailable(patternDetails);
-        boolean bridgeAvailable = Ae2LtRuntimeBridge.isAvailable();
+        boolean bridgeAvailable = Ae2LtRuntimeBridge.isReady();
 
         if (!active || !available) {
             return false;
@@ -470,7 +475,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             logAe2LtPackaged("push aborted: pattern not available in provider cache, pattern={}", patternDetails.getClass().getName());
             return false;
         }
-        if (!Ae2LtPackagedRuntimeBridge.isAvailable()) {
+        if (!Ae2LtPackagedRuntimeBridge.isReady()) {
             logAe2LtPackaged("push aborted: runtime bridge unavailable");
             return false;
         }
@@ -829,7 +834,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             }
         }
 
-        appeng.api.networking.crafting.ICraftingProvider.requestUpdate(this.mainNode);
+        ICraftingProvider.requestUpdate(this.mainNode);
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
     }
 
@@ -838,15 +843,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LightningTechOverloadedProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
+        return ModFlags.isAe2LtRuntimeSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private boolean isAe2LtPackagedProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedProviderSelected();
+        return ModFlags.isAe2LtPackagedProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedProviderSelected();
     }
 
     private boolean isAe2LtPackagedWirelessProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedWirelessProviderSelected();
+        return ModFlags.isAe2LtPackagedProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedWirelessProviderSelected();
     }
 
     private boolean isAe2LtProviderFamilySelected() {
@@ -861,7 +866,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAppliedCreateMechanicalProviderSelected() {
-        return AppliedCreateCompat.isMechanicalProviderSupportEnabled() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
+        return ModFlags.isAppliedCreateMechanicalProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
     }
 
     private boolean isMeteoritePatternProvider() {
@@ -869,7 +874,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LtWirelessMode() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessMode();
+        return ModFlags.isAe2LtWirelessSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessMode();
     }
 
     private boolean isAe2LtWirelessConnectableProviderSelected() {
@@ -1235,11 +1240,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
                     @SuppressWarnings("unchecked")
                     List<Ingredient> ingredients = (List<Ingredient>) access.get().getIngredients().invoke(recipe);
                     recipes.add(new AppliedCreateRecipeInfo(width, height, ingredients));
-                } catch (Throwable ignored) {}
+                } catch (Throwable e) {
+                    Data_Energistics.LOGGER.debug("Could not inspect Applied Create mechanical recipe {}", holder.id(), e);
+                }
             }
         }
 
-        for (RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> holder : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
+        for (RecipeHolder<CraftingRecipe> holder : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
             if (!(holder.value() instanceof ShapedRecipe shapedRecipe)) {
                 continue;
             }
@@ -1481,7 +1488,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
         try {
             access.get().checkCompletedRecipe().invoke(crafter, true);
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            Data_Energistics.LOGGER.debug("Could not trigger Applied Create mechanical crafter recipe check", e);
+        }
     }
 
     private boolean isMechanicalCrafterBlockEntity(@Nullable Object value) {
@@ -1880,7 +1889,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return false;
         }
 
-        GenericStack unlockStack = ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getUnlockStack();
+        GenericStack unlockStack = ((PatternProviderLogicFieldAccess) this).dataEnergistics$getUnlockStack();
         if (unlockStack == null || unlockStack.what() == null) {
             resetCraftingLock();
             clearAe2LtPendingUnlockRule();
@@ -1891,7 +1900,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return false;
         }
 
-        net.minecraft.world.item.Item unlockItem = null;
+        Item unlockItem = null;
         if (this.ae2ltPendingUnlockTemplate != null && !this.ae2ltPendingUnlockTemplate.isEmpty()) {
             unlockItem = this.ae2ltPendingUnlockTemplate.getItem();
         } else if (unlockStack.what() instanceof AEItemKey unlockItemKey) {
@@ -1908,7 +1917,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return true;
         }
 
-        ((PatternProviderLogicFieldAccessor) this).dataEnergistics$setUnlockStack(
+        ((PatternProviderLogicFieldAccess) this).dataEnergistics$setUnlockStack(
                 new GenericStack(unlockStack.what(), unlockStack.amount() - returnedStack.amount()));
         saveChanges();
         return true;
@@ -2056,12 +2065,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
             MethodHandles.Lookup crafterLookup = MethodHandles.privateLookupIn(crafterClass, LOOKUP);
             MethodHandle getBlockState = crafterLookup.findVirtual(crafterClass, "getBlockState",
-                    java.lang.invoke.MethodType.methodType(BlockState.class));
+                    MethodType.methodType(BlockState.class));
             Method getInventoryMethod = crafterClass.getMethod("getInventory");
             MethodHandle getInventory = MethodHandles.privateLookupIn(getInventoryMethod.getDeclaringClass(), LOOKUP)
                     .unreflect(getInventoryMethod);
             MethodHandle checkCompletedRecipe = crafterLookup.findVirtual(crafterClass, "checkCompletedRecipe",
-                    java.lang.invoke.MethodType.methodType(void.class, boolean.class));
+                    MethodType.methodType(void.class, boolean.class));
 
             Class<?> blockClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS);
             VarHandle pointingProperty = MethodHandles.privateLookupIn(blockClass, LOOKUP)
@@ -2070,9 +2079,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
             MethodHandles.Lookup handlerLookup = MethodHandles.privateLookupIn(handlerClass, LOOKUP);
             MethodHandle getAllCraftersOfChain = handlerLookup.findStatic(handlerClass, "getAllCraftersOfChain",
-                    java.lang.invoke.MethodType.methodType(List.class, crafterClass));
+                    MethodType.methodType(List.class, crafterClass));
             MethodHandle getTargetingCrafter = handlerLookup.findStatic(handlerClass, "getTargetingCrafter",
-                    java.lang.invoke.MethodType.methodType(crafterClass, crafterClass));
+                    MethodType.methodType(crafterClass, crafterClass));
 
             MethodHandle insertItem = findAppliedCreateInsertItem(getInventoryMethod.getReturnType());
             if (insertItem == null) {
@@ -2098,8 +2107,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         try {
             return MethodHandles.privateLookupIn(inventoryClass, LOOKUP)
                     .findVirtual(inventoryClass, "insertItem",
-                            java.lang.invoke.MethodType.methodType(ItemStack.class, int.class, ItemStack.class, boolean.class));
-        } catch (ReflectiveOperationException | SecurityException ignored) {}
+                            MethodType.methodType(ItemStack.class, int.class, ItemStack.class, boolean.class));
+        } catch (ReflectiveOperationException | SecurityException e) {
+            Data_Energistics.LOGGER.debug("Could not resolve Applied Create inventory insertItem access", e);
+        }
 
         return null;
     }
@@ -2369,6 +2380,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private void refreshAe2LtEjectRegistrations() {
+        if (!ModFlags.isAe2LtRuntimeSupportLoaded()) {
+            return;
+        }
         if (!(this.host instanceof AdaptivePatternProviderHost adaptive)) {
             return;
         }
@@ -2756,7 +2770,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
 
         try {
             energyService.injectPower(extracted, Actionable.MODULATE);
-        } catch (Throwable ignored) {}
+        } catch (Throwable e) {
+            Data_Energistics.LOGGER.debug("Could not refund extracted meteorite provider energy", e);
+        }
         return false;
     }
 
@@ -2765,7 +2781,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             return 0;
         }
 
-        return Math.max(0, adaptivePatternProviderHost.getUpgrades().getInstalledUpgrades(appeng.core.definitions.AEItems.SPEED_CARD));
+        return Math.max(0, adaptivePatternProviderHost.getUpgrades().getInstalledUpgrades(AEItems.SPEED_CARD));
     }
 
     private int getMeteoriteMaxWorksPerRound() {

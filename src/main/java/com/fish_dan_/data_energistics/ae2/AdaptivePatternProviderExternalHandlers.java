@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.integration.AppMekCompat;
-import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -13,10 +13,14 @@ public final class AdaptivePatternProviderExternalHandlers {
 
     @Nullable
     public static Object createChemicalHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {
+        if (!ModFlags.isAppMekChemicalSupportLoaded()) {
+            return null;
+        }
+
         return AppMekCompat.createReturnChemicalHandler(logicSupplier);
     }
 
     public static boolean supportsMechanicalProviders() {
-        return AppliedCreateCompat.isMechanicalProviderSupportEnabled();
+        return ModFlags.isAppliedCreateMechanicalProviderSupportLoaded();
     }
 }

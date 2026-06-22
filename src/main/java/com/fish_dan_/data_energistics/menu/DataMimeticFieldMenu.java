@@ -9,6 +9,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.inventories.InternalInventory;
 import appeng.api.util.IConfigManager;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
@@ -223,7 +224,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
     private static final class CarrierSlot extends RestrictedInputSlot {
 
-        private CarrierSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
+        private CarrierSlot(InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setIcon(null);
         }
@@ -236,7 +237,7 @@ public class DataMimeticFieldMenu extends UpgradeableMenu<DataMimeticFieldBlockE
 
     private static final class OptionalCarrierSlot extends OptionalRestrictedInputSlot {
 
-        private OptionalCarrierSlot(appeng.api.inventories.InternalInventory inv, IOptionalSlotHost host, int invSlot, int group, Inventory playerInventory) {
+        private OptionalCarrierSlot(InternalInventory inv, IOptionalSlotHost host, int invSlot, int group, Inventory playerInventory) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, host, invSlot, group, playerInventory);
             this.setIcon(null);
         }

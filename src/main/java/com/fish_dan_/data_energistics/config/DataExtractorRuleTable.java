@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.config;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -14,9 +15,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mojang.logging.LogUtils;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -29,7 +29,7 @@ import java.util.List;
 
 public final class DataExtractorRuleTable {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
     private static final Path FILE_PATH = FMLPaths.CONFIGDIR.get().resolve("data_energistics-data_extractor_rules.json");
 

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -47,7 +48,7 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
     boolean isAe2LtPackagedWirelessProviderSelected();
 
     default boolean isAe2LtPackagedAdapterValid(ItemStack stack) {
-        if (!isAe2LtPackagedProviderSelected() || !Ae2LtPackagedRuntimeBridge.isAdapterItem(stack)) {
+        if (!ModFlags.isAe2LtPackagedProviderSupportLoaded() || !isAe2LtPackagedProviderSelected() || !Ae2LtPackagedRuntimeBridge.isAdapterItem(stack)) {
             return false;
         }
 
@@ -73,7 +74,7 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
     }
 
     default boolean isAe2LtWirelessConnectableProviderSelected() {
-        return isAe2LtPackagedWirelessProviderSelected() || isAe2LightningTechOverloadedProviderSelected() && isAe2LtWirelessMode();
+        return ModFlags.isAe2LtPackagedProviderSupportLoaded() && isAe2LtPackagedWirelessProviderSelected() || ModFlags.isAe2LtWirelessSupportLoaded() && isAe2LightningTechOverloadedProviderSelected() && isAe2LtWirelessMode();
     }
 
     boolean isResonatingProviderSelected();

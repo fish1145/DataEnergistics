@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -174,7 +175,7 @@ public class DataFrameworkBlockEntity extends AENetworkedBlockEntity implements 
         binding.requestRecheck(this, definition, toVerticalPos(this.worldPosition), this::resolveParts);
     }
 
-    private java.util.Collection<VerticalMultiBlockPart> resolveParts(java.util.List<VerticalMultiBlockPos> matchedPositions) {
+    private Collection<VerticalMultiBlockPart> resolveParts(List<VerticalMultiBlockPos> matchedPositions) {
         if (this.level == null) {
             throw new IllegalStateException("Cannot resolve Data Framework vertical multiblock parts without a level");
         }

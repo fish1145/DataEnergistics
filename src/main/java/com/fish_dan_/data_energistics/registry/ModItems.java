@@ -36,6 +36,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.Tiers;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.bus.api.IEventBus;
@@ -245,7 +246,7 @@ public final class ModItems {
         return ITEMS.register(id, () -> new DataFlowPortableCellItem(tier, new Item.Properties(), color));
     }
 
-    private static Item.Properties handheldProperties(int durability, net.minecraft.world.item.component.ItemAttributeModifiers attributes) {
+    private static Item.Properties handheldProperties(int durability, ItemAttributeModifiers attributes) {
         Item.Properties properties = new Item.Properties().stacksTo(1).attributes(attributes).setNoRepair();
         if (durability > 0) {
             properties = properties.durability(durability);

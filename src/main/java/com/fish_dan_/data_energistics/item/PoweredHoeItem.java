@@ -1,16 +1,21 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.world.PersistentFarmlandSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
@@ -19,6 +24,10 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.FarmBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.gameevent.GameEvent.Context;
+import net.neoforged.neoforge.common.ItemAbilities;
+import net.neoforged.neoforge.common.ItemAbility;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,11 +37,11 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
     public PoweredHoeItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(net.minecraft.tags.BlockTags.MINEABLE_WITH_HOE));
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_HOE));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
-        return net.minecraft.world.item.DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
+        return DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
     }
 
     @Override
@@ -48,7 +57,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(ModItems.DATA_CRYSTAL_HOE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -150,7 +159,7 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
 
     private void tryMarkPersistentFarmland(UseOnContext context) {
         ItemStack stack = context.getItemInHand();
-        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(ModItems.DATA_CRYSTAL_HOE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !(context.getLevel() instanceof ServerLevel serverLevel) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
@@ -168,25 +177,25 @@ public class PoweredHoeItem extends AbstractPoweredTieredItem implements Conditi
     }
 
     @Override
-    public boolean canPerformAction(ItemStack stack, net.neoforged.neoforge.common.ItemAbility itemAbility) {
-        return net.neoforged.neoforge.common.ItemAbilities.DEFAULT_HOE_ACTIONS.contains(itemAbility);
+    public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
+        return ItemAbilities.DEFAULT_HOE_ACTIONS.contains(itemAbility);
     }
 
     private InteractionResult tryTill(UseOnContext context) {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         BlockState targetState = level.getBlockState(pos).getToolModifiedState(context,
-                net.neoforged.neoforge.common.ItemAbilities.HOE_TILL, false);
+                ItemAbilities.HOE_TILL, false);
         if (targetState == null) {
             return InteractionResult.PASS;
         }
 
-        level.playSound(context.getPlayer(), pos, net.minecraft.sounds.SoundEvents.HOE_TILL,
-                net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+        level.playSound(context.getPlayer(), pos, SoundEvents.HOE_TILL,
+                SoundSource.BLOCKS, 1.0F, 1.0F);
         if (!level.isClientSide) {
             level.setBlock(pos, targetState, 11);
-            level.gameEvent(net.minecraft.world.level.gameevent.GameEvent.BLOCK_CHANGE, pos,
-                    net.minecraft.world.level.gameevent.GameEvent.Context.of(context.getPlayer(), targetState));
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos,
+                    Context.of(context.getPlayer(), targetState));
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }

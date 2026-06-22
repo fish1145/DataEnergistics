@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -39,7 +40,7 @@ public class DataSanctumReturnPortalRenderer implements BlockEntityRenderer<Data
     private static void renderModel(BlockRenderDispatcher blockRenderer, BakedModel model, BlockState state,
                                     PoseStack poseStack, MultiBufferSource buffer, int packedLight,
                                     int packedOverlay) {
-        var random = net.minecraft.util.RandomSource.create(42L);
+        var random = RandomSource.create(42L);
         for (var renderType : model.getRenderTypes(state, random, ModelData.EMPTY)) {
             VertexConsumer consumer = buffer.getBuffer(RenderTypeHelper.getEntityRenderType(renderType, false));
             blockRenderer.getModelRenderer().renderModel(

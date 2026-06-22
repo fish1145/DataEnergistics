@@ -1,21 +1,29 @@
 package com.fish_dan_.data_energistics.common.multiblock.vertical;
 
-import org.junit.jupiter.api.Test;
+import com.fish_dan_.data_energistics.Data_Energistics;
+
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+@GameTestHolder(Data_Energistics.MODID)
+@PrefixGameTestTemplate(false)
+public final class VerticalMultiBlockRuntimeBindingTest {
 
-class VerticalMultiBlockRuntimeBindingTest {
+    private VerticalMultiBlockRuntimeBindingTest() {}
 
-    @Test
-    void bindsInvalidatesAndRebindsControllerAndParts() {
+    @TestHolder("vertical_multiblock_runtime_binding_binds_invalidates_and_rebinds_controller_and_parts")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void bindsInvalidatesAndRebindsControllerAndParts(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = definition();
         Map<VerticalMultiBlockPos, String> world = new HashMap<>();
         place(world, definition, new VerticalMultiBlockPos(0, 0, 0), 3);
@@ -27,39 +35,71 @@ class VerticalMultiBlockRuntimeBindingTest {
                 new VerticalMultiBlockPos(1, 1, 0),
                 part);
 
-        assertTrue(binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup));
-        assertTrue(controller.verticalMultiBlock$isFormed());
-        assertEquals(3, controller.verticalMultiBlock$getCurrentHeight());
-        assertEquals(List.of("formed:test:runtime:3"), controller.events);
-        assertEquals(List.of("added:test:runtime"), part.events);
+        helper.assertTrue(
+                binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup),
+                "Initial requestRecheck should form the runtime structure");
+        helper.assertTrue(controller.verticalMultiBlock$isFormed(), "Controller should be formed after the initial bind");
+        helper.assertValueEqual(controller.verticalMultiBlock$getCurrentHeight(), 3, "Controller should expose the formed height");
+        helper.assertValueEqual(
+                controller.events,
+                List.of("formed:test:runtime:3"),
+                "Controller should receive one formed event after initial bind");
+        helper.assertValueEqual(
+                part.events,
+                List.of("added:test:runtime"),
+                "Part should be added to the controller after initial bind");
 
         world.remove(new VerticalMultiBlockPos(1, 1, 0));
-        assertFalse(binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup));
-        assertFalse(controller.verticalMultiBlock$isFormed());
-        assertEquals(List.of("formed:test:runtime:3", "invalid:No valid vertical multiblock match"), controller.events);
-        assertEquals(List.of("added:test:runtime", "removed"), part.events);
+        helper.assertFalse(
+                binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup),
+                "requestRecheck should reject the structure after a matched part is removed");
+        helper.assertFalse(controller.verticalMultiBlock$isFormed(), "Controller should be unformed after invalidation");
+        helper.assertValueEqual(
+                controller.events,
+                List.of("formed:test:runtime:3", "invalid:No valid vertical multiblock match"),
+                "Controller should receive an invalidation event when the match breaks");
+        helper.assertValueEqual(
+                part.events,
+                List.of("added:test:runtime", "removed"),
+                "Part should be removed from the controller when the match breaks");
 
         world.put(new VerticalMultiBlockPos(1, 1, 0), "M2");
-        assertTrue(binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup));
-        assertTrue(controller.verticalMultiBlock$isFormed());
-        assertEquals(List.of(
-                "formed:test:runtime:3",
-                "invalid:No valid vertical multiblock match",
-                "formed:test:runtime:3"), controller.events);
-        assertEquals(List.of("added:test:runtime", "removed", "added:test:runtime"), part.events);
+        helper.assertTrue(
+                binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup),
+                "requestRecheck should reform the structure after the matched part is restored");
+        helper.assertTrue(controller.verticalMultiBlock$isFormed(), "Controller should be formed after rebinding");
+        helper.assertValueEqual(
+                controller.events,
+                List.of(
+                        "formed:test:runtime:3",
+                        "invalid:No valid vertical multiblock match",
+                        "formed:test:runtime:3"),
+                "Controller should record formed, invalid, and formed events in order");
+        helper.assertValueEqual(
+                part.events,
+                List.of("added:test:runtime", "removed", "added:test:runtime"),
+                "Part should record add, remove, and add events in order");
+        helper.succeed();
     }
 
-    @Test
-    void rejectsMismatchedControllerDefinitionId() {
+    @TestHolder("vertical_multiblock_runtime_binding_rejects_mismatched_controller_definition_id")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsMismatchedControllerDefinitionId(GameTestHelper helper) {
         VerticalMultiBlockRuntimeBinding<String> binding = new VerticalMultiBlockRuntimeBinding<>(
                 new VerticalMultiBlockScanner<>(pos -> "AIR"));
         TestController controller = new TestController("test:other");
 
-        assertThrows(IllegalStateException.class, () -> binding.requestRecheck(
-                controller,
-                definition(),
-                new VerticalMultiBlockPos(0, 0, 0),
-                VerticalMultiBlockRuntimeBinding.emptyPartLookup()));
+        assertThrows(
+                helper,
+                IllegalStateException.class,
+                () -> binding.requestRecheck(
+                        controller,
+                        definition(),
+                        new VerticalMultiBlockPos(0, 0, 0),
+                        VerticalMultiBlockRuntimeBinding.emptyPartLookup()),
+                "Mismatched controller definition id should fail fast");
+        helper.succeed();
     }
 
     private static VerticalMultiBlockDefinition<String> definition() {
@@ -100,6 +140,22 @@ class VerticalMultiBlockRuntimeBindingTest {
                 world.put(pos, x == 0 ? left : right);
             }
         }
+    }
+
+    private static <T extends Throwable> void assertThrows(
+                                                           GameTestHelper helper,
+                                                           Class<T> expectedType,
+                                                           Runnable action,
+                                                           String message) {
+        try {
+            action.run();
+        } catch (Throwable thrown) {
+            if (expectedType.isInstance(thrown)) {
+                return;
+            }
+            helper.fail(message + ": expected " + expectedType.getSimpleName() + " but caught " + thrown.getClass().getSimpleName() + " (" + thrown.getMessage() + ")");
+        }
+        helper.fail(message + ": expected " + expectedType.getSimpleName() + " but no exception was thrown");
     }
 
     private static final class TestController implements VerticalMultiBlockController {

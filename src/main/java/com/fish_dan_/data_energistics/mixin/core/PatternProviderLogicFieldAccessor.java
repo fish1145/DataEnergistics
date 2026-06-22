@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import com.fish_dan_.data_energistics.accessor.PatternProviderLogicFieldAccess;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogic;
@@ -10,7 +12,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 import java.util.List;
 
 @Mixin(PatternProviderLogic.class)
-public interface PatternProviderLogicFieldAccessor {
+public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicFieldAccess {
 
     @Accessor("host")
     PatternProviderLogicHost dataEnergistics$getHost();

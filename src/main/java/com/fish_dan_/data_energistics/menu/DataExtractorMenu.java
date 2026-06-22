@@ -12,8 +12,10 @@ import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.inventories.InternalInventory;
 import appeng.api.util.IConfigManager;
 import appeng.core.definitions.AEItems;
 import appeng.menu.SlotSemantic;
@@ -79,7 +81,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     }
 
     @Override
-    public void onSlotChange(net.minecraft.world.inventory.Slot slot) {
+    public void onSlotChange(Slot slot) {
         super.onSlotChange(slot);
         if (this.isClientSide()) {
             this.workIntervalSeconds = DataExtractorBlockEntity.computeWorkIntervalSeconds(
@@ -233,7 +235,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
 
     private static final class DataCarrierInputSlot extends RestrictedInputSlot {
 
-        private DataCarrierInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
+        private DataCarrierInputSlot(InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(1);
             this.setIcon(null);
@@ -247,7 +249,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
 
     private static final class SwordInputSlot extends RestrictedInputSlot {
 
-        private SwordInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
+        private SwordInputSlot(InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(1);
             this.setIcon(null);
@@ -261,7 +263,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
 
     private static final class OreInputSlot extends RestrictedInputSlot {
 
-        private OreInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
+        private OreInputSlot(InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(64);
             this.setIcon(null);
@@ -275,7 +277,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
 
     private static final class CropInputSlot extends RestrictedInputSlot {
 
-        private CropInputSlot(appeng.api.inventories.InternalInventory inv, int invSlot) {
+        private CropInputSlot(InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
             this.setStackLimit(64);
             this.setIcon(null);

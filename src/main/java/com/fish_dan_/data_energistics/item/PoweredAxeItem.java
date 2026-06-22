@@ -1,16 +1,20 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.registry.ModItems;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
@@ -19,6 +23,8 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
+import net.neoforged.neoforge.common.ItemAbilities;
+import net.neoforged.neoforge.common.ItemAbility;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,11 +34,11 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
     private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
 
     public PoweredAxeItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(net.minecraft.tags.BlockTags.MINEABLE_WITH_AXE));
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_AXE));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
-        return net.minecraft.world.item.DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
+        return DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
     }
 
     @Override
@@ -48,7 +54,7 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_AXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(ModItems.DATA_CRYSTAL_AXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -149,7 +155,7 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
     }
 
     private void tryChainBreakTree(ItemStack stack, ServerLevel level, BlockPos origin, LivingEntity breaker) {
-        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_AXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+        if (!stack.is(ModItems.DATA_CRYSTAL_AXE.get()) || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
             return;
         }
 
@@ -170,24 +176,24 @@ public class PoweredAxeItem extends AbstractPoweredTieredItem implements Conditi
     }
 
     @Override
-    public boolean canPerformAction(ItemStack stack, net.neoforged.neoforge.common.ItemAbility itemAbility) {
-        return net.neoforged.neoforge.common.ItemAbilities.DEFAULT_AXE_ACTIONS.contains(itemAbility);
+    public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
+        return ItemAbilities.DEFAULT_AXE_ACTIONS.contains(itemAbility);
     }
 
     private InteractionResult tryTransformBlock(UseOnContext context) {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         BlockState state = level.getBlockState(pos);
-        BlockState transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.AXE_STRIP, false);
+        BlockState transformed = state.getToolModifiedState(context, ItemAbilities.AXE_STRIP, false);
         if (transformed != null) {
             level.playSound(context.getPlayer(), pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
         } else {
-            transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.AXE_SCRAPE, false);
+            transformed = state.getToolModifiedState(context, ItemAbilities.AXE_SCRAPE, false);
             if (transformed != null) {
                 level.playSound(context.getPlayer(), pos, SoundEvents.AXE_SCRAPE, SoundSource.BLOCKS, 1.0F, 1.0F);
                 level.levelEvent(context.getPlayer(), 3005, pos, 0);
             } else {
-                transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.AXE_WAX_OFF, false);
+                transformed = state.getToolModifiedState(context, ItemAbilities.AXE_WAX_OFF, false);
                 if (transformed != null) {
                     level.playSound(context.getPlayer(), pos, SoundEvents.AXE_WAX_OFF, SoundSource.BLOCKS, 1.0F, 1.0F);
                     level.levelEvent(context.getPlayer(), 3004, pos, 0);

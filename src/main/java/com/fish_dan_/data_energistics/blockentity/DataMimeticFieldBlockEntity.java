@@ -28,6 +28,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -963,7 +964,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private List<ItemStack> generateEntityLootTableDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer,
-                                                         net.minecraft.world.damagesource.DamageSource damageSource) {
+                                                         DamageSource damageSource) {
         LootParams.Builder builder = new LootParams.Builder(serverLevel)
                 .withParameter(LootContextParams.THIS_ENTITY, livingEntity)
                 .withParameter(LootContextParams.ORIGIN, livingEntity.position())
@@ -1058,7 +1059,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private List<ItemStack> generateConfiguredLootTableDrops(ServerLevel serverLevel, ResourceLocation lootTableId) {
         LootTable lootTable = serverLevel.getServer()
                 .reloadableRegistries()
-                .getLootTable(net.minecraft.resources.ResourceKey.create(Registries.LOOT_TABLE, lootTableId));
+                .getLootTable(ResourceKey.create(Registries.LOOT_TABLE, lootTableId));
         LootParams.Builder builder = new LootParams.Builder(serverLevel)
                 .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(this.worldPosition));
         return lootTable.getRandomItems(builder.create(LootContextParamSets.CHEST)).stream()
@@ -1455,7 +1456,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private GenericStackInv createKeyMenuInventory() {
-        var inv = new GenericStackInv(java.util.Set.of(DataFlowKeyType.TYPE), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
+        var inv = new GenericStackInv(Set.of(DataFlowKeyType.TYPE), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
 
             {
                 this.setFilter((slot, what) -> what instanceof DataFlowKey);

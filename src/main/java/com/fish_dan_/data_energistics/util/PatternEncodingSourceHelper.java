@@ -18,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.core.definitions.AEItems;
@@ -30,8 +31,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -44,12 +45,13 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public final class PatternEncodingSourceHelper {
 
-    private static final Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
-    private static final int PROCESSING_INPUT_SLOT_BASE = 10;
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final int DATA_RIPPER_KEY_INPUT_SLOT = DataRipperReassemblerRecipe.KEY_INPUT_SLOT_INDEX;
     private static final int DATA_RIPPER_FLUID_INPUT_SLOT_BASE = DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS + DataRipperReassemblerRecipe.KEY_INPUT_SLOTS;
     private static final int DATA_RIPPER_ITEM_OUTPUT_SLOT_BASE = 0;
@@ -82,7 +84,6 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler");
-    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID = ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final ResourceLocation SUT_ADVANCED_ALLOY_FURNACE_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("useless_mod", "advanced_alloy_furnace");
     private static final ResourceLocation SUT_ADVANCED_ALLOY_FURNACE_BLOCK_ID = ResourceLocation.fromNamespaceAndPath("useless_mod", "advanced_alloy_furnace_block");
@@ -135,11 +136,6 @@ public final class PatternEncodingSourceHelper {
             "机器", "装配", "工作站", "处理站", "处理器", "压印", "充能", "切石", "锻造", "编译", "合成");
 
     private PatternEncodingSourceHelper() {}
-
-    @Nullable
-    public static ResourceLocation resolveWorkstationForTransferRecipe(@Nullable Object recipe) {
-        return resolveWorkstationForTransfer(recipe, null);
-    }
 
     @Nullable
     public static ResourceLocation resolveWorkstationForTransfer(@Nullable Object recipe, @Nullable Object transferContext) {
@@ -230,10 +226,6 @@ public final class PatternEncodingSourceHelper {
         };
     }
 
-    public static void rememberTransferSource(PatternEncodingTermMenu menu, @Nullable Object recipe) {
-        rememberTransferSource(menu, recipe, null);
-    }
-
     public static void rememberTransferSource(PatternEncodingTermMenu menu, @Nullable Object recipe,
                                               @Nullable Object transferContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
@@ -301,14 +293,6 @@ public final class PatternEncodingSourceHelper {
         if (dataRipperRecipe != null) {
             syncPendingTransferFluidOutputs(menu, dataRipperRecipe.getFluidOutputs());
         }
-    }
-
-    public static void syncManualTransferKeyInput(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
-        syncPendingTransferKeyInput(menu, keyInput);
-    }
-
-    public static void syncManualTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
-        syncPendingTransferKeyOutput(menu, keyOutput);
     }
 
     public static void applyPendingTransferKeyInput(PatternEncodingTermMenu menu) {
@@ -411,7 +395,7 @@ public final class PatternEncodingSourceHelper {
         List<ItemStack> items = new ArrayList<>(DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS);
         for (int i = 0; i < DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS && i < encodedInputsInv.size(); i++) {
             GenericStack stack = encodedInputsInv.getStack(i);
-            if (stack == null || !(stack.what() instanceof appeng.api.stacks.AEItemKey itemKey)) {
+            if (stack == null || !(stack.what() instanceof AEItemKey itemKey)) {
                 continue;
             }
             items.add(itemKey.toStack((int) Math.min(Integer.MAX_VALUE, stack.amount())));
@@ -427,7 +411,7 @@ public final class PatternEncodingSourceHelper {
         List<ItemStack> outputs = new ArrayList<>(encodedOutputsInv.size());
         for (int i = 0; i < encodedOutputsInv.size(); i++) {
             GenericStack stack = encodedOutputsInv.getStack(i);
-            if (stack == null || !(stack.what() instanceof appeng.api.stacks.AEItemKey itemKey)) {
+            if (stack == null || !(stack.what() instanceof AEItemKey itemKey)) {
                 outputs.add(ItemStack.EMPTY);
                 continue;
             }
@@ -619,7 +603,7 @@ public final class PatternEncodingSourceHelper {
             if (stack == null || stack.amount() <= 0) {
                 continue;
             }
-            if (isPlainItemStack(stack) || isWrappedGenericDisplayStack(stack) || stack.what() instanceof appeng.api.stacks.AEFluidKey) {
+            if (isPlainItemStack(stack) || isWrappedGenericDisplayStack(stack) || stack.what() instanceof AEFluidKey) {
                 continue;
             }
             return copyGenericStack(stack);
@@ -631,7 +615,7 @@ public final class PatternEncodingSourceHelper {
         List<GenericStack> result = new ArrayList<>();
         for (int i = 0; i < inventory.size(); i++) {
             GenericStack stack = inventory.getStack(i);
-            if (stack != null && stack.amount() > 0 && stack.what() instanceof appeng.api.stacks.AEFluidKey) {
+            if (stack != null && stack.amount() > 0 && stack.what() instanceof AEFluidKey) {
                 result.add(copyGenericStack(stack));
             }
         }
@@ -866,14 +850,6 @@ public final class PatternEncodingSourceHelper {
         return tag.toString();
     }
 
-    public static String serializeTransferKeyInputForDisplay(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
-        return serializeTransferKeyInput(menu, keyInput);
-    }
-
-    public static String serializeTransferKeyOutputForDisplay(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
-        return serializeTransferKeyOutput(menu, keyOutput);
-    }
-
     private static String serializeTransferFluidStacks(PatternEncodingTermMenu menu, @Nullable List<GenericStack> stacks) {
         if (stacks == null || stacks.isEmpty()) {
             return CLEAR_TRANSFER_FLUID_STACKS;
@@ -923,7 +899,7 @@ public final class PatternEncodingSourceHelper {
                 return List.of();
             }
 
-            List<GenericStack> stacks = new ArrayList<>(java.util.Collections.nCopies(maxIndex + 1, null));
+            List<GenericStack> stacks = new ArrayList<>(Collections.nCopies(maxIndex + 1, null));
             for (int i = 0; i <= maxIndex; i++) {
                 String key = Integer.toString(i);
                 if (!root.contains(key, CompoundTag.TAG_COMPOUND)) {
@@ -1065,10 +1041,6 @@ public final class PatternEncodingSourceHelper {
         return expected.what().equals(actual.what()) && actual.amount() >= expected.amount();
     }
 
-    public static List<GenericStack> readPendingTransferFluidInputs(Player player) {
-        return copyGenericStacks(PatternEncodingSessionState.getPendingTransferFluidInputs(player.getUUID()));
-    }
-
     public static void writePendingTransferFluidInputs(Player player, @Nullable List<GenericStack> fluidInputs) {
         if (player.level().isClientSide()) {
             return;
@@ -1080,10 +1052,6 @@ public final class PatternEncodingSourceHelper {
         } else {
             PatternEncodingSessionState.setPendingTransferFluidInputs(player.getUUID(), copy);
         }
-    }
-
-    public static List<GenericStack> readPendingTransferFluidOutputs(Player player) {
-        return copyGenericStacks(PatternEncodingSessionState.getPendingTransferFluidOutputs(player.getUUID()));
     }
 
     public static void writePendingTransferFluidOutputs(Player player, @Nullable List<GenericStack> fluidOutputs) {
@@ -1357,12 +1325,12 @@ public final class PatternEncodingSourceHelper {
         }
 
         Object displayedItemStack = PatternEncodingReflectionAccess.invokeNoArg(catalyst, "getDisplayedItemStack");
-        if (displayedItemStack instanceof java.util.Optional<?> optional && optional.orElse(null) instanceof ItemStack stack && !stack.isEmpty()) {
+        if (displayedItemStack instanceof Optional<?> optional && optional.orElse(null) instanceof ItemStack stack && !stack.isEmpty()) {
             appendWorkstationCandidate(candidates, BuiltInRegistries.ITEM.getKey(stack.getItem()));
         }
 
         Object itemStacks = PatternEncodingReflectionAccess.invokeNoArg(catalyst, "getItemStacks");
-        if (itemStacks instanceof java.util.stream.Stream<?> stream) {
+        if (itemStacks instanceof Stream<?> stream) {
             try (stream) {
                 stream.limit(8).forEach(entry -> {
                     if (entry instanceof ItemStack stack && !stack.isEmpty()) {

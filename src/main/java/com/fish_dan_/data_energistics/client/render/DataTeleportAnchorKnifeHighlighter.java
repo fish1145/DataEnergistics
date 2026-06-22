@@ -3,9 +3,11 @@ package com.fish_dan_.data_energistics.client.render;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.network.DataTeleportAnchorKnifeTeleportPayload;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -13,6 +15,7 @@ import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -24,6 +27,7 @@ import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -42,7 +46,6 @@ public final class DataTeleportAnchorKnifeHighlighter {
     private static final long RESCAN_INTERVAL_TICKS = 10L;
     private static final double BASE_BOX_INSET = 0.002d;
     private static final double SELECTED_BOX_EXPANSION = 0.25d;
-    private static final double FULL_BOX_INSET = 0.002d;
     private static final double MAX_SELECT_DISTANCE = 128.0d;
     private static final RenderType SEE_THROUGH_LINES = RenderType.create(
             "data_energistics_teleport_anchor_highlight",
@@ -174,8 +177,8 @@ public final class DataTeleportAnchorKnifeHighlighter {
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
 
-        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
-        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        RenderSystem.disableDepthTest();
+        RenderSystem.enableBlend();
 
         for (BlockPos anchorPos : anchors) {
             float[] color = resolveHighlightColor(minecraft, anchorPos);
@@ -184,9 +187,9 @@ public final class DataTeleportAnchorKnifeHighlighter {
         }
 
         buffer.endBatch(SEE_THROUGH_LINES);
-        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
-        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
-        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
     }
 
     private static boolean isHoldingCuttingKnife(Minecraft minecraft) {
@@ -218,7 +221,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
     }
 
     private static void drawHighlight(AABB box, float[] color, PoseStack poseStack,
-                                      net.minecraft.client.Camera camera, MultiBufferSource buffer) {
+                                      Camera camera, MultiBufferSource buffer) {
         if (!camera.isInitialized()) {
             return;
         }
@@ -318,11 +321,11 @@ public final class DataTeleportAnchorKnifeHighlighter {
         return cachedAnchorPositions;
     }
 
-    private static int getChunkRadius(net.minecraft.world.entity.player.Player player) {
+    private static int getChunkRadius(Player player) {
         if (player == null) {
             return CHUNK_RADIUS;
         }
 
-        return player.getMainHandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem knife && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 || player.getOffhandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem offhandKnife && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_CHUNK_RADIUS : CHUNK_RADIUS;
+        return player.getMainHandItem().getItem() instanceof PoweredCuttingKnifeItem knife && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 || player.getOffhandItem().getItem() instanceof PoweredCuttingKnifeItem offhandKnife && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0 ? SABER_ENERGY_CHUNK_RADIUS : CHUNK_RADIUS;
     }
 }

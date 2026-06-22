@@ -35,6 +35,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
+import java.util.Set;
 import java.util.function.Supplier;
 
 public final class ModFluids {
@@ -239,7 +240,7 @@ public final class ModFluids {
                 double targetY = target.getY();
                 double targetZ = target.getZ() + 0.5D;
                 if (entity instanceof ServerPlayer serverPlayer) {
-                    serverPlayer.teleportTo(level, targetX, targetY, targetZ, java.util.Set.of(),
+                    serverPlayer.teleportTo(level, targetX, targetY, targetZ, Set.of(),
                             serverPlayer.getYRot(), serverPlayer.getXRot());
                 } else {
                     entity.teleportTo(targetX, targetY, targetZ);

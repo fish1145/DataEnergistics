@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import lombok.Getter;
+
+@Getter
 public enum DataExtractorAutoExportMode {
 
     OFF("off"),
@@ -12,10 +15,6 @@ public enum DataExtractorAutoExportMode {
 
     DataExtractorAutoExportMode(String serializedName) {
         this.serializedName = serializedName;
-    }
-
-    public String getSerializedName() {
-        return this.serializedName;
     }
 
     public DataExtractorAutoExportMode next() {

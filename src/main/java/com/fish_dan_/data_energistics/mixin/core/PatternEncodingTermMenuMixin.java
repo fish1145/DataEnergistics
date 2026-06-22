@@ -129,7 +129,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private RestrictedInputSlot encodedPatternSlot;
 
     @Shadow
-    public appeng.parts.encoding.EncodingMode mode;
+    public EncodingMode mode;
 
     protected PatternEncodingTermMenuMixin(MenuType<?> menuType, int id, Inventory ip, ITerminalHost host,
                                            boolean bindInventory) {
@@ -686,7 +686,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Inject(method = "setMode", at = @At("HEAD"))
-    private void dataEnergistics$updatePendingPatternSourceOnModeChange(appeng.parts.encoding.EncodingMode mode,
+    private void dataEnergistics$updatePendingPatternSourceOnModeChange(EncodingMode mode,
                                                                         CallbackInfo ci) {
         var fallbackWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
         this.dataEnergistics$pendingPatternSource = fallbackWorkstation;

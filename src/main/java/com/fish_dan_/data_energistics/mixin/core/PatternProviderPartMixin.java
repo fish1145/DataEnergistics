@@ -12,6 +12,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 
+import appeng.api.parts.IPartItem;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.parts.crafting.PatternProviderPart;
@@ -52,7 +53,7 @@ public abstract class PatternProviderPartMixin implements PatternProviderHostAcc
     public abstract void saveChanges();
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void dataEnergistics$initRedstoneTuningInventory(appeng.api.parts.IPartItem<?> partItem, CallbackInfo ci) {
+    private void dataEnergistics$initRedstoneTuningInventory(IPartItem<?> partItem, CallbackInfo ci) {
         this.dataEnergistics$ensureUpgradeInventory();
     }
 

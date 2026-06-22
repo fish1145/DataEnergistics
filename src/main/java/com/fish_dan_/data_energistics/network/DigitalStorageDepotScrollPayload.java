@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -41,10 +42,10 @@ public record DigitalStorageDepotScrollPayload(boolean reverse, boolean offHand,
             }
             if (payload.keySlot()) {
                 int slot = DigitalStorageDepotBlockItem.cycleSelectedKeySlot(stack, payload.reverse());
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("当前 Key 槽: " + (slot + 1)), true);
+                player.displayClientMessage(Component.literal("当前 Key 槽: " + (slot + 1)), true);
             } else {
                 int slot = DigitalStorageDepotBlockItem.cycleSelectedFluidSlot(stack, payload.reverse());
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("当前流体槽: " + (slot + 1)), true);
+                player.displayClientMessage(Component.literal("当前流体槽: " + (slot + 1)), true);
             }
         });
     }

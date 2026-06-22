@@ -2,8 +2,10 @@ package com.fish_dan_.data_energistics.part;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
+import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.util.UniversalTerminalAdapter;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.core.HolderLookup;
@@ -40,10 +42,12 @@ import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.parts.reporting.AbstractTerminalPart;
 import appeng.parts.reporting.CraftingTerminalPart;
 import appeng.util.InteractionUtil;
-import com.mojang.logging.LogUtils;
+import appeng.util.SettingsFrom;
+import appeng.util.inv.AppEngInternalInventory;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,7 +56,7 @@ import java.util.Set;
 
 public class UniversalTerminalPart extends AbstractTerminalPart implements IPatternTerminalLogicHost, IPatternTerminalMenuHost, IPatternAccessTermMenuHost, ISubMenuHost {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String TAG_ACTIVE_TERMINAL = "universal_terminal_active";
     private static final String TAG_CRAFTING_GRID = "universal_terminal_crafting_grid";
     private static final String TAG_TERMINAL_DATA = "universal_terminal_data";
@@ -73,7 +77,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     public static final IPartModel MODELS_ON = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_ON);
     public static final IPartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_HAS_CHANNEL);
 
-    private final appeng.util.inv.AppEngInternalInventory craftingGrid = new appeng.util.inv.AppEngInternalInventory(this, 9);
+    private final AppEngInternalInventory craftingGrid = new AppEngInternalInventory(this, 9);
     private final PatternEncodingLogic logic = new PatternEncodingLogic(this);
     private final Map<String, IConfigManager> adapterConfigManagers = new HashMap<>();
     private final Set<String> missingAdapterConfigManagers = new HashSet<>();
@@ -300,7 +304,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
             MenuOpener.open(
                     UniversalTerminalData.getMenuType(menuTerminal),
                     player,
-                    usesCustomMenuLocator(menuTerminal) ? com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator.forPart(this, menuTerminal) : MenuLocators.forPart(this),
+                    usesCustomMenuLocator(menuTerminal) ? UniversalTerminalMenuLocator.forPart(this, menuTerminal) : MenuLocators.forPart(this),
                     returningFromSubmenu);
         } else {
             LOGGER.debug("UniversalTerminalPart.openActiveTerminal aborted: resolved terminal is null");
@@ -397,9 +401,9 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     }
 
     @Override
-    public void importSettings(appeng.util.SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         super.importSettings(mode, input, player);
-        if (mode == appeng.util.SettingsFrom.DISMANTLE_ITEM) {
+        if (mode == SettingsFrom.DISMANTLE_ITEM) {
             UniversalTerminalItemData data = input.get(ModDataComponents.UNIVERSAL_TERMINAL.get());
             HolderLookup.Provider registries = player != null ? player.level().registryAccess() : this.getLevel() != null ? this.getLevel().registryAccess() : null;
             if (data == null && registries != null) {
@@ -430,9 +434,9 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     }
 
     @Override
-    public void exportSettings(appeng.util.SettingsFrom mode, DataComponentMap.Builder builder) {
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder) {
         super.exportSettings(mode, builder);
-        if (mode == appeng.util.SettingsFrom.DISMANTLE_ITEM) {
+        if (mode == SettingsFrom.DISMANTLE_ITEM) {
             ItemStack stack = new ItemStack(this.getPartItem().asItem());
             HolderLookup.Provider registries = this.getLevel() == null ? null : this.getLevel().registryAccess();
             if (!this.terminalData.isEmpty() || this.getLevel() != null) {
@@ -526,7 +530,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
             return List.of();
         }
 
-        List<String> installed = new java.util.ArrayList<>();
+        List<String> installed = new ArrayList<>();
         var terminalList = this.terminalData.getList(TAG_INSTALLED_TERMINALS, CompoundTag.TAG_COMPOUND);
         for (int i = 0; i < terminalList.size(); i++) {
             String name = terminalList.getCompound(i).getString(TAG_TERMINAL_NAME);
@@ -570,7 +574,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         return UniversalTerminalData.getDefinitions().stream()
                 .filter(definition -> definition.name().equals(terminalName))
                 .findFirst()
-                .map(com.fish_dan_.data_energistics.util.UniversalTerminalAdapter::requiresCustomMenuLocator)
+                .map(UniversalTerminalAdapter::requiresCustomMenuLocator)
                 .orElse(false);
     }
 

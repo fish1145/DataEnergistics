@@ -12,7 +12,9 @@ import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -259,7 +261,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return List.of(new BoundRow(new ItemStack(Items.BARRIER),
                     Component.translatable("screen.data_energistics.data_distribution_tower.bound_none").getString(),
                     "",
-                    new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0)),
+                    new TargetRef(Level.OVERWORLD, new BlockPos(0, 0, 0)),
                     RowKind.FE,
                     TargetMode.DISABLED,
                     true));
@@ -277,7 +279,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     i < icons.length ? toStack(icons[i]) : new ItemStack(Items.BARRIER),
                     names[i],
                     names[i],
-                    i < metas.length ? parseMeta(metas[i]) : new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0)),
+                    i < metas.length ? parseMeta(metas[i]) : new TargetRef(Level.OVERWORLD, new BlockPos(0, 0, 0)),
                     i < kinds.length ? parseKind(kinds[i]) : RowKind.FE,
                     i < modes.length ? parseMode(modes[i]) : TargetMode.AUTO,
                     false));
@@ -377,15 +379,15 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private TargetRef parseMeta(String meta) {
         try {
             String[] parts = meta.split("\\|");
-            ResourceKey<Level> dimension = ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
+            ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION,
                     ResourceLocation.parse(parts[0]));
-            net.minecraft.core.BlockPos pos = new net.minecraft.core.BlockPos(
+            BlockPos pos = new BlockPos(
                     Integer.parseInt(parts[1]),
                     Integer.parseInt(parts[2]),
                     Integer.parseInt(parts[3]));
             return new TargetRef(dimension, pos);
         } catch (Exception ignored) {
-            return new TargetRef(Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 0, 0));
+            return new TargetRef(Level.OVERWORLD, new BlockPos(0, 0, 0));
         }
     }
 
@@ -408,12 +410,12 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return target.dimension();
         }
 
-        private net.minecraft.core.BlockPos pos() {
+        private BlockPos pos() {
             return target.pos();
         }
     }
 
-    private record TargetRef(ResourceKey<Level> dimension, net.minecraft.core.BlockPos pos) {}
+    private record TargetRef(ResourceKey<Level> dimension, BlockPos pos) {}
 
     private enum RowKind {
         AE,

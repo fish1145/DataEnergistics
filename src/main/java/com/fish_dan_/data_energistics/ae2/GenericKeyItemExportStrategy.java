@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -21,8 +23,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
 import appeng.parts.automation.StackWorldBehaviors;
 import appeng.util.CowMap;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -30,7 +31,7 @@ import java.util.Map;
 
 public class GenericKeyItemExportStrategy implements StackExportStrategy {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
 
     private final AEKeyType keyType;
     private final BlockCapabilityCache<GenericInternalInventory, Direction> genericInventoryCache;

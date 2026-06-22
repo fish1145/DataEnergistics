@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.multiblock.vertical;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -89,7 +90,7 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
         return matchedPositions -> matchedPositions.contains(pos) ? List.of(part) : List.of();
     }
 
-    public static PartLookup fromParts(java.util.Map<VerticalMultiBlockPos, ? extends VerticalMultiBlockPart> parts) {
+    public static PartLookup fromParts(Map<VerticalMultiBlockPos, ? extends VerticalMultiBlockPart> parts) {
         return matchedPositions -> {
             ArrayList<VerticalMultiBlockPart> resolved = new ArrayList<>(matchedPositions.size());
             for (VerticalMultiBlockPos pos : matchedPositions) {

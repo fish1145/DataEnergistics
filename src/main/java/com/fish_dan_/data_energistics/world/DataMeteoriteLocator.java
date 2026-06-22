@@ -10,6 +10,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.levelgen.structure.Structure;
 
 import appeng.core.definitions.AEBlocks;
 
@@ -19,7 +20,7 @@ public final class DataMeteoriteLocator {
 
     private static final int SEARCH_RADIUS_CHUNKS = 174;
     private static final int LOADED_SCAN_RADIUS_CHUNKS = 32;
-    private static final TagKey<net.minecraft.world.level.levelgen.structure.Structure> METEORITE_STRUCTURES = TagKey.create(
+    private static final TagKey<Structure> METEORITE_STRUCTURES = TagKey.create(
             Registries.STRUCTURE,
             Data_Energistics.id("data_meteorite_compass_targets"));
 

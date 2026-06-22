@@ -35,7 +35,6 @@ public class LightBladeChargeEntity extends ThrowableItemProjectile {
     private static final int LIFETIME_TICKS = 120;
     private static final int DATA_DISORDER_DURATION_TICKS = 30;
     private static final double MAX_TRAVEL_DISTANCE = 128.0D;
-    private static final double HOMING_HIT_MARGIN = 0.35D;
     private static final float SIZE_SCALE = 2.0F;
     private static final EntityDataAccessor<Integer> DATA_COLOR = SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> DATA_DAMAGE = SynchedEntityData.defineId(LightBladeChargeEntity.class, EntityDataSerializers.FLOAT);

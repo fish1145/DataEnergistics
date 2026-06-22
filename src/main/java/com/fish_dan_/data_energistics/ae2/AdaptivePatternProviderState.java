@@ -1,10 +1,12 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -396,7 +398,7 @@ public final class AdaptivePatternProviderState {
         int connectionCount = data.readVarInt();
         List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(connectionCount);
         for (int i = 0; i < connectionCount; i++) {
-            var dimension = ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, data.readResourceLocation());
+            var dimension = ResourceKey.create(Registries.DIMENSION, data.readResourceLocation());
             var pos = data.readBlockPos();
             var face = data.readEnum(Direction.class);
             incomingConnections.add(new AdaptiveWirelessConnection(dimension, pos, face));
@@ -447,7 +449,7 @@ public final class AdaptivePatternProviderState {
 
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            if (!Ae2LtPackagedRuntimeBridge.isAdapterItem(stack)) {
+            if (!ModFlags.isAe2LtPackagedProviderSupportLoaded() || !Ae2LtPackagedRuntimeBridge.isAdapterItem(stack)) {
                 return false;
             }
             return this.host == null || this.host.isAe2LtPackagedAdapterValid(stack);

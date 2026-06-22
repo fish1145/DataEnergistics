@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.world.entity.player.Inventory;
@@ -46,8 +47,8 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> 
             this.currentPower = (int) Math.round(host.getAECurrentPower());
             this.maxPower = (int) Math.round(host.getAEMaxPower());
             this.generatedPower = (int) Math.round(host.getGeneratedPowerPerTick());
-            this.speedCardCount = com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity.getSpeedCardCount(host.getUpgrades());
-            this.energyCardCount = com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity.getEnergyCardCount(host.getUpgrades());
+            this.speedCardCount = DataSolarPanelBlockEntity.getSpeedCardCount(host.getUpgrades());
+            this.energyCardCount = DataSolarPanelBlockEntity.getEnergyCardCount(host.getUpgrades());
             this.redstoneControlled = host.isRedstoneControlled();
         }
         super.broadcastChanges();

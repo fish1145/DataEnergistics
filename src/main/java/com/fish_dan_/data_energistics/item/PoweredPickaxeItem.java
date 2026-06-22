@@ -1,18 +1,22 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
@@ -22,6 +26,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
@@ -36,11 +41,11 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
     private static final ThreadLocal<Set<BlockPos>> FTB_ULTIMINE_DUPLICATED_POSITIONS = ThreadLocal.withInitial(HashSet::new);
 
     public PoweredPickaxeItem(Tier tier, Properties properties) {
-        super(tier, properties, tier.createToolProperties(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE));
+        super(tier, properties, tier.createToolProperties(BlockTags.MINEABLE_WITH_PICKAXE));
     }
 
     public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
-        return net.minecraft.world.item.DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
+        return DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
     }
 
     @Override
@@ -56,7 +61,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
 
     @Override
     public boolean hasDataFlowCellSupport(ItemStack stack) {
-        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+        return stack.is(ModItems.DATA_CRYSTAL_PICKAXE.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -159,7 +164,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
     }
 
     public static boolean tryDropDuplicateOreLoot(ItemStack stack, ServerLevel level, BlockPos pos, BlockState state, LivingEntity miner) {
-        if (!(stack.getItem() instanceof PoweredPickaxeItem pickaxe) || !stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_PICKAXE.get())) {
+        if (!(stack.getItem() instanceof PoweredPickaxeItem pickaxe) || !stack.is(ModItems.DATA_CRYSTAL_PICKAXE.get())) {
             return false;
         }
 
@@ -194,7 +199,7 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
 
     private static void dropDuplicateOreLoot(ServerLevel level, BlockPos pos, List<ItemStack> drops) {
         for (ItemStack drop : drops) {
-            net.minecraft.world.level.block.Block.popResource(level, pos, drop.copy());
+            Block.popResource(level, pos, drop.copy());
         }
     }
 
@@ -220,10 +225,10 @@ public class PoweredPickaxeItem extends AbstractPoweredTieredItem implements Con
                 BuiltInRegistries.ITEM.getKey(tool.getItem()),
                 tool.getItem() instanceof PoweredPickaxeItem pickaxe ? pickaxe.getAECurrentPower(tool) : 0.0D,
                 EnchantmentHelper.getItemEnchantmentLevel(
-                        level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
+                        level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
                         tool),
                 EnchantmentHelper.getItemEnchantmentLevel(
-                        level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
+                        level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
                         tool),
                 dropCount,
                 formatDrops(drops));

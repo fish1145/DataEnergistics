@@ -24,6 +24,7 @@ import appeng.core.AppEng;
 import appeng.items.misc.WrappedGenericStack;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -135,7 +136,7 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
         }
     }
 
-    private static void addNativeFluidSlot(mezz.jei.api.gui.builder.IRecipeSlotBuilder slotBuilder, GenericStack stack) {
+    private static void addNativeFluidSlot(IRecipeSlotBuilder slotBuilder, GenericStack stack) {
         if (!(stack.what() instanceof AEFluidKey fluidKey)) {
             slotBuilder.addItemStack(WrappedGenericStack.wrap(stack))
                     .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(stack))

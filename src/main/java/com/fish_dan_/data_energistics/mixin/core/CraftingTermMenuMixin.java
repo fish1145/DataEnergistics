@@ -18,6 +18,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 @Mixin(CraftingTermMenu.class)
 public abstract class CraftingTermMenuMixin {
 
@@ -43,7 +45,7 @@ public abstract class CraftingTermMenuMixin {
             stacks[i] = this.craftingSlots[i].getItem().copy();
         }
 
-        if (!DataCaptureBallCraftingRemainderHelper.canCraftDataReassembler(CraftingInput.of(3, 3, java.util.List.of(stacks)))) {
+        if (!DataCaptureBallCraftingRemainderHelper.canCraftDataReassembler(CraftingInput.of(3, 3, List.of(stacks)))) {
             this.outputSlot.set(ItemStack.EMPTY);
         }
     }

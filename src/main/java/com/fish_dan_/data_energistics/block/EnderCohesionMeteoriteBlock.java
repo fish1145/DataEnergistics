@@ -18,6 +18,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.core.definitions.AEItems;
 
+import java.util.Set;
+
 public class EnderCohesionMeteoriteBlock extends Block {
 
     private static final int TELEPORT_HALF_RANGE = 3;
@@ -118,7 +120,7 @@ public class EnderCohesionMeteoriteBlock extends Block {
                 continue;
             }
 
-            player.teleportTo(level, target.getX() + 0.5D, target.getY(), target.getZ() + 0.5D, java.util.Set.of(), player.getYRot(), player.getXRot());
+            player.teleportTo(level, target.getX() + 0.5D, target.getY(), target.getZ() + 0.5D, Set.of(), player.getYRot(), player.getXRot());
             player.fallDistance = 0.0F;
             return;
         }

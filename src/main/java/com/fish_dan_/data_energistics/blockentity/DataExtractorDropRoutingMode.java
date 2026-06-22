@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import lombok.Getter;
+
+@Getter
 public enum DataExtractorDropRoutingMode {
 
     OFF("off"),
@@ -12,10 +15,6 @@ public enum DataExtractorDropRoutingMode {
 
     DataExtractorDropRoutingMode(String serializedName) {
         this.serializedName = serializedName;
-    }
-
-    public String getSerializedName() {
-        return this.serializedName;
     }
 
     public DataExtractorDropRoutingMode next() {

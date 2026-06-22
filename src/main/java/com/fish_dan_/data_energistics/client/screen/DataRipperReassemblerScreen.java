@@ -24,8 +24,8 @@ import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
-import appeng.core.AppEng;
 import appeng.core.localization.Tooltips;
+import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,7 +34,6 @@ import java.util.List;
 
 public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperReassemblerMenu> {
 
-    private static final ResourceLocation MISSING_FLUID = AppEng.makeId("block/missing");
     private final ProgressBar progressBar;
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final OutputSideActionButton outputSideButton;
@@ -130,14 +129,14 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         return semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B || semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
     }
 
-    private Component getEmptySlotTooltip(appeng.menu.SlotSemantic semantic) {
+    private Component getEmptySlotTooltip(SlotSemantic semantic) {
         if (semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT) {
             return Component.translatable("screen.data_energistics.data_reassembler.key.empty");
         }
         return Component.translatable("screen.data_energistics.data_reassembler.fluid.empty");
     }
 
-    private Component getAmountTooltip(appeng.menu.SlotSemantic semantic, long amount) {
+    private Component getAmountTooltip(SlotSemantic semantic, long amount) {
         if (semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B) {
             return Component.literal(amount + " mB / " + this.menu.getFluidInputCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);

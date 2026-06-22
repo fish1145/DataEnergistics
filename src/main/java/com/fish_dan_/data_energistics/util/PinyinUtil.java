@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.integration.ModFlags;
 
+import me.towdium.jecharacters.utils.Match;
+
 public final class PinyinUtil {
 
     private PinyinUtil() {}
@@ -70,7 +72,7 @@ public final class PinyinUtil {
 
         static boolean contains(String text, String filter) {
             try {
-                return me.towdium.jecharacters.utils.Match.contains(text, filter);
+                return Match.contains(text, filter);
             } catch (NoClassDefFoundError | NoSuchMethodError ignored) {
                 return false;
             }

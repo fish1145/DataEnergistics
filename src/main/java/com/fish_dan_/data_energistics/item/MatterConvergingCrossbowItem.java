@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -44,6 +45,7 @@ import appeng.api.implementations.items.IAEItemPowerStorage;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.storage.cells.ISaveProvider;
@@ -105,7 +107,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return true;
         }
 
-        Optional<net.minecraft.core.HolderSet<Item>> primaryItems = enchantment.value().definition().primaryItems();
+        Optional<HolderSet<Item>> primaryItems = enchantment.value().definition().primaryItems();
         return this.supportsEnchantment(stack, enchantment) && (primaryItems.isEmpty() || stack.is(primaryItems.get()));
     }
 
@@ -215,11 +217,11 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     @Override
     public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
         StorageCell cellInventory = StorageCells.getCellInventory(stack, (ISaveProvider) null);
-        List<appeng.api.stacks.GenericStack> content = new ArrayList<>();
+        List<GenericStack> content = new ArrayList<>();
         if (cellInventory != null) {
             for (var entry : cellInventory.getAvailableStacks()) {
                 if (entry.getLongValue() > 0) {
-                    content.add(new appeng.api.stacks.GenericStack(entry.getKey(), entry.getLongValue()));
+                    content.add(new GenericStack(entry.getKey(), entry.getLongValue()));
                 }
             }
         }
@@ -534,10 +536,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     private boolean hasMaxSpeedCards(ItemStack stack) {
         return this.getUpgrades(stack).getInstalledUpgrades(AEItems.SPEED_CARD) >= MAX_SPEED_UPGRADES;
-    }
-
-    private int getSaberEnergyCardCount(ItemStack stack) {
-        return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
     }
 
     private float getProjectileSpeed(ItemStack stack, ItemStack ammoStack) {

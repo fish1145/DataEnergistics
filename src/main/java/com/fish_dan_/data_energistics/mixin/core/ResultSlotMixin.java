@@ -4,9 +4,11 @@ import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelpe
 import com.fish_dan_.data_energistics.util.PoweredCraftingEnergyHelper;
 
 import net.minecraft.core.NonNullList;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingInput.Positioned;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,10 +28,10 @@ public abstract class ResultSlotMixin {
                      ordinal = 1),
             locals = LocalCapture.CAPTURE_FAILHARD)
     private void dataEnergistics$consumePoweredRemainderEnergy(
-                                                               net.minecraft.world.entity.player.Player player,
+                                                               Player player,
                                                                ItemStack stack,
                                                                CallbackInfo ci,
-                                                               net.minecraft.world.item.crafting.CraftingInput.Positioned positioned,
+                                                               Positioned positioned,
                                                                CraftingInput input,
                                                                int left,
                                                                int top,

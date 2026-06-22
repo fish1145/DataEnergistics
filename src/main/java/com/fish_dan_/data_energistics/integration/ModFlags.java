@@ -6,48 +6,36 @@ public final class ModFlags {
 
     private ModFlags() {}
 
-    public static boolean isAnyRecipeViewerLoaded() {
-        return isLoaded("jei") || isLoaded("emi");
-    }
-
-    public static boolean isJEILoaded() {
-        return !isLoaded("emi") && isLoaded("jei");
-    }
-
-    public static boolean isEMILoaded() {
-        return isLoaded("emi");
-    }
-
-    public static boolean isAE2Loaded() {
-        return isLoaded("ae2");
-    }
-
-    public static boolean isSodiumLoaded() {
-        return isLoaded("sodium");
-    }
-
-    public static boolean isIrisLoaded() {
-        return isLoaded("iris");
-    }
-
     public static boolean isJechLoaded() {
         return isLoaded("jecharacters");
-    }
-
-    public static boolean isExtendedAePlusLoaded() {
-        return isLoaded("extendedae_plus");
     }
 
     public static boolean isAe2WtLibLoaded() {
         return isLoaded("ae2wtlib");
     }
 
+    public static boolean isAe2WtLibWirelessPatternEncodingSupportLoaded() {
+        return isAe2WtLibLoaded();
+    }
+
     public static boolean isAe2LtLoaded() {
         return isLoaded("ae2lt");
     }
 
+    public static boolean isAe2LtRuntimeSupportLoaded() {
+        return isAe2LtLoaded();
+    }
+
+    public static boolean isAe2LtWirelessSupportLoaded() {
+        return isAe2LtLoaded();
+    }
+
     public static boolean isAe2LtPackagedProviderLoaded() {
         return isLoaded("ae2ltpp");
+    }
+
+    public static boolean isAe2LtPackagedProviderSupportLoaded() {
+        return isAe2LtRuntimeSupportLoaded() && isAe2LtPackagedProviderLoaded();
     }
 
     public static boolean isCreateLoaded() {
@@ -62,6 +50,10 @@ public final class ModFlags {
         return isLoaded("appliedcreate");
     }
 
+    public static boolean isAppliedCreateMechanicalProviderSupportLoaded() {
+        return isCreateLoaded() && isAppliedCreateLoaded();
+    }
+
     public static boolean isMekanismLoaded() {
         return isLoaded("mekanism");
     }
@@ -70,12 +62,32 @@ public final class ModFlags {
         return isLoaded("appmek");
     }
 
+    public static boolean isAppMekChemicalSupportLoaded() {
+        return isMekanismLoaded() && isAppMekLoaded();
+    }
+
     public static boolean isAppFluxLoaded() {
         return isLoaded("appflux");
     }
 
+    public static boolean isAppFluxEnergySupportLoaded() {
+        return isAppFluxLoaded();
+    }
+
     public static boolean isOritechLoaded() {
         return isLoaded("oritech");
+    }
+
+    public static boolean isOritechEnergySupportLoaded() {
+        return isOritechLoaded();
+    }
+
+    public static boolean isNeoEcoAeLoaded() {
+        return isLoaded("neoecoae");
+    }
+
+    public static boolean isNeoEcoAeTowerSupportLoaded() {
+        return isNeoEcoAeLoaded();
     }
 
     private static boolean isLoaded(String modId) {

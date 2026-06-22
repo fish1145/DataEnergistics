@@ -25,6 +25,7 @@ import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepotBlockEntity> {
@@ -223,7 +224,7 @@ public class DigitalStorageDepotMenu extends UpgradeableMenu<DigitalStorageDepot
             case KEYS -> this.keyOutputSidesMask;
         };
 
-        java.util.ArrayList<Direction> sides = new java.util.ArrayList<>();
+        ArrayList<Direction> sides = new ArrayList<>();
         for (Direction side : Direction.values()) {
             if ((mask & (1 << side.ordinal())) != 0) {
                 sides.add(side);

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -42,13 +43,13 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     private static final int PAGE_BUTTON_Y = 92;
     private static final int PANEL_Y_OFFSET = 32;
 
-    private final net.minecraft.client.gui.screens.Screen screen;
+    private final Screen screen;
     private final Supplier<AEBaseMenu> menuSupplier;
     private UniversalTerminalCycleButton anchorButton;
     private boolean open;
     private int page;
 
-    public UniversalTerminalSelectorPanel(net.minecraft.client.gui.screens.Screen screen, Supplier<AEBaseMenu> menuSupplier,
+    public UniversalTerminalSelectorPanel(Screen screen, Supplier<AEBaseMenu> menuSupplier,
                                           UniversalTerminalCycleButton anchorButton) {
         super(0, 0, PANEL_WIDTH, PANEL_HEIGHT, Component.empty());
         this.screen = screen;

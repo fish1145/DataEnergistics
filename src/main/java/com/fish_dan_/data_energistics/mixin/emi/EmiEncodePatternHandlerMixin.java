@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.item.crafting.RecipeHolder;
 
+import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import org.spongepowered.asm.mixin.Mixin;
@@ -11,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(targets = "appeng.integration.modules.emi.EmiEncodePatternHandler", remap = false)
+@Mixin(value = EmiEncodePatternHandler.class, remap = false)
 public abstract class EmiEncodePatternHandlerMixin {
 
     @Inject(

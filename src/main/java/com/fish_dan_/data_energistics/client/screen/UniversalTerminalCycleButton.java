@@ -8,27 +8,29 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ITooltip;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 public class UniversalTerminalCycleButton extends Button implements ITooltip {
 
     private final Supplier<ItemStack> iconSupplier;
     private final Supplier<List<Component>> tooltipSupplier;
-    private final java.util.function.BooleanSupplier selectedSupplier;
-    private final @org.jetbrains.annotations.Nullable Supplier<int[]> fallbackPositionSupplier;
+    private final BooleanSupplier selectedSupplier;
+    private final @Nullable Supplier<int[]> fallbackPositionSupplier;
 
     public UniversalTerminalCycleButton(OnPress onPress, Supplier<ItemStack> iconSupplier,
                                         Supplier<List<Component>> tooltipSupplier,
-                                        java.util.function.BooleanSupplier selectedSupplier) {
+                                        BooleanSupplier selectedSupplier) {
         this(onPress, iconSupplier, tooltipSupplier, selectedSupplier, null);
     }
 
     public UniversalTerminalCycleButton(OnPress onPress, Supplier<ItemStack> iconSupplier,
                                         Supplier<List<Component>> tooltipSupplier,
-                                        java.util.function.BooleanSupplier selectedSupplier,
-                                        @org.jetbrains.annotations.Nullable Supplier<int[]> fallbackPositionSupplier) {
+                                        BooleanSupplier selectedSupplier,
+                                        @Nullable Supplier<int[]> fallbackPositionSupplier) {
         super(0, 0, 16, 16, Component.empty(), onPress, Button.DEFAULT_NARRATION);
         this.iconSupplier = iconSupplier;
         this.tooltipSupplier = tooltipSupplier;

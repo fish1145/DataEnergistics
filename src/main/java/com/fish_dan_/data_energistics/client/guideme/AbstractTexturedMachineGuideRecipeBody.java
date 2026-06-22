@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AmountFormat;
 import appeng.api.stacks.GenericStack;
 import guideme.document.LytRect;
 import guideme.document.block.LytBlock;
@@ -21,6 +22,7 @@ import guideme.document.interaction.GuideTooltip;
 import guideme.document.interaction.InteractiveElement;
 import guideme.layout.LayoutContext;
 import guideme.render.RenderContext;
+import guideme.siteexport.ResourceExporter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -243,7 +245,7 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
     }
 
     protected final String formatFullAmount(GenericStack stack) {
-        return stack.what().formatAmount(stack.amount(), appeng.api.stacks.AmountFormat.FULL);
+        return stack.what().formatAmount(stack.amount(), AmountFormat.FULL);
     }
 
     protected final String formatCompactAmount(GenericStack stack) {
@@ -312,6 +314,6 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
         }
 
         @Override
-        public void exportResources(guideme.siteexport.ResourceExporter exporter) {}
+        public void exportResources(ResourceExporter exporter) {}
     }
 }

@@ -34,6 +34,8 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
 
+import appeng.api.ids.AEComponents;
+import appeng.api.upgrades.UpgradeInventories;
 import appeng.core.definitions.AEItems;
 import appeng.items.misc.PaintBallItem;
 import org.jetbrains.annotations.Nullable;
@@ -49,7 +51,6 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private static final float DEFAULT_DATA_DUST_DAMAGE_RATIO = 0.01F;
     private static final float DATA_DUST_BASE_DAMAGE = 10.0F;
     private static final double SPECIAL_LIGHT_SABER_ENERGY = 20_000.0D;
-    private static final float SINGULARITY_EXPLOSION_RADIUS = 1.5F;
     private static final float CRIT_DAMAGE_BONUS = 1.5F;
     private static final double MAX_TRAVEL_DISTANCE = 256.0D;
     private static final double HOMING_RANGE = 24.0D;
@@ -252,7 +253,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private boolean isDataDustAmmo() {
-        return this.getItem().is(ModItems.DATA_LIGHT_SABER.get()) && Math.abs(this.getItem().getOrDefault(appeng.api.ids.AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
+        return this.getItem().is(ModItems.DATA_LIGHT_SABER.get()) && Math.abs(this.getItem().getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
     }
 
     public int getColor() {
@@ -427,7 +428,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private int getSaberEnergyCardCount(ItemStack stack) {
-        return Math.max(0, appeng.api.upgrades.UpgradeInventories.forItem(stack, 6)
+        return Math.max(0, UpgradeInventories.forItem(stack, 6)
                 .getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
     }
 

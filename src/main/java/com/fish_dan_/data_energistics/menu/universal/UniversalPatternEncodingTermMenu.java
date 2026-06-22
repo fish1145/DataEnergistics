@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -36,9 +37,11 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
 import appeng.core.definitions.AEItems;
+import appeng.helpers.patternprovider.PatternContainer;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 import org.jetbrains.annotations.Nullable;
@@ -90,7 +93,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     public boolean patternSourceEnabled = true;
     @GuiSync(895)
     @Nullable
-    public net.minecraft.resources.ResourceLocation lastEncodedPatternSource;
+    public ResourceLocation lastEncodedPatternSource;
     @GuiSync(896)
     public boolean uploadEnabled = true;
     @GuiSync(897)
@@ -98,8 +101,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @GuiSync(898)
     public int previewPanelOffsetY;
 
-    private final Map<appeng.helpers.patternprovider.PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
-    private final Map<Long, List<appeng.helpers.patternprovider.PatternContainer>> syncedPatternProvidersById = new HashMap<>();
+    private final Map<PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
+    private final Map<Long, List<PatternContainer>> syncedPatternProvidersById = new HashMap<>();
     private long nextSyncedPatternProviderId = 1;
     private int lastPatternProviderSyncTick = Integer.MIN_VALUE;
 
@@ -214,7 +217,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public appeng.parts.encoding.EncodingMode data_energistics$getEncodingMode() {
+    public EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
     }
 
@@ -302,7 +305,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public void data_energistics$setPendingPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
+    public void data_energistics$setPendingPatternSource(@Nullable ResourceLocation workstationId) {
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
                     workstationId != null ? workstationId.toString() : PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
@@ -317,8 +320,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @Nullable net.minecraft.resources.ResourceLocation data_energistics$getPendingPatternSource() {
-        net.minecraft.resources.ResourceLocation fallback = readFallbackPendingPatternSource();
+    public @Nullable ResourceLocation data_energistics$getPendingPatternSource() {
+        ResourceLocation fallback = readFallbackPendingPatternSource();
         return fallback != null ? fallback : PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
     }
 
@@ -353,17 +356,17 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @Nullable net.minecraft.resources.ResourceLocation data_energistics$getLastEncodedPatternSource() {
+    public @Nullable ResourceLocation data_energistics$getLastEncodedPatternSource() {
         if (this.lastEncodedPatternSource != null) {
             return this.lastEncodedPatternSource;
         }
 
-        net.minecraft.resources.ResourceLocation fallback = readFallbackLastEncodedPatternSource();
+        ResourceLocation fallback = readFallbackLastEncodedPatternSource();
         return fallback != null ? fallback : PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
     }
 
     @Override
-    public void data_energistics$setLastEncodedPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
+    public void data_energistics$setLastEncodedPatternSource(@Nullable ResourceLocation workstationId) {
         this.lastEncodedPatternSource = workstationId;
         writeFallbackLastEncodedPatternSource(workstationId);
         if (this.isServerSide()) {
@@ -577,13 +580,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         } catch (NumberFormatException ignored) {}
     }
 
-    private void renamePatternProvider(appeng.helpers.patternprovider.PatternContainer provider, @Nullable String name) {
+    private void renamePatternProvider(PatternContainer provider, @Nullable String name) {
         if (!PatternProviderSyncHelper.isRenameableProvider(provider)) {
             return;
         }
 
         String sanitized = name == null ? "" : name.trim();
-        var customName = sanitized.isEmpty() ? null : net.minecraft.network.chat.Component.literal(sanitized);
+        var customName = sanitized.isEmpty() ? null : Component.literal(sanitized);
         if (!PatternProviderNameHelper.setCustomName(provider, customName)) {
             return;
         }
@@ -634,22 +637,22 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Nullable
-    private net.minecraft.resources.ResourceLocation readFallbackPendingPatternSource() {
+    private ResourceLocation readFallbackPendingPatternSource() {
         Object value = readInheritedField(FALLBACK_PENDING_PATTERN_SOURCE_FIELD, this);
-        return value instanceof net.minecraft.resources.ResourceLocation id ? id : null;
+        return value instanceof ResourceLocation id ? id : null;
     }
 
-    private void writeFallbackPendingPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
+    private void writeFallbackPendingPatternSource(@Nullable ResourceLocation workstationId) {
         writeInheritedField(FALLBACK_PENDING_PATTERN_SOURCE_FIELD, this, workstationId);
     }
 
     @Nullable
-    private net.minecraft.resources.ResourceLocation readFallbackLastEncodedPatternSource() {
+    private ResourceLocation readFallbackLastEncodedPatternSource() {
         Object value = readInheritedField(FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD, this);
-        return value instanceof net.minecraft.resources.ResourceLocation id ? id : null;
+        return value instanceof ResourceLocation id ? id : null;
     }
 
-    private void writeFallbackLastEncodedPatternSource(@Nullable net.minecraft.resources.ResourceLocation workstationId) {
+    private void writeFallbackLastEncodedPatternSource(@Nullable ResourceLocation workstationId) {
         writeInheritedField(FALLBACK_LAST_ENCODED_PATTERN_SOURCE_FIELD, this, workstationId);
     }
 
