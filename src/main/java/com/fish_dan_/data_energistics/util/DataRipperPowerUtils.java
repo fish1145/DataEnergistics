@@ -32,10 +32,7 @@ public final class DataRipperPowerUtils {
             return 0.0D;
         }
 
-        return (basePower / 4.0D)
-                * getRemainingRatio(energyCardCount)
-                * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST)
-                * DATA_FLOW_COST_RATIO;
+        return (basePower / 4.0D) * getRemainingRatio(energyCardCount) * ((double) Config.dataRipperBaseCost / DEFAULT_BASE_COST) * DATA_FLOW_COST_RATIO;
     }
 
     public static double getRemainingRatio(int energyCardCount) {
