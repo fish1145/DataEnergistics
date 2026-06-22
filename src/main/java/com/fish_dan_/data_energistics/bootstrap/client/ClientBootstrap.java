@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
+import com.fish_dan_.data_energistics.client.DataEnergisticsClientBridgeImpl;
+
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
@@ -18,6 +21,7 @@ public final class ClientBootstrap {
     private ClientBootstrap() {}
 
     public static void init(IEventBus modEventBus) {
+        DataEnergisticsClientBridgeAccess.register(new DataEnergisticsClientBridgeImpl());
         modEventBus.register(ClientModEvents.class);
     }
 

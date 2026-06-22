@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics;
 
 import com.fish_dan_.data_energistics.bootstrap.common.CommonBootstrap;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
+import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -66,11 +66,7 @@ public class Data_Energistics {
         if (!isClientSide()) {
             return false;
         }
-        Object result = ReflectionAccess.invokeStatic(
-                "com.fish_dan_.data_energistics.client.ClientThreadHelper",
-                "isClientThread",
-                new Class<?>[0]);
-        return result instanceof Boolean clientThread && clientThread;
+        return DataEnergisticsClientBridgeAccess.get().isClientThread();
     }
 
     public static boolean isClientSide() {
