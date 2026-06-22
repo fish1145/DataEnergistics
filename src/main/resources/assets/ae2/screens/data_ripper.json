@@ -1,6 +1,6 @@
 {
 	"$schema": "schema.json",
-	"includes": ["common/common.json", "common/player_inventory.json"],
+	"includes": ["common/common.json", "common/player_inventory.json", "common/toolbox.json"],
 	"background": {
 		"texture": "guis/data_ripper.png",
 		"srcRect": [0, 0, 234, 220]
@@ -56,6 +56,19 @@
 			"left": 175,
 			"top": 6,
 			"grid": "BREAK_AFTER_3COLS"
+		},
+		"TOOLBOX": {
+			"right": 59,
+			"bottom": 60,
+			"grid": "BREAK_AFTER_3COLS"
+		}
+	},
+	"widgets": {
+		"toolbox": {
+			"right": 60,
+			"bottom": 66,
+			"width": 59,
+			"height": 66
 		}
 	}
 }

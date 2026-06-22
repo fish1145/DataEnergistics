@@ -30,13 +30,24 @@ By consuming data flow, it can accelerate machines, AE devices, and random ticks
 
 # Upgrades
 
+<ItemLink id="ae2:speed_card"/>
+
+<Row>
+    <ItemImage id="ae2:speed_card" />
+</Row>
+Speed Card:  
+1 card = 2x, 2 cards = 4x, 3 cards = 8x, 4 cards = 16x, 5 cards = 32x
+
+---
+
 <ItemLink id="data_energistics:card_saber_energy"/>
 
 <Row>
     <ItemImage id="data_energistics:card_saber_energy" />
 </Row>
 Saber Energy Card:  
-1 card = 16x, 2 cards = 64x, 3 cards = 256x, 4 cards = 512x, 5+ cards = 1024x
+Represents the last 5 acceleration tiers, but does not require all 5 Speed Cards first.  
+1 card = 64x, 2 cards = 128x, 3 cards = 256x, 4 cards = 512x, 5 cards = 1024x
 
 ---
 

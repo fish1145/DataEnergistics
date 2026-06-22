@@ -30,13 +30,24 @@ item_ids:
 
 # 升级
 
+<ItemLink id="ae2:speed_card"/>
+
+<Row>
+    <ItemImage id="ae2:speed_card" />
+</Row>
+加速卡：  
+1 张 = 2x，2 张 = 4x，3 张 = 8x，4 张 = 16x，5 张 = 32x
+
+---
+
 <ItemLink id="data_energistics:card_saber_energy"/>
 
 <Row>
     <ItemImage id="data_energistics:card_saber_energy" />
 </Row>
 聚能卡：  
-1 张 = 16x，2 张 = 64x，3 张 = 256x，4 张 = 512x，5 张及以上 = 1024x
+对应后 5 个倍率档位，但不要求先装满加速卡。  
+1 张 = 64x，2 张 = 128x，3 张 = 256x，4 张 = 512x，5 张 = 1024x
 
 ---
 
