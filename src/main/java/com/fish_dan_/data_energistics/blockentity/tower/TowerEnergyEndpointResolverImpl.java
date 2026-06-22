@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 
@@ -57,7 +58,10 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
             return null;
         }
         IEnergyStorage storage = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos, side);
-        return storage != null ? storage : this.oritechEnergyBridge.findEnergyStorage(level, pos, side);
+        if (storage != null || !ModFlags.isOritechEnergySupportLoaded()) {
+            return storage;
+        }
+        return this.oritechEnergyBridge.findEnergyStorage(level, pos, side);
     }
 
     @Override

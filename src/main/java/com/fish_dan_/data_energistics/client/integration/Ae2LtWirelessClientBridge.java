@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.client.integration;
 
-import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.renderer.RenderType;
@@ -17,9 +16,6 @@ public final class Ae2LtWirelessClientBridge {
     private Ae2LtWirelessClientBridge() {}
 
     public static @Nullable RenderType getFaceSeeThroughRenderType() {
-        if (!Ae2LtWirelessBridge.isAvailable()) {
-            return null;
-        }
         if (!renderInitialized) {
             initializeRender();
         }

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.integration.tower;
 
-import com.fish_dan_.data_energistics.integration.OritechEnergyIntegration;
+import com.fish_dan_.data_energistics.integration.oritech.OritechEnergyIntegration;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

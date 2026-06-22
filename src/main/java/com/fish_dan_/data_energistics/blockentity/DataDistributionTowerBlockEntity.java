@@ -18,7 +18,8 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolv
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
 import com.fish_dan_.data_energistics.config.Config;
-import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
@@ -958,7 +959,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return true;
         }
 
-        if (AE2FluxIntegration.isAvailable() && AE2FluxIntegration.extractEnergyFromOwnNetwork(this, 1, true) > 0) {
+        if (ModFlags.isAppFluxEnergySupportLoaded() && AE2FluxIntegration.extractEnergyFromOwnNetwork(this, 1, true) > 0) {
             return true;
         }
 

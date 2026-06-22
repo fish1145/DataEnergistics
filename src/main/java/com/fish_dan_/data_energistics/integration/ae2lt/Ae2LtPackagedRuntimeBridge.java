@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration;
+package com.fish_dan_.data_energistics.integration.ae2lt;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -42,11 +42,7 @@ public final class Ae2LtPackagedRuntimeBridge {
 
     private Ae2LtPackagedRuntimeBridge() {}
 
-    public static boolean isAvailable() {
-        if (!ModFlags.isAe2LtPackagedProviderLoaded()) {
-            return false;
-        }
-
+    public static boolean isReady() {
         if (!initialized) {
             initialize();
         }
@@ -55,7 +51,7 @@ public final class Ae2LtPackagedRuntimeBridge {
     }
 
     public static boolean isAdapterItem(ItemStack stack) {
-        if (stack.isEmpty() || !isAvailable()) {
+        if (stack.isEmpty() || !isReady()) {
             return false;
         }
 
@@ -64,7 +60,7 @@ public final class Ae2LtPackagedRuntimeBridge {
     }
 
     public static boolean isSupportedTarget(ServerLevel level, BlockPos pos) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return false;
         }
 
@@ -106,8 +102,8 @@ public final class Ae2LtPackagedRuntimeBridge {
                                    @Nullable Object allowedOutputFilter,
                                    IActionSource actionSource,
                                    PatternProviderReturnInventory returnInventory) {
-        if (!isAvailable() || patternDetails == null) {
-            logDispatch("dispatch aborted: bridge unavailable={} patternNull={} pos={}", !isAvailable(), patternDetails == null, pos);
+        if (!isReady() || patternDetails == null) {
+            logDispatch("dispatch aborted: bridge unavailable={} patternNull={} pos={}", !isReady(), patternDetails == null, pos);
             return false;
         }
 
@@ -198,7 +194,7 @@ public final class Ae2LtPackagedRuntimeBridge {
                                                     BlockPos pos,
                                                     @Nullable Object allowedOutputFilter,
                                                     IActionSource actionSource) {
-        if (!isAvailable() || allowedOutputFilter == null) {
+        if (!isReady() || allowedOutputFilter == null) {
             return List.of();
         }
 

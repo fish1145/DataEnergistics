@@ -114,7 +114,7 @@ public final class AdaptivePatternProviderResolver {
     }
 
     public static boolean isAe2LightningTechOverloadPatternStack(ItemStack stack) {
-        if (!ModFlags.isAe2LtLoaded() || stack.isEmpty()) {
+        if (!ModFlags.isAe2LtRuntimeSupportLoaded() || stack.isEmpty()) {
             return false;
         }
 
@@ -287,7 +287,7 @@ public final class AdaptivePatternProviderResolver {
 
     @Nullable
     private static ProviderProfile resolveAe2LightningTechProfile(ItemStack stack) {
-        if (!ModFlags.isAe2LtLoaded()) {
+        if (!ModFlags.isAe2LtRuntimeSupportLoaded()) {
             return null;
         }
 
@@ -305,7 +305,7 @@ public final class AdaptivePatternProviderResolver {
 
     @Nullable
     private static ProviderProfile resolveAe2LtPackagedProviderProfile(ItemStack stack) {
-        if (!ModFlags.isAe2LtPackagedProviderLoaded()) {
+        if (!ModFlags.isAe2LtPackagedProviderSupportLoaded()) {
             return null;
         }
 

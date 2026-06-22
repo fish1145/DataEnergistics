@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 
@@ -135,7 +136,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
 
     @Override
     public boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
-        if (this.neoEcoAeBridge.isSubsystemComponent(blockEntity)) {
+        if (ModFlags.isNeoEcoAeTowerSupportLoaded() && this.neoEcoAeBridge.isSubsystemComponent(blockEntity)) {
             return !this.neoEcoAeBridge.isPreferredSubsystemHost(blockEntity);
         }
         return isAeCraftingNoiseTarget(blockEntity);

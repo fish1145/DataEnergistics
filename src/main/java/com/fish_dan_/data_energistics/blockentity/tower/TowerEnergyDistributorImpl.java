@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
 
 import net.minecraft.core.BlockPos;
@@ -83,7 +84,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             long actuallyExtracted = 0;
             long remainingExtraction = transferAmount;
 
-            if (AE2FluxIntegration.isAvailable()) {
+            if (ModFlags.isAppFluxEnergySupportLoaded()) {
                 long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), remainingExtraction, false);
                 if (extracted > 0) {
                     actuallyExtracted += extracted;
@@ -193,7 +194,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         List<TowerEnergyEndpoint> receiveEndpoints = this.endpointResolver.getCachedResolvedEnergyEndpoints(true);
 
         long aeExtractable = 0;
-        if (AE2FluxIntegration.isAvailable()) {
+        if (ModFlags.isAppFluxEnergySupportLoaded()) {
             aeExtractable = Math.max(0L, AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), Long.MAX_VALUE, true));
         }
 
@@ -383,7 +384,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long totalExtracted = 0;
         long remaining = amount;
 
-        if (AE2FluxIntegration.isAvailable()) {
+        if (ModFlags.isAppFluxEnergySupportLoaded()) {
             long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), remaining, simulate);
             if (extracted > 0) {
                 totalExtracted += extracted;
@@ -445,7 +446,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             totalCapacity = saturatingAdd(totalCapacity, endpoint.storage().getMaxEnergyStored());
         }
         long aeExtractable = 0L;
-        if (AE2FluxIntegration.isAvailable()) {
+        if (ModFlags.isAppFluxEnergySupportLoaded()) {
             aeExtractable = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
             totalStored = saturatingAdd(totalStored, aeExtractable);
         }

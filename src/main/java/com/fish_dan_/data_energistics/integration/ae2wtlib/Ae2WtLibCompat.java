@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration;
+package com.fish_dan_.data_energistics.integration.ae2wtlib;
 
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
@@ -13,7 +13,7 @@ public final class Ae2WtLibCompat {
 
     @SuppressWarnings("unchecked")
     public static <T> T maybeReplaceWirelessPatternEncodingScreen(Object currentScreen, boolean applyImmediately) {
-        if (FMLEnvironment.dist != Dist.CLIENT || !ModFlags.isAe2WtLibLoaded() || currentScreen == null) {
+        if (FMLEnvironment.dist != Dist.CLIENT || currentScreen == null) {
             return null;
         }
 

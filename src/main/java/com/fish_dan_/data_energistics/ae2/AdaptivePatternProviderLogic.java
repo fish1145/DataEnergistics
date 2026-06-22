@@ -4,9 +4,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicFieldAccess;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
-import com.fish_dan_.data_energistics.integration.Ae2LtPackagedRuntimeBridge;
-import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
-import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtRuntimeBridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -427,7 +427,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     private boolean pushAe2LightningTechOverloadedPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         boolean active = this.mainNode.isActive();
         boolean available = isAe2LtPatternAvailable(patternDetails);
-        boolean bridgeAvailable = Ae2LtRuntimeBridge.isAvailable();
+        boolean bridgeAvailable = Ae2LtRuntimeBridge.isReady();
 
         if (!active || !available) {
             return false;
@@ -475,7 +475,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
             logAe2LtPackaged("push aborted: pattern not available in provider cache, pattern={}", patternDetails.getClass().getName());
             return false;
         }
-        if (!Ae2LtPackagedRuntimeBridge.isAvailable()) {
+        if (!Ae2LtPackagedRuntimeBridge.isReady()) {
             logAe2LtPackaged("push aborted: runtime bridge unavailable");
             return false;
         }
@@ -843,15 +843,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LightningTechOverloadedProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
+        return ModFlags.isAe2LtRuntimeSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private boolean isAe2LtPackagedProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedProviderSelected();
+        return ModFlags.isAe2LtPackagedProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedProviderSelected();
     }
 
     private boolean isAe2LtPackagedWirelessProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedWirelessProviderSelected();
+        return ModFlags.isAe2LtPackagedProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtPackagedWirelessProviderSelected();
     }
 
     private boolean isAe2LtProviderFamilySelected() {
@@ -866,7 +866,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAppliedCreateMechanicalProviderSelected() {
-        return AppliedCreateCompat.isMechanicalProviderSupportEnabled() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
+        return ModFlags.isAppliedCreateMechanicalProviderSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
     }
 
     private boolean isMeteoritePatternProvider() {
@@ -874,7 +874,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private boolean isAe2LtWirelessMode() {
-        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessMode();
+        return ModFlags.isAe2LtWirelessSupportLoaded() && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAe2LtWirelessMode();
     }
 
     private boolean isAe2LtWirelessConnectableProviderSelected() {
@@ -2380,6 +2380,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
     }
 
     private void refreshAe2LtEjectRegistrations() {
+        if (!ModFlags.isAe2LtRuntimeSupportLoaded()) {
+            return;
+        }
         if (!(this.host instanceof AdaptivePatternProviderHost adaptive)) {
             return;
         }

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration;
+package com.fish_dan_.data_energistics.integration.ae2lt;
 
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
@@ -53,11 +53,7 @@ public final class Ae2LtRuntimeBridge {
 
     private Ae2LtRuntimeBridge() {}
 
-    public static boolean isAvailable() {
-        if (!ModFlags.isAe2LtLoaded()) {
-            return false;
-        }
-
+    public static boolean isReady() {
         if (!initialized) {
             initialize();
         }
@@ -74,7 +70,7 @@ public final class Ae2LtRuntimeBridge {
                                                               Set<AEKey> patternInputs,
                                                               IActionSource actionSource,
                                                               @Nullable PatternProviderTarget fallbackTarget) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return null;
         }
 
@@ -131,7 +127,7 @@ public final class Ae2LtRuntimeBridge {
                                     BlockPos pos,
                                     Direction face,
                                     IPatternDetails patternDetails) {
-        if (!isAvailable() || patternDetails == null) {
+        if (!isReady() || patternDetails == null) {
             return false;
         }
 
@@ -156,7 +152,7 @@ public final class Ae2LtRuntimeBridge {
     public static boolean shouldBypassAdvancedBlocking(PatternProviderLogic logic,
                                                        PatternProviderTarget target,
                                                        IPatternDetails patternDetails) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return false;
         }
 
@@ -179,7 +175,7 @@ public final class Ae2LtRuntimeBridge {
                                         List<GenericStack> overflow,
                                         IActionSource actionSource,
                                         @Nullable PatternProviderTarget fallbackTarget) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return false;
         }
 
@@ -212,7 +208,7 @@ public final class Ae2LtRuntimeBridge {
                                                     Direction face,
                                                     @Nullable Object allowedOutputFilter,
                                                     IActionSource actionSource) {
-        if (!isAvailable() || allowedOutputFilter == null) {
+        if (!isReady() || allowedOutputFilter == null) {
             return List.of();
         }
 
@@ -253,7 +249,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static long maxAffordable(IGrid grid, AEKey key, long amount) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return 0L;
         }
 
@@ -271,7 +267,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static void consume(IGrid grid, AEKey key, long amount) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return;
         }
 
@@ -284,7 +280,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static double totalCost(KeyCounter[] inputHolder) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return 0.0D;
         }
 
@@ -302,7 +298,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static boolean canAffordRaw(IGrid grid, double totalCost) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return true;
         }
 
@@ -320,7 +316,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static void consumeRaw(IGrid grid, double totalCost) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return;
         }
 
@@ -333,7 +329,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static @Nullable Object overloadPatternDetailsView(IPatternDetails pattern) {
-        if (!isAvailable() || pattern == null) {
+        if (!isReady() || pattern == null) {
             return null;
         }
 
@@ -355,7 +351,7 @@ public final class Ae2LtRuntimeBridge {
         if (patterns.contains(pattern)) {
             return true;
         }
-        if (!isAvailable() || pattern == null) {
+        if (!isReady() || pattern == null) {
             return false;
         }
 
@@ -373,7 +369,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static @Nullable IPatternDetails unwrapSmartDoublingPattern(IPatternDetails pattern) {
-        if (!isAvailable() || pattern == null) {
+        if (!isReady() || pattern == null) {
             return null;
         }
 
@@ -391,7 +387,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static void applySmartDoubling(PatternProviderLogic logic, List<IPatternDetails> patterns) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return;
         }
 
@@ -405,7 +401,7 @@ public final class Ae2LtRuntimeBridge {
 
     @SuppressWarnings("unchecked")
     public static @Nullable List<Object> overloadOutputs(Object overloadDetails) {
-        if (!isAvailable() || overloadDetails == null) {
+        if (!isReady() || overloadDetails == null) {
             return null;
         }
 
@@ -425,7 +421,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static @Nullable String overloadOutputMatchMode(Object outputSlot) {
-        if (!isAvailable() || outputSlot == null) {
+        if (!isReady() || outputSlot == null) {
             return null;
         }
 
@@ -445,7 +441,7 @@ public final class Ae2LtRuntimeBridge {
     }
 
     public static @Nullable ItemStack overloadOutputTemplate(Object outputSlot) {
-        if (!isAvailable() || outputSlot == null) {
+        if (!isReady() || outputSlot == null) {
             return null;
         }
 
@@ -468,7 +464,7 @@ public final class Ae2LtRuntimeBridge {
                                                  List<AdaptiveWirelessConnection> connections,
                                                  boolean ejectModeEnabled,
                                                  boolean wirelessModeEnabled) {
-        if (!isAvailable() || !(host.getLevel() instanceof ServerLevel level)) {
+        if (!isReady() || !(host.getLevel() instanceof ServerLevel level)) {
             return;
         }
 

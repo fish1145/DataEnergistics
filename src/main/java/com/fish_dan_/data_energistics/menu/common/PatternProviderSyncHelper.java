@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.menu.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
-import com.fish_dan_.data_energistics.integration.SomeUselessThingsCompat;
+import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;

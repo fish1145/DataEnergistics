@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.useless;
 
-import com.fish_dan_.data_energistics.integration.SomeUselessThingsCompat;
+import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

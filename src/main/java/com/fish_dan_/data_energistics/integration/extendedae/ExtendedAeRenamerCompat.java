@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration;
+package com.fish_dan_.data_energistics.integration.extendedae;
 
 import com.fish_dan_.data_energistics.registry.ModItems;
 

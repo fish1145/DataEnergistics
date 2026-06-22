@@ -4,7 +4,8 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
-import com.fish_dan_.data_energistics.integration.AppMekCompat;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.appmek.AppMekCompat;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
 import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
@@ -165,7 +166,9 @@ final class CommonCapabilityRegistrar {
                 Capabilities.FluidHandler.BLOCK,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalReturnFluidHandler(context));
-        AppMekCompat.registerChemicalBlockEntityCapabilities(event);
+        if (ModFlags.isAppMekChemicalSupportLoaded()) {
+            AppMekCompat.registerChemicalBlockEntityCapabilities(event);
+        }
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 AEBlockEntities.CABLE_BUS.get(),
@@ -196,7 +199,9 @@ final class CommonCapabilityRegistrar {
 
                     return null;
                 });
-        AppMekCompat.registerChemicalCableBusCapabilities(event);
+        if (ModFlags.isAppMekChemicalSupportLoaded()) {
+            AppMekCompat.registerChemicalCableBusCapabilities(event);
+        }
         event.registerBlockEntity(
                 AECapabilities.CRANKABLE,
                 AEBlockEntities.CONTROLLER.get(),

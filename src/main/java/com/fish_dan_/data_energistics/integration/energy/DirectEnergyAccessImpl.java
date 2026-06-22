@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.MethodHandles;
@@ -28,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
 
-    private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final List<String> ENERGY_FIELD_NAMES = List.of("energy", "storedEnergy", "energyStored", "stored", "amount");
     private static final List<String> CAPACITY_FIELD_NAMES = List.of("capacity", "maxEnergy", "maxEnergyStored", "maxStored", "maxStorage");
@@ -119,7 +117,7 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
         try {
             return handle.get(storage);
         } catch (RuntimeException | LinkageError e) {
-            LOGGER.debug("Could not read direct energy wrapper field from {}", storage.getClass().getName(), e);
+            Data_Energistics.LOGGER.debug("Could not read direct energy wrapper field from {}", storage.getClass().getName(), e);
             return null;
         }
     }
@@ -133,13 +131,13 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                 if (method.getReturnType() == long.class) {
                     return Optional.of(method);
                 }
-                LOGGER.debug("Direct energy method {}#insertIgnoringLimit has unsupported return type {}", type.getName(), method.getReturnType().getName());
+                Data_Energistics.LOGGER.debug("Direct energy method {}#insertIgnoringLimit has unsupported return type {}", type.getName(), method.getReturnType().getName());
                 return Optional.empty();
             } catch (NoSuchMethodException e) {
-                LOGGER.trace("Direct energy method {}#insertIgnoringLimit not found", type.getName(), e);
+                Data_Energistics.LOGGER.trace("Direct energy method {}#insertIgnoringLimit not found", type.getName(), e);
                 type = type.getSuperclass();
             } catch (RuntimeException e) {
-                LOGGER.debug("Could not inspect direct energy insert method on {}", type.getName(), e);
+                Data_Energistics.LOGGER.debug("Could not inspect direct energy insert method on {}", type.getName(), e);
                 return Optional.empty();
             }
         }
@@ -160,10 +158,10 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                     field.setAccessible(true);
                     return Optional.of(MethodHandles.privateLookupIn(type, LOOKUP).unreflectVarHandle(field));
                 } catch (NoSuchFieldException e) {
-                    LOGGER.trace("Direct energy wrapper field {}#{} not found", type.getName(), fieldName, e);
+                    Data_Energistics.LOGGER.trace("Direct energy wrapper field {}#{} not found", type.getName(), fieldName, e);
                     type = type.getSuperclass();
                 } catch (IllegalAccessException | RuntimeException | LinkageError e) {
-                    LOGGER.debug("Could not inspect direct energy wrapper field {}#{}", type.getName(), fieldName, e);
+                    Data_Energistics.LOGGER.debug("Could not inspect direct energy wrapper field {}#{}", type.getName(), fieldName, e);
                     break;
                 }
             }
@@ -190,13 +188,13 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                 if (method.getReturnType() == long.class) {
                     return Optional.of(method);
                 }
-                LOGGER.debug("Direct energy method {}#{} has unsupported return type {}", type.getName(), methodName, method.getReturnType().getName());
+                Data_Energistics.LOGGER.debug("Direct energy method {}#{} has unsupported return type {}", type.getName(), methodName, method.getReturnType().getName());
                 return Optional.empty();
             } catch (NoSuchMethodException e) {
-                LOGGER.trace("Direct energy method {}#{} not found", type.getName(), methodName, e);
+                Data_Energistics.LOGGER.trace("Direct energy method {}#{} not found", type.getName(), methodName, e);
                 type = type.getSuperclass();
             } catch (RuntimeException e) {
-                LOGGER.debug("Could not inspect direct energy method {}#{}", type.getName(), methodName, e);
+                Data_Energistics.LOGGER.debug("Could not inspect direct energy method {}#{}", type.getName(), methodName, e);
                 return Optional.empty();
             }
         }
@@ -212,13 +210,13 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                 if (method.getReturnType() == returnType) {
                     return Optional.of(method);
                 }
-                LOGGER.debug("Direct energy method {}#{} has unsupported return type {}", type.getName(), methodName, method.getReturnType().getName());
+                Data_Energistics.LOGGER.debug("Direct energy method {}#{} has unsupported return type {}", type.getName(), methodName, method.getReturnType().getName());
                 return Optional.empty();
             } catch (NoSuchMethodException e) {
-                LOGGER.trace("Direct energy method {}#{} not found", type.getName(), methodName, e);
+                Data_Energistics.LOGGER.trace("Direct energy method {}#{} not found", type.getName(), methodName, e);
                 type = type.getSuperclass();
             } catch (RuntimeException e) {
-                LOGGER.debug("Could not inspect direct energy method {}#{}", type.getName(), methodName, e);
+                Data_Energistics.LOGGER.debug("Could not inspect direct energy method {}#{}", type.getName(), methodName, e);
                 return Optional.empty();
             }
         }
@@ -239,10 +237,10 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                     field.setAccessible(true);
                     return Optional.of(MethodHandles.privateLookupIn(type, LOOKUP).unreflectVarHandle(field));
                 } catch (NoSuchFieldException e) {
-                    LOGGER.trace("Direct energy numeric field {}#{} not found", type.getName(), fieldName, e);
+                    Data_Energistics.LOGGER.trace("Direct energy numeric field {}#{} not found", type.getName(), fieldName, e);
                     type = type.getSuperclass();
                 } catch (IllegalAccessException | RuntimeException | LinkageError e) {
-                    LOGGER.debug("Could not inspect direct energy numeric field {}#{}", type.getName(), fieldName, e);
+                    Data_Energistics.LOGGER.debug("Could not inspect direct energy numeric field {}#{}", type.getName(), fieldName, e);
                     break;
                 }
             }
@@ -265,7 +263,7 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
         try {
             return method.invoke(target, args);
         } catch (IllegalAccessException | InvocationTargetException | RuntimeException e) {
-            LOGGER.debug("Could not invoke direct energy method {}#{}", method.getDeclaringClass().getName(), method.getName(), e);
+            Data_Energistics.LOGGER.debug("Could not invoke direct energy method {}#{}", method.getDeclaringClass().getName(), method.getName(), e);
             return null;
         }
     }
@@ -279,10 +277,10 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                 invoke(method, target);
                 return;
             } catch (NoSuchMethodException e) {
-                LOGGER.trace("Direct energy notification method {}#{} not found", type.getName(), methodName, e);
+                Data_Energistics.LOGGER.trace("Direct energy notification method {}#{} not found", type.getName(), methodName, e);
                 type = type.getSuperclass();
             } catch (RuntimeException e) {
-                LOGGER.debug("Could not inspect direct energy notification method {}#{}", type.getName(), methodName, e);
+                Data_Energistics.LOGGER.debug("Could not inspect direct energy notification method {}#{}", type.getName(), methodName, e);
                 return;
             }
         }
@@ -424,7 +422,7 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                 Object value = handle.get(target);
                 return value instanceof Number number ? number.longValue() : null;
             } catch (RuntimeException | LinkageError e) {
-                LOGGER.debug("Could not read direct energy amount from {}", target.getClass().getName(), e);
+                Data_Energistics.LOGGER.debug("Could not read direct energy amount from {}", target.getClass().getName(), e);
                 return null;
             }
         }
@@ -443,7 +441,7 @@ public final class DirectEnergyAccessImpl implements DirectEnergyAccess {
                 }
                 return true;
             } catch (RuntimeException | LinkageError e) {
-                LOGGER.debug("Could not write direct energy amount to {}", target.getClass().getName(), e);
+                Data_Energistics.LOGGER.debug("Could not write direct energy amount to {}", target.getClass().getName(), e);
                 return false;
             }
         }

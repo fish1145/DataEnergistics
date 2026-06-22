@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.integration.ExtendedAeRenamerCompat;
+import com.fish_dan_.data_energistics.integration.extendedae.ExtendedAeRenamerCompat;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.network.chat.Component;

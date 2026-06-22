@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.integration;
+package com.fish_dan_.data_energistics.integration.oritech;
 
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
@@ -49,7 +49,7 @@ public final class OritechEnergyIntegration {
 
     @Nullable
     public static IEnergyStorage findEnergyStorage(Level level, BlockPos pos, @Nullable Direction side) {
-        if (!isAvailable()) {
+        if (!isReady()) {
             return null;
         }
 
@@ -62,10 +62,7 @@ public final class OritechEnergyIntegration {
         return energyStorageClass.isInstance(storage) ? new OritechEnergyStorage(storage) : null;
     }
 
-    private static boolean isAvailable() {
-        if (!ModFlags.isOritechLoaded()) {
-            return false;
-        }
+    private static boolean isReady() {
         if (!initialized) {
             initialize();
         }

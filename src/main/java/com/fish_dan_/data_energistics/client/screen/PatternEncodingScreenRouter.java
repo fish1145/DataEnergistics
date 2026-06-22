@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.ae2wtlib.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 
 import net.minecraft.client.Minecraft;
@@ -16,13 +17,15 @@ public final class PatternEncodingScreenRouter {
 
     public static void onScreenInitPost(ScreenEvent.Init.Post event) {
         maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
-        Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
+        if (ModFlags.isAe2WtLibWirelessPatternEncodingSupportLoaded()) {
+            Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
+        }
     }
 
     public static Screen routeOpeningScreen(Screen currentScreen) {
         Screen replacement = maybeReplaceNativePatternEncodingScreen(currentScreen, false);
-        if (replacement == null) {
-            replacement = Ae2WtLibCompat.<Screen>maybeReplaceWirelessPatternEncodingScreen(currentScreen, false);
+        if (replacement == null && ModFlags.isAe2WtLibWirelessPatternEncodingSupportLoaded()) {
+            replacement = Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(currentScreen, false);
         }
         return replacement;
     }

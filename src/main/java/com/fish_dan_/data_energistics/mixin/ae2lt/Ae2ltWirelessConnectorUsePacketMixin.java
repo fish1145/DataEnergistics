@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.ae2lt;
 
-import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
-import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtAdaptiveProviderCompat;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtWirelessBridge;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
