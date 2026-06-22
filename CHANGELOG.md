@@ -1,5 +1,24 @@
 # ChangeLog
 
+## Version [v2.0.0](https://github.com/fish1145/DataEnergistics/compare/v1.4.0-1.21...v2.0.0-1.21)
+### Added
+
+- 实现样板上传面板拖动持久化 by @QiuYe-123 in [#58](https://github.com/fish1145/DataEnergistics/pull/58)
+- Add Data Disorder mob effect by @fish1145 in [#56](https://github.com/fish1145/DataEnergistics/pull/56)
+- Adjust powered tiered tool energy costs by @fish1145 in [#57](https://github.com/fish1145/DataEnergistics/pull/57)
+- 上传面板:提高显示层级 by @QiuYe-123 in [#59](https://github.com/fish1145/DataEnergistics/pull/59)
+- Fix data ripper upgrade slots and tooltips by @QiuYe-123 in [#60](https://github.com/fish1145/DataEnergistics/pull/60)
+- 修复自适应样板供应器集成与红石调谐 Mixin by @QiuYe-123 in [#62](https://github.com/fish1145/DataEnergistics/pull/62)
+
+### Fixed
+
+- 实现样板上传面板拖动持久化 by @QiuYe-123 in [#58](https://github.com/fish1145/DataEnergistics/pull/58)
+
+### Changed
+
+- 优化架构拆分、迁移 GameTest 并清理未用代码 by @QiuYe-123 in [#63](https://github.com/fish1145/DataEnergistics/pull/63)
+
+ 
 ## Version [v1.4.0](https://github.com/fish1145/DataEnergistics/compare/v1.3.0-1.21...v1.4.0-1.21)
 ### Added
 
