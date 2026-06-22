@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.neoforged.neoforge.client.event.AddSectionGeometryEvent;
 
 import cn.dancingsnow.neoecoae.api.rendering.FixedBlockEntityRenderers;
+import cn.dancingsnow.neoecoae.client.NeoECOAEClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Unique;
@@ -15,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Pseudo
-@Mixin(targets = "cn.dancingsnow.neoecoae.client.NeoECOAEClient", remap = false)
+@Mixin(value = NeoECOAEClient.class, remap = false)
 public class NeoECOAEClientMixin {
 
     @Unique

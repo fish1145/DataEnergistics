@@ -18,6 +18,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import com.moakiee.ae2lt.network.WirelessConnectorUsePacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -27,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
 
-@Mixin(targets = "com.moakiee.ae2lt.network.WirelessConnectorUsePacket", remap = false)
+@Mixin(value = WirelessConnectorUsePacket.class, remap = false)
 public abstract class Ae2ltWirelessConnectorUsePacketMixin {
 
     @Shadow

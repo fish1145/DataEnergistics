@@ -24,6 +24,7 @@ dependencies {
     compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
     compileOnly(forge.sut)
+    compileOnly(forge.ae2ji)
     compileOnly(forge.amek)
     compileOnly(forge.mek)
     compileOnly(forge.eco)

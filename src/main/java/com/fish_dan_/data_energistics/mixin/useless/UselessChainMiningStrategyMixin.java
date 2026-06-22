@@ -8,11 +8,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
+import com.sorrowmist.useless.utils.mining.ChainMiningStrategy;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-@Mixin(targets = "com.sorrowmist.useless.utils.mining.ChainMiningStrategy", remap = false)
+@Mixin(value = ChainMiningStrategy.class, remap = false)
 public abstract class UselessChainMiningStrategyMixin {
 
     @Redirect(

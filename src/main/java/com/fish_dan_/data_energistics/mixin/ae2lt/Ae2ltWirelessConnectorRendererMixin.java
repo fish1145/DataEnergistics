@@ -25,6 +25,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 import appeng.client.render.overlay.OverlayRenderType;
+import com.moakiee.ae2lt.client.WirelessConnectorRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
@@ -41,7 +42,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
-@Mixin(targets = "com.moakiee.ae2lt.client.WirelessConnectorRenderer", remap = false)
+@Mixin(value = WirelessConnectorRenderer.class, remap = false)
 public abstract class Ae2ltWirelessConnectorRendererMixin {
 
     @Unique

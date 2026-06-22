@@ -7,6 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.recipes.handlers.InscriberRecipe;
 import appeng.util.inv.AppEngInternalInventory;
+import com.glodblock.github.extendedae.common.me.InscriberThread;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -17,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Pseudo
-@Mixin(targets = "com.glodblock.github.extendedae.common.me.InscriberThread")
+@Mixin(InscriberThread.class)
 public abstract class ExtendedInscriberThreadMixin {
 
     @Final

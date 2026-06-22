@@ -6,16 +6,21 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
 import appeng.api.stacks.AEKey;
+import appeng.client.gui.me.common.FinishedJobToast;
+import appeng.client.gui.me.common.MEStorageScreen;
+import appeng.client.gui.me.crafting.AbstractTableRenderer;
+import appeng.client.gui.me.networktool.NetworkStatusScreen;
+import appeng.client.gui.widgets.InfoBar;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-@Mixin(targets = {
-        "appeng.client.gui.me.common.MEStorageScreen",
-        "appeng.client.gui.me.crafting.AbstractTableRenderer",
-        "appeng.client.gui.me.networktool.NetworkStatusScreen",
-        "appeng.client.gui.me.common.FinishedJobToast",
-        "appeng.client.gui.widgets.InfoBar"
+@Mixin(value = {
+        MEStorageScreen.class,
+        AbstractTableRenderer.class,
+        NetworkStatusScreen.class,
+        FinishedJobToast.class,
+        InfoBar.class
 }, remap = false)
 public abstract class Ae2CustomKeyGuiMixin {
 
