@@ -11,7 +11,7 @@
 			"entries": [
 				{
 					"type": "minecraft:item",
-					"name": "data_energistics:data_nuke"
+					"name": "data_energistics:digital_annihilator"
 				}
 			],
 			"rolls": 1.0

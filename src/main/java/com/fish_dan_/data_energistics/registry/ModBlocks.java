@@ -129,7 +129,7 @@ public final class ModBlocks {
             TntConfigurableBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.TNT));
     public static final DeferredBlock<Block> DATA_NUKE = BLOCKS.registerBlock(
-            "data_nuke",
+            "digital_annihilator",
             DataNukeBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.TNT));
 
