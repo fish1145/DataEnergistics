@@ -23,6 +23,11 @@
 			"left": 61,
 			"top": 33,
 			"grid": "HORIZONTAL"
+		},
+		"TOOLBOX": {
+			"right": -20,
+			"bottom": 143,
+			"grid": "BREAK_AFTER_3COLS"
 		}
 	},
 	"text": {
@@ -46,6 +51,12 @@
 		"powerBar": {
 			"left": 144,
 			"top": 23
+		},
+		"toolbox": {
+			"right": -19,
+			"bottom": 149,
+			"width": 59,
+			"height": 66
 		},
 		"upgrades": {
 			"left": 174,
