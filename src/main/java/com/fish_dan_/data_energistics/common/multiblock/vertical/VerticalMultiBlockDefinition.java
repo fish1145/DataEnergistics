@@ -13,6 +13,7 @@ import java.util.Objects;
  * @param <S> block state representation used by the caller
  */
 public record VerticalMultiBlockDefinition<S>(String id,
+                                              String structureName,
                                               VerticalMultiBlockLayer<S> bottomLayer,
                                               VerticalMultiBlockLayer<S> middleLayer,
                                               VerticalMultiBlockLayer<S> topLayer,
@@ -20,10 +21,13 @@ public record VerticalMultiBlockDefinition<S>(String id,
                                               int minHeight,
                                               int maxHeight) {
 
+    public static final String DEFAULT_STRUCTURE_NAME = "main";
+
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
     public VerticalMultiBlockDefinition {
         id = requireId(id);
+        structureName = requireStructureName(structureName);
         bottomLayer = Objects.requireNonNull(bottomLayer, "bottomLayer");
         middleLayer = Objects.requireNonNull(middleLayer, "middleLayer");
         topLayer = Objects.requireNonNull(topLayer, "topLayer");
@@ -41,6 +45,16 @@ public record VerticalMultiBlockDefinition<S>(String id,
         validateControllerCandidates(id, controllerCandidates, bottomLayer.width(), bottomLayer.depth(), maxHeight);
     }
 
+    public VerticalMultiBlockDefinition(String id,
+                                        VerticalMultiBlockLayer<S> bottomLayer,
+                                        VerticalMultiBlockLayer<S> middleLayer,
+                                        VerticalMultiBlockLayer<S> topLayer,
+                                        List<VerticalMultiBlockPos> controllerCandidates,
+                                        int minHeight,
+                                        int maxHeight) {
+        this(id, DEFAULT_STRUCTURE_NAME, bottomLayer, middleLayer, topLayer, controllerCandidates, minHeight, maxHeight);
+    }
+
     public int middleLayerCount(int height) {
         validateHeight(height);
         return height - 2;
@@ -52,6 +66,10 @@ public record VerticalMultiBlockDefinition<S>(String id,
 
     public int depth() {
         return this.bottomLayer.depth();
+    }
+
+    public String sectionName() {
+        return this.structureName;
     }
 
     private static void validateLayerDimensions(String id,
@@ -93,9 +111,17 @@ public record VerticalMultiBlockDefinition<S>(String id,
         return id;
     }
 
+    private static String requireStructureName(String structureName) {
+        if (structureName == null || structureName.isBlank()) {
+            throw new IllegalArgumentException("Vertical multiblock structure name must not be blank");
+        }
+        return structureName;
+    }
+
     public static final class Builder<S> {
 
         private final String id;
+        private String structureName = DEFAULT_STRUCTURE_NAME;
         private VerticalMultiBlockLayer<S> bottomLayer;
         private VerticalMultiBlockLayer<S> middleLayer;
         private VerticalMultiBlockLayer<S> topLayer;
@@ -105,6 +131,11 @@ public record VerticalMultiBlockDefinition<S>(String id,
 
         private Builder(String id) {
             this.id = id;
+        }
+
+        public Builder<S> structureName(String structureName) {
+            this.structureName = requireStructureName(structureName);
+            return this;
         }
 
         public Builder<S> bottomLayer(VerticalMultiBlockLayer<S> bottomLayer) {
@@ -141,6 +172,7 @@ public record VerticalMultiBlockDefinition<S>(String id,
             }
             return new VerticalMultiBlockDefinition<>(
                     this.id,
+                    this.structureName,
                     this.bottomLayer,
                     this.middleLayer,
                     this.topLayer,

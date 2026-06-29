@@ -32,7 +32,7 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
 
         Optional<VerticalMultiBlockContext<S>> result = this.scanner.scan(definition, controllerPos);
         if (result.isEmpty()) {
-            invalidate(controller, partLookup, "No valid vertical multiblock match");
+            invalidate(controller, partLookup, definition.structureName(), "No valid vertical multiblock match");
             return false;
         }
 
@@ -43,22 +43,37 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
 
     public void invalidate(VerticalMultiBlockController controller, PartLookup partLookup, String reason) {
         VerticalMultiBlockRuntimeState state = controller.verticalMultiBlock$getRuntimeState();
+        String structureName = state.formed() ? state.structureName() : VerticalMultiBlockDefinition.DEFAULT_STRUCTURE_NAME;
+        invalidate(controller, partLookup, structureName, reason);
+    }
+
+    public void invalidate(VerticalMultiBlockController controller,
+                           PartLookup partLookup,
+                           String structureName,
+                           String reason) {
+        Objects.requireNonNull(controller, "controller");
+        Objects.requireNonNull(partLookup, "partLookup");
+        Objects.requireNonNull(reason, "reason");
+        VerticalMultiBlockRuntimeState state = controller.verticalMultiBlock$getRuntimeState(structureName);
+        String previousStructureName = state.structureName();
         if (state.formed()) {
             for (VerticalMultiBlockPart part : partLookup.get(state.matchedPositions())) {
-                part.verticalMultiBlock$removedFromController(controller);
+                part.verticalMultiBlock$removedFromController(controller, previousStructureName);
             }
         }
-        controller.verticalMultiBlock$setRuntimeState(VerticalMultiBlockRuntimeState.unformed());
-        controller.verticalMultiBlock$onStructureInvalid(reason);
+        controller.verticalMultiBlock$setRuntimeState(structureName, VerticalMultiBlockRuntimeState.unformed());
+        controller.verticalMultiBlock$onStructureInvalid(structureName, reason);
     }
 
     public void bind(VerticalMultiBlockController controller,
                      VerticalMultiBlockContext<S> context,
                      PartLookup partLookup) {
-        VerticalMultiBlockRuntimeState previous = controller.verticalMultiBlock$getRuntimeState();
+        String structureName = context.structureName();
+        VerticalMultiBlockRuntimeState previous = controller.verticalMultiBlock$getRuntimeState(structureName);
+        String previousStructureName = previous.structureName();
         if (previous.formed() && !previous.matchedPositions().isEmpty()) {
             for (VerticalMultiBlockPart part : partLookup.get(previous.matchedPositions())) {
-                part.verticalMultiBlock$removedFromController(controller);
+                part.verticalMultiBlock$removedFromController(controller, previousStructureName);
             }
         }
 
@@ -66,13 +81,14 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
         VerticalMultiBlockRuntimeState runtimeState = new VerticalMultiBlockRuntimeState(
                 true,
                 context.definition().id(),
+                structureName,
                 context.height(),
                 matchedPositions);
-        controller.verticalMultiBlock$setRuntimeState(runtimeState);
-        controller.verticalMultiBlock$onStructureFormed(context);
+        controller.verticalMultiBlock$setRuntimeState(structureName, runtimeState);
+        controller.verticalMultiBlock$onStructureFormed(structureName, context);
 
         for (VerticalMultiBlockPart part : partLookup.get(matchedPositions)) {
-            part.verticalMultiBlock$addedToController(controller, context);
+            part.verticalMultiBlock$addedToController(controller, structureName, context);
         }
     }
 

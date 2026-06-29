@@ -39,6 +39,14 @@ public final class VerticalMultiBlockContext<S> {
         return this.definition;
     }
 
+    public String structureName() {
+        return this.definition.structureName();
+    }
+
+    public String sectionName() {
+        return structureName();
+    }
+
     public VerticalMultiBlockPos origin() {
         return this.origin;
     }
