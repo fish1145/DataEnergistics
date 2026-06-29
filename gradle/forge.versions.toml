@@ -48,6 +48,7 @@ cloth-config = "5729127"
 amek = "7096962"
 jech = "8117474"
 ctm = "5587515"
+worldedit = "5830452"
 
 ## libs ##
 mdlib = "0.0.1"
@@ -104,6 +105,7 @@ amek                = { module = "curse.maven:applied-mekanistics-574300", versi
 spark               = { module = "curse.maven:spark-361579", version.ref = "spark" }
 jech                = { module = "curse.maven:just-enough-characters-250702", version.ref = "jech" }
 ctm                 = { module = "curse.maven:ctm-267602", version.ref = "ctm" }
+worldedit           = { module = "curse.maven:worldedit-225608", version.ref = "worldedit" }
 
 mdlib               = { module = "dev:mdlib-1.21.1", version.ref = "mdlib" }
 

@@ -52,6 +52,7 @@ dependencies {
     localRuntime(forge.jade)
     localRuntime(forge.curios)
     localRuntime(forge.modernfix)
+    localRuntime(forge.worldedit)
     localRuntime(forge.guideme)
     localRuntime(forge.ae2)
     localRuntime(forge.ldlib)
