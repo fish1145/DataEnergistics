@@ -14,6 +14,7 @@ import com.modularmc.mdl.api.multiblock.BlockPattern;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,6 +22,8 @@ import java.util.Map;
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class JsonMultiBlockDefinitionLoaderTest {
+
+    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.data_reassembler\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
 
     private JsonMultiBlockDefinitionLoaderTest() {}
 
@@ -101,12 +104,35 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.key(),
                 JsonMultiBlockStructureKey.main(resource("data_reassembler")),
                 "Bundled Data Reassembler JSON should resolve to the main data_reassembler structure key");
+        helper.assertTrue(
+                definition.displayNameTranslationKey().isPresent(),
+                "Bundled Data Reassembler JSON should expose structure display metadata");
+        helper.assertValueEqual(
+                definition.displayNameTranslationKey().orElseThrow(),
+                "multiblock.data_energistics.data_reassembler",
+                "Bundled Data Reassembler display metadata should resolve to the structure lang key");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 21, 19 },
                 "Bundled Data Reassembler dimensions should match the WorldEdit schematic");
         helper.assertValueEqual(pattern.getCenterOffset().x(), 9, "Controller X offset should match the placeholder");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 9, "Controller Y offset should match the flipped JSON row");
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 17, "Controller Z offset should match the placeholder aisle");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 17, "Controller Z max offset should match the placeholder aisle");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_strips_display_metadata_before_mdlib_parse")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void stripsDisplayMetadataBeforeMdlibParse(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+                resource("data_reassembler"),
+                new StringReader(MINIMAL_JSON_WITH_METADATA));
+
+        helper.assertValueEqual(
+                definition.displayNameTranslationKey().orElseThrow(),
+                "multiblock.data_energistics.data_reassembler",
+                "Loader should expose display metadata without passing it into MDLib pattern parsing");
+        helper.assertTrue(definition.pattern() != null, "Loader should still parse the MDLib pattern");
         helper.succeed();
     }
 

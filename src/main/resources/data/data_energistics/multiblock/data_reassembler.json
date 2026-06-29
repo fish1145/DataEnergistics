@@ -1,4 +1,7 @@
 {
+	"metadata": {
+		"display_name": "multiblock.data_energistics.data_reassembler"
+	},
 	"aisles": [
 		{
 			"slices": [

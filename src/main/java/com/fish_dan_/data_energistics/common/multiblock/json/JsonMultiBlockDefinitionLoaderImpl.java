@@ -7,6 +7,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +21,7 @@ import java.io.StringReader;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Default loader implementation backed by MDLib's GregTech-style JSON resolver.
@@ -24,6 +29,9 @@ import java.util.Objects;
 public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockDefinitionLoader {
 
     public static final String DIRECTORY = "multiblock";
+    private static final String METADATA_PROPERTY = "metadata";
+    private static final String DISPLAY_NAME_PROPERTY = "display_name";
+    private static final Gson GSON = new Gson();
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final FileToIdConverter FILE_TO_ID = FileToIdConverter.json(DIRECTORY);
 
@@ -75,8 +83,36 @@ public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockD
     @Override
     public JsonMultiBlockDefinition parse(ResourceLocation resourceId, Reader reader) {
         JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resourceId);
-        BlockPattern pattern = StructurePatternResolver.parsePattern(Objects.requireNonNull(reader, "reader"));
-        return new JsonMultiBlockDefinitionImpl(key, pattern);
+        JsonObject root = JsonParser.parseReader(Objects.requireNonNull(reader, "reader")).getAsJsonObject();
+        Optional<String> displayNameTranslationKey = readDisplayNameTranslationKey(root, resourceId);
+        JsonObject patternRoot = root.deepCopy();
+        patternRoot.remove(METADATA_PROPERTY);
+        BlockPattern pattern = StructurePatternResolver.parsePattern(new StringReader(GSON.toJson(patternRoot)));
+        return new JsonMultiBlockDefinitionImpl(key, pattern, displayNameTranslationKey);
+    }
+
+    private static Optional<String> readDisplayNameTranslationKey(JsonObject root, ResourceLocation resourceId) {
+        if (!root.has(METADATA_PROPERTY)) {
+            return Optional.empty();
+        }
+        JsonElement metadataElement = root.get(METADATA_PROPERTY);
+        if (!metadataElement.isJsonObject()) {
+            throw new IllegalArgumentException("JSON multiblock metadata must be an object: " + resourceId);
+        }
+        JsonObject metadata = metadataElement.getAsJsonObject();
+        if (!metadata.has(DISPLAY_NAME_PROPERTY)) {
+            return Optional.empty();
+        }
+        JsonElement displayNameElement = metadata.get(DISPLAY_NAME_PROPERTY);
+        if (!displayNameElement.isJsonPrimitive() || !displayNameElement.getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException("JSON multiblock display_name must be a translation key string: " +
+                    resourceId);
+        }
+        String displayNameTranslationKey = displayNameElement.getAsString();
+        if (displayNameTranslationKey.isBlank()) {
+            throw new IllegalArgumentException("JSON multiblock display_name must not be blank: " + resourceId);
+        }
+        return Optional.of(displayNameTranslationKey);
     }
 
     private static void putDefinition(Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions,

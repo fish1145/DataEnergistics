@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 
+import java.util.Optional;
+
 /**
  * One resolved JSON multiblock definition available to Data Energistics runtime code.
  *
@@ -21,4 +23,9 @@ public interface JsonMultiBlockDefinition {
      * Returns the resolved MDLib pattern used by structure-matching callers.
      */
     BlockPattern pattern();
+
+    /**
+     * Returns the translation key for the player-facing structure display name, when JSON metadata defines one.
+     */
+    Optional<String> displayNameTranslationKey();
 }

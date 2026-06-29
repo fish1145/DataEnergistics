@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionLoaderImpl;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistry;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistryImpl;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockReloadEventHandler;
@@ -19,7 +20,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
 import com.modularmc.mdl.api.multiblock.Predicates;
-import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -37,6 +37,7 @@ public final class ModVerticalMultiBlocks {
 
     public static final String DATA_FRAMEWORK_COLUMN_ID = Data_Energistics.id("data_framework_column").toString();
     public static final String DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler").toString();
+    public static final String DATA_RIPPER_REASSEMBLER_DISPLAY_NAME = "multiblock.data_energistics.data_reassembler";
     public static final int DATA_FRAMEWORK_COLUMN_MIN_HEIGHT = 3;
     public static final int DATA_FRAMEWORK_COLUMN_MAX_HEIGHT = 8;
 
@@ -58,7 +59,8 @@ public final class ModVerticalMultiBlocks {
                 ModVerticalMultiBlocks::dataFrameworkColumnPattern));
         JSON_MULTI_BLOCKS.registerBuiltin(new LazyJsonMultiBlockDefinitionImpl(
                 JsonMultiBlockStructureKey.main(dataRipperReassemblerId()),
-                ModVerticalMultiBlocks::dataRipperReassemblerPattern));
+                ModVerticalMultiBlocks::dataRipperReassemblerPattern,
+                DATA_RIPPER_REASSEMBLER_DISPLAY_NAME));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -95,16 +97,18 @@ public final class ModVerticalMultiBlocks {
     }
 
     private static BlockPattern dataRipperReassemblerPattern() {
-        return loadBundledJsonPattern("/data/data_energistics/multiblock/data_reassembler.json");
+        return loadBundledJsonPattern(
+                "/data/data_energistics/multiblock/data_reassembler.json",
+                dataRipperReassemblerId());
     }
 
-    private static BlockPattern loadBundledJsonPattern(String path) {
+    private static BlockPattern loadBundledJsonPattern(String path, ResourceLocation resourceId) {
         InputStream stream = ModVerticalMultiBlocks.class.getResourceAsStream(path);
         if (stream == null) {
             throw new IllegalStateException("Missing bundled JSON multiblock definition: " + path);
         }
         try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-            return StructurePatternResolver.parsePattern(reader);
+            return new JsonMultiBlockDefinitionLoaderImpl().parse(resourceId, reader).pattern();
         } catch (Exception exception) {
             throw new IllegalStateException("Could not load bundled JSON multiblock definition: " + path, exception);
         }

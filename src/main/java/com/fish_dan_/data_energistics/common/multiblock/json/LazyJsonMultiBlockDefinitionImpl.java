@@ -6,6 +6,7 @@ import com.modularmc.mdl.api.multiblock.BlockPattern;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -17,11 +18,25 @@ public final class LazyJsonMultiBlockDefinitionImpl implements JsonMultiBlockDef
 
     private final JsonMultiBlockStructureKey key;
     private final Supplier<BlockPattern> patternFactory;
+    private final Optional<String> displayNameTranslationKey;
     private BlockPattern pattern;
 
     public LazyJsonMultiBlockDefinitionImpl(JsonMultiBlockStructureKey key, Supplier<BlockPattern> patternFactory) {
+        this(key, patternFactory, Optional.empty());
+    }
+
+    public LazyJsonMultiBlockDefinitionImpl(JsonMultiBlockStructureKey key,
+                                            Supplier<BlockPattern> patternFactory,
+                                            String displayNameTranslationKey) {
+        this(key, patternFactory, Optional.of(displayNameTranslationKey));
+    }
+
+    private LazyJsonMultiBlockDefinitionImpl(JsonMultiBlockStructureKey key,
+                                             Supplier<BlockPattern> patternFactory,
+                                             Optional<String> displayNameTranslationKey) {
         this.key = Objects.requireNonNull(key, "key");
         this.patternFactory = Objects.requireNonNull(patternFactory, "patternFactory");
+        this.displayNameTranslationKey = Objects.requireNonNull(displayNameTranslationKey, "displayNameTranslationKey");
     }
 
     @Override
@@ -40,5 +55,10 @@ public final class LazyJsonMultiBlockDefinitionImpl implements JsonMultiBlockDef
             }
         }
         return this.pattern;
+    }
+
+    @Override
+    public Optional<String> displayNameTranslationKey() {
+        return this.displayNameTranslationKey;
     }
 }
