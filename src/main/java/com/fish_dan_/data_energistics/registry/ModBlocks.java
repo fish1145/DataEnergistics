@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkMainBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataNukeBlock;
-import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.block.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumReturnPortalBlock;
@@ -47,7 +47,7 @@ public final class ModBlocks {
 
     public static final DeferredBlock<Block> DATA_RIPPER_REASSEMBLER = BLOCKS.registerBlock(
             "data_reassembler",
-            DataRipperReassemblerBlock::new,
+            DataRipperReassemblerMainBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(

@@ -19,7 +19,11 @@ import net.neoforged.neoforge.common.NeoForge;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
 import com.modularmc.mdl.api.multiblock.Predicates;
+import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -32,6 +36,7 @@ import java.util.List;
 public final class ModVerticalMultiBlocks {
 
     public static final String DATA_FRAMEWORK_COLUMN_ID = Data_Energistics.id("data_framework_column").toString();
+    public static final String DATA_RIPPER_REASSEMBLER_ID = Data_Energistics.id("data_reassembler").toString();
     public static final int DATA_FRAMEWORK_COLUMN_MIN_HEIGHT = 3;
     public static final int DATA_FRAMEWORK_COLUMN_MAX_HEIGHT = 8;
 
@@ -51,6 +56,9 @@ public final class ModVerticalMultiBlocks {
         JSON_MULTI_BLOCKS.registerBuiltin(new LazyJsonMultiBlockDefinitionImpl(
                 JsonMultiBlockStructureKey.main(dataFrameworkColumnId()),
                 ModVerticalMultiBlocks::dataFrameworkColumnPattern));
+        JSON_MULTI_BLOCKS.registerBuiltin(new LazyJsonMultiBlockDefinitionImpl(
+                JsonMultiBlockStructureKey.main(dataRipperReassemblerId()),
+                ModVerticalMultiBlocks::dataRipperReassemblerPattern));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -72,6 +80,10 @@ public final class ModVerticalMultiBlocks {
         return Data_Energistics.id("data_framework_column");
     }
 
+    private static ResourceLocation dataRipperReassemblerId() {
+        return Data_Energistics.id("data_reassembler");
+    }
+
     private static BlockPattern dataFrameworkColumnPattern() {
         return FactoryBlockPattern.start()
                 .aisle("~")
@@ -80,5 +92,21 @@ public final class ModVerticalMultiBlocks {
                 .endRepeatable(DATA_FRAMEWORK_COLUMN_MIN_HEIGHT - 1, DATA_FRAMEWORK_COLUMN_MAX_HEIGHT - 1)
                 .where('A', Predicates.blocks(ModBlocks.DATA_FRAMEWORK.get()))
                 .build();
+    }
+
+    private static BlockPattern dataRipperReassemblerPattern() {
+        return loadBundledJsonPattern("/data/data_energistics/multiblock/data_reassembler.json");
+    }
+
+    private static BlockPattern loadBundledJsonPattern(String path) {
+        InputStream stream = ModVerticalMultiBlocks.class.getResourceAsStream(path);
+        if (stream == null) {
+            throw new IllegalStateException("Missing bundled JSON multiblock definition: " + path);
+        }
+        try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            return StructurePatternResolver.parsePattern(reader);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Could not load bundled JSON multiblock definition: " + path, exception);
+        }
     }
 }

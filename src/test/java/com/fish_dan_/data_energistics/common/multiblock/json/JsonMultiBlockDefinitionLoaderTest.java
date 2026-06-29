@@ -10,6 +10,11 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import com.modularmc.mdl.api.multiblock.BlockPattern;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -83,6 +88,28 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_loader_parses_bundled_data_reassembler_structure")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void parsesBundledDataReassemblerStructure(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+                resource("data_reassembler"),
+                bundledJsonReader("/data/data_energistics/multiblock/data_reassembler.json"));
+        BlockPattern pattern = definition.pattern();
+
+        helper.assertValueEqual(
+                definition.key(),
+                JsonMultiBlockStructureKey.main(resource("data_reassembler")),
+                "Bundled Data Reassembler JSON should resolve to the main data_reassembler structure key");
+        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 21, 19 },
+                "Bundled Data Reassembler dimensions should match the WorldEdit schematic");
+        helper.assertValueEqual(pattern.getCenterOffset().x(), 9, "Controller X offset should match the placeholder");
+        helper.assertValueEqual(pattern.getCenterOffset().y(), 9, "Controller Y offset should match the flipped JSON row");
+        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 17, "Controller Z offset should match the placeholder aisle");
+        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 17, "Controller Z max offset should match the placeholder aisle");
+        helper.succeed();
+    }
+
     @TestHolder("json_multiblock_structure_name_rejects_slashes")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -113,6 +140,21 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 ]
                 }
                 """;
+    }
+
+    private static InputStreamReader bundledJsonReader(String path) {
+        InputStream stream = JsonMultiBlockDefinitionLoaderTest.class.getResourceAsStream(path);
+        if (stream == null) {
+            throw new IllegalStateException("Missing bundled test resource: " + path);
+        }
+        return new InputStreamReader(stream, StandardCharsets.UTF_8);
+    }
+
+    private static void assertIntArrayEqual(GameTestHelper helper, int[] actual, int[] expected, String message) {
+        helper.assertValueEqual(actual.length, expected.length, message + " length");
+        for (int i = 0; i < expected.length; i++) {
+            helper.assertValueEqual(actual[i], expected[i], message + " index " + i);
+        }
     }
 
     private static <T extends Throwable> void assertThrows(GameTestHelper helper,

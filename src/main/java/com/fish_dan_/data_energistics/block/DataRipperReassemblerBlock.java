@@ -1,42 +1,22 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
-import com.fish_dan_.data_energistics.util.BlockMemoryCardInteractionHelper;
-
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.block.AEBaseBlock;
-import appeng.hooks.WrenchHook;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
-public class DataRipperReassemblerBlock extends AEBaseBlock implements EntityBlock {
+public class DataRipperReassemblerBlock extends AEBaseBlock {
 
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -46,11 +26,6 @@ public class DataRipperReassemblerBlock extends AEBaseBlock implements EntityBlo
         this.registerDefaultState(this.defaultBlockState()
                 .setValue(LIT, false)
                 .setValue(FACING, Direction.NORTH));
-    }
-
-    @Override
-    public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
-        return new DataRipperReassemblerBlockEntity(blockPos, blockState);
     }
 
     @Override
@@ -75,45 +50,5 @@ public class DataRipperReassemblerBlock extends AEBaseBlock implements EntityBlo
     @Override
     protected BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
-    }
-
-    @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
-                                              Player player, InteractionHand hand, BlockHitResult hitResult) {
-        ItemInteractionResult memoryCardResult = BlockMemoryCardInteractionHelper.useOnBlockEntity(stack, level, pos, player);
-        if (memoryCardResult.consumesAction()) {
-            return memoryCardResult;
-        }
-        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
-    }
-
-    @Override
-    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataRipperReassemblerBlockEntity reassembler) {
-            MenuOpener.open(ModMenus.DATA_RIPPER_REASSEMBLER.get(), player, MenuLocators.forBlockEntity(reassembler));
-        }
-        return InteractionResult.sidedSuccess(level.isClientSide());
-    }
-
-    @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock()) && !level.isClientSide() && !WrenchHook.isDisassembling() && level.getBlockEntity(pos) instanceof DataRipperReassemblerBlockEntity reassembler) {
-            reassembler.dropContents(level, pos);
-        }
-        super.onRemove(state, level, pos, newState, isMoving);
-    }
-
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get()) {
-            return null;
-        }
-
-        return (tickLevel, tickPos, tickState, blockEntity) -> {
-            if (blockEntity instanceof DataRipperReassemblerBlockEntity reassembler) {
-                reassembler.serverTick();
-            }
-        };
     }
 }
