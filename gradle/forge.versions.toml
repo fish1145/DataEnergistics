@@ -49,6 +49,7 @@ amek = "7096962"
 jech = "8117474"
 ctm = "5587515"
 worldedit = "5830452"
+worldedit-cui-forge = "7195941"
 
 ## libs ##
 mdlib = "0.0.1"
@@ -106,6 +107,7 @@ spark               = { module = "curse.maven:spark-361579", version.ref = "spar
 jech                = { module = "curse.maven:just-enough-characters-250702", version.ref = "jech" }
 ctm                 = { module = "curse.maven:ctm-267602", version.ref = "ctm" }
 worldedit           = { module = "curse.maven:worldedit-225608", version.ref = "worldedit" }
+worldedit-cui-forge = { module = "curse.maven:worldedit-cui-forge-1380388", version.ref = "worldedit-cui-forge" }
 
 mdlib               = { module = "dev:mdlib-1.21.1", version.ref = "mdlib" }
 

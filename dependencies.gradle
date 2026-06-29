@@ -94,6 +94,7 @@ dependencies {
     // Client-only runtime mods
     clientLocalRuntime(forge.jech)
     clientLocalRuntime(forge.ctm)
+    clientLocalRuntime(forge.worldedit.cui.forge)
     jarJar(forge.ctm.get())
     clientLocalRuntime(forge.sodium)
     clientLocalRuntime(forge.iris)
