@@ -5,6 +5,7 @@
 	"block.data_energistics.data_extractor": "数据提取仪",
 	"block.data_energistics.data_reassembler": "数据重组器",
 	"block.data_energistics.data_framework": "数据框架",
+	"block.data_energistics.data_framework_main": "数据框架控制器",
 	"block.data_energistics.data_distribution_tower": "数据均分塔",
 	"block.data_energistics.data_mimetic_field": "数据拟生场",
 	"block.data_energistics.data_teleport_anchor": "数据传送锚",

@@ -24,6 +24,7 @@
 		"data_energistics:data_sanctum",
 		"data_energistics:data_sanctum_interface",
 		"data_energistics:data_charger",
-		"data_energistics:extended_data_charger"
+		"data_energistics:extended_data_charger",
+		"data_energistics:data_framework_main"
 	]
 }
