@@ -23,7 +23,7 @@ import java.util.Map;
 @PrefixGameTestTemplate(false)
 public final class JsonMultiBlockDefinitionLoaderTest {
 
-    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.data_reassembler\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
+    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.digital_construct_flower\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
 
     private JsonMultiBlockDefinitionLoaderTest() {}
 
@@ -91,28 +91,28 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_parses_bundled_data_reassembler_structure")
+    @TestHolder("json_multiblock_loader_parses_bundled_digital_construct_flower_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parsesBundledDataReassemblerStructure(GameTestHelper helper) {
+    public static void parsesBundledDigitalConstructFlowerStructure(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
-                resource("data_reassembler"),
-                bundledJsonReader("/data/data_energistics/multiblock/data_reassembler.json"));
+                resource("digital_construct_flower"),
+                bundledJsonReader("/data/data_energistics/multiblock/digital_construct_flower.json"));
         BlockPattern pattern = definition.pattern();
 
         helper.assertValueEqual(
                 definition.key(),
-                JsonMultiBlockStructureKey.main(resource("data_reassembler")),
-                "Bundled Data Reassembler JSON should resolve to the main data_reassembler structure key");
+                JsonMultiBlockStructureKey.main(resource("digital_construct_flower")),
+                "Bundled Digital Construct Flower JSON should resolve to the main digital_construct_flower structure key");
         helper.assertTrue(
                 definition.displayNameTranslationKey().isPresent(),
-                "Bundled Data Reassembler JSON should expose structure display metadata");
+                "Bundled Digital Construct Flower JSON should expose structure display metadata");
         helper.assertValueEqual(
                 definition.displayNameTranslationKey().orElseThrow(),
-                "multiblock.data_energistics.data_reassembler",
-                "Bundled Data Reassembler display metadata should resolve to the structure lang key");
+                "multiblock.data_energistics.digital_construct_flower",
+                "Bundled Digital Construct Flower display metadata should resolve to the structure lang key");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 21, 19 },
-                "Bundled Data Reassembler dimensions should match the WorldEdit schematic");
+                "Bundled Digital Construct Flower dimensions should match the WorldEdit schematic");
         helper.assertValueEqual(pattern.getCenterOffset().x(), 9, "Controller X offset should match the placeholder");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 9, "Controller Y offset should match the flipped JSON row");
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 17, "Controller Z offset should match the placeholder aisle");
@@ -125,12 +125,12 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @GameTest(template = "empty_5x5")
     public static void stripsDisplayMetadataBeforeMdlibParse(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
-                resource("data_reassembler"),
+                resource("digital_construct_flower"),
                 new StringReader(MINIMAL_JSON_WITH_METADATA));
 
         helper.assertValueEqual(
                 definition.displayNameTranslationKey().orElseThrow(),
-                "multiblock.data_energistics.data_reassembler",
+                "multiblock.data_energistics.digital_construct_flower",
                 "Loader should expose display metadata without passing it into MDLib pattern parsing");
         helper.assertTrue(definition.pattern() != null, "Loader should still parse the MDLib pattern");
         helper.succeed();

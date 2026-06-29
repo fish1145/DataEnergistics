@@ -43,6 +43,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_SOLAR_PANEL);
                         output.accept(ModItems.DATA_EXTRACTOR);
                         output.accept(ModItems.DATA_RIPPER_REASSEMBLER);
+                        output.accept(ModItems.DIGITAL_CONSTRUCT_FLOWER);
                         output.accept(ModItems.DATA_FRAMEWORK);
                         output.accept(ModItems.DATA_FRAMEWORK_MAIN);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
