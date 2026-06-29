@@ -7,14 +7,16 @@ import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
+import com.fish_dan_.data_energistics.block.DataFrameworkMainBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataNukeBlock;
-import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.block.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumReturnPortalBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.DigitalConstructFlowerBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
@@ -46,12 +48,24 @@ public final class ModBlocks {
 
     public static final DeferredBlock<Block> DATA_RIPPER_REASSEMBLER = BLOCKS.registerBlock(
             "data_reassembler",
-            DataRipperReassemblerBlock::new,
+            DataRipperReassemblerMainBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DIGITAL_CONSTRUCT_FLOWER = BLOCKS.registerBlock(
+            "digital_construct_flower",
+            DigitalConstructFlowerBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(
             "data_framework",
             DataFrameworkBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
+                    .noOcclusion()
+                    .isViewBlocking((state, blockGetter, pos) -> false));
+
+    public static final DeferredBlock<Block> DATA_FRAMEWORK_MAIN = BLOCKS.registerBlock(
+            "data_framework_main",
+            DataFrameworkMainBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
                     .noOcclusion()
                     .isViewBlocking((state, blockGetter, pos) -> false));

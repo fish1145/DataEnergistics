@@ -1,0 +1,20 @@
+{
+	"aisles": [
+		{
+			"slices": [["~"]]
+		},
+		{
+			"slices": [["A"]],
+			"repeat": {
+				"min": 2,
+				"max": 7
+			}
+		}
+	],
+	"predicates": {
+		"A": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_framework"
+		}
+	}
+}

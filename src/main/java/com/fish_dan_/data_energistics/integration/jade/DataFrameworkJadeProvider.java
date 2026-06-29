@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
+import com.fish_dan_.data_energistics.block.DataFrameworkMainBlock;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 
 import net.minecraft.nbt.CompoundTag;
@@ -61,7 +61,7 @@ public class DataFrameworkJadeProvider implements IBlockComponentProvider, IServ
     }
 
     private DataFrameworkBlockEntity resolveFramework(BlockAccessor accessor) {
-        if (!(accessor.getBlockState().getBlock() instanceof DataFrameworkBlock)) {
+        if (!(accessor.getBlockState().getBlock() instanceof DataFrameworkMainBlock)) {
             return null;
         }
 

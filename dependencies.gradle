@@ -3,6 +3,8 @@ dependencies {
 
     testImplementation(libs.testframework)
 
+    jarJar(api(forge.mdlib.get()))
+
     // Misc libraries
     compileOnly(forge.jech)
     compileOnly(forge.curios)
@@ -50,6 +52,7 @@ dependencies {
     localRuntime(forge.jade)
     localRuntime(forge.curios)
     localRuntime(forge.modernfix)
+    localRuntime(forge.worldedit)
     localRuntime(forge.guideme)
     localRuntime(forge.ae2)
     localRuntime(forge.ldlib)
@@ -91,6 +94,7 @@ dependencies {
     // Client-only runtime mods
     clientLocalRuntime(forge.jech)
     clientLocalRuntime(forge.ctm)
+    clientLocalRuntime(forge.worldedit.cui.forge)
     jarJar(forge.ctm.get())
     clientLocalRuntime(forge.sodium)
     clientLocalRuntime(forge.iris)

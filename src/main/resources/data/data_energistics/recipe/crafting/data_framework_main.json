@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": [" I ", "IFI", " I "],
+	"key": {
+		"I": {
+			"tag": "c:ingots/iron"
+		},
+		"F": {
+			"item": "data_energistics:data_framework"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_framework_main",
+		"count": 1
+	}
+}
