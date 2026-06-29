@@ -2,12 +2,15 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.world.level.block.Block;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -18,10 +21,11 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Default loader implementation backed by MDLib's GregTech-style JSON resolver.
@@ -29,8 +33,14 @@ import java.util.Optional;
 public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockDefinitionLoader {
 
     public static final String DIRECTORY = "multiblock";
-    private static final String METADATA_PROPERTY = "metadata";
-    private static final String DISPLAY_NAME_PROPERTY = "display_name";
+    private static final String PREDICATES_PROPERTY = "predicates";
+    private static final String TYPE_PROPERTY = "type";
+    private static final String BLOCK_PROPERTY = "block";
+    private static final String BLOCKS_PROPERTY = "blocks";
+    private static final String BLOCK_STATES_PROPERTY = "block_states";
+    private static final String BLOCKS_PREDICATE_TYPE = "blocks";
+    private static final String BLOCK_STATES_PREDICATE_TYPE = "block_states";
+    private static final String ANY_PREDICATE_TYPE = "mdlib:any";
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final FileToIdConverter FILE_TO_ID = FileToIdConverter.json(DIRECTORY);
@@ -82,37 +92,132 @@ public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockD
 
     @Override
     public JsonMultiBlockDefinition parse(ResourceLocation resourceId, Reader reader) {
-        JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resourceId);
-        JsonObject root = JsonParser.parseReader(Objects.requireNonNull(reader, "reader")).getAsJsonObject();
-        Optional<String> displayNameTranslationKey = readDisplayNameTranslationKey(root, resourceId);
-        JsonObject patternRoot = root.deepCopy();
-        patternRoot.remove(METADATA_PROPERTY);
-        BlockPattern pattern = StructurePatternResolver.parsePattern(new StringReader(GSON.toJson(patternRoot)));
-        return new JsonMultiBlockDefinitionImpl(key, pattern, displayNameTranslationKey);
+        JsonObject root = readRoot(reader);
+        JsonMultiBlockMetadata metadata = JsonMultiBlockMetadata.read(root, resourceId);
+        return parseDefinition(resourceId, root, metadata);
     }
 
-    private static Optional<String> readDisplayNameTranslationKey(JsonObject root, ResourceLocation resourceId) {
-        if (!root.has(METADATA_PROPERTY)) {
-            return Optional.empty();
+    private static JsonMultiBlockDefinition parseDefinition(ResourceLocation resourceId,
+                                                            JsonObject root,
+                                                            JsonMultiBlockMetadata metadata) {
+        JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resourceId);
+        JsonObject patternRoot = root.deepCopy();
+        patternRoot.remove(JsonMultiBlockMetadata.METADATA_PROPERTY);
+        sanitizeBlockPredicates(resourceId, patternRoot);
+        BlockPattern pattern = StructurePatternResolver.parsePattern(new StringReader(GSON.toJson(patternRoot)));
+        return new JsonMultiBlockDefinitionImpl(key, pattern, metadata.displayNameTranslationKey());
+    }
+
+    private static JsonObject readRoot(Reader reader) {
+        JsonObject root = JsonParser.parseReader(Objects.requireNonNull(reader, "reader")).getAsJsonObject();
+        if (root == null) {
+            throw new IllegalArgumentException("JSON multiblock root must be an object");
         }
-        JsonElement metadataElement = root.get(METADATA_PROPERTY);
-        if (!metadataElement.isJsonObject()) {
-            throw new IllegalArgumentException("JSON multiblock metadata must be an object: " + resourceId);
+        return root;
+    }
+
+    private static void sanitizeBlockPredicates(ResourceLocation resourceId, JsonObject root) {
+        JsonElement predicatesElement = root.get(PREDICATES_PROPERTY);
+        if (predicatesElement == null || predicatesElement.isJsonNull() || !predicatesElement.isJsonObject()) {
+            return;
         }
-        JsonObject metadata = metadataElement.getAsJsonObject();
-        if (!metadata.has(DISPLAY_NAME_PROPERTY)) {
-            return Optional.empty();
+        JsonObject predicates = predicatesElement.getAsJsonObject();
+        List<String> predicateKeys = List.copyOf(predicates.keySet());
+        for (String predicateKey : predicateKeys) {
+            JsonElement predicateElement = predicates.get(predicateKey);
+            if (!predicateElement.isJsonObject()) {
+                continue;
+            }
+            JsonObject predicate = predicateElement.getAsJsonObject();
+            if (!isBlockBackedPredicate(predicate)) {
+                continue;
+            }
+            List<String> missingBlockIds = missingBlockIds(predicate);
+            if (missingBlockIds.isEmpty()) {
+                continue;
+            }
+            JsonObject anyPredicate = new JsonObject();
+            anyPredicate.addProperty(TYPE_PROPERTY, ANY_PREDICATE_TYPE);
+            predicates.add(predicateKey, anyPredicate);
+            for (String missingBlockId : missingBlockIds) {
+                LOGGER.warn(
+                        "JSON multiblock resource {} predicate '{}' references missing block id {}; replacing predicate with {}",
+                        resourceId,
+                        predicateKey,
+                        missingBlockId,
+                        ANY_PREDICATE_TYPE);
+            }
         }
-        JsonElement displayNameElement = metadata.get(DISPLAY_NAME_PROPERTY);
-        if (!displayNameElement.isJsonPrimitive() || !displayNameElement.getAsJsonPrimitive().isString()) {
-            throw new IllegalArgumentException("JSON multiblock display_name must be a translation key string: " +
-                    resourceId);
+    }
+
+    private static boolean isBlockBackedPredicate(JsonObject predicate) {
+        JsonElement typeElement = predicate.get(TYPE_PROPERTY);
+        if (typeElement == null || !typeElement.isJsonPrimitive() || !typeElement.getAsJsonPrimitive().isString()) {
+            return false;
         }
-        String displayNameTranslationKey = displayNameElement.getAsString();
-        if (displayNameTranslationKey.isBlank()) {
-            throw new IllegalArgumentException("JSON multiblock display_name must not be blank: " + resourceId);
+        ResourceLocation type = ResourceLocation.tryParse(typeElement.getAsString());
+        return type != null &&
+                (BLOCKS_PREDICATE_TYPE.equals(type.getPath()) || BLOCK_STATES_PREDICATE_TYPE.equals(type.getPath()));
+    }
+
+    private static List<String> missingBlockIds(JsonObject predicate) {
+        List<String> missingBlockIds = new ArrayList<>();
+        for (String blockId : blockIds(predicate)) {
+            ResourceLocation id = ResourceLocation.tryParse(blockId);
+            if (id == null || !blockExists(id)) {
+                missingBlockIds.add(blockId);
+            }
         }
-        return Optional.of(displayNameTranslationKey);
+        return List.copyOf(missingBlockIds);
+    }
+
+    private static List<String> blockIds(JsonObject predicate) {
+        if (predicate.has(BLOCK_STATES_PROPERTY)) {
+            JsonElement blockStatesElement = predicate.get(BLOCK_STATES_PROPERTY);
+            if (!blockStatesElement.isJsonArray()) {
+                return List.of();
+            }
+            List<String> blockIds = new ArrayList<>();
+            JsonArray blockStates = blockStatesElement.getAsJsonArray();
+            for (JsonElement blockStateElement : blockStates) {
+                if (!blockStateElement.isJsonObject()) {
+                    continue;
+                }
+                addBlockId(blockStateElement.getAsJsonObject(), blockIds);
+            }
+            return List.copyOf(blockIds);
+        }
+        if (predicate.has(BLOCKS_PROPERTY)) {
+            JsonElement blocksElement = predicate.get(BLOCKS_PROPERTY);
+            if (!blocksElement.isJsonArray()) {
+                return List.of();
+            }
+            List<String> blockIds = new ArrayList<>();
+            JsonArray blocks = blocksElement.getAsJsonArray();
+            for (JsonElement blockElement : blocks) {
+                if (blockElement.isJsonPrimitive() && blockElement.getAsJsonPrimitive().isString()) {
+                    blockIds.add(blockElement.getAsString());
+                }
+            }
+            return List.copyOf(blockIds);
+        }
+        JsonElement blockElement = predicate.get(BLOCK_PROPERTY);
+        if (blockElement == null || !blockElement.isJsonPrimitive() || !blockElement.getAsJsonPrimitive().isString()) {
+            return List.of();
+        }
+        return List.of(blockElement.getAsString());
+    }
+
+    private static void addBlockId(JsonObject object, List<String> blockIds) {
+        JsonElement blockElement = object.get(BLOCK_PROPERTY);
+        if (blockElement != null && blockElement.isJsonPrimitive() && blockElement.getAsJsonPrimitive().isString()) {
+            blockIds.add(blockElement.getAsString());
+        }
+    }
+
+    private static boolean blockExists(ResourceLocation id) {
+        Block block = BuiltInRegistries.BLOCK.get(id);
+        return id.equals(BuiltInRegistries.BLOCK.getKey(block));
     }
 
     private static void putDefinition(Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions,

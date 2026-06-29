@@ -2,15 +2,24 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.modularmc.mdl.api.multiblock.BlockPattern;
+import com.modularmc.mdl.api.multiblock.StructureMatchResult;
+import com.modularmc.mdl.api.multiblock.StructureWorldView;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,11 +27,15 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class JsonMultiBlockDefinitionLoaderTest {
 
+    private static final BlockPos CONTROLLER = new BlockPos(0, 0, 0);
+    private static final String MISSING_BLOCK_ID = "data_energistics:missing_block_for_json_multiblock_test";
+    private static final String MISSING_BLOCKS_ID = "data_energistics:missing_blocks_for_json_multiblock_test";
     private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.digital_construct_flower\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
 
     private JsonMultiBlockDefinitionLoaderTest() {}
@@ -120,6 +133,66 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_loader_downgrades_missing_block_predicate_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void downgradesMissingBlockPredicateToAny(GameTestHelper helper) {
+        JsonMultiBlockDefinitionLoader loader = new JsonMultiBlockDefinitionLoaderImpl();
+        Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = loader.load(Map.of(
+                resource("missing_block_predicate"),
+                jsonWithMissingBlockPredicate()));
+
+        JsonMultiBlockStructureKey key = JsonMultiBlockStructureKey.main(resource("missing_block_predicate"));
+        helper.assertValueEqual(
+                definitions.size(),
+                1,
+                "Loader should keep JSON multiblocks whose missing block predicates were downgraded");
+        helper.assertTrue(definitions.containsKey(key), "Loader should return the downgraded definition");
+
+        StructureMatchResult result = matchController(definitions.get(key).pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertTrue(result.matched(), "Downgraded missing block predicate should match any block at A");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_parse_downgrades_missing_blocks_predicate_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void parseDowngradesMissingBlocksPredicateToAny(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+                resource("missing_blocks_predicate"),
+                new StringReader(jsonWithMissingBlocksPredicate()));
+
+        StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertTrue(result.matched(), "Downgraded missing block in blocks array should match any block at A");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_parse_downgrades_missing_block_state_predicate_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void parseDowngradesMissingBlockStatePredicateToAny(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+                resource("missing_block_state_predicate"),
+                new StringReader(jsonWithMissingBlockStatePredicate()));
+
+        StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertTrue(result.matched(), "Downgraded missing block state predicate should match any block at A");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_treats_air_block_predicate_as_existing")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void treatsAirBlockPredicateAsExisting(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+                resource("air_block_predicate"),
+                new StringReader(jsonWithAirBlocksPredicate()));
+
+        StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertFalse(result.matched(), "minecraft:air should remain a blocks predicate and reject non-air blocks");
+        helper.succeed();
+    }
+
     @TestHolder("json_multiblock_loader_strips_display_metadata_before_mdlib_parse")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -166,6 +239,60 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 ]
                 }
                 """;
+    }
+
+    private static String jsonWithMissingBlockPredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:blocks\",\"block\":\"%s\"}}}"
+                .formatted(MISSING_BLOCK_ID);
+    }
+
+    private static String jsonWithMissingBlocksPredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:blocks\",\"blocks\":[\"minecraft:stone\",\"%s\"]}}}"
+                .formatted(MISSING_BLOCKS_ID);
+    }
+
+    private static String jsonWithAirBlocksPredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:blocks\",\"blocks\":[\"minecraft:air\"]}}}";
+    }
+
+    private static String jsonWithMissingBlockStatePredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:block_states\",\"block\":\"%s\",\"properties\":{\"facing\":\"north\"}}}}"
+                .formatted(MISSING_BLOCK_ID);
+    }
+
+    private static StructureMatchResult matchController(BlockPattern pattern, BlockState state) {
+        return JsonMultiBlockPatternMatcher.match(
+                pattern,
+                world(Map.of(CONTROLLER, state)),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+    }
+
+    private static StructureWorldView world(Map<BlockPos, BlockState> states) {
+        return new StructureWorldView() {
+
+            @Override
+            public boolean isLoaded(BlockPos pos) {
+                return true;
+            }
+
+            @Override
+            public BlockState getBlockState(BlockPos pos) {
+                return states.getOrDefault(pos, Blocks.AIR.defaultBlockState());
+            }
+
+            @Nullable
+            @Override
+            public BlockEntity getBlockEntity(BlockPos pos) {
+                return null;
+            }
+
+            @Override
+            public HolderLookup.Provider registryAccess() {
+                return HolderLookup.Provider.create(Stream.empty());
+            }
+        };
     }
 
     private static InputStreamReader bundledJsonReader(String path) {

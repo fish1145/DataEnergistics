@@ -38,6 +38,7 @@ public final class ModVerticalMultiBlocks {
     public static final String DATA_FRAMEWORK_COLUMN_ID = Data_Energistics.id("data_framework_column").toString();
     public static final String DIGITAL_CONSTRUCT_FLOWER_ID = Data_Energistics.id("digital_construct_flower").toString();
     public static final String DIGITAL_CONSTRUCT_FLOWER_DISPLAY_NAME = "multiblock.data_energistics.digital_construct_flower";
+    private static final String DIGITAL_CONSTRUCT_FLOWER_PATH = "/data/data_energistics/multiblock/digital_construct_flower.json";
     public static final int DATA_FRAMEWORK_COLUMN_MIN_HEIGHT = 3;
     public static final int DATA_FRAMEWORK_COLUMN_MAX_HEIGHT = 8;
 
@@ -97,9 +98,7 @@ public final class ModVerticalMultiBlocks {
     }
 
     private static BlockPattern digitalConstructFlowerPattern() {
-        return loadBundledJsonPattern(
-                "/data/data_energistics/multiblock/digital_construct_flower.json",
-                digitalConstructFlowerId());
+        return loadBundledJsonPattern(DIGITAL_CONSTRUCT_FLOWER_PATH, digitalConstructFlowerId());
     }
 
     private static BlockPattern loadBundledJsonPattern(String path, ResourceLocation resourceId) {
