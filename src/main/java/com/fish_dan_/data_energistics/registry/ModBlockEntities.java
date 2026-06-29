@@ -43,7 +43,7 @@ public final class ModBlockEntities {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataFrameworkBlockEntity>> DATA_FRAMEWORK_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_framework",
-            () -> BlockEntityType.Builder.of(DataFrameworkBlockEntity::new, ModBlocks.DATA_FRAMEWORK.get()).build(null));
+            () -> BlockEntityType.Builder.of(DataFrameworkBlockEntity::new, ModBlocks.DATA_FRAMEWORK_MAIN.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_distribution_tower",

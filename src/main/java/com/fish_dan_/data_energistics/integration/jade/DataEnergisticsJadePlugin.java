@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.integration.jade;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
-import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
+import com.fish_dan_.data_energistics.block.DataFrameworkMainBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
@@ -51,7 +51,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockDataProvider(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlockEntity.class);
         registration.registerBlockDataProvider(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
         registration.registerBlockDataProvider(DATA_CHARGER_PROVIDER, DataChargerBlockEntity.class);
-        registration.registerBlockDataProvider(DATA_FRAMEWORK_PROVIDER, DataFrameworkBlock.class);
+        registration.registerBlockDataProvider(DATA_FRAMEWORK_PROVIDER, DataFrameworkMainBlock.class);
         registration.registerBlockDataProvider(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlockEntity.class);
         registration.registerBlockDataProvider(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlockEntity.class);
     }
@@ -67,7 +67,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(TELEPORT_ANCHOR_PROVIDER, DataTeleportAnchorBlock.class);
         registration.registerBlockComponent(DATA_SANCTUM_PROVIDER, DataSanctumBlock.class);
         registration.registerBlockComponent(DATA_CHARGER_PROVIDER, DataChargerBlock.class);
-        registration.registerBlockComponent(DATA_FRAMEWORK_PROVIDER, DataFrameworkBlock.class);
+        registration.registerBlockComponent(DATA_FRAMEWORK_PROVIDER, DataFrameworkMainBlock.class);
         registration.registerBlockComponent(NetworkStatusJadeProvider.DIGITAL_STORAGE_DEPOT, DigitalStorageDepotBlock.class);
         registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlock.class);
         registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
