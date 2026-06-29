@@ -50,6 +50,7 @@ jech = "8117474"
 ctm = "5587515"
 
 ## libs ##
+mdlib = "0.0.1"
 
 [libraries]
 guideme             = { module = "curse.maven:guideme-1173950", version.ref = "guideme" }
@@ -103,6 +104,8 @@ amek                = { module = "curse.maven:applied-mekanistics-574300", versi
 spark               = { module = "curse.maven:spark-361579", version.ref = "spark" }
 jech                = { module = "curse.maven:just-enough-characters-250702", version.ref = "jech" }
 ctm                 = { module = "curse.maven:ctm-267602", version.ref = "ctm" }
+
+mdlib               = { module = "dev:mdlib-1.21.1", version.ref = "mdlib" }
 
 [bundles]
 jei = ["jei-common-api", "jei-neoforge-api", "jei-neoforge-impl"]

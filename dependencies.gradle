@@ -3,6 +3,8 @@ dependencies {
 
     testImplementation(libs.testframework)
 
+    jarJar(api(forge.mdlib.get()))
+
     // Misc libraries
     compileOnly(forge.jech)
     compileOnly(forge.curios)
