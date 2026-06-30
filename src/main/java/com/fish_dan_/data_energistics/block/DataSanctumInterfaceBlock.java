@@ -29,9 +29,13 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.block.AEBaseBlock;
+import appeng.hooks.WrenchHook;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DataSanctumInterfaceBlock extends AEBaseBlock implements EntityBlock {
 
@@ -88,6 +92,14 @@ public class DataSanctumInterfaceBlock extends AEBaseBlock implements EntityBloc
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock()) && !level.isClientSide() && !WrenchHook.isDisassembling()) {
+            dropAdditionalContents(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
+    }
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
@@ -100,5 +112,20 @@ public class DataSanctumInterfaceBlock extends AEBaseBlock implements EntityBloc
                 dataInterface.serverTick();
             }
         };
+    }
+
+    private void dropAdditionalContents(Level level, BlockPos pos) {
+        if (!(level.getBlockEntity(pos) instanceof DataSanctumInterfaceBlockEntity blockEntity)) {
+            return;
+        }
+
+        List<ItemStack> drops = new ArrayList<>();
+        blockEntity.addAdditionalDrops(level, pos, drops);
+        blockEntity.clearContent();
+        for (ItemStack drop : drops) {
+            if (!drop.isEmpty()) {
+                Block.popResource(level, pos, drop);
+            }
+        }
     }
 }
