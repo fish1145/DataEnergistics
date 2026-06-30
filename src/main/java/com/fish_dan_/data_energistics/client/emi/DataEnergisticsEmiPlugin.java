@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.network.chat.Component;
@@ -78,11 +79,16 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new EmiInfoRecipe(
-                List.of(EmiStack.of(ModItems.DATA_CAPTURE_BALL.get())),
+                List.of(
+                        EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()),
+                        EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get())),
                 List.of(
                         Component.translatable("jei.data_energistics.data_capture_ball.line1"),
                         Component.translatable("jei.data_energistics.data_capture_ball.line2"),
-                        Component.translatable("jei.data_energistics.data_capture_ball.line3")),
+                        Component.translatable("jei.data_energistics.data_capture_ball.line3"),
+                        Component.translatable(
+                                "jei.data_energistics.data_reassembler.crafting_requirement",
+                                DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST)),
                 null));
         registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
         registry.addRecipe(new EmiAnvilEnchantRecipe(
