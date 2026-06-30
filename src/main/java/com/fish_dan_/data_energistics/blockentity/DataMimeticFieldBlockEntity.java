@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
@@ -356,7 +357,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             updateOnlineState();
             return;
         }
-        if (!hasOverflowDestructionCard() && isHiddenBufferFull()) {
+        if (!hasOverflowDestructionCard() && this.dropRoutingMode != DataExtractorDropRoutingMode.AE && isHiddenBufferFull()) {
             resetWorkProgress();
             updateOnlineState();
             return;
@@ -1227,11 +1228,89 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private void submitGeneratedItems(List<ItemStack> generated) {
+        if (generated.isEmpty()) {
+            return;
+        }
+        if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
+            submitGeneratedItemsToNetwork(generated);
+            return;
+        }
+        submitGeneratedItemsToHiddenBuffer(generated);
+    }
+
+    private void submitGeneratedItemsToHiddenBuffer(List<ItemStack> generated) {
         if (generated.isEmpty() || !canHiddenBufferAcceptAll(generated)) {
             return;
         }
 
         insertAllIntoHiddenBuffer(generated);
+    }
+
+    private void submitGeneratedItemsToNetwork(List<ItemStack> generated) {
+        MEStorage networkStorage = getConnectedItemNetwork();
+        if (networkStorage == null) {
+            submitGeneratedItemsToHiddenBuffer(generated);
+            return;
+        }
+
+        if (!canNetworkAcceptAll(generated, networkStorage)) {
+            submitGeneratedItemsToHiddenBuffer(generated);
+            return;
+        }
+
+        List<ItemStack> remaining = getNetworkInsertRemainders(generated, networkStorage);
+        if (remaining.isEmpty()) {
+            return;
+        }
+        if (canHiddenBufferAcceptAll(remaining)) {
+            insertAllIntoHiddenBuffer(remaining);
+            return;
+        }
+
+        Data_Energistics.LOGGER.error(
+                "Data mimetic field AE output produced {} leftover generated item stacks after successful simulation, but hidden buffer cannot accept them",
+                remaining.size());
+    }
+
+    private boolean canNetworkAcceptAll(List<ItemStack> stacks, MEStorage networkStorage) {
+        Map<AEItemKey, Long> requiredAmounts = new HashMap<>();
+        for (ItemStack stack : stacks) {
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            AEItemKey key = AEItemKey.of(stack);
+            if (key == null) {
+                Data_Energistics.LOGGER.error(
+                        "Data mimetic field AE output cannot insert generated item without AE key: {}",
+                        stack);
+                return false;
+            }
+            requiredAmounts.merge(key, (long) stack.getCount(), DataMimeticFieldBlockEntity::saturatedAdd);
+        }
+
+        for (Map.Entry<AEItemKey, Long> entry : requiredAmounts.entrySet()) {
+            long accepted = networkStorage.insert(entry.getKey(), entry.getValue(), Actionable.SIMULATE, IActionSource.ofMachine(this));
+            if (accepted < entry.getValue()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private List<ItemStack> getNetworkInsertRemainders(List<ItemStack> stacks, @Nullable MEStorage networkStorage) {
+        List<ItemStack> remaining = new ArrayList<>();
+        for (ItemStack stack : stacks) {
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            ItemStack networkRemaining = insertIntoNetwork(stack, networkStorage);
+            if (!networkRemaining.isEmpty()) {
+                remaining.add(networkRemaining);
+            }
+        }
+        return remaining;
     }
 
     private void convertGeneratedLootToDataFlow(GeneratedLoot generated) {
