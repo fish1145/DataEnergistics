@@ -19,7 +19,7 @@ import appeng.core.definitions.AEParts;
 
 public final class DataCaptureBallCraftingRemainderHelper {
 
-    private static final long DATA_REASSEMBLER_DATA_COST = 8L;
+    public static final long DATA_REASSEMBLER_DATA_COST = 8L;
     private static final TagKey<Item> OBSIDIAN_INGOTS = commonTag("ingots/obsidian");
 
     private DataCaptureBallCraftingRemainderHelper() {}
