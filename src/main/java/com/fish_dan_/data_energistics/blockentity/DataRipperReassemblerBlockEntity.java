@@ -1026,7 +1026,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         if (key instanceof AEItemKey itemKey) {
             GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-            if (wrapped != null && isAllowedMenuKey(wrapped.what())) {
+            if (canAcceptWrappedKeyAsPatternInput(wrapped)) {
                 return canAcceptWrappedKeyInput(state, wrapped, amount);
             }
             return canAcceptItemInput(state, itemKey, amount);
@@ -1037,6 +1037,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return canAcceptGenericKeyInput(state, key, amount);
     }
 
+    private static boolean canAcceptWrappedKeyAsPatternInput(@Nullable GenericStack wrapped) {
+        if (wrapped == null) {
+            return false;
+        }
+
+        AEKey what = wrapped.what();
+        return what instanceof AEFluidKey || isAllowedMenuKey(what);
+    }
+
     private boolean canAcceptWrappedKeyInput(PatternPushState state, GenericStack wrapped, long amount) {
         if (wrapped.amount() <= 0) {
             return false;
@@ -1045,7 +1054,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
 
-        return canAcceptGenericKeyInput(state, wrapped.what(), wrapped.amount() * amount);
+        long totalAmount = wrapped.amount() * amount;
+        if (wrapped.what() instanceof AEFluidKey fluidKey) {
+            return canAcceptFluidInput(state, fluidKey, totalAmount);
+        }
+        return canAcceptGenericKeyInput(state, wrapped.what(), totalAmount);
     }
 
     private boolean canAcceptItemInput(PatternPushState state, AEItemKey itemKey, long amount) {
