@@ -8,6 +8,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -72,10 +73,80 @@ public final class JsonMultiBlockPatternMatcherTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_pattern_matcher_uses_gregtech_default_directions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void usesGregTechDefaultDirections(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+                directionalPattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                        new BlockPos(-1, 0, 0), Blocks.GOLD_BLOCK.defaultBlockState(),
+                        new BlockPos(1, -1, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                        new BlockPos(-1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertTrue(result.matched(), "Expected GregTech LEFT/UP/FRONT default directions to match: " + result.diagnostic());
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_pattern_matcher_finds_horizontal_front_when_host_facing_is_stale")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void findsHorizontalFrontWhenHostFacingIsStale(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+                directionalPattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                        new BlockPos(0, 0, -1), Blocks.GOLD_BLOCK.defaultBlockState(),
+                        new BlockPos(0, -1, 1), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                        new BlockPos(1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertTrue(result.matched(), "Expected matcher to recover the actual horizontal front: " + result.diagnostic());
+        helper.assertValueEqual(result.frontFacing(), Direction.EAST, "Recovered front should match the placed structure");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_front_facing_uses_worldedit_player_direction")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void usesWorldEditPlayerDirectionAsFront(GameTestHelper helper) {
+        BlockState state = Blocks.FURNACE.defaultBlockState()
+                .setValue(HorizontalDirectionalBlock.FACING, Direction.SOUTH);
+
+        Direction frontFacing = JsonMultiBlockFrontFacing.fromPlacedHost(
+                state,
+                HorizontalDirectionalBlock.FACING,
+                CONTROLLER,
+                "test host");
+
+        helper.assertValueEqual(
+                frontFacing,
+                Direction.NORTH,
+                "Structure front should be the player's WorldEdit facing, not the placed block front");
+        helper.succeed();
+    }
+
     private static BlockPattern pattern() {
         return FactoryBlockPattern.start()
                 .aisle("~")
                 .where('~', Predicates.blocks(Blocks.IRON_BLOCK))
+                .build();
+    }
+
+    private static BlockPattern directionalPattern() {
+        return FactoryBlockPattern.start()
+                .aisle("Y  ", " ~X")
+                .aisle("  Z", "   ")
+                .where('~', Predicates.blocks(Blocks.IRON_BLOCK))
+                .where('X', Predicates.blocks(Blocks.GOLD_BLOCK))
+                .where('Y', Predicates.blocks(Blocks.DIAMOND_BLOCK))
+                .where('Z', Predicates.blocks(Blocks.EMERALD_BLOCK))
                 .build();
     }
 

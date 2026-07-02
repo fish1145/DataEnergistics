@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockDefinition;
@@ -29,7 +30,7 @@ import java.util.function.Predicate;
 /**
  * Shared controller and part runtime for vertical multiblock block entities.
  */
-public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedBlockEntity implements VerticalMultiBlockController, VerticalMultiBlockPart {
+public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider, VerticalMultiBlockController, VerticalMultiBlockPart {
 
     private final Map<String, VerticalMultiBlockRuntimeState> verticalMultiBlockStates = new HashMap<>();
     private boolean verticalMultiBlockRecheckRequested = true;
@@ -49,6 +50,41 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
 
     public final boolean isVerticalMultiBlockController() {
         return isVerticalMultiBlockFormed() && this.defaultStructureController;
+    }
+
+    @Override
+    public final boolean multiBlock$isOnline() {
+        return this.getMainNode().isOnline();
+    }
+
+    @Override
+    public final boolean multiBlock$isFormed() {
+        return isVerticalMultiBlockFormed();
+    }
+
+    @Override
+    public final boolean multiBlock$isController() {
+        return isVerticalMultiBlockController();
+    }
+
+    @Override
+    public final int multiBlock$getHeight() {
+        return getVerticalMultiBlockHeight();
+    }
+
+    @Override
+    public final int multiBlock$getMatchedBlockCount() {
+        return verticalMultiBlock$getRuntimeState().matchedPositions().size();
+    }
+
+    @Override
+    public final String multiBlock$getLastFailureReason() {
+        return "";
+    }
+
+    @Override
+    public final BlockPos multiBlock$getLastFailurePosition() {
+        return null;
     }
 
     @Override
