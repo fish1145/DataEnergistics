@@ -20,6 +20,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -174,14 +175,16 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
 
     private void updateStructureMatch(Level level) {
         JsonMultiBlockDefinition definition = requireMainJsonDefinition();
+        Direction preferredFrontFacing = getStructureFrontFacing(level);
         StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
                 definition.pattern(),
                 new LevelStructureWorldView(level),
                 this.worldPosition,
-                getStructureFrontFacing(level),
+                preferredFrontFacing,
                 mainDefinitionKey().structureName());
 
         if (result.matched()) {
+            normalizeHostFacing(level, preferredFrontFacing, result.frontFacing());
             applyMatch(result.positions());
         } else {
             applyFailure(result.diagnostic());
@@ -195,6 +198,21 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
                 DataRipperReassemblerBlock.FACING,
                 this.worldPosition,
                 "Digital Construct Flower");
+    }
+
+    private void normalizeHostFacing(Level level, Direction preferredFrontFacing, Direction matchedFrontFacing) {
+        if (preferredFrontFacing == matchedFrontFacing) {
+            return;
+        }
+        BlockState state = level.getBlockState(this.worldPosition);
+        Direction hostFacing = JsonMultiBlockFrontFacing.toPlacedHostFacing(matchedFrontFacing);
+        if (state.hasProperty(DataRipperReassemblerBlock.FACING) &&
+                state.getValue(DataRipperReassemblerBlock.FACING) != hostFacing) {
+            level.setBlock(
+                    this.worldPosition,
+                    state.setValue(DataRipperReassemblerBlock.FACING, hostFacing),
+                    Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        }
     }
 
     private void applyMatch(List<BlockPos> positions) {

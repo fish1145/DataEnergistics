@@ -30,6 +30,27 @@ public final class JsonMultiBlockPatternMatcher {
         Objects.requireNonNull(controllerPos, "controllerPos");
         Objects.requireNonNull(frontFacing, "frontFacing");
         Objects.requireNonNull(structureName, "structureName");
+        StructureMatchResult result = matchOne(pattern, world, controllerPos, frontFacing, structureName);
+        if (result.matched()) {
+            return result;
+        }
+        for (Direction fallbackFacing : Direction.Plane.HORIZONTAL) {
+            if (fallbackFacing == frontFacing) {
+                continue;
+            }
+            StructureMatchResult fallbackResult = matchOne(pattern, world, controllerPos, fallbackFacing, structureName);
+            if (fallbackResult.matched()) {
+                return fallbackResult;
+            }
+        }
+        return result;
+    }
+
+    private static StructureMatchResult matchOne(BlockPattern pattern,
+                                                 StructureWorldView world,
+                                                 BlockPos controllerPos,
+                                                 Direction frontFacing,
+                                                 String structureName) {
         return pattern.checkPatternAt(world, new JsonMultiBlockControllerView(
                 controllerPos,
                 frontFacing,

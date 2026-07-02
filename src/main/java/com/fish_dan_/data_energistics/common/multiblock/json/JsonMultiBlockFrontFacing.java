@@ -33,4 +33,15 @@ public final class JsonMultiBlockFrontFacing {
         }
         return state.getValue(facingProperty).getOpposite();
     }
+
+    /**
+     * Returns the stored horizontal block facing that represents a given WorldEdit structure front.
+     */
+    public static Direction toPlacedHostFacing(Direction structureFront) {
+        Objects.requireNonNull(structureFront, "structureFront");
+        if (structureFront.getAxis() == Direction.Axis.Y) {
+            throw new IllegalArgumentException("Structure front must be horizontal: " + structureFront);
+        }
+        return structureFront.getOpposite();
+    }
 }

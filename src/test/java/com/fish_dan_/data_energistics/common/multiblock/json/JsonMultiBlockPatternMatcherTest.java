@@ -92,6 +92,26 @@ public final class JsonMultiBlockPatternMatcherTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_pattern_matcher_finds_horizontal_front_when_host_facing_is_stale")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void findsHorizontalFrontWhenHostFacingIsStale(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+                directionalPattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                        new BlockPos(0, 0, -1), Blocks.GOLD_BLOCK.defaultBlockState(),
+                        new BlockPos(0, -1, 1), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                        new BlockPos(1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertTrue(result.matched(), "Expected matcher to recover the actual horizontal front: " + result.diagnostic());
+        helper.assertValueEqual(result.frontFacing(), Direction.EAST, "Recovered front should match the placed structure");
+        helper.succeed();
+    }
+
     @TestHolder("json_multiblock_front_facing_uses_worldedit_player_direction")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
