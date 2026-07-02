@@ -8,6 +8,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -88,6 +89,26 @@ public final class JsonMultiBlockPatternMatcherTest {
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
 
         helper.assertTrue(result.matched(), "Expected GregTech LEFT/UP/FRONT default directions to match: " + result.diagnostic());
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_front_facing_uses_worldedit_player_direction")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void usesWorldEditPlayerDirectionAsFront(GameTestHelper helper) {
+        BlockState state = Blocks.FURNACE.defaultBlockState()
+                .setValue(HorizontalDirectionalBlock.FACING, Direction.SOUTH);
+
+        Direction frontFacing = JsonMultiBlockFrontFacing.fromPlacedHost(
+                state,
+                HorizontalDirectionalBlock.FACING,
+                CONTROLLER,
+                "test host");
+
+        helper.assertValueEqual(
+                frontFacing,
+                Direction.NORTH,
+                "Structure front should be the player's WorldEdit facing, not the placed block front");
         helper.succeed();
     }
 

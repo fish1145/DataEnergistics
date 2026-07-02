@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFrontFacing;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -177,7 +178,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
                 definition.pattern(),
                 new LevelStructureWorldView(level),
                 this.worldPosition,
-                getFrontFacing(level),
+                getStructureFrontFacing(level),
                 mainDefinitionKey().structureName());
 
         if (result.matched()) {
@@ -187,12 +188,13 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
         }
     }
 
-    private Direction getFrontFacing(Level level) {
+    private Direction getStructureFrontFacing(Level level) {
         BlockState state = level.getBlockState(this.worldPosition);
-        if (!state.hasProperty(DataRipperReassemblerBlock.FACING)) {
-            throw new IllegalStateException("Digital Construct Flower is missing facing property at " + this.worldPosition);
-        }
-        return state.getValue(DataRipperReassemblerBlock.FACING);
+        return JsonMultiBlockFrontFacing.fromPlacedHost(
+                state,
+                DataRipperReassemblerBlock.FACING,
+                this.worldPosition,
+                "Digital Construct Flower");
     }
 
     private void applyMatch(List<BlockPos> positions) {
