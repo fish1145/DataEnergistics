@@ -72,10 +72,40 @@ public final class JsonMultiBlockPatternMatcherTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_pattern_matcher_uses_gregtech_default_directions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void usesGregTechDefaultDirections(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+                directionalPattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                        new BlockPos(-1, 0, 0), Blocks.GOLD_BLOCK.defaultBlockState(),
+                        new BlockPos(1, -1, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                        new BlockPos(-1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertTrue(result.matched(), "Expected GregTech LEFT/UP/FRONT default directions to match: " + result.diagnostic());
+        helper.succeed();
+    }
+
     private static BlockPattern pattern() {
         return FactoryBlockPattern.start()
                 .aisle("~")
                 .where('~', Predicates.blocks(Blocks.IRON_BLOCK))
+                .build();
+    }
+
+    private static BlockPattern directionalPattern() {
+        return FactoryBlockPattern.start()
+                .aisle("Y  ", " ~X")
+                .aisle("  Z", "   ")
+                .where('~', Predicates.blocks(Blocks.IRON_BLOCK))
+                .where('X', Predicates.blocks(Blocks.GOLD_BLOCK))
+                .where('Y', Predicates.blocks(Blocks.DIAMOND_BLOCK))
+                .where('Z', Predicates.blocks(Blocks.EMERALD_BLOCK))
                 .build();
     }
 
