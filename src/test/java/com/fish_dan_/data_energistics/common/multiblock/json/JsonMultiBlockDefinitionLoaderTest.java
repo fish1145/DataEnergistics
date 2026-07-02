@@ -126,10 +126,23 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Bundled Digital Construct Flower display metadata should resolve to the structure lang key");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 21, 19 },
                 "Bundled Digital Construct Flower dimensions should match the WorldEdit schematic");
-        helper.assertValueEqual(pattern.getCenterOffset().x(), 9, "Controller X offset should match the placeholder");
-        helper.assertValueEqual(pattern.getCenterOffset().y(), 9, "Controller Y offset should match the flipped JSON row");
-        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 17, "Controller Z offset should match the placeholder aisle");
-        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 17, "Controller Z max offset should match the placeholder aisle");
+        helper.assertValueEqual(pattern.structureSlices.length, 19, "Bundled Digital Construct Flower should use one GregTech aisle per schematic depth layer");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 19, "Each Digital Construct Flower aisle should be a fixed non-repeatable unit");
+        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Digital Construct Flower aisle unit should contain exactly one slice");
+        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Digital Construct Flower aisle unit should repeat exactly once");
+        helper.assertValueEqual(
+                pattern.structureSlices[9][11],
+                " ~   TTTTTTTTT   V ",
+                "WorldEdit placeholder at 9,11,17 should be mapped to GregTech aisle 9 row 11 column 1");
+        helper.assertValueEqual(
+                pattern.structureSlices[17][11],
+                " WUD    XVX    DUW ",
+                "Old unmapped placeholder row should contain the crystal block predicate instead of the controller");
+        helper.assertValueEqual(pattern.getCenterOffset().x(), 1, "Controller X offset should match the mapped JSON placeholder column");
+        helper.assertValueEqual(pattern.getCenterOffset().y(), 11, "Controller Y offset should match the GregTech bottom-to-top JSON row");
+        helper.assertValueEqual(pattern.getCenterOffset().z(), 9, "Controller Z offset should match the mapped JSON placeholder aisle");
+        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 9, "Controller Z min offset should match the placeholder aisle");
+        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 9, "Controller Z max offset should match the placeholder aisle");
         helper.succeed();
     }
 
@@ -307,6 +320,20 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(actual.length, expected.length, message + " length");
         for (int i = 0; i < expected.length; i++) {
             helper.assertValueEqual(actual[i], expected[i], message + " index " + i);
+        }
+    }
+
+    private static void assertAllIntValuesEqual(GameTestHelper helper, int[] actual, int expected, String message) {
+        for (int i = 0; i < actual.length; i++) {
+            helper.assertValueEqual(actual[i], expected, message + " index " + i);
+        }
+    }
+
+    private static void assertAllIntPairValuesEqual(GameTestHelper helper, int[][] actual, int expected, String message) {
+        for (int i = 0; i < actual.length; i++) {
+            helper.assertValueEqual(actual[i].length, 2, message + " pair length index " + i);
+            helper.assertValueEqual(actual[i][0], expected, message + " min repeat index " + i);
+            helper.assertValueEqual(actual[i][1], expected, message + " max repeat index " + i);
         }
     }
 
