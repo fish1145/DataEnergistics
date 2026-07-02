@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
@@ -30,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
+public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider {
 
     private static final int RECHECK_RADIUS = 24;
     private static final int RECHECK_INTERVAL_TICKS = 100;
@@ -76,8 +77,33 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
         return this.getMainNode().isOnline();
     }
 
+    @Override
+    public boolean multiBlock$isOnline() {
+        return isOnline();
+    }
+
     public boolean isStructureFormed() {
         return this.formed;
+    }
+
+    @Override
+    public boolean multiBlock$isFormed() {
+        return isStructureFormed();
+    }
+
+    @Override
+    public boolean multiBlock$isController() {
+        return this.formed;
+    }
+
+    @Override
+    public int multiBlock$getHeight() {
+        return 0;
+    }
+
+    @Override
+    public int multiBlock$getMatchedBlockCount() {
+        return this.matchedPositions.size();
     }
 
     public List<BlockPos> getMatchedPositions() {
@@ -88,8 +114,18 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
         return this.lastFailureReason;
     }
 
+    @Override
+    public String multiBlock$getLastFailureReason() {
+        return getLastFailureReason();
+    }
+
     public @Nullable BlockPos getLastFailurePosition() {
         return this.lastFailurePosition;
+    }
+
+    @Override
+    public @Nullable BlockPos multiBlock$getLastFailurePosition() {
+        return getLastFailurePosition();
     }
 
     public void requestStructureRecheck() {
