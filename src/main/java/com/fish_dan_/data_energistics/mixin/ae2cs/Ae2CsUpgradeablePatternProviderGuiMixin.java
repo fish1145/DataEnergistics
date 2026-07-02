@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.ae2cs;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
-import com.fish_dan_.data_energistics.client.screen.SingleUpgradeSlotRelocator;
+import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatch;
+import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatchImpl;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 
 import net.minecraft.network.chat.Component;
@@ -21,6 +22,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class Ae2CsUpgradeablePatternProviderGuiMixin extends AEBaseScreen<UpgradeablePatternProviderMenu> {
 
     @Unique
+    private static final ScreenSlotStylePatch DATA_ENERGISTICS_STYLE_PATCH = ScreenSlotStylePatchImpl.inlineSingleUpgrade("ae2cs:upgradeable_pattern_provider");
+
+    @Unique
     private PatternProviderRedstoneTuningButton dataEnergistics$redstoneTuningButton;
 
     protected Ae2CsUpgradeablePatternProviderGuiMixin(UpgradeablePatternProviderMenu menu, Inventory playerInventory,
@@ -31,13 +35,13 @@ public abstract class Ae2CsUpgradeablePatternProviderGuiMixin extends AEBaseScre
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataEnergistics$addRedstoneTuningButton(UpgradeablePatternProviderMenu menu, Inventory playerInventory,
                                                          Component title, ScreenStyle style, CallbackInfo ci) {
+        DATA_ENERGISTICS_STYLE_PATCH.apply(style);
         this.dataEnergistics$redstoneTuningButton = new PatternProviderRedstoneTuningButton((PatternProviderMenuAccessor) menu);
         this.addToLeftToolbar(this.dataEnergistics$redstoneTuningButton);
     }
 
     @Inject(method = "updateBeforeRender", at = @At("RETURN"))
     private void dataEnergistics$syncRedstoneTuningButton(CallbackInfo ci) {
-        SingleUpgradeSlotRelocator.relocateIfSingle(this, 8, 67);
         if (this.dataEnergistics$redstoneTuningButton != null) {
             this.dataEnergistics$redstoneTuningButton.syncFromMenu();
         }

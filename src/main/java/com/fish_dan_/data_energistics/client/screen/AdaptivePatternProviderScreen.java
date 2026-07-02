@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
@@ -66,8 +67,6 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF = List.of(Component.translatable("ae2lt.gui.return_mode.off"));
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO = List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
     private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT = List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
-    private static final Optional<VarHandle> SLOT_X_FIELD = resolveField(Slot.class, "x");
-    private static final Optional<VarHandle> SLOT_Y_FIELD = resolveField(Slot.class, "y");
     private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final Optional<VarHandle> WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
 
@@ -310,6 +309,10 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
             if (slot instanceof AppEngSlot appEngSlot) {
                 appEngSlot.setActive(false);
                 appEngSlot.setSlotEnabled(false);
+            } else {
+                String message = "Could not hide duplicate adaptive pattern provider slot: " + slot.getClass().getName();
+                Data_Energistics.LOGGER.error(message);
+                throw new IllegalStateException(message);
             }
             setSlotPosition(slot, HIDDEN_SLOT_COORD, HIDDEN_SLOT_COORD);
         }
@@ -351,9 +354,8 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
     }
 
     private static void setSlotPosition(Slot slot, int x, int y) {
-        if (!ReflectionAccess.setField(SLOT_X_FIELD, slot, x) || !ReflectionAccess.setField(SLOT_Y_FIELD, slot, y)) {
-            throw new IllegalStateException("Could not reposition duplicate slot");
-        }
+        slot.x = x;
+        slot.y = y;
     }
 
     private static Optional<VarHandle> resolveField(Class<?> owner, String name) {
