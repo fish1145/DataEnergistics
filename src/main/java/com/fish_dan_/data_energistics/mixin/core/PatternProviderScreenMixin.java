@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
-import com.fish_dan_.data_energistics.client.screen.SingleUpgradeSlotRelocator;
+import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatch;
+import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatchImpl;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 
 import net.minecraft.network.chat.Component;
@@ -21,6 +22,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class PatternProviderScreenMixin extends AEBaseScreen<PatternProviderMenu> {
 
     @Unique
+    private static final ScreenSlotStylePatch DATA_ENERGISTICS_STYLE_PATCH = ScreenSlotStylePatchImpl.inlineSingleUpgrade("ae2:pattern_provider");
+
+    @Unique
     private PatternProviderRedstoneTuningButton dataEnergistics$redstoneTuningButton;
 
     protected PatternProviderScreenMixin(PatternProviderMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -30,13 +34,13 @@ public abstract class PatternProviderScreenMixin extends AEBaseScreen<PatternPro
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataEnergistics$addButton(PatternProviderMenu menu, Inventory playerInventory, Component title,
                                            ScreenStyle style, CallbackInfo ci) {
+        DATA_ENERGISTICS_STYLE_PATCH.apply(style);
         this.dataEnergistics$redstoneTuningButton = new PatternProviderRedstoneTuningButton((PatternProviderMenuAccessor) menu);
         this.addToLeftToolbar(this.dataEnergistics$redstoneTuningButton);
     }
 
     @Inject(method = "updateBeforeRender", at = @At("RETURN"))
     private void dataEnergistics$syncButton(CallbackInfo ci) {
-        SingleUpgradeSlotRelocator.relocateIfSingle(this, 8, 67);
         if (this.dataEnergistics$redstoneTuningButton != null) {
             this.dataEnergistics$redstoneTuningButton.syncFromMenu();
         }

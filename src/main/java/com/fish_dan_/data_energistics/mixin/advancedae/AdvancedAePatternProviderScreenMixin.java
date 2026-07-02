@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.advancedae;
 
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
+import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatch;
+import com.fish_dan_.data_energistics.client.screen.ScreenSlotStylePatchImpl;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 
 import net.minecraft.network.chat.Component;
@@ -20,6 +22,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AdvancedAePatternProviderScreenMixin extends AEBaseScreen<AdvPatternProviderMenu> {
 
     @Unique
+    private static final ScreenSlotStylePatch DATA_ENERGISTICS_STYLE_PATCH = ScreenSlotStylePatchImpl.rightPanelVerticalUpgrade("advanced_ae:adv_pattern_provider");
+
+    @Unique
     private PatternProviderRedstoneTuningButton dataEnergistics$redstoneTuningButton;
 
     protected AdvancedAePatternProviderScreenMixin(AdvPatternProviderMenu menu, Inventory playerInventory,
@@ -30,6 +35,7 @@ public abstract class AdvancedAePatternProviderScreenMixin extends AEBaseScreen<
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataEnergistics$addRedstoneTuningButton(AdvPatternProviderMenu menu, Inventory playerInventory,
                                                          Component title, ScreenStyle style, CallbackInfo ci) {
+        DATA_ENERGISTICS_STYLE_PATCH.apply(style);
         this.dataEnergistics$redstoneTuningButton = new PatternProviderRedstoneTuningButton((PatternProviderMenuAccessor) menu);
         this.addToLeftToolbar(this.dataEnergistics$redstoneTuningButton);
     }
