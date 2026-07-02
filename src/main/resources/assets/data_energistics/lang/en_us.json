@@ -284,6 +284,8 @@
 	"config.jade.plugin_data_energistics.data_charger": "Data Charger",
 	"config.jade.plugin_data_energistics.data_framework": "Data Framework",
 	"config.jade.plugin_data_energistics.multiblock": "Multiblocks",
+	"config.jade.plugin_data_energistics.multiblock.blocks": "Multiblocks: Structure Blocks",
+	"config.jade.plugin_data_energistics.multiblock.role": "Multiblocks: Structure Role",
 	"config.jade.plugin_data_energistics.digital_storage_depot": "Digital Storage Depot",
 	"config.jade.plugin_data_energistics.data_sanctum_interface": "Data Sanctum Interface",
 	"screen.data_energistics.data_distribution_tower.title.online": "Data Distribution Tower - Online",

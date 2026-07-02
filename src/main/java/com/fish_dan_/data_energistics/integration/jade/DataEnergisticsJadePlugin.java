@@ -77,5 +77,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
         registration.registerBlockComponent(NetworkStatusJadeProvider.DATA_SANCTUM_INTERFACE, DataSanctumInterfaceBlock.class);
         registration.addConfig(DataSanctumJadeProvider.MODE_ID, false);
         registration.addConfig(DataSanctumJadeProvider.PART_ID, false);
+        registration.addConfig(MultiBlockJadeProvider.BLOCKS_ID, false);
+        registration.addConfig(MultiBlockJadeProvider.ROLE_ID, false);
     }
 }

@@ -289,6 +289,8 @@
 	"config.jade.plugin_data_energistics.data_charger": "数据充能台",
 	"config.jade.plugin_data_energistics.data_framework": "数据框架",
 	"config.jade.plugin_data_energistics.multiblock": "多方块",
+	"config.jade.plugin_data_energistics.multiblock.blocks": "多方块：结构方块数",
+	"config.jade.plugin_data_energistics.multiblock.role": "多方块：结构角色",
 	"config.jade.plugin_data_energistics.digital_storage_depot": "数位化存储仓",
 	"config.jade.plugin_data_energistics.data_sanctum_interface": "维度解离总站接口",
 	"screen.data_energistics.data_distribution_tower.title.online": "数据均分塔 - 在线",

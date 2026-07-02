@@ -17,7 +17,8 @@ import snownee.jade.api.config.IPluginConfig;
 public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerDataProvider<BlockAccessor> {
 
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock");
-    private static final String TAG_ONLINE = "online";
+    public static final ResourceLocation BLOCKS_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock.blocks");
+    public static final ResourceLocation ROLE_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "multiblock.role");
     private static final String TAG_FORMED = "formed";
     private static final String TAG_HEIGHT = "height";
     private static final String TAG_MATCHED_BLOCK_COUNT = "matched_block_count";
@@ -35,22 +36,20 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     @Override
     public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
         CompoundTag serverData = accessor.getServerData();
-        if (!serverData.contains(TAG_ONLINE)) {
+        if (!serverData.contains(TAG_FORMED)) {
             return;
         }
 
         tooltip.add(Component.translatable(
-                serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.status.online" : "jade.data_energistics.status.offline"));
-        tooltip.add(Component.translatable(
                 serverData.getBoolean(TAG_FORMED) ? "jade.data_energistics.multiblock.formed" : "jade.data_energistics.multiblock.unformed"));
         if (serverData.getBoolean(TAG_FORMED)) {
-            appendFormedTooltip(tooltip, serverData);
+            appendFormedTooltip(tooltip, serverData, config);
         } else {
             appendFailureTooltip(tooltip, serverData);
         }
     }
 
-    private static void appendFormedTooltip(ITooltip tooltip, CompoundTag serverData) {
+    private static void appendFormedTooltip(ITooltip tooltip, CompoundTag serverData, IPluginConfig config) {
         int height = serverData.getInt(TAG_HEIGHT);
         if (height > 0) {
             tooltip.add(Component.translatable(
@@ -58,13 +57,15 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                     height));
         }
         int matchedBlockCount = serverData.getInt(TAG_MATCHED_BLOCK_COUNT);
-        if (matchedBlockCount > 0) {
+        if (config.get(BLOCKS_ID) && matchedBlockCount > 0) {
             tooltip.add(Component.translatable(
                     "jade.data_energistics.multiblock.blocks",
                     matchedBlockCount));
         }
-        tooltip.add(Component.translatable(
-                serverData.getBoolean(TAG_CONTROLLER) ? "jade.data_energistics.multiblock.role.controller" : "jade.data_energistics.multiblock.role.part"));
+        if (config.get(ROLE_ID)) {
+            tooltip.add(Component.translatable(
+                    serverData.getBoolean(TAG_CONTROLLER) ? "jade.data_energistics.multiblock.role.controller" : "jade.data_energistics.multiblock.role.part"));
+        }
     }
 
     private static void appendFailureTooltip(ITooltip tooltip, CompoundTag serverData) {
@@ -89,7 +90,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
             return;
         }
 
-        data.putBoolean(TAG_ONLINE, multiBlock.multiBlock$isOnline());
         data.putBoolean(TAG_FORMED, multiBlock.multiBlock$isFormed());
         data.putInt(TAG_HEIGHT, multiBlock.multiBlock$getHeight());
         data.putInt(TAG_MATCHED_BLOCK_COUNT, multiBlock.multiBlock$getMatchedBlockCount());
