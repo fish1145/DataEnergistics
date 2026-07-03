@@ -179,6 +179,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                     PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
         }
         encodedPatternInv.setItemDirect(0, encodedPattern);
+        syncPatternProvidersIfNeeded(true);
     }
 
     @Override

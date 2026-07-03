@@ -286,6 +286,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         this.encodedPatternSlot.set(encodedPattern);
+        dataEnergistics$forceSyncPatternProviders();
         PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
         PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
         ci.cancel();
@@ -795,6 +796,17 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         dataEnergistics$syncPatternProvidersFromNetwork();
         this.dataEnergistics$lastPatternProviderSyncTick = currentTick;
+    }
+
+    @Unique
+    private void dataEnergistics$forceSyncPatternProviders() {
+        if (dataEnergistics$getActiveGrid() == null) {
+            dataEnergistics$clearSyncedPatternProviders();
+            return;
+        }
+
+        dataEnergistics$syncPatternProvidersFromNetwork();
+        this.dataEnergistics$lastPatternProviderSyncTick = this.getPlayer().tickCount;
     }
 
     @Unique
