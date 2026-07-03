@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFrontFacing;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -18,6 +20,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -30,7 +33,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
+public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider {
 
     private static final int RECHECK_RADIUS = 24;
     private static final int RECHECK_INTERVAL_TICKS = 100;
@@ -76,8 +79,33 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
         return this.getMainNode().isOnline();
     }
 
+    @Override
+    public boolean multiBlock$isOnline() {
+        return isOnline();
+    }
+
     public boolean isStructureFormed() {
         return this.formed;
+    }
+
+    @Override
+    public boolean multiBlock$isFormed() {
+        return isStructureFormed();
+    }
+
+    @Override
+    public boolean multiBlock$isController() {
+        return this.formed;
+    }
+
+    @Override
+    public int multiBlock$getHeight() {
+        return 0;
+    }
+
+    @Override
+    public int multiBlock$getMatchedBlockCount() {
+        return this.matchedPositions.size();
     }
 
     public List<BlockPos> getMatchedPositions() {
@@ -88,8 +116,18 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
         return this.lastFailureReason;
     }
 
+    @Override
+    public String multiBlock$getLastFailureReason() {
+        return getLastFailureReason();
+    }
+
     public @Nullable BlockPos getLastFailurePosition() {
         return this.lastFailurePosition;
+    }
+
+    @Override
+    public @Nullable BlockPos multiBlock$getLastFailurePosition() {
+        return getLastFailurePosition();
     }
 
     public void requestStructureRecheck() {
@@ -137,26 +175,44 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity {
 
     private void updateStructureMatch(Level level) {
         JsonMultiBlockDefinition definition = requireMainJsonDefinition();
+        Direction preferredFrontFacing = getStructureFrontFacing(level);
         StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
                 definition.pattern(),
                 new LevelStructureWorldView(level),
                 this.worldPosition,
-                getFrontFacing(level),
+                preferredFrontFacing,
                 mainDefinitionKey().structureName());
 
         if (result.matched()) {
+            normalizeHostFacing(level, preferredFrontFacing, result.frontFacing());
             applyMatch(result.positions());
         } else {
             applyFailure(result.diagnostic());
         }
     }
 
-    private Direction getFrontFacing(Level level) {
+    private Direction getStructureFrontFacing(Level level) {
         BlockState state = level.getBlockState(this.worldPosition);
-        if (!state.hasProperty(DataRipperReassemblerBlock.FACING)) {
-            throw new IllegalStateException("Digital Construct Flower is missing facing property at " + this.worldPosition);
+        return JsonMultiBlockFrontFacing.fromPlacedHost(
+                state,
+                DataRipperReassemblerBlock.FACING,
+                this.worldPosition,
+                "Digital Construct Flower");
+    }
+
+    private void normalizeHostFacing(Level level, Direction preferredFrontFacing, Direction matchedFrontFacing) {
+        if (preferredFrontFacing == matchedFrontFacing) {
+            return;
         }
-        return state.getValue(DataRipperReassemblerBlock.FACING);
+        BlockState state = level.getBlockState(this.worldPosition);
+        Direction hostFacing = JsonMultiBlockFrontFacing.toPlacedHostFacing(matchedFrontFacing);
+        if (state.hasProperty(DataRipperReassemblerBlock.FACING) &&
+                state.getValue(DataRipperReassemblerBlock.FACING) != hostFacing) {
+            level.setBlock(
+                    this.worldPosition,
+                    state.setValue(DataRipperReassemblerBlock.FACING, hostFacing),
+                    Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        }
     }
 
     private void applyMatch(List<BlockPos> positions) {

@@ -2,6 +2,8 @@ dependencies {
     compileOnly(libs.jetbrains.annotations)
 
     testImplementation(libs.testframework)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 
     jarJar(api(forge.mdlib.get()))
 
@@ -11,6 +13,7 @@ dependencies {
 
     // AE2
     accessCompileOnly(forge.ae2)
+    testImplementation(forge.ae2)
     compileOnly(forge.guideme)
     compileOnly(forge.ae2wt)
     compileOnly(forge.ae2wt.api)
