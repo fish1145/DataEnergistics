@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -10,6 +13,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -21,8 +25,11 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.MEStorage;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
+
+import java.util.Collection;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -63,6 +70,83 @@ public final class CompartmentBlockEntityTest {
         helper.succeed();
     }
 
+    @TestHolder("compartment_block_entity_me_output_provider_mounts_only_when_bound")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void meOutputProviderMountsOnlyWhenBound(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        MeCompositeOutputWarehouseBlockEntity meOutput = meOutputWarehouse();
+        RecordingStorageMounts mounts = new RecordingStorageMounts();
+
+        meOutput.outputStorageProvider().mountInventories(mounts);
+
+        helper.assertValueEqual(mounts.mountCount(), 0, "Unbound ME output should not mount AE storage");
+
+        meOutput.compartment$bindToHost("main", host);
+        MEStorage boundStorage = meOutput.outputStorage();
+        if (boundStorage == null) {
+            helper.fail("Bound ME output should expose output storage before mounting");
+            return;
+        }
+        meOutput.outputStorageProvider().mountInventories(mounts);
+
+        helper.assertValueEqual(mounts.mountCount(), 1, "Bound ME output should mount one AE storage");
+        helper.assertTrue(mounts.mountedStorage() == boundStorage, "Mounted storage should be the ME output buffer");
+        helper.assertValueEqual(
+                mounts.priority(),
+                IStorageMounts.DEFAULT_PRIORITY,
+                "ME output buffer should mount with the default AE priority");
+
+        meOutput.compartment$unbindFromHost("main", host);
+        RecordingStorageMounts unboundMounts = new RecordingStorageMounts();
+
+        meOutput.outputStorageProvider().mountInventories(unboundMounts);
+
+        helper.assertValueEqual(unboundMounts.mountCount(), 0, "Unbound ME output should stop mounting AE storage");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_block_entity_me_output_requests_storage_updates")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void meOutputRequestsStorageUpdates(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        UpdateCountingMeOutputWarehouse meOutput = updateCountingMeOutputWarehouse();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+
+        helper.assertValueEqual(meOutput.storageUpdateRequests(), 0, "Fresh ME output should not request updates");
+
+        meOutput.compartment$bindToHost("main", host);
+
+        helper.assertValueEqual(
+                meOutput.storageUpdateRequests(),
+                1,
+                "Binding ME output should request an AE storage update");
+
+        MEStorage outputStorage = meOutput.outputStorage();
+        if (outputStorage == null) {
+            helper.fail("Bound ME output should expose output storage for content mutation");
+            return;
+        }
+
+        helper.assertValueEqual(
+                outputStorage.insert(iron, 3L, Actionable.MODULATE, IActionSource.empty()),
+                3L,
+                "Bound ME output storage should accept inserted contents");
+        helper.assertValueEqual(
+                meOutput.storageUpdateRequests(),
+                2,
+                "Changing ME output contents should request an AE storage update");
+
+        meOutput.compartment$unbindFromHost("main", host);
+
+        helper.assertValueEqual(
+                meOutput.storageUpdateRequests(),
+                3,
+                "Unbinding ME output should request an AE storage update");
+        helper.succeed();
+    }
+
     private static final class SimpleMEStorage implements MEStorage {
 
         private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
@@ -95,6 +179,82 @@ public final class CompartmentBlockEntityTest {
 
         private long amount(AEKey key) {
             return this.storage.amount(key);
+        }
+    }
+
+    private static MeCompositeOutputWarehouseBlockEntity meOutputWarehouse() {
+        return new MeCompositeOutputWarehouseBlockEntity(
+                BlockPos.ZERO,
+                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+    }
+
+    private static UpdateCountingMeOutputWarehouse updateCountingMeOutputWarehouse() {
+        return new UpdateCountingMeOutputWarehouse(
+                BlockPos.ZERO,
+                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+    }
+
+    private static final class RecordingStorageMounts implements IStorageMounts {
+
+        private int mountCount;
+        private MEStorage mountedStorage;
+        private int priority;
+
+        @Override
+        public void mount(MEStorage storage, int priority) {
+            this.mountCount++;
+            this.mountedStorage = storage;
+            this.priority = priority;
+        }
+
+        private int mountCount() {
+            return this.mountCount;
+        }
+
+        private MEStorage mountedStorage() {
+            return this.mountedStorage;
+        }
+
+        private int priority() {
+            return this.priority;
+        }
+    }
+
+    private static final class UpdateCountingMeOutputWarehouse extends MeCompositeOutputWarehouseBlockEntity {
+
+        private int storageUpdateRequests;
+
+        private UpdateCountingMeOutputWarehouse(BlockPos pos, BlockState state) {
+            super(pos, state);
+        }
+
+        @Override
+        protected void requestStorageUpdate() {
+            this.storageUpdateRequests++;
+        }
+
+        private int storageUpdateRequests() {
+            return this.storageUpdateRequests;
+        }
+    }
+
+    private static final class TestCompartmentHost implements CompartmentHost {
+
+        private final CompartmentHostState compartments = new CompartmentHostState();
+
+        @Override
+        public void compartmentHost$addCompartment(String structureName, CompartmentPart part) {
+            this.compartments.addCompartment(structureName, part);
+        }
+
+        @Override
+        public void compartmentHost$removeCompartment(String structureName, CompartmentPart part) {
+            this.compartments.removeCompartment(structureName, part);
+        }
+
+        @Override
+        public Collection<CompartmentPart> compartmentHost$getCompartments(String structureName) {
+            return this.compartments.compartments(structureName);
         }
     }
 }

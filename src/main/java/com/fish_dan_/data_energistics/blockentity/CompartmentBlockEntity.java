@@ -161,6 +161,7 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
         this.structureName = structureName;
         invalidateCapabilities();
         setChanged();
+        onCompartmentBindingChanged();
     }
 
     @Override
@@ -171,6 +172,7 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
             this.structureName = null;
             invalidateCapabilities();
             setChanged();
+            onCompartmentBindingChanged();
         }
     }
 
@@ -203,6 +205,7 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
 
     protected final void onStorageChanged() {
         setChanged();
+        onCompartmentStorageChanged();
     }
 
     protected final void onContentInventoryChanged() {
@@ -211,6 +214,10 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
     }
 
     protected void rebuildCanonicalStorage() {}
+
+    protected void onCompartmentBindingChanged() {}
+
+    protected void onCompartmentStorageChanged() {}
 
     protected final void copyInventoryToStorage(CompartmentInventory inventory) {
         copyInventoryToStorage(inventory, inventory.size());
