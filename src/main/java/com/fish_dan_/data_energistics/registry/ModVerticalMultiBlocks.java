@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionLoaderImpl;
+import com.fish_dan_.data_energistics.common.multiblock.json.LayeredJsonMultiBlockDefinitionRegistry;
+import com.fish_dan_.data_energistics.common.multiblock.json.LazyJsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.MdlibJsonMultiBlockDefinitionLoader;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistry;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinitionRegistryImpl;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockReloadEventHandler;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.multiblock.json.LazyJsonMultiBlockDefinitionImpl;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockLayer;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -43,7 +44,7 @@ public final class ModVerticalMultiBlocks {
     public static final int DATA_FRAMEWORK_COLUMN_MAX_HEIGHT = 8;
 
     public static final VerticalMultiBlockRegistry<BlockState> VERTICAL_MULTI_BLOCKS = new VerticalMultiBlockRegistry<>();
-    public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new JsonMultiBlockDefinitionRegistryImpl();
+    public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new LayeredJsonMultiBlockDefinitionRegistry();
 
     private ModVerticalMultiBlocks() {}
 
@@ -55,13 +56,12 @@ public final class ModVerticalMultiBlocks {
                 .controllerCandidates(List.of(new VerticalMultiBlockPos(0, 0, 0)))
                 .heightRange(DATA_FRAMEWORK_COLUMN_MIN_HEIGHT, DATA_FRAMEWORK_COLUMN_MAX_HEIGHT)
                 .build());
-        JSON_MULTI_BLOCKS.registerBuiltin(new LazyJsonMultiBlockDefinitionImpl(
+        JSON_MULTI_BLOCKS.registerBuiltin(new LazyJsonMultiBlockDefinition(
                 JsonMultiBlockStructureKey.main(dataFrameworkColumnId()),
                 ModVerticalMultiBlocks::dataFrameworkColumnPattern));
-        JSON_MULTI_BLOCKS.registerBuiltin(new LazyJsonMultiBlockDefinitionImpl(
+        JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
                 JsonMultiBlockStructureKey.main(digitalConstructFlowerId()),
-                ModVerticalMultiBlocks::digitalConstructFlowerPattern,
-                DIGITAL_CONSTRUCT_FLOWER_DISPLAY_NAME));
+                ModVerticalMultiBlocks::digitalConstructFlowerDefinition));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -97,17 +97,17 @@ public final class ModVerticalMultiBlocks {
                 .build();
     }
 
-    private static BlockPattern digitalConstructFlowerPattern() {
-        return loadBundledJsonPattern(DIGITAL_CONSTRUCT_FLOWER_PATH, digitalConstructFlowerId());
+    private static JsonMultiBlockDefinition digitalConstructFlowerDefinition() {
+        return loadBundledJsonDefinition(DIGITAL_CONSTRUCT_FLOWER_PATH, digitalConstructFlowerId());
     }
 
-    private static BlockPattern loadBundledJsonPattern(String path, ResourceLocation resourceId) {
+    private static JsonMultiBlockDefinition loadBundledJsonDefinition(String path, ResourceLocation resourceId) {
         InputStream stream = ModVerticalMultiBlocks.class.getResourceAsStream(path);
         if (stream == null) {
             throw new IllegalStateException("Missing bundled JSON multiblock definition: " + path);
         }
         try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-            return new JsonMultiBlockDefinitionLoaderImpl().parse(resourceId, reader).pattern();
+            return new MdlibJsonMultiBlockDefinitionLoader().parse(resourceId, reader);
         } catch (Exception exception) {
             throw new IllegalStateException("Could not load bundled JSON multiblock definition: " + path, exception);
         }

@@ -1,6 +1,13 @@
 package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,6 +24,8 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.modularmc.mdl.api.multiblock.BlockPattern;
+import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
+import com.modularmc.mdl.api.multiblock.PatternMatchContext;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import org.jetbrains.annotations.Nullable;
@@ -25,7 +34,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -37,6 +48,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static final String MISSING_BLOCK_ID = "data_energistics:missing_block_for_json_multiblock_test";
     private static final String MISSING_BLOCKS_ID = "data_energistics:missing_blocks_for_json_multiblock_test";
     private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.digital_construct_flower\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
+    private static final String MINIMAL_JSON_WITH_COMPARTMENTS = "{\"metadata\":{\"compartments\":{\"I\":\"input\",\"O\":\"output\",\"M\":\"me_input\",\"N\":\"me_output\",\"P\":\"pattern_buffer\"}},\"aisles\":[{\"slices\":[[\"~IOMNP\"]]}]}";
 
     private JsonMultiBlockDefinitionLoaderTest() {}
 
@@ -75,7 +87,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void rejectsDuplicateMainPathAliases(GameTestHelper helper) {
-        JsonMultiBlockDefinitionLoader loader = new JsonMultiBlockDefinitionLoaderImpl();
+        JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<ResourceLocation, String> resources = new LinkedHashMap<>();
         resources.put(resource("data_framework_column"), minimalJson());
         resources.put(resource("data_framework_column/main"), minimalJson());
@@ -92,7 +104,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void parsesValidMdlibJson(GameTestHelper helper) {
-        JsonMultiBlockDefinitionLoader loader = new JsonMultiBlockDefinitionLoaderImpl();
+        JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = loader.load(Map.of(
                 resource("data_framework_column"),
                 minimalJson()));
@@ -108,7 +120,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void parsesBundledDigitalConstructFlowerStructure(GameTestHelper helper) {
-        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("digital_construct_flower"),
                 bundledJsonReader("/data/data_energistics/multiblock/digital_construct_flower.json"));
         BlockPattern pattern = definition.pattern();
@@ -150,7 +162,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void downgradesMissingBlockPredicateToAny(GameTestHelper helper) {
-        JsonMultiBlockDefinitionLoader loader = new JsonMultiBlockDefinitionLoaderImpl();
+        JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = loader.load(Map.of(
                 resource("missing_block_predicate"),
                 jsonWithMissingBlockPredicate()));
@@ -171,7 +183,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void parseDowngradesMissingBlocksPredicateToAny(GameTestHelper helper) {
-        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("missing_blocks_predicate"),
                 new StringReader(jsonWithMissingBlocksPredicate()));
 
@@ -184,7 +196,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void parseDowngradesMissingBlockStatePredicateToAny(GameTestHelper helper) {
-        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("missing_block_state_predicate"),
                 new StringReader(jsonWithMissingBlockStatePredicate()));
 
@@ -197,7 +209,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void treatsAirBlockPredicateAsExisting(GameTestHelper helper) {
-        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("air_block_predicate"),
                 new StringReader(jsonWithAirBlocksPredicate()));
 
@@ -210,7 +222,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void stripsDisplayMetadataBeforeMdlibParse(GameTestHelper helper) {
-        JsonMultiBlockDefinition definition = new JsonMultiBlockDefinitionLoaderImpl().parse(
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("digital_construct_flower"),
                 new StringReader(MINIMAL_JSON_WITH_METADATA));
 
@@ -219,6 +231,269 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "multiblock.data_energistics.digital_construct_flower",
                 "Loader should expose display metadata without passing it into MDLib pattern parsing");
         helper.assertTrue(definition.pattern() != null, "Loader should still parse the MDLib pattern");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_parses_compartment_metadata")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void parsesCompartmentMetadata(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("compartment_metadata"),
+                new StringReader(MINIMAL_JSON_WITH_COMPARTMENTS));
+
+        helper.assertValueEqual(definition.compartmentTypes().size(), 5, "Loader should expose all compartment metadata entries");
+        helper.assertValueEqual(definition.compartmentTypes().get("I"), CompartmentType.INPUT, "I should map to input");
+        helper.assertValueEqual(definition.compartmentTypes().get("O"), CompartmentType.OUTPUT, "O should map to output");
+        helper.assertValueEqual(definition.compartmentTypes().get("M"), CompartmentType.ME_INPUT, "M should map to ME input");
+        helper.assertValueEqual(definition.compartmentTypes().get("N"), CompartmentType.ME_OUTPUT, "N should map to ME output");
+        helper.assertValueEqual(definition.compartmentTypes().get("P"), CompartmentType.PATTERN_BUFFER, "P should map to pattern buffer");
+        helper.assertTrue(definition.pattern() != null, "Compartment metadata should be stripped before MDLib parsing");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_rejects_unknown_compartment_type")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsUnknownCompartmentType(GameTestHelper helper) {
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("bad_compartment_type"),
+                        new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"unknown\"}},\"aisles\":[{\"slices\":[[\"~\"]]}]}")),
+                "Loader should reject unknown compartment types");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_rejects_invalid_compartment_symbol")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsInvalidCompartmentSymbol(GameTestHelper helper) {
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("bad_compartment_symbol"),
+                        new StringReader("{\"metadata\":{\"compartments\":{\"II\":\"input\"}},\"aisles\":[{\"slices\":[[\"~\"]]}]}")),
+                "Loader should reject compartment symbols that are not one character");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_rejects_empty_compartment_symbol")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsEmptyCompartmentSymbol(GameTestHelper helper) {
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("empty_compartment_symbol"),
+                        new StringReader("{\"metadata\":{\"compartments\":{\"\":\"input\"}},\"aisles\":[{\"slices\":[[\"~\"]]}]}")),
+                "Loader should reject empty compartment symbols");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_rejects_duplicate_compartment_symbol")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsDuplicateCompartmentSymbol(GameTestHelper helper) {
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("duplicate_compartment_symbol"),
+                        new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"input\",\"I\":\"output\"}},\"aisles\":[{\"slices\":[[\"~I\"]]}]}")),
+                "Loader should reject duplicate compartment symbols before tree parsing overwrites them");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_validator_accepts_matching_type")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentValidatorAcceptsMatchingType(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("compartment_validator_match"),
+                new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"input\"}},\"aisles\":[{\"slices\":[[\"~I\"]]}]}"));
+
+        helper.assertTrue(
+                JsonMultiBlockCompartmentValidator.matchesDeclaredType(
+                        definition,
+                        "I",
+                        ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                "Input compartment symbol should accept input compartment block");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_validator_rejects_mismatched_type")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentValidatorRejectsMismatchedType(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("compartment_validator_mismatch"),
+                new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"input\"}},\"aisles\":[{\"slices\":[[\"~I\"]]}]}"));
+
+        helper.assertFalse(
+                JsonMultiBlockCompartmentValidator.matchesDeclaredType(
+                        definition,
+                        "I",
+                        ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
+                "Input compartment symbol should reject output compartment block");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_validator_ignores_undeclared_symbol")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentValidatorIgnoresUndeclaredSymbol(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("compartment_validator_undeclared"),
+                new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"input\"}},\"aisles\":[{\"slices\":[[\"~I\"]]}]}"));
+
+        helper.assertTrue(
+                JsonMultiBlockCompartmentValidator.matchesDeclaredType(
+                        definition,
+                        "A",
+                        Blocks.STONE.defaultBlockState()),
+                "Undeclared symbols should not be compartment-restricted");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_metadata_restricts_mdlib_match_to_declared_type")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentMetadataRestrictsMdlibMatchToDeclaredType(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("compartment_predicate_match"),
+                new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"input\"}},\"aisles\":[{\"slices\":[[\"~I\"]]}]}"));
+
+        BlockPos compartmentPos = new BlockPos(-1, 0, 0);
+        StructureMatchResult matched = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertTrue(matched.matched(), "Declared input compartment should match the input compartment block");
+
+        StructureMatchResult mismatched = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        compartmentPos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertFalse(mismatched.matched(), "Declared input compartment should reject the output compartment block");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_binder_reports_invalid_runtime_parts")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentBinderReportsInvalidRuntimeParts(GameTestHelper helper) {
+        DefaultJsonMultiBlockCompartmentBinder binder = new DefaultJsonMultiBlockCompartmentBinder();
+        BlockPos compartmentPos = new BlockPos(1, 0, 0);
+        StructureMatchResult result = StructureMatchResult.success(
+                false,
+                Direction.NORTH,
+                List.of(compartmentPos),
+                new PatternMatchContext());
+
+        PatternDiagnostic missing = binder.validate(
+                world(Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                result,
+                Map.of(compartmentPos, CompartmentType.INPUT));
+        assertDiagnosticCode(helper, missing, "compartment_part_missing", "Missing compartment block entity should fail");
+
+        CompartmentBlockEntity outputPart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        PatternDiagnostic mismatched = binder.validate(
+                world(
+                        Map.of(compartmentPos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
+                        Map.of(compartmentPos, outputPart)),
+                result,
+                Map.of(compartmentPos, CompartmentType.INPUT));
+        assertDiagnosticCode(
+                helper,
+                mismatched,
+                "compartment_part_mismatch",
+                "Runtime compartment type mismatch should fail");
+
+        CompartmentBlockEntity inputPart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        PatternDiagnostic undeclared = binder.validate(
+                world(
+                        Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                        Map.of(compartmentPos, inputPart)),
+                result,
+                Map.of());
+        assertDiagnosticCode(
+                helper,
+                undeclared,
+                "compartment_part_undeclared",
+                "Matched but undeclared compartment should fail");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_binder_binds_ensures_and_unbinds_declared_parts")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentBinderBindsEnsuresAndUnbindsDeclaredParts(GameTestHelper helper) {
+        DefaultJsonMultiBlockCompartmentBinder binder = new DefaultJsonMultiBlockCompartmentBinder();
+        TestCompartmentHost host = new TestCompartmentHost();
+        BlockPos compartmentPos = new BlockPos(1, 0, 0);
+        CompartmentBlockEntity inputPart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        StructureWorldView world = world(
+                Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                Map.of(compartmentPos, inputPart));
+        Map<BlockPos, CompartmentType> declaredCompartments = Map.of(compartmentPos, CompartmentType.INPUT);
+
+        binder.bind(world, "main", host, declaredCompartments);
+        helper.assertValueEqual(
+                host.compartmentHost$getCompartments("main"),
+                List.of(inputPart),
+                "Binder should register declared runtime compartment parts with the host");
+        helper.assertValueEqual(inputPart.compartmentHost(), host, "Bound compartment part should remember its host");
+        helper.assertValueEqual(
+                inputPart.compartmentStructureName(),
+                "main",
+                "Bound compartment part should remember the structure name");
+
+        binder.ensureBound(world, "main", host, declaredCompartments);
+        helper.assertValueEqual(
+                host.compartmentHost$getCompartments("main"),
+                List.of(inputPart),
+                "ensureBound should keep an already registered compartment without duplicates");
+
+        binder.unbind("main", host);
+        helper.assertTrue(
+                host.compartmentHost$getCompartments("main").isEmpty(),
+                "Binder unbind should remove declared compartments from the host");
+        helper.assertTrue(inputPart.compartmentHost() == null, "Unbound compartment part should clear its host");
+        helper.assertTrue(
+                inputPart.compartmentStructureName() == null,
+                "Unbound compartment part should clear its structure name");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_rejects_unused_compartment_symbol")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsUnusedCompartmentSymbol(GameTestHelper helper) {
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("unused_compartment_symbol"),
+                        new StringReader("{\"metadata\":{\"compartments\":{\"I\":\"input\"}},\"aisles\":[{\"slices\":[[\"~\"]]}]}")),
+                "Loader should reject compartment symbols that are not present in the pattern");
         helper.succeed();
     }
 
@@ -283,6 +558,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     }
 
     private static StructureWorldView world(Map<BlockPos, BlockState> states) {
+        return world(states, Map.of());
+    }
+
+    private static StructureWorldView world(Map<BlockPos, BlockState> states, Map<BlockPos, BlockEntity> blockEntities) {
         return new StructureWorldView() {
 
             @Override
@@ -298,7 +577,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
             @Nullable
             @Override
             public BlockEntity getBlockEntity(BlockPos pos) {
-                return null;
+                return blockEntities.get(pos);
             }
 
             @Override
@@ -337,6 +616,17 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         }
     }
 
+    private static void assertDiagnosticCode(GameTestHelper helper,
+                                             @Nullable PatternDiagnostic diagnostic,
+                                             String expectedCodePath,
+                                             String message) {
+        if (diagnostic == null) {
+            helper.fail(message + ": expected diagnostic " + expectedCodePath + " but validation passed");
+            return;
+        }
+        helper.assertValueEqual(diagnostic.code().getPath(), expectedCodePath, message);
+    }
+
     private static <T extends Throwable> void assertThrows(GameTestHelper helper,
                                                            Class<T> expectedType,
                                                            Runnable action,
@@ -351,5 +641,25 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                     thrown.getClass().getSimpleName() + " (" + thrown.getMessage() + ")");
         }
         helper.fail(message + ": expected " + expectedType.getSimpleName() + " but no exception was thrown");
+    }
+
+    private static final class TestCompartmentHost implements CompartmentHost {
+
+        private final CompartmentHostState compartments = new CompartmentHostState();
+
+        @Override
+        public void compartmentHost$addCompartment(String structureName, CompartmentPart part) {
+            this.compartments.addCompartment(structureName, part);
+        }
+
+        @Override
+        public void compartmentHost$removeCompartment(String structureName, CompartmentPart part) {
+            this.compartments.removeCompartment(structureName, part);
+        }
+
+        @Override
+        public Collection<CompartmentPart> compartmentHost$getCompartments(String structureName) {
+            return this.compartments.compartments(structureName);
+        }
     }
 }

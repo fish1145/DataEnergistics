@@ -17,7 +17,7 @@ public final class JsonMultiBlockReloadListener
     private final JsonMultiBlockDefinitionLoader loader;
 
     public JsonMultiBlockReloadListener(JsonMultiBlockDefinitionRegistry registry) {
-        this(registry, new JsonMultiBlockDefinitionLoaderImpl());
+        this(registry, new MdlibJsonMultiBlockDefinitionLoader());
     }
 
     public JsonMultiBlockReloadListener(JsonMultiBlockDefinitionRegistry registry, JsonMultiBlockDefinitionLoader loader) {

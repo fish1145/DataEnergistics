@@ -1,0 +1,88 @@
+{
+  "$schema": "schema.json",
+  "includes": [
+    "common/common.json",
+    "common/player_inventory.json",
+    "common/toolbox.json"
+  ],
+  "background": {
+    "texture": "guis/composite_warehouse.png",
+    "srcRect": [
+      0,
+      0,
+      176,
+      253
+    ]
+  },
+  "slots": {
+    "COMPARTMENT_STORAGE_ROW_1": {
+      "left": 8,
+      "top": 29,
+      "grid": "HORIZONTAL"
+    },
+    "COMPARTMENT_STORAGE_ROW_2": {
+      "left": 8,
+      "top": 47,
+      "grid": "HORIZONTAL"
+    },
+    "COMPARTMENT_STORAGE_ROW_3": {
+      "left": 8,
+      "top": 65,
+      "grid": "HORIZONTAL"
+    },
+    "COMPARTMENT_STORAGE_ROW_4": {
+      "left": 8,
+      "top": 83,
+      "grid": "HORIZONTAL"
+    },
+    "COMPARTMENT_STORAGE_ROW_5": {
+      "left": 8,
+      "top": 101,
+      "grid": "HORIZONTAL"
+    },
+    "COMPARTMENT_FLUID": {
+      "left": 152,
+      "top": 29
+    },
+    "COMPARTMENT_KEY": {
+      "left": 152,
+      "top": 47
+    },
+    "PLAYER_INVENTORY": {
+      "left": 8,
+      "bottom": 84,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "PLAYER_HOTBAR": {
+      "left": 8,
+      "bottom": 26,
+      "grid": "HORIZONTAL"
+    }
+  },
+  "text": {
+    "dialog_title": {
+      "text": {
+        "translate": "block.data_energistics.composite_warehouse"
+      },
+      "position": {
+        "left": 8,
+        "top": 6
+      }
+    },
+    "player_inventory_title": {
+      "text": {
+        "translate": "container.inventory"
+      },
+      "position": {
+        "left": 8,
+        "bottom": 94
+      }
+    }
+  },
+  "widgets": {
+    "upgrades": {
+      "left": 174,
+      "top": 0
+    }
+  }
+}

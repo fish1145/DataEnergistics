@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.FileToIdConverter;
@@ -14,6 +15,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver;
 import org.apache.logging.log4j.Logger;
@@ -21,19 +24,24 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
- * Default loader implementation backed by MDLib's GregTech-style JSON resolver.
+ * Loader backed by MDLib's GregTech-style JSON resolver.
  */
-public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockDefinitionLoader {
+public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlockDefinitionLoader {
 
     public static final String DIRECTORY = "multiblock";
     private static final String PREDICATES_PROPERTY = "predicates";
+    private static final String AISLES_PROPERTY = "aisles";
+    private static final String SLICES_PROPERTY = "slices";
     private static final String TYPE_PROPERTY = "type";
     private static final String BLOCK_PROPERTY = "block";
     private static final String BLOCKS_PROPERTY = "blocks";
@@ -92,7 +100,7 @@ public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockD
 
     @Override
     public JsonMultiBlockDefinition parse(ResourceLocation resourceId, Reader reader) {
-        JsonObject root = readRoot(reader);
+        JsonObject root = readRoot(reader, resourceId);
         JsonMultiBlockMetadata metadata = JsonMultiBlockMetadata.read(root, resourceId);
         return parseDefinition(resourceId, root, metadata);
     }
@@ -104,16 +112,151 @@ public final class JsonMultiBlockDefinitionLoaderImpl implements JsonMultiBlockD
         JsonObject patternRoot = root.deepCopy();
         patternRoot.remove(JsonMultiBlockMetadata.METADATA_PROPERTY);
         sanitizeBlockPredicates(resourceId, patternRoot);
+        JsonMultiBlockCompartmentPredicate.registerType();
+        applyCompartmentPredicates(resourceId, patternRoot, metadata.compartmentTypes());
         BlockPattern pattern = StructurePatternResolver.parsePattern(new StringReader(GSON.toJson(patternRoot)));
-        return new JsonMultiBlockDefinitionImpl(key, pattern, metadata.displayNameTranslationKey());
+        return new ResolvedJsonMultiBlockDefinition(
+                key,
+                pattern,
+                metadata.displayNameTranslationKey(),
+                metadata.compartmentTypes());
     }
 
-    private static JsonObject readRoot(Reader reader) {
-        JsonObject root = JsonParser.parseReader(Objects.requireNonNull(reader, "reader")).getAsJsonObject();
+    private static void applyCompartmentPredicates(ResourceLocation resourceId,
+                                                   JsonObject root,
+                                                   Map<String, CompartmentType> compartmentTypes) {
+        if (compartmentTypes.isEmpty()) {
+            return;
+        }
+        JsonObject predicates = getOrCreatePredicates(root, resourceId);
+        for (Map.Entry<String, CompartmentType> entry : compartmentTypes.entrySet()) {
+            String symbol = entry.getKey();
+            if (!patternUsesSymbol(root, symbol)) {
+                throw new IllegalArgumentException("JSON multiblock compartment symbol '" + symbol +
+                        "' is not used by pattern: " + resourceId);
+            }
+            JsonObject compartmentPredicate = new JsonObject();
+            compartmentPredicate.addProperty(TYPE_PROPERTY, JsonMultiBlockCompartmentPredicate.TYPE.toString());
+            compartmentPredicate.addProperty("compartment", entry.getValue().id());
+            JsonElement existingPredicate = predicates.get(symbol);
+            if (existingPredicate != null && !existingPredicate.isJsonNull()) {
+                if (!existingPredicate.isJsonObject()) {
+                    throw new IllegalArgumentException("JSON multiblock predicate for compartment symbol '" + symbol +
+                            "' must be an object: " + resourceId);
+                }
+                compartmentPredicate.add("predicate", existingPredicate.deepCopy());
+            }
+            predicates.add(symbol, compartmentPredicate);
+        }
+    }
+
+    private static JsonObject getOrCreatePredicates(JsonObject root, ResourceLocation resourceId) {
+        JsonElement predicatesElement = root.get(PREDICATES_PROPERTY);
+        if (predicatesElement == null || predicatesElement.isJsonNull()) {
+            JsonObject predicates = new JsonObject();
+            root.add(PREDICATES_PROPERTY, predicates);
+            return predicates;
+        }
+        if (!predicatesElement.isJsonObject()) {
+            throw new IllegalArgumentException("JSON multiblock predicates must be an object: " + resourceId);
+        }
+        return predicatesElement.getAsJsonObject();
+    }
+
+    private static boolean patternUsesSymbol(JsonObject root, String symbol) {
+        char expected = symbol.charAt(0);
+        JsonElement aislesElement = root.get(AISLES_PROPERTY);
+        if (aislesElement == null || !aislesElement.isJsonArray()) {
+            return false;
+        }
+        for (JsonElement unitElement : aislesElement.getAsJsonArray()) {
+            if (!unitElement.isJsonObject()) {
+                continue;
+            }
+            JsonElement slicesElement = unitElement.getAsJsonObject().get(SLICES_PROPERTY);
+            if (slicesElement == null || !slicesElement.isJsonArray()) {
+                continue;
+            }
+            for (JsonElement sliceElement : slicesElement.getAsJsonArray()) {
+                if (!sliceElement.isJsonArray()) {
+                    continue;
+                }
+                for (JsonElement rowElement : sliceElement.getAsJsonArray()) {
+                    if (rowElement.isJsonPrimitive() &&
+                            rowElement.getAsJsonPrimitive().isString() &&
+                            rowElement.getAsString().indexOf(expected) >= 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static JsonObject readRoot(Reader reader, ResourceLocation resourceId) {
+        String source = readSource(reader, resourceId);
+        validateUniqueCompartmentSymbols(source, resourceId);
+        JsonObject root = JsonParser.parseString(source).getAsJsonObject();
         if (root == null) {
             throw new IllegalArgumentException("JSON multiblock root must be an object");
         }
         return root;
+    }
+
+    private static String readSource(Reader reader, ResourceLocation resourceId) {
+        Objects.requireNonNull(reader, "reader");
+        try {
+            StringWriter writer = new StringWriter();
+            reader.transferTo(writer);
+            return writer.toString();
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not read JSON multiblock source: " + resourceId, exception);
+        }
+    }
+
+    private static void validateUniqueCompartmentSymbols(String source, ResourceLocation resourceId) {
+        try (JsonReader reader = new JsonReader(new StringReader(source))) {
+            reader.beginObject();
+            while (reader.hasNext()) {
+                String property = reader.nextName();
+                if (JsonMultiBlockMetadata.METADATA_PROPERTY.equals(property) &&
+                        reader.peek() == JsonToken.BEGIN_OBJECT) {
+                    validateMetadataObject(reader, resourceId);
+                } else {
+                    reader.skipValue();
+                }
+            }
+            reader.endObject();
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Could not inspect JSON multiblock metadata: " + resourceId, exception);
+        }
+    }
+
+    private static void validateMetadataObject(JsonReader reader, ResourceLocation resourceId) throws IOException {
+        reader.beginObject();
+        while (reader.hasNext()) {
+            String property = reader.nextName();
+            if ("compartments".equals(property) && reader.peek() == JsonToken.BEGIN_OBJECT) {
+                validateCompartmentSymbols(reader, resourceId);
+            } else {
+                reader.skipValue();
+            }
+        }
+        reader.endObject();
+    }
+
+    private static void validateCompartmentSymbols(JsonReader reader, ResourceLocation resourceId) throws IOException {
+        Set<String> symbols = new HashSet<>();
+        reader.beginObject();
+        while (reader.hasNext()) {
+            String symbol = reader.nextName();
+            if (!symbols.add(symbol)) {
+                throw new IllegalArgumentException("Duplicate JSON multiblock compartment symbol '" + symbol +
+                        "': " + resourceId);
+            }
+            reader.skipValue();
+        }
+        reader.endObject();
     }
 
     private static void sanitizeBlockPredicates(ResourceLocation resourceId, JsonObject root) {

@@ -1,6 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.multiblock.json.DefaultJsonMultiBlockCompartmentBinder;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFrontFacing;
@@ -30,10 +37,12 @@ import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
-public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider {
+public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider, CompartmentHost {
 
     private static final int RECHECK_RADIUS = 24;
     private static final int RECHECK_INTERVAL_TICKS = 100;
@@ -49,6 +58,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
     @Nullable
     private BlockPos lastFailurePosition;
     private boolean recheckRequested = true;
+    private final CompartmentHostState compartmentHostState = new CompartmentHostState();
+    private final JsonMultiBlockCompartmentBinder compartmentBinder = new DefaultJsonMultiBlockCompartmentBinder();
 
     public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -176,18 +187,26 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
     private void updateStructureMatch(Level level) {
         JsonMultiBlockDefinition definition = requireMainJsonDefinition();
         Direction preferredFrontFacing = getStructureFrontFacing(level);
+        StructureWorldView world = new LevelStructureWorldView(level);
         StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
                 definition.pattern(),
-                new LevelStructureWorldView(level),
+                world,
                 this.worldPosition,
                 preferredFrontFacing,
                 mainDefinitionKey().structureName());
 
         if (result.matched()) {
+            Map<BlockPos, CompartmentType> declaredCompartments = JsonMultiBlockCompartmentPredicate.declaredCompartments(
+                    result.context());
+            PatternDiagnostic compartmentFailure = this.compartmentBinder.validate(world, result, declaredCompartments);
+            if (compartmentFailure != null) {
+                applyFailure(compartmentFailure, mainDefinitionKey().structureName());
+                return;
+            }
             normalizeHostFacing(level, preferredFrontFacing, result.frontFacing());
-            applyMatch(result.positions());
+            applyMatch(world, result.positions(), declaredCompartments, mainDefinitionKey().structureName());
         } else {
-            applyFailure(result.diagnostic());
+            applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
         }
     }
 
@@ -215,19 +234,25 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
         }
     }
 
-    private void applyMatch(List<BlockPos> positions) {
+    private void applyMatch(StructureWorldView world,
+                            List<BlockPos> positions,
+                            Map<BlockPos, CompartmentType> declaredCompartments,
+                            String structureName) {
         List<BlockPos> nextPositions = List.copyOf(positions);
         if (this.formed && this.matchedPositions.equals(nextPositions) && NO_FAILURE.equals(this.lastFailureReason) && this.lastFailurePosition == null) {
+            this.compartmentBinder.ensureBound(world, structureName, this, declaredCompartments);
             return;
         }
+        clearCompartmentBindings(structureName);
         this.formed = true;
         this.matchedPositions = nextPositions;
+        this.compartmentBinder.bind(world, structureName, this, declaredCompartments);
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = null;
         setChanged();
     }
 
-    private void applyFailure(PatternDiagnostic diagnostic) {
+    private void applyFailure(PatternDiagnostic diagnostic, String structureName) {
         String nextFailureReason;
         BlockPos nextFailurePosition;
         if (diagnostic == null) {
@@ -241,11 +266,32 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
                 Objects.equals(this.lastFailurePosition, nextFailurePosition)) {
             return;
         }
+        clearCompartmentBindings(structureName);
         this.formed = false;
         this.matchedPositions = List.of();
         this.lastFailureReason = nextFailureReason;
         this.lastFailurePosition = nextFailurePosition;
         setChanged();
+    }
+
+    private void clearCompartmentBindings(String structureName) {
+        this.compartmentBinder.unbind(structureName, this);
+        this.compartmentHostState.clear(structureName);
+    }
+
+    @Override
+    public void compartmentHost$addCompartment(String structureName, CompartmentPart part) {
+        this.compartmentHostState.addCompartment(structureName, part);
+    }
+
+    @Override
+    public void compartmentHost$removeCompartment(String structureName, CompartmentPart part) {
+        this.compartmentHostState.removeCompartment(structureName, part);
+    }
+
+    @Override
+    public Collection<CompartmentPart> compartmentHost$getCompartments(String structureName) {
+        return this.compartmentHostState.compartments(structureName);
     }
 
     private static JsonMultiBlockDefinition requireMainJsonDefinition() {

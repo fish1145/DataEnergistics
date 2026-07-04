@@ -404,5 +404,11 @@
 	"item.data_energistics.adaptive_pattern_provider_upgrade": "自适应样板供应器升级件",
 	"exported_setting.data_energistics.machine_memory_card_settings": "机器设置",
 	"exported_setting.data_energistics.adaptive_pattern_provider_settings": "自适应样板供应器设置",
-	"exported_setting.data_energistics.redstone_tuning_mode": "红石调整模式"
+	"exported_setting.data_energistics.redstone_tuning_mode": "红石调整模式",
+	"block.data_energistics.composite_input_warehouse": "普通输入仓",
+	"block.data_energistics.composite_output_warehouse": "普通输出仓",
+	"block.data_energistics.composite_warehouse": "普通仓",
+	"block.data_energistics.me_composite_input_warehouse": "ME 输入仓",
+	"block.data_energistics.me_composite_output_warehouse": "ME 输出仓",
+	"block.data_energistics.me_pattern_buffer": "样板仓"
 }

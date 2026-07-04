@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
+import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
@@ -22,6 +23,7 @@ import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
@@ -185,6 +187,22 @@ public final class ModBlocks {
                     .isViewBlocking((state, blockGetter, pos) -> false)
                     .requiresCorrectToolForDrops());
 
+    public static final DeferredBlock<CompartmentBlock> COMPOSITE_INPUT_WAREHOUSE = registerCompartment(
+            "composite_input_warehouse",
+            CompartmentType.INPUT);
+    public static final DeferredBlock<CompartmentBlock> COMPOSITE_OUTPUT_WAREHOUSE = registerCompartment(
+            "composite_output_warehouse",
+            CompartmentType.OUTPUT);
+    public static final DeferredBlock<CompartmentBlock> ME_COMPOSITE_INPUT_WAREHOUSE = registerCompartment(
+            "me_composite_input_warehouse",
+            CompartmentType.ME_INPUT);
+    public static final DeferredBlock<CompartmentBlock> ME_COMPOSITE_OUTPUT_WAREHOUSE = registerCompartment(
+            "me_composite_output_warehouse",
+            CompartmentType.ME_OUTPUT);
+    public static final DeferredBlock<CompartmentBlock> ME_PATTERN_BUFFER = registerCompartment(
+            "me_pattern_buffer",
+            CompartmentType.PATTERN_BUFFER);
+
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_0 = BLOCKS.registerBlock(
             "budding_data_crystal_0",
             Block::new,
@@ -253,6 +271,16 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
 
     private ModBlocks() {}
+
+    private static DeferredBlock<CompartmentBlock> registerCompartment(String id, CompartmentType type) {
+        return BLOCKS.registerBlock(
+                id,
+                properties -> new CompartmentBlock(type, properties),
+                BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                        .noOcclusion()
+                        .isViewBlocking((state, blockGetter, pos) -> false)
+                        .requiresCorrectToolForDrops());
+    }
 
     public static void register(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);

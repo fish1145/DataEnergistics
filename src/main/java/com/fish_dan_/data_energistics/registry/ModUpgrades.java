@@ -50,6 +50,11 @@ public final class ModUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), ModBlocks.DATA_SANCTUM.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SANCTUM_INTERFACE_BLOCK_ENTITY.get(), ModBlocks.DATA_SANCTUM_INTERFACE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), ModBlocks.ME_PATTERN_BUFFER.get().asItem());
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
@@ -127,6 +132,7 @@ public final class ModUpgrades {
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
         Upgrades.add(AEItems.VOID_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 1, "block.data_energistics.data_mimetic_field");
         Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SANCTUM.get(), 3, "block.data_energistics.data_sanctum");
+        registerCompartmentCapacityUpgrade();
         registerDataSanctumInterfaceUpgrade(AEItems.CAPACITY_CARD, 3);
         registerDataSanctumInterfaceUpgrade(AEItems.CRAFTING_CARD, 1);
         registerDataSanctumInterfaceUpgrade(AEItems.FUZZY_CARD, 1);
@@ -157,6 +163,11 @@ public final class ModUpgrades {
         registerAppliedFluxAdaptivePatternProviderCompat();
         registerAe2CrystalScienceAdaptivePatternProviderCompat();
         StorageCells.addCellHandler(InfiniteDataCellHandler.INSTANCE);
+    }
+
+    private static void registerCompartmentCapacityUpgrade() {
+        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get(), 4, "block.data_energistics.composite_input_warehouse");
+        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get(), 4, "block.data_energistics.composite_output_warehouse");
     }
 
     public static void registerPartModels() {

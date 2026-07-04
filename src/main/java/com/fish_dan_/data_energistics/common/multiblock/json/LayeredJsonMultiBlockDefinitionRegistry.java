@@ -14,9 +14,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Layered in-memory implementation for built-in and datapack JSON multiblock definitions.
+ * Layered in-memory registry for built-in and datapack JSON multiblock definitions.
  */
-public final class JsonMultiBlockDefinitionRegistryImpl implements JsonMultiBlockDefinitionRegistry {
+public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiBlockDefinitionRegistry {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 

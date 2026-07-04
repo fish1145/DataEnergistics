@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
@@ -10,7 +11,11 @@ import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
+import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
@@ -23,6 +28,9 @@ import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
 import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
+import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
+import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
+import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
@@ -75,6 +83,22 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DigitalStorageDepotMenu>> DIGITAL_STORAGE_DEPOT = MENUS.register("digital_storage_depot", () -> MenuTypeBuilder
             .create(DigitalStorageDepotMenu::new, DigitalStorageDepotBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "digital_storage_depot")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<CompositeWarehouseMenu>> COMPOSITE_WAREHOUSE = MENUS.register("composite_warehouse", () -> MenuTypeBuilder
+            .create(CompositeWarehouseMenu::new, CompositeWarehouseBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "composite_warehouse")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<MeCompositeInputWarehouseMenu>> ME_COMPOSITE_INPUT_WAREHOUSE = MENUS.register("me_composite_input_warehouse", () -> MenuTypeBuilder
+            .create(MeCompositeInputWarehouseMenu::new, MeCompositeInputWarehouseBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_composite_input_warehouse")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<MeCompositeOutputWarehouseMenu>> ME_COMPOSITE_OUTPUT_WAREHOUSE = MENUS.register("me_composite_output_warehouse", () -> MenuTypeBuilder
+            .create(MeCompositeOutputWarehouseMenu::new, MeCompositeOutputWarehouseBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_composite_output_warehouse")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<MePatternBufferMenu>> ME_PATTERN_BUFFER = MENUS.register("me_pattern_buffer", () -> MenuTypeBuilder
+            .create(MePatternBufferMenu::new, MePatternBufferBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_pattern_buffer")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataTeleportAnchorMenu>> DATA_TELEPORT_ANCHOR = MENUS.register("data_teleport_anchor", () -> MenuTypeBuilder
             .create(DataTeleportAnchorMenu::new, DataTeleportAnchorBlockEntity.class)
