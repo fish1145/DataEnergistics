@@ -14,7 +14,7 @@ import java.util.Objects;
 /**
  * Map-backed compartment storage.
  */
-public class MapBackedCompartmentStorage implements CompartmentStorage {
+public class CompartmentStorageImpl implements CompartmentStorage {
 
     private static final String KEY_TAG = "key";
     private static final String AMOUNT_TAG = "amount";
@@ -22,7 +22,7 @@ public class MapBackedCompartmentStorage implements CompartmentStorage {
     private final Object2LongOpenHashMap<AEKey> contents = new Object2LongOpenHashMap<>();
     private final Runnable listener;
 
-    public MapBackedCompartmentStorage(Runnable listener) {
+    public CompartmentStorageImpl(Runnable listener) {
         this.listener = Objects.requireNonNull(listener, "listener");
     }
 

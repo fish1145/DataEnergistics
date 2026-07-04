@@ -164,7 +164,7 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void storageDisplayInventoryUsesStableSortedWindow(GameTestHelper helper) {
-        CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
+        CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
         storage.insert(DataKey.of(), 200L, false);
         storage.insert(AEItemKey.of(Items.IRON_INGOT), 3L, false);
 
@@ -454,7 +454,7 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void outputStorageKeepsEntriesBeyondDisplayWindow(GameTestHelper helper) {
-        CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
+        CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
         List<AEItemKey> keys = BuiltInRegistries.ITEM.stream()
                 .filter(item -> item != Items.AIR)
                 .limit(37)
@@ -480,7 +480,7 @@ public final class CompartmentInventoryTest {
     @GameTest(template = "empty_5x5")
     public static void outputStorageRequiresBoundMeOutput(GameTestHelper helper) {
         TestCompartmentPart part = new TestCompartmentPart(CompartmentType.ME_OUTPUT);
-        CompartmentStorage storage = new MapBackedCompartmentStorage(() -> {});
+        CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
         CompartmentOutputStorage outputStorage = new CompartmentOutputStorage(
                 part,
                 storage,
@@ -783,7 +783,7 @@ public final class CompartmentInventoryTest {
 
         @Override
         public CompartmentStorage compartmentStorage() {
-            return new MapBackedCompartmentStorage(() -> {});
+            return new CompartmentStorageImpl(() -> {});
         }
 
         @Override

@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.common.compartment.AvailabilityCheckedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentStorage;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
@@ -44,7 +44,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity {
     private final CompartmentInventory keyConfig = CompartmentInventory.keyConfig(this::onContentInventoryChanged);
     private final ArrayList<CompartmentStorage> patternBufferStorages = new ArrayList<>(MAX_COMPARTMENT_SLOTS);
     private final ArrayList<CompartmentStorage> patternBufferStorageViews = new ArrayList<>(MAX_COMPARTMENT_SLOTS);
-    private final CompartmentStorage patternAggregateStorage = new MapBackedCompartmentStorage(() -> {});
+    private final CompartmentStorage patternAggregateStorage = new CompartmentStorageImpl(() -> {});
     private final CompartmentStorage patternAggregateStorageView = new AvailabilityCheckedCompartmentStorage(
             this::isCompartmentBound,
             () -> this.patternAggregateStorage,
@@ -53,7 +53,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity {
     public MePatternBufferBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), pos, state);
         for (int slot = 0; slot < MAX_COMPARTMENT_SLOTS; slot++) {
-            CompartmentStorage patternBuffer = new MapBackedCompartmentStorage(this::onContentInventoryChanged);
+            CompartmentStorage patternBuffer = new CompartmentStorageImpl(this::onContentInventoryChanged);
             this.patternBufferStorages.add(patternBuffer);
             this.patternBufferStorageViews.add(new AvailabilityCheckedCompartmentStorage(
                     this::isCompartmentBound,

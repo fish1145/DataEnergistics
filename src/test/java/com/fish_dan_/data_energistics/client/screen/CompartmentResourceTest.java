@@ -26,7 +26,14 @@ public final class CompartmentResourceTest {
     private static final String TEXTURE_ROOT = "assets/data_energistics/textures/";
     private static final String SCREEN_ROOT = "assets/ae2/screens/";
     private static final String GUI_ROOT = "assets/ae2/textures/guis/";
+    private static final String DATA_ROOT = "data/";
     private static final int SLOT_ANCHOR_COLOR = 0xFF9A9FB4;
+    private static final List<String> COMPARTMENT_BLOCK_IDS = List.of(
+            "composite_input_warehouse",
+            "composite_output_warehouse",
+            "me_composite_input_warehouse",
+            "me_composite_output_warehouse",
+            "me_pattern_buffer");
     private static final List<String> COMPARTMENT_MODELS = List.of(
             "composite_input_warehouse_off.json",
             "composite_input_warehouse_on.json",
@@ -131,6 +138,24 @@ public final class CompartmentResourceTest {
         assertTextBottom(text, "player_inventory_title", 97);
     }
 
+    @Test
+    void compartmentBlocksHaveLootTablesAndToolTags() {
+        JsonObject pickaxeTag = readJson(DATA_ROOT + "minecraft/tags/block/mineable/pickaxe.json");
+        JsonObject ironToolTag = readJson(DATA_ROOT + "minecraft/tags/block/needs_iron_tool.json");
+
+        for (String id : COMPARTMENT_BLOCK_IDS) {
+            String blockId = "data_energistics:" + id;
+            JsonObject lootTable = readJson(DATA_ROOT + "data_energistics/loot_table/blocks/" + id + ".json");
+            JsonObject pool = lootTable.getAsJsonArray("pools").get(0).getAsJsonObject();
+            JsonObject entry = pool.getAsJsonArray("entries").get(0).getAsJsonObject();
+
+            assertEquals("minecraft:block", string(lootTable, "type"), id + " should use a block loot table");
+            assertEquals(blockId, string(entry, "name"), id + " loot table should drop itself");
+            assertJsonArrayContains(pickaxeTag, blockId, id + " should be mineable with a pickaxe");
+            assertJsonArrayContains(ironToolTag, blockId, id + " should require the same tier as iron block properties");
+        }
+    }
+
     private static JsonObject readJson(String path) {
         try (InputStream stream = CompartmentResourceTest.class.getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, "Missing resource " + path);
@@ -220,6 +245,20 @@ public final class CompartmentResourceTest {
 
     private static void assertNotSlotAnchor(BufferedImage image, int x, int y, String message) {
         assertNotEquals(SLOT_ANCHOR_COLOR, image.getRGB(x, y), message);
+    }
+
+    private static void assertJsonArrayContains(JsonObject root, String expected, String message) {
+        JsonElement valuesElement = root.get("values");
+        assertNotNull(valuesElement, "Missing values array");
+        assertTrue(valuesElement.isJsonArray(), "values should be an array");
+        boolean found = false;
+        for (JsonElement element : valuesElement.getAsJsonArray()) {
+            if (element.isJsonPrimitive() && expected.equals(element.getAsString())) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, message);
     }
 
     private static JsonElement jsonString(String value) {
