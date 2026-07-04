@@ -394,7 +394,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void compartmentBinderReportsInvalidRuntimeParts(GameTestHelper helper) {
-        JsonMultiBlockCompartmentBinderImpl binder = new JsonMultiBlockCompartmentBinderImpl();
+        JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
         BlockPos compartmentPos = new BlockPos(1, 0, 0);
         StructureMatchResult result = StructureMatchResult.success(
                 false,
@@ -444,7 +444,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void compartmentBinderBindsEnsuresAndUnbindsDeclaredParts(GameTestHelper helper) {
-        JsonMultiBlockCompartmentBinderImpl binder = new JsonMultiBlockCompartmentBinderImpl();
+        JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
         TestCompartmentHost host = new TestCompartmentHost();
         BlockPos compartmentPos = new BlockPos(1, 0, 0);
         CompartmentBlockEntity inputPart = new CompositeWarehouseBlockEntity(

@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinderImpl;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
@@ -62,7 +62,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
     private BlockPos lastFailurePosition;
     private boolean recheckRequested = true;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
-    private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonMultiBlockCompartmentBinderImpl();
+    private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
 
     public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), blockPos, blockState);
