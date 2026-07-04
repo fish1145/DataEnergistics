@@ -5,7 +5,9 @@ import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
@@ -146,6 +148,27 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
 
     public void requestStructureRecheck() {
         this.recheckRequested = true;
+    }
+
+    /**
+     * Returns the main structure's aggregate input view without exposing concrete compartment block entities.
+     */
+    public CompartmentStorage compartmentInputStorage() {
+        return compartmentHost$inputStorage(mainDefinitionKey().structureName());
+    }
+
+    /**
+     * Returns the main structure's aggregate output view without exposing concrete compartment block entities.
+     */
+    public CompartmentStorage compartmentOutputStorage() {
+        return compartmentHost$outputStorage(mainDefinitionKey().structureName());
+    }
+
+    /**
+     * Returns main structure pattern buffers for recipe logic without depending on concrete block entities.
+     */
+    public Collection<PatternBufferCompartmentPart> patternBuffers() {
+        return compartmentHost$getPatternBuffers(mainDefinitionKey().structureName());
     }
 
     public static void requestRecheckAround(Level level, BlockPos origin) {

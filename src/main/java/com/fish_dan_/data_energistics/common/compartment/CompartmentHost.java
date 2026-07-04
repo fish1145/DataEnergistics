@@ -47,6 +47,13 @@ public interface CompartmentHost {
     }
 
     /**
+     * Returns a dynamic aggregate input view for main structure logic without depending on concrete block entities.
+     */
+    default CompartmentStorage compartmentHost$inputStorage(String structureName) {
+        return new CompartmentStorageGroup(() -> compartmentHost$getInputStorages(structureName));
+    }
+
+    /**
      * Returns structure-facing storages that can receive output contents.
      */
     default Collection<CompartmentStorage> compartmentHost$getOutputStorages(String structureName) {
@@ -55,6 +62,13 @@ public interface CompartmentHost {
                         part.compartmentType() == CompartmentType.ME_OUTPUT)
                 .map(CompartmentPart::compartmentStorage)
                 .toList();
+    }
+
+    /**
+     * Returns a dynamic aggregate output view for main structure logic without depending on concrete block entities.
+     */
+    default CompartmentStorage compartmentHost$outputStorage(String structureName) {
+        return new CompartmentStorageGroup(() -> compartmentHost$getOutputStorages(structureName));
     }
 
     /**

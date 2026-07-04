@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
@@ -625,6 +626,142 @@ public final class CompartmentInventoryTest {
                 patternHost.compartmentHost$getPatternBuffers("main"),
                 List.of(patternBuffer),
                 "Pattern buffer accessor should require both PATTERN_BUFFER type and pattern buffer interface");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_host_input_storage_aggregates_inputs")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentHostInputStorageAggregatesInputs(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        TestCompartmentPart input = new TestCompartmentPart(CompartmentType.INPUT);
+        TestCompartmentPart meInput = new TestCompartmentPart(CompartmentType.ME_INPUT);
+        TestCompartmentPart output = new TestCompartmentPart(CompartmentType.OUTPUT);
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+
+        input.compartmentStorage().insert(iron, 3L, false);
+        meInput.compartmentStorage().insert(iron, 5L, false);
+        meInput.compartmentStorage().insert(gold, 7L, false);
+        output.compartmentStorage().insert(iron, 11L, false);
+
+        host.compartmentHost$addCompartment("main", input);
+        host.compartmentHost$addCompartment("main", meInput);
+        host.compartmentHost$addCompartment("main", output);
+
+        CompartmentStorage inputView = host.compartmentHost$inputStorage("main");
+        helper.assertValueEqual(inputView.amount(iron), 8L, "Input view should aggregate matching input keys");
+        helper.assertValueEqual(inputView.entries().getLong(iron), 8L, "Input entries should merge duplicate keys");
+        helper.assertValueEqual(inputView.entries().getLong(gold), 7L, "Input entries should include ME input keys");
+
+        helper.assertValueEqual(inputView.extract(iron, 6L, true), 6L, "Simulated extract should report available input");
+        helper.assertValueEqual(input.compartmentStorage().amount(iron), 3L, "Simulated extract should not touch first input");
+        helper.assertValueEqual(meInput.compartmentStorage().amount(iron), 5L, "Simulated extract should not touch second input");
+
+        helper.assertValueEqual(inputView.extract(iron, 6L, false), 6L, "Input view should extract in backing order");
+        helper.assertValueEqual(input.compartmentStorage().amount(iron), 0L, "Ordered extract should drain first input first");
+        helper.assertValueEqual(meInput.compartmentStorage().amount(iron), 2L, "Ordered extract should continue into second input");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_host_output_storage_writes_outputs_only")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentHostOutputStorageWritesOutputsOnly(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        TestCompartmentPart input = new TestCompartmentPart(CompartmentType.INPUT);
+        TestCompartmentPart output = new TestCompartmentPart(CompartmentType.OUTPUT);
+        TestCompartmentPart meOutput = new TestCompartmentPart(CompartmentType.ME_OUTPUT);
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+
+        input.compartmentStorage().insert(iron, 9L, false);
+        host.compartmentHost$addCompartment("main", input);
+        host.compartmentHost$addCompartment("main", output);
+        host.compartmentHost$addCompartment("main", meOutput);
+
+        CompartmentStorage outputView = host.compartmentHost$outputStorage("main");
+        helper.assertValueEqual(outputView.amount(iron), 0L, "Output view should not include input storage contents");
+        helper.assertTrue(outputView.entries().isEmpty(), "Output entries should exclude input-only contents");
+        helper.assertValueEqual(outputView.insert(gold, 4L, false), 4L, "Output view should write to output storage");
+        helper.assertValueEqual(output.compartmentStorage().amount(gold), 4L, "Output view should write to first output");
+        helper.assertValueEqual(meOutput.compartmentStorage().amount(gold), 0L, "First output should satisfy the insert");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_host_cached_storage_view_tracks_binding")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentHostCachedStorageViewTracksBinding(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        CompositeWarehouseBlockEntity input = compositeWarehouse(
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompositeWarehouseBlockEntity output = compositeWarehouse(
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        CompartmentStorage inputView = host.compartmentHost$inputStorage("main");
+        CompartmentStorage outputView = host.compartmentHost$outputStorage("main");
+
+        input.storage().insert(iron, 5L, false);
+        helper.assertValueEqual(inputView.amount(iron), 0L, "Cached input view should be empty before binding");
+        helper.assertValueEqual(outputView.insert(gold, 1L, false), 0L, "Cached output view should reject writes before binding");
+
+        input.compartment$bindToHost("main", host);
+        output.compartment$bindToHost("main", host);
+
+        helper.assertValueEqual(inputView.extract(iron, 2L, false), 2L, "Cached input view should read after binding");
+        helper.assertValueEqual(input.storage().amount(iron), 3L, "Bound input extract should update backing storage");
+        helper.assertValueEqual(outputView.insert(gold, 4L, false), 4L, "Cached output view should write after binding");
+        helper.assertValueEqual(output.storage().amount(gold), 4L, "Bound output write should update backing storage");
+
+        input.compartment$unbindFromHost("main", host);
+        output.compartment$unbindFromHost("main", host);
+
+        helper.assertValueEqual(inputView.extract(iron, 1L, false), 0L, "Cached input view should stop after unbinding");
+        helper.assertValueEqual(outputView.insert(gold, 1L, false), 0L, "Cached output view should stop after unbinding");
+        helper.assertValueEqual(input.storage().amount(iron), 3L, "Unbound input view should not modify backing storage");
+        helper.assertValueEqual(output.storage().amount(gold), 4L, "Unbound output view should not modify backing storage");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_exposes_main_compartment_views")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void digitalConstructFlowerExposesMainCompartmentViews(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = new DigitalConstructFlowerBlockEntity(
+                BlockPos.ZERO,
+                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+        CompositeWarehouseBlockEntity input = compositeWarehouse(
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompositeWarehouseBlockEntity output = compositeWarehouse(
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        CompositeWarehouseBlockEntity alternateInput = compositeWarehouse(
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+
+        input.storage().insert(iron, 4L, false);
+        alternateInput.storage().insert(iron, 10L, false);
+        input.compartment$bindToHost("main", flower);
+        output.compartment$bindToHost("main", flower);
+        patternBuffer.compartment$bindToHost("main", flower);
+        alternateInput.compartment$bindToHost("alternate", flower);
+
+        helper.assertValueEqual(
+                flower.compartmentInputStorage().amount(iron),
+                4L,
+                "Flower input accessor should use the main structure compartments");
+        helper.assertValueEqual(
+                flower.compartmentOutputStorage().insert(gold, 2L, false),
+                2L,
+                "Flower output accessor should write through the main output view");
+        helper.assertValueEqual(output.storage().amount(gold), 2L, "Flower output write should reach output backing storage");
+        helper.assertValueEqual(
+                flower.patternBuffers(),
+                List.of(patternBuffer),
+                "Flower pattern buffer accessor should expose main structure pattern buffers");
         helper.succeed();
     }
 
