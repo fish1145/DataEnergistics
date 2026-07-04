@@ -23,13 +23,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class CompartmentResourceTest {
 
+    private static final String BLOCKSTATE_ROOT = "assets/data_energistics/blockstates/";
     private static final String MODEL_ROOT = "assets/data_energistics/models/block/compartment/";
+    private static final String ITEM_MODEL_ROOT = "assets/data_energistics/models/item/";
     private static final String TEXTURE_ROOT = "assets/data_energistics/textures/";
     private static final String SCREEN_ROOT = "assets/ae2/screens/";
     private static final String GUI_ROOT = "assets/ae2/textures/guis/";
     private static final String DATA_ROOT = "data/";
     private static final String ME_INTERFACE_TEXTURE = "data_energistics:block/compartment/me_interface";
     private static final String CONTROLLER_LIGHTS_TEXTURE = "data_energistics:block/compartment/controller_lights";
+    private static final String ME_PATTERN_BUFFER_MODEL = "data_energistics:block/compartment/me_pattern_buffer";
     private static final int SLOT_ANCHOR_COLOR = 0xFF9A9FB4;
     private static final List<String> COMPARTMENT_BLOCK_IDS = List.of(
             "composite_input_warehouse",
@@ -52,6 +55,22 @@ public final class CompartmentResourceTest {
             "me_composite_input_warehouse.json",
             "me_composite_output_warehouse.json",
             "me_pattern_buffer.json");
+    private static final List<String> COMPARTMENT_FACINGS = List.of("north", "east", "south", "west");
+    private static final Map<String, Integer> FACING_ROTATIONS = Map.of(
+            "east", 90,
+            "south", 180,
+            "west", 270);
+    private static final Map<String, String> ACTIVE_COMPARTMENT_MODEL_PREFIXES = Map.of(
+            "composite_input_warehouse", "data_energistics:block/compartment/composite_input_warehouse",
+            "composite_output_warehouse", "data_energistics:block/compartment/composite_output_warehouse",
+            "me_composite_input_warehouse", "data_energistics:block/compartment/me_composite_input_warehouse",
+            "me_composite_output_warehouse", "data_energistics:block/compartment/me_composite_output_warehouse");
+    private static final Map<String, String> COMPARTMENT_ITEM_PARENTS = Map.of(
+            "composite_input_warehouse", "data_energistics:block/compartment/composite_input_warehouse_off",
+            "composite_output_warehouse", "data_energistics:block/compartment/composite_output_warehouse_off",
+            "me_composite_input_warehouse", "data_energistics:block/compartment/me_composite_input_warehouse_off",
+            "me_composite_output_warehouse", "data_energistics:block/compartment/me_composite_output_warehouse_off",
+            "me_pattern_buffer", ME_PATTERN_BUFFER_MODEL);
 
     @Test
     void compartmentBlockModelsUseLocalTextures() {
@@ -74,6 +93,43 @@ public final class CompartmentResourceTest {
                         model + " texture " + entry.getKey() + " should use the compartment texture namespace");
                 assertResourceExists(textureResourcePath(textureId), model + " texture " + textureId + " should exist");
             }
+        }
+    }
+
+    @Test
+    void activeCompartmentBlockstatesSelectStateModelsAndFacingRotations() {
+        for (Map.Entry<String, String> entry : ACTIVE_COMPARTMENT_MODEL_PREFIXES.entrySet()) {
+            String blockId = entry.getKey();
+            JsonObject variants = variants(blockId);
+            assertEquals(8, variants.size(), blockId + " should define four facings for both active states");
+
+            for (String facing : COMPARTMENT_FACINGS) {
+                assertActiveVariant(variants, blockId, facing, false, entry.getValue() + "_off");
+                assertActiveVariant(variants, blockId, facing, true, entry.getValue() + "_on");
+            }
+        }
+    }
+
+    @Test
+    void mePatternBufferBlockstateUsesSingleModelAndFacingRotations() {
+        JsonObject variants = variants("me_pattern_buffer");
+        assertEquals(8, variants.size(), "ME pattern buffer should define four facings for both active states");
+
+        for (String facing : COMPARTMENT_FACINGS) {
+            assertActiveVariant(variants, "me_pattern_buffer", facing, false, ME_PATTERN_BUFFER_MODEL);
+            assertActiveVariant(variants, "me_pattern_buffer", facing, true, ME_PATTERN_BUFFER_MODEL);
+        }
+    }
+
+    @Test
+    void compartmentItemModelsReferenceExistingBlockModels() {
+        for (Map.Entry<String, String> entry : COMPARTMENT_ITEM_PARENTS.entrySet()) {
+            String blockId = entry.getKey();
+            String expectedParent = entry.getValue();
+            JsonObject itemModel = readJson(ITEM_MODEL_ROOT + blockId + ".json");
+
+            assertEquals(expectedParent, string(itemModel, "parent"), blockId + " item model should use the block model");
+            assertResourceExists(modelResourcePath(expectedParent), blockId + " item parent model should exist");
         }
     }
 
@@ -303,6 +359,33 @@ public final class CompartmentResourceTest {
         return object(readJson(MODEL_ROOT + model), "textures");
     }
 
+    private static JsonObject variants(String blockId) {
+        return object(readJson(BLOCKSTATE_ROOT + blockId + ".json"), "variants");
+    }
+
+    private static void assertActiveVariant(JsonObject variants,
+                                            String blockId,
+                                            String facing,
+                                            boolean active,
+                                            String expectedModel) {
+        String variantKey = "facing=" + facing + ",active=" + active;
+        JsonObject variant = object(variants, variantKey);
+        assertEquals(expectedModel, string(variant, "model"), blockId + " " + variantKey + " should use the expected model");
+        assertFacingRotation(variant, blockId, facing, variantKey);
+        assertResourceExists(modelResourcePath(expectedModel), blockId + " " + variantKey + " model should exist");
+    }
+
+    private static void assertFacingRotation(JsonObject variant, String blockId, String facing, String variantKey) {
+        if ("north".equals(facing)) {
+            assertFalse(variant.has("y"), blockId + " " + variantKey + " should not require y rotation");
+            return;
+        }
+
+        Integer expectedRotation = FACING_ROTATIONS.get(facing);
+        assertNotNull(expectedRotation, blockId + " " + variantKey + " should have an expected facing rotation");
+        assertEquals(expectedRotation, integer(variant, "y"), blockId + " " + variantKey + " y rotation should match facing");
+    }
+
     private static void assertNoTextureReference(JsonObject textures, String forbidden, String model) {
         for (Map.Entry<String, JsonElement> entry : textures.entrySet()) {
             assertFalse(
@@ -326,6 +409,15 @@ public final class CompartmentResourceTest {
         String path = textureId.substring(separator + 1);
         assertEquals("data_energistics", namespace, "Compartment texture namespace should be local");
         return TEXTURE_ROOT + path + ".png";
+    }
+
+    private static String modelResourcePath(String modelId) {
+        int separator = modelId.indexOf(':');
+        assertTrue(separator > 0, "Model id should include a namespace: " + modelId);
+        String namespace = modelId.substring(0, separator);
+        String path = modelId.substring(separator + 1);
+        assertEquals("data_energistics", namespace, "Compartment model namespace should be local");
+        return "assets/" + namespace + "/models/" + path + ".json";
     }
 
     private static void assertResourceExists(String path, String message) {
