@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.common.compartment.AvailabilityCheckedCompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageGroup;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -18,6 +19,7 @@ import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Persistent state for pattern buffer compartments.
@@ -45,11 +47,9 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
     private final CompartmentInventory keyConfig = CompartmentInventory.keyConfig(this::onContentInventoryChanged);
     private final ArrayList<CompartmentStorage> patternBufferStorages = new ArrayList<>(MAX_COMPARTMENT_SLOTS);
     private final ArrayList<CompartmentStorage> patternBufferStorageViews = new ArrayList<>(MAX_COMPARTMENT_SLOTS);
-    private final CompartmentStorage patternAggregateStorage = new CompartmentStorageImpl(() -> {});
     private final CompartmentStorage patternAggregateStorageView = new AvailabilityCheckedCompartmentStorage(
             this::isCompartmentBound,
-            () -> this.patternAggregateStorage,
-            this::rebuildPatternAggregateStorage);
+            () -> new CompartmentStorageGroup(this::unlockedPatternBufferStorageViews));
 
     public MePatternBufferBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), pos, state);
@@ -132,15 +132,9 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
         }
     }
 
-    private void rebuildPatternAggregateStorage() {
-        this.patternAggregateStorage.clear();
-        for (int slot = 0; slot < Math.min(this.patternBufferStorages.size(), unlockedSlotCount()); slot++) {
-            for (Object2LongMap.Entry<AEKey> entry : this.patternBufferStorages.get(slot).entries().object2LongEntrySet()) {
-                if (entry.getKey() != null && entry.getLongValue() > 0L) {
-                    this.patternAggregateStorage.insert(entry.getKey(), entry.getLongValue(), false);
-                }
-            }
-        }
+    private List<CompartmentStorage> unlockedPatternBufferStorageViews() {
+        int slotCount = Math.min(this.patternBufferStorageViews.size(), unlockedSlotCount());
+        return List.copyOf(this.patternBufferStorageViews.subList(0, slotCount));
     }
 
     private ListTag writePatternBufferStorages(HolderLookup.Provider registries) {

@@ -689,6 +689,113 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
+    @TestHolder("compartment_host_pattern_buffer_storage_aggregates_pattern_buffers")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentHostPatternBufferStorageAggregatesPatternBuffers(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        MePatternBufferBlockEntity firstPatternBuffer = patternBuffer();
+        MePatternBufferBlockEntity secondPatternBuffer = patternBuffer();
+        MePatternBufferBlockEntity alternatePatternBuffer = patternBuffer();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        CompartmentStorage patternBufferStorage = host.compartmentHost$patternBufferStorage("main");
+
+        helper.assertValueEqual(
+                patternBufferStorage.insert(iron, 1L, false),
+                0L,
+                "Pattern buffer view should reject writes before any main pattern buffer is bound");
+
+        firstPatternBuffer.compartment$bindToHost("main", host);
+        secondPatternBuffer.compartment$bindToHost("main", host);
+        alternatePatternBuffer.compartment$bindToHost("alternate", host);
+        firstPatternBuffer.patternBufferStorage(0).insert(iron, 3L, false);
+        secondPatternBuffer.patternBufferStorage(0).insert(iron, 5L, false);
+        alternatePatternBuffer.patternBufferStorage(0).insert(iron, 11L, false);
+
+        helper.assertValueEqual(
+                patternBufferStorage.amount(iron),
+                8L,
+                "Pattern buffer view should aggregate only main structure pattern buffers");
+        helper.assertValueEqual(
+                patternBufferStorage.entries().getLong(iron),
+                8L,
+                "Pattern buffer entries should merge duplicate keys across main pattern buffers");
+        helper.assertValueEqual(
+                patternBufferStorage.extract(iron, 6L, true),
+                6L,
+                "Simulated pattern buffer extract should report available main contents");
+        helper.assertValueEqual(
+                firstPatternBuffer.patternBufferStorage(0).amount(iron),
+                3L,
+                "Simulated pattern buffer extract should not touch the first buffer");
+        helper.assertValueEqual(
+                secondPatternBuffer.patternBufferStorage(0).amount(iron),
+                5L,
+                "Simulated pattern buffer extract should not touch the second buffer");
+
+        helper.assertValueEqual(
+                patternBufferStorage.extract(iron, 6L, false),
+                6L,
+                "Pattern buffer view should extract across main pattern buffers in backing order");
+        helper.assertValueEqual(
+                firstPatternBuffer.patternBufferStorage(0).amount(iron),
+                0L,
+                "Pattern buffer extract should drain the first main buffer first");
+        helper.assertValueEqual(
+                secondPatternBuffer.patternBufferStorage(0).amount(iron),
+                2L,
+                "Pattern buffer extract should continue into the next main buffer");
+        helper.assertValueEqual(
+                alternatePatternBuffer.patternBufferStorage(0).amount(iron),
+                11L,
+                "Pattern buffer view should not modify alternate structure buffers");
+        helper.assertValueEqual(
+                patternBufferStorage.insert(gold, 4L, false),
+                4L,
+                "Pattern buffer view should write through a main pattern buffer");
+        helper.assertValueEqual(
+                firstPatternBuffer.patternBufferStorage(0).amount(gold),
+                4L,
+                "Pattern buffer write should reach the first main pattern buffer backing storage");
+        helper.assertValueEqual(
+                alternatePatternBuffer.patternBufferStorage(0).amount(gold),
+                0L,
+                "Pattern buffer write should not reach alternate structure buffers");
+
+        firstPatternBuffer.compartment$unbindFromHost("main", host);
+        secondPatternBuffer.compartment$unbindFromHost("main", host);
+
+        helper.assertValueEqual(
+                patternBufferStorage.amount(iron),
+                0L,
+                "Cached pattern buffer view should stop reading main buffers after unbinding");
+        helper.assertTrue(
+                patternBufferStorage.entries().isEmpty(),
+                "Cached pattern buffer entries should be empty after main buffers unbind");
+        helper.assertValueEqual(
+                patternBufferStorage.extract(iron, 1L, false),
+                0L,
+                "Cached pattern buffer view should not extract after main buffers unbind");
+        helper.assertValueEqual(
+                patternBufferStorage.insert(gold, 3L, false),
+                0L,
+                "Cached pattern buffer view should not insert after main buffers unbind");
+        helper.assertValueEqual(
+                firstPatternBuffer.storage().amount(gold),
+                4L,
+                "Unbound cached pattern buffer write should not modify first backing storage");
+        helper.assertValueEqual(
+                secondPatternBuffer.storage().amount(iron),
+                2L,
+                "Unbound cached pattern buffer extract should not modify second backing storage");
+        helper.assertValueEqual(
+                secondPatternBuffer.storage().amount(gold),
+                0L,
+                "Unbound cached pattern buffer write should not modify second backing storage");
+        helper.succeed();
+    }
+
     @TestHolder("compartment_host_cached_storage_view_tracks_binding")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -739,15 +846,23 @@ public final class CompartmentInventoryTest {
         CompositeWarehouseBlockEntity alternateInput = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        MePatternBufferBlockEntity secondPatternBuffer = patternBuffer();
+        MePatternBufferBlockEntity alternatePatternBuffer = patternBuffer();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
 
         input.storage().insert(iron, 4L, false);
         alternateInput.storage().insert(iron, 10L, false);
         input.compartment$bindToHost("main", flower);
         output.compartment$bindToHost("main", flower);
         patternBuffer.compartment$bindToHost("main", flower);
+        secondPatternBuffer.compartment$bindToHost("main", flower);
         alternateInput.compartment$bindToHost("alternate", flower);
+        alternatePatternBuffer.compartment$bindToHost("alternate", flower);
+        patternBuffer.patternBufferStorage(0).insert(diamond, 4L, false);
+        secondPatternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
+        alternatePatternBuffer.patternBufferStorage(0).insert(diamond, 13L, false);
 
         helper.assertValueEqual(
                 flower.compartmentInputStorage().amount(iron),
@@ -760,8 +875,40 @@ public final class CompartmentInventoryTest {
         helper.assertValueEqual(output.storage().amount(gold), 2L, "Flower output write should reach output backing storage");
         helper.assertValueEqual(
                 flower.patternBuffers(),
-                List.of(patternBuffer),
+                List.of(patternBuffer, secondPatternBuffer),
                 "Flower pattern buffer accessor should expose main structure pattern buffers");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().amount(diamond),
+                9L,
+                "Flower pattern buffer storage should aggregate main pattern buffers only");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().extract(diamond, 6L, false),
+                6L,
+                "Flower pattern buffer storage should extract across main pattern buffers");
+        helper.assertValueEqual(
+                patternBuffer.patternBufferStorage(0).amount(diamond),
+                0L,
+                "Flower pattern buffer extract should drain the first main pattern buffer first");
+        helper.assertValueEqual(
+                secondPatternBuffer.patternBufferStorage(0).amount(diamond),
+                3L,
+                "Flower pattern buffer extract should continue into the second main pattern buffer");
+        helper.assertValueEqual(
+                alternatePatternBuffer.patternBufferStorage(0).amount(diamond),
+                13L,
+                "Flower pattern buffer storage should not include alternate structure buffers");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().insert(gold, 3L, false),
+                3L,
+                "Flower pattern buffer storage should write to a main pattern buffer");
+        helper.assertValueEqual(
+                patternBuffer.patternBufferStorage(0).amount(gold),
+                3L,
+                "Flower pattern buffer write should reach a main pattern buffer backing storage");
+        helper.assertValueEqual(
+                alternatePatternBuffer.patternBufferStorage(0).amount(gold),
+                0L,
+                "Flower pattern buffer write should not reach alternate structure buffers");
         helper.succeed();
     }
 
@@ -792,9 +939,37 @@ public final class CompartmentInventoryTest {
         CompartmentStorage aggregateStorage = patternPart.patternAggregateStorage();
 
         helper.assertValueEqual(
-                slotZeroStorage.insert(iron, 2L, false),
+                aggregateStorage.insert(iron, 2L, false),
                 2L,
-                "Bound pattern buffer interface storage should accept writes");
+                "Bound pattern buffer aggregate should write to a real pattern slot storage");
+        helper.assertValueEqual(
+                slotZeroStorage.amount(iron),
+                2L,
+                "Aggregate insert should update slot 0 backing storage");
+        helper.assertValueEqual(
+                aggregateStorage.insert(iron, 5L, true),
+                5L,
+                "Simulated aggregate insert should report writable backing storage");
+        helper.assertValueEqual(
+                slotZeroStorage.amount(iron),
+                2L,
+                "Simulated aggregate insert should not modify slot 0 backing storage");
+        helper.assertValueEqual(
+                aggregateStorage.extract(iron, 1L, true),
+                1L,
+                "Simulated aggregate extract should report available backing storage");
+        helper.assertValueEqual(
+                slotZeroStorage.amount(iron),
+                2L,
+                "Simulated aggregate extract should not modify slot 0 backing storage");
+        helper.assertValueEqual(
+                aggregateStorage.extract(iron, 1L, false),
+                1L,
+                "Aggregate extract should remove contents from real slot storage");
+        helper.assertValueEqual(
+                slotZeroStorage.amount(iron),
+                1L,
+                "Aggregate extract should update slot 0 backing storage");
         helper.assertValueEqual(
                 patternPart.patternBufferStorage(1).insert(gold, 3L, false),
                 3L,
@@ -814,7 +989,7 @@ public final class CompartmentInventoryTest {
                 "Pattern slot 1 should not see slot 0 buffer contents");
         helper.assertValueEqual(
                 patternPart.patternAggregateStorage().amount(iron),
-                2L,
+                1L,
                 "Aggregate buffer should include slot 0 contents");
         helper.assertValueEqual(
                 patternPart.patternAggregateStorage().amount(gold),
@@ -834,6 +1009,63 @@ public final class CompartmentInventoryTest {
                 patternPart.patternBufferStorage(0).insert(iron, 1L, false),
                 0L,
                 "Fresh unbound pattern buffer storage should reject writes after invalidation");
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_buffer_aggregate_ignores_locked_pattern_slots")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void patternBufferAggregateIgnoresLockedPatternSlots(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        MePatternBufferBlockEntity compartment = patternBuffer(1);
+        PatternBufferCompartmentPart patternPart = compartment;
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+
+        compartment.compartment$bindToHost("main", host);
+        CompartmentStorage aggregateStorage = patternPart.patternAggregateStorage();
+
+        helper.assertValueEqual(
+                patternPart.patternBufferStorage(0).insert(iron, 2L, false),
+                2L,
+                "Unlocked pattern slot should accept direct backing writes");
+        helper.assertValueEqual(
+                patternPart.patternBufferStorage(1).insert(gold, 7L, false),
+                7L,
+                "Locked pattern slot backing should remain directly writable for existing per-slot views");
+        helper.assertValueEqual(
+                aggregateStorage.amount(iron),
+                2L,
+                "Aggregate storage should include unlocked slot contents");
+        helper.assertValueEqual(
+                aggregateStorage.amount(gold),
+                0L,
+                "Aggregate storage should ignore locked slot contents");
+        helper.assertValueEqual(
+                aggregateStorage.entries().getLong(gold),
+                0L,
+                "Aggregate entries should not expose locked slot contents");
+        helper.assertValueEqual(
+                aggregateStorage.extract(gold, 1L, false),
+                0L,
+                "Aggregate extract should not drain locked slot contents");
+        helper.assertValueEqual(
+                patternPart.patternBufferStorage(1).amount(gold),
+                7L,
+                "Aggregate extract should leave locked slot backing unchanged");
+        helper.assertValueEqual(
+                aggregateStorage.insert(diamond, 4L, false),
+                4L,
+                "Aggregate insert should write through the unlocked backing range");
+        helper.assertValueEqual(
+                patternPart.patternBufferStorage(0).amount(diamond),
+                4L,
+                "Aggregate insert should reach the unlocked pattern slot");
+        helper.assertValueEqual(
+                patternPart.patternBufferStorage(1).amount(gold),
+                7L,
+                "Aggregate insert should not touch locked slot backing storage");
         helper.succeed();
     }
 
@@ -867,6 +1099,13 @@ public final class CompartmentInventoryTest {
 
     private static MePatternBufferBlockEntity patternBuffer() {
         return new MePatternBufferBlockEntity(BlockPos.ZERO, ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState());
+    }
+
+    private static MePatternBufferBlockEntity patternBuffer(int unlockedSlotCount) {
+        return new LimitedPatternBufferBlockEntity(
+                BlockPos.ZERO,
+                ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
+                unlockedSlotCount);
     }
 
     private static void installCapacityCards(CompositeWarehouseBlockEntity compartment) {
@@ -998,7 +1237,8 @@ public final class CompartmentInventoryTest {
 
         private final CompartmentInventory patternStorage = CompartmentInventory.itemStorage(1, () -> {}, () -> 1);
         private final CompartmentStorage patternBufferStorage = new CompartmentStorageImpl(() -> {});
-        private final CompartmentStorage patternAggregateStorage = new CompartmentStorageImpl(() -> {});
+        private final CompartmentStorage patternAggregateStorage = new CompartmentStorageGroup(
+                () -> List.of(this.patternBufferStorage));
 
         private TestPatternBufferPart(CompartmentType type) {
             super(type);
@@ -1020,6 +1260,21 @@ public final class CompartmentInventoryTest {
         @Override
         public CompartmentStorage patternAggregateStorage() {
             return this.patternAggregateStorage;
+        }
+    }
+
+    private static final class LimitedPatternBufferBlockEntity extends MePatternBufferBlockEntity {
+
+        private final int unlockedSlotCount;
+
+        private LimitedPatternBufferBlockEntity(BlockPos pos, BlockState state, int unlockedSlotCount) {
+            super(pos, state);
+            this.unlockedSlotCount = unlockedSlotCount;
+        }
+
+        @Override
+        public int unlockedSlotCount() {
+            return this.unlockedSlotCount;
         }
     }
 }

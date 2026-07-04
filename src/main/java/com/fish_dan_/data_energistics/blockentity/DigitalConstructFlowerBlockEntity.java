@@ -165,6 +165,13 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
     }
 
     /**
+     * Returns the main structure's aggregate pattern buffer view without exposing concrete compartment block entities.
+     */
+    public CompartmentStorage patternBufferStorage() {
+        return compartmentHost$patternBufferStorage(mainDefinitionKey().structureName());
+    }
+
+    /**
      * Returns main structure pattern buffers for recipe logic without depending on concrete block entities.
      */
     public Collection<PatternBufferCompartmentPart> patternBuffers() {

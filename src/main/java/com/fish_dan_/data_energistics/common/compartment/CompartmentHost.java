@@ -83,4 +83,14 @@ public interface CompartmentHost {
         }
         return List.copyOf(patternBuffers);
     }
+
+    /**
+     * Returns a dynamic aggregate pattern-buffer storage view for main structure business to read and write pattern
+     * buffer data without depending on concrete block entities.
+     */
+    default CompartmentStorage compartmentHost$patternBufferStorage(String structureName) {
+        return new CompartmentStorageGroup(() -> compartmentHost$getPatternBuffers(structureName).stream()
+                .map(PatternBufferCompartmentPart::patternAggregateStorage)
+                .toList());
+    }
 }
