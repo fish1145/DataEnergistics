@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,10 +13,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import javax.imageio.ImageIO;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class CompartmentResourceTest {
@@ -27,6 +28,8 @@ public final class CompartmentResourceTest {
     private static final String SCREEN_ROOT = "assets/ae2/screens/";
     private static final String GUI_ROOT = "assets/ae2/textures/guis/";
     private static final String DATA_ROOT = "data/";
+    private static final String ME_INTERFACE_TEXTURE = "data_energistics:block/compartment/me_interface";
+    private static final String CONTROLLER_LIGHTS_TEXTURE = "data_energistics:block/compartment/controller_lights";
     private static final int SLOT_ANCHOR_COLOR = 0xFF9A9FB4;
     private static final List<String> COMPARTMENT_BLOCK_IDS = List.of(
             "composite_input_warehouse",
@@ -72,6 +75,41 @@ public final class CompartmentResourceTest {
                 assertResourceExists(textureResourcePath(textureId), model + " texture " + textureId + " should exist");
             }
         }
+    }
+
+    @Test
+    void compartmentBlockModelTexturesKeepCompartmentSemantics() {
+        Map<String, String> plainModelScreens = Map.of(
+                "composite_input_warehouse_off.json", "data_energistics:block/compartment/input_screen_off",
+                "composite_input_warehouse_on.json", "data_energistics:block/compartment/input_screen_on",
+                "composite_output_warehouse_off.json", "data_energistics:block/compartment/output_screen_off",
+                "composite_output_warehouse_on.json", "data_energistics:block/compartment/output_screen_on");
+
+        for (Map.Entry<String, String> entry : plainModelScreens.entrySet()) {
+            String model = entry.getKey();
+            JsonObject textures = textures(model);
+            assertNoTextureReference(textures, "me_interface", model);
+            assertEquals(entry.getValue(), string(textures, "2"), model + " screen texture should match its IO state");
+        }
+
+        for (String model : List.of(
+                "me_composite_input_warehouse_off.json",
+                "me_composite_input_warehouse_on.json",
+                "me_composite_output_warehouse_off.json",
+                "me_composite_output_warehouse_on.json")) {
+            assertEquals(ME_INTERFACE_TEXTURE, string(textures(model), "1"), model + " should keep the ME interface");
+        }
+
+        for (String model : List.of(
+                "me_composite_input_warehouse_on.json",
+                "me_composite_output_warehouse_on.json")) {
+            assertTextureValue(textures(model), CONTROLLER_LIGHTS_TEXTURE, model + " should light the ME controller");
+        }
+
+        assertEquals(
+                ME_INTERFACE_TEXTURE,
+                string(textures("me_pattern_buffer.json"), "1"),
+                "ME pattern buffer should keep the ME interface");
     }
 
     @Test
@@ -259,6 +297,22 @@ public final class CompartmentResourceTest {
             }
         }
         assertTrue(found, message);
+    }
+
+    private static JsonObject textures(String model) {
+        return object(readJson(MODEL_ROOT + model), "textures");
+    }
+
+    private static void assertNoTextureReference(JsonObject textures, String forbidden, String model) {
+        for (Map.Entry<String, JsonElement> entry : textures.entrySet()) {
+            assertFalse(
+                    entry.getValue().getAsString().contains(forbidden),
+                    model + " texture " + entry.getKey() + " should not reference " + forbidden);
+        }
+    }
+
+    private static void assertTextureValue(JsonObject textures, String expected, String message) {
+        assertTrue(textures.asMap().containsValue(jsonString(expected)), message);
     }
 
     private static JsonElement jsonString(String value) {
