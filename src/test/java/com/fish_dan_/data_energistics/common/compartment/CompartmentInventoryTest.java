@@ -582,49 +582,105 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
+    @TestHolder("compartment_host_role_accessors_filter_parts_and_storages")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentHostRoleAccessorsFilterPartsAndStorages(GameTestHelper helper) {
+        TestCompartmentHost host = new TestCompartmentHost();
+        TestCompartmentPart input = new TestCompartmentPart(CompartmentType.INPUT);
+        TestCompartmentPart output = new TestCompartmentPart(CompartmentType.OUTPUT);
+        TestCompartmentPart meInput = new TestCompartmentPart(CompartmentType.ME_INPUT);
+        TestCompartmentPart meOutput = new TestCompartmentPart(CompartmentType.ME_OUTPUT);
+        TestCompartmentPart plainPattern = new TestCompartmentPart(CompartmentType.PATTERN_BUFFER);
+
+        host.compartmentHost$addCompartment("main", input);
+        host.compartmentHost$addCompartment("main", output);
+        host.compartmentHost$addCompartment("main", meInput);
+        host.compartmentHost$addCompartment("main", meOutput);
+        host.compartmentHost$addCompartment("main", plainPattern);
+
+        helper.assertValueEqual(
+                host.compartmentHost$getCompartments("main", CompartmentType.INPUT),
+                List.of(input),
+                "Host role accessor should filter registered compartments by type");
+        helper.assertValueEqual(
+                host.compartmentHost$getInputStorages("main"),
+                List.of(input.compartmentStorage(), meInput.compartmentStorage()),
+                "Input storages should include only INPUT and ME_INPUT compartment storages");
+        helper.assertValueEqual(
+                host.compartmentHost$getOutputStorages("main"),
+                List.of(output.compartmentStorage(), meOutput.compartmentStorage()),
+                "Output storages should include only OUTPUT and ME_OUTPUT compartment storages");
+
+        TestCompartmentHost patternHost = new TestCompartmentHost();
+        TestCompartmentPart nonBufferPattern = new TestCompartmentPart(CompartmentType.PATTERN_BUFFER);
+        TestPatternBufferPart patternBuffer = new TestPatternBufferPart(CompartmentType.PATTERN_BUFFER);
+        TestPatternBufferPart wrongTypePatternBuffer = new TestPatternBufferPart(CompartmentType.INPUT);
+
+        patternHost.compartmentHost$addCompartment("main", nonBufferPattern);
+        patternHost.compartmentHost$addCompartment("main", patternBuffer);
+        patternHost.compartmentHost$addCompartment("main", wrongTypePatternBuffer);
+
+        helper.assertValueEqual(
+                patternHost.compartmentHost$getPatternBuffers("main"),
+                List.of(patternBuffer),
+                "Pattern buffer accessor should require both PATTERN_BUFFER type and pattern buffer interface");
+        helper.succeed();
+    }
+
     @TestHolder("pattern_buffer_storage_is_isolated_per_pattern_slot")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void patternBufferStorageIsIsolatedPerPatternSlot(GameTestHelper helper) {
         MePatternBufferBlockEntity compartment = patternBuffer();
+        PatternBufferCompartmentPart patternPart = compartment;
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
 
+        helper.assertTrue(
+                patternPart.patternStorage() == compartment.patternStorage(),
+                "Pattern buffer interface should expose the block entity pattern inventory");
         helper.assertValueEqual(
-                compartment.patternBufferStorage(0).insert(iron, 2L, false),
+                patternPart.patternBufferStorage(0).insert(iron, 2L, false),
                 0L,
-                "Unbound pattern buffer should reject structure-side writes");
+                "Unbound pattern buffer should reject interface structure-side writes");
         helper.assertValueEqual(
-                compartment.patternAggregateStorage().amount(iron),
+                patternPart.patternAggregateStorage().amount(iron),
                 0L,
-                "Unbound pattern buffer aggregate should be unavailable");
+                "Unbound pattern buffer interface aggregate should be unavailable");
 
         TestCompartmentHost host = new TestCompartmentHost();
         compartment.compartment$bindToHost("main", host);
-        CompartmentStorage slotZeroStorage = compartment.patternBufferStorage(0);
-        CompartmentStorage aggregateStorage = compartment.patternAggregateStorage();
+        CompartmentStorage slotZeroStorage = patternPart.patternBufferStorage(0);
+        CompartmentStorage aggregateStorage = patternPart.patternAggregateStorage();
 
-        slotZeroStorage.insert(iron, 2L, false);
-        compartment.patternBufferStorage(1).insert(gold, 3L, false);
+        helper.assertValueEqual(
+                slotZeroStorage.insert(iron, 2L, false),
+                2L,
+                "Bound pattern buffer interface storage should accept writes");
+        helper.assertValueEqual(
+                patternPart.patternBufferStorage(1).insert(gold, 3L, false),
+                3L,
+                "Bound pattern buffer interface storage should accept writes for another pattern slot");
 
         helper.assertValueEqual(
                 host.compartmentHost$getCompartments("main"),
                 List.of(compartment),
                 "Bound pattern buffer should register with its host");
         helper.assertValueEqual(
-                compartment.patternBufferStorage(0).amount(gold),
+                patternPart.patternBufferStorage(0).amount(gold),
                 0L,
                 "Pattern slot 0 should not see slot 1 buffer contents");
         helper.assertValueEqual(
-                compartment.patternBufferStorage(1).amount(iron),
+                patternPart.patternBufferStorage(1).amount(iron),
                 0L,
                 "Pattern slot 1 should not see slot 0 buffer contents");
         helper.assertValueEqual(
-                compartment.patternAggregateStorage().amount(iron),
+                patternPart.patternAggregateStorage().amount(iron),
                 2L,
                 "Aggregate buffer should include slot 0 contents");
         helper.assertValueEqual(
-                compartment.patternAggregateStorage().amount(gold),
+                patternPart.patternAggregateStorage().amount(gold),
                 3L,
                 "Aggregate buffer should include slot 1 contents");
 
@@ -638,7 +694,7 @@ public final class CompartmentInventoryTest {
                 0L,
                 "Cached pattern buffer storage should reject writes after invalidation");
         helper.assertValueEqual(
-                compartment.patternBufferStorage(0).insert(iron, 1L, false),
+                patternPart.patternBufferStorage(0).insert(iron, 1L, false),
                 0L,
                 "Fresh unbound pattern buffer storage should reject writes after invalidation");
         helper.succeed();
@@ -765,9 +821,10 @@ public final class CompartmentInventoryTest {
         }
     }
 
-    private static final class TestCompartmentPart implements CompartmentPart {
+    private static class TestCompartmentPart implements CompartmentPart {
 
         private final CompartmentType type;
+        private final CompartmentStorage storage = new CompartmentStorageImpl(() -> {});
         private boolean bound;
 
         private TestCompartmentPart(CompartmentType type) {
@@ -791,12 +848,41 @@ public final class CompartmentInventoryTest {
 
         @Override
         public CompartmentStorage compartmentStorage() {
-            return new CompartmentStorageImpl(() -> {});
+            return this.storage;
         }
 
         @Override
         public boolean isCompartmentBound() {
             return this.bound;
+        }
+    }
+
+    private static final class TestPatternBufferPart extends TestCompartmentPart implements PatternBufferCompartmentPart {
+
+        private final CompartmentInventory patternStorage = CompartmentInventory.itemStorage(1, () -> {}, () -> 1);
+        private final CompartmentStorage patternBufferStorage = new CompartmentStorageImpl(() -> {});
+        private final CompartmentStorage patternAggregateStorage = new CompartmentStorageImpl(() -> {});
+
+        private TestPatternBufferPart(CompartmentType type) {
+            super(type);
+        }
+
+        @Override
+        public CompartmentInventory patternStorage() {
+            return this.patternStorage;
+        }
+
+        @Override
+        public CompartmentStorage patternBufferStorage(int slot) {
+            if (slot != 0) {
+                throw new IllegalArgumentException("Test pattern buffer slot out of range: " + slot);
+            }
+            return this.patternBufferStorage;
+        }
+
+        @Override
+        public CompartmentStorage patternAggregateStorage() {
+            return this.patternAggregateStorage;
         }
     }
 }

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.compartment.AvailabilityCheckedComp
 import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
+import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
@@ -21,7 +22,7 @@ import java.util.ArrayList;
 /**
  * Persistent state for pattern buffer compartments.
  */
-public class MePatternBufferBlockEntity extends CompartmentBlockEntity {
+public class MePatternBufferBlockEntity extends CompartmentBlockEntity implements PatternBufferCompartmentPart {
 
     private static final String FLUID_CONFIG_TAG = "fluid_config";
     private static final String KEY_CONFIG_TAG = "key_config";
@@ -61,6 +62,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity {
         }
     }
 
+    @Override
     public CompartmentInventory patternStorage() {
         return this.patternStorage;
     }
@@ -77,6 +79,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity {
         return this.keyConfig;
     }
 
+    @Override
     public CompartmentStorage patternBufferStorage(int slot) {
         if (slot < 0 || slot >= this.patternBufferStorages.size()) {
             throw new IllegalArgumentException("Pattern buffer slot out of range: " + slot);
@@ -84,6 +87,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity {
         return this.patternBufferStorageViews.get(slot);
     }
 
+    @Override
     public CompartmentStorage patternAggregateStorage() {
         return this.patternAggregateStorageView;
     }
