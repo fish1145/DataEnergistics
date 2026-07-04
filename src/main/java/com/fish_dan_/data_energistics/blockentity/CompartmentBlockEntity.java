@@ -8,8 +8,8 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentKeyNormalizer;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -37,7 +37,8 @@ import java.util.Set;
 /**
  * Shared runtime shell for a compartment block entity.
  *
- * <p>Concrete subclasses own the type-specific inventories, upgrade slots, AE IO behavior, and NBT fields.
+ * <p>
+ * Concrete subclasses own the type-specific inventories, upgrade slots, AE IO behavior, and NBT fields.
  */
 public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implements CompartmentPart {
 

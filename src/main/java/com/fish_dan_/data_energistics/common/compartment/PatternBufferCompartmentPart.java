@@ -3,7 +3,8 @@ package com.fish_dan_.data_energistics.common.compartment;
 /**
  * Compartment part role that exposes pattern buffer inventories to a formed multiblock host.
  *
- * <p>Hosts use this contract when they need pattern-specific storage without depending on a
+ * <p>
+ * Hosts use this contract when they need pattern-specific storage without depending on a
  * concrete block entity class.
  */
 public interface PatternBufferCompartmentPart extends CompartmentPart {

@@ -6,7 +6,8 @@ import java.util.Optional;
 /**
  * Describes the role a compartment block can provide inside a formed multiblock.
  *
- * <p>The id is the stable JSON metadata value used by multiblock definitions.
+ * <p>
+ * The id is the stable JSON metadata value used by multiblock definitions.
  */
 public enum CompartmentType {
 

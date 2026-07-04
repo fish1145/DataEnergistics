@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 
@@ -59,9 +59,7 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
         CompartmentType compartmentType = CompartmentType.byId(readRequiredString(object, COMPARTMENT_PROPERTY))
                 .orElseThrow(() -> new IllegalArgumentException("Unknown compartment predicate type: " +
                         object.get(COMPARTMENT_PROPERTY)));
-        StructurePredicate delegate = object.has(PREDICATE_PROPERTY)
-                ? StructurePredicateTypes.decode(readRequiredObject(object, PREDICATE_PROPERTY))
-                : null;
+        StructurePredicate delegate = object.has(PREDICATE_PROPERTY) ? StructurePredicateTypes.decode(readRequiredObject(object, PREDICATE_PROPERTY)) : null;
         return new JsonMultiBlockCompartmentPredicate(compartmentType, delegate);
     }
 

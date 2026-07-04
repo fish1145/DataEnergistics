@@ -29,7 +29,8 @@ public final class JsonMultiBlockCompartmentValidator {
     /**
      * Validates that a block state satisfies the compartment type declared for a pattern symbol.
      *
-     * <p>Symbols without compartment metadata are accepted. Declared symbols require an actual
+     * <p>
+     * Symbols without compartment metadata are accepted. Declared symbols require an actual
      * {@link CompartmentBlock} with the exact matching role.
      */
     public static boolean matchesDeclaredType(JsonMultiBlockDefinition definition, String symbol, BlockState state) {

@@ -9,7 +9,8 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 /**
  * Stores real compartment contents as AE keys with long amounts.
  *
- * <p>UI slots are views or configuration surfaces. This storage is the authoritative key amount state.
+ * <p>
+ * UI slots are views or configuration surfaces. This storage is the authoritative key amount state.
  */
 public interface CompartmentStorage {
 

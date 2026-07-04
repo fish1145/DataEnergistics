@@ -8,7 +8,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Normalizes keys written into compartment configuration and storage slots.
  *
- * <p>AE2 represents arbitrary {@link AEKey} values in item slots by wrapping a
+ * <p>
+ * AE2 represents arbitrary {@link AEKey} values in item slots by wrapping a
  * {@link GenericStack} into an {@link AEItemKey}. Compartments store the real key,
  * so wrapped item keys are unwrapped before validation or persistence.
  */
@@ -19,7 +20,8 @@ public final class CompartmentKeyNormalizer {
     /**
      * Returns the real key represented by {@code key}.
      *
-     * <p>Plain keys are returned unchanged. Item keys containing wrapped generic
+     * <p>
+     * Plain keys are returned unchanged. Item keys containing wrapped generic
      * stacks are replaced by the wrapped stack key.
      */
     @Nullable

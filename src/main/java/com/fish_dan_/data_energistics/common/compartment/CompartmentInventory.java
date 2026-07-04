@@ -11,15 +11,16 @@ import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigInventory;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Set;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 
 /**
  * Config-backed storage used by compartment menus and host-facing logic.
  *
- * <p>The inventory keeps a fixed backing size so NBT and menu slots are stable, while capacity
+ * <p>
+ * The inventory keeps a fixed backing size so NBT and menu slots are stable, while capacity
  * cards decide which main compartment slots are writable at runtime.
  */
 public class CompartmentInventory extends ConfigInventory {

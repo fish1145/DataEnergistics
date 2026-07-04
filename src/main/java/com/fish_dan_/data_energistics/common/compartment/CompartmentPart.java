@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.compartment;
 
-import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
+import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPart;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 

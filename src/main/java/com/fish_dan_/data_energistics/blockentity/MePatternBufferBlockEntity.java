@@ -124,8 +124,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
 
     private void copyPatternBuffersToStorage() {
         for (int slot = 0; slot < Math.min(this.patternBufferStorages.size(), unlockedSlotCount()); slot++) {
-            for (Object2LongMap.Entry<AEKey> entry :
-                    this.patternBufferStorages.get(slot).entries().object2LongEntrySet()) {
+            for (Object2LongMap.Entry<AEKey> entry : this.patternBufferStorages.get(slot).entries().object2LongEntrySet()) {
                 if (entry.getKey() != null && entry.getLongValue() > 0L) {
                     mutableStorage().insert(entry.getKey(), entry.getLongValue(), false);
                 }
@@ -136,8 +135,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
     private void rebuildPatternAggregateStorage() {
         this.patternAggregateStorage.clear();
         for (int slot = 0; slot < Math.min(this.patternBufferStorages.size(), unlockedSlotCount()); slot++) {
-            for (Object2LongMap.Entry<AEKey> entry :
-                    this.patternBufferStorages.get(slot).entries().object2LongEntrySet()) {
+            for (Object2LongMap.Entry<AEKey> entry : this.patternBufferStorages.get(slot).entries().object2LongEntrySet()) {
                 if (entry.getKey() != null && entry.getLongValue() > 0L) {
                     this.patternAggregateStorage.insert(entry.getKey(), entry.getLongValue(), false);
                 }
