@@ -32,6 +32,7 @@ import appeng.api.storage.MEStorage;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import java.util.Collection;
+import java.util.function.Predicate;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -149,33 +150,71 @@ public final class CompartmentBlockEntityTest {
         helper.succeed();
     }
 
-    @TestHolder("compartment_block_entity_plain_input_server_tick_updates_active_state")
+    @TestHolder("compartment_block_entity_server_tick_updates_active_state_for_all_types")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void plainInputServerTickUpdatesActiveState(GameTestHelper helper) {
-        BlockPos relativePos = new BlockPos(1, 1, 1);
-        BlockState inputState = ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState();
+    public static void compartmentServerTickUpdatesActiveStateForAllTypes(GameTestHelper helper) {
+        assertServerTickActiveState(
+                helper,
+                new BlockPos(1, 1, 1),
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                blockEntity -> blockEntity instanceof CompositeWarehouseBlockEntity,
+                "plain input warehouse");
+        assertServerTickActiveState(
+                helper,
+                new BlockPos(2, 1, 1),
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
+                blockEntity -> blockEntity instanceof CompositeWarehouseBlockEntity,
+                "plain output warehouse");
+        assertServerTickActiveState(
+                helper,
+                new BlockPos(3, 1, 1),
+                ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                blockEntity -> blockEntity instanceof MeCompositeInputWarehouseBlockEntity,
+                "ME input warehouse");
+        assertServerTickActiveState(
+                helper,
+                new BlockPos(1, 1, 2),
+                ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState(),
+                blockEntity -> blockEntity instanceof MeCompositeOutputWarehouseBlockEntity,
+                "ME output warehouse");
+        assertServerTickActiveState(
+                helper,
+                new BlockPos(2, 1, 2),
+                ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
+                blockEntity -> blockEntity instanceof MePatternBufferBlockEntity,
+                "ME pattern buffer");
+        helper.succeed();
+    }
 
-        helper.setBlock(relativePos, inputState);
+    private static void assertServerTickActiveState(GameTestHelper helper,
+                                                    BlockPos relativePos,
+                                                    BlockState state,
+                                                    Predicate<BlockEntity> expectedBlockEntity,
+                                                    String compartmentName) {
+        helper.setBlock(relativePos, state);
         BlockPos levelPos = helper.absolutePos(relativePos);
         BlockEntity blockEntity = helper.getLevel().getBlockEntity(levelPos);
-        if (!(blockEntity instanceof CompositeWarehouseBlockEntity warehouse)) {
-            helper.fail("Expected a composite warehouse block entity", relativePos);
+        if (!expectedBlockEntity.test(blockEntity)) {
+            helper.fail("Expected a " + compartmentName + " block entity", relativePos);
+            return;
+        }
+        if (!(blockEntity instanceof CompartmentBlockEntity compartment)) {
+            helper.fail("Expected " + compartmentName + " to be a compartment block entity", relativePos);
             return;
         }
 
-        warehouse.serverTick();
-        assertActiveState(helper, levelPos, false, "Unbound plain input warehouse should stay inactive");
+        compartment.serverTick();
+        assertActiveState(helper, levelPos, false, "Unbound " + compartmentName + " should stay inactive");
 
         TestCompartmentHost host = new TestCompartmentHost();
-        warehouse.compartment$bindToHost("main", host);
-        warehouse.serverTick();
-        assertActiveState(helper, levelPos, true, "Bound plain input warehouse should become active");
+        compartment.compartment$bindToHost("main", host);
+        compartment.serverTick();
+        assertActiveState(helper, levelPos, true, "Bound " + compartmentName + " should become active");
 
-        warehouse.compartment$unbindFromHost("main", host);
-        warehouse.serverTick();
-        assertActiveState(helper, levelPos, false, "Unbound plain input warehouse should become inactive again");
-        helper.succeed();
+        compartment.compartment$unbindFromHost("main", host);
+        compartment.serverTick();
+        assertActiveState(helper, levelPos, false, "Unbound " + compartmentName + " should become inactive again");
     }
 
     private static void assertActiveState(GameTestHelper helper, BlockPos levelPos, boolean expected, String message) {
