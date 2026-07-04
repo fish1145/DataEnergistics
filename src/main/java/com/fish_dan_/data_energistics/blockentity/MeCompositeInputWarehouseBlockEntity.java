@@ -20,7 +20,7 @@ import java.util.Objects;
 /**
  * Persistent state and AE pull logic for ME input compartments.
  */
-public class MeCompositeInputWarehouseBlockEntity extends CompartmentBlockEntity {
+public class MeCompositeInputWarehouseBlockEntity extends AeCompartmentBlockEntity {
 
     private static final String MARKER_TAG = "markers";
     private static final String ME_INPUT_BUFFER_TAG = "me_input_buffer";

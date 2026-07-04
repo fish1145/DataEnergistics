@@ -13,7 +13,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Persistent state and ME storage exposure for ME output compartments.
  */
-public class MeCompositeOutputWarehouseBlockEntity extends CompartmentBlockEntity {
+public class MeCompositeOutputWarehouseBlockEntity extends AeCompartmentBlockEntity {
 
     private final CompartmentOutputStorage outputStorage = new CompartmentOutputStorage(
             this,

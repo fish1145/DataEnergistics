@@ -24,7 +24,7 @@ import java.util.Set;
 /**
  * Default reusable binder for JSON-declared multiblock compartments.
  */
-public final class DefaultJsonMultiBlockCompartmentBinder implements JsonMultiBlockCompartmentBinder {
+public final class JsonMultiBlockCompartmentBinderImpl implements JsonMultiBlockCompartmentBinder {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 

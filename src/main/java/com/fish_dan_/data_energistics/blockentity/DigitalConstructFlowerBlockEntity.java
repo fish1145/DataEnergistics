@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.common.multiblock.json.DefaultJsonMultiBlockCompartmentBinder;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinderImpl;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
@@ -35,6 +36,7 @@ import appeng.blockentity.grid.AENetworkedBlockEntity;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -51,6 +53,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
     private static final String NO_FAILURE = "";
+    private static final Logger LOGGER = Data_Energistics.LOGGER;
 
     private boolean formed;
     private List<BlockPos> matchedPositions = List.of();
@@ -59,7 +62,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
     private BlockPos lastFailurePosition;
     private boolean recheckRequested = true;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
-    private final JsonMultiBlockCompartmentBinder compartmentBinder = new DefaultJsonMultiBlockCompartmentBinder();
+    private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonMultiBlockCompartmentBinderImpl();
 
     public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -266,6 +269,11 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
                 Objects.equals(this.lastFailurePosition, nextFailurePosition)) {
             return;
         }
+        LOGGER.warn(
+                "Digital Construct Flower structure '{}' failed at {}: {}",
+                structureName,
+                nextFailurePosition,
+                nextFailureReason);
         clearCompartmentBindings(structureName);
         this.formed = false;
         this.matchedPositions = List.of();

@@ -41,6 +41,7 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.util.AECableType;
 import appeng.api.upgrades.Upgrades;
 import appeng.core.definitions.AEItems;
+import appeng.me.helpers.IGridConnectedBlockEntity;
 import appeng.menu.SlotSemantics;
 
 import java.util.Collection;
@@ -415,16 +416,21 @@ public final class CompartmentInventoryTest {
         CompartmentBlockEntity meOutput = compartment(
                 ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
 
+        helper.assertFalse(input instanceof IGridConnectedBlockEntity, "Input warehouse should not be an AE grid host");
         helper.assertTrue(input.getGridConnectableSides(null).isEmpty(), "Input warehouse should not connect to AE");
         helper.assertValueEqual(
                 input.getCableConnectionType(Direction.NORTH),
                 AECableType.NONE,
                 "Input warehouse should reject AE cables");
+        helper.assertFalse(output instanceof IGridConnectedBlockEntity, "Output warehouse should not be an AE grid host");
         helper.assertTrue(output.getGridConnectableSides(null).isEmpty(), "Output warehouse should not connect to AE");
         helper.assertValueEqual(
                 output.getCableConnectionType(Direction.NORTH),
                 AECableType.NONE,
                 "Output warehouse should reject AE cables");
+        helper.assertTrue(
+                !(patternBuffer instanceof IGridConnectedBlockEntity),
+                "Pattern buffer should not be an AE grid host");
         helper.assertTrue(
                 patternBuffer.getGridConnectableSides(null).isEmpty(),
                 "Pattern buffer should not connect to AE");
@@ -433,6 +439,7 @@ public final class CompartmentInventoryTest {
                 AECableType.NONE,
                 "Pattern buffer should reject AE cables");
 
+        helper.assertTrue(meInput instanceof IGridConnectedBlockEntity, "ME input warehouse should be an AE grid host");
         helper.assertTrue(
                 meInput.getGridConnectableSides(null).contains(Direction.NORTH),
                 "ME input warehouse should connect to AE on north side");
@@ -440,6 +447,7 @@ public final class CompartmentInventoryTest {
                 meInput.getCableConnectionType(Direction.NORTH),
                 AECableType.COVERED,
                 "ME input warehouse should expose covered AE cables");
+        helper.assertTrue(meOutput instanceof IGridConnectedBlockEntity, "ME output warehouse should be an AE grid host");
         helper.assertTrue(
                 meOutput.getGridConnectableSides(null).contains(Direction.NORTH),
                 "ME output warehouse should connect to AE on north side");

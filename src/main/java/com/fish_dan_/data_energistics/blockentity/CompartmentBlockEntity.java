@@ -24,19 +24,14 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.inventories.InternalInventory;
-import appeng.api.networking.GridHelper;
-import appeng.api.networking.IGridNodeListener;
-import appeng.api.networking.IManagedGridNode;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
-import appeng.blockentity.grid.AENetworkedBlockEntity;
-import appeng.me.helpers.BlockEntityNodeListener;
+import appeng.blockentity.AEBaseBlockEntity;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -44,12 +39,11 @@ import java.util.Set;
  *
  * <p>Concrete subclasses own the type-specific inventories, upgrade slots, AE IO behavior, and NBT fields.
  */
-public abstract class CompartmentBlockEntity extends AENetworkedBlockEntity implements CompartmentPart {
+public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implements CompartmentPart {
 
     protected static final int MAX_COMPARTMENT_SLOTS = 45;
     protected static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String STORAGE_TAG = "storage";
-    private static final IGridNodeListener<CompartmentBlockEntity> NODE_LISTENER = new BlockEntityNodeListener<>() {};
 
     private final CompartmentStorage storage = new CompartmentStorageImpl(this::onStorageChanged);
     private final CompartmentStorage structureStorageView = new AvailabilityCheckedCompartmentStorage(
@@ -62,31 +56,14 @@ public abstract class CompartmentBlockEntity extends AENetworkedBlockEntity impl
 
     protected CompartmentBlockEntity(BlockEntityType<?> blockEntityType, BlockPos pos, BlockState state) {
         super(blockEntityType, pos, state);
-        this.getMainNode()
-                .setVisualRepresentation(state.getBlock())
-                .setIdlePowerUsage(0.0D);
     }
 
-    @Override
-    protected IManagedGridNode createMainNode() {
-        return GridHelper.createManagedNode(this, NODE_LISTENER);
-    }
-
-    @Override
-    public void onReady() {
-        if (compartmentType().aeCapable()) {
-            super.onReady();
-        }
-    }
-
-    @Override
     public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
-        return compartmentType().aeCapable() ? EnumSet.allOf(Direction.class) : Set.of();
+        return Set.of();
     }
 
-    @Override
     public AECableType getCableConnectionType(Direction dir) {
-        return compartmentType().aeCapable() ? AECableType.COVERED : AECableType.NONE;
+        return AECableType.NONE;
     }
 
     public final void serverTick() {
