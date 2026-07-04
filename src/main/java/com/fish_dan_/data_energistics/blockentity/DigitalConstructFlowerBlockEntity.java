@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
+import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
@@ -154,6 +155,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
      * Returns the main structure's aggregate input view without exposing concrete compartment block entities.
      */
     public CompartmentStorage compartmentInputStorage() {
+        if (!this.formed) {
+            return UnavailableCompartmentStorage.INSTANCE;
+        }
         return compartmentHost$inputStorage(mainDefinitionKey().structureName());
     }
 
@@ -161,6 +165,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
      * Returns the main structure's aggregate output view without exposing concrete compartment block entities.
      */
     public CompartmentStorage compartmentOutputStorage() {
+        if (!this.formed) {
+            return UnavailableCompartmentStorage.INSTANCE;
+        }
         return compartmentHost$outputStorage(mainDefinitionKey().structureName());
     }
 
@@ -168,6 +175,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
      * Returns the main structure's aggregate pattern buffer view without exposing concrete compartment block entities.
      */
     public CompartmentStorage patternBufferStorage() {
+        if (!this.formed) {
+            return UnavailableCompartmentStorage.INSTANCE;
+        }
         return compartmentHost$patternBufferStorage(mainDefinitionKey().structureName());
     }
 
@@ -175,6 +185,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity im
      * Returns main structure pattern buffers for recipe logic without depending on concrete block entities.
      */
     public Collection<PatternBufferCompartmentPart> patternBuffers() {
+        if (!this.formed) {
+            return List.of();
+        }
         return compartmentHost$getPatternBuffers(mainDefinitionKey().structureName());
     }
 

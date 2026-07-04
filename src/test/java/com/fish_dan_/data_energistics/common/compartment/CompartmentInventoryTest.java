@@ -19,9 +19,11 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -47,6 +49,7 @@ import appeng.menu.SlotSemantics;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -832,13 +835,85 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
+    @TestHolder("digital_construct_flower_hides_compartment_views_until_formed")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void digitalConstructFlowerHidesCompartmentViewsUntilFormed(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
+        CompositeWarehouseBlockEntity input = compositeWarehouse(
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompositeWarehouseBlockEntity output = compositeWarehouse(
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+
+        input.storage().insert(iron, 4L, false);
+        input.compartment$bindToHost("main", flower);
+        output.compartment$bindToHost("main", flower);
+        patternBuffer.compartment$bindToHost("main", flower);
+        patternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
+
+        helper.assertFalse(flower.isStructureFormed(), "Flower should start unformed for this stale binding test");
+        helper.assertValueEqual(
+                flower.compartmentInputStorage().amount(iron),
+                0L,
+                "Unformed flower input accessor should hide stale input bindings");
+        helper.assertTrue(
+                flower.compartmentInputStorage().entries().isEmpty(),
+                "Unformed flower input entries should be empty");
+        helper.assertValueEqual(
+                flower.compartmentInputStorage().extract(iron, 1L, false),
+                0L,
+                "Unformed flower input accessor should not extract from stale bindings");
+        helper.assertValueEqual(
+                input.storage().amount(iron),
+                4L,
+                "Unformed flower input accessor should not modify stale input backing storage");
+        helper.assertValueEqual(
+                flower.compartmentOutputStorage().insert(gold, 2L, false),
+                0L,
+                "Unformed flower output accessor should reject writes through stale output bindings");
+        helper.assertValueEqual(
+                output.storage().amount(gold),
+                0L,
+                "Unformed flower output accessor should not modify stale output backing storage");
+        helper.assertValueEqual(
+                flower.patternBuffers(),
+                List.of(),
+                "Unformed flower pattern buffer accessor should hide stale pattern buffer bindings");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().amount(diamond),
+                0L,
+                "Unformed flower pattern buffer storage should hide stale pattern buffer contents");
+        helper.assertTrue(
+                flower.patternBufferStorage().entries().isEmpty(),
+                "Unformed flower pattern buffer entries should be empty");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().extract(diamond, 1L, false),
+                0L,
+                "Unformed flower pattern buffer storage should not extract from stale pattern buffers");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().insert(gold, 3L, false),
+                0L,
+                "Unformed flower pattern buffer storage should reject writes through stale pattern buffers");
+        helper.assertValueEqual(
+                patternBuffer.patternBufferStorage(0).amount(diamond),
+                5L,
+                "Unformed flower pattern buffer storage should not drain stale backing storage");
+        helper.assertValueEqual(
+                patternBuffer.patternBufferStorage(0).amount(gold),
+                0L,
+                "Unformed flower pattern buffer storage should not write stale backing storage");
+        helper.succeed();
+    }
+
     @TestHolder("digital_construct_flower_exposes_main_compartment_views")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void digitalConstructFlowerExposesMainCompartmentViews(GameTestHelper helper) {
-        DigitalConstructFlowerBlockEntity flower = new DigitalConstructFlowerBlockEntity(
-                BlockPos.ZERO,
-                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+        DigitalConstructFlowerBlockEntity flower = formedDigitalConstructFlower();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
@@ -1106,6 +1181,20 @@ public final class CompartmentInventoryTest {
                 BlockPos.ZERO,
                 ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
                 unlockedSlotCount);
+    }
+
+    private static DigitalConstructFlowerBlockEntity digitalConstructFlower() {
+        return new DigitalConstructFlowerBlockEntity(
+                BlockPos.ZERO,
+                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+    }
+
+    private static DigitalConstructFlowerBlockEntity formedDigitalConstructFlower() {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("formed", true);
+        flower.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
+        return flower;
     }
 
     private static void installCapacityCards(CompositeWarehouseBlockEntity compartment) {
