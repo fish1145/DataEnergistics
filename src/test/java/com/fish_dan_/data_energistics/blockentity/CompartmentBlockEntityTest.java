@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -13,6 +14,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -145,6 +147,40 @@ public final class CompartmentBlockEntityTest {
                 3,
                 "Unbinding ME output should request an AE storage update");
         helper.succeed();
+    }
+
+    @TestHolder("compartment_block_entity_plain_input_server_tick_updates_active_state")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void plainInputServerTickUpdatesActiveState(GameTestHelper helper) {
+        BlockPos relativePos = new BlockPos(1, 1, 1);
+        BlockState inputState = ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState();
+
+        helper.setBlock(relativePos, inputState);
+        BlockPos levelPos = helper.absolutePos(relativePos);
+        BlockEntity blockEntity = helper.getLevel().getBlockEntity(levelPos);
+        if (!(blockEntity instanceof CompositeWarehouseBlockEntity warehouse)) {
+            helper.fail("Expected a composite warehouse block entity", relativePos);
+            return;
+        }
+
+        warehouse.serverTick();
+        assertActiveState(helper, levelPos, false, "Unbound plain input warehouse should stay inactive");
+
+        TestCompartmentHost host = new TestCompartmentHost();
+        warehouse.compartment$bindToHost("main", host);
+        warehouse.serverTick();
+        assertActiveState(helper, levelPos, true, "Bound plain input warehouse should become active");
+
+        warehouse.compartment$unbindFromHost("main", host);
+        warehouse.serverTick();
+        assertActiveState(helper, levelPos, false, "Unbound plain input warehouse should become inactive again");
+        helper.succeed();
+    }
+
+    private static void assertActiveState(GameTestHelper helper, BlockPos levelPos, boolean expected, String message) {
+        boolean active = helper.getLevel().getBlockState(levelPos).getValue(CompartmentBlock.ACTIVE);
+        helper.assertValueEqual(active, expected, message);
     }
 
     private static final class SimpleMEStorage implements MEStorage {
