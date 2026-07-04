@@ -483,6 +483,103 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_compartment_binder_ensure_replaces_stale_same_position_part")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentBinderEnsureReplacesStaleSamePositionPart(GameTestHelper helper) {
+        JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
+        TestCompartmentHost host = new TestCompartmentHost();
+        BlockPos compartmentPos = new BlockPos(1, 0, 0);
+        CompartmentBlockEntity stalePart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        CompartmentBlockEntity currentPart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        StructureWorldView currentWorld = world(
+                Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()),
+                Map.of(compartmentPos, currentPart));
+        Map<BlockPos, CompartmentType> declaredCompartments = Map.of(compartmentPos, CompartmentType.INPUT);
+
+        stalePart.compartment$bindToHost("main", host);
+
+        binder.ensureBound(currentWorld, "main", host, declaredCompartments);
+
+        helper.assertValueEqual(
+                host.compartmentHost$getCompartments("main"),
+                List.of(currentPart),
+                "ensureBound should replace stale registered parts at the declared position");
+        helper.assertTrue(stalePart.compartmentHost() == null, "Stale same-position part should be unbound");
+        helper.assertValueEqual(currentPart.compartmentHost(), host, "Current world part should be bound");
+        helper.assertValueEqual(
+                currentPart.compartmentStructureName(),
+                "main",
+                "Current world part should remember the structure name");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_binder_ensure_removes_no_longer_declared_part")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentBinderEnsureRemovesNoLongerDeclaredPart(GameTestHelper helper) {
+        JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
+        TestCompartmentHost host = new TestCompartmentHost();
+        BlockPos compartmentPos = new BlockPos(1, 0, 0);
+        CompartmentBlockEntity stalePart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+
+        stalePart.compartment$bindToHost("main", host);
+
+        binder.ensureBound(
+                world(Map.of(compartmentPos, Blocks.STONE.defaultBlockState())),
+                "main",
+                host,
+                Map.of());
+
+        helper.assertTrue(
+                host.compartmentHost$getCompartments("main").isEmpty(),
+                "ensureBound should remove stale parts that are no longer declared by JSON");
+        helper.assertTrue(stalePart.compartmentHost() == null, "No-longer-declared part should be unbound");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_binder_fails_fast_for_invalid_declared_parts")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentBinderFailsFastForInvalidDeclaredParts(GameTestHelper helper) {
+        JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
+        TestCompartmentHost host = new TestCompartmentHost();
+        BlockPos compartmentPos = new BlockPos(1, 0, 0);
+        Map<BlockPos, CompartmentType> declaredCompartments = Map.of(compartmentPos, CompartmentType.INPUT);
+        StructureWorldView missingWorld = world(
+                Map.of(compartmentPos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState()));
+        CompartmentBlockEntity outputPart = new CompositeWarehouseBlockEntity(
+                compartmentPos,
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        StructureWorldView mismatchedWorld = world(
+                Map.of(compartmentPos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState()),
+                Map.of(compartmentPos, outputPart));
+
+        assertIllegalStateThrows(
+                helper,
+                () -> binder.bind(missingWorld, "main", host, declaredCompartments),
+                "bind should fail fast when the declared compartment block entity is missing");
+        assertIllegalStateThrows(
+                helper,
+                () -> binder.bind(mismatchedWorld, "main", host, declaredCompartments),
+                "bind should fail fast when the declared compartment type mismatches");
+        assertIllegalStateThrows(
+                helper,
+                () -> binder.ensureBound(missingWorld, "main", host, declaredCompartments),
+                "ensureBound should fail fast when the declared compartment block entity is missing");
+        assertIllegalStateThrows(
+                helper,
+                () -> binder.ensureBound(mismatchedWorld, "main", host, declaredCompartments),
+                "ensureBound should fail fast when the declared compartment type mismatches");
+        helper.succeed();
+    }
+
     @TestHolder("json_multiblock_loader_rejects_unused_compartment_symbol")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -641,6 +738,18 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                     thrown.getClass().getSimpleName() + " (" + thrown.getMessage() + ")");
         }
         helper.fail(message + ": expected " + expectedType.getSimpleName() + " but no exception was thrown");
+    }
+
+    private static void assertIllegalStateThrows(GameTestHelper helper, Runnable action, String message) {
+        try {
+            action.run();
+        } catch (IllegalStateException ignored) {
+            return;
+        } catch (Throwable thrown) {
+            helper.fail(message + ": expected IllegalStateException but caught " + thrown);
+            return;
+        }
+        helper.fail(message + ": expected IllegalStateException but no exception was thrown");
     }
 
     private static final class TestCompartmentHost implements CompartmentHost {

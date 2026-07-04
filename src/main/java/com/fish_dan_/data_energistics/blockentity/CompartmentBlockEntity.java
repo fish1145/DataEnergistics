@@ -32,6 +32,7 @@ import appeng.blockentity.AEBaseBlockEntity;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -157,6 +158,24 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
 
     @Override
     public void compartment$bindToHost(String structureName, CompartmentHost host) {
+        Objects.requireNonNull(structureName, "structureName");
+        Objects.requireNonNull(host, "host");
+
+        if (this.compartmentHost == host && structureName.equals(this.structureName)) {
+            if (!host.compartmentHost$getCompartments(structureName).contains(this)) {
+                CompartmentPart.super.compartment$bindToHost(structureName, host);
+            }
+            return;
+        }
+
+        if (this.compartmentHost != null) {
+            if (this.structureName == null) {
+                throw new IllegalStateException("Bound compartment at " + this.worldPosition +
+                        " has no structure name before rebinding");
+            }
+            CompartmentPart.super.compartment$unbindFromHost(this.structureName, this.compartmentHost);
+        }
+
         CompartmentPart.super.compartment$bindToHost(structureName, host);
         this.compartmentHost = host;
         this.structureName = structureName;
@@ -182,10 +201,6 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
                                                      String structureName,
                                                      VerticalMultiBlockContext<?> context) {
         CompartmentPart.super.verticalMultiBlock$addedToController(controller, structureName, context);
-        this.compartmentHost = controller instanceof CompartmentHost host ? host : null;
-        this.structureName = structureName;
-        invalidateCapabilities();
-        setChanged();
     }
 
     @Override

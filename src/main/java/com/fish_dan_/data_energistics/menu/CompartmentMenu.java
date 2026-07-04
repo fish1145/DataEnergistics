@@ -125,10 +125,34 @@ public class CompartmentMenu extends AEBaseMenu {
 
     private void setupCompartmentSlots(CompartmentBlockEntity host) {
         switch (host.compartmentType()) {
-            case INPUT, OUTPUT -> setupCompositeWarehouseSlots(requireHost(host, CompositeWarehouseBlockEntity.class));
-            case ME_INPUT -> setupMeInputSlots(requireHost(host, MeCompositeInputWarehouseBlockEntity.class));
-            case ME_OUTPUT -> setupMeOutputSlots(requireHost(host, MeCompositeOutputWarehouseBlockEntity.class));
-            case PATTERN_BUFFER -> setupPatternBufferSlots(requireHost(host, MePatternBufferBlockEntity.class));
+            case INPUT, OUTPUT -> {
+                if (host instanceof CompositeWarehouseBlockEntity compositeWarehouse) {
+                    setupCompositeWarehouseSlots(compositeWarehouse);
+                } else {
+                    throw unexpectedHost(host, "CompositeWarehouseBlockEntity");
+                }
+            }
+            case ME_INPUT -> {
+                if (host instanceof MeCompositeInputWarehouseBlockEntity meInput) {
+                    setupMeInputSlots(meInput);
+                } else {
+                    throw unexpectedHost(host, "MeCompositeInputWarehouseBlockEntity");
+                }
+            }
+            case ME_OUTPUT -> {
+                if (host instanceof MeCompositeOutputWarehouseBlockEntity meOutput) {
+                    setupMeOutputSlots(meOutput);
+                } else {
+                    throw unexpectedHost(host, "MeCompositeOutputWarehouseBlockEntity");
+                }
+            }
+            case PATTERN_BUFFER -> {
+                if (host instanceof MePatternBufferBlockEntity patternBuffer) {
+                    setupPatternBufferSlots(patternBuffer);
+                } else {
+                    throw unexpectedHost(host, "MePatternBufferBlockEntity");
+                }
+            }
         }
     }
 
@@ -234,12 +258,9 @@ public class CompartmentMenu extends AEBaseMenu {
         };
     }
 
-    private static <T extends CompartmentBlockEntity> T requireHost(CompartmentBlockEntity host, Class<T> type) {
-        if (!type.isInstance(host)) {
-            throw new IllegalStateException("Compartment menu expected " + type.getSimpleName() +
-                    " for " + host.compartmentType() + " but got " + host.getClass().getSimpleName());
-        }
-        return type.cast(host);
+    private static IllegalStateException unexpectedHost(CompartmentBlockEntity host, String expectedHost) {
+        return new IllegalStateException("Compartment menu expected " + expectedHost +
+                " for " + host.compartmentType());
     }
 
     private record CapacityGatedSlot(AppEngSlot slot, int backingSlot) {}

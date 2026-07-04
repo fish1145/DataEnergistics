@@ -586,6 +586,60 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
+    @TestHolder("compartment_block_entity_rebinding_removes_old_host_storage_access")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void blockEntityRebindingRemovesOldHostStorageAccess(GameTestHelper helper) {
+        TestCompartmentHost oldHost = new TestCompartmentHost();
+        TestCompartmentHost newHost = new TestCompartmentHost();
+        CompositeWarehouseBlockEntity output = compositeWarehouse(
+                ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        CompartmentStorage oldOutputView = oldHost.compartmentHost$outputStorage("main");
+        CompartmentStorage newOutputView = newHost.compartmentHost$outputStorage("alternate");
+
+        output.compartment$bindToHost("main", oldHost);
+        output.compartment$bindToHost("main", oldHost);
+
+        helper.assertValueEqual(
+                oldHost.compartmentHost$getCompartments("main"),
+                List.of(output),
+                "Repeated bind to the same host and structure should not duplicate the part");
+        helper.assertValueEqual(
+                oldOutputView.insert(iron, 2L, false),
+                2L,
+                "Old host output view should write while the part is bound there");
+
+        output.compartment$bindToHost("alternate", newHost);
+
+        helper.assertTrue(
+                oldHost.compartmentHost$getCompartments("main").isEmpty(),
+                "Rebinding should remove the part from the old host structure");
+        helper.assertValueEqual(
+                newHost.compartmentHost$getCompartments("alternate"),
+                List.of(output),
+                "Rebinding should register the part with the new host structure");
+        helper.assertValueEqual(output.compartmentHost(), newHost, "Rebound part should remember the new host");
+        helper.assertValueEqual(
+                output.compartmentStructureName(),
+                "alternate",
+                "Rebound part should remember the new structure name");
+        helper.assertValueEqual(
+                oldOutputView.insert(iron, 3L, false),
+                0L,
+                "Old host aggregate output view should stop writing to the rebound part");
+        helper.assertValueEqual(
+                output.storage().amount(iron),
+                2L,
+                "Old host aggregate write after rebinding should not mutate the part storage");
+        helper.assertValueEqual(
+                newOutputView.insert(iron, 4L, false),
+                4L,
+                "New host aggregate output view should write to the rebound part");
+        helper.assertValueEqual(output.storage().amount(iron), 6L, "New host write should reach the part storage");
+        helper.succeed();
+    }
+
     @TestHolder("compartment_host_role_accessors_filter_parts_and_storages")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")

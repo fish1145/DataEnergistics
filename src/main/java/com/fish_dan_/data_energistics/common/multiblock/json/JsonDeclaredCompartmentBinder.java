@@ -15,11 +15,10 @@ import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Default reusable binder for JSON-declared multiblock compartments.
@@ -83,13 +82,23 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(declaredCompartments, "declaredCompartments");
 
-        Set<BlockPos> boundPositions = new HashSet<>();
-        for (CompartmentPart part : host.compartmentHost$getCompartments(structureName)) {
-            boundPositions.add(toBlockPos(part.compartmentPos()));
-        }
+        Map<BlockPos, CompartmentPart> currentDeclaredParts = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, CompartmentType> entry : declaredCompartments.entrySet()) {
-            if (!boundPositions.contains(entry.getKey())) {
-                bindDeclaredPart(world, structureName, host, entry.getKey(), entry.getValue());
+            currentDeclaredParts.put(entry.getKey(), requireDeclaredPart(world, entry.getKey(), entry.getValue()));
+        }
+
+        for (CompartmentPart registeredPart : List.copyOf(host.compartmentHost$getCompartments(structureName))) {
+            CompartmentPart currentPart = currentDeclaredParts.get(toBlockPos(registeredPart.compartmentPos()));
+            if (registeredPart != currentPart) {
+                registeredPart.compartment$unbindFromHost(structureName, host);
+            }
+        }
+
+        for (CompartmentPart currentPart : currentDeclaredParts.values()) {
+            if (!host.compartmentHost$getCompartments(structureName).contains(currentPart) ||
+                    currentPart.compartmentHost() != host ||
+                    !structureName.equals(currentPart.compartmentStructureName())) {
+                currentPart.compartment$bindToHost(structureName, host);
             }
         }
     }
@@ -129,22 +138,27 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
                                          CompartmentHost host,
                                          BlockPos pos,
                                          CompartmentType declaredType) {
+        requireDeclaredPart(world, pos, declaredType).compartment$bindToHost(structureName, host);
+    }
+
+    private static CompartmentPart requireDeclaredPart(StructureWorldView world,
+                                                       BlockPos pos,
+                                                       CompartmentType declaredType) {
         BlockEntity blockEntity = world.getBlockEntity(pos);
         if (!(blockEntity instanceof CompartmentPart part)) {
-            LOGGER.warn(
-                    "Skipping JSON multiblock compartment bind at {} because no compartment part exists",
-                    pos);
-            return;
+            throw failDeclaredPart("JSON multiblock declared a compartment at " + pos +
+                    " but no compartment part exists");
         }
         if (part.compartmentType() != declaredType) {
-            LOGGER.warn(
-                    "Skipping JSON multiblock compartment bind at {} because expected {} but found {}",
-                    pos,
-                    declaredType.id(),
-                    part.compartmentType().id());
-            return;
+            throw failDeclaredPart("JSON multiblock declared compartment type " + declaredType.id() + " at " + pos +
+                    " but found " + part.compartmentType().id());
         }
-        part.compartment$bindToHost(structureName, host);
+        return part;
+    }
+
+    private static IllegalStateException failDeclaredPart(String message) {
+        LOGGER.error(message);
+        return new IllegalStateException(message);
     }
 
     private static BlockPos toBlockPos(VerticalMultiBlockPos pos) {
