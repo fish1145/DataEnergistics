@@ -1,6 +1,13 @@
 {
 	"metadata": {
-		"display_name": "multiblock.data_energistics.digital_construct_flower"
+		"display_name": "multiblock.data_energistics.digital_construct_flower",
+		"compartments": {
+			"a": "input",
+			"b": "me_input",
+			"c": "pattern_buffer",
+			"d": "me_output",
+			"e": "output"
+		}
 	},
 	"aisles": [
 		{
@@ -249,7 +256,7 @@
 		{
 			"slices": [
 				[
-					"ABEEEIJJJJJJJIEEEBA",
+					"ABEEEIJabcdeJIEEEBA",
 					"  FKKL       LKKF  ",
 					"   FOF       FOF   ",
 					"                   ",

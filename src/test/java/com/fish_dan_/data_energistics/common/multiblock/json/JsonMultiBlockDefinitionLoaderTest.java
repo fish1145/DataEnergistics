@@ -136,12 +136,40 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.displayNameTranslationKey().orElseThrow(),
                 "multiblock.data_energistics.digital_construct_flower",
                 "Bundled Digital Construct Flower display metadata should resolve to the structure lang key");
+        helper.assertValueEqual(
+                definition.compartmentTypes().size(),
+                5,
+                "Bundled Digital Construct Flower should declare every supported compartment role");
+        helper.assertValueEqual(
+                definition.compartmentTypes().get("a"),
+                CompartmentType.INPUT,
+                "Bundled DCF symbol a should be an input compartment");
+        helper.assertValueEqual(
+                definition.compartmentTypes().get("b"),
+                CompartmentType.ME_INPUT,
+                "Bundled DCF symbol b should be an ME input compartment");
+        helper.assertValueEqual(
+                definition.compartmentTypes().get("c"),
+                CompartmentType.PATTERN_BUFFER,
+                "Bundled DCF symbol c should be a pattern buffer compartment");
+        helper.assertValueEqual(
+                definition.compartmentTypes().get("d"),
+                CompartmentType.ME_OUTPUT,
+                "Bundled DCF symbol d should be an ME output compartment");
+        helper.assertValueEqual(
+                definition.compartmentTypes().get("e"),
+                CompartmentType.OUTPUT,
+                "Bundled DCF symbol e should be an output compartment");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 21, 19 },
                 "Bundled Digital Construct Flower dimensions should match the WorldEdit schematic");
         helper.assertValueEqual(pattern.structureSlices.length, 19, "Bundled Digital Construct Flower should use one GregTech aisle per schematic depth layer");
         helper.assertValueEqual(pattern.aisleRepetitions.length, 19, "Each Digital Construct Flower aisle should be a fixed non-repeatable unit");
         assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Digital Construct Flower aisle unit should contain exactly one slice");
         assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Digital Construct Flower aisle unit should repeat exactly once");
+        helper.assertValueEqual(
+                pattern.structureSlices[9][0],
+                "ABEEEIJabcdeJIEEEBA",
+                "Bundled Digital Construct Flower should expose dedicated compartment symbols without reusing data framework predicates");
         helper.assertValueEqual(
                 pattern.structureSlices[9][11],
                 " ~   TTTTTTTTT   V ",
