@@ -45,7 +45,6 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_RIPPER_REASSEMBLER);
                         output.accept(ModItems.DIGITAL_CONSTRUCT_FLOWER);
                         output.accept(ModItems.DATA_FRAMEWORK);
-                        output.accept(ModItems.DATA_FRAMEWORK_MAIN);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);

@@ -8,7 +8,6 @@ import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
-import com.fish_dan_.data_energistics.block.DataFrameworkMainBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerMainBlock;
@@ -61,13 +60,6 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(
             "data_framework",
             DataFrameworkBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
-                    .noOcclusion()
-                    .isViewBlocking((state, blockGetter, pos) -> false));
-
-    public static final DeferredBlock<Block> DATA_FRAMEWORK_MAIN = BLOCKS.registerBlock(
-            "data_framework_main",
-            DataFrameworkMainBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
                     .noOcclusion()
                     .isViewBlocking((state, blockGetter, pos) -> false));

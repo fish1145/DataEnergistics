@@ -90,7 +90,6 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_RIPPER_REASSEMBLER);
     public static final DeferredItem<BlockItem> DIGITAL_CONSTRUCT_FLOWER = ITEMS.registerSimpleBlockItem(ModBlocks.DIGITAL_CONSTRUCT_FLOWER);
     public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK);
-    public static final DeferredItem<BlockItem> DATA_FRAMEWORK_MAIN = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK_MAIN);
     public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_DISTRIBUTION_TOWER);
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);

@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
@@ -49,10 +48,6 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalConstructFlowerBlockEntity>> DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "digital_construct_flower",
             () -> BlockEntityType.Builder.of(DigitalConstructFlowerBlockEntity::new, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()).build(null));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataFrameworkBlockEntity>> DATA_FRAMEWORK_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "data_framework",
-            () -> BlockEntityType.Builder.of(DataFrameworkBlockEntity::new, ModBlocks.DATA_FRAMEWORK_MAIN.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_distribution_tower",

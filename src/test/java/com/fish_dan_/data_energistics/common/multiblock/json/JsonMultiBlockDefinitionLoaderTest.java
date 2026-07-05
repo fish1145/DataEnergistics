@@ -56,11 +56,11 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void mapsTopLevelFileToMainStructure(GameTestHelper helper) {
-        JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resource("data_framework_column"));
+        JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resource("sample_multiblock"));
 
         helper.assertValueEqual(
                 key.machineId().toString(),
-                "data_energistics:data_framework_column",
+                "data_energistics:sample_multiblock",
                 "Top-level file should map to the machine id path");
         helper.assertValueEqual(
                 key.structureName(),
@@ -73,11 +73,11 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void mapsNestedFileToNamedStructure(GameTestHelper helper) {
-        JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resource("data_framework_column/side"));
+        JsonMultiBlockStructureKey key = JsonMultiBlockResourceKeyResolver.resolve(resource("sample_multiblock/side"));
 
         helper.assertValueEqual(
                 key.machineId().toString(),
-                "data_energistics:data_framework_column",
+                "data_energistics:sample_multiblock",
                 "Nested file parent path should map to the machine id path");
         helper.assertValueEqual(key.structureName(), "side", "Nested file name should map to the structure name");
         helper.succeed();
@@ -89,8 +89,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     public static void rejectsDuplicateMainPathAliases(GameTestHelper helper) {
         JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<ResourceLocation, String> resources = new LinkedHashMap<>();
-        resources.put(resource("data_framework_column"), minimalJson());
-        resources.put(resource("data_framework_column/main"), minimalJson());
+        resources.put(resource("sample_multiblock"), minimalJson());
+        resources.put(resource("sample_multiblock/main"), minimalJson());
 
         assertThrows(
                 helper,
@@ -106,10 +106,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     public static void parsesValidMdlibJson(GameTestHelper helper) {
         JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = loader.load(Map.of(
-                resource("data_framework_column"),
+                resource("sample_multiblock"),
                 minimalJson()));
 
-        JsonMultiBlockStructureKey key = JsonMultiBlockStructureKey.main(resource("data_framework_column"));
+        JsonMultiBlockStructureKey key = JsonMultiBlockStructureKey.main(resource("sample_multiblock"));
         helper.assertValueEqual(definitions.size(), 1, "Loader should return the parsed definition");
         helper.assertTrue(definitions.containsKey(key), "Loader should key the parsed definition by resource path");
         helper.assertTrue(definitions.get(key).pattern() != null, "Parsed definition should contain an MDLib pattern");
@@ -601,7 +601,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         assertThrows(
                 helper,
                 IllegalArgumentException.class,
-                () -> new JsonMultiBlockStructureKey(resource("data_framework_column"), "side/main"),
+                () -> new JsonMultiBlockStructureKey(resource("sample_multiblock"), "side/main"),
                 "Structure name should fail fast when it contains a slash");
         helper.succeed();
     }
