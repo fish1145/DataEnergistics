@@ -6,11 +6,11 @@
 	"textures": {
 		"0": "data_energistics:block/generics/back",
 		"1": "data_energistics:block/generics/side",
-		"2": "data_energistics:block/digital_construct_flower/bottom",
-		"3": "data_energistics:block/digital_construct_flower/top",
-		"top_light": "data_energistics:block/digital_construct_flower/top_light_off",
-		"5": "data_energistics:block/digital_construct_flower/front",
-		"screen": "data_energistics:block/digital_construct_flower/screen_off",
+		"2": "ae2:block/generics/bottom",
+		"3": "data_energistics:block/data_reassembler/top",
+		"top_light": "data_energistics:block/data_reassembler/top_light_off",
+		"5": "data_energistics:block/data_reassembler/front",
+		"screen": "data_energistics:block/data_reassembler/screen_off",
 		"particle": "data_energistics:block/generics/back"
 	},
 	"elements": [

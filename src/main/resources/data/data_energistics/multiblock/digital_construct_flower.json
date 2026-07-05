@@ -1,0 +1,622 @@
+{
+	"metadata": {
+		"display_name": "multiblock.data_energistics.digital_construct_flower"
+	},
+	"aisles": [
+		{
+			"slices": [
+				[
+					"        AAA        ",
+					"                   ",
+					"       N   N       ",
+					"       Q   Q       ",
+					"      JR   RJ      ",
+					"      J     J      ",
+					"     AJ     JA     ",
+					"     D       D     ",
+					"   IID       DII   ",
+					"   I R       R I   ",
+					"   I W       W I   ",
+					"   I           I   ",
+					"  II           II  ",
+					"  A             A  ",
+					"  A             A  ",
+					"  A             A  ",
+					"  D             D  ",
+					" DD             DD ",
+					" D               D ",
+					" D               D ",
+					" D               D "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        ABA        ",
+					"                   ",
+					"      N     N      ",
+					"      Q     Q      ",
+					"     DR     RD     ",
+					"     DR     RD     ",
+					"    AD       DA    ",
+					"   AD         DA   ",
+					"  UDD         DDU  ",
+					"  UDA         ADU  ",
+					"  UD    FAF    DU  ",
+					" WUD    XVX    DUW ",
+					" RDA    FAF    ADR ",
+					" SD             DS ",
+					" SD             DS ",
+					" SD             DS ",
+					" V               V ",
+					"DV               VD",
+					"DV               VD",
+					"D                 D",
+					"D                 D"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"       CDEDC       ",
+					"        AFA        ",
+					"     N       N     ",
+					"     Q       Q     ",
+					"    JR       RJ    ",
+					"   AJ         JA   ",
+					"   DJ         JD   ",
+					"   D           D   ",
+					" UVD           DVU ",
+					" UVD   CIIIC   DVU ",
+					" UV    CIIIC    VU ",
+					" UV     Y Y     VU ",
+					"IDC    CIIIC    CDI",
+					"ADS    CIIIC    SDA",
+					"ADS             SDA",
+					"ADC             CDA",
+					"D                 D",
+					"D                 D",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FFFFGDEDGFFFF   ",
+					"       CDKDC       ",
+					"        AFA        ",
+					"                   ",
+					"                   ",
+					"  AD    CIC    DA  ",
+					"  DC    CIC    CD  ",
+					" ADS   CIIIC   SDA ",
+					"IDDS   CIIIC   SDDI",
+					"IDDC    AAA    CDDI",
+					"ID W           W DI",
+					"ID               DI",
+					"IA               AI",
+					"        AAA        ",
+					"       CIIIC       ",
+					"       CIIIC       ",
+					"        CIC        ",
+					"        CIC        ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FHHHDEEEDHHHF   ",
+					"    FFFFKKKFFFF    ",
+					"        AOA        ",
+					"                   ",
+					"  J             J  ",
+					"  J             J  ",
+					" AJ             JA ",
+					" D               D ",
+					"ID               DI",
+					" A               A ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FHHDIIIIIDHHF   ",
+					"    FHHHALAHHHF    ",
+					"  N    PPFPP    N  ",
+					"  Q             Q  ",
+					" DR             RD ",
+					" D               D ",
+					"AD               DA",
+					"D                 D",
+					"D                 D",
+					"R        T        R",
+					"W       TTT       W",
+					"       TTTTT       ",
+					"        TTT        ",
+					"         T         ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FHDIIJJJIIDHF   ",
+					"    FHMM   MMHF    ",
+					" N    PP   PP    N ",
+					" Q               Q ",
+					"JR               RJ",
+					"JR               RJ",
+					"J                 J",
+					"                   ",
+					"        TTT        ",
+					"       TTTTT       ",
+					"      TTTTTTT      ",
+					"      TTTTTTT      ",
+					"      TTTTTTT      ",
+					"       TTTTT       ",
+					"        TTT        ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"  CGDIIJJJJJIIDGC  ",
+					"   CFHM     MHFC   ",
+					"N    PP     PP    N",
+					"Q                 Q",
+					"R                 R",
+					"                   ",
+					"                   ",
+					"   C     T     C   ",
+					"   C   TTTTT   C   ",
+					"  C   TTTTTTT   C  ",
+					"  C   TTTTTTT   C  ",
+					"     TTTTTTTTT     ",
+					"  C   TTTTTTT   C  ",
+					"  C   TTTTTTT   C  ",
+					"   C   TTTTT   C   ",
+					"   C     T     C   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"AADDEIJJJJJJJIEDDAA",
+					"  ADKA       AKDA  ",
+					"   AAP       PAA   ",
+					"                   ",
+					"                   ",
+					"   C           C   ",
+					"   C           C   ",
+					"   I    TTT    I   ",
+					"   I  TTTTTTT  I   ",
+					"  IA  TTTTTTT  AI  ",
+					" FI  TTTTTTTTT  IF ",
+					" XY  TTTTTTTTT  YX ",
+					" FI  TTTTTTTTT  IF ",
+					"  IA  TTTTTTT  AI  ",
+					"   I  TTTTTTT  I   ",
+					"   I    TTT    I   ",
+					"   C           C   ",
+					"   C           C   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"ABEEEIJJJJJJJIEEEBA",
+					"  FKKL       LKKF  ",
+					"   FOF       FOF   ",
+					"                   ",
+					"                   ",
+					"   I           I   ",
+					"   I           I   ",
+					"   I   TTTTT   I   ",
+					"   I  TTTTTTT  I   ",
+					"  IA TTTTTTTTT AI  ",
+					" AI  TTTTTTTTT  IA ",
+					" ~   TTTTTTTTT   V ",
+					" AI  TTTTTTTTT  IA ",
+					"  IA TTTTTTTTT AI  ",
+					"   I  TTTTTTT  I   ",
+					"   I   TTTTT   I   ",
+					"   I           I   ",
+					"   I           I   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"AADDEIJJJJJJJIEDDAA",
+					"  ADKA       AKDA  ",
+					"   AAP       PAA   ",
+					"                   ",
+					"                   ",
+					"   C           C   ",
+					"   C           C   ",
+					"   I    TTT    I   ",
+					"   I  TTTTTTT  I   ",
+					"  IA  TTTTTTT  AI  ",
+					" FI  TTTTTTTTT  IF ",
+					" XY  TTTTTTTTT  YX ",
+					" FI  TTTTTTTTT  IF ",
+					"  IA  TTTTTTT  AI  ",
+					"   I  TTTTTTT  I   ",
+					"   I    TTT    I   ",
+					"   C           C   ",
+					"   C           C   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"  CGDIIJJJJJIIDGC  ",
+					"   CFHM     MHFC   ",
+					"N    PP     PP    N",
+					"Q                 Q",
+					"R                 R",
+					"                   ",
+					"                   ",
+					"   C     T     C   ",
+					"   C   TTTTT   C   ",
+					"  C   TTTTTTT   C  ",
+					"  C   TTTTTTT   C  ",
+					"     TTTTTTTTT     ",
+					"  C   TTTTTTT   C  ",
+					"  C   TTTTTTT   C  ",
+					"   C   TTTTT   C   ",
+					"   C     T     C   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FHDIIJJJIIDHF   ",
+					"    FHMM   MMHF    ",
+					" N    PP   PP    N ",
+					" Q               Q ",
+					"JR               RJ",
+					"JR               RJ",
+					"J                 J",
+					"                   ",
+					"        TTT        ",
+					"       TTTTT       ",
+					"      TTTTTTT      ",
+					"      TTTTTTT      ",
+					"      TTTTTTT      ",
+					"       TTTTT       ",
+					"        TTT        ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FHHDIIIIIDHHF   ",
+					"    FHHHALAHHHF    ",
+					"  N    PPFPP    N  ",
+					"  Q             Q  ",
+					" DR             RD ",
+					" D               D ",
+					"AD               DA",
+					"D                 D",
+					"D                 D",
+					"R        T        R",
+					"W       TTT       W",
+					"       TTTTT       ",
+					"        TTT        ",
+					"         T         ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FHHHDEEEDHHHF   ",
+					"    FFFFKKKFFFF    ",
+					"        AOA        ",
+					"                   ",
+					"  J             J  ",
+					"  J             J  ",
+					" AJ             JA ",
+					" D               D ",
+					"ID               DI",
+					" A               A ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   FFFFGDEDGFFFF   ",
+					"       CDKDC       ",
+					"        AFA        ",
+					"                   ",
+					"                   ",
+					"  AD    CIC    DA  ",
+					"  DC    CIC    CD  ",
+					" ADS   CIIIC   SDA ",
+					"IDDS   CIIIC   SDDI",
+					"IDDC    AAA    CDDI",
+					"ID W           W DI",
+					"ID               DI",
+					"IA               AI",
+					"        AAA        ",
+					"       CIIIC       ",
+					"       CIIIC       ",
+					"        CIC        ",
+					"        CIC        ",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"       CDEDC       ",
+					"        AFA        ",
+					"     N       N     ",
+					"     Q       Q     ",
+					"    JR       RJ    ",
+					"   AJ         JA   ",
+					"   DJ         JD   ",
+					"   D           D   ",
+					" UVD           DVU ",
+					" UVD   CIIIC   DVU ",
+					" UV    CIIIC    VU ",
+					" UV     Y Y     VU ",
+					"IDR    CIIIC    CDI",
+					"ADS    CIIIC    SDA",
+					"ADS             SDA",
+					"ADR             CDA",
+					"D                 D",
+					"D                 D",
+					"                   ",
+					"                   ",
+					"                   "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        ABA        ",
+					"                   ",
+					"      N     N      ",
+					"      Q     Q      ",
+					"     DR     RD     ",
+					"     DR     RD     ",
+					"    AD       DA    ",
+					"   AD         DA   ",
+					"  UDD         DDU  ",
+					"  UDA         ADU  ",
+					"  UD    FAF    DU  ",
+					" WUD    XVX    DUW ",
+					" RDA    FAF    ADR ",
+					" SD             DS ",
+					" SD             DS ",
+					" SD             DS ",
+					" V               V ",
+					"DV               VD",
+					"DV               VD",
+					"D                 D",
+					"D                 D"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        AAA        ",
+					"                   ",
+					"       N   N       ",
+					"       Q   Q       ",
+					"      JR   RJ      ",
+					"      J     J      ",
+					"     AJ     JA     ",
+					"     D       D     ",
+					"   IID       DII   ",
+					"   I R       R I   ",
+					"   I W       W I   ",
+					"   I           I   ",
+					"  II           II  ",
+					"  A             A  ",
+					"  A             A  ",
+					"  A             A  ",
+					"  D             D  ",
+					" DD             DD ",
+					" D               D ",
+					" D               D ",
+					" D               D "
+				]
+			]
+		}
+	],
+	"predicates": {
+		"A": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:smooth_quartz_stairs"
+		},
+		"B": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_sanctum_interface"
+		},
+		"C": {
+			"type": "mdlib:blocks",
+			"block": "ae2:cut_quartz_wall"
+		},
+		"D": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:smooth_quartz"
+		},
+		"E": {
+			"type": "mdlib:blocks",
+			"block": "ae2:sky_stone_small_brick"
+		},
+		"F": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_stairs"
+		},
+		"G": {
+			"type": "mdlib:blocks",
+			"block": "ae2:cut_quartz_block"
+		},
+		"H": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_block"
+		},
+		"I": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_vibrant_glass"
+		},
+		"J": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_framework"
+		},
+		"K": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_corrosion_liquid"
+		},
+		"L": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_meteorite_1"
+		},
+		"M": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_quartz_stairs"
+		},
+		"N": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_slab"
+		},
+		"O": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_glass"
+		},
+		"P": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:black_stained_glass_pane"
+		},
+		"Q": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_meteorite_2"
+		},
+		"R": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_wall"
+		},
+		"S": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:end_rod"
+		},
+		"T": {
+			"type": "mdlib:blocks",
+			"block": "extendedae:assembler_matrix_pattern"
+		},
+		"U": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:lime_stained_glass_pane"
+		},
+		"V": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_crystal_block"
+		},
+		"W": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_fixture"
+		},
+		"X": {
+			"type": "mdlib:blocks",
+			"block": "ae2:not_so_mysterious_cube"
+		},
+		"Y": {
+			"type": "mdlib:blocks",
+			"block": "ae2:light_detector"
+		}
+	}
+}
