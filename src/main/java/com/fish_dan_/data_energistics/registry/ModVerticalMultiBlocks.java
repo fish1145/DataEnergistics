@@ -21,8 +21,8 @@ import java.nio.charset.StandardCharsets;
  */
 public final class ModVerticalMultiBlocks {
 
-    public static final String DIGITAL_CONSTRUCT_FLOWER_ID = Data_Energistics.id("digital_construct_flower").toString();
-    private static final String DIGITAL_CONSTRUCT_FLOWER_PATH = "/data/data_energistics/multiblock/digital_construct_flower.json";
+    public static final String TRINITY_DIGITAL_CORE_ID = Data_Energistics.id("trinity_digital_core").toString();
+    private static final String TRINITY_DIGITAL_CORE_PATH = "/data/data_energistics/multiblock/trinity_digital_core.json";
 
     public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new LayeredJsonMultiBlockDefinitionRegistry();
 
@@ -30,8 +30,8 @@ public final class ModVerticalMultiBlocks {
 
     public static void init() {
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
-                JsonMultiBlockStructureKey.main(digitalConstructFlowerId()),
-                ModVerticalMultiBlocks::digitalConstructFlowerDefinition));
+                JsonMultiBlockStructureKey.main(trinityDigitalCoreId()),
+                ModVerticalMultiBlocks::trinityDigitalCoreDefinition));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -39,12 +39,12 @@ public final class ModVerticalMultiBlocks {
         return new JsonMultiBlockReloadEventHandler(JSON_MULTI_BLOCKS);
     }
 
-    private static ResourceLocation digitalConstructFlowerId() {
-        return Data_Energistics.id("digital_construct_flower");
+    private static ResourceLocation trinityDigitalCoreId() {
+        return Data_Energistics.id("trinity_digital_core");
     }
 
-    private static JsonMultiBlockDefinition digitalConstructFlowerDefinition() {
-        return loadBundledJsonDefinition(DIGITAL_CONSTRUCT_FLOWER_PATH, digitalConstructFlowerId());
+    private static JsonMultiBlockDefinition trinityDigitalCoreDefinition() {
+        return loadBundledJsonDefinition(TRINITY_DIGITAL_CORE_PATH, trinityDigitalCoreId());
     }
 
     private static JsonMultiBlockDefinition loadBundledJsonDefinition(String path, ResourceLocation resourceId) {

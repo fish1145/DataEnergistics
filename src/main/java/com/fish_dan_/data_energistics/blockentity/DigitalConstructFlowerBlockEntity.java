@@ -498,7 +498,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
-        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.DIGITAL_CONSTRUCT_FLOWER_ID));
+        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID));
     }
 
     private static List<BlockPos> readMatchedPositions(CompoundTag data) {

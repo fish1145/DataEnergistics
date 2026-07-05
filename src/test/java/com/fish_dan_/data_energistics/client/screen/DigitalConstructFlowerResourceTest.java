@@ -64,18 +64,33 @@ public final class DigitalConstructFlowerResourceTest {
     }
 
     @Test
-    void digitalConstructFlowerMultiblockUsesExpPatternProviderAssemblerMatrix() {
-        JsonObject root = readJson(MULTIBLOCK_ROOT + "digital_construct_flower.json");
+    void digitalConstructFlowerMultiblockUsesTrinityDigitalCoreStructure() {
+        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core.json");
+        JsonObject metadata = object(root, "metadata");
+        assertEquals(
+                "multiblock.data_energistics.trinity_digital_core",
+                string(metadata, "display_name"),
+                "Trinity Digital Core should expose its renamed multiblock display key");
+
         JsonObject predicates = object(root, "predicates");
         Set<String> values = new HashSet<>();
         collectStringValues(predicates, values);
 
         assertTrue(
+                values.contains("ae2:crafting_unit"),
+                "Trinity Digital Core should reference the exported AE2 crafting unit body");
+        assertTrue(
+                values.contains("ae2:controller"),
+                "Trinity Digital Core should reference the exported AE2 controller body");
+        assertTrue(
+                values.contains("data_energistics:data_framework"),
+                "Trinity Digital Core should preserve the exported data framework shell");
+        assertFalse(
                 values.contains("expatternprovider:assembler_matrix_pattern"),
-                "Digital Construct Flower should reference the real assembler matrix pattern block id");
+                "Trinity Digital Core should no longer reference the previous assembler matrix pattern block id");
         assertFalse(
                 values.contains("extendedae:assembler_matrix_pattern"),
-                "Digital Construct Flower should not reference the missing ExtendedAE namespace");
+                "Trinity Digital Core should not reference the missing ExtendedAE namespace");
     }
 
     private static void assertGuiImage(JsonObject images, String id, String expectedTexture) {
