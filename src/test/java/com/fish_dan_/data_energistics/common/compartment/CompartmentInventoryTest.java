@@ -218,8 +218,8 @@ public final class CompartmentInventoryTest {
                     CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS + capacityCards);
             int expectedSlots = expectedRows * CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_COLUMNS;
             int expectedMainSlots = expectedRows * CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_COLUMNS;
-            int expectedFluidSlots = (expectedRows + 1) / 2;
-            int expectedKeySlots = expectedRows / 2;
+            int expectedFluidSlots = expectedRows;
+            int expectedKeySlots = expectedRows;
 
             helper.assertValueEqual(
                     input.configurableSlotLimit(),
@@ -353,9 +353,13 @@ public final class CompartmentInventoryTest {
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         var player = helper.makeMockPlayer(GameType.CREATIVE);
 
+        int firstExpansionMainSlot = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS *
+                CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_COLUMNS;
+        int firstExpansionCompositeSlot = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS;
+
         installCapacityCards(input, 1);
         helper.assertValueEqual(
-                input.slotStorage().insert(16, iron, 1L, Actionable.MODULATE),
+                input.slotStorage().insert(firstExpansionMainSlot, iron, 1L, Actionable.MODULATE),
                 1L,
                 "One capacity card should unlock the first storage-bus expansion row");
 
@@ -373,19 +377,19 @@ public final class CompartmentInventoryTest {
                 upgradeSlot.mayPickup(player),
                 "Capacity card slot should reject pickup while expansion slots contain configured contents");
         helper.assertValueEqual(
-                input.slotStorage().getAmount(16),
+                input.slotStorage().getAmount(firstExpansionMainSlot),
                 1L,
                 "Capacity gating should keep expansion contents instead of clearing them");
-        input.slotStorage().setStack(16, null);
+        input.slotStorage().setStack(firstExpansionMainSlot, null);
         helper.assertValueEqual(
-                input.fluidConfig().insert(1, AEFluidKey.of(Fluids.WATER), 1L, Actionable.MODULATE),
+                input.fluidConfig().insert(firstExpansionCompositeSlot, AEFluidKey.of(Fluids.WATER), 1L, Actionable.MODULATE),
                 1L,
-                "One capacity card should unlock the second fluid slot in the F/K column");
+                "One capacity card should unlock the first expanded fluid slot");
 
         helper.assertFalse(
                 input.canRemoveCapacityCard(0),
                 "Capacity card should stay locked while an expanded fluid slot contains configured contents");
-        input.fluidConfig().setStack(1, null);
+        input.fluidConfig().setStack(firstExpansionCompositeSlot, null);
 
         helper.assertTrue(
                 input.canRemoveCapacityCard(0),
@@ -394,12 +398,10 @@ public final class CompartmentInventoryTest {
                 upgradeSlot.mayPickup(player),
                 "Capacity card slot should allow pickup after removing overflow contents");
 
-        installCapacityCards(input, 2);
-        menu.broadcastChanges();
         helper.assertValueEqual(
-                input.keyConfig().insert(1, DataKey.of(), 1L, Actionable.MODULATE),
+                input.keyConfig().insert(firstExpansionCompositeSlot, DataKey.of(), 1L, Actionable.MODULATE),
                 1L,
-                "Two capacity cards should unlock the second key slot in the F/K column");
+                "One capacity card should unlock the first expanded key slot");
         helper.assertFalse(
                 input.canRemoveCapacityCard(0),
                 "Capacity card should stay locked while an expanded key slot contains configured contents");
@@ -418,11 +420,10 @@ public final class CompartmentInventoryTest {
                 player.getInventory(),
                 input);
 
-        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_2);
-        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_2);
-        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_3);
-        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_3);
-        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_4);
+        for (int row = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS; row < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS; row++) {
+            assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID, row, 0);
+            assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_KEY, row, 1);
+        }
         helper.succeed();
     }
 
@@ -460,30 +461,35 @@ public final class CompartmentInventoryTest {
 
         CompositeWarehouseBlockEntity input = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        int firstExpansionFluidSlot = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS;
         helper.assertValueEqual(
                 input.fluidConfig().insert(0, water, 10L, Actionable.MODULATE),
                 10L,
-                "Plain warehouse visible fluid slot should accept fluid keys");
+                "Plain warehouse first base fluid slot should accept fluid keys");
         helper.assertValueEqual(
                 input.fluidConfig().insert(1, lava, 20L, Actionable.MODULATE),
+                20L,
+                "Plain warehouse second base fluid slot should accept fluid keys");
+        helper.assertValueEqual(
+                input.fluidConfig().insert(firstExpansionFluidSlot, water, 30L, Actionable.MODULATE),
                 0L,
-                "Plain warehouse should lock the second fluid slot until a capacity card unlocks its row");
+                "Plain warehouse should lock the first expansion fluid slot until a capacity card unlocks its row");
         helper.assertValueEqual(
                 input.storage().amount(water),
                 10L,
-                "Plain warehouse should aggregate its visible fluid slot");
+                "Plain warehouse should aggregate its first base fluid slot");
         helper.assertValueEqual(
                 input.storage().amount(lava),
-                0L,
-                "Plain warehouse should not aggregate a locked fluid slot");
+                20L,
+                "Plain warehouse should aggregate its second base fluid slot");
         installCapacityCards(input, 1);
         helper.assertValueEqual(
-                input.fluidConfig().insert(1, lava, 20L, Actionable.MODULATE),
-                20L,
-                "One capacity card should unlock the second fluid slot in the F/K column");
+                input.fluidConfig().insert(firstExpansionFluidSlot, water, 30L, Actionable.MODULATE),
+                30L,
+                "One capacity card should unlock the first expansion fluid slot in the F/K column");
         helper.assertValueEqual(
-                input.storage().amount(lava),
-                20L,
+                input.storage().amount(water),
+                40L,
                 "Plain warehouse should aggregate unlocked expansion fluid slots");
 
         MePatternBufferBlockEntity patternBuffer = patternBuffer();
@@ -1473,65 +1479,44 @@ public final class CompartmentInventoryTest {
     private static void assertPlainWarehouseMainSlots(GameTestHelper helper, CompartmentMenu menu) {
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_1).size(),
-                8,
-                "Plain warehouse row 1 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 1 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_2).size(),
-                8,
-                "Plain warehouse row 2 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 2 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_3).size(),
-                8,
-                "Plain warehouse row 3 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 3 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_4).size(),
-                8,
-                "Plain warehouse row 4 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 4 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_5).size(),
-                8,
-                "Plain warehouse row 5 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 5 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_6).size(),
-                8,
-                "Plain warehouse row 6 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 6 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_7).size(),
-                8,
-                "Plain warehouse row 7 should expose eight main slots before the composite column");
+                7,
+                "Plain warehouse row 7 should expose seven main slots before the F/K columns");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID).size(),
-                1,
-                "Plain warehouse should keep the first fluid composite slot");
+                CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS,
+                "Plain warehouse should expose a full fluid column");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_KEY).size(),
-                1,
-                "Plain warehouse should keep the first wrapped-key composite slot");
-        helper.assertValueEqual(
-                menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_2).size(),
-                1,
-                "Plain warehouse should expose the second fluid composite slot in the expansion column");
-        helper.assertValueEqual(
-                menu.getSlots(CompartmentMenu.COMPARTMENT_KEY_ROW_2).size(),
-                1,
-                "Plain warehouse should expose the second wrapped-key composite slot in the expansion column");
-        helper.assertValueEqual(
-                menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_3).size(),
-                1,
-                "Plain warehouse should expose the third fluid composite slot in the expansion column");
-        helper.assertValueEqual(
-                menu.getSlots(CompartmentMenu.COMPARTMENT_KEY_ROW_3).size(),
-                1,
-                "Plain warehouse should expose the third wrapped-key composite slot in the expansion column");
-        helper.assertValueEqual(
-                menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_4).size(),
-                1,
-                "Plain warehouse should expose the fourth fluid composite slot in the expansion column");
-        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_2, 0);
-        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_2, 1);
-        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_3, 0);
-        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_3, 1);
-        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_4, 0);
+                CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS,
+                "Plain warehouse should expose a full wrapped-key column");
+        for (int row = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS; row < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS; row++) {
+            assertSlotTextureColumn(helper, menu, CompartmentMenu.COMPARTMENT_FLUID, row, 0);
+            assertSlotTextureColumn(helper, menu, CompartmentMenu.COMPARTMENT_KEY, row, 1);
+        }
     }
 
     private static void assertPatternBufferCompositeSlots(GameTestHelper helper, CompartmentMenu menu) {
@@ -1561,34 +1546,38 @@ public final class CompartmentInventoryTest {
                 "Pattern buffer should keep the second fluid composite slot from the original texture");
     }
 
-    private static void assertSlotTextureRow(GameTestHelper helper,
-                                             CompartmentMenu menu,
-                                             SlotSemantic semantic,
-                                             int expectedTextureRow) {
+    private static void assertSlotTextureColumn(GameTestHelper helper,
+                                                CompartmentMenu menu,
+                                                SlotSemantic semantic,
+                                                int slotIndex,
+                                                int expectedTextureColumn) {
         var slots = menu.getSlots(semantic);
-        helper.assertValueEqual(slots.size(), 1, semantic.id() + " should have exactly one textured slot");
-        if (!(slots.getFirst() instanceof CompartmentSlotLabel labeledSlot)) {
-            helper.fail(semantic.id() + " should render as a textured F/K slot");
+        helper.assertTrue(slotIndex < slots.size(), semantic.id() + " should expose slot " + slotIndex);
+        if (!(slots.get(slotIndex) instanceof CompartmentSlotLabel labeledSlot)) {
+            helper.fail(semantic.id() + " slot " + slotIndex + " should render as a textured F/K slot");
             return;
         }
         helper.assertValueEqual(
-                labeledSlot.slotTextureRow(),
-                expectedTextureRow,
-                semantic.id() + " should use the expected F/K texture row");
+                labeledSlot.slotTextureColumn(),
+                expectedTextureColumn,
+                semantic.id() + " slot " + slotIndex + " should use the expected F/K texture column");
     }
 
     private static void assertOptionalBackgroundSlot(GameTestHelper helper,
                                                      CompartmentMenu menu,
-                                                     SlotSemantic semantic) {
+                                                     SlotSemantic semantic,
+                                                     int slotIndex,
+                                                     int expectedTextureColumn) {
         var slots = menu.getSlots(semantic);
-        helper.assertValueEqual(slots.size(), 1, semantic.id() + " should have exactly one optional slot");
-        if (!(slots.getFirst() instanceof IOptionalSlot optionalSlot)) {
-            helper.fail(semantic.id() + " should follow AE2 optional slot rendering");
+        helper.assertTrue(slotIndex < slots.size(), semantic.id() + " should expose slot " + slotIndex);
+        if (!(slots.get(slotIndex) instanceof IOptionalSlot optionalSlot)) {
+            helper.fail(semantic.id() + " slot " + slotIndex + " should follow AE2 optional slot rendering");
             return;
         }
         helper.assertTrue(
                 optionalSlot.isRenderDisabled(),
-                semantic.id() + " should let AE2 draw the storage-bus style optional slot background");
+                semantic.id() + " slot " + slotIndex + " should let AE2 draw the storage-bus style optional slot background");
+        assertSlotTextureColumn(helper, menu, semantic, slotIndex, expectedTextureColumn);
     }
 
     private static final class TestCompartmentHost implements CompartmentHost {

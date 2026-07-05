@@ -6,9 +6,9 @@ package com.fish_dan_.data_energistics.menu;
 public interface CompartmentSlotLabel {
 
     /**
-     * Index of the source row in the static F/K column texture.
+     * Index of the source column in the static F/K texture.
      *
-     * @return zero for the base fluid row, one for the base wrapped-key row
+     * @return zero for the fluid column, one for the wrapped-key column
      */
-    int slotTextureRow();
+    int slotTextureColumn();
 }

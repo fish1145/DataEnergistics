@@ -86,22 +86,7 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     public static final SlotSemantic COMPARTMENT_EXTRA_FLUID = SlotSemantics.register(
             "COMPARTMENT_EXTRA_FLUID",
             false);
-    public static final SlotSemantic COMPARTMENT_FLUID_ROW_2 = SlotSemantics.register(
-            "COMPARTMENT_FLUID_ROW_2",
-            false);
-    public static final SlotSemantic COMPARTMENT_FLUID_ROW_3 = SlotSemantics.register(
-            "COMPARTMENT_FLUID_ROW_3",
-            false);
-    public static final SlotSemantic COMPARTMENT_FLUID_ROW_4 = SlotSemantics.register(
-            "COMPARTMENT_FLUID_ROW_4",
-            false);
     public static final SlotSemantic COMPARTMENT_KEY = SlotSemantics.register("COMPARTMENT_KEY", false);
-    public static final SlotSemantic COMPARTMENT_KEY_ROW_2 = SlotSemantics.register(
-            "COMPARTMENT_KEY_ROW_2",
-            false);
-    public static final SlotSemantic COMPARTMENT_KEY_ROW_3 = SlotSemantics.register(
-            "COMPARTMENT_KEY_ROW_3",
-            false);
     public static final SlotSemantic COMPARTMENT_PATTERN = SlotSemantics.register("COMPARTMENT_PATTERN", false);
     public static final SlotSemantic COMPARTMENT_PATTERN_BUFFER = SlotSemantics.register(
             "COMPARTMENT_PATTERN_BUFFER",
@@ -214,23 +199,21 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     private void addCompositeWarehouseFluidAndKeySlots(CompositeWarehouseBlockEntity host) {
         ConfigMenuInventory fluids = host.fluidConfig().createMenuWrapper();
         ConfigMenuInventory keys = host.keyConfig().createMenuWrapper();
-        addSlot(new FakeSlot(fluids, 0), COMPARTMENT_FLUID);
-        addSlot(new FakeSlot(keys, 0), COMPARTMENT_KEY);
-        addSlot(
-                new TexturedOptionalFakeSlot(fluids, this, 1, 0, 0),
-                COMPARTMENT_FLUID_ROW_2);
-        addSlot(
-                new TexturedOptionalFakeSlot(keys, this, 1, 1, 1),
-                COMPARTMENT_KEY_ROW_2);
-        addSlot(
-                new TexturedOptionalFakeSlot(fluids, this, 2, 2, 0),
-                COMPARTMENT_FLUID_ROW_3);
-        addSlot(
-                new TexturedOptionalFakeSlot(keys, this, 2, 3, 1),
-                COMPARTMENT_KEY_ROW_3);
-        addSlot(
-                new TexturedOptionalFakeSlot(fluids, this, 3, 4, 0),
-                COMPARTMENT_FLUID_ROW_4);
+        for (int row = 0; row < COMPOSITE_WAREHOUSE_ROW_COUNT; row++) {
+            int optionalGroup = row - CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS;
+            addSlot(compositeWarehouseSlot(fluids, row, optionalGroup, 0), COMPARTMENT_FLUID);
+            addSlot(compositeWarehouseSlot(keys, row, optionalGroup, 1), COMPARTMENT_KEY);
+        }
+    }
+
+    private AppEngSlot compositeWarehouseSlot(ConfigMenuInventory inventory,
+                                              int row,
+                                              int optionalGroup,
+                                              int textureColumn) {
+        if (optionalGroup < 0) {
+            return new FakeSlot(inventory, row);
+        }
+        return new TexturedOptionalFakeSlot(inventory, this, row, optionalGroup, textureColumn);
     }
 
     private void setupCompositeWarehouseUpgrades(CompositeWarehouseBlockEntity host) {
@@ -344,20 +327,20 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
 
     private static final class TexturedOptionalFakeSlot extends OptionalFakeSlot implements CompartmentSlotLabel {
 
-        private final int textureRow;
+        private final int textureColumn;
 
         private TexturedOptionalFakeSlot(InternalInventory inv,
                                          IOptionalSlotHost host,
                                          int invSlot,
                                          int group,
-                                         int textureRow) {
+                                         int textureColumn) {
             super(inv, host, invSlot, group);
-            this.textureRow = textureRow;
+            this.textureColumn = textureColumn;
         }
 
         @Override
-        public int slotTextureRow() {
-            return this.textureRow;
+        public int slotTextureColumn() {
+            return this.textureColumn;
         }
     }
 

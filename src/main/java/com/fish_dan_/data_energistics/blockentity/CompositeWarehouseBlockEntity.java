@@ -31,14 +31,14 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     private static final int UPGRADE_SLOT_COUNT = 5;
     public static final int BASE_COMPOSITE_WAREHOUSE_ROWS = 2;
     public static final int COMPOSITE_WAREHOUSE_COLUMNS = 9;
-    public static final int COMPOSITE_WAREHOUSE_ITEM_COLUMNS = 8;
+    public static final int COMPOSITE_WAREHOUSE_ITEM_COLUMNS = 7;
     public static final int COMPOSITE_WAREHOUSE_ROWS = 7;
     public static final int COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS = COMPOSITE_WAREHOUSE_COLUMNS *
             COMPOSITE_WAREHOUSE_ROWS;
     public static final int COMPOSITE_WAREHOUSE_ITEM_SLOTS = COMPOSITE_WAREHOUSE_ITEM_COLUMNS *
             COMPOSITE_WAREHOUSE_ROWS;
-    public static final int COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS = 4;
-    public static final int COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS = 3;
+    public static final int COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS = COMPOSITE_WAREHOUSE_ROWS;
+    public static final int COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS = COMPOSITE_WAREHOUSE_ROWS;
 
     private final CompartmentInventory slotStorage = CompartmentInventory.storage(
             COMPOSITE_WAREHOUSE_ITEM_SLOTS,
@@ -177,11 +177,11 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     }
 
     private static int fluidSlotsForRows(int rows) {
-        return (rows + 1) / 2;
+        return rows;
     }
 
     private static int keySlotsForRows(int rows) {
-        return rows / 2;
+        return rows;
     }
 
     private static boolean hasConfiguredOverflow(CompartmentInventory inventory, int unlockedSlots) {

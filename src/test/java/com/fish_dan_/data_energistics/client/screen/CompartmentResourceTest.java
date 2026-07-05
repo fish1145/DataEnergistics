@@ -215,18 +215,20 @@ public final class CompartmentResourceTest {
         assertNotSlotAnchor(image, 8, 101, "Plain warehouse capacity row 5 should be drawn by optional slots");
         assertNotSlotAnchor(image, 8, 119, "Plain warehouse capacity row 6 should be drawn by optional slots");
         assertNotSlotAnchor(image, 8, 137, "Plain warehouse capacity row 7 should be drawn by optional slots");
-        assertSlotAnchor(slots, image, "COMPARTMENT_FLUID", 152, 29);
-        assertSlotAnchor(slots, image, "COMPARTMENT_KEY", 152, 47);
-        assertSlotCoordinate(slots, "COMPARTMENT_FLUID_ROW_2", 152, 65);
-        assertSlotCoordinate(slots, "COMPARTMENT_KEY_ROW_2", 152, 83);
-        assertSlotCoordinate(slots, "COMPARTMENT_FLUID_ROW_3", 152, 101);
-        assertSlotCoordinate(slots, "COMPARTMENT_KEY_ROW_3", 152, 119);
-        assertSlotCoordinate(slots, "COMPARTMENT_FLUID_ROW_4", 152, 137);
-        assertNotSlotAnchor(image, 152, 65, "Plain warehouse capacity fluid row 2 should be drawn by optional slots");
-        assertNotSlotAnchor(image, 152, 83, "Plain warehouse capacity key row 2 should be drawn by optional slots");
-        assertNotSlotAnchor(image, 152, 101, "Plain warehouse capacity fluid row 3 should be drawn by optional slots");
-        assertNotSlotAnchor(image, 152, 119, "Plain warehouse capacity key row 3 should be drawn by optional slots");
-        assertNotSlotAnchor(image, 152, 137, "Plain warehouse capacity fluid row 4 should be drawn by optional slots");
+        assertSlotAnchor(slots, image, "COMPARTMENT_FLUID", 134, 29);
+        assertSlotGrid(slots, "COMPARTMENT_FLUID", "VERTICAL");
+        assertSlotAnchor(slots, image, "COMPARTMENT_KEY", 152, 29);
+        assertSlotGrid(slots, "COMPARTMENT_KEY", "VERTICAL");
+        assertNotSlotAnchor(image, 134, 65, "Plain warehouse capacity fluid row 3 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 134, 83, "Plain warehouse capacity fluid row 4 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 134, 101, "Plain warehouse capacity fluid row 5 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 134, 119, "Plain warehouse capacity fluid row 6 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 134, 137, "Plain warehouse capacity fluid row 7 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 152, 65, "Plain warehouse capacity key row 3 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 152, 83, "Plain warehouse capacity key row 4 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 152, 101, "Plain warehouse capacity key row 5 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 152, 119, "Plain warehouse capacity key row 6 should be drawn by optional slots");
+        assertNotSlotAnchor(image, 152, 137, "Plain warehouse capacity key row 7 should be drawn by optional slots");
         assertBottomSlotAnchor(slots, image, screenHeight, "PLAYER_INVENTORY", 8, 84);
         assertBottomSlotAnchor(slots, image, screenHeight, "PLAYER_HOTBAR", 8, 26);
         assertTextBottom(text, "player_inventory_title", 94);
@@ -355,6 +357,11 @@ public final class CompartmentResourceTest {
         JsonObject slot = object(slots, semantic);
         assertEquals(expectedLeft, integer(slot, "left"), semantic + " left coordinate should match the texture");
         assertEquals(expectedTop, integer(slot, "top"), semantic + " top coordinate should match the texture");
+    }
+
+    private static void assertSlotGrid(JsonObject slots, String semantic, String expectedGrid) {
+        JsonObject slot = object(slots, semantic);
+        assertEquals(expectedGrid, string(slot, "grid"), semantic + " grid should match the texture layout");
     }
 
     private static void assertBottomSlotAnchor(JsonObject slots,

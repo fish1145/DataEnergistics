@@ -27,7 +27,7 @@ public abstract class CompartmentOptionalSlotLabelMixin<T extends AEBaseMenu> ex
             "ae2",
             "textures/guis/composite_warehouse.png");
     @Unique
-    private static final int SLOT_SOURCE_LEFT = 151;
+    private static final int SLOT_SOURCE_LEFT = 133;
     @Unique
     private static final int SLOT_SOURCE_TOP = 28;
     @Unique
@@ -52,20 +52,20 @@ public abstract class CompartmentOptionalSlotLabelMixin<T extends AEBaseMenu> ex
             dataEnergistics$drawCompartmentOptionalSlotTexture(
                     guiGraphics,
                     optionalSlot,
-                    labeledSlot.slotTextureRow());
+                    labeledSlot.slotTextureColumn());
         }
     }
 
     @Unique
     private void dataEnergistics$drawCompartmentOptionalSlotTexture(GuiGraphics guiGraphics,
                                                                     IOptionalSlot optionalSlot,
-                                                                    int textureRow) {
+                                                                    int textureColumn) {
         float alpha = optionalSlot.isSlotEnabled() ? 1.0f : 0.2f;
         Point position = optionalSlot.getBackgroundPos();
         Blitter.texture(COMPOSITE_WAREHOUSE_TEXTURE, TEXTURE_WIDTH, TEXTURE_HEIGHT)
                 .src(
-                        SLOT_SOURCE_LEFT,
-                        SLOT_SOURCE_TOP + textureRow * SLOT_SOURCE_STEP,
+                        SLOT_SOURCE_LEFT + textureColumn * SLOT_SOURCE_STEP,
+                        SLOT_SOURCE_TOP,
                         SLOT_TEXTURE_SIZE,
                         SLOT_TEXTURE_SIZE)
                 .dest(this.leftPos + position.getX(), this.topPos + position.getY())
