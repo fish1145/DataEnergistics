@@ -48,10 +48,7 @@
 		"core.PatternProviderPartMixin",
 		"core.ResultSlotMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
-		"extendedae.ExtendedInscriberThreadMixin",
-		"useless.UselessChainMiningStrategyMixin",
-		"useless.UselessForceBreakStrategyMixin",
-		"useless.UselessForceChainMiningStrategyMixin"
+		"extendedae.ExtendedInscriberThreadMixin"
 	],
 	"client": [
 		"advancedae.AdvancedAePatternProviderScreenMixin",

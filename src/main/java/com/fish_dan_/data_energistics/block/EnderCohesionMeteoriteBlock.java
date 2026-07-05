@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
+import com.fish_dan_.data_energistics.integration.useless.SomeUselessThingsCompat;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.fml.ModList;
 
 import appeng.core.definitions.AEItems;
 
@@ -22,6 +24,7 @@ import java.util.Set;
 
 public class EnderCohesionMeteoriteBlock extends Block {
 
+    private static final String USELESS_MOD_ID = "useless_mod";
     private static final int TELEPORT_HALF_RANGE = 3;
     private final float dispersingDataChance;
     private final float enderDustChance;
@@ -43,7 +46,7 @@ public class EnderCohesionMeteoriteBlock extends Block {
             return;
         }
 
-        this.handleSpecialMining(serverLevel, player, pos, state, tool, hasSilkTouch(serverLevel, tool), getFortuneLevel(serverLevel, tool));
+        this.handleSpecialMining(serverLevel, player, pos, state, tool, hasSpecialSilkTouch(serverLevel, tool), getFortuneLevel(serverLevel, tool));
     }
 
     public void handleSpecialMining(ServerLevel serverLevel, Player player, BlockPos pos, BlockState state, ItemStack tool, boolean silkTouch, int fortuneLevel) {
@@ -67,6 +70,14 @@ public class EnderCohesionMeteoriteBlock extends Block {
         return EnchantmentHelper.getItemEnchantmentLevel(
                 level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
                 tool) > 0;
+    }
+
+    private static boolean hasSpecialSilkTouch(ServerLevel level, ItemStack tool) {
+        return hasSilkTouch(level, tool) || hasUselessSilkTouchMode(tool);
+    }
+
+    private static boolean hasUselessSilkTouchMode(ItemStack tool) {
+        return ModList.get().isLoaded(USELESS_MOD_ID) && SomeUselessThingsCompat.isSilkTouchMode(tool);
     }
 
     public static int getFortuneLevel(ServerLevel level, ItemStack tool) {
