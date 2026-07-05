@@ -224,6 +224,9 @@ public class CompartmentMenu extends AEBaseMenu {
     private void updateCapacityGatedSlots() {
         for (CapacityGatedSlot gatedSlot : this.capacityGatedSlots) {
             boolean unlocked = gatedSlot.backingSlot() < this.unlockedSlotCount;
+            if (!unlocked && isServerSide()) {
+                gatedSlot.slot().clearStack();
+            }
             gatedSlot.slot().setActive(unlocked);
             gatedSlot.slot().setSlotEnabled(unlocked);
         }

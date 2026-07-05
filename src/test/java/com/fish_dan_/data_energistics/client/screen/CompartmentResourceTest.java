@@ -205,9 +205,12 @@ public final class CompartmentResourceTest {
 
         assertSlotAnchor(slots, image, "COMPARTMENT_STORAGE_ROW_1", 8, 29);
         assertSlotAnchor(slots, image, "COMPARTMENT_STORAGE_ROW_2", 8, 47);
-        assertSlotAnchor(slots, image, "COMPARTMENT_STORAGE_ROW_3", 8, 65);
-        assertSlotAnchor(slots, image, "COMPARTMENT_STORAGE_ROW_4", 8, 83);
-        assertSlotAnchor(slots, image, "COMPARTMENT_STORAGE_ROW_5", 8, 101);
+        assertSlotCoordinate(slots, "COMPARTMENT_STORAGE_ROW_3", 8, 65);
+        assertSlotCoordinate(slots, "COMPARTMENT_STORAGE_ROW_4", 8, 83);
+        assertSlotCoordinate(slots, "COMPARTMENT_STORAGE_ROW_5", 8, 101);
+        assertNotSlotAnchor(image, 8, 65, "Plain warehouse capacity row 3 should use the storage-bus blank expansion area");
+        assertNotSlotAnchor(image, 8, 83, "Plain warehouse capacity row 4 should use the storage-bus blank expansion area");
+        assertNotSlotAnchor(image, 8, 101, "Plain warehouse capacity row 5 should use the storage-bus blank expansion area");
         assertSlotAnchor(slots, image, "COMPARTMENT_FLUID", 152, 29);
         assertSlotAnchor(slots, image, "COMPARTMENT_KEY", 152, 47);
         assertNotSlotAnchor(image, 152, 65, "Plain warehouse right column should not be a main item slot");
@@ -325,13 +328,20 @@ public final class CompartmentResourceTest {
                                          String semantic,
                                          int expectedLeft,
                                          int expectedTop) {
-        JsonObject slot = object(slots, semantic);
-        assertEquals(expectedLeft, integer(slot, "left"), semantic + " left coordinate should match the texture");
-        assertEquals(expectedTop, integer(slot, "top"), semantic + " top coordinate should match the texture");
+        assertSlotCoordinate(slots, semantic, expectedLeft, expectedTop);
         assertEquals(
                 SLOT_ANCHOR_COLOR,
                 image.getRGB(expectedLeft, expectedTop),
                 semantic + " should point at the slot anchor pixel");
+    }
+
+    private static void assertSlotCoordinate(JsonObject slots,
+                                             String semantic,
+                                             int expectedLeft,
+                                             int expectedTop) {
+        JsonObject slot = object(slots, semantic);
+        assertEquals(expectedLeft, integer(slot, "left"), semantic + " left coordinate should match the texture");
+        assertEquals(expectedTop, integer(slot, "top"), semantic + " top coordinate should match the texture");
     }
 
     private static void assertBottomSlotAnchor(JsonObject slots,

@@ -29,7 +29,7 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     private static final String KEY_CONFIG_TAG = "key_config";
     private static final String UPGRADES_TAG = "upgrades";
     private static final int UPGRADE_SLOT_COUNT = 4;
-    private static final int BASE_COMPOSITE_WAREHOUSE_SLOTS = 8;
+    private static final int BASE_COMPOSITE_WAREHOUSE_SLOTS = 16;
     private static final int COMPOSITE_WAREHOUSE_SLOTS_PER_CAPACITY_CARD = 8;
     private static final int COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS = 40;
 

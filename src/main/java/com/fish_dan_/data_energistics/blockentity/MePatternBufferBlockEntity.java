@@ -36,7 +36,7 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
     public static final int PATTERN_SLOT_COUNT = 54;
     private static final int SHARED_CATALYST_SLOTS = 9;
 
-    private final CompartmentInventory patternStorage = CompartmentInventory.itemStorage(
+    private final CompartmentInventory patternStorage = CompartmentInventory.patternStorage(
             PATTERN_SLOT_COUNT,
             this::onContentInventoryChanged,
             this::unlockedSlotCount);

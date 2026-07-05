@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.compartment;
 
 import appeng.api.config.Actionable;
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -139,6 +140,16 @@ public class CompartmentInventory extends ConfigInventory {
                 size,
                 listener,
                 unlockedSlotCountSupplier);
+    }
+
+    public static CompartmentInventory patternStorage(int size, Runnable listener, IntSupplier unlockedSlotCountSupplier) {
+        return new CompartmentInventory(
+                Set.of(AEKeyType.items()),
+                GenericStackInv.Mode.STORAGE,
+                size,
+                listener,
+                unlockedSlotCountSupplier,
+                key -> key instanceof AEItemKey itemKey && PatternDetailsHelper.isEncodedPattern(itemKey.toStack()));
     }
 
     public static CompartmentInventory config(int size, Runnable listener, IntSupplier unlockedSlotCountSupplier) {

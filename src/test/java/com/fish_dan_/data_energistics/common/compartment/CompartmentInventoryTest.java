@@ -25,8 +25,10 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -35,6 +37,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.config.Actionable;
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEFluidKey;
@@ -207,7 +210,7 @@ public final class CompartmentInventoryTest {
             CompositeWarehouseBlockEntity input = compositeWarehouse(
                     ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
             installCapacityCards(input, capacityCards);
-            int expectedSlots = 8 + capacityCards * 8;
+            int expectedSlots = Math.min(40, 16 + capacityCards * 8);
 
             helper.assertValueEqual(
                     input.configurableSlotLimit(),
@@ -269,6 +272,7 @@ public final class CompartmentInventoryTest {
         helper.assertValueEqual(meInput.storage().amount(iron), 2L, "Only visible ME input buffer contents should aggregate");
 
         MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        AEItemKey encodedPattern = AEItemKey.of(encodedProcessingPattern());
         helper.assertValueEqual(
                 patternBuffer.configurableSlotLimit(),
                 MePatternBufferBlockEntity.PATTERN_SLOT_COUNT,
@@ -284,7 +288,7 @@ public final class CompartmentInventoryTest {
         helper.assertValueEqual(
                 patternBuffer.patternStorage().insert(
                         MePatternBufferBlockEntity.PATTERN_SLOT_COUNT - 1,
-                        iron,
+                        encodedPattern,
                         1L,
                         Actionable.MODULATE),
                 1L,
@@ -297,6 +301,64 @@ public final class CompartmentInventoryTest {
                         Actionable.MODULATE),
                 0L,
                 "First non-texture pattern slot should reject inserts");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_menu_clears_plain_warehouse_slots_locked_by_capacity")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void menuClearsPlainWarehouseSlotsLockedByCapacity(GameTestHelper helper) {
+        BlockPos warehousePos = new BlockPos(1, 1, 1);
+        helper.setBlock(warehousePos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(warehousePos));
+        if (!(blockEntity instanceof CompositeWarehouseBlockEntity input)) {
+            helper.fail("Expected a placed plain input warehouse block entity", warehousePos);
+            return;
+        }
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+
+        installCapacityCards(input, 1);
+        helper.assertValueEqual(
+                input.slotStorage().insert(16, iron, 1L, Actionable.MODULATE),
+                1L,
+                "One capacity card should unlock the first storage-bus expansion row");
+
+        CompositeWarehouseMenu menu = new CompositeWarehouseMenu(
+                0,
+                helper.makeMockPlayer(GameType.CREATIVE).getInventory(),
+                input);
+        input.getUpgrades().setItemDirect(0, ItemStack.EMPTY);
+        menu.broadcastChanges();
+
+        helper.assertValueEqual(
+                input.slotStorage().getAmount(16),
+                0L,
+                "Menu capacity gating should clear storage-bus expansion rows after their capacity card is removed");
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_buffer_pattern_storage_accepts_only_encoded_patterns")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void patternBufferPatternStorageAcceptsOnlyEncodedPatterns(GameTestHelper helper) {
+        CompartmentInventory patterns = patternBuffer().patternStorage();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey encodedPattern = AEItemKey.of(encodedProcessingPattern());
+
+        helper.assertValueEqual(
+                patterns.insert(0, iron, 1L, Actionable.MODULATE),
+                0L,
+                "Pattern buffer pattern slots should reject ordinary items");
+        patterns.setStack(0, new GenericStack(iron, 1L));
+        helper.assertTrue(patterns.getKey(0) == null, "Direct pattern slot writes should reject ordinary item keys");
+        helper.assertValueEqual(
+                patterns.insert(0, encodedPattern, 1L, Actionable.MODULATE),
+                1L,
+                "Pattern buffer pattern slots should accept encoded patterns");
+        helper.assertValueEqual(
+                patterns.getKey(0),
+                encodedPattern,
+                "Pattern buffer pattern slot should store the encoded pattern key");
         helper.succeed();
     }
 
@@ -1265,6 +1327,12 @@ public final class CompartmentInventoryTest {
                 BlockPos.ZERO,
                 ModBlocks.ME_PATTERN_BUFFER.get().defaultBlockState(),
                 unlockedSlotCount);
+    }
+
+    private static ItemStack encodedProcessingPattern() {
+        return PatternDetailsHelper.encodeProcessingPattern(
+                List.of(new GenericStack(AEItemKey.of(Items.IRON_INGOT), 1L)),
+                List.of(new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1L)));
     }
 
     private static DigitalConstructFlowerBlockEntity digitalConstructFlower() {
