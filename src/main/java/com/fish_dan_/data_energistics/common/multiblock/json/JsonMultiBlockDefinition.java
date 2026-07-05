@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.common.multiblock.json;
 
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -28,4 +31,9 @@ public interface JsonMultiBlockDefinition {
      * Returns the translation key for the player-facing structure display name, when JSON metadata defines one.
      */
     Optional<String> displayNameTranslationKey();
+
+    /**
+     * Returns pattern symbols that are declared as compartment positions.
+     */
+    Map<String, CompartmentType> compartmentTypes();
 }

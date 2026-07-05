@@ -1,10 +1,8 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
-import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 
@@ -21,7 +19,6 @@ import snownee.jade.api.config.IPluginConfig;
 
 public class NetworkStatusJadeProvider implements IBlockComponentProvider, IServerDataProvider<BlockAccessor> {
 
-    public static final NetworkStatusJadeProvider DATA_FRAMEWORK = new NetworkStatusJadeProvider("data_framework", DataFrameworkBlock.class);
     public static final NetworkStatusJadeProvider DIGITAL_STORAGE_DEPOT = new NetworkStatusJadeProvider("digital_storage_depot", DigitalStorageDepotBlock.class);
     public static final NetworkStatusJadeProvider DATA_SANCTUM_INTERFACE = new NetworkStatusJadeProvider("data_sanctum_interface", DataSanctumInterfaceBlock.class);
 
@@ -64,9 +61,6 @@ public class NetworkStatusJadeProvider implements IBlockComponentProvider, IServ
     }
 
     private static Boolean resolveOnline(BlockAccessor accessor) {
-        if (accessor.getBlockEntity() instanceof DataFrameworkBlockEntity framework) {
-            return framework.isOnline();
-        }
         if (accessor.getBlockEntity() instanceof DigitalStorageDepotBlockEntity depot) {
             return depot.isOnline();
         }

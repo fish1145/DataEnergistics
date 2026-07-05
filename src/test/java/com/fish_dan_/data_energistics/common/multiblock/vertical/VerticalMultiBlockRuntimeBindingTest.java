@@ -1,6 +1,12 @@
 package com.fish_dan_.data_energistics.common.multiblock.vertical;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -10,6 +16,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -179,6 +186,70 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         helper.succeed();
     }
 
+    @TestHolder("vertical_multiblock_runtime_binding_registers_compartment_parts_with_host")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void registersCompartmentPartsWithHost(GameTestHelper helper) {
+        VerticalMultiBlockDefinition<String> definition = definition();
+        Map<VerticalMultiBlockPos, String> world = new HashMap<>();
+        place(world, definition, new VerticalMultiBlockPos(0, 0, 0), 3);
+        TestCompartmentHost controller = new TestCompartmentHost();
+        TestCompartmentPart part = new TestCompartmentPart(new VerticalMultiBlockPos(1, 1, 0));
+        VerticalMultiBlockRuntimeBinding<String> binding = new VerticalMultiBlockRuntimeBinding<>(
+                new VerticalMultiBlockScanner<>(pos -> world.getOrDefault(pos, "AIR")));
+        VerticalMultiBlockRuntimeBinding.PartLookup partLookup = VerticalMultiBlockRuntimeBinding.fromSinglePart(
+                part.compartmentPos(),
+                part);
+
+        helper.assertTrue(
+                binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup),
+                "Structure should form before compartment registration");
+        helper.assertValueEqual(
+                controller.compartmentHost$getCompartments("main"),
+                List.of(part),
+                "Compartment host should contain the bound part after formation");
+        helper.assertValueEqual(part.compartmentHost(), controller, "Compartment part should remember its host");
+
+        world.remove(part.compartmentPos());
+        helper.assertFalse(
+                binding.requestRecheck(controller, definition, new VerticalMultiBlockPos(0, 0, 0), partLookup),
+                "Broken structure should invalidate");
+        helper.assertTrue(
+                controller.compartmentHost$getCompartments("main").isEmpty(),
+                "Compartment host should remove the part after invalidation");
+        helper.assertTrue(part.compartmentHost() == null, "Compartment part should clear its host after invalidation");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_part_legacy_unbind_uses_current_structure_name")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentPartLegacyUnbindUsesCurrentStructureName(GameTestHelper helper) {
+        TestCompartmentHost controller = new TestCompartmentHost();
+        TestCompartmentPart part = new TestCompartmentPart(new VerticalMultiBlockPos(1, 1, 0));
+        VerticalMultiBlockDefinition<String> auxDefinition = definition("aux");
+        VerticalMultiBlockContext<String> context = new VerticalMultiBlockContext<>(
+                auxDefinition,
+                new VerticalMultiBlockPos(0, 0, 0),
+                new VerticalMultiBlockPos(0, 0, 0),
+                VerticalMultiBlockDirection.NORTH,
+                3);
+
+        part.verticalMultiBlock$addedToController(controller, "aux", context);
+        helper.assertValueEqual(
+                controller.compartmentHost$getCompartments("aux"),
+                List.of(part),
+                "Compartment should be registered under the named aux structure");
+
+        part.verticalMultiBlock$removedFromController(controller);
+
+        helper.assertTrue(
+                controller.compartmentHost$getCompartments("aux").isEmpty(),
+                "Legacy removal should use the part's current structure name");
+        helper.assertTrue(part.compartmentHost() == null, "Legacy removal should clear the part host");
+        helper.succeed();
+    }
+
     @TestHolder("vertical_multiblock_runtime_binding_rejects_mismatched_controller_definition_id")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -260,7 +331,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         helper.fail(message + ": expected " + expectedType.getSimpleName() + " but no exception was thrown");
     }
 
-    private static final class TestController implements VerticalMultiBlockController {
+    private static class TestController implements VerticalMultiBlockController {
 
         private final List<String> events = new ArrayList<>();
         private final String definitionId;
@@ -339,6 +410,26 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         }
     }
 
+    private static final class TestCompartmentHost extends TestController implements CompartmentHost {
+
+        private final CompartmentHostState compartments = new CompartmentHostState();
+
+        @Override
+        public void compartmentHost$addCompartment(String structureName, CompartmentPart part) {
+            this.compartments.addCompartment(structureName, part);
+        }
+
+        @Override
+        public void compartmentHost$removeCompartment(String structureName, CompartmentPart part) {
+            this.compartments.removeCompartment(structureName, part);
+        }
+
+        @Override
+        public Collection<CompartmentPart> compartmentHost$getCompartments(String structureName) {
+            return this.compartments.compartments(structureName);
+        }
+    }
+
     private static final class TestPart implements VerticalMultiBlockPart {
 
         private final List<String> events = new ArrayList<>();
@@ -363,6 +454,71 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         @Override
         public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
             this.events.add("removed:" + structureName);
+        }
+    }
+
+    private static final class TestCompartmentPart implements CompartmentPart {
+
+        private final VerticalMultiBlockPos pos;
+        private CompartmentHost host;
+        private String structureName;
+
+        private TestCompartmentPart(VerticalMultiBlockPos pos) {
+            this.pos = pos;
+        }
+
+        @Override
+        public CompartmentType compartmentType() {
+            return CompartmentType.INPUT;
+        }
+
+        @Override
+        public VerticalMultiBlockPos compartmentPos() {
+            return this.pos;
+        }
+
+        @Override
+        public CompartmentHost compartmentHost() {
+            return this.host;
+        }
+
+        @Override
+        public String compartmentStructureName() {
+            return this.structureName;
+        }
+
+        @Override
+        public CompartmentStorage compartmentStorage() {
+            return new CompartmentStorageImpl(() -> {});
+        }
+
+        @Override
+        public void compartment$bindToHost(String structureName, CompartmentHost host) {
+            CompartmentPart.super.compartment$bindToHost(structureName, host);
+            this.host = host;
+            this.structureName = structureName;
+        }
+
+        @Override
+        public void compartment$unbindFromHost(String structureName, CompartmentHost host) {
+            CompartmentPart.super.compartment$unbindFromHost(structureName, host);
+            if (this.host == host && this.structureName != null && this.structureName.equals(structureName)) {
+                this.host = null;
+                this.structureName = null;
+            }
+        }
+
+        @Override
+        public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
+                                                         String structureName,
+                                                         VerticalMultiBlockContext<?> context) {
+            CompartmentPart.super.verticalMultiBlock$addedToController(controller, structureName, context);
+        }
+
+        @Override
+        public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
+                                                             String structureName) {
+            CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName);
         }
     }
 }

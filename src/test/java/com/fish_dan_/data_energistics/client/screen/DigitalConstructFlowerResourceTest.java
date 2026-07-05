@@ -1,0 +1,191 @@
+package com.fish_dan_.data_energistics.client.screen;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public final class DigitalConstructFlowerResourceTest {
+
+    private static final String MODEL_ROOT = "assets/data_energistics/models/block/";
+    private static final String DATA_TEXTURE_ROOT = "assets/data_energistics/textures/";
+    private static final String SCREEN_ROOT = "assets/ae2/screens/";
+    private static final String GUI_TEXTURE_ROOT = "assets/ae2/textures/";
+    private static final String MULTIBLOCK_ROOT = "data/data_energistics/multiblock/";
+    private static final String DIGITAL_CONSTRUCT_FLOWER_TEXTURE_PREFIX = "data_energistics:block/digital_construct_flower/";
+    private static final Set<String> MODEL_TEXTURE_KEYS = Set.of("2", "3", "top_light", "5", "screen");
+
+    @Test
+    void digitalConstructFlowerBlockModelsUseMovedTextureFolder() {
+        for (String model : Set.of("digital_construct_flower_off.json", "digital_construct_flower_on.json")) {
+            JsonObject root = readJson(MODEL_ROOT + model);
+            assertNoAbsolutePaths(root, model);
+
+            JsonObject textures = object(root, "textures");
+            for (String textureKey : MODEL_TEXTURE_KEYS) {
+                String textureId = string(textures, textureKey);
+                assertTrue(
+                        textureId.startsWith(DIGITAL_CONSTRUCT_FLOWER_TEXTURE_PREFIX),
+                        model + " texture " + textureKey + " should use the digital_construct_flower texture folder");
+                assertFalse(textureId.contains("data_reassembler"), model + " should not reuse data_reassembler textures");
+                assertFalse(textureId.contains("ae2:block/generics/bottom"), model + " should not reference the old AE2 bottom texture");
+                assertResourceExists(textureResourcePath(textureId), model + " texture " + textureId + " should exist");
+            }
+        }
+    }
+
+    @Test
+    void digitalConstructFlowerScreenUsesGuiTextureFolder() {
+        JsonObject root = readJson(SCREEN_ROOT + "digital_construct_flower.json");
+        assertNoAbsolutePaths(root, "digital_construct_flower screen");
+
+        JsonObject background = object(root, "background");
+        assertEquals("guis/digital_construct_flower/gui.png", string(background, "texture"));
+        assertSourceRect(background, 176, 212);
+        assertResourceExists(GUI_TEXTURE_ROOT + string(background, "texture"), "Digital Construct Flower GUI texture should exist");
+
+        JsonObject images = object(root, "images");
+        assertGuiImage(images, "cpuIdle", "guis/digital_construct_flower/cpu_idle.png");
+        assertGuiImage(images, "cpuTaskOverlay", "guis/digital_construct_flower/cpu_task_overlay.png");
+    }
+
+    @Test
+    void digitalConstructFlowerMultiblockUsesTrinityDigitalCoreStructure() {
+        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core.json");
+        JsonObject metadata = object(root, "metadata");
+        assertEquals(
+                "multiblock.data_energistics.trinity_digital_core",
+                string(metadata, "display_name"),
+                "Trinity Digital Core should expose its renamed multiblock display key");
+
+        JsonObject predicates = object(root, "predicates");
+        Set<String> values = new HashSet<>();
+        collectStringValues(predicates, values);
+
+        assertTrue(
+                values.contains("ae2:crafting_unit"),
+                "Trinity Digital Core should reference the exported AE2 crafting unit body");
+        assertTrue(
+                values.contains("ae2:controller"),
+                "Trinity Digital Core should reference the exported AE2 controller body");
+        assertTrue(
+                values.contains("data_energistics:data_framework"),
+                "Trinity Digital Core should preserve the exported data framework shell");
+        assertFalse(
+                values.contains("expatternprovider:assembler_matrix_pattern"),
+                "Trinity Digital Core should no longer reference the previous assembler matrix pattern block id");
+        assertFalse(
+                values.contains("extendedae:assembler_matrix_pattern"),
+                "Trinity Digital Core should not reference the missing ExtendedAE namespace");
+    }
+
+    private static void assertGuiImage(JsonObject images, String id, String expectedTexture) {
+        JsonObject image = object(images, id);
+        assertEquals(expectedTexture, string(image, "texture"), id + " should use the moved GUI texture");
+        assertResourceExists(GUI_TEXTURE_ROOT + expectedTexture, id + " texture should exist");
+    }
+
+    private static void assertSourceRect(JsonObject owner, int expectedWidth, int expectedHeight) {
+        JsonElement element = owner.get("srcRect");
+        assertNotNull(element, "srcRect should be present");
+        assertTrue(element.isJsonArray(), "srcRect should be an array");
+        JsonArray srcRect = element.getAsJsonArray();
+        assertEquals(4, srcRect.size(), "srcRect should contain x, y, width and height");
+        assertEquals(expectedWidth, srcRect.get(2).getAsInt(), "srcRect width should match the source texture");
+        assertEquals(expectedHeight, srcRect.get(3).getAsInt(), "srcRect height should match the source texture");
+    }
+
+    private static JsonObject readJson(String path) {
+        try (InputStream stream = DigitalConstructFlowerResourceTest.class.getClassLoader().getResourceAsStream(path)) {
+            assertNotNull(stream, "Missing resource " + path);
+            try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                JsonElement element = JsonParser.parseReader(reader);
+                assertTrue(element.isJsonObject(), path + " should parse as a JSON object");
+                return element.getAsJsonObject();
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not read resource " + path, exception);
+        }
+    }
+
+    private static JsonObject object(JsonObject root, String property) {
+        JsonElement element = root.get(property);
+        assertNotNull(element, "Missing JSON object property " + property);
+        assertTrue(element.isJsonObject(), property + " should be a JSON object");
+        return element.getAsJsonObject();
+    }
+
+    private static String string(JsonObject root, String property) {
+        JsonElement element = root.get(property);
+        assertNotNull(element, "Missing JSON string property " + property);
+        assertTrue(element.isJsonPrimitive(), property + " should be a JSON primitive");
+        return element.getAsString();
+    }
+
+    private static String textureResourcePath(String textureId) {
+        int separator = textureId.indexOf(':');
+        assertTrue(separator > 0, "Texture id should include a namespace: " + textureId);
+        String namespace = textureId.substring(0, separator);
+        String path = textureId.substring(separator + 1);
+        assertEquals("data_energistics", namespace, "Digital Construct Flower texture namespace should be local");
+        assertTrue(
+                path.startsWith("block/digital_construct_flower/"),
+                textureId + " should be under block/digital_construct_flower");
+        return DATA_TEXTURE_ROOT + path + ".png";
+    }
+
+    private static void assertResourceExists(String path, String message) {
+        try (InputStream stream = DigitalConstructFlowerResourceTest.class.getClassLoader().getResourceAsStream(path)) {
+            assertNotNull(stream, message + ": " + path);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not close resource " + path, exception);
+        }
+    }
+
+    private static void assertNoAbsolutePaths(JsonElement element, String owner) {
+        Set<String> values = new HashSet<>();
+        collectStringValues(element, values);
+        for (String value : values) {
+            assertFalse(isAbsolutePath(value), owner + " should not contain absolute paths: " + value);
+        }
+    }
+
+    private static boolean isAbsolutePath(String value) {
+        return value.matches("^[A-Za-z]:[\\\\/].*") || value.startsWith("/") || value.startsWith("\\\\");
+    }
+
+    private static void collectStringValues(JsonElement element, Set<String> values) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            values.add(element.getAsString());
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                collectStringValues(child, values);
+            }
+            return;
+        }
+        if (element.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+                collectStringValues(entry.getValue(), values);
+            }
+        }
+    }
+}

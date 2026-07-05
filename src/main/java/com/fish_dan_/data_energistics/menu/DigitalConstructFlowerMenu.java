@@ -1,0 +1,118 @@
+package com.fish_dan_.data_energistics.menu;
+
+import com.fish_dan_.data_energistics.registry.ModMenus;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.world.entity.player.Inventory;
+
+import appeng.api.stacks.GenericStack;
+import appeng.menu.AEBaseMenu;
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.guisync.PacketWritable;
+import org.jetbrains.annotations.Nullable;
+
+public class DigitalConstructFlowerMenu extends AEBaseMenu {
+
+    private static final String NO_FAILURE = "";
+
+    @Nullable
+    private final DigitalConstructFlowerMenuHost host;
+
+    @GuiSync(930)
+    public boolean online;
+    @GuiSync(931)
+    public boolean structureFormed;
+    @GuiSync(932)
+    public int matchedBlockCount;
+    @GuiSync(933)
+    public int patternBufferCount;
+    @GuiSync(934)
+    public String lastFailureReason = NO_FAILURE;
+    @GuiSync(935)
+    public String lastFailurePosition = NO_FAILURE;
+    @GuiSync(936)
+    public int busyCraftingCpuCount;
+    @GuiSync(937)
+    public SyncedCraftingTarget craftingTarget = SyncedCraftingTarget.EMPTY;
+
+    public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
+        super(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), id, playerInventory, host);
+        this.host = host;
+        createPlayerInventorySlots(playerInventory);
+    }
+
+    @Override
+    public void broadcastChanges() {
+        if (this.host == null) {
+            clearState();
+        } else {
+            this.online = this.host.isOnline();
+            this.structureFormed = this.host.isStructureFormed();
+            this.matchedBlockCount = this.host.getMatchedBlockCount();
+            this.patternBufferCount = this.host.getPatternBufferCount();
+            this.lastFailureReason = this.host.getLastFailureReason();
+            this.lastFailurePosition = formatFailurePosition(this.host.getLastFailurePosition());
+
+            DigitalConstructFlowerCraftingStatus craftingStatus = this.host.getCraftingStatus();
+            this.busyCraftingCpuCount = craftingStatus.busyCpuCount();
+            this.craftingTarget = craftingStatus.hasTarget() ? new SyncedCraftingTarget(craftingStatus.target()) : SyncedCraftingTarget.EMPTY;
+        }
+
+        super.broadcastChanges();
+    }
+
+    public @Nullable GenericStack getCraftingTarget() {
+        return this.craftingTarget.target();
+    }
+
+    public boolean hasCraftingTarget() {
+        return this.craftingTarget.hasTarget();
+    }
+
+    private void clearState() {
+        this.online = false;
+        this.structureFormed = false;
+        this.matchedBlockCount = 0;
+        this.patternBufferCount = 0;
+        this.lastFailureReason = NO_FAILURE;
+        this.lastFailurePosition = NO_FAILURE;
+        this.busyCraftingCpuCount = 0;
+        this.craftingTarget = SyncedCraftingTarget.EMPTY;
+    }
+
+    private static String formatFailurePosition(@Nullable BlockPos pos) {
+        if (pos == null) {
+            return NO_FAILURE;
+        }
+        return pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+    }
+
+    public record SyncedCraftingTarget(@Nullable GenericStack target) implements PacketWritable {
+
+        public static final SyncedCraftingTarget EMPTY = new SyncedCraftingTarget((GenericStack) null);
+
+        public SyncedCraftingTarget {
+            if (!hasTarget(target)) {
+                target = null;
+            }
+        }
+
+        public SyncedCraftingTarget(RegistryFriendlyByteBuf data) {
+            this(GenericStack.readBuffer(data));
+        }
+
+        @Override
+        public void writeToPacket(RegistryFriendlyByteBuf data) {
+            GenericStack.writeBuffer(this.target, data);
+        }
+
+        public boolean hasTarget() {
+            return hasTarget(this.target);
+        }
+
+        private static boolean hasTarget(@Nullable GenericStack stack) {
+            return stack != null && stack.what() != null && stack.amount() > 0;
+        }
+    }
+}

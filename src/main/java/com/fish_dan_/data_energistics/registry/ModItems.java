@@ -90,7 +90,6 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_RIPPER_REASSEMBLER);
     public static final DeferredItem<BlockItem> DIGITAL_CONSTRUCT_FLOWER = ITEMS.registerSimpleBlockItem(ModBlocks.DIGITAL_CONSTRUCT_FLOWER);
     public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK);
-    public static final DeferredItem<BlockItem> DATA_FRAMEWORK_MAIN = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FRAMEWORK_MAIN);
     public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_DISTRIBUTION_TOWER);
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
@@ -124,6 +123,11 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
             "digital_storage_depot",
             () -> new DigitalStorageDepotBlockItem(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<BlockItem> COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.COMPOSITE_INPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> ME_COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> ME_COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE);
+    public static final DeferredItem<BlockItem> ME_PATTERN_BUFFER = ITEMS.registerSimpleBlockItem(ModBlocks.ME_PATTERN_BUFFER);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_0 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_0);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_1 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_1);
     public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_2 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_2);
