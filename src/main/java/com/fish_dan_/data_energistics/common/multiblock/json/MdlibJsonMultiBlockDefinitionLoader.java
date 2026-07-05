@@ -48,7 +48,8 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
     private static final String BLOCK_STATES_PROPERTY = "block_states";
     private static final String BLOCKS_PREDICATE_TYPE = "blocks";
     private static final String BLOCK_STATES_PREDICATE_TYPE = "block_states";
-    private static final String ANY_PREDICATE_TYPE = "mdlib:any";
+    private static final String FALLBACK_BLOCK_PREDICATE_TYPE = "mdlib:blocks";
+    private static final String FALLBACK_BLOCK_ID = "minecraft:air";
     private static final Gson GSON = new Gson();
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final FileToIdConverter FILE_TO_ID = FileToIdConverter.json(DIRECTORY);
@@ -279,16 +280,17 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
             if (missingBlockIds.isEmpty()) {
                 continue;
             }
-            JsonObject anyPredicate = new JsonObject();
-            anyPredicate.addProperty(TYPE_PROPERTY, ANY_PREDICATE_TYPE);
-            predicates.add(predicateKey, anyPredicate);
+            JsonObject airPredicate = new JsonObject();
+            airPredicate.addProperty(TYPE_PROPERTY, FALLBACK_BLOCK_PREDICATE_TYPE);
+            airPredicate.addProperty(BLOCK_PROPERTY, FALLBACK_BLOCK_ID);
+            predicates.add(predicateKey, airPredicate);
             for (String missingBlockId : missingBlockIds) {
                 LOGGER.warn(
                         "JSON multiblock resource {} predicate '{}' references missing block id {}; replacing predicate with {}",
                         resourceId,
                         predicateKey,
                         missingBlockId,
-                        ANY_PREDICATE_TYPE);
+                        FALLBACK_BLOCK_ID);
             }
         }
     }

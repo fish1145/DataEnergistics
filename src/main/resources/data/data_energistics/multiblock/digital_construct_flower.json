@@ -603,7 +603,7 @@
 		},
 		"T": {
 			"type": "mdlib:blocks",
-			"block": "extendedae:assembler_matrix_pattern"
+			"block": "expatternprovider:assembler_matrix_pattern"
 		},
 		"U": {
 			"type": "mdlib:blocks",

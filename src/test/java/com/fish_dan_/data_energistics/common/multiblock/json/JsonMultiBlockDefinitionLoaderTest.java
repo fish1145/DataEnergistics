@@ -186,10 +186,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_downgrades_missing_block_predicate_to_any")
+    @TestHolder("json_multiblock_loader_downgrades_missing_block_predicate_to_air")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void downgradesMissingBlockPredicateToAny(GameTestHelper helper) {
+    public static void downgradesMissingBlockPredicateToAir(GameTestHelper helper) {
         JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = loader.load(Map.of(
                 resource("missing_block_predicate"),
@@ -202,34 +202,40 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Loader should keep JSON multiblocks whose missing block predicates were downgraded");
         helper.assertTrue(definitions.containsKey(key), "Loader should return the downgraded definition");
 
-        StructureMatchResult result = matchController(definitions.get(key).pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertTrue(result.matched(), "Downgraded missing block predicate should match any block at A");
+        StructureMatchResult nonAirResult = matchController(definitions.get(key).pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertFalse(nonAirResult.matched(), "Downgraded missing block predicate should reject non-air blocks at A");
+        StructureMatchResult airResult = matchController(definitions.get(key).pattern(), Blocks.AIR.defaultBlockState());
+        helper.assertTrue(airResult.matched(), "Downgraded missing block predicate should match air at A");
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_parse_downgrades_missing_blocks_predicate_to_any")
+    @TestHolder("json_multiblock_parse_downgrades_missing_blocks_predicate_to_air")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parseDowngradesMissingBlocksPredicateToAny(GameTestHelper helper) {
+    public static void parseDowngradesMissingBlocksPredicateToAir(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("missing_blocks_predicate"),
                 new StringReader(jsonWithMissingBlocksPredicate()));
 
-        StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertTrue(result.matched(), "Downgraded missing block in blocks array should match any block at A");
+        StructureMatchResult nonAirResult = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertFalse(nonAirResult.matched(), "Downgraded missing block in blocks array should reject non-air blocks at A");
+        StructureMatchResult airResult = matchController(definition.pattern(), Blocks.AIR.defaultBlockState());
+        helper.assertTrue(airResult.matched(), "Downgraded missing block in blocks array should match air at A");
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_parse_downgrades_missing_block_state_predicate_to_any")
+    @TestHolder("json_multiblock_parse_downgrades_missing_block_state_predicate_to_air")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parseDowngradesMissingBlockStatePredicateToAny(GameTestHelper helper) {
+    public static void parseDowngradesMissingBlockStatePredicateToAir(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("missing_block_state_predicate"),
                 new StringReader(jsonWithMissingBlockStatePredicate()));
 
-        StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertTrue(result.matched(), "Downgraded missing block state predicate should match any block at A");
+        StructureMatchResult nonAirResult = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertFalse(nonAirResult.matched(), "Downgraded missing block state predicate should reject non-air blocks at A");
+        StructureMatchResult airResult = matchController(definition.pattern(), Blocks.AIR.defaultBlockState());
+        helper.assertTrue(airResult.matched(), "Downgraded missing block state predicate should match air at A");
         helper.succeed();
     }
 
