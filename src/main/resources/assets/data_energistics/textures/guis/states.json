@@ -1,5 +1,5 @@
 {
-	"texture": "data_energistics:textures/guis/states.png",
+	"texture": "guis/states.png",
 	"width": 128,
 	"height": 128,
 	"icons": {

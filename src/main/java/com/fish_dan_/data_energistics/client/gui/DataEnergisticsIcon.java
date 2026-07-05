@@ -15,6 +15,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class DataEnergisticsIcon {
@@ -73,7 +74,7 @@ public final class DataEnergisticsIcon {
             Resource resource = resourceManager.getResourceOrThrow(statesJson);
             try (Reader reader = new InputStreamReader(resource.open(), StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-                ResourceLocation texture = root.has("texture") ? ResourceLocation.parse(root.get("texture").getAsString()) : defaultTexture;
+                ResourceLocation texture = root.has("texture") ? resolveTexture(root.get("texture").getAsString(), defaultTexture) : defaultTexture;
                 int textureWidth = root.has("width") ? root.get("width").getAsInt() : 256;
                 int textureHeight = root.has("height") ? root.get("height").getAsInt() : 256;
                 JsonObject icons = root.getAsJsonObject("icons");
@@ -100,6 +101,15 @@ public final class DataEnergisticsIcon {
             }
             return null;
         }
+    }
+
+    static ResourceLocation resolveTexture(String texture, ResourceLocation defaultTexture) {
+        Objects.requireNonNull(texture, "texture");
+        Objects.requireNonNull(defaultTexture, "defaultTexture");
+        if (texture.contains(":")) {
+            return ResourceLocation.parse(texture);
+        }
+        return ResourceLocation.fromNamespaceAndPath(defaultTexture.getNamespace(), "textures/" + texture);
     }
 
     private record IconDef(
