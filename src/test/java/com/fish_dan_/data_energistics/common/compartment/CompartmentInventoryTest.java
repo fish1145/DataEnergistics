@@ -210,43 +210,75 @@ public final class CompartmentInventoryTest {
             CompositeWarehouseBlockEntity input = compositeWarehouse(
                     ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
             installCapacityCards(input, capacityCards);
-            int expectedSlots = Math.min(40, 16 + capacityCards * 8);
+            int expectedRows = Math.min(
+                    CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS,
+                    CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS + capacityCards);
+            int expectedSlots = expectedRows * CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_COLUMNS;
+            int expectedMainSlots = expectedRows * CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_COLUMNS;
+            int expectedFluidSlots = (expectedRows + 1) / 2;
+            int expectedKeySlots = expectedRows / 2;
 
             helper.assertValueEqual(
                     input.configurableSlotLimit(),
-                    40,
-                    "Plain input warehouse should expose the left 5x8 main slot area");
+                    CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS,
+                    "Plain input warehouse should expose the storage-bus style 5x9 config area");
             helper.assertValueEqual(
                     input.unlockedSlotCount(),
                     expectedSlots,
-                    capacityCards + " capacity cards should unlock the expected input slots");
+                    capacityCards + " capacity cards should unlock the expected 9-wide input rows");
             helper.assertValueEqual(
-                    input.slotStorage().insert(expectedSlots - 1, iron, 1L, Actionable.MODULATE),
+                    input.slotStorage().insert(expectedMainSlots - 1, iron, 1L, Actionable.MODULATE),
                     1L,
                     "Last unlocked plain input slot should accept inserts");
-            if (expectedSlots < 40) {
+            if (expectedMainSlots < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_SLOTS) {
                 helper.assertValueEqual(
-                        input.slotStorage().insert(expectedSlots, iron, 1L, Actionable.MODULATE),
+                        input.slotStorage().insert(expectedMainSlots, iron, 1L, Actionable.MODULATE),
                         0L,
                         "First locked plain input slot should reject inserts");
                 helper.assertValueEqual(
-                        input.slotStorage().getAmount(expectedSlots),
+                        input.slotStorage().getAmount(expectedMainSlots),
                         0L,
                         "First locked plain input slot should remain empty");
+            }
+            helper.assertValueEqual(
+                    input.fluidConfig().insert(expectedFluidSlots - 1, AEFluidKey.of(Fluids.WATER), 1L, Actionable.MODULATE),
+                    1L,
+                    "Last unlocked plain input fluid slot should accept inserts");
+            if (expectedFluidSlots < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS) {
+                helper.assertValueEqual(
+                        input.fluidConfig().insert(expectedFluidSlots, AEFluidKey.of(Fluids.WATER), 1L, Actionable.MODULATE),
+                        0L,
+                        "First locked plain input fluid slot should reject inserts");
+            }
+            helper.assertValueEqual(
+                    input.keyConfig().insert(expectedKeySlots - 1, DataKey.of(), 1L, Actionable.MODULATE),
+                    1L,
+                    "Last unlocked plain input key slot should accept inserts");
+            if (expectedKeySlots < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS) {
+                helper.assertValueEqual(
+                        input.keyConfig().insert(expectedKeySlots, DataKey.of(), 1L, Actionable.MODULATE),
+                        0L,
+                        "First locked plain input key slot should reject inserts");
             }
         }
 
         CompositeWarehouseBlockEntity output = compositeWarehouse(
                 ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         installCapacityCards(output);
-        helper.assertValueEqual(output.configurableSlotLimit(), 40, "Plain output warehouse should expose 40 main slots");
-        helper.assertValueEqual(output.unlockedSlotCount(), 40, "Four capacity cards should unlock every output slot");
         helper.assertValueEqual(
-                output.slotStorage().insert(39, iron, 1L, Actionable.MODULATE),
+                output.configurableSlotLimit(),
+                CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS,
+                "Plain output warehouse should expose 45 storage-bus style config slots");
+        helper.assertValueEqual(
+                output.unlockedSlotCount(),
+                CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS,
+                "Four capacity cards should unlock every output config slot");
+        helper.assertValueEqual(
+                output.slotStorage().insert(CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_SLOTS - 1, iron, 1L, Actionable.MODULATE),
                 1L,
                 "Last plain output slot should accept inserts after four capacity cards");
         helper.assertValueEqual(
-                output.slotStorage().insert(40, iron, 1L, Actionable.MODULATE),
+                output.slotStorage().insert(CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_SLOTS, iron, 1L, Actionable.MODULATE),
                 0L,
                 "Right composite column must not become a plain output slot");
 
@@ -304,10 +336,10 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("compartment_menu_clears_plain_warehouse_slots_locked_by_capacity")
+    @TestHolder("compartment_menu_locks_capacity_card_when_plain_warehouse_has_overflow")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void menuClearsPlainWarehouseSlotsLockedByCapacity(GameTestHelper helper) {
+    public static void menuLocksCapacityCardWhenPlainWarehouseHasOverflow(GameTestHelper helper) {
         BlockPos warehousePos = new BlockPos(1, 1, 1);
         helper.setBlock(warehousePos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(warehousePos));
@@ -316,6 +348,7 @@ public final class CompartmentInventoryTest {
             return;
         }
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
 
         installCapacityCards(input, 1);
         helper.assertValueEqual(
@@ -325,15 +358,48 @@ public final class CompartmentInventoryTest {
 
         CompositeWarehouseMenu menu = new CompositeWarehouseMenu(
                 0,
-                helper.makeMockPlayer(GameType.CREATIVE).getInventory(),
+                player.getInventory(),
                 input);
-        input.getUpgrades().setItemDirect(0, ItemStack.EMPTY);
         menu.broadcastChanges();
+        var upgradeSlot = menu.getSlots(SlotSemantics.UPGRADE).get(0);
 
+        helper.assertFalse(
+                input.canRemoveCapacityCard(0),
+                "Capacity card should be locked while removing it would strand configured storage slots");
+        helper.assertFalse(
+                upgradeSlot.mayPickup(player),
+                "Capacity card slot should reject pickup while expansion slots contain configured contents");
         helper.assertValueEqual(
                 input.slotStorage().getAmount(16),
-                0L,
-                "Menu capacity gating should clear storage-bus expansion rows after their capacity card is removed");
+                1L,
+                "Capacity gating should keep expansion contents instead of clearing them");
+        input.slotStorage().setStack(16, null);
+        helper.assertValueEqual(
+                input.fluidConfig().insert(1, AEFluidKey.of(Fluids.WATER), 1L, Actionable.MODULATE),
+                1L,
+                "One capacity card should unlock the second fluid slot in the F/K column");
+
+        helper.assertFalse(
+                input.canRemoveCapacityCard(0),
+                "Capacity card should stay locked while an expanded fluid slot contains configured contents");
+        input.fluidConfig().setStack(1, null);
+
+        helper.assertTrue(
+                input.canRemoveCapacityCard(0),
+                "Capacity card should unlock after the expansion slots are empty");
+        helper.assertTrue(
+                upgradeSlot.mayPickup(player),
+                "Capacity card slot should allow pickup after removing overflow contents");
+
+        installCapacityCards(input, 2);
+        menu.broadcastChanges();
+        helper.assertValueEqual(
+                input.keyConfig().insert(1, DataKey.of(), 1L, Actionable.MODULATE),
+                1L,
+                "Two capacity cards should unlock the second key slot in the F/K column");
+        helper.assertFalse(
+                input.canRemoveCapacityCard(0),
+                "Capacity card should stay locked while an expanded key slot contains configured contents");
         helper.succeed();
     }
 
@@ -362,10 +428,10 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("compartment_block_entity_plain_warehouse_ignores_pattern_extra_fluid_slot")
+    @TestHolder("compartment_block_entity_plain_warehouse_unlocks_extra_fluid_slots_by_capacity")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void plainWarehouseIgnoresPatternExtraFluidSlot(GameTestHelper helper) {
+    public static void plainWarehouseUnlocksExtraFluidSlotsByCapacity(GameTestHelper helper) {
         AEFluidKey water = AEFluidKey.of(Fluids.WATER);
         AEFluidKey lava = AEFluidKey.of(Fluids.LAVA);
 
@@ -377,8 +443,8 @@ public final class CompartmentInventoryTest {
                 "Plain warehouse visible fluid slot should accept fluid keys");
         helper.assertValueEqual(
                 input.fluidConfig().insert(1, lava, 20L, Actionable.MODULATE),
-                20L,
-                "Backing inventory should keep the pattern buffer extra fluid slot addressable");
+                0L,
+                "Plain warehouse should lock the second fluid slot until a capacity card unlocks its row");
         helper.assertValueEqual(
                 input.storage().amount(water),
                 10L,
@@ -386,7 +452,16 @@ public final class CompartmentInventoryTest {
         helper.assertValueEqual(
                 input.storage().amount(lava),
                 0L,
-                "Plain warehouse must not aggregate the pattern buffer's extra fluid slot");
+                "Plain warehouse should not aggregate a locked fluid slot");
+        installCapacityCards(input, 1);
+        helper.assertValueEqual(
+                input.fluidConfig().insert(1, lava, 20L, Actionable.MODULATE),
+                20L,
+                "One capacity card should unlock the second fluid slot in the F/K column");
+        helper.assertValueEqual(
+                input.storage().amount(lava),
+                20L,
+                "Plain warehouse should aggregate unlocked expansion fluid slots");
 
         MePatternBufferBlockEntity patternBuffer = patternBuffer();
         patternBuffer.fluidConfig().insert(0, water, 10L, Actionable.MODULATE);
@@ -1396,11 +1471,23 @@ public final class CompartmentInventoryTest {
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID).size(),
                 1,
-                "Plain warehouse should keep one fluid composite slot");
+                "Plain warehouse should keep the first fluid composite slot");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_KEY).size(),
                 1,
-                "Plain warehouse should keep one wrapped-key composite slot");
+                "Plain warehouse should keep the first wrapped-key composite slot");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_2).size(),
+                1,
+                "Plain warehouse should expose the second fluid composite slot in the expansion column");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_KEY_ROW_2).size(),
+                1,
+                "Plain warehouse should expose the second wrapped-key composite slot in the expansion column");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_3).size(),
+                1,
+                "Plain warehouse should expose the third fluid composite slot in the expansion column");
     }
 
     private static void assertPatternBufferCompositeSlots(GameTestHelper helper, CompartmentMenu menu) {

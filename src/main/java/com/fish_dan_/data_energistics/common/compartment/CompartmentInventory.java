@@ -166,21 +166,29 @@ public class CompartmentInventory extends ConfigInventory {
     }
 
     public static CompartmentInventory fluidConfig(Runnable listener, int size) {
+        return fluidConfig(listener, size, () -> size);
+    }
+
+    public static CompartmentInventory fluidConfig(Runnable listener, int size, IntSupplier unlockedSlotCountSupplier) {
         return new CompartmentInventory(
                 Set.of(AEKeyType.fluids()),
                 GenericStackInv.Mode.CONFIG_STACKS,
                 size,
                 listener,
-                () -> size);
+                unlockedSlotCountSupplier);
     }
 
     public static CompartmentInventory keyConfig(Runnable listener) {
+        return keyConfig(listener, 1, () -> 1);
+    }
+
+    public static CompartmentInventory keyConfig(Runnable listener, int size, IntSupplier unlockedSlotCountSupplier) {
         return new CompartmentInventory(
                 AEKeyTypes.getAll(),
                 GenericStackInv.Mode.CONFIG_STACKS,
-                1,
+                size,
                 listener,
-                () -> 1,
+                unlockedSlotCountSupplier,
                 key -> key != null,
                 true);
     }

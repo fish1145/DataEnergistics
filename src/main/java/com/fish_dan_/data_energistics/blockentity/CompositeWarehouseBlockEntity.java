@@ -29,16 +29,29 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     private static final String KEY_CONFIG_TAG = "key_config";
     private static final String UPGRADES_TAG = "upgrades";
     private static final int UPGRADE_SLOT_COUNT = 4;
-    private static final int BASE_COMPOSITE_WAREHOUSE_SLOTS = 16;
-    private static final int COMPOSITE_WAREHOUSE_SLOTS_PER_CAPACITY_CARD = 8;
-    private static final int COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS = 40;
+    public static final int BASE_COMPOSITE_WAREHOUSE_ROWS = 2;
+    public static final int COMPOSITE_WAREHOUSE_COLUMNS = 9;
+    public static final int COMPOSITE_WAREHOUSE_ITEM_COLUMNS = 8;
+    public static final int COMPOSITE_WAREHOUSE_ROWS = 5;
+    public static final int COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS = COMPOSITE_WAREHOUSE_COLUMNS *
+            COMPOSITE_WAREHOUSE_ROWS;
+    public static final int COMPOSITE_WAREHOUSE_ITEM_SLOTS = COMPOSITE_WAREHOUSE_ITEM_COLUMNS *
+            COMPOSITE_WAREHOUSE_ROWS;
+    public static final int COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS = 3;
+    public static final int COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS = 2;
 
     private final CompartmentInventory slotStorage = CompartmentInventory.storage(
             MAX_COMPARTMENT_SLOTS,
             this::onContentInventoryChanged,
-            this::unlockedSlotCount);
-    private final CompartmentInventory fluidConfig = CompartmentInventory.fluidConfig(this::onContentInventoryChanged, 2);
-    private final CompartmentInventory keyConfig = CompartmentInventory.keyConfig(this::onContentInventoryChanged);
+            this::unlockedMainSlotCount);
+    private final CompartmentInventory fluidConfig = CompartmentInventory.fluidConfig(
+            this::onContentInventoryChanged,
+            COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS,
+            this::unlockedFluidSlotCount);
+    private final CompartmentInventory keyConfig = CompartmentInventory.keyConfig(
+            this::onContentInventoryChanged,
+            COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS,
+            this::unlockedKeySlotCount);
     private final IUpgradeInventory upgrades;
 
     public CompositeWarehouseBlockEntity(BlockPos pos, BlockState state) {
@@ -82,9 +95,46 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
         return this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD);
     }
 
+    public boolean canRemoveCapacityCard(int slot) {
+        if (!isCapacityCard(slot)) {
+            return true;
+        }
+
+        int reducedRows = capacityUnlockedRowCount(Math.max(0, installedCapacityCards() - 1));
+        int reducedMainSlots = mainSlotsForRows(reducedRows);
+        for (int storageSlot = reducedMainSlots; storageSlot < COMPOSITE_WAREHOUSE_ITEM_SLOTS; storageSlot++) {
+            if (this.slotStorage.getKey(storageSlot) != null && this.slotStorage.getAmount(storageSlot) > 0L) {
+                return false;
+            }
+        }
+        if (hasConfiguredOverflow(this.fluidConfig, fluidSlotsForRows(reducedRows))) {
+            return false;
+        }
+        if (hasConfiguredOverflow(this.keyConfig, keySlotsForRows(reducedRows))) {
+            return false;
+        }
+        return true;
+    }
+
     @Override
     public int unlockedSlotCount() {
-        return Math.min(configurableSlotLimit(), capacityUnlockedSlotCount());
+        return unlockedRowCount() * COMPOSITE_WAREHOUSE_COLUMNS;
+    }
+
+    public int unlockedRowCount() {
+        return capacityUnlockedRowCount(installedCapacityCards());
+    }
+
+    public int unlockedMainSlotCount() {
+        return mainSlotsForRows(unlockedRowCount());
+    }
+
+    public int unlockedFluidSlotCount() {
+        return fluidSlotsForRows(unlockedRowCount());
+    }
+
+    public int unlockedKeySlotCount() {
+        return keySlotsForRows(unlockedRowCount());
     }
 
     @Override
@@ -114,13 +164,40 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     protected void rebuildCanonicalStorage() {
         mutableStorage().clear();
         copyInventoryToStorage(this.slotStorage);
-        copyInventoryToStorage(this.fluidConfig, 1);
+        copyInventoryToStorage(this.fluidConfig);
         copyInventoryToStorage(this.keyConfig);
     }
 
-    private int capacityUnlockedSlotCount() {
-        return BASE_COMPOSITE_WAREHOUSE_SLOTS +
-                installedCapacityCards() * COMPOSITE_WAREHOUSE_SLOTS_PER_CAPACITY_CARD;
+    private static int capacityUnlockedRowCount(int capacityCards) {
+        return Math.min(COMPOSITE_WAREHOUSE_ROWS, BASE_COMPOSITE_WAREHOUSE_ROWS + Math.max(0, capacityCards));
+    }
+
+    private static int mainSlotsForRows(int rows) {
+        return rows * COMPOSITE_WAREHOUSE_ITEM_COLUMNS;
+    }
+
+    private static int fluidSlotsForRows(int rows) {
+        return (rows + 1) / 2;
+    }
+
+    private static int keySlotsForRows(int rows) {
+        return rows / 2;
+    }
+
+    private static boolean hasConfiguredOverflow(CompartmentInventory inventory, int unlockedSlots) {
+        for (int slot = unlockedSlots; slot < inventory.size(); slot++) {
+            if (inventory.getKey(slot) != null && inventory.getAmount(slot) > 0L) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isCapacityCard(int slot) {
+        if (slot < 0 || slot >= this.upgrades.size()) {
+            return false;
+        }
+        return this.upgrades.getStackInSlot(slot).is(AEItems.CAPACITY_CARD.asItem());
     }
 
     private void onUpgradesChanged() {

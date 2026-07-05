@@ -43,6 +43,18 @@
 			"left": 152,
 			"top": 47
 		},
+		"COMPARTMENT_FLUID_ROW_2": {
+			"left": 152,
+			"top": 65
+		},
+		"COMPARTMENT_KEY_ROW_2": {
+			"left": 152,
+			"top": 83
+		},
+		"COMPARTMENT_FLUID_ROW_3": {
+			"left": 152,
+			"top": 101
+		},
 		"PLAYER_INVENTORY": {
 			"left": 8,
 			"bottom": 84,
