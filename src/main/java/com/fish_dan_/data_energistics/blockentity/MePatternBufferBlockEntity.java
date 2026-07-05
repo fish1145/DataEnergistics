@@ -33,10 +33,11 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
     private static final String PATTERN_BUFFER_SLOT_TAG = "slot";
     private static final String PATTERN_BUFFER_STORAGE_TAG = "storage";
     private static final String SHARED_CATALYST_STORAGE_TAG = "shared_catalyst_storage";
+    public static final int PATTERN_SLOT_COUNT = 54;
     private static final int SHARED_CATALYST_SLOTS = 9;
 
     private final CompartmentInventory patternStorage = CompartmentInventory.itemStorage(
-            MAX_COMPARTMENT_SLOTS,
+            PATTERN_SLOT_COUNT,
             this::onContentInventoryChanged,
             this::unlockedSlotCount);
     private final CompartmentInventory sharedCatalystStorage = CompartmentInventory.storage(
@@ -45,15 +46,15 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
             () -> SHARED_CATALYST_SLOTS);
     private final CompartmentInventory fluidConfig = CompartmentInventory.fluidConfig(this::onContentInventoryChanged, 2);
     private final CompartmentInventory keyConfig = CompartmentInventory.keyConfig(this::onContentInventoryChanged);
-    private final ArrayList<CompartmentStorage> patternBufferStorages = new ArrayList<>(MAX_COMPARTMENT_SLOTS);
-    private final ArrayList<CompartmentStorage> patternBufferStorageViews = new ArrayList<>(MAX_COMPARTMENT_SLOTS);
+    private final ArrayList<CompartmentStorage> patternBufferStorages = new ArrayList<>(PATTERN_SLOT_COUNT);
+    private final ArrayList<CompartmentStorage> patternBufferStorageViews = new ArrayList<>(PATTERN_SLOT_COUNT);
     private final CompartmentStorage patternAggregateStorageView = new AvailabilityCheckedCompartmentStorage(
             this::isCompartmentBound,
             () -> new CompartmentStorageGroup(this::unlockedPatternBufferStorageViews));
 
     public MePatternBufferBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), pos, state);
-        for (int slot = 0; slot < MAX_COMPARTMENT_SLOTS; slot++) {
+        for (int slot = 0; slot < PATTERN_SLOT_COUNT; slot++) {
             CompartmentStorage patternBuffer = new CompartmentStorageImpl(this::onContentInventoryChanged);
             this.patternBufferStorages.add(patternBuffer);
             this.patternBufferStorageViews.add(new AvailabilityCheckedCompartmentStorage(
@@ -65,6 +66,11 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
     @Override
     public CompartmentInventory patternStorage() {
         return this.patternStorage;
+    }
+
+    @Override
+    public int configurableSlotLimit() {
+        return PATTERN_SLOT_COUNT;
     }
 
     public CompartmentInventory sharedCatalystStorage() {

@@ -267,6 +267,36 @@ public final class CompartmentInventoryTest {
                 0L,
                 "Hidden ME input buffer slot should reject pulled contents");
         helper.assertValueEqual(meInput.storage().amount(iron), 2L, "Only visible ME input buffer contents should aggregate");
+
+        MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        helper.assertValueEqual(
+                patternBuffer.configurableSlotLimit(),
+                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT,
+                "Pattern buffer should expose the full 9x6 pattern area drawn by the texture");
+        helper.assertValueEqual(
+                patternBuffer.patternStorage().size(),
+                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT,
+                "Pattern buffer pattern inventory should match the visible 9x6 area");
+        helper.assertValueEqual(
+                patternBuffer.unlockedSlotCount(),
+                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT,
+                "Pattern buffer should unlock every visible pattern slot");
+        helper.assertValueEqual(
+                patternBuffer.patternStorage().insert(
+                        MePatternBufferBlockEntity.PATTERN_SLOT_COUNT - 1,
+                        iron,
+                        1L,
+                        Actionable.MODULATE),
+                1L,
+                "Last visible pattern slot should accept inserts");
+        helper.assertValueEqual(
+                patternBuffer.patternStorage().insert(
+                        MePatternBufferBlockEntity.PATTERN_SLOT_COUNT,
+                        iron,
+                        1L,
+                        Actionable.MODULATE),
+                0L,
+                "First non-texture pattern slot should reject inserts");
         helper.succeed();
     }
 
@@ -1306,6 +1336,18 @@ public final class CompartmentInventoryTest {
     }
 
     private static void assertPatternBufferCompositeSlots(GameTestHelper helper, CompartmentMenu menu) {
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_PATTERN).size(),
+                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT,
+                "Pattern buffer menu should expose every texture-backed pattern slot");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_PATTERN_BUFFER).size(),
+                CompartmentMenu.PATTERN_BUFFER_DISPLAY_SLOT_COUNT,
+                "Pattern buffer menu should expose the expected output display window");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_CATALYST).size(),
+                CompartmentMenu.SHARED_CATALYST_SLOT_COUNT,
+                "Pattern buffer menu should expose the shared catalyst slots");
         helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID).size(),
                 1,

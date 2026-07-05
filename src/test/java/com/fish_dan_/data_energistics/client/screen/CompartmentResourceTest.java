@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.menu.CompartmentMenu;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -221,8 +224,22 @@ public final class CompartmentResourceTest {
         BufferedImage image = readImage(GUI_ROOT + "me_pattern_buffer.png");
         int screenHeight = screenHeight(root);
 
-        assertSlotAnchor(slots, image, "COMPARTMENT_PATTERN", 8, 16);
-        assertSlotAnchor(slots, image, "COMPARTMENT_PATTERN_BUFFER", 177, 15);
+        assertSlotGridAnchors(
+                slots,
+                image,
+                "COMPARTMENT_PATTERN",
+                8,
+                16,
+                9,
+                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT);
+        assertSlotGridAnchors(
+                slots,
+                image,
+                "COMPARTMENT_PATTERN_BUFFER",
+                177,
+                15,
+                3,
+                CompartmentMenu.PATTERN_BUFFER_DISPLAY_SLOT_COUNT);
         assertSlotAnchor(slots, image, "COMPARTMENT_CATALYST", 177, 160);
         assertSlotAnchor(slots, image, "COMPARTMENT_FLUID", 231, 160);
         assertSlotAnchor(slots, image, "COMPARTMENT_KEY", 231, 178);
@@ -330,6 +347,31 @@ public final class CompartmentResourceTest {
                 SLOT_ANCHOR_COLOR,
                 image.getRGB(expectedLeft, screenHeight - expectedBottom),
                 semantic + " should point at the slot anchor pixel");
+    }
+
+    private static void assertSlotGridAnchors(JsonObject slots,
+                                              BufferedImage image,
+                                              String semantic,
+                                              int expectedLeft,
+                                              int expectedTop,
+                                              int columns,
+                                              int count) {
+        JsonObject slot = object(slots, semantic);
+        assertEquals(expectedLeft, integer(slot, "left"), semantic + " left coordinate should match the texture");
+        assertEquals(expectedTop, integer(slot, "top"), semantic + " top coordinate should match the texture");
+
+        for (int index = 0; index < count; index++) {
+            int left = expectedLeft + 18 * (index % columns);
+            int top = expectedTop + 18 * (index / columns);
+            assertEquals(
+                    SLOT_ANCHOR_COLOR,
+                    image.getRGB(left, top),
+                    semantic + " slot " + index + " should point at a texture slot anchor");
+        }
+
+        int nextLeft = expectedLeft + 18 * (count % columns);
+        int nextTop = expectedTop + 18 * (count / columns);
+        assertNotSlotAnchor(image, nextLeft, nextTop, semantic + " should not expose an extra texture slot");
     }
 
     private static void assertTextBottom(JsonObject text, String id, int expectedBottom) {
