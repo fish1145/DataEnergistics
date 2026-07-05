@@ -51,6 +51,7 @@ import appeng.core.definitions.AEItems;
 import appeng.me.helpers.IGridConnectedBlockEntity;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
+import appeng.menu.slot.IOptionalSlot;
 
 import java.util.Collection;
 import java.util.List;
@@ -402,6 +403,26 @@ public final class CompartmentInventoryTest {
         helper.assertFalse(
                 input.canRemoveCapacityCard(0),
                 "Capacity card should stay locked while an expanded key slot contains configured contents");
+        helper.succeed();
+    }
+
+    @TestHolder("compartment_menu_plain_warehouse_fk_extension_slots_draw_optional_backgrounds")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void plainWarehouseFkExtensionSlotsDrawOptionalBackgrounds(GameTestHelper helper) {
+        CompositeWarehouseBlockEntity input = compositeWarehouse(
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
+        var player = helper.makeMockPlayer(GameType.CREATIVE);
+        CompositeWarehouseMenu menu = new CompositeWarehouseMenu(
+                0,
+                player.getInventory(),
+                input);
+
+        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_2);
+        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_2);
+        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_3);
+        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_3);
+        assertOptionalBackgroundSlot(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_4);
         helper.succeed();
     }
 
@@ -1554,6 +1575,20 @@ public final class CompartmentInventoryTest {
                 labeledSlot.slotTextureRow(),
                 expectedTextureRow,
                 semantic.id() + " should use the expected F/K texture row");
+    }
+
+    private static void assertOptionalBackgroundSlot(GameTestHelper helper,
+                                                     CompartmentMenu menu,
+                                                     SlotSemantic semantic) {
+        var slots = menu.getSlots(semantic);
+        helper.assertValueEqual(slots.size(), 1, semantic.id() + " should have exactly one optional slot");
+        if (!(slots.getFirst() instanceof IOptionalSlot optionalSlot)) {
+            helper.fail(semantic.id() + " should follow AE2 optional slot rendering");
+            return;
+        }
+        helper.assertTrue(
+                optionalSlot.isRenderDisabled(),
+                semantic.id() + " should let AE2 draw the storage-bus style optional slot background");
     }
 
     private static final class TestCompartmentHost implements CompartmentHost {

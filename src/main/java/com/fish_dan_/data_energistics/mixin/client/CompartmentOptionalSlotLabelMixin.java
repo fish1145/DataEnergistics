@@ -35,9 +35,9 @@ public abstract class CompartmentOptionalSlotLabelMixin<T extends AEBaseMenu> ex
     @Unique
     private static final int SLOT_TEXTURE_SIZE = 18;
     @Unique
-    private static final int TEXTURE_WIDTH = 176;
+    private static final int TEXTURE_WIDTH = Blitter.DEFAULT_TEXTURE_WIDTH;
     @Unique
-    private static final int TEXTURE_HEIGHT = 253;
+    private static final int TEXTURE_HEIGHT = Blitter.DEFAULT_TEXTURE_HEIGHT;
 
     protected CompartmentOptionalSlotLabelMixin(T menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);

@@ -353,7 +353,6 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
                                          int textureRow) {
             super(inv, host, invSlot, group);
             this.textureRow = textureRow;
-            setRenderDisabled(false);
         }
 
         @Override
