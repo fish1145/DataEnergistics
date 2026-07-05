@@ -165,8 +165,8 @@ public final class ModUpgrades {
     }
 
     private static void registerCompartmentCapacityUpgrade() {
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get(), 4, "block.data_energistics.composite_input_warehouse");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get(), 4, "block.data_energistics.composite_output_warehouse");
+        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get(), 5, "block.data_energistics.composite_input_warehouse");
+        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get(), 5, "block.data_energistics.composite_output_warehouse");
     }
 
     public static void registerPartModels() {

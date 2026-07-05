@@ -28,20 +28,20 @@ public class CompositeWarehouseBlockEntity extends CompartmentBlockEntity implem
     private static final String FLUID_CONFIG_TAG = "fluid_config";
     private static final String KEY_CONFIG_TAG = "key_config";
     private static final String UPGRADES_TAG = "upgrades";
-    private static final int UPGRADE_SLOT_COUNT = 4;
+    private static final int UPGRADE_SLOT_COUNT = 5;
     public static final int BASE_COMPOSITE_WAREHOUSE_ROWS = 2;
     public static final int COMPOSITE_WAREHOUSE_COLUMNS = 9;
     public static final int COMPOSITE_WAREHOUSE_ITEM_COLUMNS = 8;
-    public static final int COMPOSITE_WAREHOUSE_ROWS = 5;
+    public static final int COMPOSITE_WAREHOUSE_ROWS = 7;
     public static final int COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS = COMPOSITE_WAREHOUSE_COLUMNS *
             COMPOSITE_WAREHOUSE_ROWS;
     public static final int COMPOSITE_WAREHOUSE_ITEM_SLOTS = COMPOSITE_WAREHOUSE_ITEM_COLUMNS *
             COMPOSITE_WAREHOUSE_ROWS;
-    public static final int COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS = 3;
-    public static final int COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS = 2;
+    public static final int COMPOSITE_WAREHOUSE_FLUID_CONFIG_SLOTS = 4;
+    public static final int COMPOSITE_WAREHOUSE_KEY_CONFIG_SLOTS = 3;
 
     private final CompartmentInventory slotStorage = CompartmentInventory.storage(
-            MAX_COMPARTMENT_SLOTS,
+            COMPOSITE_WAREHOUSE_ITEM_SLOTS,
             this::onContentInventoryChanged,
             this::unlockedMainSlotCount);
     private final CompartmentInventory fluidConfig = CompartmentInventory.fluidConfig(

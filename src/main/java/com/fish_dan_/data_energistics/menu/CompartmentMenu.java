@@ -56,6 +56,12 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     public static final SlotSemantic COMPARTMENT_STORAGE_ROW_5 = SlotSemantics.register(
             "COMPARTMENT_STORAGE_ROW_5",
             false);
+    public static final SlotSemantic COMPARTMENT_STORAGE_ROW_6 = SlotSemantics.register(
+            "COMPARTMENT_STORAGE_ROW_6",
+            false);
+    public static final SlotSemantic COMPARTMENT_STORAGE_ROW_7 = SlotSemantics.register(
+            "COMPARTMENT_STORAGE_ROW_7",
+            false);
     public static final SlotSemantic COMPARTMENT_CONFIG = SlotSemantics.register("COMPARTMENT_CONFIG", false);
     public static final SlotSemantic COMPARTMENT_CONFIG_ROW_1 = SlotSemantics.register(
             "COMPARTMENT_CONFIG_ROW_1",
@@ -86,9 +92,15 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     public static final SlotSemantic COMPARTMENT_FLUID_ROW_3 = SlotSemantics.register(
             "COMPARTMENT_FLUID_ROW_3",
             false);
+    public static final SlotSemantic COMPARTMENT_FLUID_ROW_4 = SlotSemantics.register(
+            "COMPARTMENT_FLUID_ROW_4",
+            false);
     public static final SlotSemantic COMPARTMENT_KEY = SlotSemantics.register("COMPARTMENT_KEY", false);
     public static final SlotSemantic COMPARTMENT_KEY_ROW_2 = SlotSemantics.register(
             "COMPARTMENT_KEY_ROW_2",
+            false);
+    public static final SlotSemantic COMPARTMENT_KEY_ROW_3 = SlotSemantics.register(
+            "COMPARTMENT_KEY_ROW_3",
             false);
     public static final SlotSemantic COMPARTMENT_PATTERN = SlotSemantics.register("COMPARTMENT_PATTERN", false);
     public static final SlotSemantic COMPARTMENT_PATTERN_BUFFER = SlotSemantics.register(
@@ -205,14 +217,20 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
         addSlot(new FakeSlot(fluids, 0), COMPARTMENT_FLUID);
         addSlot(new FakeSlot(keys, 0), COMPARTMENT_KEY);
         addSlot(
-                new OptionalFakeSlot(fluids, this, 1, 0),
+                new TexturedOptionalFakeSlot(fluids, this, 1, 0, 0),
                 COMPARTMENT_FLUID_ROW_2);
         addSlot(
-                new OptionalFakeSlot(keys, this, 1, 1),
+                new TexturedOptionalFakeSlot(keys, this, 1, 1, 1),
                 COMPARTMENT_KEY_ROW_2);
         addSlot(
-                new OptionalFakeSlot(fluids, this, 2, 2),
+                new TexturedOptionalFakeSlot(fluids, this, 2, 2, 0),
                 COMPARTMENT_FLUID_ROW_3);
+        addSlot(
+                new TexturedOptionalFakeSlot(keys, this, 2, 3, 1),
+                COMPARTMENT_KEY_ROW_3);
+        addSlot(
+                new TexturedOptionalFakeSlot(fluids, this, 3, 4, 0),
+                COMPARTMENT_FLUID_ROW_4);
     }
 
     private void setupCompositeWarehouseUpgrades(CompositeWarehouseBlockEntity host) {
@@ -293,6 +311,8 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
             case 2 -> COMPARTMENT_STORAGE_ROW_3;
             case 3 -> COMPARTMENT_STORAGE_ROW_4;
             case 4 -> COMPARTMENT_STORAGE_ROW_5;
+            case 5 -> COMPARTMENT_STORAGE_ROW_6;
+            case 6 -> COMPARTMENT_STORAGE_ROW_7;
             default -> throw new IllegalArgumentException("Composite warehouse storage row out of range: " + row);
         };
     }
@@ -321,6 +341,26 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     }
 
     private record CapacityGatedSlot(AppEngSlot slot, int backingSlot) {}
+
+    private static final class TexturedOptionalFakeSlot extends OptionalFakeSlot implements CompartmentSlotLabel {
+
+        private final int textureRow;
+
+        private TexturedOptionalFakeSlot(InternalInventory inv,
+                                         IOptionalSlotHost host,
+                                         int invSlot,
+                                         int group,
+                                         int textureRow) {
+            super(inv, host, invSlot, group);
+            this.textureRow = textureRow;
+            setRenderDisabled(false);
+        }
+
+        @Override
+        public int slotTextureRow() {
+            return this.textureRow;
+        }
+    }
 
     private final class OptionalCompartmentSlot extends AppEngSlot implements IOptionalSlot {
 

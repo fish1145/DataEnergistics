@@ -59,6 +59,7 @@
 		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
 		"ae2lt.Ae2ltWirelessConnectorRendererMixin",
 		"client.Ae2CustomKeyGuiMixin",
+		"client.CompartmentOptionalSlotLabelMixin",
 		"client.TerminalSettingsScreenMixin",
 		"core.CondenserScreenMixin",
 		"core.PatternProviderScreenMixin",

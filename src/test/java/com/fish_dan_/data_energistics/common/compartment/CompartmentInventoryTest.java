@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBloc
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
+import com.fish_dan_.data_energistics.menu.CompartmentSlotLabel;
 import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
@@ -48,6 +49,7 @@ import appeng.api.upgrades.Upgrades;
 import appeng.api.util.AECableType;
 import appeng.core.definitions.AEItems;
 import appeng.me.helpers.IGridConnectedBlockEntity;
+import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 
 import java.util.Collection;
@@ -206,7 +208,7 @@ public final class CompartmentInventoryTest {
     public static void capacityCardsUnlockPlainWarehouseSlots(GameTestHelper helper) {
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
 
-        for (int capacityCards = 0; capacityCards <= 4; capacityCards++) {
+        for (int capacityCards = 0; capacityCards <= 5; capacityCards++) {
             CompositeWarehouseBlockEntity input = compositeWarehouse(
                     ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
             installCapacityCards(input, capacityCards);
@@ -221,7 +223,7 @@ public final class CompartmentInventoryTest {
             helper.assertValueEqual(
                     input.configurableSlotLimit(),
                     CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS,
-                    "Plain input warehouse should expose the storage-bus style 5x9 config area");
+                    "Plain input warehouse should expose the storage-bus style 7x9 config area");
             helper.assertValueEqual(
                     input.unlockedSlotCount(),
                     expectedSlots,
@@ -268,15 +270,15 @@ public final class CompartmentInventoryTest {
         helper.assertValueEqual(
                 output.configurableSlotLimit(),
                 CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS,
-                "Plain output warehouse should expose 45 storage-bus style config slots");
+                "Plain output warehouse should expose 63 storage-bus style config slots");
         helper.assertValueEqual(
                 output.unlockedSlotCount(),
                 CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_CONFIGURABLE_SLOTS,
-                "Four capacity cards should unlock every output config slot");
+                "Five capacity cards should unlock every output config slot");
         helper.assertValueEqual(
                 output.slotStorage().insert(CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_SLOTS - 1, iron, 1L, Actionable.MODULATE),
                 1L,
-                "Last plain output slot should accept inserts after four capacity cards");
+                "Last plain output slot should accept inserts after five capacity cards");
         helper.assertValueEqual(
                 output.slotStorage().insert(CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ITEM_SLOTS, iron, 1L, Actionable.MODULATE),
                 0L,
@@ -511,11 +513,11 @@ public final class CompartmentInventoryTest {
 
         helper.assertValueEqual(
                 Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get()),
-                4,
+                5,
                 "Plain input warehouse should allow capacity cards");
         helper.assertValueEqual(
                 Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get()),
-                4,
+                5,
                 "Plain output warehouse should allow capacity cards");
         helper.assertValueEqual(
                 Upgrades.getMaxInstallable(AEItems.CAPACITY_CARD, ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get()),
@@ -1469,6 +1471,14 @@ public final class CompartmentInventoryTest {
                 8,
                 "Plain warehouse row 5 should expose eight main slots before the composite column");
         helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_6).size(),
+                8,
+                "Plain warehouse row 6 should expose eight main slots before the composite column");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_STORAGE_ROW_7).size(),
+                8,
+                "Plain warehouse row 7 should expose eight main slots before the composite column");
+        helper.assertValueEqual(
                 menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID).size(),
                 1,
                 "Plain warehouse should keep the first fluid composite slot");
@@ -1488,6 +1498,19 @@ public final class CompartmentInventoryTest {
                 menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_3).size(),
                 1,
                 "Plain warehouse should expose the third fluid composite slot in the expansion column");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_KEY_ROW_3).size(),
+                1,
+                "Plain warehouse should expose the third wrapped-key composite slot in the expansion column");
+        helper.assertValueEqual(
+                menu.getSlots(CompartmentMenu.COMPARTMENT_FLUID_ROW_4).size(),
+                1,
+                "Plain warehouse should expose the fourth fluid composite slot in the expansion column");
+        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_2, 0);
+        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_2, 1);
+        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_3, 0);
+        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_KEY_ROW_3, 1);
+        assertSlotTextureRow(helper, menu, CompartmentMenu.COMPARTMENT_FLUID_ROW_4, 0);
     }
 
     private static void assertPatternBufferCompositeSlots(GameTestHelper helper, CompartmentMenu menu) {
@@ -1515,6 +1538,22 @@ public final class CompartmentInventoryTest {
                 menu.getSlots(CompartmentMenu.COMPARTMENT_EXTRA_FLUID).size(),
                 1,
                 "Pattern buffer should keep the second fluid composite slot from the original texture");
+    }
+
+    private static void assertSlotTextureRow(GameTestHelper helper,
+                                             CompartmentMenu menu,
+                                             SlotSemantic semantic,
+                                             int expectedTextureRow) {
+        var slots = menu.getSlots(semantic);
+        helper.assertValueEqual(slots.size(), 1, semantic.id() + " should have exactly one textured slot");
+        if (!(slots.getFirst() instanceof CompartmentSlotLabel labeledSlot)) {
+            helper.fail(semantic.id() + " should render as a textured F/K slot");
+            return;
+        }
+        helper.assertValueEqual(
+                labeledSlot.slotTextureRow(),
+                expectedTextureRow,
+                semantic.id() + " should use the expected F/K texture row");
     }
 
     private static final class TestCompartmentHost implements CompartmentHost {
