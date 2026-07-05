@@ -36,7 +36,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -384,7 +383,6 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 applyFailure(compartmentFailure, mainDefinitionKey().structureName());
                 return;
             }
-            normalizeHostFacing(level, preferredFrontFacing, result.frontFacing());
             applyMatch(world, result.positions(), declaredCompartments, mainDefinitionKey().structureName());
         } else {
             applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
@@ -397,24 +395,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 state,
                 DataRipperReassemblerBlock.FACING,
                 this.worldPosition,
-                "Digital Construct Flower");
-    }
-
-    private void normalizeHostFacing(Level level, Direction preferredFrontFacing, Direction matchedFrontFacing) {
-        if (preferredFrontFacing == matchedFrontFacing) {
-            return;
-        }
-        BlockState state = level.getBlockState(this.worldPosition);
-        Direction hostFacing = JsonMultiBlockFrontFacing.toPlacedHostFacing(matchedFrontFacing);
-        if (state.hasProperty(DataRipperReassemblerBlock.FACING) &&
-                state.getValue(DataRipperReassemblerBlock.FACING) != hostFacing) {
-            BlockState updatedState = state.setValue(DataRipperReassemblerBlock.FACING, hostFacing);
-            this.getMainNode().setExposedOnSides(getCableExposedSides(updatedState));
-            level.setBlock(
-                    this.worldPosition,
-                    updatedState,
-                    Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
-        }
+                "Trinity Digital Core");
     }
 
     private void applyMatch(StructureWorldView world,
@@ -452,7 +433,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return;
         }
         LOGGER.warn(
-                "Digital Construct Flower structure '{}' failed at {}: {}",
+                "Trinity Digital Core structure '{}' failed at {}: {}",
                 structureName,
                 nextFailurePosition,
                 nextFailureReason);

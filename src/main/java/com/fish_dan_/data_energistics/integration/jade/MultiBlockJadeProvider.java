@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 
 import net.minecraft.core.BlockPos;
@@ -72,7 +73,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         if (serverData.contains(TAG_FAILURE_REASON)) {
             tooltip.add(Component.translatable(
                     "jade.data_energistics.multiblock.failure",
-                    serverData.getString(TAG_FAILURE_REASON)));
+                    MultiBlockFailureText.describe(serverData.getString(TAG_FAILURE_REASON))));
         }
         if (serverData.contains(TAG_FAILURE_X) && serverData.contains(TAG_FAILURE_Y) && serverData.contains(TAG_FAILURE_Z)) {
             tooltip.add(Component.translatable(

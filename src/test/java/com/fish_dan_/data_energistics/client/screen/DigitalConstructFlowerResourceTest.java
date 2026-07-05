@@ -23,6 +23,7 @@ public final class DigitalConstructFlowerResourceTest {
 
     private static final String MODEL_ROOT = "assets/data_energistics/models/block/";
     private static final String DATA_TEXTURE_ROOT = "assets/data_energistics/textures/";
+    private static final String LANG_ROOT = "assets/data_energistics/lang/";
     private static final String SCREEN_ROOT = "assets/ae2/screens/";
     private static final String GUI_TEXTURE_ROOT = "assets/ae2/textures/";
     private static final String MULTIBLOCK_ROOT = "data/data_energistics/multiblock/";
@@ -91,6 +92,29 @@ public final class DigitalConstructFlowerResourceTest {
         assertFalse(
                 values.contains("extendedae:assembler_matrix_pattern"),
                 "Trinity Digital Core should not reference the missing ExtendedAE namespace");
+    }
+
+    @Test
+    void digitalConstructFlowerLanguageUsesTrinityDigitalCoreNames() {
+        JsonObject zhCn = readJson(LANG_ROOT + "zh_cn.json");
+        assertEquals(
+                "三位一体数位化核心",
+                string(zhCn, "block.data_energistics.digital_construct_flower"),
+                "Controller block name should use the renamed Trinity Digital Core display name");
+        assertEquals(
+                "结构方块不匹配",
+                string(zhCn, "text.data_energistics.multiblock.failure.block_predicate"),
+                "Known MDLib predicate diagnostics should be localized for Jade and the host screen");
+
+        JsonObject enUs = readJson(LANG_ROOT + "en_us.json");
+        assertEquals(
+                "Trinity Digital Core",
+                string(enUs, "block.data_energistics.digital_construct_flower"),
+                "English controller block name should match the renamed structure");
+        assertEquals(
+                "Structure block did not match",
+                string(enUs, "text.data_energistics.multiblock.failure.block_predicate"),
+                "English predicate diagnostic should avoid exposing the raw MDLib message");
     }
 
     private static void assertGuiImage(JsonObject images, String id, String expectedTexture) {

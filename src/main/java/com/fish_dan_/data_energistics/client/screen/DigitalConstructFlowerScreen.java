@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenu;
 
 import net.minecraft.client.Minecraft;
@@ -120,7 +121,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             List<Component> tooltip = new ArrayList<>();
             tooltip.add(Component.translatable(
                     "screen.data_energistics.digital_construct_flower.last_failure",
-                    this.menu.lastFailureReason));
+                    MultiBlockFailureText.describe(this.menu.lastFailureReason)));
             if (!this.menu.lastFailurePosition.isBlank()) {
                 tooltip.add(Component.translatable(
                         "screen.data_energistics.digital_construct_flower.failure_position",
@@ -137,7 +138,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         if (!hasFailure()) {
             return Component.translatable("screen.data_energistics.digital_construct_flower.no_failure");
         }
-        return Component.literal(abbreviate(this.menu.lastFailureReason, FAILURE_SUMMARY_LENGTH));
+        return MultiBlockFailureText.summarize(this.menu.lastFailureReason, FAILURE_SUMMARY_LENGTH);
     }
 
     private boolean hasFailure() {
@@ -148,12 +149,5 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         int screenX = this.leftPos + x;
         int screenY = this.topPos + y;
         return mouseX >= screenX && mouseX < screenX + width && mouseY >= screenY && mouseY < screenY + height;
-    }
-
-    private static String abbreviate(String value, int maxLength) {
-        if (value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, Math.max(0, maxLength - 3)) + "...";
     }
 }

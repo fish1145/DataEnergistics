@@ -112,10 +112,10 @@ public final class JsonMultiBlockPatternMatcherTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_front_facing_uses_worldedit_player_direction")
+    @TestHolder("json_multiblock_front_facing_uses_host_front_direction")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void usesWorldEditPlayerDirectionAsFront(GameTestHelper helper) {
+    public static void usesHostFrontDirectionAsFront(GameTestHelper helper) {
         BlockState state = Blocks.FURNACE.defaultBlockState()
                 .setValue(HorizontalDirectionalBlock.FACING, Direction.SOUTH);
 
@@ -127,8 +127,8 @@ public final class JsonMultiBlockPatternMatcherTest {
 
         helper.assertValueEqual(
                 frontFacing,
-                Direction.NORTH,
-                "Structure front should be the player's WorldEdit facing, not the placed block front");
+                Direction.SOUTH,
+                "Structure front should match the placed host front");
         helper.succeed();
     }
 
