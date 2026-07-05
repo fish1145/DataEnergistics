@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.integration.jade;
 
+import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
@@ -11,6 +12,7 @@ import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DigitalConstructFlowerBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
+import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
@@ -40,9 +42,11 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
     private static final MultiBlockJadeProvider MULTI_BLOCK_PROVIDER = new MultiBlockJadeProvider();
     private static final DataSanctumJadeProvider DATA_SANCTUM_PROVIDER = new DataSanctumJadeProvider();
     private static final DataChargerJadeProvider DATA_CHARGER_PROVIDER = new DataChargerJadeProvider();
+    private static final CompartmentJadeProvider COMPARTMENT_PROVIDER = new CompartmentJadeProvider();
 
     @Override
     public void register(IWailaCommonRegistration registration) {
+        registration.registerBlockDataProvider(COMPARTMENT_PROVIDER, CompartmentBlockEntity.class);
         registration.registerBlockDataProvider(TOWER_PROVIDER, DataDistributionTowerBlock.class);
         registration.registerEnergyStorage(TOWER_ENERGY_PROVIDER, DataDistributionTowerBlockEntity.class);
         registration.registerBlockDataProvider(EXTRACTOR_PROVIDER, DataExtractorBlockEntity.class);
@@ -59,6 +63,7 @@ public class DataEnergisticsJadePlugin implements IWailaPlugin {
 
     @Override
     public void registerClient(IWailaClientRegistration registration) {
+        registration.registerBlockComponent(COMPARTMENT_PROVIDER, CompartmentBlock.class);
         registration.registerBlockComponent(TOWER_PROVIDER, DataDistributionTowerBlock.class);
         registration.registerEnergyStorageClient(TOWER_ENERGY_PROVIDER);
         registration.registerBlockComponent(EXTRACTOR_PROVIDER, DataExtractorBlock.class);
