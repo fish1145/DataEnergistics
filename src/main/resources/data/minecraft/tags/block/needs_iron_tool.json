@@ -15,6 +15,11 @@
 		"data_energistics:data_sanctum",
 		"data_energistics:data_sanctum_interface",
 		"data_energistics:data_charger",
-		"data_energistics:extended_data_charger"
+		"data_energistics:extended_data_charger",
+		"data_energistics:composite_input_warehouse",
+		"data_energistics:composite_output_warehouse",
+		"data_energistics:me_composite_input_warehouse",
+		"data_energistics:me_composite_output_warehouse",
+		"data_energistics:me_pattern_buffer"
 	]
 }

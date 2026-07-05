@@ -1,0 +1,1051 @@
+{
+	"metadata": {
+		"display_name": "multiblock.data_energistics.trinity_digital_core"
+	},
+	"aisles": [
+		{
+			"slices": [
+				[
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"              V                 ",
+					"               V                ",
+					"                N               ",
+					"                 V              ",
+					"                  V             ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"            W                   ",
+					"             W                  ",
+					"                                ",
+					"               R                ",
+					"                c               ",
+					"                 R              ",
+					"                                ",
+					"                   W            ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        AAAAAAA                 ",
+					"        I     I                 ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"           W                    ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                    W           ",
+					"                     W          ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        ABBBBBBAAAAAAAAAAAAA    ",
+					"                           I    ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"          X                     ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                      X         ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    AAAAAB B BBBBBBBBBBBBBBBA   ",
+					"    I     L B                   ",
+					"          P P                   ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"         X                      ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                       X        ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBB   BBBBBBBBBBCBBBBCA  ",
+					"          LNB                   ",
+					"          JPJ                   ",
+					"          P P                   ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"        X                       ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                        X       ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBB              DDDDBA  ",
+					"          LBBMMMMMMMBBBB        ",
+					"          JJJQQQQQQQBPPF        ",
+					"          P P       JJJF        ",
+					"                     PJJ        ",
+					"                      QQ        ",
+					"                                ",
+					"                                ",
+					"        X                       ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               R                ",
+					"                c               ",
+					"                 R              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                        X       ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   AABBBBB            DDDDDDBA  ",
+					"   I      LLLBBBBBBB DD         ",
+					"          JJJJJJJJJJ DK         ",
+					"          JSJSSSSSSJJDK         ",
+					"                      PP        ",
+					"                       Q        ",
+					"                                ",
+					"                                ",
+					"        X                       ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               ZZZ              ",
+					"              ZZbZZ             ",
+					"              ZbNbZ             ",
+					"              ZZbZZ             ",
+					"               ZZZ              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                        X       ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"  AABBBBBBBBBB        DDDDDDBA  ",
+					"            L B    B DD         ",
+					"              JJPPPJ DK         ",
+					"          K K      JJDK         ",
+					"                      PP        ",
+					"                       Q        ",
+					"                                ",
+					"       W                        ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               ZZZ              ",
+					"              ZZZZZ             ",
+					"             ZZZZZZZ            ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZ            ",
+					"              ZZZZZ             ",
+					"               ZZZ              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                         W      ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					" AABBFFFFFBBBB          DDDDBA  ",
+					" I          L B    BBBBB        ",
+					"              JJPPPJBJJF        ",
+					"          K K TG    JJJF        ",
+					"               TGGG  PJJ        ",
+					"                      QQ        ",
+					"                                ",
+					"       W                        ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               ZZZ              ",
+					"             ZZZZZZZ            ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZ            ",
+					"               ZZZ              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                         W      ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"AABBFF   FBBBB      BBBCBBBBCA  ",
+					"            L B    B            ",
+					"              JJJJJJ            ",
+					"          Q Q                   ",
+					"                   G            ",
+					"                                ",
+					"                                ",
+					"       W                        ",
+					"                                ",
+					"                                ",
+					"              BBBBB             ",
+					"              ZZZZZ             ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZZ           ",
+					"              ZZZZZ             ",
+					"              BBBBB             ",
+					"                                ",
+					"                                ",
+					"                         W      ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"ABBFF    FB            BBBBBBBA ",
+					"          FLLBBBBBBBBBJ         ",
+					"           FBBJJJJJJJJJ         ",
+					"          K K JJJJJ             ",
+					"              JJJJJ G           ",
+					"              UUUUU             ",
+					"      V                         ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"              BZZZB             ",
+					"             ZZZZZZZ            ",
+					"            ZZZZZZZZZ           ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"          ZZZZZZZZZZZZZP        ",
+					"          ZZZZZZZZZZZZZS        ",
+					"          ZZZZZZZZZZZZZP        ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZ            ",
+					"              BZZZB             ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                          V     ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"ABBF  IBHBB             EBBBBBA ",
+					"I     OJHJJJLLB       JJKJJJJBF ",
+					"      RJHJJJJJJ       JPKPJJJI  ",
+					"      OJHHJJJJJJJJJJJJGMMMMJJJI ",
+					"        JHHJJJJBBBJ G G     JJI ",
+					"         JHHJJU   U   GG    PJPI",
+					"      V   JHHJJ   R    G     JPI",
+					"           JHHJJ  R   BB     PJI",
+					"           PJHHJJ I     B     JI",
+					"            JJJJJJJ      B    JI",
+					"           PJJZZZZZJJ    B    JI",
+					"           JZZZZZZZZZJ        JI",
+					"          JZZZZZZZZZZZJ       PI",
+					"          JZZZZZZZZZZZJ       PI",
+					"         JZZZZZZZZZZZZZJ      XR",
+					"        PJZZZZZZZZZZZZZJ       a",
+					"       PPJZZZZZZZZZZZZZJ        ",
+					"       P JZZZZZZZZZZZZZJ        ",
+					"       PPPZZZZZZZZZZZZZJ        ",
+					"       PP  dZZZZZZZZZZJ         ",
+					"           dZZZZZZZZZZJ         ",
+					"            ZZZZZZZZZJ          ",
+					"           PJJZZZZZJJ           ",
+					"          PPeKJJJJJ             ",
+					"          PPeKKPP               ",
+					"           IIIII                ",
+					"                          V     ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"ABBF   BCG             BBBBBBBA ",
+					"       HCG   LL       LL        ",
+					"       ~CCG   L       L         ",
+					"       HCCCG  LLLLLLLLL         ",
+					"        HCCCG JBLBJ G           ",
+					"         HCCCGU   U JIB         ",
+					"      V   HCCCJ      JIB        ",
+					"           HCCCJ      JJB       ",
+					"            HCCCJ     IIJB      ",
+					"             HYJ     FBIIJB     ",
+					"              ZZZZZBBBEBIJB     ",
+					"            ZZZZZZZZZBIF  JB    ",
+					"           ZZZZZZZZZZZB   JB    ",
+					"           ZZZZZZZZZZZB   IJB   ",
+					"          ZZZZZZZZZZZZZB IIJB   ",
+					"          ZZZZZZZZZZZZZBIIIJB   ",
+					"          ZZZZZZZZZZZZZBIIRJB   ",
+					"          ZZZZZZZZZZZZZB  RJB   ",
+					"          ZZZZZZZZZZZZZ   RJB   ",
+					"           dZZZZZZZZZZ    RJB   ",
+					"           dZZZZZZZZZZ    JB    ",
+					"            ZZZZZZZZZ     JB    ",
+					"              ZZZZZ      JB     ",
+					"                         JB     ",
+					"                        JB      ",
+					"            RERR   FFQJJB       ",
+					"                   BJJBB  V     ",
+					"                  RBBB          "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"ABBF  IBHBB             EBBBBBA ",
+					"I     OJHJJJLLB       JJKJJJJBF ",
+					"      RJHJJJJJJ       JPKPJJJI  ",
+					"      OJHHJJJJJJJJJJJJGMMMMJJJI ",
+					"        JHHJJJJBBBJ G G     JJI ",
+					"         JHHJJU   U   GG    PJPI",
+					"      V   JHHJJ   R    G     JPI",
+					"           JHHJJ  R   BB     PJI",
+					"           PJHHJJ I     B     JI",
+					"            JJJJJJJ      B    JI",
+					"           PJJZZZZZJJ    B    JI",
+					"           JZZZZZZZZZJ        JI",
+					"          JZZZZZZZZZZZJ       PI",
+					"          JZZZZZZZZZZZJ       PI",
+					"         JZZZZZZZZZZZZZJ      XR",
+					"        PJZZZZZZZZZZZZZJ       a",
+					"       PPJZZZZZZZZZZZZZJ        ",
+					"       P JZZZZZZZZZZZZZJ        ",
+					"       PPPZZZZZZZZZZZZZJ        ",
+					"       PP  dZZZZZZZZZZJ         ",
+					"           dZZZZZZZZZZJ         ",
+					"            ZZZZZZZZZJ          ",
+					"           PJJZZZZZJJ           ",
+					"          PPKKJJJJJ             ",
+					"          PPKKKKP               ",
+					"           IIIII                ",
+					"                          V     ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"ABBFF    FB            BBBBBBBA ",
+					"          FLLBBBBBBBBBJ         ",
+					"           FBBJJJJJJJJJ         ",
+					"          K K JJJJJ             ",
+					"              JJJJJ G           ",
+					"              UUUUU             ",
+					"      V                         ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"              BZZZB             ",
+					"             ZZZZZZZ            ",
+					"            ZZZZZZZZZ           ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"          ZZZZZZZZZZZZZP        ",
+					"          ZZZZZZZZZZZZZS        ",
+					"          ZZZZZZZZZZZZZP        ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZ            ",
+					"              BZZZB             ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                          V     ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"AABBFF   FBBBB      BBBCBBBBCA  ",
+					"            L B    B            ",
+					"              JJJJJJ            ",
+					"          Q Q                   ",
+					"                   G            ",
+					"                                ",
+					"                                ",
+					"       W                        ",
+					"                                ",
+					"                                ",
+					"              BBBBB             ",
+					"              ZZZZZ             ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZZ           ",
+					"              ZZZZZ             ",
+					"              BBBB              ",
+					"                                ",
+					"                                ",
+					"                         W      ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					" AABBFFFFFBBBB          DDDDBA  ",
+					" I          L B    BBBBB        ",
+					"              JJPPPJBJJF        ",
+					"          K K TG    JJJF        ",
+					"               TGGG  PJJ        ",
+					"                      QQ        ",
+					"                                ",
+					"       W                        ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               ZZZ              ",
+					"             ZZZZZZZ            ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"           ZZZZZZZZZZZ          ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZZ           ",
+					"             ZZZZZZZ            ",
+					"               ZZZ              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                         W      ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"  AABBBBBBBBBB        DDDDDDBA  ",
+					"            L B    B DD         ",
+					"              JJPPPJ DK         ",
+					"          K K      JJDK         ",
+					"                      PP        ",
+					"                       Q        ",
+					"                                ",
+					"       W                        ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               ZZZ              ",
+					"              ZZZZZ             ",
+					"             ZZZZZZZ            ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"            ZZZZZZZZZ           ",
+					"             ZZZZZZZ            ",
+					"              ZZZZZ             ",
+					"               ZZZ              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                         W      ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   AABBBBB            DDDDDDBA  ",
+					"   I      LLLJJJJJJJ DD         ",
+					"          JJJJJJJJJJ DK         ",
+					"          JSJSSSSSSJJDK         ",
+					"                      PP        ",
+					"                       Q        ",
+					"                                ",
+					"                                ",
+					"        X                       ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               ZZZ              ",
+					"              ZZbZZ             ",
+					"              ZbNbZ             ",
+					"              ZZbZZ             ",
+					"               ZZZ              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                        X       ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBB              DDDDBA  ",
+					"          LBBMMMMMMMBBBB        ",
+					"          JJJQQQQQQQBPPF        ",
+					"          P P       JJJF        ",
+					"                     PJJ        ",
+					"                      QQ        ",
+					"                                ",
+					"                                ",
+					"        X                       ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"               R                ",
+					"                c               ",
+					"                 R              ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                        X       ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBB   BBBBBBBBBBCBBBBCA  ",
+					"          LNJ                   ",
+					"          JPJ                   ",
+					"          P P                   ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"        X                       ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                        X       ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    AAAAAB B BBBBBBBBBBBBBBBA   ",
+					"    I     L J                   ",
+					"          P P                   ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"         X                      ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                       X        ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        ABBBBBBAAAAAAAAAAAAA    ",
+					"                           I    ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"          X                     ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                      X         ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"        AAAAAAA                 ",
+					"        I     I                 ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"           W                    ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                c               ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                     W          ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"            W                   ",
+					"             W                  ",
+					"                                ",
+					"               R                ",
+					"                c               ",
+					"                 R              ",
+					"                                ",
+					"                   W            ",
+					"                    W           ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"              V                 ",
+					"               V                ",
+					"                N               ",
+					"                 V              ",
+					"                  V             ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                ",
+					"                                "
+				]
+			]
+		}
+	],
+	"predicates": {
+		"A": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:smooth_stone"
+		},
+		"B": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_block"
+		},
+		"C": {
+			"type": "mdlib:blocks",
+			"block": "ae2:not_so_mysterious_cube"
+		},
+		"D": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_framework"
+		},
+		"E": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:sea_lantern"
+		},
+		"F": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_stairs"
+		},
+		"G": {
+			"type": "mdlib:blocks",
+			"block": "ae2:fluix_block"
+		},
+		"H": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_vibrant_glass"
+		},
+		"I": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_wall"
+		},
+		"J": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:smooth_quartz"
+		},
+		"K": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:smooth_quartz_slab"
+		},
+		"L": {
+			"type": "mdlib:blocks",
+			"block": "ae2:controller"
+		},
+		"M": {
+			"type": "mdlib:blocks",
+			"block": "ae2:spatial_pylon"
+		},
+		"N": {
+			"type": "mdlib:blocks",
+			"block": "ae2:energy_acceptor"
+		},
+		"O": {
+			"type": "mdlib:blocks",
+			"block": "ae2:chiseled_quartz_wall"
+		},
+		"P": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:smooth_quartz_stairs"
+		},
+		"Q": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_slab"
+		},
+		"R": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:end_rod"
+		},
+		"S": {
+			"type": "mdlib:blocks",
+			"block": "ae2:cut_quartz_wall"
+		},
+		"T": {
+			"type": "mdlib:blocks",
+			"block": "ae2:fluix_stairs"
+		},
+		"U": {
+			"type": "mdlib:blocks",
+			"block": "ae2:fluix_wall"
+		},
+		"V": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_meteorite_0"
+		},
+		"W": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_meteorite_1"
+		},
+		"X": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_meteorite_2"
+		},
+		"Y": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:glass"
+		},
+		"Z": {
+			"type": "mdlib:blocks",
+			"block": "ae2:crafting_unit"
+		},
+		"a": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_fixture"
+		},
+		"b": {
+			"type": "mdlib:blocks",
+			"block": "ae2:cut_quartz_block"
+		},
+		"c": {
+			"type": "mdlib:blocks",
+			"block": "ae2:cable_bus"
+		},
+		"d": {
+			"type": "mdlib:blocks",
+			"block": "ae2:drive"
+		},
+		"e": {
+			"type": "mdlib:blocks",
+			"block": "minecraft:quartz_slab"
+		}
+	}
+}

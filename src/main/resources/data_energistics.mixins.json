@@ -26,6 +26,7 @@
 		"core.CondenserMenuMixin",
 		"core.ConfigInventoryWrappedKeyMixin",
 		"core.CraftConfirmMenuMixin",
+		"core.CraftingServiceMixin",
 		"core.CraftingMenuMixin",
 		"core.CraftingTermMenuMixin",
 		"core.CraftingTermSlotMixin",
@@ -47,10 +48,7 @@
 		"core.PatternProviderPartMixin",
 		"core.ResultSlotMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
-		"extendedae.ExtendedInscriberThreadMixin",
-		"useless.UselessChainMiningStrategyMixin",
-		"useless.UselessForceBreakStrategyMixin",
-		"useless.UselessForceChainMiningStrategyMixin"
+		"extendedae.ExtendedInscriberThreadMixin"
 	],
 	"client": [
 		"advancedae.AdvancedAePatternProviderScreenMixin",
@@ -58,6 +56,7 @@
 		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
 		"ae2lt.Ae2ltWirelessConnectorRendererMixin",
 		"client.Ae2CustomKeyGuiMixin",
+		"client.CompartmentOptionalSlotLabelMixin",
 		"client.TerminalSettingsScreenMixin",
 		"core.CondenserScreenMixin",
 		"core.PatternProviderScreenMixin",
