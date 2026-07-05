@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
@@ -15,9 +15,6 @@ import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -48,6 +45,10 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalConstructFlowerBlockEntity>> DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "digital_construct_flower",
             () -> BlockEntityType.Builder.of(DigitalConstructFlowerBlockEntity::new, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataFrameworkBlockEntity>> DATA_FRAMEWORK_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "data_framework",
+            () -> BlockEntityType.Builder.of(DataFrameworkBlockEntity::new, ModBlocks.DATA_FRAMEWORK_MAIN.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_distribution_tower",
@@ -84,36 +85,7 @@ public final class ModBlockEntities {
             "adaptive_pattern_provider",
             () -> BlockEntityType.Builder.of(AdaptivePatternProviderBlockEntity::new, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).build(null));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CompositeWarehouseBlockEntity>> COMPOSITE_WAREHOUSE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "composite_warehouse",
-            () -> BlockEntityType.Builder.of(
-                    CompositeWarehouseBlockEntity::new,
-                    ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get(),
-                    ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get()).build(null));
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MeCompositeInputWarehouseBlockEntity>> ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "me_composite_input_warehouse",
-            () -> BlockEntityType.Builder.of(
-                    MeCompositeInputWarehouseBlockEntity::new,
-                    ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get()).build(null));
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MeCompositeOutputWarehouseBlockEntity>> ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "me_composite_output_warehouse",
-            () -> BlockEntityType.Builder.of(
-                    MeCompositeOutputWarehouseBlockEntity::new,
-                    ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get()).build(null));
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MePatternBufferBlockEntity>> ME_PATTERN_BUFFER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "me_pattern_buffer",
-            () -> BlockEntityType.Builder.of(
-                    MePatternBufferBlockEntity::new,
-                    ModBlocks.ME_PATTERN_BUFFER.get()).build(null));
-
     private ModBlockEntities() {}
-
-    public static boolean isCompartmentBlockEntityType(BlockEntityType<?> type) {
-        return type == COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get() ||
-                type == ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
-                type == ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
-                type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get();
-    }
 
     public static void register(IEventBus modEventBus) {
         BLOCK_ENTITY_TYPES.register(modEventBus);

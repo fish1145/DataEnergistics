@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * Names one JSON-backed multiblock structure by GTM-style machine id and structure name.
  *
- * @param machineId     machine id that owns the structure, such as {@code data_energistics:digital_construct_flower}
+ * @param machineId     machine id that owns the structure, such as {@code data_energistics:data_framework_column}
  * @param structureName single path segment identifying the named structure; {@code main} is the default structure
  */
 public record JsonMultiBlockStructureKey(ResourceLocation machineId, String structureName) {

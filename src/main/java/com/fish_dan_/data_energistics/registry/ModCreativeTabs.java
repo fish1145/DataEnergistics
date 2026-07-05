@@ -45,6 +45,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_RIPPER_REASSEMBLER);
                         output.accept(ModItems.DIGITAL_CONSTRUCT_FLOWER);
                         output.accept(ModItems.DATA_FRAMEWORK);
+                        output.accept(ModItems.DATA_FRAMEWORK_MAIN);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);
@@ -65,11 +66,6 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_METEORITE_COMPASS);
                         output.accept(ModItems.DATA_CRYSTAL_BLOCK);
                         output.accept(ModItems.DIGITAL_STORAGE_DEPOT);
-                        output.accept(ModItems.COMPOSITE_INPUT_WAREHOUSE);
-                        output.accept(ModItems.COMPOSITE_OUTPUT_WAREHOUSE);
-                        output.accept(ModItems.ME_COMPOSITE_INPUT_WAREHOUSE);
-                        output.accept(ModItems.ME_COMPOSITE_OUTPUT_WAREHOUSE);
-                        output.accept(ModItems.ME_PATTERN_BUFFER);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_0);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_1);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_2);
