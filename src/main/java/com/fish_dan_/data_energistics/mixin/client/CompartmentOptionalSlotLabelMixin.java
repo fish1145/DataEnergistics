@@ -7,9 +7,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
 
+import appeng.client.Point;
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.style.Blitter;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.slot.IOptionalSlot;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,41 +43,33 @@ public abstract class CompartmentOptionalSlotLabelMixin<T extends AEBaseMenu> ex
         super(menu, playerInventory, title);
     }
 
-    @Inject(method = "renderBg", at = @At("TAIL"))
+    @Inject(method = "drawOptionalSlotBackground", at = @At("TAIL"))
     private void dataEnergistics$drawCompartmentOptionalSlotLabels(GuiGraphics guiGraphics,
-                                                                   float f,
-                                                                   int x,
-                                                                   int y,
+                                                                   IOptionalSlot optionalSlot,
+                                                                   boolean alwaysDraw,
                                                                    CallbackInfo ci) {
-        for (Slot slot : this.menu.slots) {
-            if (slot instanceof CompartmentSlotLabel labeledSlot && slot instanceof IOptionalSlot optionalSlot) {
-                dataEnergistics$drawCompartmentOptionalSlotTexture(
-                        guiGraphics,
-                        slot,
-                        optionalSlot,
-                        labeledSlot.slotTextureRow());
-            }
+        if (optionalSlot instanceof CompartmentSlotLabel labeledSlot) {
+            dataEnergistics$drawCompartmentOptionalSlotTexture(
+                    guiGraphics,
+                    optionalSlot,
+                    labeledSlot.slotTextureRow());
         }
     }
 
     @Unique
     private void dataEnergistics$drawCompartmentOptionalSlotTexture(GuiGraphics guiGraphics,
-                                                                    Slot slot,
                                                                     IOptionalSlot optionalSlot,
                                                                     int textureRow) {
         float alpha = optionalSlot.isSlotEnabled() ? 1.0f : 0.2f;
-        guiGraphics.setColor(1.0f, 1.0f, 1.0f, alpha);
-        guiGraphics.blit(
-                COMPOSITE_WAREHOUSE_TEXTURE,
-                this.leftPos + slot.x - 1,
-                this.topPos + slot.y - 1,
-                0,
-                SLOT_SOURCE_LEFT,
-                SLOT_SOURCE_TOP + textureRow * SLOT_SOURCE_STEP,
-                SLOT_TEXTURE_SIZE,
-                SLOT_TEXTURE_SIZE,
-                TEXTURE_WIDTH,
-                TEXTURE_HEIGHT);
-        guiGraphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        Point position = optionalSlot.getBackgroundPos();
+        Blitter.texture(COMPOSITE_WAREHOUSE_TEXTURE, TEXTURE_WIDTH, TEXTURE_HEIGHT)
+                .src(
+                        SLOT_SOURCE_LEFT,
+                        SLOT_SOURCE_TOP + textureRow * SLOT_SOURCE_STEP,
+                        SLOT_TEXTURE_SIZE,
+                        SLOT_TEXTURE_SIZE)
+                .dest(this.leftPos + position.getX(), this.topPos + position.getY())
+                .color(1.0f, 1.0f, 1.0f, alpha)
+                .blit(guiGraphics);
     }
 }
