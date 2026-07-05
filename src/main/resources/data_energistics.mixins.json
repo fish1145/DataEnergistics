@@ -26,6 +26,7 @@
 		"core.CondenserMenuMixin",
 		"core.ConfigInventoryWrappedKeyMixin",
 		"core.CraftConfirmMenuMixin",
+		"core.CraftingServiceMixin",
 		"core.CraftingMenuMixin",
 		"core.CraftingTermMenuMixin",
 		"core.CraftingTermSlotMixin",

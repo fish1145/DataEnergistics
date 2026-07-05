@@ -2,10 +2,13 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -15,7 +18,10 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock implements EntityBlock {
@@ -27,6 +33,15 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     @Override
     public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
         return new DigitalConstructFlowerBlockEntity(blockPos, blockState);
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+                                               BlockHitResult hitResult) {
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
+            MenuOpener.open(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), player, MenuLocators.forBlockEntity(flower));
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override

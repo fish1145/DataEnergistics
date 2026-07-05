@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
@@ -27,6 +28,7 @@ import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
+import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenu;
 import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
@@ -71,6 +73,10 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DataRipperReassemblerMenu>> DATA_RIPPER_REASSEMBLER = MENUS.register("data_reassembler", () -> MenuTypeBuilder
             .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DigitalConstructFlowerMenu>> DIGITAL_CONSTRUCT_FLOWER = MENUS.register("digital_construct_flower", () -> MenuTypeBuilder
+            .create(DigitalConstructFlowerMenu::new, DigitalConstructFlowerBlockEntity.class)
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "digital_construct_flower")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder
             .create(DataMimeticFieldMenu::new, DataMimeticFieldBlockEntity.class)

@@ -1,0 +1,132 @@
+package com.fish_dan_.data_energistics.common.crafting.flower;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+import net.neoforged.testframework.gametest.EmptyTemplate;
+
+import java.util.stream.Stream;
+
+@GameTestHolder(Data_Energistics.MODID)
+@PrefixGameTestTemplate(false)
+public final class DigitalConstructFlowerCraftingRuntimeTest {
+
+    private DigitalConstructFlowerCraftingRuntimeTest() {}
+
+    @TestHolder("digital_construct_flower_cpu_partitions_require_formed_structure")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuPartitionsRequireFormedStructure(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(false);
+
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 0, "Unformed flower should not expose CPUs");
+
+        flower.loadTag(formedTag(), HolderLookup.Provider.create(Stream.empty()));
+
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 4, "Formed flower should expose base CPU partitions");
+        helper.assertValueEqual(
+                flower.getCraftingRuntime().profile().storageBytes(),
+                1_048_576L,
+                "Formed flower should contribute base crafting storage");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_cpu_contribution_rebuilds_partitions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuContributionRebuildsPartitions(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(true);
+
+        flower.setCpuContribution("petal", DigitalConstructFlowerCpuContribution.of(1024L, 2, 2));
+
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 6, "Child contribution should add CPU partitions");
+        helper.assertValueEqual(
+                flower.getCraftingRuntime().profile().coProcessors(),
+                6,
+                "Child contribution should add co-processors");
+        flower.clearCpuContribution("petal");
+        helper.assertValueEqual(
+                flower.getCpuPartitions().size(),
+                4,
+                "Clearing child contribution should restore base partition count");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_cpu_contribution_rejects_null_without_changing_partitions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuContributionRejectsNullWithoutChangingPartitions(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(true);
+        int partitionCount = flower.getCpuPartitions().size();
+
+        try {
+            flower.setCpuContribution("petal", null);
+            helper.fail("Null CPU contribution should be rejected");
+        } catch (NullPointerException expected) {
+            helper.assertValueEqual(expected.getMessage(), "contribution", "Null contribution failure message");
+        }
+
+        helper.assertValueEqual(
+                flower.getCpuPartitions().size(),
+                partitionCount,
+                "Rejected contribution should not change CPU partitions");
+        helper.assertValueEqual(
+                flower.getCraftingRuntime().profile().storageBytes(),
+                1_048_576L,
+                "Rejected contribution should not pollute the CPU profile");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_cpu_runtime_defers_partition_logic_until_level_exists")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimeDefersPartitionLogicUntilLevelExists(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(true);
+
+        CompoundTag runtimeTag = new CompoundTag();
+        runtimeTag.put("contributions", new ListTag());
+        ListTag partitionsTag = new ListTag();
+        CompoundTag partitionTag = new CompoundTag();
+        partitionTag.putInt("index", 0);
+        CompoundTag logicTag = new CompoundTag();
+        logicTag.put("job", new CompoundTag());
+        partitionTag.put("logic", logicTag);
+        partitionsTag.add(partitionTag);
+        runtimeTag.put("partitions", partitionsTag);
+
+        flower.getCraftingRuntime().readFromTag(
+                runtimeTag,
+                HolderLookup.Provider.create(Stream.empty()));
+        helper.assertValueEqual(
+                flower.getCpuPartitions().size(),
+                4,
+                "Pending partition logic should not prevent partition rebuild before level attachment");
+        helper.succeed();
+    }
+
+    private static DigitalConstructFlowerBlockEntity digitalConstructFlower(boolean formed) {
+        DigitalConstructFlowerBlockEntity flower = new DigitalConstructFlowerBlockEntity(
+                BlockPos.ZERO,
+                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+        if (formed) {
+            flower.loadTag(formedTag(), HolderLookup.Provider.create(Stream.empty()));
+        }
+        return flower;
+    }
+
+    private static CompoundTag formedTag() {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("formed", true);
+        return tag;
+    }
+}
