@@ -51,6 +51,7 @@ import appeng.core.definitions.AEItems;
 import appeng.me.helpers.IGridConnectedBlockEntity;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
+import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.IOptionalSlot;
 
 import java.util.Collection;
@@ -286,22 +287,22 @@ public final class CompartmentInventoryTest {
                 "Right composite column must not become a plain output slot");
 
         MeCompositeInputWarehouseBlockEntity meInput = meInputWarehouse();
-        helper.assertValueEqual(meInput.configurableSlotLimit(), 27, "ME input warehouse should expose 27 marker groups");
-        helper.assertValueEqual(meInput.unlockedSlotCount(), 27, "Capacity cards should not unlock hidden ME input groups");
+        helper.assertValueEqual(meInput.configurableSlotLimit(), 25, "ME input warehouse should expose 25 marker groups");
+        helper.assertValueEqual(meInput.unlockedSlotCount(), 25, "Capacity cards should not unlock hidden ME input groups");
         helper.assertValueEqual(
-                meInput.markerInventory().insert(26, iron, 1L, Actionable.MODULATE),
+                meInput.markerInventory().insert(24, iron, 1L, Actionable.MODULATE),
                 1L,
                 "Last visible ME input marker slot should accept inserts");
         helper.assertValueEqual(
-                meInput.markerInventory().insert(27, iron, 1L, Actionable.MODULATE),
+                meInput.markerInventory().insert(25, iron, 1L, Actionable.MODULATE),
                 0L,
                 "Hidden ME input marker slot should reject inserts");
         helper.assertValueEqual(
-                meInput.meInputBuffer().insert(26, iron, 2L, Actionable.MODULATE),
+                meInput.meInputBuffer().insert(24, iron, 2L, Actionable.MODULATE),
                 2L,
                 "Last visible ME input buffer slot should accept pulled contents");
         helper.assertValueEqual(
-                meInput.meInputBuffer().insert(27, iron, 2L, Actionable.MODULATE),
+                meInput.meInputBuffer().insert(25, iron, 2L, Actionable.MODULATE),
                 0L,
                 "Hidden ME input buffer slot should reject pulled contents");
         helper.assertValueEqual(meInput.storage().amount(iron), 2L, "Only visible ME input buffer contents should aggregate");
@@ -587,6 +588,12 @@ public final class CompartmentInventoryTest {
                         playerInventory,
                         meInputWarehouse()),
                 "ME input warehouse menu");
+        assertMeInputWarehouseMainSlots(
+                helper,
+                new MeCompositeInputWarehouseMenu(
+                        5,
+                        playerInventory,
+                        meInputWarehouse()));
         assertPlayerInventorySlots(
                 helper,
                 new MeCompositeOutputWarehouseMenu(
@@ -1516,6 +1523,53 @@ public final class CompartmentInventoryTest {
         for (int row = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS; row < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS; row++) {
             assertSlotTextureColumn(helper, menu, CompartmentMenu.COMPARTMENT_FLUID, row, 0);
             assertSlotTextureColumn(helper, menu, CompartmentMenu.COMPARTMENT_KEY, row, 1);
+        }
+    }
+
+    private static void assertMeInputWarehouseMainSlots(GameTestHelper helper, CompartmentMenu menu) {
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_1);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_2);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_3);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_4);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_5);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_1);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_2);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_3);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_4);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_5);
+    }
+
+    private static void assertMeInputWarehouseMarkerRow(GameTestHelper helper,
+                                                        CompartmentMenu menu,
+                                                        SlotSemantic semantic) {
+        var slots = menu.getSlots(semantic);
+        helper.assertValueEqual(
+                slots.size(),
+                CompartmentMenu.ME_COMPOSITE_INPUT_ROW_SLOT_COUNT,
+                semantic.id() + " should expose one five-slot marker row");
+        for (var slot : slots) {
+            if (!(slot instanceof AppEngSlot appEngSlot)) {
+                helper.fail(semantic.id() + " should use AppEng slots");
+                return;
+            }
+            helper.assertTrue(appEngSlot.isHideAmount(), semantic.id() + " marker slots should hide stack amounts");
+        }
+    }
+
+    private static void assertMeInputWarehouseBufferRow(GameTestHelper helper,
+                                                        CompartmentMenu menu,
+                                                        SlotSemantic semantic) {
+        var slots = menu.getSlots(semantic);
+        helper.assertValueEqual(
+                slots.size(),
+                CompartmentMenu.ME_COMPOSITE_INPUT_ROW_SLOT_COUNT,
+                semantic.id() + " should expose one five-slot buffer row");
+        for (var slot : slots) {
+            if (!(slot instanceof AppEngSlot appEngSlot)) {
+                helper.fail(semantic.id() + " should use AppEng slots");
+                return;
+            }
+            helper.assertFalse(appEngSlot.isHideAmount(), semantic.id() + " buffer slots should keep pulled amounts visible");
         }
     }
 

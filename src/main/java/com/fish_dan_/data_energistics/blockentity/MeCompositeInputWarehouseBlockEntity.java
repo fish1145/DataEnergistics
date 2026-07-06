@@ -24,7 +24,7 @@ public class MeCompositeInputWarehouseBlockEntity extends AeCompartmentBlockEnti
 
     private static final String MARKER_TAG = "markers";
     private static final String ME_INPUT_BUFFER_TAG = "me_input_buffer";
-    private static final int ME_INPUT_CONFIGURABLE_SLOTS = 27;
+    private static final int ME_INPUT_CONFIGURABLE_SLOTS = 25;
     private static final int ME_INPUT_TRANSFER_PER_TICK = 4000;
 
     private final CompartmentInventory markerInventory = CompartmentInventory.config(

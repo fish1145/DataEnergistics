@@ -41,7 +41,10 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     public static final int COMPOSITE_WAREHOUSE_ROW_COUNT = CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS;
     public static final int COMPOSITE_WAREHOUSE_SLOT_COUNT = COMPOSITE_WAREHOUSE_ROW_SLOT_COUNT *
             COMPOSITE_WAREHOUSE_ROW_COUNT;
-    public static final int ME_COMPOSITE_INPUT_GROUP_COUNT = 27;
+    public static final int ME_COMPOSITE_INPUT_ROW_SLOT_COUNT = 5;
+    public static final int ME_COMPOSITE_INPUT_ROW_COUNT = 5;
+    public static final int ME_COMPOSITE_INPUT_GROUP_COUNT = ME_COMPOSITE_INPUT_ROW_SLOT_COUNT *
+            ME_COMPOSITE_INPUT_ROW_COUNT;
     public static final int ME_COMPOSITE_OUTPUT_DISPLAY_SLOT_COUNT = 36;
     public static final int PATTERN_BUFFER_DISPLAY_SLOT_COUNT = 24;
     public static final int SHARED_CATALYST_SLOT_COUNT = 9;
@@ -72,6 +75,12 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
     public static final SlotSemantic COMPARTMENT_CONFIG_ROW_3 = SlotSemantics.register(
             "COMPARTMENT_CONFIG_ROW_3",
             false);
+    public static final SlotSemantic COMPARTMENT_CONFIG_ROW_4 = SlotSemantics.register(
+            "COMPARTMENT_CONFIG_ROW_4",
+            false);
+    public static final SlotSemantic COMPARTMENT_CONFIG_ROW_5 = SlotSemantics.register(
+            "COMPARTMENT_CONFIG_ROW_5",
+            false);
     public static final SlotSemantic COMPARTMENT_BUFFER = SlotSemantics.register("COMPARTMENT_BUFFER", false);
     public static final SlotSemantic COMPARTMENT_BUFFER_ROW_1 = SlotSemantics.register(
             "COMPARTMENT_BUFFER_ROW_1",
@@ -81,6 +90,12 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
             false);
     public static final SlotSemantic COMPARTMENT_BUFFER_ROW_3 = SlotSemantics.register(
             "COMPARTMENT_BUFFER_ROW_3",
+            false);
+    public static final SlotSemantic COMPARTMENT_BUFFER_ROW_4 = SlotSemantics.register(
+            "COMPARTMENT_BUFFER_ROW_4",
+            false);
+    public static final SlotSemantic COMPARTMENT_BUFFER_ROW_5 = SlotSemantics.register(
+            "COMPARTMENT_BUFFER_ROW_5",
             false);
     public static final SlotSemantic COMPARTMENT_FLUID = SlotSemantics.register("COMPARTMENT_FLUID", false);
     public static final SlotSemantic COMPARTMENT_EXTRA_FLUID = SlotSemantics.register(
@@ -228,8 +243,10 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
         ConfigMenuInventory marker = host.markerInventory().createMenuWrapper();
         ConfigMenuInventory buffer = host.meInputBuffer().createMenuWrapper();
         for (int slot = 0; slot < ME_COMPOSITE_INPUT_GROUP_COUNT; slot++) {
-            int row = slot / 9;
-            addCapacityGatedSlot(new FakeSlot(marker, slot), configRowSemantic(row), slot);
+            int row = slot / ME_COMPOSITE_INPUT_ROW_SLOT_COUNT;
+            FakeSlot markerSlot = new FakeSlot(marker, slot);
+            markerSlot.setHideAmount(true);
+            addCapacityGatedSlot(markerSlot, configRowSemantic(row), slot);
             AppEngSlot bufferSlot = new AppEngSlot(buffer, slot);
             bufferSlot.setNotDraggable();
             addCapacityGatedSlot(bufferSlot, bufferRowSemantic(row), slot);
@@ -305,6 +322,8 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
             case 0 -> COMPARTMENT_CONFIG_ROW_1;
             case 1 -> COMPARTMENT_CONFIG_ROW_2;
             case 2 -> COMPARTMENT_CONFIG_ROW_3;
+            case 3 -> COMPARTMENT_CONFIG_ROW_4;
+            case 4 -> COMPARTMENT_CONFIG_ROW_5;
             default -> throw new IllegalArgumentException("ME input config row out of range: " + row);
         };
     }
@@ -314,6 +333,8 @@ public class CompartmentMenu extends AEBaseMenu implements IOptionalSlotHost {
             case 0 -> COMPARTMENT_BUFFER_ROW_1;
             case 1 -> COMPARTMENT_BUFFER_ROW_2;
             case 2 -> COMPARTMENT_BUFFER_ROW_3;
+            case 3 -> COMPARTMENT_BUFFER_ROW_4;
+            case 4 -> COMPARTMENT_BUFFER_ROW_5;
             default -> throw new IllegalArgumentException("ME input buffer row out of range: " + row);
         };
     }
