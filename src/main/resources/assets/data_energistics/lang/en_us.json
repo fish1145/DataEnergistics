@@ -111,6 +111,7 @@
 	"item.data_energistics.crop_data_carrier": "Crop Data Carrier",
 	"item.data_energistics.ore_data_carrier": "Ore Data Carrier",
 	"item.data_energistics.time_core": "Time Core",
+	"item.data_energistics.me_vacuum": "ME Vacuum",
 	"item.data_energistics.data_flow_component_housing": "Data Flow Component Housing",
 	"item.data_energistics.data_distribution_connector": "Distribution Connector",
 	"item.data_energistics.data_distribution_connector.tooltip.bound": "Bound tower: %s @ [%s, %s, %s]",

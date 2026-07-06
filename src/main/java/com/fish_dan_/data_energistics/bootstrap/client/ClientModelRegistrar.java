@@ -3,11 +3,14 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.render.DataMeteoriteCompassBakedModel;
 import com.fish_dan_.data_energistics.client.render.DataSanctumRenderer;
+import com.fish_dan_.data_energistics.client.render.MeVacuumBakedModel;
+import com.fish_dan_.data_energistics.registry.ModStorageCells;
 
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.neoforged.neoforge.client.event.ModelEvent;
 
+import appeng.api.client.StorageCellModels;
 import appeng.client.render.model.MeteoriteCompassBakedModel;
 
 final class ClientModelRegistrar {
@@ -15,6 +18,15 @@ final class ClientModelRegistrar {
     private ClientModelRegistrar() {}
 
     static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
+        event.register(ModelResourceLocation.standalone(StorageCellModels.getDefaultModel()));
+        StorageCellModels.models().values()
+                .forEach(model -> event.register(ModelResourceLocation.standalone(model)));
+        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_1K));
+        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_4K));
+        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_16K));
+        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_64K));
+        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_256K));
+        event.register(ModelResourceLocation.standalone(ModStorageCells.DRIVE_INFINITY));
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier")));
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/ore_data_carrier")));
         event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
@@ -36,6 +48,12 @@ final class ClientModelRegistrar {
         if (baseModel != null && pointerModel != null) {
             event.getModels().put(compass, new DataMeteoriteCompassBakedModel(
                     new MeteoriteCompassBakedModel(baseModel, pointerModel)));
+        }
+
+        ModelResourceLocation meVacuum = ModelResourceLocation.inventory(Data_Energistics.id("me_vacuum"));
+        BakedModel meVacuumModel = event.getModels().get(meVacuum);
+        if (meVacuumModel != null && !(meVacuumModel instanceof MeVacuumBakedModel)) {
+            event.getModels().put(meVacuum, new MeVacuumBakedModel(meVacuumModel));
         }
     }
 }

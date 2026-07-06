@@ -111,6 +111,7 @@
 	"item.data_energistics.crop_data_carrier": "农作数据载体",
 	"item.data_energistics.ore_data_carrier": "矿石数据载体",
 	"item.data_energistics.time_core": "时间核心",
+	"item.data_energistics.me_vacuum": "ME 吸尘器",
 	"item.data_energistics.data_flow_component_housing": "数据流元件外壳",
 	"item.data_energistics.data_distribution_connector": "均分连接器",
 	"item.data_energistics.data_distribution_connector.tooltip.bound": "已绑定均分塔：%s @ [%s, %s, %s]",

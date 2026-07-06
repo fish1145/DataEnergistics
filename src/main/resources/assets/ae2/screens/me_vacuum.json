@@ -1,0 +1,51 @@
+{
+	"$schema": "schema.json",
+	"includes": ["common/common.json", "common/player_inventory.json"],
+	"background": {
+		"texture": "guis/me_vacuum.png",
+		"srcRect": [0, 0, 176, 166]
+	},
+	"slots": {
+		"STORAGE_CELL": {
+			"left": 44,
+			"top": 21,
+			"grid": "HORIZONTAL"
+		},
+		"UPGRADE": {
+			"left": 152,
+			"top": 22,
+			"grid": "VERTICAL"
+		},
+		"PLAYER_INVENTORY": {
+			"left": 8,
+			"top": 59,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 8,
+			"top": 117,
+			"grid": "HORIZONTAL"
+		}
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "item.data_energistics.me_vacuum"
+			},
+			"position": {
+				"left": 8,
+				"top": 6
+			},
+			"maxWidth": 160
+		},
+		"player_inventory_title": {
+			"text": {
+				"translate": "container.inventory"
+			},
+			"position": {
+				"left": 8,
+				"top": 47
+			}
+		}
+	}
+}

@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.InfiniteDataCellItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.MeVacuumItem;
 import com.fish_dan_.data_energistics.item.PoweredAxeItem;
 import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.item.PoweredHoeItem;
@@ -199,6 +200,9 @@ public final class ModItems {
     public static final DeferredItem<Item> ORE_DATA_CARRIER = ITEMS.register("ore_data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), true));
     public static final DeferredItem<Item> TIME_CORE = ITEMS.registerSimpleItem("time_core");
+    public static final DeferredItem<MeVacuumItem> ME_VACUUM = ITEMS.register(
+            "me_vacuum",
+            () -> new MeVacuumItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> DATA_FLOW_COMPONENT_HOUSING = ITEMS.registerSimpleItem("data_flow_component_housing");
     public static final DeferredItem<DataDistributionConnectorItem> DATA_DISTRIBUTION_CONNECTOR = ITEMS.register(
             "data_distribution_connector",
