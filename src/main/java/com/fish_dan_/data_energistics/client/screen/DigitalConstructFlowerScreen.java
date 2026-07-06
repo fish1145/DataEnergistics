@@ -50,23 +50,23 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     protected void updateBeforeRender() {
         super.updateBeforeRender();
 
-        setTextContent("dialog_title", Component.translatable("block.data_energistics.digital_construct_flower"));
+        setTextContent("dialog_title", Component.translatable("block.data_energistics.trinity_data_core"));
         setTextContent("online", Component.translatable(
                 this.menu.online ? "screen.data_energistics.status.online" : "screen.data_energistics.status.offline"));
         setTextContent("formed", Component.translatable(
-                "screen.data_energistics.digital_construct_flower.formed",
-                Component.translatable(this.menu.structureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no")));
+                "screen.data_energistics.trinity_data_core.formed",
+                Component.translatable(this.menu.structureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no")));
         setTextContent("matched_blocks", Component.translatable(
-                "screen.data_energistics.digital_construct_flower.matched_blocks",
+                "screen.data_energistics.trinity_data_core.matched_blocks",
                 this.menu.matchedBlockCount));
         setTextContent("pattern_buffers", Component.translatable(
-                "screen.data_energistics.digital_construct_flower.pattern_buffers",
+                "screen.data_energistics.trinity_data_core.pattern_buffers",
                 this.menu.patternBufferCount));
         setTextContent("last_failure", Component.translatable(
-                "screen.data_energistics.digital_construct_flower.last_failure",
+                "screen.data_energistics.trinity_data_core.last_failure",
                 getFailureSummary()));
         setTextContent("busy_cpus", Component.translatable(
-                "screen.data_energistics.digital_construct_flower.busy_cpus",
+                "screen.data_energistics.trinity_data_core.busy_cpus",
                 this.menu.busyCraftingCpuCount));
     }
 
@@ -110,7 +110,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             tooltip.add(target.what().getDisplayName());
             tooltip.add(GenericStackDisplayHelper.createAmountTooltip(target));
             tooltip.add(Component.translatable(
-                    "screen.data_energistics.digital_construct_flower.busy_cpus",
+                    "screen.data_energistics.trinity_data_core.busy_cpus",
                     this.menu.busyCraftingCpuCount).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
@@ -120,11 +120,11 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
                 isMouseOverLocal(mouseX, mouseY, STATUS_X, STATUS_Y, STATUS_WIDTH, STATUS_HEIGHT)) {
             List<Component> tooltip = new ArrayList<>();
             tooltip.add(Component.translatable(
-                    "screen.data_energistics.digital_construct_flower.last_failure",
+                    "screen.data_energistics.trinity_data_core.last_failure",
                     MultiBlockFailureText.describe(this.menu.lastFailureReason)));
             if (!this.menu.lastFailurePosition.isBlank()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.digital_construct_flower.failure_position",
+                        "screen.data_energistics.trinity_data_core.failure_position",
                         this.menu.lastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
             }
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
@@ -136,7 +136,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private Component getFailureSummary() {
         if (!hasFailure()) {
-            return Component.translatable("screen.data_energistics.digital_construct_flower.no_failure");
+            return Component.translatable("screen.data_energistics.trinity_data_core.no_failure");
         }
         return MultiBlockFailureText.summarize(this.menu.lastFailureReason, FAILURE_SUMMARY_LENGTH);
     }

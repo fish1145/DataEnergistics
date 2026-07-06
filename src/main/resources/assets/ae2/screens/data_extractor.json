@@ -106,6 +106,10 @@
 		"upgrades": {
 			"left": 174,
 			"top": 0
+		},
+		"display_component": {
+			"left": 174,
+			"top": 141
 		}
 	}
 }

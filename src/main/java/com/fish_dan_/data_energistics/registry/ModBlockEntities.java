@@ -46,7 +46,7 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(DataRipperReassemblerBlockEntity::new, ModBlocks.DATA_RIPPER_REASSEMBLER.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalConstructFlowerBlockEntity>> DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "digital_construct_flower",
+            "trinity_data_core",
             () -> BlockEntityType.Builder.of(DigitalConstructFlowerBlockEntity::new, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(

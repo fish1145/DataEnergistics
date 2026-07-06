@@ -74,9 +74,9 @@ public final class ModMenus {
             .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<DigitalConstructFlowerMenu>> DIGITAL_CONSTRUCT_FLOWER = MENUS.register("digital_construct_flower", () -> MenuTypeBuilder
+    public static final DeferredHolder<MenuType<?>, MenuType<DigitalConstructFlowerMenu>> DIGITAL_CONSTRUCT_FLOWER = MENUS.register("trinity_data_core", () -> MenuTypeBuilder
             .create(DigitalConstructFlowerMenu::new, DigitalConstructFlowerBlockEntity.class)
-            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "digital_construct_flower")));
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_data_core")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder
             .create(DataMimeticFieldMenu::new, DataMimeticFieldBlockEntity.class)

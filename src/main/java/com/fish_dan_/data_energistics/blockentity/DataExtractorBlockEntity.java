@@ -34,6 +34,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.NeutralMob;
@@ -69,6 +70,7 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
+import appeng.items.storage.ViewCellItem;
 import appeng.util.Platform;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
@@ -79,6 +81,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -93,14 +96,16 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     public static final int ENERGY_CACHE_CAPACITY = 1600;
     public static final int DATA_FLOW_PER_ENERGY_CARD = 200;
     public static final int AE_CACHE_PER_ENERGY_CARD = 100;
+    public static final int DATA_FLOW_PER_EXPERIENCE = 5;
     private static final int DEBUFF_DURATION_TICKS = 60;
     private static final int DEBUFF_REAPPLY_INTERVAL_TICKS = 10;
-    private static final int STORAGE_SLOTS = 4;
+    private static final int STORAGE_SLOTS = 5;
     private static final int CARRIER_SLOT = 0;
     private static final int SWORD_SLOT = 1;
     private static final int ORE_SLOT = 2;
     private static final int CROP_SLOT = 3;
-    private static final int UPGRADE_SLOTS = 6;
+    private static final int DISPLAY_COMPONENT_SLOT = 4;
+    private static final int UPGRADE_SLOTS = 7;
     private static final int BASE_HORIZONTAL_RANGE = 1;
     private static final int BASE_VERTICAL_RANGE = 3;
     private static final int RANGE_PER_CAPACITY_CARD = 2;
@@ -119,7 +124,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(ModBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
     private final InternalInventory externalInventory = new FilteredInternalInventory(
-            this.storage.getSubInventory(CARRIER_SLOT, CROP_SLOT + 1),
+            this.storage.getSubInventory(CARRIER_SLOT, DISPLAY_COMPONENT_SLOT + 1),
             new IAEItemFilter() {
 
                 @Override
@@ -129,6 +134,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                         case SWORD_SLOT -> stack.is(ItemTags.SWORDS);
                         case ORE_SLOT -> isOreOrRawOre(stack);
                         case CROP_SLOT -> isSupportedCrop(stack);
+                        case DISPLAY_COMPONENT_SLOT -> isDisplayComponentItem(stack);
                         default -> false;
                     };
                 }
@@ -169,7 +175,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
             @Override
             public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-                return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get()) || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS) || slot == ORE_SLOT && isOreOrRawOre(stack) || slot == CROP_SLOT && isSupportedCrop(stack);
+                return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get()) || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS) || slot == ORE_SLOT && isOreOrRawOre(stack) || slot == CROP_SLOT && isSupportedCrop(stack) || slot == DISPLAY_COMPONENT_SLOT && isDisplayComponentItem(stack);
             }
         });
     }
@@ -442,6 +448,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return this.cachedEnergyCardCount;
     }
 
+    private boolean hasFuzzyCard() {
+        return this.upgrades.getInstalledUpgrades(AEItems.FUZZY_CARD) > 0;
+    }
+
     public static int computeDamagePerCycle(ItemStack sword, @Nullable HolderLookup.Provider registries) {
         return Math.round(DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword) + getStaticSwordEnchantmentDamage(sword, registries));
     }
@@ -459,6 +469,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return CropDataCarrierData.isAllowedCropItem(itemId);
+    }
+
+    public static boolean isDisplayComponentItem(ItemStack stack) {
+        return AEItems.VIEW_CELL.is(stack);
     }
 
     private static boolean matchesConfiguredRule(DataExtractorRuleTable.Slot slot, ItemStack stack) {
@@ -640,6 +654,17 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 Math.min(this.level.getMaxBuildHeight(), maxY),
                 maxZ);
         return this.cachedCoverageAabb;
+    }
+
+    private AABB getDropCollectionAabb() {
+        AABB coverage = getCoverageAabb();
+        return new AABB(
+                coverage.minX,
+                Math.max(this.level != null ? this.level.getMinBuildHeight() : Integer.MIN_VALUE, this.worldPosition.getY()),
+                coverage.minZ,
+                coverage.maxX,
+                coverage.maxY,
+                coverage.maxZ);
     }
 
     private void performWork() {
@@ -1078,25 +1103,38 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private void tryAutoExport() {
+        boolean fuzzyCardInstalled = hasFuzzyCard();
+        if (fuzzyCardInstalled) {
+            tickDroppedItemCollection(List.of(), null);
+        }
+
         if (this.autoExportMode == DataExtractorAutoExportMode.OFF) {
-            this.dropCollectionCooldown = 0;
+            if (!fuzzyCardInstalled) {
+                this.dropCollectionCooldown = 0;
+            }
             return;
         }
 
         if (this.autoExportMode == DataExtractorAutoExportMode.CONTAINER) {
             List<IItemHandler> adjacentHandlers = getAdjacentItemHandlers();
             if (adjacentHandlers.isEmpty()) {
-                this.dropCollectionCooldown = 0;
+                if (!fuzzyCardInstalled) {
+                    this.dropCollectionCooldown = 0;
+                }
             } else {
                 exportCompletedCarrier(adjacentHandlers, null);
-                tickDroppedItemCollection(adjacentHandlers, null);
+                if (!fuzzyCardInstalled) {
+                    tickDroppedItemCollection(adjacentHandlers, null);
+                }
             }
             return;
         }
 
         MEStorage networkStorage = getConnectedItemNetwork();
         exportCompletedCarrier(List.of(), networkStorage);
-        tickDroppedItemCollection(List.of(), networkStorage);
+        if (!fuzzyCardInstalled) {
+            tickDroppedItemCollection(List.of(), networkStorage);
+        }
     }
 
     private void exportCompletedCarrier(List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
@@ -1129,15 +1167,25 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
+        if (hasFuzzyCard()) {
+            handleFuzzyCardDropsAndExperience(serverLevel);
+            return;
+        }
         if (this.autoExportMode != DataExtractorAutoExportMode.AE && adjacentHandlers.isEmpty()) {
             return;
         }
 
+        Set<AEItemKey> viewCellMarkedItems = getViewCellMarkedItems();
+        boolean inverted = hasViewCellInverterCard();
         for (ItemEntity itemEntity : serverLevel.getEntitiesOfClass(
                 ItemEntity.class,
-                getCoverageAabb(),
+                getDropCollectionAabb(),
                 entity -> entity.isAlive() && !entity.getItem().isEmpty())) {
             ItemStack currentStack = itemEntity.getItem();
+            if (!shouldCollectDroppedItem(currentStack, viewCellMarkedItems, inverted)) {
+                continue;
+            }
+
             int originalCount = currentStack.getCount();
             ItemStack remaining = routeAutoExportItem(currentStack, adjacentHandlers, networkStorage);
             if (remaining.getCount() >= originalCount) {
@@ -1150,6 +1198,112 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
                 itemEntity.setItem(remaining);
             }
         }
+    }
+
+    private void handleFuzzyCardDropsAndExperience(ServerLevel serverLevel) {
+        MEStorage networkStorage = getConnectedItemNetwork();
+
+        Set<AEItemKey> viewCellMarkedItems = getViewCellMarkedItems();
+        boolean inverted = hasViewCellInverterCard();
+        boolean changed = false;
+        for (ItemEntity itemEntity : serverLevel.getEntitiesOfClass(
+                ItemEntity.class,
+                getDropCollectionAabb(),
+                entity -> entity.isAlive() && !entity.getItem().isEmpty())) {
+            ItemStack stack = itemEntity.getItem();
+            if (!shouldCollectDroppedItem(stack, viewCellMarkedItems, inverted)) {
+                continue;
+            }
+
+            itemEntity.discard();
+            changed = true;
+        }
+
+        for (ExperienceOrb orb : serverLevel.getEntitiesOfClass(
+                ExperienceOrb.class,
+                getDropCollectionAabb(),
+                ExperienceOrb::isAlive)) {
+            if (networkStorage == null) {
+                break;
+            }
+            int value = orb.getValue();
+            int converted = convertToDataFlow(networkStorage, value, DATA_FLOW_PER_EXPERIENCE);
+            if (converted <= 0) {
+                continue;
+            }
+
+            if (converted >= value) {
+                orb.discard();
+            } else {
+                orb.value = value - converted;
+            }
+            changed = true;
+        }
+
+        if (changed) {
+            this.saveChanges();
+            this.markForClientUpdate();
+        }
+    }
+
+    private boolean shouldCollectDroppedItem(ItemStack stack, @Nullable Set<AEItemKey> viewCellMarkedItems, boolean inverted) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        if (viewCellMarkedItems == null) {
+            return true;
+        }
+        if (viewCellMarkedItems.isEmpty()) {
+            return true;
+        }
+
+        AEItemKey key = AEItemKey.of(stack);
+        if (key == null) {
+            return false;
+        }
+
+        boolean listed = viewCellMarkedItems.contains(key);
+        return inverted != listed;
+    }
+
+    @Nullable
+    private Set<AEItemKey> getViewCellMarkedItems() {
+        ItemStack viewCell = this.storage.getStackInSlot(DISPLAY_COMPONENT_SLOT);
+        if (!(viewCell.getItem() instanceof ViewCellItem viewCellItem)) {
+            return null;
+        }
+
+        Set<AEItemKey> markedItems = new HashSet<>();
+        var config = viewCellItem.getConfigInventory(viewCell);
+        for (int i = 0; i < config.size(); i++) {
+            if (config.getKey(i) instanceof AEItemKey itemKey) {
+                markedItems.add(itemKey);
+            }
+        }
+        return markedItems;
+    }
+
+    private boolean hasViewCellInverterCard() {
+        ItemStack viewCell = this.storage.getStackInSlot(DISPLAY_COMPONENT_SLOT);
+        if (!(viewCell.getItem() instanceof ViewCellItem viewCellItem)) {
+            return false;
+        }
+
+        return viewCellItem.getUpgrades(viewCell).isInstalled(AEItems.INVERTER_CARD);
+    }
+
+    private int convertToDataFlow(MEStorage networkStorage, int units, int dataFlowPerUnit) {
+        if (units <= 0 || dataFlowPerUnit <= 0) {
+            return 0;
+        }
+
+        long requested = (long) units * dataFlowPerUnit;
+        long inserted = networkStorage.insert(
+                DataFlowKey.of(),
+                requested,
+                Actionable.MODULATE,
+                IActionSource.ofMachine(this));
+        return (int) Math.min(units, inserted / dataFlowPerUnit);
     }
 
     private ItemStack routeAutoExportItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {

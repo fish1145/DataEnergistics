@@ -7,7 +7,7 @@
 			"entries": [
 				{
 					"type": "minecraft:item",
-					"name": "data_energistics:digital_construct_flower"
+					"name": "data_energistics:trinity_data_core"
 				}
 			],
 			"conditions": [
