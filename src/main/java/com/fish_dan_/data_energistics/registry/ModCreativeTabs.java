@@ -116,7 +116,7 @@ public final class ModCreativeTabs {
                     .build());
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MULTIBLOCK_TAB = CREATIVE_MODE_TABS.register(
-            "multiblock",
+            Data_Energistics.MODID + "_multiblock",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + Data_Energistics.MODID + ".multiblock"))
                     .icon(ModItems.DIGITAL_CONSTRUCT_FLOWER::toStack)
