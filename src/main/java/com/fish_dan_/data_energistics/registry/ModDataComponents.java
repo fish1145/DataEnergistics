@@ -111,6 +111,14 @@ public final class ModDataComponents {
                     .cacheEncoding()
                     .build());
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID = DATA_COMPONENT_TYPES.register(
+            "digital_construct_flower_storage_id",
+            () -> DataComponentType.<String>builder()
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8)
+                    .cacheEncoding()
+                    .build());
+
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> MATTER_CONVERGING_CROSSBOW_STORED_DATA = DATA_COMPONENT_TYPES.register(
             "matter_converging_crossbow_stored_data",
             () -> DataComponentType.<Long>builder()

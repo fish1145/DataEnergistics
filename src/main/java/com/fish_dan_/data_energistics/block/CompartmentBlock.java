@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -103,6 +104,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
             case ME_INPUT -> new MeCompositeInputWarehouseBlockEntity(pos, state);
             case ME_OUTPUT -> new MeCompositeOutputWarehouseBlockEntity(pos, state);
             case PATTERN_BUFFER -> new MePatternBufferBlockEntity(pos, state);
+            case ME_STORAGE_ACCESS -> new MeStorageAccessHatchBlockEntity(pos, state);
         };
     }
 
@@ -116,6 +118,8 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
         return (tickLevel, tickPos, tickState, blockEntity) -> {
             if (blockEntity instanceof CompartmentBlockEntity compartment) {
                 compartment.serverTick();
+            } else if (blockEntity instanceof MeStorageAccessHatchBlockEntity hatch) {
+                hatch.serverTick();
             }
         };
     }
@@ -135,6 +139,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
             case ME_INPUT -> ModMenus.ME_COMPOSITE_INPUT_WAREHOUSE;
             case ME_OUTPUT -> ModMenus.ME_COMPOSITE_OUTPUT_WAREHOUSE;
             case PATTERN_BUFFER -> ModMenus.ME_PATTERN_BUFFER;
+            case ME_STORAGE_ACCESS -> throw new IllegalStateException("ME storage access hatch has no menu");
         };
     }
 }

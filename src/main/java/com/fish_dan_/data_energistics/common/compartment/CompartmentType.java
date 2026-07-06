@@ -15,7 +15,8 @@ public enum CompartmentType {
     OUTPUT("output", false),
     ME_INPUT("me_input", true),
     ME_OUTPUT("me_output", true),
-    PATTERN_BUFFER("pattern_buffer", false);
+    PATTERN_BUFFER("pattern_buffer", false),
+    ME_STORAGE_ACCESS("me_storage_access", true);
 
     private final String id;
     private final boolean aeCapable;

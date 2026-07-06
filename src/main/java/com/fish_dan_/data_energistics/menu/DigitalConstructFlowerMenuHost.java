@@ -44,4 +44,34 @@ public interface DigitalConstructFlowerMenuHost {
      * Returns the live crafting CPU target snapshot visible from this host's ME network.
      */
     DigitalConstructFlowerCraftingStatus getCraftingStatus();
+
+    /**
+     * Returns how many AE key types are stored in the host UUID storage.
+     */
+    int getStoredTypeCount();
+
+    /**
+     * Returns the total host UUID storage amount as a decimal string because it may exceed {@code long}.
+     */
+    String getStoredAmountText();
+
+    /**
+     * Returns active virtual CPU partitions contributed by the formed trinity structure.
+     */
+    int getCpuPartitionCount();
+
+    /**
+     * Returns virtual CPU partitions that are currently running a job.
+     */
+    int getBusyCpuPartitionCount();
+
+    /**
+     * Returns aggregate crafting storage bytes exposed by the virtual CPU profile.
+     */
+    long getCpuStorageBytes();
+
+    /**
+     * Returns aggregate co-processors exposed by the virtual CPU profile.
+     */
+    int getCpuCoProcessors();
 }

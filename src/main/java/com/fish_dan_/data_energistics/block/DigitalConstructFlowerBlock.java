@@ -18,11 +18,15 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock implements EntityBlock {
 
@@ -47,7 +51,20 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
+            flower.restoreStorageIdFromItem(stack);
+        }
         DigitalConstructFlowerBlockEntity.requestRecheckAround(level, pos);
+    }
+
+    @Override
+    public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
+        BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
+        ItemStack stack = new ItemStack(this);
+        if (blockEntity instanceof DigitalConstructFlowerBlockEntity flower) {
+            flower.saveStorageIdToItem(stack);
+        }
+        return List.of(stack);
     }
 
     @Override

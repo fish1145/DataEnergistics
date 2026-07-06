@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -105,6 +106,11 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(
                     MePatternBufferBlockEntity::new,
                     ModBlocks.ME_PATTERN_BUFFER.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MeStorageAccessHatchBlockEntity>> ME_STORAGE_ACCESS_HATCH_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "me_storage_access_hatch",
+            () -> BlockEntityType.Builder.of(
+                    MeStorageAccessHatchBlockEntity::new,
+                    ModBlocks.ME_STORAGE_ACCESS_HATCH.get()).build(null));
 
     private ModBlockEntities() {}
 
@@ -112,7 +118,8 @@ public final class ModBlockEntities {
         return type == COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
-                type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get();
+                type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get() ||
+                type == ME_STORAGE_ACCESS_HATCH_BLOCK_ENTITY.get();
     }
 
     public static void register(IEventBus modEventBus) {

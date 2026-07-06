@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.flower;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -10,6 +11,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -111,6 +113,37 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 flower.getCpuPartitions().size(),
                 4,
                 "Pending partition logic should not prevent partition rebuild before level attachment");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_storage_id_round_trips_through_item_and_nbt")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void storageIdRoundTripsThroughItemAndNbt(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity original = digitalConstructFlower(false);
+        ItemStack stack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        original.saveStorageIdToItem(stack);
+        String storageId = stack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID);
+
+        DigitalConstructFlowerBlockEntity placed = digitalConstructFlower(false);
+        placed.restoreStorageIdFromItem(stack);
+        ItemStack placedStack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        placed.saveStorageIdToItem(placedStack);
+        helper.assertValueEqual(
+                placedStack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID),
+                storageId,
+                "Placed host should restore the storage id from the item component");
+
+        CompoundTag saved = new CompoundTag();
+        placed.saveAdditional(saved, HolderLookup.Provider.create(Stream.empty()));
+        DigitalConstructFlowerBlockEntity loaded = digitalConstructFlower(false);
+        loaded.loadTag(saved, HolderLookup.Provider.create(Stream.empty()));
+        ItemStack loadedStack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        loaded.saveStorageIdToItem(loadedStack);
+        helper.assertValueEqual(
+                loadedStack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID),
+                storageId,
+                "Loaded host should keep the storage id from block entity NBT");
         helper.succeed();
     }
 

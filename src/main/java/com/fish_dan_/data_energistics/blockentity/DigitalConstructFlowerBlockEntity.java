@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCpuContribution;
+import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCpuProfile;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
@@ -24,7 +25,10 @@ import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerCraftingStatus;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
+import com.fish_dan_.data_energistics.world.DigitalConstructFlowerStorageSavedData;
+import com.fish_dan_.data_energistics.world.DigitalConstructFlowerStorageSavedData.StorageSummary;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -35,6 +39,7 @@ import net.minecraft.nbt.LongTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -57,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                                                implements MultiBlockStatusProvider, CompartmentHost, DigitalConstructFlowerMenuHost {
@@ -68,9 +74,11 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
     private static final String CRAFTING_RUNTIME_TAG = "crafting_runtime";
+    private static final String STORAGE_ID_TAG = "storage_id";
     private static final String NO_FAILURE = "";
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
+    private UUID storageId = UUID.randomUUID();
     private boolean formed;
     private List<BlockPos> matchedPositions = List.of();
     private String lastFailureReason = NO_FAILURE;
@@ -247,6 +255,58 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return compartmentHost$getPatternBuffers(mainDefinitionKey().structureName());
     }
 
+    public UUID getStorageId() {
+        return this.storageId;
+    }
+
+    public void restoreStorageIdFromItem(ItemStack stack) {
+        String rawId = stack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID);
+        if (rawId == null || rawId.isBlank()) {
+            return;
+        }
+        setStorageId(parseStorageId(rawId, "item component"));
+    }
+
+    public void saveStorageIdToItem(ItemStack stack) {
+        stack.set(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID, this.storageId.toString());
+    }
+
+    @Override
+    public int getStoredTypeCount() {
+        return storageSummary().typeCount();
+    }
+
+    @Override
+    public String getStoredAmountText() {
+        return storageSummary().totalAmount();
+    }
+
+    @Override
+    public int getCpuPartitionCount() {
+        return this.craftingRuntime.profile().partitionCount();
+    }
+
+    @Override
+    public int getBusyCpuPartitionCount() {
+        int busyPartitions = 0;
+        for (DigitalConstructFlowerVirtualCpu cpu : this.craftingRuntime.partitions()) {
+            if (cpu.isBusy()) {
+                busyPartitions++;
+            }
+        }
+        return busyPartitions;
+    }
+
+    @Override
+    public long getCpuStorageBytes() {
+        return this.craftingRuntime.profile().storageBytes();
+    }
+
+    @Override
+    public int getCpuCoProcessors() {
+        return this.craftingRuntime.profile().coProcessors();
+    }
+
     /**
      * Replaces CPU data contributed by a named child structure.
      *
@@ -308,14 +368,43 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             }
         }
 
-        if (selectedJob == null) {
-            return new DigitalConstructFlowerCraftingStatus(null, busyCpuCount);
-        }
-        return new DigitalConstructFlowerCraftingStatus(selectedJob.crafting(), busyCpuCount);
+        DigitalConstructFlowerCpuProfile profile = this.craftingRuntime.profile();
+        GenericStack target = selectedJob == null ? null : selectedJob.crafting();
+        return new DigitalConstructFlowerCraftingStatus(
+                target,
+                busyCpuCount,
+                profile.partitionCount(),
+                getBusyCpuPartitionCount(),
+                profile.storageBytes(),
+                profile.coProcessors());
     }
 
     private static boolean hasCraftingTarget(@Nullable GenericStack stack) {
         return stack != null && stack.what() != null && stack.amount() > 0;
+    }
+
+    private StorageSummary storageSummary() {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return StorageSummary.EMPTY;
+        }
+        return DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
+    }
+
+    private void setStorageId(UUID storageId) {
+        if (this.storageId.equals(storageId)) {
+            return;
+        }
+        this.storageId = storageId;
+        setChanged();
+    }
+
+    private static UUID parseStorageId(String rawId, String source) {
+        try {
+            return UUID.fromString(rawId);
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Invalid Digital Construct Flower storage id '{}' from {}; generating a replacement", rawId, source, exception);
+            return UUID.randomUUID();
+        }
     }
 
     public static void requestRecheckAround(Level level, BlockPos origin) {
@@ -336,6 +425,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
+        if (data.contains(STORAGE_ID_TAG, Tag.TAG_STRING)) {
+            setStorageId(parseStorageId(data.getString(STORAGE_ID_TAG), "block entity tag"));
+        }
         this.formed = data.getBoolean(FORMED_TAG);
         this.matchedPositions = readMatchedPositions(data);
         this.lastFailureReason = data.getString(LAST_FAILURE_REASON_TAG);
@@ -353,6 +445,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
+        data.putString(STORAGE_ID_TAG, this.storageId.toString());
         data.putBoolean(FORMED_TAG, this.formed);
         data.put(MATCHED_POSITIONS_TAG, createMatchedPositionsTag());
         data.putString(LAST_FAILURE_REASON_TAG, this.lastFailureReason);
