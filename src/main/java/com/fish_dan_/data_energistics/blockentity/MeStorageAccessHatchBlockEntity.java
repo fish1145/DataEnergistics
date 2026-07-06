@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
+import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -21,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.stacks.AEKey;
@@ -75,7 +77,7 @@ public class MeStorageAccessHatchBlockEntity extends AENetworkedBlockEntity impl
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
-        boolean active = boundFlower() != null;
+        boolean active = accessGrid() != null;
         BlockState state = getBlockState();
         if (state.hasProperty(CompartmentBlock.ACTIVE) && state.getValue(CompartmentBlock.ACTIVE) != active) {
             this.level.setBlock(this.worldPosition, state.setValue(CompartmentBlock.ACTIVE, active), 3);
@@ -171,25 +173,53 @@ public class MeStorageAccessHatchBlockEntity extends AENetworkedBlockEntity impl
         }
     }
 
+    public @Nullable DigitalConstructFlowerCraftingRuntime boundCraftingRuntime() {
+        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
+        return flower == null ? null : flower.getCraftingRuntime();
+    }
+
+    public @Nullable IGrid accessGrid() {
+        if (boundFlower(false) == null) {
+            return null;
+        }
+        var node = this.getMainNode().getNode();
+        if (node == null || !node.isActive()) {
+            return null;
+        }
+        return node.getGrid();
+    }
+
+    public IActionSource actionSource() {
+        return IActionSource.ofMachine(this);
+    }
+
     @Nullable
     private DigitalConstructFlowerBlockEntity boundFlower() {
+        return boundFlower(true);
+    }
+
+    @Nullable
+    private DigitalConstructFlowerBlockEntity boundFlower(boolean logUnavailable) {
         if (this.compartmentHost == null || this.structureName == null) {
-            logUnavailable("not bound to a trinity structure");
+            logUnavailable(logUnavailable, "not bound to a trinity structure");
             return null;
         }
         if (!(this.compartmentHost instanceof DigitalConstructFlowerBlockEntity flower)) {
-            logUnavailable("bound host is not a Digital Construct Flower");
+            logUnavailable(logUnavailable, "bound host is not a Digital Construct Flower");
             return null;
         }
         if (!flower.isStructureFormed()) {
-            logUnavailable("bound Digital Construct Flower structure is not formed");
+            logUnavailable(logUnavailable, "bound Digital Construct Flower structure is not formed");
             return null;
         }
         this.lastUnavailableReason = null;
         return flower;
     }
 
-    private void logUnavailable(String reason) {
+    private void logUnavailable(boolean shouldLog, String reason) {
+        if (!shouldLog) {
+            return;
+        }
         if (reason.equals(this.lastUnavailableReason)) {
             return;
         }
@@ -221,7 +251,7 @@ public class MeStorageAccessHatchBlockEntity extends AENetworkedBlockEntity impl
                 return 0L;
             }
             long inserted = DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer())
-                    .insert(flower.getStorageId(), what, amount, mode);
+                    .insert(flower.getStorageId(), what, amount, mode, flower.storageProfile());
             if (inserted > 0L && mode == Actionable.MODULATE) {
                 requestStorageUpdate();
             }

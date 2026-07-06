@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
@@ -87,6 +88,74 @@ public final class DigitalConstructFlowerStorageSavedDataTest {
                 loaded.summary(hostId),
                 DigitalConstructFlowerStorageSavedData.StorageSummary.EMPTY,
                 "Storage should remove empty entries");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_storage_saved_data_profile_limits_insert")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void profileLimitsInsertedAmountAndTypes(GameTestHelper helper) {
+        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+        UUID hostId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        if (iron == null || gold == null) {
+            helper.fail("Item keys should be available in the GameTest registry");
+            return;
+        }
+        DigitalConstructFlowerStorageProfile profile = new DigitalConstructFlowerStorageProfile(
+                BigInteger.TEN,
+                1,
+                1,
+                2,
+                false);
+
+        helper.assertValueEqual(
+                data.insert(hostId, iron, 7L, Actionable.MODULATE, profile),
+                7L,
+                "Finite profile should accept inserts below total capacity");
+        helper.assertValueEqual(
+                data.insert(hostId, gold, 1L, Actionable.SIMULATE, profile),
+                0L,
+                "Finite profile should reject new key types after the type capacity is full");
+        helper.assertValueEqual(
+                data.insert(hostId, iron, 10L, Actionable.SIMULATE, profile),
+                3L,
+                "Simulated insert should clamp to the remaining total capacity");
+        helper.assertValueEqual(
+                data.summary(hostId).totalAmount(),
+                "7",
+                "Simulated insert should not mutate finite storage");
+        helper.assertValueEqual(
+                data.insert(hostId, iron, 10L, Actionable.MODULATE, profile),
+                3L,
+                "Modulated insert should clamp to the remaining total capacity");
+        helper.assertValueEqual(data.summary(hostId).totalAmount(), "10", "Finite profile should stop at total capacity");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_storage_saved_data_unlimited_profile_accepts_all")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void unlimitedProfileAcceptsAllTypesAndAmounts(GameTestHelper helper) {
+        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+        UUID hostId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        if (iron == null || gold == null) {
+            helper.fail("Item keys should be available in the GameTest registry");
+            return;
+        }
+
+        helper.assertValueEqual(
+                data.insert(hostId, iron, Long.MAX_VALUE, Actionable.MODULATE, DigitalConstructFlowerStorageProfile.UNLIMITED),
+                Long.MAX_VALUE,
+                "Unlimited profile should accept the full requested amount");
+        helper.assertValueEqual(
+                data.insert(hostId, gold, 1L, Actionable.MODULATE, DigitalConstructFlowerStorageProfile.UNLIMITED),
+                1L,
+                "Unlimited profile should accept additional key types");
+        helper.assertValueEqual(data.summary(hostId).typeCount(), 2, "Unlimited profile should store both key types");
         helper.succeed();
     }
 }

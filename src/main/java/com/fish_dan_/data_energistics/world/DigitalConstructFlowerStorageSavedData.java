@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -15,6 +16,7 @@ import appeng.api.stacks.KeyCounter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.Map;
@@ -74,10 +76,23 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     }
 
     public long insert(UUID hostId, AEKey key, long amount, Actionable mode) {
+        return insert(hostId, key, amount, mode, DigitalConstructFlowerStorageProfile.UNLIMITED);
+    }
+
+    public long insert(UUID hostId,
+                       AEKey key,
+                       long amount,
+                       Actionable mode,
+                       DigitalConstructFlowerStorageProfile profile) {
         Objects.requireNonNull(hostId, "hostId");
         Objects.requireNonNull(key, "key");
         Objects.requireNonNull(mode, "mode");
+        Objects.requireNonNull(profile, "profile");
         if (amount <= 0L) {
+            return 0L;
+        }
+        long acceptedAmount = acceptedInsertAmount(hostId, key, amount, profile);
+        if (acceptedAmount <= 0L) {
             return 0L;
         }
         if (mode == Actionable.MODULATE) {
@@ -85,10 +100,10 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
                     hostId,
                     ignored -> new Object2ObjectOpenHashMap<>());
             BigInteger current = entries.getOrDefault(key, BigInteger.ZERO);
-            entries.put(key, current.add(BigInteger.valueOf(amount)));
+            entries.put(key, current.add(BigInteger.valueOf(acceptedAmount)));
             setDirty();
         }
-        return amount;
+        return acceptedAmount;
     }
 
     public long extract(UUID hostId, AEKey key, long amount, Actionable mode) {
@@ -148,6 +163,55 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
             total = total.add(amount);
         }
         return typeCount == 0 ? StorageSummary.EMPTY : new StorageSummary(typeCount, total.toString());
+    }
+
+    private long acceptedInsertAmount(UUID hostId, AEKey key, long amount, DigitalConstructFlowerStorageProfile profile) {
+        if (profile.unlimited()) {
+            return amount;
+        }
+        if (!profile.available()) {
+            return 0L;
+        }
+
+        Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
+        BigInteger current = entries == null ? BigInteger.ZERO : entries.getOrDefault(key, BigInteger.ZERO);
+        if (current.signum() <= 0 && positiveTypeCount(entries) >= profile.typeCapacity()) {
+            return 0L;
+        }
+
+        BigInteger remainingCapacity = profile.totalCapacity().subtract(totalAmount(entries));
+        if (remainingCapacity.signum() <= 0) {
+            return 0L;
+        }
+
+        BigInteger accepted = BigInteger.valueOf(amount).min(remainingCapacity);
+        return accepted.longValue();
+    }
+
+    private static int positiveTypeCount(@Nullable Object2ObjectOpenHashMap<AEKey, BigInteger> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return 0;
+        }
+        int typeCount = 0;
+        for (BigInteger amount : entries.values()) {
+            if (amount.signum() > 0) {
+                typeCount++;
+            }
+        }
+        return typeCount;
+    }
+
+    private static BigInteger totalAmount(@Nullable Object2ObjectOpenHashMap<AEKey, BigInteger> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return BigInteger.ZERO;
+        }
+        BigInteger total = BigInteger.ZERO;
+        for (BigInteger amount : entries.values()) {
+            if (amount.signum() > 0) {
+                total = total.add(amount);
+            }
+        }
+        return total;
     }
 
     public void addAvailableStacks(UUID hostId, KeyCounter out) {

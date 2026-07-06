@@ -35,11 +35,11 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
 
         flower.loadTag(formedTag(), HolderLookup.Provider.create(Stream.empty()));
 
-        helper.assertValueEqual(flower.getCpuPartitions().size(), 4, "Formed flower should expose base CPU partitions");
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 0, "Formed main structure should not expose CPU partitions");
         helper.assertValueEqual(
                 flower.getCraftingRuntime().profile().storageBytes(),
-                1_048_576L,
-                "Formed flower should contribute base crafting storage");
+                0L,
+                "Formed main structure should not contribute crafting storage");
         helper.succeed();
     }
 
@@ -51,16 +51,16 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
 
         flower.setCpuContribution("petal", DigitalConstructFlowerCpuContribution.of(1024L, 2, 2));
 
-        helper.assertValueEqual(flower.getCpuPartitions().size(), 6, "Child contribution should add CPU partitions");
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 2, "Child contribution should add CPU partitions");
         helper.assertValueEqual(
                 flower.getCraftingRuntime().profile().coProcessors(),
-                6,
+                2,
                 "Child contribution should add co-processors");
         flower.clearCpuContribution("petal");
         helper.assertValueEqual(
                 flower.getCpuPartitions().size(),
-                4,
-                "Clearing child contribution should restore base partition count");
+                0,
+                "Clearing child contribution should remove child CPU partitions");
         helper.succeed();
     }
 
@@ -84,7 +84,7 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 "Rejected contribution should not change CPU partitions");
         helper.assertValueEqual(
                 flower.getCraftingRuntime().profile().storageBytes(),
-                1_048_576L,
+                0L,
                 "Rejected contribution should not pollute the CPU profile");
         helper.succeed();
     }
@@ -111,8 +111,8 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 HolderLookup.Provider.create(Stream.empty()));
         helper.assertValueEqual(
                 flower.getCpuPartitions().size(),
-                4,
-                "Pending partition logic should not prevent partition rebuild before level attachment");
+                0,
+                "Pending partition logic should not create CPU partitions without a child contribution");
         helper.succeed();
     }
 

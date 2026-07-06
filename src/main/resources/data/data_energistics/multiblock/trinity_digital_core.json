@@ -1035,7 +1035,18 @@
 		},
 		"Z": {
 			"type": "mdlib:blocks",
-			"block": "ae2:crafting_unit"
+			"blocks": [
+				"data_energistics:me_digital_storage_core_1m",
+				"data_energistics:me_digital_storage_core_4m",
+				"data_energistics:me_digital_storage_core_16m",
+				"data_energistics:me_digital_storage_core_64m",
+				"data_energistics:me_digital_storage_core_256m",
+				"data_energistics:me_digital_storage_core_1g",
+				"data_energistics:me_digital_storage_core_4g",
+				"data_energistics:me_digital_storage_core_16g",
+				"data_energistics:me_digital_storage_core_64g",
+				"data_energistics:me_digital_storage_core_256g"
+			]
 		},
 		"a": {
 			"type": "mdlib:blocks",
@@ -1051,7 +1062,18 @@
 		},
 		"d": {
 			"type": "mdlib:blocks",
-			"block": "ae2:drive"
+			"blocks": [
+				"data_energistics:me_digital_storage_core_1m",
+				"data_energistics:me_digital_storage_core_4m",
+				"data_energistics:me_digital_storage_core_16m",
+				"data_energistics:me_digital_storage_core_64m",
+				"data_energistics:me_digital_storage_core_256m",
+				"data_energistics:me_digital_storage_core_1g",
+				"data_energistics:me_digital_storage_core_4g",
+				"data_energistics:me_digital_storage_core_16g",
+				"data_energistics:me_digital_storage_core_64g",
+				"data_energistics:me_digital_storage_core_256g"
+			]
 		},
 		"e": {
 			"type": "mdlib:blocks",

@@ -21,6 +21,9 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefin
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFrontFacing;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
+import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerCraftingStatus;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -44,9 +47,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.events.GridCraftingCpuChange;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
@@ -57,7 +62,6 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,11 +80,13 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_RUNTIME_TAG = "crafting_runtime";
     private static final String STORAGE_ID_TAG = "storage_id";
     private static final String NO_FAILURE = "";
+    private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
     private UUID storageId = UUID.randomUUID();
     private boolean formed;
     private List<BlockPos> matchedPositions = List.of();
+    private DigitalConstructFlowerStorageProfile storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
     private String lastFailureReason = NO_FAILURE;
     @Nullable
     private BlockPos lastFailurePosition;
@@ -93,7 +99,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         super(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get())
-                .setExposedOnSides(getCableExposedSides(blockState))
+                .setExposedOnSides(Set.of())
                 .setIdlePowerUsage(0.0D);
     }
 
@@ -105,23 +111,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public AECableType getCableConnectionType(Direction dir) {
-        if (!isCableSideExposed(dir)) {
-            return AECableType.NONE;
-        }
-        return AECableType.COVERED;
-    }
-
-    private boolean isCableSideExposed(Direction dir) {
-        Direction front = this.getBlockState().getValue(DataRipperReassemblerBlock.FACING);
-        return dir != Direction.UP && dir != front;
-    }
-
-    private static Set<Direction> getCableExposedSides(BlockState blockState) {
-        Direction front = blockState.getValue(DataRipperReassemblerBlock.FACING);
-        EnumSet<Direction> sides = EnumSet.allOf(Direction.class);
-        sides.remove(Direction.UP);
-        sides.remove(front);
-        return sides;
+        return AECableType.NONE;
     }
 
     @Override
@@ -144,7 +134,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public boolean isOnline() {
-        return this.getMainNode().isOnline();
+        return hasActiveAccessHatch();
     }
 
     @Override
@@ -259,6 +249,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return this.storageId;
     }
 
+    public DigitalConstructFlowerStorageProfile storageProfile() {
+        return this.storageProfile;
+    }
+
     public void restoreStorageIdFromItem(ItemStack stack) {
         String rawId = stack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID);
         if (rawId == null || rawId.isBlank()) {
@@ -346,14 +340,14 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public DigitalConstructFlowerCraftingStatus getCraftingStatus() {
-        var node = this.getMainNode().getNode();
-        if (node == null || !node.isActive() || node.getGrid() == null) {
+        IGrid grid = accessGrid();
+        if (grid == null) {
             return DigitalConstructFlowerCraftingStatus.EMPTY;
         }
 
         int busyCpuCount = 0;
         CraftingJobStatus selectedJob = null;
-        for (ICraftingCPU cpu : node.getGrid().getCraftingService().getCpus()) {
+        for (ICraftingCPU cpu : grid.getCraftingService().getCpus()) {
             if (!cpu.isBusy()) {
                 continue;
             }
@@ -388,6 +382,31 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return StorageSummary.EMPTY;
         }
         return DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
+    }
+
+    public boolean hasActiveAccessHatch() {
+        return accessGrid() != null;
+    }
+
+    public @Nullable IGrid accessGrid() {
+        for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
+            if (part instanceof MeStorageAccessHatchBlockEntity hatch) {
+                IGrid grid = hatch.accessGrid();
+                if (grid != null) {
+                    return grid;
+                }
+            }
+        }
+        return null;
+    }
+
+    public IActionSource accessActionSource() {
+        for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
+            if (part instanceof MeStorageAccessHatchBlockEntity hatch && hatch.accessGrid() != null) {
+                return hatch.actionSource();
+            }
+        }
+        throw new IllegalStateException("Trinity Digital Core has no active ME storage access hatch");
     }
 
     private void setStorageId(UUID storageId) {
@@ -496,13 +515,19 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                             Map<BlockPos, CompartmentType> declaredCompartments,
                             String structureName) {
         List<BlockPos> nextPositions = List.copyOf(positions);
-        if (this.formed && this.matchedPositions.equals(nextPositions) && NO_FAILURE.equals(this.lastFailureReason) && this.lastFailurePosition == null) {
+        DigitalConstructFlowerStorageProfile nextStorageProfile = buildStorageProfile(world, nextPositions);
+        if (this.formed &&
+                this.matchedPositions.equals(nextPositions) &&
+                this.storageProfile.equals(nextStorageProfile) &&
+                NO_FAILURE.equals(this.lastFailureReason) &&
+                this.lastFailurePosition == null) {
             this.compartmentBinder.ensureBound(world, structureName, this, declaredCompartments);
             return;
         }
         clearCompartmentBindings(structureName);
         this.formed = true;
         this.matchedPositions = nextPositions;
+        this.storageProfile = nextStorageProfile;
         this.compartmentBinder.bind(world, structureName, this, declaredCompartments);
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = null;
@@ -533,6 +558,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         clearCompartmentBindings(structureName);
         this.formed = false;
         this.matchedPositions = List.of();
+        this.storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
         this.lastFailureReason = nextFailureReason;
         this.lastFailurePosition = nextFailurePosition;
         this.craftingRuntime.setMainStructureFormed(false);
@@ -591,10 +617,25 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private void notifyCraftingCpuChanged() {
-        var node = this.getMainNode().getNode();
-        if (node != null) {
-            node.getGrid().postEvent(new GridCraftingCpuChange(node));
+        for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
+            if (part instanceof MeStorageAccessHatchBlockEntity hatch) {
+                var node = hatch.getMainNode().getNode();
+                if (node != null) {
+                    node.getGrid().postEvent(new GridCraftingCpuChange(node));
+                }
+            }
         }
+    }
+
+    private static DigitalConstructFlowerStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {
+        DigitalConstructFlowerStorageProfile.Builder builder = DigitalConstructFlowerStorageProfile.builder(MAIN_STORAGE_CORE_SLOT_COUNT);
+        for (BlockPos pos : positions) {
+            BlockState state = world.getBlockState(pos);
+            if (state.getBlock() instanceof TrinityCoreComponent component && component.kind() == TrinityCoreKind.STORAGE_TYPES) {
+                builder.add(component);
+            }
+        }
+        return builder.build();
     }
 
     private record LevelStructureWorldView(Level level) implements StructureWorldView {

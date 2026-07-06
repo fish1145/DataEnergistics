@@ -8,7 +8,6 @@ import net.minecraft.world.level.Level;
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
@@ -114,11 +113,10 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
     }
 
     /**
-     * @return true when the host node is active and the formed structure still owns this partition
+     * @return true when the host is formed and at least one bound access hatch is online
      */
     public boolean isActive() {
-        IGridNode node = this.host.getMainNode().getNode();
-        return this.host.isStructureFormed() && node != null && node.isActive();
+        return this.host.isStructureFormed() && this.host.hasActiveAccessHatch();
     }
 
     @Override
@@ -195,8 +193,7 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
      */
     @Nullable
     IGrid grid() {
-        IGridNode node = this.host.getMainNode().getNode();
-        return node != null ? node.getGrid() : null;
+        return this.host.accessGrid();
     }
 
     /**
@@ -211,7 +208,7 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
      * @return action source for storing idle inventory back into the network
      */
     IActionSource actionSource() {
-        return IActionSource.ofMachine(this.host);
+        return this.host.accessActionSource();
     }
 
     /**

@@ -88,9 +88,14 @@ public final class DigitalConstructFlowerResourceTest {
         Set<String> values = new HashSet<>();
         collectStringValues(predicates, values);
 
-        assertTrue(
+        assertFalse(
                 values.contains("ae2:crafting_unit"),
-                "Trinity Digital Core should reference the exported AE2 crafting unit body");
+                "Trinity Digital Core storage core positions should not keep the exported AE2 crafting unit placeholder");
+        assertFalse(
+                values.contains("ae2:drive"),
+                "Trinity Digital Core storage core positions should not keep the exported AE2 drive placeholder");
+        assertStorageCorePredicate(predicates, "Z");
+        assertStorageCorePredicate(predicates, "d");
         assertTrue(
                 values.contains("ae2:controller"),
                 "Trinity Digital Core should reference the exported AE2 controller body");
@@ -132,6 +137,23 @@ public final class DigitalConstructFlowerResourceTest {
         JsonObject image = object(images, id);
         assertEquals(expectedTexture, string(image, "texture"), id + " should use the moved GUI texture");
         assertResourceExists(GUI_TEXTURE_ROOT + expectedTexture, id + " texture should exist");
+    }
+
+    private static void assertStorageCorePredicate(JsonObject predicates, String symbol) {
+        JsonObject predicate = object(predicates, symbol);
+        JsonElement blocksElement = predicate.get("blocks");
+        assertNotNull(blocksElement, symbol + " should use the storage core block list");
+        assertTrue(blocksElement.isJsonArray(), symbol + " storage core predicate should list accepted blocks");
+
+        Set<String> blocks = new HashSet<>();
+        for (JsonElement blockElement : blocksElement.getAsJsonArray()) {
+            assertTrue(blockElement.isJsonPrimitive(), symbol + " storage core entry should be a block id");
+            blocks.add(blockElement.getAsString());
+        }
+
+        assertEquals(10, blocks.size(), symbol + " should accept every ordinary digital storage core tier");
+        assertTrue(blocks.contains("data_energistics:me_digital_storage_core_1m"), symbol + " should accept the 1M storage core");
+        assertTrue(blocks.contains("data_energistics:me_digital_storage_core_256g"), symbol + " should accept the 256G storage core");
     }
 
     private static void assertSourceRect(JsonObject owner, int expectedWidth, int expectedHeight) {

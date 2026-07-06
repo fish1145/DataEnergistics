@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.trinity;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigInteger;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -65,5 +66,33 @@ public final class TrinityCoreComponentTest {
         assertEquals(4, ordinary.patternRows());
         assertEquals(8, extended.patternRows());
         assertEquals(12, overlimit.patternRows());
+    }
+
+    @Test
+    void storageProfileAggregatesTypeAndTotalCapacity() {
+        DigitalConstructFlowerStorageProfile.Builder builder = DigitalConstructFlowerStorageProfile.builder(3);
+
+        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_1M));
+        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_4M));
+
+        DigitalConstructFlowerStorageProfile profile = builder.build();
+
+        assertEquals(10, profile.typeCapacity());
+        assertEquals(BigInteger.valueOf(5L).multiply(DigitalConstructFlowerStorageProfile.AMOUNT_PER_M), profile.totalCapacity());
+        assertEquals(2, profile.coreCount());
+        assertEquals(3, profile.fullCoreCount());
+        assertEquals(false, profile.unlimited());
+    }
+
+    @Test
+    void storageProfileBecomesUnlimitedWhenAllCorePositionsAreFilled() {
+        DigitalConstructFlowerStorageProfile.Builder builder = DigitalConstructFlowerStorageProfile.builder(2);
+
+        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_1M));
+        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_4M));
+
+        DigitalConstructFlowerStorageProfile profile = builder.build();
+
+        assertEquals(true, profile.unlimited());
     }
 }

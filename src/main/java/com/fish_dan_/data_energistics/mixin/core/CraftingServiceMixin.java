@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
 
@@ -82,14 +82,14 @@ public abstract class CraftingServiceMixin {
     private void dataEnergistics$markFlowerCpuListDirty(IGridNode gridNode,
                                                         CompoundTag savedData,
                                                         CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof DigitalConstructFlowerBlockEntity) {
+        if (gridNode.getOwner() instanceof MeStorageAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }
 
     @Inject(method = "removeNode", at = @At("RETURN"))
     private void dataEnergistics$markFlowerCpuListDirty(IGridNode gridNode, CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof DigitalConstructFlowerBlockEntity) {
+        if (gridNode.getOwner() instanceof MeStorageAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }
@@ -98,12 +98,13 @@ public abstract class CraftingServiceMixin {
     private void dataEnergistics$updateFlowerCpuClusters(CallbackInfo ci) {
         this.dataEnergistics$flowerRuntimes.clear();
         CraftingService service = (CraftingService) (Object) this;
-        for (DigitalConstructFlowerBlockEntity flower : this.grid.getMachines(DigitalConstructFlowerBlockEntity.class)) {
-            DigitalConstructFlowerCraftingRuntime runtime = flower.getCraftingRuntime();
-            if (!runtime.partitions().isEmpty()) {
-                this.dataEnergistics$flowerRuntimes.add(runtime);
-                runtime.restoreLinks(service);
+        for (MeStorageAccessHatchBlockEntity hatch : this.grid.getMachines(MeStorageAccessHatchBlockEntity.class)) {
+            DigitalConstructFlowerCraftingRuntime runtime = hatch.boundCraftingRuntime();
+            if (runtime == null || runtime.partitions().isEmpty()) {
+                continue;
             }
+            this.dataEnergistics$flowerRuntimes.add(runtime);
+            runtime.restoreLinks(service);
         }
     }
 

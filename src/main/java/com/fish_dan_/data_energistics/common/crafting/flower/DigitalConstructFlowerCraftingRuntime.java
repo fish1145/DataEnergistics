@@ -41,8 +41,6 @@ public final class DigitalConstructFlowerCraftingRuntime {
     private static final String PARTITIONS_TAG = "partitions";
     private static final String PARTITION_INDEX_TAG = "index";
     private static final String PARTITION_LOGIC_TAG = "logic";
-    private static final String MAIN_STRUCTURE_KEY = "main";
-    private static final DigitalConstructFlowerCpuContribution BASE_CONTRIBUTION = new DigitalConstructFlowerCpuContribution(1_048_576L, 4, 4, CpuSelectionMode.ANY);
 
     private final DigitalConstructFlowerBlockEntity host;
     private final Map<String, DigitalConstructFlowerCpuContribution> externalContributions = new TreeMap<>();
@@ -56,7 +54,7 @@ public final class DigitalConstructFlowerCraftingRuntime {
     }
 
     /**
-     * Updates whether the main structure contributes its base CPU data.
+     * Updates whether child structure CPU contributions are active.
      *
      * @param formed true when the main structure is formed
      */
@@ -264,8 +262,8 @@ public final class DigitalConstructFlowerCraftingRuntime {
 
     private void rebuildPartitions() {
         Map<String, DigitalConstructFlowerCpuContribution> contributions = new TreeMap<>(this.externalContributions);
-        if (this.mainStructureFormed) {
-            contributions.put(MAIN_STRUCTURE_KEY, BASE_CONTRIBUTION);
+        if (!this.mainStructureFormed) {
+            contributions.clear();
         }
         this.profile = DigitalConstructFlowerCpuProfile.fromContributions(contributions);
         List<DigitalConstructFlowerCpuPartitionProfile> partitionProfiles = this.profile.partitions();
