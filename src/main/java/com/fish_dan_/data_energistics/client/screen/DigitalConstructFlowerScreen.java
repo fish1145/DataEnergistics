@@ -20,23 +20,21 @@ import java.util.List;
 
 public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructFlowerMenu> {
 
-    private static final int TEXT_COLOR = 0x20253A;
+    private static final int LABEL_COLOR = 0x101427;
+    private static final int VALUE_COLOR = 0x00E6D0;
     private static final float LEFT_TEXT_SCALE = 0.75F;
     private static final float RIGHT_TEXT_SCALE = 0.62F;
-    private static final int CPU_X = 102;
-    private static final int CPU_Y = 80;
-    private static final int TARGET_HOVER_X = CPU_X + 54;
-    private static final int TARGET_HOVER_Y = CPU_Y;
+    private static final int TARGET_HOVER_X = 156;
+    private static final int TARGET_HOVER_Y = 96;
     private static final int TARGET_HOVER_WIDTH = 13;
-    private static final int TARGET_HOVER_HEIGHT = 21;
-    private static final int TARGET_ICON_X = CPU_X + 56;
-    private static final int TARGET_ICON_Y = CPU_Y + 6;
+    private static final int TARGET_HOVER_HEIGHT = 13;
+    private static final int TARGET_ICON_X = 158;
+    private static final int TARGET_ICON_Y = 97;
     private static final float TARGET_ICON_SCALE = 0.625F;
     private static final int STATUS_X = 6;
     private static final int STATUS_Y = 18;
     private static final int STATUS_WIDTH = 96;
     private static final int STATUS_HEIGHT = 88;
-    private static final int FAILURE_SUMMARY_LENGTH = 18;
 
     public DigitalConstructFlowerScreen(DigitalConstructFlowerMenu menu, Inventory playerInventory, Component title,
                                         ScreenStyle style) {
@@ -68,52 +66,36 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private void drawStatusText(GuiGraphics guiGraphics) {
-        drawScaledText(guiGraphics, Component.translatable(
-                this.menu.online ? "screen.data_energistics.status.online" : "screen.data_energistics.status.offline"), 9, 24, LEFT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.formed",
-                Component.translatable(this.menu.structureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no")), 9, 38, LEFT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.matched_blocks",
-                this.menu.matchedBlockCount), 9, 52, LEFT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.pattern_buffers",
-                this.menu.patternBufferCount), 9, 66, LEFT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.last_failure",
-                getFailureSummary()), 9, 80, LEFT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_label", Component.literal(
+                Integer.toString(this.menu.busyCraftingCpuCount)), 9, 24, LEFT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_partitions_label", Component.literal(
+                this.menu.busyCpuPartitionCount + "/" + this.menu.cpuPartitionCount), 9, 35, LEFT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_storage_label", Component.literal(
+                shortenDecimal(Long.toString(this.menu.cpuStorageBytes))), 9, 46, LEFT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_coprocessors_label", Component.literal(
+                Integer.toString(this.menu.cpuCoProcessors)), 9, 57, LEFT_TEXT_SCALE);
 
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.storage_types",
-                this.menu.storedTypeCount), 107, 23, RIGHT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.storage_amount",
-                shortenDecimal(this.menu.storedAmountText)), 107, 36, RIGHT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.status_label", Component.translatable(
+                this.menu.online ? "screen.data_energistics.digital_construct_flower.status_online" : "screen.data_energistics.digital_construct_flower.status_offline"), 107, 23, RIGHT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.formed_label", Component.translatable(
+                this.menu.structureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), 107, 34, RIGHT_TEXT_SCALE);
 
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.molecular_status",
-                getMolecularStatus()), 107, 55, RIGHT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.busy_cpus",
-                this.menu.busyCraftingCpuCount), 107, 68, RIGHT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_types_label", Component.literal(
+                Integer.toString(this.menu.storedTypeCount)), 107, 55, RIGHT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_amount_label", Component.literal(
+                shortenDecimal(this.menu.storedAmountText)), 107, 66, RIGHT_TEXT_SCALE);
 
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.cpu_partitions",
-                this.menu.busyCpuPartitionCount,
-                this.menu.cpuPartitionCount), 107, 84, RIGHT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.cpu_storage",
-                shortenDecimal(Long.toString(this.menu.cpuStorageBytes))), 107, 96, RIGHT_TEXT_SCALE);
-        drawScaledText(guiGraphics, Component.translatable(
-                "screen.data_energistics.digital_construct_flower.cpu_coprocessors",
-                this.menu.cpuCoProcessors), 107, 108, RIGHT_TEXT_SCALE);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.molecular_label", getMolecularStatus(), 107, 87, RIGHT_TEXT_SCALE);
     }
 
-    private static void drawScaledText(GuiGraphics guiGraphics, Component text, int x, int y, float scale) {
+    private static void drawKeyValueText(GuiGraphics guiGraphics, String labelKey, Component value, int x, int y, float scale) {
+        Component label = Component.translatable(labelKey);
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(x, y, 0.0F);
         guiGraphics.pose().scale(scale, scale, 1.0F);
-        guiGraphics.drawString(Minecraft.getInstance().font, text, 0, 0, TEXT_COLOR, false);
+        var font = Minecraft.getInstance().font;
+        guiGraphics.drawString(font, label, 0, 0, LABEL_COLOR, false);
+        guiGraphics.drawString(font, value, font.width(label), 0, VALUE_COLOR, false);
         guiGraphics.pose().popPose();
     }
 
@@ -148,13 +130,6 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         }
 
         super.renderTooltip(guiGraphics, mouseX, mouseY);
-    }
-
-    private Component getFailureSummary() {
-        if (!hasFailure()) {
-            return Component.translatable("screen.data_energistics.digital_construct_flower.no_failure");
-        }
-        return MultiBlockFailureText.summarize(this.menu.lastFailureReason, FAILURE_SUMMARY_LENGTH);
     }
 
     private Component getMolecularStatus() {
