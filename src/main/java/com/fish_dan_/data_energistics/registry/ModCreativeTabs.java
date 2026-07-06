@@ -16,6 +16,9 @@ public final class ModCreativeTabs {
 
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.MODID);
     private static final ResourceKey<CreativeModeTab> DATA_ENERGISTICS_TAB_KEY = ResourceKey.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.id(Data_Energistics.MODID));
+    private static final ResourceKey<CreativeModeTab> MULTIBLOCK_TAB_KEY = ResourceKey.create(
+            Registries.CREATIVE_MODE_TAB,
+            Data_Energistics.id(Data_Energistics.MODID + "_multiblock"));
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> DATA_ENERGISTICS_TAB = CREATIVE_MODE_TABS.register(
             Data_Energistics.MODID,
@@ -112,6 +115,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.QIUYEQAQ2024);
                         output.accept(ModItems.TED_XENON);
                     })
+                    .withTabsBefore(MULTIBLOCK_TAB_KEY)
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
                     .build());
 

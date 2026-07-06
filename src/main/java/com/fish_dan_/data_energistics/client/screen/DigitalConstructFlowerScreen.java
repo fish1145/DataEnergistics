@@ -12,7 +12,6 @@ import net.minecraft.world.entity.player.Inventory;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.core.localization.Tooltips;
 
@@ -36,14 +35,9 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     private static final int STATUS_HEIGHT = 88;
     private static final int FAILURE_SUMMARY_LENGTH = 18;
 
-    private final Blitter cpuIdle;
-    private final Blitter cpuTaskOverlay;
-
     public DigitalConstructFlowerScreen(DigitalConstructFlowerMenu menu, Inventory playerInventory, Component title,
                                         ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.cpuIdle = style.getImage("cpuIdle");
-        this.cpuTaskOverlay = style.getImage("cpuTaskOverlay");
     }
 
     @Override
@@ -87,21 +81,6 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         setTextContent("cpu_coprocessors", Component.translatable(
                 "screen.data_energistics.digital_construct_flower.cpu_coprocessors",
                 this.menu.cpuCoProcessors));
-    }
-
-    @Override
-    public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY,
-                       float partialTicks) {
-        super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
-
-        this.cpuIdle.copy()
-                .dest(offsetX + CPU_X, offsetY + CPU_Y)
-                .blit(guiGraphics);
-        if (this.menu.hasCraftingTarget()) {
-            this.cpuTaskOverlay.copy()
-                    .dest(offsetX + CPU_X, offsetY + CPU_Y)
-                    .blit(guiGraphics);
-        }
     }
 
     @Override
