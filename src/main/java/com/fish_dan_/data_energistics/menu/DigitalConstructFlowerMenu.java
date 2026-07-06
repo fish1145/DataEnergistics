@@ -47,6 +47,10 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
     public long cpuStorageBytes;
     @GuiSync(943)
     public int cpuCoProcessors;
+    @GuiSync(944)
+    public String storedTypeCapacityText = "0";
+    @GuiSync(945)
+    public String storedAmountCapacityText = "0";
 
     public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
         super(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), id, playerInventory, host);
@@ -71,6 +75,8 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
             this.craftingTarget = craftingStatus.hasTarget() ? new SyncedCraftingTarget(craftingStatus.target()) : SyncedCraftingTarget.EMPTY;
             this.storedTypeCount = this.host.getStoredTypeCount();
             this.storedAmountText = this.host.getStoredAmountText();
+            this.storedTypeCapacityText = this.host.getStoredTypeCapacityText();
+            this.storedAmountCapacityText = this.host.getStoredAmountCapacityText();
             this.cpuPartitionCount = this.host.getCpuPartitionCount();
             this.busyCpuPartitionCount = this.host.getBusyCpuPartitionCount();
             this.cpuStorageBytes = this.host.getCpuStorageBytes();
@@ -99,6 +105,8 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         this.craftingTarget = SyncedCraftingTarget.EMPTY;
         this.storedTypeCount = 0;
         this.storedAmountText = "0";
+        this.storedTypeCapacityText = "0";
+        this.storedAmountCapacityText = "0";
         this.cpuPartitionCount = 0;
         this.busyCpuPartitionCount = 0;
         this.cpuStorageBytes = 0L;

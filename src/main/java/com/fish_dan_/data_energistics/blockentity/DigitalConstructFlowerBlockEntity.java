@@ -276,6 +276,16 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
+    public String getStoredTypeCapacityText() {
+        return storageCapacityText(Integer.toString(this.storageProfile.typeCapacity()));
+    }
+
+    @Override
+    public String getStoredAmountCapacityText() {
+        return storageCapacityText(this.storageProfile.totalCapacity().toString());
+    }
+
+    @Override
     public int getCpuPartitionCount() {
         return this.craftingRuntime.profile().partitionCount();
     }
@@ -382,6 +392,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return StorageSummary.EMPTY;
         }
         return DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
+    }
+
+    private String storageCapacityText(String finiteCapacity) {
+        return this.storageProfile.unlimited() ? DigitalConstructFlowerMenuHost.UNLIMITED_STORAGE_CAPACITY : finiteCapacity;
     }
 
     public boolean hasActiveAccessHatch() {

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.screen;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenu;
+import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -37,6 +38,8 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     private static final int RIGHT_TEXT_X = 106;
     private static final int RIGHT_TEXT_WIDTH = 60;
     private static final int CPU_TEXT_Y = 23;
+    private static final int STORAGE_TEXT_X = 104;
+    private static final int STORAGE_TEXT_WIDTH = 66;
     private static final int STORAGE_TYPES_TEXT_Y = 74;
     private static final int STORAGE_AMOUNT_TEXT_Y = 83;
     private static final int CRAFTING_TEXT_Y = 96;
@@ -104,12 +107,12 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private void drawStorageStatus(GuiGraphics guiGraphics) {
-        drawCenteredKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_types_label",
-                Component.literal(compactNumber(Integer.toString(this.menu.storedTypeCount))), RIGHT_TEXT_X, STORAGE_TYPES_TEXT_Y, VALUE_COLOR,
-                RIGHT_TEXT_WIDTH);
-        drawCenteredKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_amount_label",
-                Component.literal(compactNumber(this.menu.storedAmountText)), RIGHT_TEXT_X, STORAGE_AMOUNT_TEXT_Y, VALUE_COLOR,
-                RIGHT_TEXT_WIDTH);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_types_label",
+                Component.literal(formatCapacityPair(Integer.toString(this.menu.storedTypeCount), this.menu.storedTypeCapacityText)),
+                STORAGE_TEXT_X, STORAGE_TYPES_TEXT_Y, VALUE_COLOR, STORAGE_TEXT_WIDTH);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_amount_label",
+                Component.literal(formatCapacityPair(this.menu.storedAmountText, this.menu.storedAmountCapacityText)),
+                STORAGE_TEXT_X, STORAGE_AMOUNT_TEXT_Y, VALUE_COLOR, STORAGE_TEXT_WIDTH);
     }
 
     private void drawCraftingStatus(GuiGraphics guiGraphics) {
@@ -219,6 +222,17 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             return sign + whole + COMPACT_UNITS[unitIndex];
         }
         return sign + whole + "." + fraction + COMPACT_UNITS[unitIndex];
+    }
+
+    private static String formatCapacityPair(String current, String capacity) {
+        return compactCapacityNumber(current) + "/" + compactCapacityNumber(capacity);
+    }
+
+    private static String compactCapacityNumber(String value) {
+        if (DigitalConstructFlowerMenuHost.UNLIMITED_STORAGE_CAPACITY.equals(value)) {
+            return value;
+        }
+        return compactNumber(value);
     }
 
     private static String trimToWidth(Font font, String value, int maxWidth) {

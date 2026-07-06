@@ -9,8 +9,10 @@ import org.jetbrains.annotations.Nullable;
  */
 public interface DigitalConstructFlowerMenuHost {
 
+    String UNLIMITED_STORAGE_CAPACITY = "MAX";
+
     /**
-     * Reports whether the host's ME node is currently online.
+     * Reports whether the host has an active ME storage access hatch.
      */
     boolean isOnline();
 
@@ -54,6 +56,16 @@ public interface DigitalConstructFlowerMenuHost {
      * Returns the total host UUID storage amount as a decimal string because it may exceed {@code long}.
      */
     String getStoredAmountText();
+
+    /**
+     * Returns the current AE key type capacity as a decimal string, or {@link #UNLIMITED_STORAGE_CAPACITY}.
+     */
+    String getStoredTypeCapacityText();
+
+    /**
+     * Returns the current total host UUID storage capacity as a decimal string, or {@link #UNLIMITED_STORAGE_CAPACITY}.
+     */
+    String getStoredAmountCapacityText();
 
     /**
      * Returns active virtual CPU partitions contributed by the formed trinity structure.
