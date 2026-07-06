@@ -21,8 +21,10 @@ import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
+import com.fish_dan_.data_energistics.block.TrinityCoreBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
+import com.fish_dan_.data_energistics.common.trinity.TrinityCoreTier;
 
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
@@ -179,6 +181,32 @@ public final class ModBlocks {
                     .isViewBlocking((state, blockGetter, pos) -> false)
                     .requiresCorrectToolForDrops());
 
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_1M = registerStorageCore("me_digital_storage_core_1m", TrinityCoreTier.SIZE_1M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_4M = registerStorageCore("me_digital_storage_core_4m", TrinityCoreTier.SIZE_4M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_16M = registerStorageCore("me_digital_storage_core_16m", TrinityCoreTier.SIZE_16M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_64M = registerStorageCore("me_digital_storage_core_64m", TrinityCoreTier.SIZE_64M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_256M = registerStorageCore("me_digital_storage_core_256m", TrinityCoreTier.SIZE_256M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_1G = registerStorageCore("me_digital_storage_core_1g", TrinityCoreTier.SIZE_1G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_4G = registerStorageCore("me_digital_storage_core_4g", TrinityCoreTier.SIZE_4G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_16G = registerStorageCore("me_digital_storage_core_16g", TrinityCoreTier.SIZE_16G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_64G = registerStorageCore("me_digital_storage_core_64g", TrinityCoreTier.SIZE_64G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_STORAGE_CORE_256G = registerStorageCore("me_digital_storage_core_256g", TrinityCoreTier.SIZE_256G);
+
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_1M = registerParallelCore("me_digital_merged_storage_core_1m", TrinityCoreTier.SIZE_1M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_4M = registerParallelCore("me_digital_merged_storage_core_4m", TrinityCoreTier.SIZE_4M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_16M = registerParallelCore("me_digital_merged_storage_core_16m", TrinityCoreTier.SIZE_16M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64M = registerParallelCore("me_digital_merged_storage_core_64m", TrinityCoreTier.SIZE_64M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256M = registerParallelCore("me_digital_merged_storage_core_256m", TrinityCoreTier.SIZE_256M);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_1G = registerParallelCore("me_digital_merged_storage_core_1g", TrinityCoreTier.SIZE_1G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_4G = registerParallelCore("me_digital_merged_storage_core_4g", TrinityCoreTier.SIZE_4G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_16G = registerParallelCore("me_digital_merged_storage_core_16g", TrinityCoreTier.SIZE_16G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64G = registerParallelCore("me_digital_merged_storage_core_64g", TrinityCoreTier.SIZE_64G);
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256G = registerParallelCore("me_digital_merged_storage_core_256g", TrinityCoreTier.SIZE_256G);
+
+    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("me_digital_pattern_processing_core", 4);
+    public static final DeferredBlock<TrinityCoreBlock> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("extended_me_digital_pattern_processing_core", 8);
+    public static final DeferredBlock<TrinityCoreBlock> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("overlimit_me_digital_pattern_processing_core", 12);
+
     public static final DeferredBlock<CompartmentBlock> COMPOSITE_INPUT_WAREHOUSE = registerCompartment(
             "composite_input_warehouse",
             CompartmentType.INPUT);
@@ -272,6 +300,34 @@ public final class ModBlocks {
                         .noOcclusion()
                         .isViewBlocking((state, blockGetter, pos) -> false)
                         .requiresCorrectToolForDrops());
+    }
+
+    private static DeferredBlock<TrinityCoreBlock> registerStorageCore(String id, TrinityCoreTier tier) {
+        return BLOCKS.registerBlock(
+                id,
+                properties -> TrinityCoreBlock.storageCore(properties, tier),
+                trinityCoreProperties());
+    }
+
+    private static DeferredBlock<TrinityCoreBlock> registerParallelCore(String id, TrinityCoreTier tier) {
+        return BLOCKS.registerBlock(
+                id,
+                properties -> TrinityCoreBlock.parallelCpuCore(properties, tier),
+                trinityCoreProperties());
+    }
+
+    private static DeferredBlock<TrinityCoreBlock> registerPatternProcessingCore(String id, int patternRows) {
+        return BLOCKS.registerBlock(
+                id,
+                properties -> TrinityCoreBlock.patternProcessingCore(properties, patternRows),
+                trinityCoreProperties());
+    }
+
+    private static BlockBehaviour.Properties trinityCoreProperties() {
+        return BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                .noOcclusion()
+                .isViewBlocking((state, blockGetter, pos) -> false)
+                .requiresCorrectToolForDrops();
     }
 
     public static void register(IEventBus modEventBus) {

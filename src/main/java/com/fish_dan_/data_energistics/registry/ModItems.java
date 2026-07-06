@@ -123,6 +123,29 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DIGITAL_STORAGE_DEPOT = ITEMS.register(
             "digital_storage_depot",
             () -> new DigitalStorageDepotBlockItem(ModBlocks.DIGITAL_STORAGE_DEPOT.get(), new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_1M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_4M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_16M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_64M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_256M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_1G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_4G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_16G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_64G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_STORAGE_CORE_256G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256M = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_1G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_4G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_16G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_64G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_MERGED_STORAGE_CORE_256G = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
+    public static final DeferredItem<BlockItem> ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE);
+    public static final DeferredItem<BlockItem> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
+    public static final DeferredItem<BlockItem> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = ITEMS.registerSimpleBlockItem(ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);
     public static final DeferredItem<BlockItem> COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.COMPOSITE_INPUT_WAREHOUSE);
     public static final DeferredItem<BlockItem> COMPOSITE_OUTPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE);
     public static final DeferredItem<BlockItem> ME_COMPOSITE_INPUT_WAREHOUSE = ITEMS.registerSimpleBlockItem(ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE);
