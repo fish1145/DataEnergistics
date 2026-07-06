@@ -24,6 +24,9 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.PatternMatchContext;
@@ -123,9 +126,11 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @GameTest(template = "empty_5x5")
     public static void parsesBundledTrinityDigitalCoreStructure(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core"),
-                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core.json"));
+                resource("trinity_digital_core/main"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/main.json"));
         BlockPattern pattern = definition.pattern();
+        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/main.json"))
+                .getAsJsonObject();
 
         helper.assertValueEqual(
                 definition.key(),
@@ -175,6 +180,57 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(pattern.getCenterOffset().z(), 13, "Controller Z offset should match the mapped JSON placeholder aisle");
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 13, "Controller Z min offset should match the placeholder aisle");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 13, "Controller Z max offset should match the placeholder aisle");
+        helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Digital Core should expose all storage core slots through Z");
+        helper.assertValueEqual(countSymbol(pattern, 'd'), 0, "Main Trinity Digital Core should not keep the duplicate storage symbol d");
+        helper.assertTrue(
+                !root.getAsJsonObject("predicates").has("d"),
+                "Main Trinity Digital Core predicates should not keep the duplicate storage symbol d");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_parses_bundled_trinity_digital_core_cpu_structure")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void parsesBundledTrinityDigitalCoreCpuStructure(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("trinity_digital_core/cpu"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/cpu.json"));
+        BlockPattern pattern = definition.pattern();
+
+        helper.assertValueEqual(
+                definition.key(),
+                new JsonMultiBlockStructureKey(resource("trinity_digital_core"), "cpu"),
+                "Bundled Trinity Digital Core CPU JSON should resolve to the cpu child structure key");
+        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 19, 24 },
+                "Bundled Trinity Digital Core CPU dimensions should include the host anchor and child body");
+        helper.assertValueEqual(pattern.structureSlices.length, 19, "CPU child structure should use one aisle per local Z layer");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 19, "Each CPU child aisle should be fixed");
+        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each CPU child aisle unit should contain one slice");
+        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each CPU child aisle unit should repeat once");
+        helper.assertValueEqual(pattern.getCenterOffset().x(), 0, "CPU child controller X offset should match the host anchor");
+        helper.assertValueEqual(pattern.getCenterOffset().y(), 1, "CPU child controller Y offset should match the host anchor");
+        helper.assertValueEqual(pattern.getCenterOffset().z(), 18, "CPU child controller Z offset should match the host anchor");
+        helper.assertValueEqual(countSymbol(pattern, 'C'), 272, "CPU child should expose 272 merged storage core positions");
+
+        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/cpu.json"))
+                .getAsJsonObject();
+        JsonObject cpuMetadata = root.getAsJsonObject("metadata").getAsJsonObject("cpu_core");
+        helper.assertValueEqual(cpuMetadata.get("repeat_start_y").getAsInt(), 5, "CPU child repeat start should match the repeated section");
+        helper.assertValueEqual(cpuMetadata.get("repeat_end_y").getAsInt(), 17, "CPU child repeat end should match the repeated section");
+        helper.assertValueEqual(cpuMetadata.get("max_repeat_count").getAsInt(), 13, "CPU child repeat count should map the 13 repeated layers");
+        helper.assertValueEqual(cpuMetadata.get("max_threads").getAsInt(), 256, "CPU child max threads should be the mapped thread cap");
+        JsonObject cpuCorePredicate = root.getAsJsonObject("predicates").getAsJsonObject("C");
+        helper.assertTrue(
+                hasJsonStringValue(cpuCorePredicate.get("blocks"),
+                        "data_energistics:me_digital_merged_storage_core_256m"),
+                "CPU child core predicate should allow the 256M merged storage core");
+        helper.assertTrue(
+                hasJsonStringValue(cpuCorePredicate.get("blocks"),
+                        "minecraft:air"),
+                "CPU child core predicate should allow empty core slots without forming a full CPU");
+        helper.assertFalse(
+                hasJsonStringValue(root, "ae2:256k_crafting_storage"),
+                "CPU child JSON should not keep AE2 crafting storage as a predicate value");
         helper.succeed();
     }
 
@@ -898,6 +954,45 @@ public final class JsonMultiBlockDefinitionLoaderTest {
             helper.assertValueEqual(actual[i][0], expected, message + " min repeat index " + i);
             helper.assertValueEqual(actual[i][1], expected, message + " max repeat index " + i);
         }
+    }
+
+    private static int countSymbol(BlockPattern pattern, char symbol) {
+        int count = 0;
+        for (String[] slice : pattern.structureSlices) {
+            for (String row : slice) {
+                for (int index = 0; index < row.length(); index++) {
+                    if (row.charAt(index) == symbol) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    private static boolean hasJsonStringValue(JsonElement element, String expected) {
+        if (element == null || element.isJsonNull()) {
+            return false;
+        }
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            return expected.equals(element.getAsString());
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                if (hasJsonStringValue(child, expected)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (element.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : element.getAsJsonObject().entrySet()) {
+                if (hasJsonStringValue(entry.getValue(), expected)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static void assertDiagnosticCode(GameTestHelper helper,

@@ -32,6 +32,27 @@ public interface DigitalConstructFlowerMenuHost {
     int getPatternBufferCount();
 
     /**
+     * Reports whether the declared crafting CPU child structure is currently formed.
+     */
+    boolean isCpuStructureFormed();
+
+    /**
+     * Returns how many blocks were matched in the current valid crafting CPU child structure.
+     */
+    int getCpuStructureMatchedBlockCount();
+
+    /**
+     * Returns the last crafting CPU child structure validation error, or an empty string when no error is active.
+     */
+    String getCpuLastFailureReason();
+
+    /**
+     * Returns the world position for the last crafting CPU child structure validation error when one is available.
+     */
+    @Nullable
+    BlockPos getCpuLastFailurePosition();
+
+    /**
      * Returns the last structure validation error, or an empty string when no error is active.
      */
     String getLastFailureReason();

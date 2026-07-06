@@ -1,0 +1,527 @@
+{
+	"metadata": {
+		"cpu_core": {
+			"core_slot_start_y": 1,
+			"core_slot_end_y": 17,
+			"repeat_start_y": 5,
+			"repeat_end_y": 17,
+			"max_repeat_count": 13,
+			"max_threads": 256
+		}
+	},
+	"aisles": [
+		{
+			"slices": [
+				[
+					"                  D    D",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                   AAAA ",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                  ECCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BAAAAB"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                   AAAA ",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                  ECCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BAAAAB"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                   AAAA ",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                  ECCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BAAAAB"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                   AAAA ",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                   CCCCB",
+					"                  ECCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BCCCCB",
+					"                  BAAAAB"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                  D    D",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA",
+					"                  ABBBBA"
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"                        ",
+					"~                       ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        ",
+					"                        "
+				]
+			]
+		}
+	],
+	"predicates": {
+		"A": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_framework"
+		},
+		"B": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_glass"
+		},
+		"C": {
+			"type": "mdlib:blocks",
+			"blocks": [
+				"data_energistics:me_digital_merged_storage_core_1m",
+				"data_energistics:me_digital_merged_storage_core_4m",
+				"data_energistics:me_digital_merged_storage_core_16m",
+				"data_energistics:me_digital_merged_storage_core_64m",
+				"data_energistics:me_digital_merged_storage_core_256m",
+				"data_energistics:me_digital_merged_storage_core_1g",
+				"data_energistics:me_digital_merged_storage_core_4g",
+				"data_energistics:me_digital_merged_storage_core_16g",
+				"data_energistics:me_digital_merged_storage_core_64g",
+				"data_energistics:me_digital_merged_storage_core_256g",
+				"minecraft:air"
+			]
+		},
+		"D": {
+			"type": "mdlib:blocks",
+			"block": "ae2:not_so_mysterious_cube"
+		},
+		"E": {
+			"type": "mdlib:block_states",
+			"block": "ae2:smooth_sky_stone_slab",
+			"properties": {
+				"type": "top",
+				"waterlogged": "false"
+			}
+		}
+	}
+}

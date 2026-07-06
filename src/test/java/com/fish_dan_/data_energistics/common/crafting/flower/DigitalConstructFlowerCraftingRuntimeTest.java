@@ -12,6 +12,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -86,6 +87,36 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 flower.getCraftingRuntime().profile().storageBytes(),
                 0L,
                 "Rejected contribution should not pollute the CPU profile");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_main_structure_failure_clears_cpu_child_contribution")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void mainStructureFailureClearsCpuChildContribution(GameTestHelper helper) {
+        BlockPos flowerPos = new BlockPos(1, 1, 1);
+        helper.setBlock(flowerPos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+        BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(flowerPos));
+        if (!(blockEntity instanceof DigitalConstructFlowerBlockEntity flower)) {
+            helper.fail("Expected a placed Digital Construct Flower block entity", flowerPos);
+            return;
+        }
+        flower.loadTag(formedTag(), helper.getLevel().registryAccess());
+        flower.setCpuContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 1, 1));
+
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 1, "CPU child contribution should be active before recheck");
+
+        flower.serverTick();
+
+        helper.assertFalse(flower.isStructureFormed(), "Missing main structure should make the host unformed");
+        helper.assertValueEqual(
+                flower.getCraftingRuntime().profile().storageBytes(),
+                0L,
+                "Main structure failure should clear CPU child storage");
+        helper.assertValueEqual(
+                flower.getCpuPartitions().size(),
+                0,
+                "Main structure failure should clear CPU child partitions");
         helper.succeed();
     }
 

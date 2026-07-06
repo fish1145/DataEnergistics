@@ -30,7 +30,7 @@ public final class DigitalConstructFlowerCpuProfileTest {
     }
 
     @Test
-    void resolvesStorageAndCoProcessorRemaindersByPartitionIndex() {
+    void partitionsCopyFullStorageAndCoProcessors() {
         DigitalConstructFlowerCpuProfile profile = new DigitalConstructFlowerCpuProfile(
                 10L,
                 5,
@@ -40,12 +40,29 @@ public final class DigitalConstructFlowerCpuProfileTest {
         var partitions = profile.partitions();
 
         assertEquals(3, partitions.size());
-        assertEquals(4L, partitions.get(0).storageBytes());
-        assertEquals(3L, partitions.get(1).storageBytes());
-        assertEquals(3L, partitions.get(2).storageBytes());
-        assertEquals(2, partitions.get(0).coProcessors());
-        assertEquals(2, partitions.get(1).coProcessors());
-        assertEquals(1, partitions.get(2).coProcessors());
+        assertEquals(10L, partitions.get(0).storageBytes());
+        assertEquals(10L, partitions.get(1).storageBytes());
+        assertEquals(10L, partitions.get(2).storageBytes());
+        assertEquals(5, partitions.get(0).coProcessors());
+        assertEquals(5, partitions.get(1).coProcessors());
+        assertEquals(5, partitions.get(2).coProcessors());
+    }
+
+    @Test
+    void partitionsCopyMaxStorageAndCoProcessorsWithoutDivision() {
+        DigitalConstructFlowerCpuProfile profile = new DigitalConstructFlowerCpuProfile(
+                Long.MAX_VALUE,
+                Integer.MAX_VALUE,
+                256,
+                CpuSelectionMode.ANY);
+
+        var partitions = profile.partitions();
+
+        assertEquals(256, partitions.size());
+        assertEquals(Long.MAX_VALUE, partitions.get(0).storageBytes());
+        assertEquals(Long.MAX_VALUE, partitions.get(255).storageBytes());
+        assertEquals(Integer.MAX_VALUE, partitions.get(0).coProcessors());
+        assertEquals(Integer.MAX_VALUE, partitions.get(255).coProcessors());
     }
 
     @Test

@@ -77,7 +77,7 @@ public final class DigitalConstructFlowerResourceTest {
 
     @Test
     void digitalConstructFlowerMultiblockUsesTrinityDigitalCoreStructure() {
-        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core.json");
+        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core/main.json");
         JsonObject metadata = object(root, "metadata");
         assertEquals(
                 "multiblock.data_energistics.trinity_digital_core",
@@ -95,7 +95,9 @@ public final class DigitalConstructFlowerResourceTest {
                 values.contains("ae2:drive"),
                 "Trinity Digital Core storage core positions should not keep the exported AE2 drive placeholder");
         assertStorageCorePredicate(predicates, "Z");
-        assertStorageCorePredicate(predicates, "d");
+        assertFalse(
+                predicates.has("d"),
+                "Trinity Digital Core storage core positions should use Z instead of duplicate d");
         assertTrue(
                 values.contains("ae2:controller"),
                 "Trinity Digital Core should reference the exported AE2 controller body");

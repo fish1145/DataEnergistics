@@ -443,8 +443,8 @@
 					"       PPJZZZZZZZZZZZZZJ        ",
 					"       P JZZZZZZZZZZZZZJ        ",
 					"       PPPZZZZZZZZZZZZZJ        ",
-					"       PP  dZZZZZZZZZZJ         ",
-					"           dZZZZZZZZZZJ         ",
+					"       PP  ZZZZZZZZZZZJ         ",
+					"           ZZZZZZZZZZZJ         ",
 					"            ZZZZZZZZZJ          ",
 					"           PJJZZZZZJJ           ",
 					"          PPeKJJJJJ             ",
@@ -477,8 +477,8 @@
 					"          ZZZZZZZZZZZZZBIIRJB   ",
 					"          ZZZZZZZZZZZZZB  RJB   ",
 					"          ZZZZZZZZZZZZZ   RJB   ",
-					"           dZZZZZZZZZZ    RJB   ",
-					"           dZZZZZZZZZZ    JB    ",
+					"           ZZZZZZZZZZZ    RJB   ",
+					"           ZZZZZZZZZZZ    JB    ",
 					"            ZZZZZZZZZ     JB    ",
 					"              ZZZZZ      JB     ",
 					"                         JB     ",
@@ -511,8 +511,8 @@
 					"       PPJZZZZZZZZZZZZZJ        ",
 					"       P JZZZZZZZZZZZZZJ        ",
 					"       PPPZZZZZZZZZZZZZJ        ",
-					"       PP  dZZZZZZZZZZJ         ",
-					"           dZZZZZZZZZZJ         ",
+					"       PP  ZZZZZZZZZZZJ         ",
+					"           ZZZZZZZZZZZJ         ",
 					"            ZZZZZZZZZJ          ",
 					"           PJJZZZZZJJ           ",
 					"          PPKKJJJJJ             ",
@@ -1059,21 +1059,6 @@
 		"c": {
 			"type": "mdlib:blocks",
 			"block": "ae2:cable_bus"
-		},
-		"d": {
-			"type": "mdlib:blocks",
-			"blocks": [
-				"data_energistics:me_digital_storage_core_1m",
-				"data_energistics:me_digital_storage_core_4m",
-				"data_energistics:me_digital_storage_core_16m",
-				"data_energistics:me_digital_storage_core_64m",
-				"data_energistics:me_digital_storage_core_256m",
-				"data_energistics:me_digital_storage_core_1g",
-				"data_energistics:me_digital_storage_core_4g",
-				"data_energistics:me_digital_storage_core_16g",
-				"data_energistics:me_digital_storage_core_64g",
-				"data_energistics:me_digital_storage_core_256g"
-			]
 		},
 		"e": {
 			"type": "mdlib:blocks",

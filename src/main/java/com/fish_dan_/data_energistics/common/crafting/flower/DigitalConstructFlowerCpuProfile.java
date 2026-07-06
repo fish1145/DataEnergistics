@@ -90,18 +90,12 @@ public record DigitalConstructFlowerCpuProfile(long storageBytes,
         }
 
         List<DigitalConstructFlowerCpuPartitionProfile> partitions = new ArrayList<>(this.partitionCount);
-        long baseStorage = this.storageBytes / this.partitionCount;
-        long storageRemainder = this.storageBytes % this.partitionCount;
-        int baseCoProcessors = this.coProcessors / this.partitionCount;
-        int coProcessorRemainder = this.coProcessors % this.partitionCount;
         for (int index = 0; index < this.partitionCount; index++) {
-            long partitionStorage = baseStorage + (index < storageRemainder ? 1L : 0L);
-            int partitionCoProcessors = baseCoProcessors + (index < coProcessorRemainder ? 1 : 0);
             partitions.add(new DigitalConstructFlowerCpuPartitionProfile(
                     index,
                     this.partitionCount,
-                    partitionStorage,
-                    partitionCoProcessors,
+                    this.storageBytes,
+                    this.coProcessors,
                     this.selectionMode));
         }
         return List.copyOf(partitions);

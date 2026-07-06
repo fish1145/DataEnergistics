@@ -21,6 +21,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefin
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFrontFacing;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCpuCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
@@ -62,6 +63,7 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -77,9 +79,14 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String MATCHED_POSITIONS_TAG = "matched_positions";
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
+    private static final String CPU_STRUCTURE_FORMED_TAG = "cpu_structure_formed";
+    private static final String CPU_STRUCTURE_MATCHED_BLOCK_COUNT_TAG = "cpu_structure_matched_block_count";
+    private static final String CPU_LAST_FAILURE_REASON_TAG = "cpu_last_failure_reason";
+    private static final String CPU_LAST_FAILURE_POSITION_TAG = "cpu_last_failure_position";
     private static final String CRAFTING_RUNTIME_TAG = "crafting_runtime";
     private static final String STORAGE_ID_TAG = "storage_id";
     private static final String NO_FAILURE = "";
+    private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
@@ -90,6 +97,13 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private String lastFailureReason = NO_FAILURE;
     @Nullable
     private BlockPos lastFailurePosition;
+    @Nullable
+    private DigitalConstructFlowerCpuContribution cpuStructureContribution;
+    private boolean cpuStructureFormed;
+    private int cpuStructureMatchedBlockCount;
+    private String cpuLastFailureReason = NO_FAILURE;
+    @Nullable
+    private BlockPos cpuLastFailurePosition;
     private boolean recheckRequested = true;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
@@ -175,6 +189,26 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     @Override
     public int getPatternBufferCount() {
         return patternBuffers().size();
+    }
+
+    @Override
+    public boolean isCpuStructureFormed() {
+        return this.cpuStructureFormed;
+    }
+
+    @Override
+    public int getCpuStructureMatchedBlockCount() {
+        return this.cpuStructureMatchedBlockCount;
+    }
+
+    @Override
+    public String getCpuLastFailureReason() {
+        return this.cpuLastFailureReason;
+    }
+
+    @Override
+    public @Nullable BlockPos getCpuLastFailurePosition() {
+        return this.cpuLastFailurePosition;
     }
 
     public List<BlockPos> getMatchedPositions() {
@@ -469,9 +503,20 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         } else {
             this.lastFailurePosition = null;
         }
+        this.cpuStructureFormed = data.getBoolean(CPU_STRUCTURE_FORMED_TAG);
+        this.cpuStructureMatchedBlockCount = data.getInt(CPU_STRUCTURE_MATCHED_BLOCK_COUNT_TAG);
+        this.cpuLastFailureReason = data.getString(CPU_LAST_FAILURE_REASON_TAG);
+        if (data.contains(CPU_LAST_FAILURE_POSITION_TAG)) {
+            this.cpuLastFailurePosition = BlockPos.of(data.getLong(CPU_LAST_FAILURE_POSITION_TAG));
+        } else {
+            this.cpuLastFailurePosition = null;
+        }
         this.craftingRuntime.setMainStructureFormed(this.formed);
         if (data.contains(CRAFTING_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
             this.craftingRuntime.readFromTag(data.getCompound(CRAFTING_RUNTIME_TAG), registries);
+        }
+        if (!data.contains(CPU_STRUCTURE_FORMED_TAG)) {
+            this.cpuStructureFormed = this.craftingRuntime.hasContribution(CPU_STRUCTURE_NAME);
         }
     }
 
@@ -484,6 +529,12 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         data.putString(LAST_FAILURE_REASON_TAG, this.lastFailureReason);
         if (this.lastFailurePosition != null) {
             data.putLong(LAST_FAILURE_POSITION_TAG, this.lastFailurePosition.asLong());
+        }
+        data.putBoolean(CPU_STRUCTURE_FORMED_TAG, this.cpuStructureFormed);
+        data.putInt(CPU_STRUCTURE_MATCHED_BLOCK_COUNT_TAG, this.cpuStructureMatchedBlockCount);
+        data.putString(CPU_LAST_FAILURE_REASON_TAG, this.cpuLastFailureReason);
+        if (this.cpuLastFailurePosition != null) {
+            data.putLong(CPU_LAST_FAILURE_POSITION_TAG, this.cpuLastFailurePosition.asLong());
         }
         CompoundTag runtimeTag = new CompoundTag();
         this.craftingRuntime.writeToTag(runtimeTag, registries);
@@ -510,8 +561,25 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 return;
             }
             applyMatch(world, result.positions(), declaredCompartments, mainDefinitionKey().structureName());
+            updateCpuStructureMatch(world, preferredFrontFacing);
         } else {
             applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
+        }
+    }
+
+    private void updateCpuStructureMatch(StructureWorldView world, Direction preferredFrontFacing) {
+        JsonMultiBlockDefinition definition = requireCpuJsonDefinition();
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world,
+                this.worldPosition,
+                preferredFrontFacing,
+                CPU_STRUCTURE_NAME);
+
+        if (result.matched()) {
+            applyCpuMatch(world, result.positions());
+        } else {
+            applyCpuFailure(result.diagnostic());
         }
     }
 
@@ -550,6 +618,58 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
+    private void applyCpuMatch(StructureWorldView world, List<BlockPos> positions) {
+        DigitalConstructFlowerCpuContribution contribution = buildCpuContribution(world, positions);
+        boolean contributionChanged = !Objects.equals(this.cpuStructureContribution, contribution);
+        boolean statusChanged = !this.cpuStructureFormed ||
+                this.cpuStructureMatchedBlockCount != positions.size() ||
+                !NO_FAILURE.equals(this.cpuLastFailureReason) ||
+                this.cpuLastFailurePosition != null;
+
+        this.cpuStructureFormed = true;
+        this.cpuStructureMatchedBlockCount = positions.size();
+        this.cpuLastFailureReason = NO_FAILURE;
+        this.cpuLastFailurePosition = null;
+        if (contributionChanged) {
+            this.cpuStructureContribution = contribution;
+            setCpuContribution(CPU_STRUCTURE_NAME, contribution);
+        } else if (statusChanged) {
+            setChanged();
+        }
+    }
+
+    private void applyCpuFailure(PatternDiagnostic diagnostic) {
+        String nextFailureReason;
+        BlockPos nextFailurePosition;
+        if (diagnostic == null) {
+            nextFailureReason = "Structure pattern did not match";
+            nextFailurePosition = null;
+        } else {
+            nextFailureReason = diagnostic.message();
+            nextFailurePosition = diagnostic.position();
+        }
+        if (!this.cpuStructureFormed &&
+                this.cpuStructureMatchedBlockCount == 0 &&
+                Objects.equals(this.cpuLastFailureReason, nextFailureReason) &&
+                Objects.equals(this.cpuLastFailurePosition, nextFailurePosition) &&
+                !hasCpuStructureContribution()) {
+            return;
+        }
+        if ((this.cpuStructureFormed || hasCpuStructureContribution()) && diagnostic != null) {
+            LOGGER.warn(
+                    "Trinity Digital Core structure '{}' failed at {}: {}",
+                    CPU_STRUCTURE_NAME,
+                    diagnostic.position(),
+                    diagnostic.message());
+        }
+        clearCpuStructureContribution();
+        this.cpuStructureFormed = false;
+        this.cpuStructureMatchedBlockCount = 0;
+        this.cpuLastFailureReason = nextFailureReason;
+        this.cpuLastFailurePosition = nextFailurePosition;
+        setChanged();
+    }
+
     private void applyFailure(PatternDiagnostic diagnostic, String structureName) {
         String nextFailureReason;
         BlockPos nextFailurePosition;
@@ -561,7 +681,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             nextFailurePosition = diagnostic.position();
         }
         if (!this.formed && this.matchedPositions.isEmpty() && Objects.equals(this.lastFailureReason, nextFailureReason) &&
-                Objects.equals(this.lastFailurePosition, nextFailurePosition)) {
+                Objects.equals(this.lastFailurePosition, nextFailurePosition) &&
+                !hasCpuStructureContribution() &&
+                !this.cpuStructureFormed &&
+                this.cpuStructureMatchedBlockCount == 0) {
             return;
         }
         LOGGER.warn(
@@ -570,6 +693,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 nextFailurePosition,
                 nextFailureReason);
         clearCompartmentBindings(structureName);
+        clearCpuStructureStatus(nextFailureReason, nextFailurePosition);
         this.formed = false;
         this.matchedPositions = List.of();
         this.storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
@@ -601,7 +725,14 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockDefinition requireMainJsonDefinition() {
-        JsonMultiBlockStructureKey key = mainDefinitionKey();
+        return requireJsonDefinition(mainDefinitionKey());
+    }
+
+    private static JsonMultiBlockDefinition requireCpuJsonDefinition() {
+        return requireJsonDefinition(cpuDefinitionKey());
+    }
+
+    private static JsonMultiBlockDefinition requireJsonDefinition(JsonMultiBlockStructureKey key) {
         return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
                 .get(key)
                 .orElseThrow(() -> new IllegalStateException("Missing JSON multiblock definition: " + key));
@@ -613,6 +744,12 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
         return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID));
+    }
+
+    private static JsonMultiBlockStructureKey cpuDefinitionKey() {
+        return new JsonMultiBlockStructureKey(
+                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID),
+                CPU_STRUCTURE_NAME);
     }
 
     private static List<BlockPos> readMatchedPositions(CompoundTag data) {
@@ -650,6 +787,53 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             }
         }
         return builder.build();
+    }
+
+    private DigitalConstructFlowerCpuContribution buildCpuContribution(StructureWorldView world, List<BlockPos> positions) {
+        DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder();
+        Set<Integer> repeatedLayers = new HashSet<>();
+        for (BlockPos pos : positions) {
+            int localY = cpuLocalY(pos);
+            if (localY >= DigitalConstructFlowerCpuCoreProfile.REPEAT_START_Y &&
+                    localY <= DigitalConstructFlowerCpuCoreProfile.REPEAT_END_Y) {
+                repeatedLayers.add(localY);
+            }
+            if (localY < DigitalConstructFlowerCpuCoreProfile.CORE_SLOT_START_Y ||
+                    localY > DigitalConstructFlowerCpuCoreProfile.CORE_SLOT_END_Y) {
+                continue;
+            }
+            BlockState state = world.getBlockState(pos);
+            if (state.getBlock() instanceof TrinityCoreComponent component && component.kind() == TrinityCoreKind.PARALLEL_CPU) {
+                builder.add(component);
+            }
+        }
+        return builder.actualRepeatCount(DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(repeatedLayers))
+                .build()
+                .contribution();
+    }
+
+    private int cpuLocalY(BlockPos pos) {
+        return pos.getY() - this.worldPosition.getY() + DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y;
+    }
+
+    private void clearCpuStructureContribution() {
+        if (!hasCpuStructureContribution()) {
+            return;
+        }
+        this.cpuStructureContribution = null;
+        clearCpuContribution(CPU_STRUCTURE_NAME);
+    }
+
+    private void clearCpuStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
+        clearCpuStructureContribution();
+        this.cpuStructureFormed = false;
+        this.cpuStructureMatchedBlockCount = 0;
+        this.cpuLastFailureReason = failureReason;
+        this.cpuLastFailurePosition = failurePosition;
+    }
+
+    private boolean hasCpuStructureContribution() {
+        return this.cpuStructureContribution != null || this.craftingRuntime.hasContribution(CPU_STRUCTURE_NAME);
     }
 
     private record LevelStructureWorldView(Level level) implements StructureWorldView {

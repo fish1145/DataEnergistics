@@ -96,6 +96,16 @@ public final class DigitalConstructFlowerCraftingRuntime {
     }
 
     /**
+     * Returns whether a named child structure currently has stored CPU data.
+     *
+     * @param structureName structure name
+     * @return true when contribution data exists for the structure
+     */
+    public boolean hasContribution(String structureName) {
+        return this.externalContributions.containsKey(requireStructureName(structureName));
+    }
+
+    /**
      * @return active virtual CPU partitions owned by the formed host
      */
     public List<DigitalConstructFlowerVirtualCpu> partitions() {

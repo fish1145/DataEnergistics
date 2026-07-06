@@ -4,8 +4,11 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TrinityCoreComponentTest {
 
@@ -53,6 +56,96 @@ public final class TrinityCoreComponentTest {
         assertEquals(TrinityCoreKind.PARALLEL_CPU, metadata.kind());
         assertEquals(2048, metadata.capacityValue());
         assertEquals(0, metadata.patternRows());
+    }
+
+    @Test
+    void cpuCoreProfileAggregatesMergedStorageCoreCapacity() {
+        DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder();
+        builder.actualRepeatCount(DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT);
+
+        for (int index = 0; index < 272; index++) {
+            builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
+        }
+
+        DigitalConstructFlowerCpuCoreProfile profile = builder.build();
+
+        assertEquals(73_014_444_032L, profile.storageBytes());
+        assertEquals(139_264, profile.coProcessors());
+        assertEquals(272, profile.filledCoreSlots());
+        assertEquals(256, profile.threadCount());
+        assertTrue(profile.fullCpu());
+        assertEquals(Long.MAX_VALUE, profile.contribution().storageBytes());
+        assertEquals(Integer.MAX_VALUE, profile.contribution().coProcessors());
+        assertEquals(256, profile.contribution().partitionCount());
+    }
+
+    @Test
+    void cpuCoreProfileMapsRepeatHeightToThreadCount() {
+        assertEquals(19, cpuProfileForRepeatHeight(1).threadCount());
+        assertEquals(118, cpuProfileForRepeatHeight(6).threadCount());
+        assertEquals(256, cpuProfileForRepeatHeight(13).threadCount());
+        assertEquals(256, cpuProfileForRepeatHeight(20).threadCount());
+    }
+
+    @Test
+    void cpuCoreProfileCountsOnlyContinuousRepeatLayersFromRepeatStart() {
+        assertEquals(0, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(4, 6, 7, 8, 18)));
+        assertEquals(3, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(5, 6, 7, 9, 17)));
+        assertEquals(13, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(
+                1,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18)));
+    }
+
+    @Test
+    void cpuCoreProfileRequiresExactRepeatHeightForFullCpuCapacity() {
+        DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder()
+                .actualRepeatCount(20);
+        for (int index = 0; index < 272; index++) {
+            builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
+        }
+
+        DigitalConstructFlowerCpuCoreProfile profile = builder.build();
+
+        assertFalse(profile.fullCpu());
+        assertEquals(73_014_444_032L, profile.contribution().storageBytes());
+        assertEquals(139_264, profile.contribution().coProcessors());
+        assertEquals(256, profile.contribution().partitionCount());
+    }
+
+    @Test
+    void cpuCoreProfileUsesFiniteCapacityWhenAnyCoreSlotIsMissing() {
+        DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder()
+                .actualRepeatCount(DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT);
+        for (int index = 0; index < 271; index++) {
+            builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
+        }
+
+        DigitalConstructFlowerCpuCoreProfile profile = builder.build();
+
+        assertFalse(profile.fullCpu());
+        assertEquals(72_746_008_576L, profile.contribution().storageBytes());
+        assertEquals(138_752, profile.contribution().coProcessors());
+        assertEquals(256, profile.contribution().partitionCount());
+    }
+
+    private static DigitalConstructFlowerCpuCoreProfile cpuProfileForRepeatHeight(int repeatHeight) {
+        DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder()
+                .actualRepeatCount(repeatHeight);
+        builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
+        return builder.build();
     }
 
     @Test
