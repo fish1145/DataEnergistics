@@ -115,7 +115,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.QIUYEQAQ2024);
                         output.accept(ModItems.TED_XENON);
                     })
-                    .withTabsBefore(MULTIBLOCK_TAB_KEY)
+                    .withTabsAfter(MULTIBLOCK_TAB_KEY)
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
                     .build());
 
@@ -125,7 +125,7 @@ public final class ModCreativeTabs {
                     .title(Component.translatable("itemGroup." + Data_Energistics.MODID + ".multiblock"))
                     .icon(ModItems.DIGITAL_CONSTRUCT_FLOWER::toStack)
                     .displayItems((parameters, output) -> acceptMultiblockItems(output))
-                    .withTabsAfter(DATA_ENERGISTICS_TAB_KEY)
+                    .withTabsBefore(DATA_ENERGISTICS_TAB_KEY)
                     .build());
 
     private ModCreativeTabs() {}
