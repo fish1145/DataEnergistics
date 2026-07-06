@@ -1,5 +1,6 @@
 {
 	"itemGroup.data_energistics": "数据能源",
+	"itemGroup.data_energistics.multiblock": "数据能源：多方块",
 	"dimension.data_energistics.data_sanctum": "数据圣所",
 	"block.data_energistics.me_solar_panel": "ME太阳能板",
 	"block.data_energistics.data_extractor": "数据提取仪",

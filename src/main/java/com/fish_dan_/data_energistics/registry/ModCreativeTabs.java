@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.bus.api.IEventBus;
@@ -14,6 +15,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModCreativeTabs {
 
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.MODID);
+    private static final ResourceKey<CreativeModeTab> DATA_ENERGISTICS_TAB_KEY = ResourceKey.create(Registries.CREATIVE_MODE_TAB, Data_Energistics.id(Data_Energistics.MODID));
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> DATA_ENERGISTICS_TAB = CREATIVE_MODE_TABS.register(
             Data_Energistics.MODID,
@@ -43,7 +45,6 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_SOLAR_PANEL);
                         output.accept(ModItems.DATA_EXTRACTOR);
                         output.accept(ModItems.DATA_RIPPER_REASSEMBLER);
-                        output.accept(ModItems.DIGITAL_CONSTRUCT_FLOWER);
                         output.accept(ModItems.DATA_FRAMEWORK);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
@@ -65,34 +66,6 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_METEORITE_COMPASS);
                         output.accept(ModItems.DATA_CRYSTAL_BLOCK);
                         output.accept(ModItems.DIGITAL_STORAGE_DEPOT);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_1M);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_4M);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_16M);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_64M);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_256M);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_1G);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_4G);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_16G);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_64G);
-                        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_256G);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
-                        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
-                        output.accept(ModItems.ME_DIGITAL_PATTERN_PROCESSING_CORE);
-                        output.accept(ModItems.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
-                        output.accept(ModItems.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);
-                        output.accept(ModItems.COMPOSITE_INPUT_WAREHOUSE);
-                        output.accept(ModItems.COMPOSITE_OUTPUT_WAREHOUSE);
-                        output.accept(ModItems.ME_COMPOSITE_INPUT_WAREHOUSE);
-                        output.accept(ModItems.ME_COMPOSITE_OUTPUT_WAREHOUSE);
-                        output.accept(ModItems.ME_PATTERN_BUFFER);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_0);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_1);
                         output.accept(ModItems.BUDDING_DATA_CRYSTAL_2);
@@ -142,9 +115,53 @@ public final class ModCreativeTabs {
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())
                     .build());
 
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MULTIBLOCK_TAB = CREATIVE_MODE_TABS.register(
+            "multiblock",
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup." + Data_Energistics.MODID + ".multiblock"))
+                    .icon(ModItems.DIGITAL_CONSTRUCT_FLOWER::toStack)
+                    .displayItems((parameters, output) -> acceptMultiblockItems(output))
+                    .withTabsBefore(DATA_ENERGISTICS_TAB_KEY)
+                    .build());
+
     private ModCreativeTabs() {}
 
     public static void register(IEventBus modEventBus) {
         CREATIVE_MODE_TABS.register(modEventBus);
+    }
+
+    private static void acceptMultiblockItems(CreativeModeTab.Output output) {
+        output.accept(ModItems.DIGITAL_CONSTRUCT_FLOWER);
+        output.accept(ModItems.COMPOSITE_INPUT_WAREHOUSE);
+        output.accept(ModItems.COMPOSITE_OUTPUT_WAREHOUSE);
+        output.accept(ModItems.ME_COMPOSITE_INPUT_WAREHOUSE);
+        output.accept(ModItems.ME_COMPOSITE_OUTPUT_WAREHOUSE);
+        output.accept(ModItems.ME_PATTERN_BUFFER);
+
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_1M);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_4M);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_16M);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_64M);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_256M);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_1G);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_4G);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_16G);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_64G);
+        output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_256G);
+
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_1M);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_4M);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_16M);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_64M);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_256M);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_1G);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_4G);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_16G);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_64G);
+        output.accept(ModItems.ME_DIGITAL_MERGED_STORAGE_CORE_256G);
+
+        output.accept(ModItems.ME_DIGITAL_PATTERN_PROCESSING_CORE);
+        output.accept(ModItems.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE);
+        output.accept(ModItems.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE);
     }
 }

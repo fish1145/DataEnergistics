@@ -1,5 +1,6 @@
 {
 	"itemGroup.data_energistics": "Data_Energistics",
+	"itemGroup.data_energistics.multiblock": "Data_Energistics Multiblocks",
 	"dimension.data_energistics.data_sanctum": "Data Sanctum",
 	"block.data_energistics.me_solar_panel": "ME Solar Panel",
 	"block.data_energistics.data_extractor": "Data Extractor",
