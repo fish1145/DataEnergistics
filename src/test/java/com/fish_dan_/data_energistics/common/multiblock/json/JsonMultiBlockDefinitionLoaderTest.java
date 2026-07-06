@@ -32,6 +32,7 @@ import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.PatternMatchContext;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
+import com.modularmc.mdl.api.multiblock.util.RelativeDirection;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.InputStream;
@@ -201,16 +202,24 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.key(),
                 new JsonMultiBlockStructureKey(resource("trinity_digital_core"), "cpu"),
                 "Bundled Trinity Digital Core CPU JSON should resolve to the cpu child structure key");
-        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 19, 19, 24 },
+        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 9, 19, 32 },
                 "Bundled Trinity Digital Core CPU dimensions should include the host anchor and child body");
-        helper.assertValueEqual(pattern.structureSlices.length, 19, "CPU child structure should use one aisle per local Z layer");
-        helper.assertValueEqual(pattern.aisleRepetitions.length, 19, "Each CPU child aisle should be fixed");
+        helper.assertValueEqual(pattern.structureSlices.length, 9, "CPU child structure should use one aisle per local Z layer");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 9, "Each CPU child aisle should be fixed");
         assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each CPU child aisle unit should contain one slice");
         assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each CPU child aisle unit should repeat once");
         helper.assertValueEqual(pattern.getCenterOffset().x(), 0, "CPU child controller X offset should match the host anchor");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 1, "CPU child controller Y offset should match the host anchor");
-        helper.assertValueEqual(pattern.getCenterOffset().z(), 18, "CPU child controller Z offset should match the host anchor");
+        helper.assertValueEqual(pattern.getCenterOffset().z(), 8, "CPU child controller Z offset should match the host anchor");
+        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 8, "CPU child controller min Z offset should match the host anchor");
+        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 8, "CPU child controller max Z offset should match the host anchor");
         helper.assertValueEqual(countSymbol(pattern, 'C'), 272, "CPU child should expose 272 merged storage core positions");
+        BlockPos firstCpuBlock = firstNonAnchorSymbol(pattern);
+        helper.assertValueEqual(firstCpuBlock, new BlockPos(26, 0, 0), "CPU child first entity should be at the exported left-back-bottom corner");
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, firstCpuBlock, new BlockPos(-81, -44, 8), Direction.EAST, Direction.NORTH),
+                new BlockPos(-89, -45, -18),
+                "CPU child first entity should map to the WorldEdit-selected left-back-bottom corner");
 
         JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/cpu.json"))
                 .getAsJsonObject();
@@ -968,6 +977,37 @@ public final class JsonMultiBlockDefinitionLoaderTest {
             }
         }
         return count;
+    }
+
+    private static BlockPos firstNonAnchorSymbol(BlockPattern pattern) {
+        for (int z = 0; z < pattern.structureSlices.length; z++) {
+            String[] slice = pattern.structureSlices[z];
+            for (int y = 0; y < slice.length; y++) {
+                String row = slice[y];
+                for (int x = 0; x < row.length(); x++) {
+                    char symbol = row.charAt(x);
+                    if (symbol != ' ' && symbol != '~') {
+                        return new BlockPos(x, y, z);
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException("Pattern does not contain a non-anchor symbol");
+    }
+
+    private static BlockPos mapPatternPosition(BlockPattern pattern,
+                                               BlockPos localPosition,
+                                               BlockPos hostPosition,
+                                               Direction frontFacing,
+                                               Direction upwardsFacing) {
+        return RelativeDirection.offsetPos(
+                hostPosition,
+                frontFacing,
+                upwardsFacing,
+                false,
+                localPosition.getY() - pattern.getCenterOffset().y(),
+                localPosition.getX() - pattern.getCenterOffset().x(),
+                localPosition.getZ() - pattern.getCenterOffset().z());
     }
 
     private static boolean hasJsonStringValue(JsonElement element, String expected) {
