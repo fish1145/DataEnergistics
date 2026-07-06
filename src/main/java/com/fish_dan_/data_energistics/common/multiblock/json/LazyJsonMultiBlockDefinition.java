@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -53,7 +54,8 @@ public final class LazyJsonMultiBlockDefinition implements JsonMultiBlockDefinit
                         key,
                         Objects.requireNonNull(patternFactory.get(), "pattern"),
                         displayNameTranslationKey,
-                        compartmentTypes));
+                        compartmentTypes,
+                        Map.of()));
     }
 
     @Override
@@ -74,6 +76,11 @@ public final class LazyJsonMultiBlockDefinition implements JsonMultiBlockDefinit
     @Override
     public Map<String, CompartmentType> compartmentTypes() {
         return definition().compartmentTypes();
+    }
+
+    @Override
+    public Map<String, Set<CompartmentType>> replaceableCompartmentTypes() {
+        return definition().replaceableCompartmentTypes();
     }
 
     private synchronized JsonMultiBlockDefinition definition() {

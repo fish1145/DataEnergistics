@@ -127,13 +127,21 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
                 Long2ObjectOpenHashMap::new);
     }
 
-    private static Block blockFor(CompartmentType type) {
+    public static void recordMatchedCompartment(PatternMatchContext context, BlockPos pos, CompartmentType type) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(pos, "pos");
+        Objects.requireNonNull(type, "type");
+        matchedCompartments(context).put(pos.asLong(), type);
+    }
+
+    public static Block blockFor(CompartmentType type) {
         return switch (type) {
             case INPUT -> ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get();
             case OUTPUT -> ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get();
             case ME_INPUT -> ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get();
             case ME_OUTPUT -> ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get();
             case PATTERN_BUFFER -> ModBlocks.ME_PATTERN_BUFFER.get();
+            case ME_STORAGE_ACCESS -> ModBlocks.ME_STORAGE_ACCESS_HATCH.get();
         };
     }
 

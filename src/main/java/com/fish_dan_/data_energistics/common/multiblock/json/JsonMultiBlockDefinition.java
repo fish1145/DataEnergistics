@@ -6,6 +6,7 @@ import com.modularmc.mdl.api.multiblock.BlockPattern;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * One resolved JSON multiblock definition available to Data Energistics runtime code.
@@ -36,4 +37,9 @@ public interface JsonMultiBlockDefinition {
      * Returns pattern symbols that are declared as compartment positions.
      */
     Map<String, CompartmentType> compartmentTypes();
+
+    /**
+     * Returns normal structure symbols that may be replaced by the listed compartment roles.
+     */
+    Map<String, Set<CompartmentType>> replaceableCompartmentTypes();
 }

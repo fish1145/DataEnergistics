@@ -1,6 +1,16 @@
 {
 	"metadata": {
-		"display_name": "multiblock.data_energistics.trinity_digital_core"
+		"display_name": "multiblock.data_energistics.trinity_digital_core",
+		"replaceable_compartments": {
+			"H": [
+				"input",
+				"output",
+				"me_input",
+				"me_output",
+				"pattern_buffer",
+				"me_storage_access"
+			]
+		}
 	},
 	"aisles": [
 		{

@@ -43,6 +43,7 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
     private static final String AISLES_PROPERTY = "aisles";
     private static final String SLICES_PROPERTY = "slices";
     private static final String TYPE_PROPERTY = "type";
+    private static final String PREDICATE_PROPERTY = "predicate";
     private static final String BLOCK_PROPERTY = "block";
     private static final String BLOCKS_PROPERTY = "blocks";
     private static final String BLOCK_STATES_PROPERTY = "block_states";
@@ -114,13 +115,16 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
         patternRoot.remove(JsonMultiBlockMetadata.METADATA_PROPERTY);
         sanitizeBlockPredicates(resourceId, patternRoot);
         JsonMultiBlockCompartmentPredicate.registerType();
+        JsonMultiBlockReplaceableCompartmentPredicate.registerType();
         applyCompartmentPredicates(resourceId, patternRoot, metadata.compartmentTypes());
+        applyReplaceableCompartmentPredicates(resourceId, patternRoot, metadata.replaceableCompartmentTypes());
         BlockPattern pattern = StructurePatternResolver.parsePattern(new StringReader(GSON.toJson(patternRoot)));
         return new ResolvedJsonMultiBlockDefinition(
                 key,
                 pattern,
                 metadata.displayNameTranslationKey(),
-                metadata.compartmentTypes());
+                metadata.compartmentTypes(),
+                metadata.replaceableCompartmentTypes());
     }
 
     private static void applyCompartmentPredicates(ResourceLocation resourceId,
@@ -148,6 +152,37 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
                 compartmentPredicate.add("predicate", existingPredicate.deepCopy());
             }
             predicates.add(symbol, compartmentPredicate);
+        }
+    }
+
+    private static void applyReplaceableCompartmentPredicates(ResourceLocation resourceId,
+                                                              JsonObject root,
+                                                              Map<String, Set<CompartmentType>> replaceableCompartmentTypes) {
+        if (replaceableCompartmentTypes.isEmpty()) {
+            return;
+        }
+        JsonObject predicates = getOrCreatePredicates(root, resourceId);
+        for (Map.Entry<String, Set<CompartmentType>> entry : replaceableCompartmentTypes.entrySet()) {
+            String symbol = entry.getKey();
+            if (!patternUsesSymbol(root, symbol)) {
+                throw new IllegalArgumentException("JSON multiblock replaceable compartment symbol '" + symbol +
+                        "' is not used by pattern: " + resourceId);
+            }
+            JsonElement existingPredicate = predicates.get(symbol);
+            if (existingPredicate == null || existingPredicate.isJsonNull() || !existingPredicate.isJsonObject()) {
+                throw new IllegalArgumentException("JSON multiblock replaceable compartment symbol '" + symbol +
+                        "' requires an existing object predicate: " + resourceId);
+            }
+
+            JsonObject replaceablePredicate = new JsonObject();
+            replaceablePredicate.addProperty(TYPE_PROPERTY, JsonMultiBlockReplaceableCompartmentPredicate.TYPE.toString());
+            JsonArray compartments = new JsonArray();
+            for (CompartmentType type : entry.getValue()) {
+                compartments.add(type.id());
+            }
+            replaceablePredicate.add("compartments", compartments);
+            replaceablePredicate.add(PREDICATE_PROPERTY, existingPredicate.deepCopy());
+            predicates.add(symbol, replaceablePredicate);
         }
     }
 

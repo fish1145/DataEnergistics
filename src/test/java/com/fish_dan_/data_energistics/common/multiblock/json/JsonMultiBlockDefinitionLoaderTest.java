@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -38,6 +39,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -140,6 +142,16 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.compartmentTypes().size(),
                 0,
                 "Bundled Trinity Digital Core should not declare compartment roles yet");
+        helper.assertValueEqual(
+                definition.replaceableCompartmentTypes().size(),
+                1,
+                "Bundled Trinity Digital Core should declare replaceable quartz glass symbols");
+        helper.assertTrue(
+                definition.replaceableCompartmentTypes().getOrDefault("H", Set.of()).contains(CompartmentType.ME_STORAGE_ACCESS),
+                "Bundled Trinity Digital Core H symbol should allow the ME storage access hatch");
+        helper.assertTrue(
+                !definition.replaceableCompartmentTypes().containsKey("Y"),
+                "Bundled Trinity Digital Core should not allow compartments to replace plain glass");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 27, 28, 32 },
                 "Bundled Trinity Digital Core dimensions should match the WorldEdit schematic");
         helper.assertValueEqual(pattern.structureSlices.length, 27, "Bundled Trinity Digital Core should use one GregTech aisle per schematic depth layer");
@@ -404,6 +416,86 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_replaceable_compartment_accepts_original_block_and_allowed_roles")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void replaceableCompartmentAcceptsOriginalBlockAndAllowedRoles(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("replaceable_compartment"),
+                new StringReader(jsonWithReplaceableCompartment("A", "input", "me_storage_access")));
+
+        BlockPos replaceablePos = new BlockPos(-1, 0, 0);
+        StructureMatchResult originalBlock = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        replaceablePos, Blocks.GLASS.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertTrue(originalBlock.matched(), "Original glass predicate should still match");
+
+        StructureMatchResult inputCompartment = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        replaceablePos, ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertTrue(inputCompartment.matched(), "Allowed input compartment should replace glass");
+        helper.assertValueEqual(
+                JsonMultiBlockCompartmentPredicate.declaredCompartments(inputCompartment.context()).get(replaceablePos),
+                CompartmentType.INPUT,
+                "Allowed input replacement should be recorded for binder validation");
+
+        StructureMatchResult accessHatch = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        replaceablePos, ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertTrue(accessHatch.matched(), "Allowed ME storage access hatch should replace glass");
+        helper.assertValueEqual(
+                JsonMultiBlockCompartmentPredicate.declaredCompartments(accessHatch.context()).get(replaceablePos),
+                CompartmentType.ME_STORAGE_ACCESS,
+                "Allowed access hatch replacement should be recorded for binder validation");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_replaceable_compartment_rejects_disallowed_roles_and_non_matching_blocks")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void replaceableCompartmentRejectsDisallowedRolesAndNonMatchingBlocks(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("replaceable_compartment_reject"),
+                new StringReader(jsonWithReplaceableCompartment("A", "input")));
+
+        BlockPos replaceablePos = new BlockPos(-1, 0, 0);
+        StructureMatchResult outputCompartment = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        replaceablePos, ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertFalse(outputCompartment.matched(), "Disallowed output compartment should not replace glass");
+
+        StructureMatchResult nonGlass = JsonMultiBlockPatternMatcher.match(
+                definition.pattern(),
+                world(Map.of(
+                        CONTROLLER, Blocks.STONE.defaultBlockState(),
+                        replaceablePos, Blocks.GOLD_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertFalse(nonGlass.matched(), "Non-matching normal block should still fail the original predicate");
+        helper.succeed();
+    }
+
     @TestHolder("json_multiblock_compartment_binder_reports_invalid_runtime_parts")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -494,6 +586,54 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertTrue(
                 inputPart.compartmentStructureName() == null,
                 "Unbound compartment part should clear its structure name");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_compartment_binder_binds_me_storage_access_hatch")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compartmentBinderBindsMeStorageAccessHatch(GameTestHelper helper) {
+        JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
+        TestCompartmentHost host = new TestCompartmentHost();
+        BlockPos hatchPos = new BlockPos(1, 0, 0);
+        MeStorageAccessHatchBlockEntity hatch = new MeStorageAccessHatchBlockEntity(
+                hatchPos,
+                ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState());
+        StructureMatchResult result = StructureMatchResult.success(
+                false,
+                Direction.NORTH,
+                List.of(hatchPos),
+                new PatternMatchContext());
+        StructureWorldView world = world(
+                Map.of(hatchPos, ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState()),
+                Map.of(hatchPos, hatch));
+        Map<BlockPos, CompartmentType> declaredCompartments = Map.of(hatchPos, CompartmentType.ME_STORAGE_ACCESS);
+
+        PatternDiagnostic diagnostic = binder.validate(world, result, declaredCompartments);
+        if (diagnostic != null) {
+            helper.fail("ME storage access hatch should validate as a declared compartment: " + diagnostic.message());
+            return;
+        }
+
+        binder.bind(world, "main", host, declaredCompartments);
+        helper.assertValueEqual(
+                host.compartmentHost$getCompartments("main"),
+                List.of(hatch),
+                "Binder should register the ME storage access hatch with the host");
+        helper.assertValueEqual(hatch.compartmentHost(), host, "Bound ME storage access hatch should remember its host");
+        helper.assertValueEqual(
+                hatch.compartmentStructureName(),
+                "main",
+                "Bound ME storage access hatch should remember the structure name");
+
+        binder.unbind("main", host);
+        helper.assertTrue(
+                host.compartmentHost$getCompartments("main").isEmpty(),
+                "Binder unbind should remove the ME storage access hatch from the host");
+        helper.assertTrue(hatch.compartmentHost() == null, "Unbound ME storage access hatch should clear its host");
+        helper.assertTrue(
+                hatch.compartmentStructureName() == null,
+                "Unbound ME storage access hatch should clear the structure name");
         helper.succeed();
     }
 
@@ -657,6 +797,39 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static String jsonWithMissingBlockStatePredicate() {
         return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:block_states\",\"block\":\"%s\",\"properties\":{\"facing\":\"north\"}}}}"
                 .formatted(MISSING_BLOCK_ID);
+    }
+
+    private static String jsonWithReplaceableCompartment(String symbol, String... compartmentTypes) {
+        String types = String.join(
+                ",",
+                Stream.of(compartmentTypes)
+                        .map(type -> "\"" + type + "\"")
+                        .toList());
+        return String.join(
+                "\n",
+                "{",
+                "  \"metadata\": {",
+                "    \"replaceable_compartments\": {",
+                "      \"%s\": [%s]",
+                "    }",
+                "  },",
+                "  \"aisles\": [",
+                "    {",
+                "      \"slices\": [",
+                "        [",
+                "          \"~%s\"",
+                "        ]",
+                "      ]",
+                "    }",
+                "  ],",
+                "  \"predicates\": {",
+                "    \"%s\": {",
+                "      \"type\": \"mdlib:blocks\",",
+                "      \"block\": \"minecraft:glass\"",
+                "    }",
+                "  }",
+                "}")
+                .formatted(symbol, types, symbol, symbol);
     }
 
     private static StructureMatchResult matchController(BlockPattern pattern, BlockState state) {
