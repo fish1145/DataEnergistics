@@ -20,10 +20,9 @@ import java.util.List;
 
 public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructFlowerMenu> {
 
-    private static final int LABEL_COLOR = 0x101427;
-    private static final int VALUE_COLOR = 0x00E6D0;
-    private static final float LEFT_TEXT_SCALE = 0.75F;
-    private static final float RIGHT_TEXT_SCALE = 0.62F;
+    private static final int LABEL_COLOR = 0x080C1B;
+    private static final int VALUE_COLOR = 0x005E83;
+    private static final float LEFT_TEXT_SCALE = 0.9F;
     private static final int TARGET_HOVER_X = 156;
     private static final int TARGET_HOVER_Y = 96;
     private static final int TARGET_HOVER_WIDTH = 13;
@@ -75,17 +74,17 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_coprocessors_label", Component.literal(
                 Integer.toString(this.menu.cpuCoProcessors)), 9, 57, LEFT_TEXT_SCALE);
 
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.status_label", Component.translatable(
-                this.menu.online ? "screen.data_energistics.digital_construct_flower.status_online" : "screen.data_energistics.digital_construct_flower.status_offline"), 107, 23, RIGHT_TEXT_SCALE);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.formed_label", Component.translatable(
-                this.menu.structureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), 107, 34, RIGHT_TEXT_SCALE);
+        drawRightKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.status_label", Component.translatable(
+                this.menu.online ? "screen.data_energistics.digital_construct_flower.status_online" : "screen.data_energistics.digital_construct_flower.status_offline"), 107, 22);
+        drawRightKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.formed_label", Component.translatable(
+                this.menu.structureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), 107, 34);
 
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_types_label", Component.literal(
-                Integer.toString(this.menu.storedTypeCount)), 107, 55, RIGHT_TEXT_SCALE);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_amount_label", Component.literal(
-                shortenDecimal(this.menu.storedAmountText)), 107, 66, RIGHT_TEXT_SCALE);
+        drawRightKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_types_label", Component.literal(
+                Integer.toString(this.menu.storedTypeCount)), 107, 54);
+        drawRightKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_amount_label", Component.literal(
+                shortenDecimal(this.menu.storedAmountText)), 107, 66);
 
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.molecular_label", getMolecularStatus(), 107, 87, RIGHT_TEXT_SCALE);
+        drawRightKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.molecular_label", getMolecularStatus(), 107, 88);
     }
 
     private static void drawKeyValueText(GuiGraphics guiGraphics, String labelKey, Component value, int x, int y, float scale) {
@@ -97,6 +96,13 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         guiGraphics.drawString(font, label, 0, 0, LABEL_COLOR, false);
         guiGraphics.drawString(font, value, font.width(label), 0, VALUE_COLOR, false);
         guiGraphics.pose().popPose();
+    }
+
+    private static void drawRightKeyValueText(GuiGraphics guiGraphics, String labelKey, Component value, int x, int y) {
+        Component label = Component.translatable(labelKey);
+        var font = Minecraft.getInstance().font;
+        guiGraphics.drawString(font, label, x, y, LABEL_COLOR, false);
+        guiGraphics.drawString(font, value, x + font.width(label), y, VALUE_COLOR, false);
     }
 
     @Override
