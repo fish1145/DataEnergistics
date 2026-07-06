@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -13,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import javax.imageio.ImageIO;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -55,9 +58,17 @@ public final class DigitalConstructFlowerResourceTest {
         assertNoAbsolutePaths(root, "digital_construct_flower screen");
 
         JsonObject background = object(root, "background");
-        assertEquals("guis/digital_construct_flower/gui.png", string(background, "texture"));
+        String backgroundTexture = string(background, "texture");
+        assertEquals("guis/digital_construct_flower/gui.png", backgroundTexture);
         assertSourceRect(background, 176, 212);
-        assertResourceExists(GUI_TEXTURE_ROOT + string(background, "texture"), "Digital Construct Flower GUI texture should exist");
+        assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Digital Construct Flower GUI texture should exist");
+        assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
+
+        JsonObject text = object(root, "text");
+        assertEquals(
+                Set.of("dialog_title", "player_inventory_title"),
+                text.keySet(),
+                "Dynamic host status text should be drawn by DigitalConstructFlowerScreen");
 
         JsonObject images = object(root, "images");
         assertGuiImage(images, "cpuIdle", "guis/digital_construct_flower/cpu_idle.png");
@@ -177,6 +188,18 @@ public final class DigitalConstructFlowerResourceTest {
             assertNotNull(stream, message + ": " + path);
         } catch (IOException exception) {
             throw new IllegalStateException("Could not close resource " + path, exception);
+        }
+    }
+
+    private static void assertPngDimensions(String path, int expectedWidth, int expectedHeight) {
+        try (InputStream stream = DigitalConstructFlowerResourceTest.class.getClassLoader().getResourceAsStream(path)) {
+            assertNotNull(stream, "Missing PNG resource " + path);
+            BufferedImage image = ImageIO.read(stream);
+            assertNotNull(image, "Could not decode PNG resource " + path);
+            assertEquals(expectedWidth, image.getWidth(), path + " width should match the source texture");
+            assertEquals(expectedHeight, image.getHeight(), path + " height should match the source texture");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not read PNG resource " + path, exception);
         }
     }
 
