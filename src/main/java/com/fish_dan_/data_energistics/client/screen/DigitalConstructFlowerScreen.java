@@ -22,7 +22,7 @@ import java.util.List;
 public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructFlowerMenu> {
 
     private static final int CPU_X = 102;
-    private static final int CPU_Y = 65;
+    private static final int CPU_Y = 80;
     private static final int TARGET_HOVER_X = CPU_X + 54;
     private static final int TARGET_HOVER_Y = CPU_Y;
     private static final int TARGET_HOVER_WIDTH = 13;
@@ -68,6 +68,25 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         setTextContent("busy_cpus", Component.translatable(
                 "screen.data_energistics.digital_construct_flower.busy_cpus",
                 this.menu.busyCraftingCpuCount));
+        setTextContent("storage_types", Component.translatable(
+                "screen.data_energistics.digital_construct_flower.storage_types",
+                this.menu.storedTypeCount));
+        setTextContent("storage_amount", Component.translatable(
+                "screen.data_energistics.digital_construct_flower.storage_amount",
+                shortenDecimal(this.menu.storedAmountText)));
+        setTextContent("molecular_status", Component.translatable(
+                "screen.data_energistics.digital_construct_flower.molecular_status",
+                getMolecularStatus()));
+        setTextContent("cpu_partitions", Component.translatable(
+                "screen.data_energistics.digital_construct_flower.cpu_partitions",
+                this.menu.busyCpuPartitionCount,
+                this.menu.cpuPartitionCount));
+        setTextContent("cpu_storage", Component.translatable(
+                "screen.data_energistics.digital_construct_flower.cpu_storage",
+                shortenDecimal(Long.toString(this.menu.cpuStorageBytes))));
+        setTextContent("cpu_coprocessors", Component.translatable(
+                "screen.data_energistics.digital_construct_flower.cpu_coprocessors",
+                this.menu.cpuCoProcessors));
     }
 
     @Override
@@ -139,6 +158,24 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             return Component.translatable("screen.data_energistics.digital_construct_flower.no_failure");
         }
         return MultiBlockFailureText.summarize(this.menu.lastFailureReason, FAILURE_SUMMARY_LENGTH);
+    }
+
+    private Component getMolecularStatus() {
+        GenericStack target = this.menu.getCraftingTarget();
+        if (target == null || target.what() == null) {
+            return Component.translatable("screen.data_energistics.digital_construct_flower.molecular_idle");
+        }
+        return target.what().getDisplayName();
+    }
+
+    private static String shortenDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return "0";
+        }
+        if (value.length() <= 8) {
+            return value;
+        }
+        return value.charAt(0) + "." + value.substring(1, 3) + "e" + (value.length() - 1);
     }
 
     private boolean hasFailure() {

@@ -68,10 +68,58 @@
 		"busy_cpus": {
 			"position": {
 				"left": 106,
-				"top": 27
+				"top": 64
 			},
 			"maxWidth": 58,
-			"scale": 0.75
+			"scale": 0.6
+		},
+		"storage_types": {
+			"position": {
+				"left": 106,
+				"top": 22
+			},
+			"maxWidth": 58,
+			"scale": 0.6
+		},
+		"storage_amount": {
+			"position": {
+				"left": 106,
+				"top": 33
+			},
+			"maxWidth": 58,
+			"scale": 0.6
+		},
+		"molecular_status": {
+			"position": {
+				"left": 106,
+				"top": 53
+			},
+			"maxWidth": 58,
+			"scale": 0.6
+		},
+		"cpu_partitions": {
+			"position": {
+				"left": 106,
+				"top": 82
+			},
+			"maxWidth": 58,
+			"scale": 0.55
+		},
+		"cpu_storage": {
+			"position": {
+				"left": 106,
+				"top": 91
+			},
+			"maxWidth": 58,
+			"scale": 0.55
+		},
+		"cpu_coprocessors": {
+			"position": {
+				"left": 106,
+				"top": 100
+			},
+			"maxWidth": 58,
+			"scale": 0.55
 		},
 		"player_inventory_title": {
 			"text": {

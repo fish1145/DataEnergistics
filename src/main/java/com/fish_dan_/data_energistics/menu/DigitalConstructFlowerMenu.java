@@ -35,6 +35,18 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
     public int busyCraftingCpuCount;
     @GuiSync(937)
     public SyncedCraftingTarget craftingTarget = SyncedCraftingTarget.EMPTY;
+    @GuiSync(938)
+    public int storedTypeCount;
+    @GuiSync(939)
+    public String storedAmountText = "0";
+    @GuiSync(940)
+    public int cpuPartitionCount;
+    @GuiSync(941)
+    public int busyCpuPartitionCount;
+    @GuiSync(942)
+    public long cpuStorageBytes;
+    @GuiSync(943)
+    public int cpuCoProcessors;
 
     public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
         super(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), id, playerInventory, host);
@@ -57,6 +69,12 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
             DigitalConstructFlowerCraftingStatus craftingStatus = this.host.getCraftingStatus();
             this.busyCraftingCpuCount = craftingStatus.busyCpuCount();
             this.craftingTarget = craftingStatus.hasTarget() ? new SyncedCraftingTarget(craftingStatus.target()) : SyncedCraftingTarget.EMPTY;
+            this.storedTypeCount = this.host.getStoredTypeCount();
+            this.storedAmountText = this.host.getStoredAmountText();
+            this.cpuPartitionCount = this.host.getCpuPartitionCount();
+            this.busyCpuPartitionCount = this.host.getBusyCpuPartitionCount();
+            this.cpuStorageBytes = this.host.getCpuStorageBytes();
+            this.cpuCoProcessors = this.host.getCpuCoProcessors();
         }
 
         super.broadcastChanges();
@@ -79,6 +97,12 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         this.lastFailurePosition = NO_FAILURE;
         this.busyCraftingCpuCount = 0;
         this.craftingTarget = SyncedCraftingTarget.EMPTY;
+        this.storedTypeCount = 0;
+        this.storedAmountText = "0";
+        this.cpuPartitionCount = 0;
+        this.busyCpuPartitionCount = 0;
+        this.cpuStorageBytes = 0L;
+        this.cpuCoProcessors = 0;
     }
 
     private static String formatFailurePosition(@Nullable BlockPos pos) {
