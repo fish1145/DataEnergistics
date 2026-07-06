@@ -1,17 +1,14 @@
 {
 	"type": "ae2:inscriber",
-	"mode": "press",
 	"ingredients": {
 		"top": {
-			"tag": "c:dusts/fluix"
-		},
-		"middle": {
 			"item": "data_energistics:data_inscriber_template"
 		},
-		"bottom": {
-			"tag": "c:dusts/data_dust"
+		"middle": {
+			"tag": "c:gems/data_crystal"
 		}
 	},
+	"mode": "inscribe",
 	"result": {
 		"id": "data_energistics:data_circuit_board",
 		"count": 1
