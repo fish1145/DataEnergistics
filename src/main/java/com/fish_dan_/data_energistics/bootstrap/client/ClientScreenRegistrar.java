@@ -36,7 +36,7 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, ModMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, ModMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
         InitScreens.register(event, ModMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
-        InitScreens.register(event, ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), DigitalConstructFlowerScreen::new, "/screens/digital_construct_flower.json");
+        InitScreens.register(event, ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), DigitalConstructFlowerScreen::new, "/screens/trinity_data_core.json");
         InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
         InitScreens.register(event, ModMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
         InitScreens.register(event, ModMenus.DIGITAL_STORAGE_DEPOT.get(), DigitalStorageDepotScreen::new, "/screens/digital_storage_depot.json");

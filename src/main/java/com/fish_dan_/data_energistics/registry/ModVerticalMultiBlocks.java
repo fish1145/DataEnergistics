@@ -21,8 +21,8 @@ import java.nio.charset.StandardCharsets;
  */
 public final class ModVerticalMultiBlocks {
 
-    public static final String TRINITY_DIGITAL_CORE_ID = Data_Energistics.id("trinity_digital_core").toString();
-    private static final String TRINITY_DIGITAL_CORE_PATH = "/data/data_energistics/multiblock/trinity_digital_core.json";
+    public static final String TRINITY_DATA_CORE_ID = Data_Energistics.id("trinity_data_core").toString();
+    private static final String TRINITY_DATA_CORE_PATH = "/data/data_energistics/multiblock/trinity_data_core.json";
 
     public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new LayeredJsonMultiBlockDefinitionRegistry();
 
@@ -30,8 +30,8 @@ public final class ModVerticalMultiBlocks {
 
     public static void init() {
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
-                JsonMultiBlockStructureKey.main(trinityDigitalCoreId()),
-                ModVerticalMultiBlocks::trinityDigitalCoreDefinition));
+                JsonMultiBlockStructureKey.main(trinityDataCoreId()),
+                ModVerticalMultiBlocks::trinityDataCoreDefinition));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -39,12 +39,12 @@ public final class ModVerticalMultiBlocks {
         return new JsonMultiBlockReloadEventHandler(JSON_MULTI_BLOCKS);
     }
 
-    private static ResourceLocation trinityDigitalCoreId() {
-        return Data_Energistics.id("trinity_digital_core");
+    private static ResourceLocation trinityDataCoreId() {
+        return Data_Energistics.id("trinity_data_core");
     }
 
-    private static JsonMultiBlockDefinition trinityDigitalCoreDefinition() {
-        return loadBundledJsonDefinition(TRINITY_DIGITAL_CORE_PATH, trinityDigitalCoreId());
+    private static JsonMultiBlockDefinition trinityDataCoreDefinition() {
+        return loadBundledJsonDefinition(TRINITY_DATA_CORE_PATH, trinityDataCoreId());
     }
 
     private static JsonMultiBlockDefinition loadBundledJsonDefinition(String path, ResourceLocation resourceId) {

@@ -395,7 +395,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 state,
                 DataRipperReassemblerBlock.FACING,
                 this.worldPosition,
-                "Trinity Digital Core");
+                "Trinity Data Core");
     }
 
     private void applyMatch(StructureWorldView world,
@@ -433,7 +433,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return;
         }
         LOGGER.warn(
-                "Trinity Digital Core structure '{}' failed at {}: {}",
+                "Trinity Data Core structure '{}' failed at {}: {}",
                 structureName,
                 nextFailurePosition,
                 nextFailureReason);
@@ -479,7 +479,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
-        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID));
+        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID));
     }
 
     private static List<BlockPos> readMatchedPositions(CompoundTag data) {

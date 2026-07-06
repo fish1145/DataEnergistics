@@ -17,6 +17,7 @@ import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ProgressBar.Direction;
+import appeng.client.gui.widgets.UpgradesPanel;
 import appeng.menu.SlotSemantics;
 
 public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
@@ -29,6 +30,7 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
 
     public DataExtractorScreen(DataExtractorMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.widgets.add("display_component", new UpgradesPanel(menu.getSlots(DataExtractorMenu.DISPLAY_COMPONENT_INPUT)));
         this.redstoneControlButton = new DataExtractorToggleButton(
                 Icon.REDSTONE_ON,
                 Icon.REDSTONE_OFF,

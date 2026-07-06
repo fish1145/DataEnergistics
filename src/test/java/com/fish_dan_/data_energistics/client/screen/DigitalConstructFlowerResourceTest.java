@@ -32,7 +32,7 @@ public final class DigitalConstructFlowerResourceTest {
 
     @Test
     void digitalConstructFlowerBlockModelsUseMovedTextureFolder() {
-        for (String model : Set.of("digital_construct_flower_off.json", "digital_construct_flower_on.json")) {
+        for (String model : Set.of("trinity_data_core_off.json", "trinity_data_core_on.json")) {
             JsonObject root = readJson(MODEL_ROOT + model);
             assertNoAbsolutePaths(root, model);
 
@@ -51,8 +51,8 @@ public final class DigitalConstructFlowerResourceTest {
 
     @Test
     void digitalConstructFlowerScreenUsesGuiTextureFolder() {
-        JsonObject root = readJson(SCREEN_ROOT + "digital_construct_flower.json");
-        assertNoAbsolutePaths(root, "digital_construct_flower screen");
+        JsonObject root = readJson(SCREEN_ROOT + "trinity_data_core.json");
+        assertNoAbsolutePaths(root, "trinity_data_core screen");
 
         JsonObject background = object(root, "background");
         assertEquals("guis/digital_construct_flower/gui.png", string(background, "texture"));
@@ -66,12 +66,12 @@ public final class DigitalConstructFlowerResourceTest {
 
     @Test
     void digitalConstructFlowerMultiblockUsesTrinityDigitalCoreStructure() {
-        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core.json");
+        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_data_core.json");
         JsonObject metadata = object(root, "metadata");
         assertEquals(
-                "multiblock.data_energistics.trinity_digital_core",
+                "multiblock.data_energistics.trinity_data_core",
                 string(metadata, "display_name"),
-                "Trinity Digital Core should expose its renamed multiblock display key");
+                "Trinity Data Core should expose its renamed multiblock display key");
 
         JsonObject predicates = object(root, "predicates");
         Set<String> values = new HashSet<>();
@@ -79,19 +79,19 @@ public final class DigitalConstructFlowerResourceTest {
 
         assertTrue(
                 values.contains("ae2:crafting_unit"),
-                "Trinity Digital Core should reference the exported AE2 crafting unit body");
+                "Trinity Data Core should reference the exported AE2 crafting unit body");
         assertTrue(
                 values.contains("ae2:controller"),
-                "Trinity Digital Core should reference the exported AE2 controller body");
+                "Trinity Data Core should reference the exported AE2 controller body");
         assertTrue(
                 values.contains("data_energistics:data_framework"),
-                "Trinity Digital Core should preserve the exported data framework shell");
+                "Trinity Data Core should preserve the exported data framework shell");
         assertFalse(
                 values.contains("expatternprovider:assembler_matrix_pattern"),
-                "Trinity Digital Core should no longer reference the previous assembler matrix pattern block id");
+                "Trinity Data Core should no longer reference the previous assembler matrix pattern block id");
         assertFalse(
                 values.contains("extendedae:assembler_matrix_pattern"),
-                "Trinity Digital Core should not reference the missing ExtendedAE namespace");
+                "Trinity Data Core should not reference the missing ExtendedAE namespace");
     }
 
     @Test
@@ -99,8 +99,8 @@ public final class DigitalConstructFlowerResourceTest {
         JsonObject zhCn = readJson(LANG_ROOT + "zh_cn.json");
         assertEquals(
                 "三位一体数位化核心",
-                string(zhCn, "block.data_energistics.digital_construct_flower"),
-                "Controller block name should use the renamed Trinity Digital Core display name");
+                string(zhCn, "block.data_energistics.trinity_data_core"),
+                "Controller block name should use the renamed Trinity Data Core display name");
         assertEquals(
                 "结构方块不匹配",
                 string(zhCn, "text.data_energistics.multiblock.failure.block_predicate"),
@@ -108,8 +108,8 @@ public final class DigitalConstructFlowerResourceTest {
 
         JsonObject enUs = readJson(LANG_ROOT + "en_us.json");
         assertEquals(
-                "Trinity Digital Core",
-                string(enUs, "block.data_energistics.digital_construct_flower"),
+                "Trinity Data Core",
+                string(enUs, "block.data_energistics.trinity_data_core"),
                 "English controller block name should match the renamed structure");
         assertEquals(
                 "Structure block did not match",

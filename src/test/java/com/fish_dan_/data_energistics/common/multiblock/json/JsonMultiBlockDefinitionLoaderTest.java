@@ -47,7 +47,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static final BlockPos CONTROLLER = new BlockPos(0, 0, 0);
     private static final String MISSING_BLOCK_ID = "data_energistics:missing_block_for_json_multiblock_test";
     private static final String MISSING_BLOCKS_ID = "data_energistics:missing_blocks_for_json_multiblock_test";
-    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.trinity_digital_core\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
+    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.trinity_data_core\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
     private static final String MINIMAL_JSON_WITH_COMPARTMENTS = "{\"metadata\":{\"compartments\":{\"I\":\"input\",\"O\":\"output\",\"M\":\"me_input\",\"N\":\"me_output\",\"P\":\"pattern_buffer\"}},\"aisles\":[{\"slices\":[[\"~IOMNP\"]]}]}";
 
     private JsonMultiBlockDefinitionLoaderTest() {}
@@ -116,48 +116,48 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_parses_bundled_trinity_digital_core_structure")
+    @TestHolder("json_multiblock_loader_parses_bundled_trinity_data_core_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void parsesBundledTrinityDigitalCoreStructure(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core"),
-                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core.json"));
+                resource("trinity_data_core"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core.json"));
         BlockPattern pattern = definition.pattern();
 
         helper.assertValueEqual(
                 definition.key(),
-                JsonMultiBlockStructureKey.main(resource("trinity_digital_core")),
-                "Bundled Trinity Digital Core JSON should resolve to the main trinity_digital_core structure key");
+                JsonMultiBlockStructureKey.main(resource("trinity_data_core")),
+                "Bundled Trinity Data Core JSON should resolve to the main trinity_data_core structure key");
         helper.assertTrue(
                 definition.displayNameTranslationKey().isPresent(),
-                "Bundled Trinity Digital Core JSON should expose structure display metadata");
+                "Bundled Trinity Data Core JSON should expose structure display metadata");
         helper.assertValueEqual(
                 definition.displayNameTranslationKey().orElseThrow(),
-                "multiblock.data_energistics.trinity_digital_core",
-                "Bundled Trinity Digital Core display metadata should resolve to the structure lang key");
+                "multiblock.data_energistics.trinity_data_core",
+                "Bundled Trinity Data Core display metadata should resolve to the structure lang key");
         helper.assertValueEqual(
                 definition.compartmentTypes().size(),
                 0,
-                "Bundled Trinity Digital Core should not declare compartment roles yet");
+                "Bundled Trinity Data Core should not declare compartment roles yet");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 27, 28, 32 },
-                "Bundled Trinity Digital Core dimensions should match the WorldEdit schematic");
-        helper.assertValueEqual(pattern.structureSlices.length, 27, "Bundled Trinity Digital Core should use one GregTech aisle per schematic depth layer");
-        helper.assertValueEqual(pattern.aisleRepetitions.length, 27, "Each Trinity Digital Core aisle should be a fixed non-repeatable unit");
-        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Trinity Digital Core aisle unit should contain exactly one slice");
-        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Trinity Digital Core aisle unit should repeat exactly once");
+                "Bundled Trinity Data Core dimensions should match the WorldEdit schematic");
+        helper.assertValueEqual(pattern.structureSlices.length, 27, "Bundled Trinity Data Core should use one GregTech aisle per schematic depth layer");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 27, "Each Trinity Data Core aisle should be a fixed non-repeatable unit");
+        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Trinity Data Core aisle unit should contain exactly one slice");
+        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Trinity Data Core aisle unit should repeat exactly once");
         helper.assertValueEqual(
                 pattern.structureSlices[13][2],
                 "       ~CCG   L       L         ",
-                "Bundled Trinity Digital Core should map the exported controller to the pattern center row");
+                "Bundled Trinity Data Core should map the exported controller to the pattern center row");
         helper.assertValueEqual(
                 pattern.structureSlices[13][3],
                 "       HCCCG  LLLLLLLLL         ",
-                "Bundled Trinity Digital Core should preserve the new exported body around the controller");
+                "Bundled Trinity Data Core should preserve the new exported body around the controller");
         helper.assertValueEqual(
                 pattern.structureSlices[0][0],
                 "                                ",
-                "Bundled Trinity Digital Core should retain empty exported boundary rows");
+                "Bundled Trinity Data Core should retain empty exported boundary rows");
         helper.assertValueEqual(pattern.getCenterOffset().x(), 7, "Controller X offset should match the mapped JSON placeholder column");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 2, "Controller Y offset should match the GregTech bottom-to-top JSON row");
         helper.assertValueEqual(pattern.getCenterOffset().z(), 13, "Controller Z offset should match the mapped JSON placeholder aisle");
@@ -237,12 +237,12 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @GameTest(template = "empty_5x5")
     public static void stripsDisplayMetadataBeforeMdlibParse(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core"),
+                resource("trinity_data_core"),
                 new StringReader(MINIMAL_JSON_WITH_METADATA));
 
         helper.assertValueEqual(
                 definition.displayNameTranslationKey().orElseThrow(),
-                "multiblock.data_energistics.trinity_digital_core",
+                "multiblock.data_energistics.trinity_data_core",
                 "Loader should expose display metadata without passing it into MDLib pattern parsing");
         helper.assertTrue(definition.pattern() != null, "Loader should still parse the MDLib pattern");
         helper.succeed();
