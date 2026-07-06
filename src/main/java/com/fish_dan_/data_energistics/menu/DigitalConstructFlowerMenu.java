@@ -51,6 +51,14 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
     public String storedTypeCapacityText = "0";
     @GuiSync(945)
     public String storedAmountCapacityText = "0";
+    @GuiSync(946)
+    public boolean cpuStructureFormed;
+    @GuiSync(947)
+    public int cpuStructureMatchedBlockCount;
+    @GuiSync(948)
+    public String cpuLastFailureReason = NO_FAILURE;
+    @GuiSync(949)
+    public String cpuLastFailurePosition = NO_FAILURE;
 
     public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
         super(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), id, playerInventory, host);
@@ -67,6 +75,10 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
             this.structureFormed = this.host.isStructureFormed();
             this.matchedBlockCount = this.host.getMatchedBlockCount();
             this.patternBufferCount = this.host.getPatternBufferCount();
+            this.cpuStructureFormed = this.host.isCpuStructureFormed();
+            this.cpuStructureMatchedBlockCount = this.host.getCpuStructureMatchedBlockCount();
+            this.cpuLastFailureReason = this.host.getCpuLastFailureReason();
+            this.cpuLastFailurePosition = formatFailurePosition(this.host.getCpuLastFailurePosition());
             this.lastFailureReason = this.host.getLastFailureReason();
             this.lastFailurePosition = formatFailurePosition(this.host.getLastFailurePosition());
 
@@ -99,6 +111,10 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         this.structureFormed = false;
         this.matchedBlockCount = 0;
         this.patternBufferCount = 0;
+        this.cpuStructureFormed = false;
+        this.cpuStructureMatchedBlockCount = 0;
+        this.cpuLastFailureReason = NO_FAILURE;
+        this.cpuLastFailurePosition = NO_FAILURE;
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = NO_FAILURE;
         this.busyCraftingCpuCount = 0;

@@ -87,8 +87,11 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.pattern_buffers_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.patternBufferCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 3, VALUE_COLOR,
                 LEFT_TEXT_WIDTH);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_structure_label", Component.translatable(
+                this.menu.cpuStructureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
+                statusColor(this.menu.cpuStructureFormed), LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.last_failure_label", getFailureSummary(),
-                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4, hasFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
+                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5, hasFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
     }
 
     private void drawCpuStatus(GuiGraphics guiGraphics) {
@@ -158,16 +161,28 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             return;
         }
 
-        if (this.menu.getCarried().isEmpty() && hasFailure() &&
+        if (this.menu.getCarried().isEmpty() && (hasFailure() || hasCpuFailure()) &&
                 isMouseOverLocal(mouseX, mouseY, STATUS_X, STATUS_Y, STATUS_WIDTH, STATUS_HEIGHT)) {
             List<Component> tooltip = new ArrayList<>();
-            tooltip.add(Component.translatable(
-                    "screen.data_energistics.digital_construct_flower.last_failure",
-                    MultiBlockFailureText.describe(this.menu.lastFailureReason)));
-            if (!this.menu.lastFailurePosition.isBlank()) {
+            if (hasFailure()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.digital_construct_flower.failure_position",
-                        this.menu.lastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
+                        "screen.data_energistics.digital_construct_flower.last_failure",
+                        MultiBlockFailureText.describe(this.menu.lastFailureReason)));
+                if (!this.menu.lastFailurePosition.isBlank()) {
+                    tooltip.add(Component.translatable(
+                            "screen.data_energistics.digital_construct_flower.failure_position",
+                            this.menu.lastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
+                }
+            }
+            if (hasCpuFailure()) {
+                tooltip.add(Component.translatable(
+                        "screen.data_energistics.digital_construct_flower.cpu_failure",
+                        MultiBlockFailureText.describe(this.menu.cpuLastFailureReason)));
+                if (!this.menu.cpuLastFailurePosition.isBlank()) {
+                    tooltip.add(Component.translatable(
+                            "screen.data_energistics.digital_construct_flower.cpu_failure_position",
+                            this.menu.cpuLastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
+                }
             }
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
@@ -253,6 +268,10 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private boolean hasFailure() {
         return this.menu.lastFailureReason != null && !this.menu.lastFailureReason.isBlank();
+    }
+
+    private boolean hasCpuFailure() {
+        return this.menu.cpuLastFailureReason != null && !this.menu.cpuLastFailureReason.isBlank();
     }
 
     private boolean isMouseOverLocal(int mouseX, int mouseY, int x, int y, int width, int height) {
