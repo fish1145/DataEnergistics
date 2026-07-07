@@ -19,7 +19,7 @@ import appeng.util.inv.InternalInventoryHost;
 
 public class MeVacuumMenuHost extends ItemMenuHost<MeVacuumItem> implements InternalInventoryHost {
 
-    public static final int STORAGE_SLOT_COUNT = 5;
+    public static final int STORAGE_SLOT_COUNT = 4;
     private static final String TAG_STORAGE = "StorageComponents";
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOT_COUNT);

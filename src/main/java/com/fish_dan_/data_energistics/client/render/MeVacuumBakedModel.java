@@ -33,20 +33,27 @@ import java.util.List;
 
 public final class MeVacuumBakedModel implements BakedModel {
 
-    private static final float CELL_X = 5.0F / 16.0F;
-    private static final float CELL_Y = -5.5F / 16.0F;
-    private static final float[] CELL_Z = {
-            12.75F / 16.0F,
-            15.75F / 16.0F,
-            18.75F / 16.0F,
-            21.75F / 16.0F,
-            24.75F / 16.0F
+    private static final CellTransform[] CELL_TRANSFORMS = {
+            CellTransform.left(7.25F, 4.00F, 6.00F),
+            CellTransform.left(7.25F, 4.00F, 9.00F),
+            CellTransform.right(8.75F, 4.00F, 6.00F),
+            CellTransform.right(8.75F, 4.00F, 9.00F)
     };
 
     private final BakedModel delegate;
+    private final boolean customRenderer;
 
     public MeVacuumBakedModel(BakedModel delegate) {
+        this(delegate, true);
+    }
+
+    private MeVacuumBakedModel(BakedModel delegate, boolean customRenderer) {
         this.delegate = delegate;
+        this.customRenderer = customRenderer;
+    }
+
+    public MeVacuumBakedModel withoutCustomRenderer() {
+        return this.customRenderer ? new MeVacuumBakedModel(this.delegate, false) : this;
     }
 
     @Override
@@ -82,7 +89,7 @@ public final class MeVacuumBakedModel implements BakedModel {
 
     @Override
     public boolean isCustomRenderer() {
-        return this.delegate.isCustomRenderer();
+        return this.customRenderer || this.delegate.isCustomRenderer();
     }
 
     @Override
@@ -109,7 +116,7 @@ public final class MeVacuumBakedModel implements BakedModel {
     public BakedModel applyTransform(ItemDisplayContext transformType, PoseStack poseStack,
                                      boolean applyLeftHandTransform) {
         BakedModel transformed = this.delegate.applyTransform(transformType, poseStack, applyLeftHandTransform);
-        return transformed == this.delegate ? this : new MeVacuumBakedModel(transformed);
+        return transformed == this.delegate ? this : new MeVacuumBakedModel(transformed, this.customRenderer);
     }
 
     @Override
@@ -169,18 +176,33 @@ public final class MeVacuumBakedModel implements BakedModel {
                     this.delegate.getQuads(state, direction, random, data, renderType));
             Minecraft minecraft = Minecraft.getInstance();
 
-            for (int slot = 0; slot < Math.min(this.cells.size(), CELL_Z.length); slot++) {
+            for (int slot = 0; slot < Math.min(this.cells.size(), CELL_TRANSFORMS.length); slot++) {
                 ItemStack cellStack = this.cells.get(slot);
                 if (cellStack.isEmpty()) {
                     continue;
                 }
 
                 BakedModel cellModel = getCellModel(minecraft, cellStack);
-                for (BakedQuad quad : cellModel.getQuads(state, direction, random, ModelData.EMPTY, renderType)) {
-                    quads.add(translateQuad(quad, CELL_X, CELL_Y, CELL_Z[slot]));
+                List<BakedQuad> cellQuads = getAllCellQuads(cellModel, state, random, renderType);
+                for (BakedQuad quad : cellQuads) {
+                    BakedQuad transformed = transformQuad(quad, CELL_TRANSFORMS[slot]);
+                    if (direction == null || transformed.getDirection() == direction) {
+                        quads.add(transformed);
+                    }
                 }
             }
 
+            return quads;
+        }
+
+        private static List<BakedQuad> getAllCellQuads(BakedModel cellModel, @Nullable BlockState state,
+                                                       RandomSource random,
+                                                       @Nullable RenderType renderType) {
+            var quads = new java.util.ArrayList<BakedQuad>();
+            quads.addAll(cellModel.getQuads(state, null, random, ModelData.EMPTY, renderType));
+            for (Direction side : Direction.values()) {
+                quads.addAll(cellModel.getQuads(state, side, random, ModelData.EMPTY, renderType));
+            }
             return quads;
         }
 
@@ -233,18 +255,83 @@ public final class MeVacuumBakedModel implements BakedModel {
         return minecraft.getModelManager().getModel(ModelResourceLocation.standalone(modelId));
     }
 
-    private static BakedQuad translateQuad(BakedQuad quad, float x, float y, float z) {
+    private static BakedQuad transformQuad(BakedQuad quad, CellTransform transform) {
         int[] vertices = quad.getVertices().clone();
         int vertexSize = vertices.length / 4;
 
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * vertexSize;
-            vertices[offset] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[offset]) + x);
-            vertices[offset + 1] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[offset + 1]) + y);
-            vertices[offset + 2] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[offset + 2]) + z);
+            float localX = Float.intBitsToFloat(vertices[offset]) * 16.0F;
+            float localY = Float.intBitsToFloat(vertices[offset + 1]) * 16.0F;
+            float localZ = Float.intBitsToFloat(vertices[offset + 2]) * 16.0F;
+
+            float worldX;
+            float worldY;
+            float worldZ;
+            if (transform.rightSide()) {
+                worldX = transform.x() + 2.0F - localZ;
+                worldY = transform.y() + localX;
+                worldZ = transform.z() + localY;
+            } else {
+                float depth = 2.0F - localZ;
+                worldX = transform.x() - depth;
+                worldY = transform.y() + localX;
+                worldZ = transform.z() + localY;
+            }
+
+            vertices[offset] = Float.floatToRawIntBits(worldX / 16.0F);
+            vertices[offset + 1] = Float.floatToRawIntBits(worldY / 16.0F);
+            vertices[offset + 2] = Float.floatToRawIntBits(worldZ / 16.0F);
         }
 
-        return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(), quad.isShade(),
-                quad.hasAmbientOcclusion());
+        if (transform.rightSide()) {
+            reverseWinding(vertices, vertexSize);
+        }
+
+        return new BakedQuad(vertices, quad.getTintIndex(), transformDirection(quad.getDirection(), transform),
+                quad.getSprite(), false, false);
+    }
+
+    private static void reverseWinding(int[] vertices, int vertexSize) {
+        for (int i = 0; i < vertexSize; i++) {
+            int second = vertexSize + i;
+            int fourth = vertexSize * 3 + i;
+            int value = vertices[second];
+            vertices[second] = vertices[fourth];
+            vertices[fourth] = value;
+        }
+    }
+
+    private static Direction transformDirection(Direction direction, CellTransform transform) {
+        if (transform.rightSide()) {
+            return switch (direction) {
+                case NORTH -> Direction.EAST;
+                case SOUTH -> Direction.WEST;
+                case EAST -> Direction.UP;
+                case WEST -> Direction.DOWN;
+                case UP -> Direction.SOUTH;
+                case DOWN -> Direction.NORTH;
+            };
+        }
+
+        return switch (direction) {
+            case NORTH -> Direction.WEST;
+            case SOUTH -> Direction.EAST;
+            case EAST -> Direction.SOUTH;
+            case WEST -> Direction.NORTH;
+            case UP -> Direction.UP;
+            case DOWN -> Direction.DOWN;
+        };
+    }
+
+    private record CellTransform(float x, float y, float z, boolean rightSide) {
+
+        private static CellTransform left(float x, float y, float z) {
+            return new CellTransform(x, y, z, false);
+        }
+
+        private static CellTransform right(float x, float y, float z) {
+            return new CellTransform(x, y, z, true);
+        }
     }
 }
