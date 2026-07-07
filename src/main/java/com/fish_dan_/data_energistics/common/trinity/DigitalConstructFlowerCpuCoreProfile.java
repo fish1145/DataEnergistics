@@ -19,14 +19,14 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
 
     private static final BigInteger PARALLEL_VALUE_PER_M = BigInteger.valueOf(2L);
 
-    public static final int CORE_SLOT_START_Y = 1;
-    public static final int CORE_SLOT_END_Y = 17;
-    public static final int REPEAT_START_Y = 5;
-    public static final int REPEAT_END_Y = 17;
-    public static final int FULL_CORE_SLOT_COUNT = 272;
+    public static final int CORE_SLOT_START_Y = 0;
+    public static final int CORE_SLOT_END_Y = 15;
+    public static final int REPEAT_START_Y = 3;
+    public static final int REPEAT_END_Y = 15;
+    public static final int FULL_CORE_SLOT_COUNT = 256;
     public static final int MAX_REPEAT_COUNT = 13;
     public static final int MAX_THREADS = 256;
-    public static final int CONTROLLER_LOCAL_Y = 1;
+    public static final int CONTROLLER_LOCAL_Y = 0;
     public static final DigitalConstructFlowerCpuCoreProfile EMPTY = new DigitalConstructFlowerCpuCoreProfile(
             0L,
             0,

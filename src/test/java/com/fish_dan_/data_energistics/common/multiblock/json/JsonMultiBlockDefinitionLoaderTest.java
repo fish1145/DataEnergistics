@@ -13,12 +13,16 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -44,6 +48,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -53,6 +58,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static final BlockPos CONTROLLER = new BlockPos(0, 0, 0);
     private static final String MISSING_BLOCK_ID = "data_energistics:missing_block_for_json_multiblock_test";
     private static final String MISSING_BLOCKS_ID = "data_energistics:missing_blocks_for_json_multiblock_test";
+    private static final Set<String> DIRECTION_PROPERTY_NAMES = Set.of("facing", "horizontal_facing", "axis");
     private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.trinity_digital_core\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
     private static final String MINIMAL_JSON_WITH_COMPARTMENTS = "{\"metadata\":{\"compartments\":{\"I\":\"input\",\"O\":\"output\",\"M\":\"me_input\",\"N\":\"me_output\",\"P\":\"pattern_buffer\"}},\"aisles\":[{\"slices\":[[\"~IOMNP\"]]}]}";
 
@@ -158,34 +164,47 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertTrue(
                 !definition.replaceableCompartmentTypes().containsKey("Y"),
                 "Bundled Trinity Digital Core should not allow compartments to replace plain glass");
-        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 27, 28, 32 },
+        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 32, 28, 27 },
                 "Bundled Trinity Digital Core dimensions should match the WorldEdit schematic");
-        helper.assertValueEqual(pattern.structureSlices.length, 27, "Bundled Trinity Digital Core should use one GregTech aisle per schematic depth layer");
-        helper.assertValueEqual(pattern.aisleRepetitions.length, 27, "Each Trinity Digital Core aisle should be a fixed non-repeatable unit");
+        helper.assertValueEqual(pattern.structureSlices.length, 32, "Bundled Trinity Digital Core should use one aisle per schematic front layer");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 32, "Each Trinity Digital Core aisle should be a fixed non-repeatable unit");
         assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Trinity Digital Core aisle unit should contain exactly one slice");
         assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Trinity Digital Core aisle unit should repeat exactly once");
+        helper.assertValueEqual(pattern.structureDir.charDir(), RelativeDirection.LEFT, "Main structure char axis should point left");
+        helper.assertValueEqual(pattern.structureDir.stringDir(), RelativeDirection.UP, "Main structure row axis should point up");
+        helper.assertValueEqual(pattern.structureDir.aisleDir(), RelativeDirection.FRONT, "Main structure aisle axis should point front");
         helper.assertValueEqual(
-                pattern.structureSlices[13][2],
-                "       ~CCG   L       L         ",
-                "Bundled Trinity Digital Core should map the exported controller to the pattern center row");
+                pattern.structureSlices[24][2],
+                "            M~M            ",
+                "Bundled Trinity Digital Core should map the exported controller to the host position");
         helper.assertValueEqual(
-                pattern.structureSlices[13][3],
-                "       HCCCG  LLLLLLLLL         ",
+                pattern.structureSlices[24][3],
+                "            MHM            ",
                 "Bundled Trinity Digital Core should preserve the new exported body around the controller");
         helper.assertValueEqual(
                 pattern.structureSlices[0][0],
-                "                                ",
+                "                           ",
                 "Bundled Trinity Digital Core should retain empty exported boundary rows");
-        helper.assertValueEqual(pattern.getCenterOffset().x(), 7, "Controller X offset should match the mapped JSON placeholder column");
+        helper.assertValueEqual(pattern.getCenterOffset().x(), 13, "Controller X offset should match the exported host column");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 2, "Controller Y offset should match the GregTech bottom-to-top JSON row");
-        helper.assertValueEqual(pattern.getCenterOffset().z(), 13, "Controller Z offset should match the mapped JSON placeholder aisle");
-        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 13, "Controller Z min offset should match the placeholder aisle");
-        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 13, "Controller Z max offset should match the placeholder aisle");
+        helper.assertValueEqual(pattern.getCenterOffset().z(), 24, "Controller Z offset should match the exported host aisle");
+        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 24, "Controller Z min offset should match the placeholder aisle");
+        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 24, "Controller Z max offset should match the placeholder aisle");
         helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Digital Core should expose all storage core slots through Z");
-        helper.assertValueEqual(countSymbol(pattern, 'd'), 0, "Main Trinity Digital Core should not keep the duplicate storage symbol d");
-        helper.assertTrue(
-                !root.getAsJsonObject("predicates").has("d"),
-                "Main Trinity Digital Core predicates should not keep the duplicate storage symbol d");
+        JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
+        helper.assertValueEqual(structureDir.get("char").getAsString(), "left", "Main JSON should map chars to left");
+        helper.assertValueEqual(structureDir.get("string").getAsString(), "up", "Main JSON should map rows to height");
+        helper.assertValueEqual(structureDir.get("aisle").getAsString(), "front", "Main JSON should map aisles to front");
+        JsonObject smoothQuartzSlabPredicate = root.getAsJsonObject("predicates").getAsJsonObject("N");
+        helper.assertValueEqual(smoothQuartzSlabPredicate.get("type").getAsString(), "mdlib:blocks", "Main smooth quartz slab should match by block id only");
+        helper.assertFalse(smoothQuartzSlabPredicate.has("properties"), "Main smooth quartz slab should not keep slab type or waterlogged states");
+        JsonObject skyStoneSlabPredicate = root.getAsJsonObject("predicates").getAsJsonObject("W");
+        helper.assertValueEqual(skyStoneSlabPredicate.get("type").getAsString(), "mdlib:blocks", "Main sky stone slab should match by block id only");
+        helper.assertFalse(skyStoneSlabPredicate.has("properties"), "Main sky stone slab should not keep slab type or waterlogged states");
+        JsonObject quartzSlabPredicate = root.getAsJsonObject("predicates").getAsJsonObject("$");
+        helper.assertValueEqual(quartzSlabPredicate.get("type").getAsString(), "mdlib:blocks", "Main quartz slab should match by block id only");
+        helper.assertFalse(quartzSlabPredicate.has("properties"), "Main quartz slab should not keep slab type or waterlogged states");
+        assertOnlyDirectionProperties(helper, root, "Main Trinity Digital Core predicates");
         helper.succeed();
     }
 
@@ -202,30 +221,63 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.key(),
                 new JsonMultiBlockStructureKey(resource("trinity_digital_core"), "cpu"),
                 "Bundled Trinity Digital Core CPU JSON should resolve to the cpu child structure key");
-        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 9, 19, 32 },
-                "Bundled Trinity Digital Core CPU dimensions should include the host anchor and child body");
-        helper.assertValueEqual(pattern.structureSlices.length, 9, "CPU child structure should use one aisle per local Z layer");
-        helper.assertValueEqual(pattern.aisleRepetitions.length, 9, "Each CPU child aisle should be fixed");
-        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each CPU child aisle unit should contain one slice");
-        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each CPU child aisle unit should repeat once");
-        helper.assertValueEqual(pattern.getCenterOffset().x(), 0, "CPU child controller X offset should match the host anchor");
-        helper.assertValueEqual(pattern.getCenterOffset().y(), 1, "CPU child controller Y offset should match the host anchor");
-        helper.assertValueEqual(pattern.getCenterOffset().z(), 8, "CPU child controller Z offset should match the host anchor");
-        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 8, "CPU child controller min Z offset should match the host anchor");
-        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 8, "CPU child controller max Z offset should match the host anchor");
-        helper.assertValueEqual(countSymbol(pattern, 'C'), 272, "CPU child should expose 272 merged storage core positions");
-        BlockPos firstCpuBlock = firstNonAnchorSymbol(pattern);
-        helper.assertValueEqual(firstCpuBlock, new BlockPos(26, 0, 0), "CPU child first entity should be at the exported left-back-bottom corner");
+        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 8, 22, 9 },
+                "Bundled Trinity Digital Core CPU dimensions should map width/depth/height from the new export");
+        helper.assertValueEqual(expandedDepth(pattern), 19, "CPU child expanded aisle depth should express the variable height");
+        helper.assertValueEqual(pattern.structureSlices.length, 8, "CPU child should keep the manually corrected height units");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 8, "CPU child should keep eight height repeat units");
+        assertIntArrayEqual(helper, pattern.unitDepths, new int[] { 1, 1, 1, 1, 1, 1, 1, 1 },
+                "Each CPU child repeat unit should contain one slice");
+        assertIntPairArrayEqual(helper, pattern.aisleRepetitions, new int[][] {
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 12 },
+                { 1, 1 }
+        }, "CPU child repeat bounds should allow one to twelve repeated height layers");
+        helper.assertValueEqual(pattern.structureDir.charDir(), RelativeDirection.RIGHT, "CPU child char axis should point right");
+        helper.assertValueEqual(pattern.structureDir.stringDir(), RelativeDirection.FRONT, "CPU child row axis should point front");
+        helper.assertValueEqual(pattern.structureDir.aisleDir(), RelativeDirection.UP, "CPU child aisle axis should point up");
+        helper.assertValueEqual(pattern.getCenterOffset().x(), 8, "CPU child controller X offset should be the main host column");
+        helper.assertValueEqual(pattern.getCenterOffset().y(), 21, "CPU child controller row should be the exported front host row");
+        helper.assertValueEqual(pattern.getCenterOffset().z(), 0, "CPU child compressed controller aisle should be the bottom host unit");
+        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 0, "CPU child controller min aisle should be the bottom host position");
+        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 0, "CPU child controller max aisle should be the bottom host position");
+        helper.assertValueEqual(countSymbol(pattern, 'C'), 112, "CPU child compressed core units should expose seven core layers");
+        helper.assertValueEqual(countExpandedSymbol(pattern, 'C'), 288, "CPU child expanded structure should expose all merged storage core positions");
         helper.assertValueEqual(
-                mapPatternPosition(pattern, firstCpuBlock, new BlockPos(-81, -44, 8), Direction.EAST, Direction.NORTH),
-                new BlockPos(-89, -45, -18),
-                "CPU child first entity should map to the WorldEdit-selected left-back-bottom corner");
+                pattern.structureSlices[5][5],
+                "AEEEEA   ",
+                "CPU child slab row should match the manually corrected slab unit");
+        helper.assertValueEqual(countSymbol(pattern, 'E'), 4, "CPU child should expose only the four schematic slab positions");
+        BlockPos hostPos = new BlockPos(-81, -44, 8);
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, new BlockPos(8, 21, 0), hostPos, Direction.EAST, Direction.NORTH),
+                hostPos,
+                "CPU child controller symbol should map directly to the main host position");
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, new BlockPos(7, 21, 0), hostPos, Direction.EAST, Direction.NORTH),
+                hostPos.relative(Direction.NORTH),
+                "CPU child local x should expand to the left side of the supplied front");
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, new BlockPos(1, 1, 0), hostPos, Direction.SOUTH, Direction.NORTH, true),
+                hostPos.offset(-7, 0, -20),
+                "CPU child should map the first C slot to the left CPU bay when using child flipped context");
 
         JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/cpu.json"))
                 .getAsJsonObject();
+        JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
+        helper.assertValueEqual(structureDir.get("char").getAsString(), "right", "CPU child JSON should map chars to right");
+        helper.assertValueEqual(structureDir.get("string").getAsString(), "front", "CPU child JSON should map rows to front");
+        helper.assertValueEqual(structureDir.get("aisle").getAsString(), "up", "CPU child JSON should map aisles to height");
         JsonObject cpuMetadata = root.getAsJsonObject("metadata").getAsJsonObject("cpu_core");
-        helper.assertValueEqual(cpuMetadata.get("repeat_start_y").getAsInt(), 5, "CPU child repeat start should match the repeated section");
-        helper.assertValueEqual(cpuMetadata.get("repeat_end_y").getAsInt(), 17, "CPU child repeat end should match the repeated section");
+        helper.assertValueEqual(cpuMetadata.get("core_slot_start_y").getAsInt(), 0, "CPU child core slot start should include the bottom layer");
+        helper.assertValueEqual(cpuMetadata.get("core_slot_end_y").getAsInt(), 15, "CPU child core slot end should match the last core layer");
+        helper.assertValueEqual(cpuMetadata.get("repeat_start_y").getAsInt(), 3, "CPU child repeat start should match the repeated section");
+        helper.assertValueEqual(cpuMetadata.get("repeat_end_y").getAsInt(), 15, "CPU child repeat end should match the repeated section");
         helper.assertValueEqual(cpuMetadata.get("max_repeat_count").getAsInt(), 13, "CPU child repeat count should map the 13 repeated layers");
         helper.assertValueEqual(cpuMetadata.get("max_threads").getAsInt(), 256, "CPU child max threads should be the mapped thread cap");
         JsonObject cpuCorePredicate = root.getAsJsonObject("predicates").getAsJsonObject("C");
@@ -233,20 +285,221 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 hasJsonStringValue(cpuCorePredicate.get("blocks"),
                         "data_energistics:me_digital_merged_storage_core_256m"),
                 "CPU child core predicate should allow the 256M merged storage core");
-        helper.assertTrue(
-                hasJsonStringValue(cpuCorePredicate.get("blocks"),
-                        "minecraft:air"),
-                "CPU child core predicate should allow empty core slots without forming a full CPU");
         helper.assertFalse(
-                hasJsonStringValue(root, "ae2:256k_crafting_storage"),
-                "CPU child JSON should not keep AE2 crafting storage as a predicate value");
+                hasJsonStringValue(cpuCorePredicate.get("blocks"), "ae2:pattern_provider"),
+                "CPU child core predicate should not allow the schematic pattern provider placeholder");
+        helper.assertFalse(
+                hasJsonStringValue(root, "minecraft:air"),
+                "CPU child JSON should leave exported air as MDLib any spaces instead of minecraft:air predicates");
+        helper.assertFalse(
+                hasJsonStringValue(root, "mdlib:air"),
+                "CPU child JSON should not use explicit MDLib air predicates");
+        helper.assertFalse(
+                hasJsonStringValue(root, "ae2:pattern_provider[push_direction=all]"),
+                "CPU child JSON should not keep the exported pattern provider placeholder as a predicate value");
+        JsonObject slabPredicate = root.getAsJsonObject("predicates").getAsJsonObject("E");
+        helper.assertValueEqual(slabPredicate.get("type").getAsString(), "mdlib:blocks", "CPU child slab predicate should match by block id only");
+        helper.assertFalse(slabPredicate.has("properties"), "CPU child slab predicate should not keep slab type or waterlogged states");
+        helper.assertFalse(slabPredicate.has("block_states"), "CPU child slab predicate should not export block state predicates");
+        assertOnlyDirectionProperties(helper, root, "CPU child predicates");
+        StructureMatchResult filledCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                cpuStructureWorld(
+                        pattern,
+                        hostPos,
+                        Direction.EAST,
+                        ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "cpu");
+        helper.assertTrue(filledCoreResult.matched(), "CPU child structure should match when all C slots are merged storage cores");
+        StructureMatchResult rotatedCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                cpuStructureWorld(
+                        pattern,
+                        hostPos,
+                        Direction.SOUTH,
+                        ModBlocks.ME_DIGITAL_MERGED_STORAGE_CORE_256M.get().defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "cpu");
+        helper.assertFalse(rotatedCoreResult.matched(), "CPU child exact match should not rotate away from the main structure front");
+        StructureMatchResult airCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                cpuStructureWorld(pattern, hostPos, Direction.EAST, Blocks.AIR.defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "cpu");
+        helper.assertFalse(airCoreResult.matched(), "CPU child structure should reject air in a C core slot");
+        StructureMatchResult patternProviderCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                cpuStructureWorld(pattern, hostPos, Direction.EAST, block("ae2:pattern_provider").defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "cpu");
+        helper.assertFalse(patternProviderCoreResult.matched(), "CPU child structure should reject the schematic pattern provider placeholder");
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_downgrades_missing_block_predicate_to_air")
+    @TestHolder("json_multiblock_loader_parses_bundled_trinity_digital_core_crafting_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void downgradesMissingBlockPredicateToAir(GameTestHelper helper) {
+    public static void parsesBundledTrinityDigitalCoreCraftingStructure(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("trinity_digital_core/crafting"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/crafting.json"));
+        BlockPattern pattern = definition.pattern();
+
+        helper.assertValueEqual(
+                definition.key(),
+                new JsonMultiBlockStructureKey(resource("trinity_digital_core"), "crafting"),
+                "Bundled Trinity Digital Core crafting JSON should resolve to the crafting child structure key");
+        assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 8, 22, 10 },
+                "Crafting child dimensions should map compressed height, front depth, and local width from 2build");
+        helper.assertValueEqual(expandedDepth(pattern), 19, "Crafting child expanded aisle depth should preserve 2build height");
+        helper.assertValueEqual(pattern.structureSlices.length, 8, "Crafting child should compress repeated height units");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 8, "Crafting child should keep eight height repeat units");
+        assertIntArrayEqual(helper, pattern.unitDepths, new int[] { 1, 1, 1, 1, 1, 1, 1, 1 },
+                "Each crafting child repeat unit should contain one slice");
+        assertIntPairArrayEqual(helper, pattern.aisleRepetitions, new int[][] {
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 1 },
+                { 1, 12 },
+                { 1, 1 }
+        }, "Crafting child repeat bounds should allow one to twelve repeated height layers");
+        helper.assertValueEqual(pattern.structureDir.charDir(), RelativeDirection.RIGHT, "Crafting child char axis should point right");
+        helper.assertValueEqual(pattern.structureDir.stringDir(), RelativeDirection.FRONT, "Crafting child row axis should point front");
+        helper.assertValueEqual(pattern.structureDir.aisleDir(), RelativeDirection.UP, "Crafting child aisle axis should point up");
+        helper.assertValueEqual(pattern.getCenterOffset().x(), 0, "Crafting child controller X offset should be the left host column");
+        helper.assertValueEqual(pattern.getCenterOffset().y(), 21, "Crafting child controller row should be the exported front host row");
+        helper.assertValueEqual(pattern.getCenterOffset().z(), 0, "Crafting child compressed controller aisle should be the bottom host unit");
+        helper.assertValueEqual(pattern.getCenterOffset().minZ(), 0, "Crafting child controller min aisle should be the bottom host position");
+        helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 0, "Crafting child controller max aisle should be the bottom host position");
+        helper.assertValueEqual(countSymbol(pattern, '~'), 1, "Crafting child should use the digital construct flower only as the host anchor");
+        helper.assertValueEqual(countSymbol(pattern, 'P'), 112, "Crafting child compressed core units should expose seven pattern core layers");
+        helper.assertValueEqual(countExpandedSymbol(pattern, 'P'), 288, "Crafting child expanded structure should expose all pattern core positions");
+        BlockPos hostPos = new BlockPos(-142, -43, 83);
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, new BlockPos(0, 21, 0), hostPos, Direction.EAST, Direction.NORTH),
+                hostPos,
+                "Crafting child controller symbol should map directly to the main host position");
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, new BlockPos(1, 21, 0), hostPos, Direction.EAST, Direction.NORTH),
+                hostPos.relative(Direction.SOUTH),
+                "Crafting child local x should expand to the right side of the supplied front");
+        helper.assertValueEqual(
+                mapPatternPosition(pattern, new BlockPos(5, 1, 0), hostPos, Direction.SOUTH, Direction.NORTH, true),
+                hostPos.offset(5, 0, -20),
+                "Crafting child should map the first P slot to the right pattern bay when using child flipped context");
+
+        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/crafting.json"))
+                .getAsJsonObject();
+        JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
+        helper.assertValueEqual(structureDir.get("char").getAsString(), "right", "Crafting child JSON should map chars to right");
+        helper.assertValueEqual(structureDir.get("string").getAsString(), "front", "Crafting child JSON should map rows to front");
+        helper.assertValueEqual(structureDir.get("aisle").getAsString(), "up", "Crafting child JSON should map aisles to height");
+        JsonObject predicates = root.getAsJsonObject("predicates");
+        helper.assertFalse(predicates.has("~"), "Crafting child should not add an extra host predicate or anchor");
+        JsonObject patternCorePredicate = predicates.getAsJsonObject("P");
+        helper.assertTrue(
+                hasJsonStringValue(patternCorePredicate.get("blocks"),
+                        "data_energistics:me_digital_pattern_processing_core"),
+                "Crafting child pattern predicate should allow the ordinary pattern processing core");
+        helper.assertTrue(
+                hasJsonStringValue(patternCorePredicate.get("blocks"),
+                        "data_energistics:extended_me_digital_pattern_processing_core"),
+                "Crafting child pattern predicate should allow the extended pattern processing core");
+        helper.assertTrue(
+                hasJsonStringValue(patternCorePredicate.get("blocks"),
+                        "data_energistics:overlimit_me_digital_pattern_processing_core"),
+                "Crafting child pattern predicate should allow the overlimit pattern processing core");
+        helper.assertFalse(
+                hasJsonStringValue(root, "minecraft:air"),
+                "Crafting child JSON should leave exported air as MDLib any spaces instead of minecraft:air predicates");
+        helper.assertFalse(
+                hasJsonStringValue(root, "mdlib:air"),
+                "Crafting child JSON should not use explicit MDLib air predicates");
+        helper.assertFalse(
+                hasJsonStringValue(root, "ae2:pattern_provider"),
+                "Crafting child JSON should not keep the exported pattern provider placeholder block id");
+        helper.assertFalse(
+                hasJsonStringValue(root, "ae2:pattern_provider[push_direction=all]"),
+                "Crafting child JSON should not keep the exported pattern provider placeholder state");
+        JsonObject slabPredicate = predicates.getAsJsonObject("E");
+        helper.assertValueEqual(slabPredicate.get("type").getAsString(), "mdlib:blocks", "Crafting child slab predicate should match by block id only");
+        helper.assertFalse(slabPredicate.has("properties"), "Crafting child slab predicate should not keep slab type or waterlogged states");
+        helper.assertFalse(slabPredicate.has("block_states"), "Crafting child slab predicate should not export block state predicates");
+        assertOnlyDirectionProperties(helper, root, "Crafting child predicates");
+
+        StructureMatchResult ordinaryCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                craftingStructureWorld(
+                        pattern,
+                        hostPos,
+                        Direction.EAST,
+                        ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "crafting");
+        helper.assertTrue(ordinaryCoreResult.matched(), "Crafting child should match ordinary pattern processing cores");
+        StructureMatchResult extendedCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                craftingStructureWorld(
+                        pattern,
+                        hostPos,
+                        Direction.EAST,
+                        ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "crafting");
+        helper.assertTrue(extendedCoreResult.matched(), "Crafting child should match extended pattern processing cores");
+        StructureMatchResult overlimitCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                craftingStructureWorld(
+                        pattern,
+                        hostPos,
+                        Direction.EAST,
+                        ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "crafting");
+        helper.assertTrue(overlimitCoreResult.matched(), "Crafting child should match overlimit pattern processing cores");
+        StructureMatchResult rotatedCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                craftingStructureWorld(
+                        pattern,
+                        hostPos,
+                        Direction.SOUTH,
+                        ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "crafting");
+        helper.assertFalse(rotatedCoreResult.matched(), "Crafting child exact match should not rotate away from the main structure front");
+        StructureMatchResult airCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                craftingStructureWorld(pattern, hostPos, Direction.EAST, Blocks.AIR.defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "crafting");
+        helper.assertFalse(airCoreResult.matched(), "Crafting child should reject air in a P core slot");
+        StructureMatchResult patternProviderCoreResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                craftingStructureWorld(pattern, hostPos, Direction.EAST, block("ae2:pattern_provider").defaultBlockState()),
+                hostPos,
+                Direction.EAST,
+                "crafting");
+        helper.assertFalse(patternProviderCoreResult.matched(), "Crafting child should reject the schematic pattern provider placeholder");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_downgrades_missing_block_predicate_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void downgradesMissingBlockPredicateToAny(GameTestHelper helper) {
         JsonMultiBlockDefinitionLoader loader = new MdlibJsonMultiBlockDefinitionLoader();
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = loader.load(Map.of(
                 resource("missing_block_predicate"),
@@ -259,53 +512,148 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Loader should keep JSON multiblocks whose missing block predicates were downgraded");
         helper.assertTrue(definitions.containsKey(key), "Loader should return the downgraded definition");
 
-        StructureMatchResult nonAirResult = matchController(definitions.get(key).pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertFalse(nonAirResult.matched(), "Downgraded missing block predicate should reject non-air blocks at A");
+        StructureMatchResult nonAirResult = matchController(
+                definitions.get(key).pattern(),
+                Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertTrue(nonAirResult.matched(), "Downgraded missing block predicate should match any non-air block at A");
         StructureMatchResult airResult = matchController(definitions.get(key).pattern(), Blocks.AIR.defaultBlockState());
-        helper.assertTrue(airResult.matched(), "Downgraded missing block predicate should match air at A");
+        helper.assertTrue(airResult.matched(), "Downgraded missing block predicate should still match air at A");
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_parse_downgrades_missing_blocks_predicate_to_air")
+    @TestHolder("json_multiblock_parse_downgrades_missing_blocks_predicate_to_any")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parseDowngradesMissingBlocksPredicateToAir(GameTestHelper helper) {
+    public static void parseDowngradesMissingBlocksPredicateToAny(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("missing_blocks_predicate"),
                 new StringReader(jsonWithMissingBlocksPredicate()));
 
         StructureMatchResult nonAirResult = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertFalse(nonAirResult.matched(), "Downgraded missing block in blocks array should reject non-air blocks at A");
+        helper.assertTrue(nonAirResult.matched(), "Downgraded missing block in blocks array should match any non-air block at A");
         StructureMatchResult airResult = matchController(definition.pattern(), Blocks.AIR.defaultBlockState());
-        helper.assertTrue(airResult.matched(), "Downgraded missing block in blocks array should match air at A");
+        helper.assertTrue(airResult.matched(), "Downgraded missing block in blocks array should still match air at A");
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_parse_downgrades_missing_block_state_predicate_to_air")
+    @TestHolder("json_multiblock_parse_downgrades_missing_block_state_predicate_to_any")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parseDowngradesMissingBlockStatePredicateToAir(GameTestHelper helper) {
+    public static void parseDowngradesMissingBlockStatePredicateToAny(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("missing_block_state_predicate"),
                 new StringReader(jsonWithMissingBlockStatePredicate()));
 
         StructureMatchResult nonAirResult = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertFalse(nonAirResult.matched(), "Downgraded missing block state predicate should reject non-air blocks at A");
+        helper.assertTrue(nonAirResult.matched(), "Downgraded missing block state predicate should match any non-air block at A");
         StructureMatchResult airResult = matchController(definition.pattern(), Blocks.AIR.defaultBlockState());
-        helper.assertTrue(airResult.matched(), "Downgraded missing block state predicate should match air at A");
+        helper.assertTrue(airResult.matched(), "Downgraded missing block state predicate should still match air at A");
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_treats_air_block_predicate_as_existing")
+    @TestHolder("json_multiblock_block_state_predicate_matches_declared_properties_only")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void treatsAirBlockPredicateAsExisting(GameTestHelper helper) {
+    public static void blockStatePredicateMatchesDeclaredPropertiesOnly(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("partial_block_state_predicate"),
+                new StringReader(jsonWithPartialBlockStatePredicate()));
+
+        BlockState matchingState = Blocks.FURNACE.defaultBlockState()
+                .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH)
+                .setValue(BlockStateProperties.LIT, true);
+        StructureMatchResult matchingResult = matchController(definition.pattern(), matchingState);
+        helper.assertTrue(
+                matchingResult.matched(),
+                "Block state predicate should accept actual states with extra undeclared properties");
+
+        BlockState wrongFacingState = Blocks.FURNACE.defaultBlockState()
+                .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.SOUTH)
+                .setValue(BlockStateProperties.LIT, true);
+        StructureMatchResult wrongFacingResult = matchController(definition.pattern(), wrongFacingState);
+        helper.assertFalse(
+                wrongFacingResult.matched(),
+                "Block state predicate should still reject mismatched declared properties");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_slab_block_state_predicate_matches_block_only")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void slabBlockStatePredicateMatchesBlockOnly(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("slab_block_state_predicate"),
+                new StringReader(jsonWithSlabBlockStatePredicate()));
+
+        BlockState bottomWaterloggedSlab = Blocks.SMOOTH_QUARTZ_SLAB.defaultBlockState()
+                .setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM)
+                .setValue(BlockStateProperties.WATERLOGGED, true);
+        StructureMatchResult slabResult = matchController(definition.pattern(), bottomWaterloggedSlab);
+        helper.assertTrue(slabResult.matched(), "Slab predicates should ignore type and waterlogged states");
+
+        StructureMatchResult wrongBlockResult = matchController(definition.pattern(), Blocks.SMOOTH_QUARTZ.defaultBlockState());
+        helper.assertFalse(wrongBlockResult.matched(), "Slab predicates should still reject a different block id");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_converts_air_block_predicate_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void convertsAirBlockPredicateToAny(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("air_block_predicate"),
                 new StringReader(jsonWithAirBlocksPredicate()));
 
         StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
-        helper.assertFalse(result.matched(), "minecraft:air should remain a blocks predicate and reject non-air blocks");
+        helper.assertTrue(result.matched(), "minecraft:air should be normalized to any and accept non-air blocks");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_converts_mdlib_air_predicate_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void convertsMdlibAirPredicateToAny(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("mdlib_air_predicate"),
+                new StringReader(jsonWithMdlibAirPredicate()));
+
+        StructureMatchResult result = matchController(definition.pattern(), Blocks.GOLD_BLOCK.defaultBlockState());
+        helper.assertTrue(result.matched(), "mdlib:air should be normalized to any and accept non-air blocks");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_loader_maps_space_symbol_to_any")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void mapsSpaceSymbolToAny(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("space_symbol_predicate"),
+                new StringReader(jsonWithSpacePredicate()));
+        BlockPattern pattern = definition.pattern();
+        BlockPos spacePos = mapPatternPosition(
+                pattern,
+                new BlockPos(1, 0, 0),
+                CONTROLLER,
+                Direction.NORTH,
+                Direction.NORTH);
+
+        StructureMatchResult nonAirResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                world(Map.of(
+                        CONTROLLER, Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                        spacePos, Blocks.GOLD_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertTrue(nonAirResult.matched(), "Space cells should be forced to any and accept non-air blocks");
+
+        StructureMatchResult airResult = JsonMultiBlockPatternMatcher.matchExact(
+                pattern,
+                world(Map.of(CONTROLLER, Blocks.DIAMOND_BLOCK.defaultBlockState())),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+        helper.assertTrue(airResult.matched(), "Space cells should be forced to any and accept air");
         helper.succeed();
     }
 
@@ -859,9 +1207,25 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:blocks\",\"blocks\":[\"minecraft:air\"]}}}";
     }
 
+    private static String jsonWithMdlibAirPredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:air\"}}}";
+    }
+
+    private static String jsonWithSpacePredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~ \"]]}],\"predicates\":{\" \":{\"type\":\"mdlib:blocks\",\"block\":\"minecraft:stone\"}}}";
+    }
+
     private static String jsonWithMissingBlockStatePredicate() {
         return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:block_states\",\"block\":\"%s\",\"properties\":{\"facing\":\"north\"}}}}"
                 .formatted(MISSING_BLOCK_ID);
+    }
+
+    private static String jsonWithPartialBlockStatePredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:block_states\",\"block\":\"minecraft:furnace\",\"properties\":{\"facing\":\"north\"}}}}";
+    }
+
+    private static String jsonWithSlabBlockStatePredicate() {
+        return "{\"aisles\":[{\"slices\":[[\"~\"]]}],\"predicates\":{\"~\":{\"type\":\"mdlib:block_states\",\"block\":\"minecraft:smooth_quartz_slab\",\"properties\":{\"type\":\"top\",\"waterlogged\":\"false\"}}}}";
     }
 
     private static String jsonWithReplaceableCompartment(String symbol, String... compartmentTypes) {
@@ -936,6 +1300,91 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         };
     }
 
+    private static StructureWorldView cpuStructureWorld(BlockPattern pattern,
+                                                        BlockPos controllerPos,
+                                                        Direction frontFacing,
+                                                        BlockState coreSlotState) {
+        return childStructureWorld(
+                pattern,
+                controllerPos,
+                frontFacing,
+                symbol -> cpuStructureState(symbol, coreSlotState));
+    }
+
+    private static StructureWorldView craftingStructureWorld(BlockPattern pattern,
+                                                             BlockPos controllerPos,
+                                                             Direction frontFacing,
+                                                             BlockState patternCoreState) {
+        return childStructureWorld(
+                pattern,
+                controllerPos,
+                frontFacing,
+                symbol -> craftingStructureState(symbol, patternCoreState));
+    }
+
+    private static StructureWorldView childStructureWorld(BlockPattern pattern,
+                                                          BlockPos controllerPos,
+                                                          Direction frontFacing,
+                                                          Function<Character, BlockState> stateFactory) {
+        Map<BlockPos, BlockState> states = new LinkedHashMap<>();
+        int expandedZ = 0;
+        for (int unitIndex = 0; unitIndex < pattern.aisleRepetitions.length; unitIndex++) {
+            int start = pattern.unitStarts[unitIndex];
+            int depth = pattern.unitDepths[unitIndex];
+            int repeat = pattern.aisleRepetitions[unitIndex][1];
+            for (int repeatIndex = 0; repeatIndex < repeat; repeatIndex++) {
+                for (int inner = 0; inner < depth; inner++) {
+                    String[] slice = pattern.structureSlices[start + inner];
+                    int localZ = expandedZ + inner;
+                    for (int y = 0; y < slice.length; y++) {
+                        String row = slice[y];
+                        for (int x = 0; x < row.length(); x++) {
+                            char symbol = row.charAt(x);
+                            if (symbol == ' ' || symbol == '~') {
+                                continue;
+                            }
+                            BlockPos localPos = new BlockPos(x, y, localZ);
+                            states.put(
+                                    mapPatternPosition(pattern, localPos, controllerPos, frontFacing, Direction.NORTH),
+                                    stateFactory.apply(symbol));
+                        }
+                    }
+                }
+                expandedZ += depth;
+            }
+        }
+        return world(states);
+    }
+
+    private static BlockState cpuStructureState(char symbol, BlockState coreSlotState) {
+        return switch (symbol) {
+            case 'A' -> ModBlocks.DATA_FRAMEWORK.get().defaultBlockState();
+            case 'B' -> block("ae2:quartz_glass").defaultBlockState();
+            case 'C' -> coreSlotState;
+            case 'E' -> block("ae2:smooth_sky_stone_slab").defaultBlockState();
+            default -> throw new IllegalArgumentException("Unsupported CPU structure symbol: " + symbol);
+        };
+    }
+
+    private static BlockState craftingStructureState(char symbol, BlockState patternCoreState) {
+        return switch (symbol) {
+            case 'A' -> ModBlocks.DATA_FRAMEWORK.get().defaultBlockState();
+            case 'B' -> block("ae2:quartz_glass").defaultBlockState();
+            case 'P' -> patternCoreState;
+            case 'E' -> block("ae2:smooth_sky_stone_slab").defaultBlockState();
+            default -> throw new IllegalArgumentException("Unsupported crafting structure symbol: " + symbol);
+        };
+    }
+
+    private static Block block(String id) {
+        ResourceLocation location = ResourceLocation.parse(id);
+        Block block = BuiltInRegistries.BLOCK.get(location);
+        if (!location.equals(BuiltInRegistries.BLOCK.getKey(block))) {
+            throw new IllegalStateException("Missing test block: " + id);
+        }
+        return block;
+    }
+
     private static InputStreamReader bundledJsonReader(String path) {
         InputStream stream = JsonMultiBlockDefinitionLoaderTest.class.getResourceAsStream(path);
         if (stream == null) {
@@ -965,6 +1414,16 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         }
     }
 
+    private static void assertIntPairArrayEqual(GameTestHelper helper, int[][] actual, int[][] expected, String message) {
+        helper.assertValueEqual(actual.length, expected.length, message + " length");
+        for (int i = 0; i < expected.length; i++) {
+            helper.assertValueEqual(actual[i].length, expected[i].length, message + " pair length index " + i);
+            for (int j = 0; j < expected[i].length; j++) {
+                helper.assertValueEqual(actual[i][j], expected[i][j], message + " index " + i + "/" + j);
+            }
+        }
+    }
+
     private static int countSymbol(BlockPattern pattern, char symbol) {
         int count = 0;
         for (String[] slice : pattern.structureSlices) {
@@ -977,6 +1436,39 @@ public final class JsonMultiBlockDefinitionLoaderTest {
             }
         }
         return count;
+    }
+
+    private static int countExpandedSymbol(BlockPattern pattern, char symbol) {
+        int count = 0;
+        for (int unitIndex = 0; unitIndex < pattern.aisleRepetitions.length; unitIndex++) {
+            int start = pattern.unitStarts[unitIndex];
+            int depth = pattern.unitDepths[unitIndex];
+            int repeat = pattern.aisleRepetitions[unitIndex][1];
+            for (int inner = 0; inner < depth; inner++) {
+                count += countSymbol(pattern.structureSlices[start + inner], symbol) * repeat;
+            }
+        }
+        return count;
+    }
+
+    private static int countSymbol(String[] slice, char symbol) {
+        int count = 0;
+        for (String row : slice) {
+            for (int index = 0; index < row.length(); index++) {
+                if (row.charAt(index) == symbol) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int expandedDepth(BlockPattern pattern) {
+        int depth = 0;
+        for (int unitIndex = 0; unitIndex < pattern.aisleRepetitions.length; unitIndex++) {
+            depth += pattern.unitDepths[unitIndex] * pattern.aisleRepetitions[unitIndex][1];
+        }
+        return depth;
     }
 
     private static BlockPos firstNonAnchorSymbol(BlockPattern pattern) {
@@ -1000,14 +1492,40 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                                                BlockPos hostPosition,
                                                Direction frontFacing,
                                                Direction upwardsFacing) {
+        return mapPatternPosition(pattern, localPosition, hostPosition, frontFacing, upwardsFacing, false);
+    }
+
+    private static BlockPos mapPatternPosition(BlockPattern pattern,
+                                               BlockPos localPosition,
+                                               BlockPos hostPosition,
+                                               Direction frontFacing,
+                                               Direction upwardsFacing,
+                                               boolean flipped) {
+        int upOffset = localPosition.getY() - pattern.getCenterOffset().y();
+        int leftOffset = localPosition.getX() - pattern.getCenterOffset().x();
+        int forwardOffset = localPosition.getZ() - pattern.getCenterOffset().minZ();
+        int actualUp = projectOffset(pattern.structureDir.stringDir(), upOffset, leftOffset, forwardOffset);
+        int actualLeft = projectOffset(pattern.structureDir.charDir(), upOffset, leftOffset, forwardOffset);
+        int actualForward = projectOffset(pattern.structureDir.aisleDir(), upOffset, leftOffset, forwardOffset);
         return RelativeDirection.offsetPos(
                 hostPosition,
                 frontFacing,
                 upwardsFacing,
-                false,
-                localPosition.getY() - pattern.getCenterOffset().y(),
-                localPosition.getX() - pattern.getCenterOffset().x(),
-                localPosition.getZ() - pattern.getCenterOffset().z());
+                flipped,
+                actualUp,
+                actualLeft,
+                actualForward);
+    }
+
+    private static int projectOffset(RelativeDirection direction, int upOffset, int leftOffset, int forwardOffset) {
+        return switch (direction) {
+            case UP -> upOffset;
+            case DOWN -> -upOffset;
+            case LEFT -> leftOffset;
+            case RIGHT -> -leftOffset;
+            case FRONT -> forwardOffset;
+            case BACK -> -forwardOffset;
+        };
     }
 
     private static boolean hasJsonStringValue(JsonElement element, String expected) {
@@ -1033,6 +1551,23 @@ public final class JsonMultiBlockDefinitionLoaderTest {
             }
         }
         return false;
+    }
+
+    private static void assertOnlyDirectionProperties(GameTestHelper helper, JsonObject root, String message) {
+        JsonObject predicates = root.getAsJsonObject("predicates");
+        for (Map.Entry<String, JsonElement> predicateEntry : predicates.entrySet()) {
+            JsonObject predicate = predicateEntry.getValue().getAsJsonObject();
+            JsonObject properties = predicate.getAsJsonObject("properties");
+            if (properties == null) {
+                continue;
+            }
+            for (String propertyName : properties.keySet()) {
+                helper.assertTrue(
+                        DIRECTION_PROPERTY_NAMES.contains(propertyName),
+                        message + " should only keep direction property keys, but '" + predicateEntry.getKey() +
+                                "' kept '" + propertyName + "'");
+            }
+        }
     }
 
     private static void assertDiagnosticCode(GameTestHelper helper,

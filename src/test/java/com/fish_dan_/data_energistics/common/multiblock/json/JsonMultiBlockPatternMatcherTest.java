@@ -112,6 +112,73 @@ public final class JsonMultiBlockPatternMatcherTest {
         helper.succeed();
     }
 
+    @TestHolder("json_multiblock_pattern_matcher_exact_match_does_not_rotate")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void exactMatchDoesNotRotate(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
+                directionalPattern(),
+                rotatedDirectionalWorld(),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertFalse(result.matched(), "Exact matcher should not rotate a child structure away from the supplied front");
+        helper.assertValueEqual(result.frontFacing(), Direction.NORTH, "Failed exact match should keep the supplied front");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_pattern_matcher_exact_match_does_not_mirror")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void exactMatchDoesNotMirror(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
+                directionalPattern(),
+                mirroredDirectionalWorld(),
+                CONTROLLER,
+                Direction.NORTH,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertFalse(result.matched(), "Exact matcher should not mirror a child structure implicitly");
+        helper.assertValueEqual(result.frontFacing(), Direction.NORTH, "Failed exact match should keep the supplied front");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_pattern_matcher_exact_match_accepts_explicit_flipped")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void exactMatchAcceptsExplicitFlipped(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
+                directionalPattern(),
+                mirroredDirectionalWorld(),
+                CONTROLLER,
+                Direction.NORTH,
+                true,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertTrue(result.matched(), "Explicit flipped exact match should accept a mirrored child structure");
+        helper.assertTrue(result.flipped(), "Explicit flipped exact match should report flipped context");
+        helper.assertValueEqual(result.frontFacing(), Direction.NORTH, "Explicit flipped exact match should keep the supplied front");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_pattern_matcher_exact_match_flipped_does_not_fallback_to_unflipped")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void exactMatchFlippedDoesNotFallbackToUnflipped(GameTestHelper helper) {
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
+                directionalPattern(),
+                normalDirectionalWorld(),
+                CONTROLLER,
+                Direction.NORTH,
+                true,
+                JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
+
+        helper.assertFalse(result.matched(), "Explicit flipped exact match should not fall back to the unflipped structure");
+        helper.assertValueEqual(result.frontFacing(), Direction.NORTH, "Failed exact match should keep the supplied front");
+        helper.succeed();
+    }
+
     @TestHolder("json_multiblock_front_facing_uses_host_front_direction")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -148,6 +215,30 @@ public final class JsonMultiBlockPatternMatcherTest {
                 .where('Y', Predicates.blocks(Blocks.DIAMOND_BLOCK))
                 .where('Z', Predicates.blocks(Blocks.EMERALD_BLOCK))
                 .build();
+    }
+
+    private static StructureWorldView normalDirectionalWorld() {
+        return world(Map.of(
+                CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                new BlockPos(-1, 0, 0), Blocks.GOLD_BLOCK.defaultBlockState(),
+                new BlockPos(1, -1, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                new BlockPos(-1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState()));
+    }
+
+    private static StructureWorldView rotatedDirectionalWorld() {
+        return world(Map.of(
+                CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                new BlockPos(0, 0, -1), Blocks.GOLD_BLOCK.defaultBlockState(),
+                new BlockPos(0, -1, 1), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                new BlockPos(1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState()));
+    }
+
+    private static StructureWorldView mirroredDirectionalWorld() {
+        return world(Map.of(
+                CONTROLLER, Blocks.IRON_BLOCK.defaultBlockState(),
+                new BlockPos(1, 0, 0), Blocks.GOLD_BLOCK.defaultBlockState(),
+                new BlockPos(-1, -1, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(),
+                new BlockPos(1, -1, -1), Blocks.EMERALD_BLOCK.defaultBlockState()));
     }
 
     private static StructureWorldView world(Map<BlockPos, BlockState> states) {

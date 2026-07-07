@@ -6,9 +6,12 @@ import net.minecraft.resources.ResourceLocation;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.modularmc.mdl.api.multiblock.StructureDir;
+import com.modularmc.mdl.api.multiblock.util.RelativeDirection;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -21,22 +24,30 @@ public final class JsonMultiBlockMetadata {
     private static final String DISPLAY_NAME_PROPERTY = "display_name";
     private static final String COMPARTMENTS_PROPERTY = "compartments";
     private static final String REPLACEABLE_COMPARTMENTS_PROPERTY = "replaceable_compartments";
+    private static final String STRUCTURE_DIR_PROPERTY = "structure_dir";
+    private static final String CHAR_DIRECTION_PROPERTY = "char";
+    private static final String STRING_DIRECTION_PROPERTY = "string";
+    private static final String AISLE_DIRECTION_PROPERTY = "aisle";
+    private static final StructureDir DEFAULT_STRUCTURE_DIR = StructureDir.defaultDirs();
 
     private final Optional<String> displayNameTranslationKey;
     private final Map<String, CompartmentType> compartmentTypes;
     private final Map<String, Set<CompartmentType>> replaceableCompartmentTypes;
+    private final StructureDir structureDir;
 
     private JsonMultiBlockMetadata(Optional<String> displayNameTranslationKey,
                                    Map<String, CompartmentType> compartmentTypes,
-                                   Map<String, Set<CompartmentType>> replaceableCompartmentTypes) {
+                                   Map<String, Set<CompartmentType>> replaceableCompartmentTypes,
+                                   StructureDir structureDir) {
         this.displayNameTranslationKey = displayNameTranslationKey;
         this.compartmentTypes = Map.copyOf(compartmentTypes);
         this.replaceableCompartmentTypes = copyReplaceableCompartmentTypes(replaceableCompartmentTypes);
+        this.structureDir = Objects.requireNonNull(structureDir, "structureDir");
     }
 
     public static JsonMultiBlockMetadata read(JsonObject root, ResourceLocation resourceId) {
         if (!root.has(METADATA_PROPERTY)) {
-            return new JsonMultiBlockMetadata(Optional.empty(), Map.of(), Map.of());
+            return new JsonMultiBlockMetadata(Optional.empty(), Map.of(), Map.of(), DEFAULT_STRUCTURE_DIR);
         }
         JsonElement metadataElement = root.get(METADATA_PROPERTY);
         if (!metadataElement.isJsonObject()) {
@@ -46,7 +57,8 @@ public final class JsonMultiBlockMetadata {
         return new JsonMultiBlockMetadata(
                 readDisplayNameTranslationKey(metadata, resourceId),
                 readCompartmentTypes(metadata, resourceId),
-                readReplaceableCompartmentTypes(metadata, resourceId));
+                readReplaceableCompartmentTypes(metadata, resourceId),
+                readStructureDir(metadata, resourceId));
     }
 
     public Optional<String> displayNameTranslationKey() {
@@ -59,6 +71,10 @@ public final class JsonMultiBlockMetadata {
 
     public Map<String, Set<CompartmentType>> replaceableCompartmentTypes() {
         return this.replaceableCompartmentTypes;
+    }
+
+    public StructureDir structureDir() {
+        return this.structureDir;
     }
 
     private static Optional<String> readDisplayNameTranslationKey(JsonObject metadata, ResourceLocation resourceId) {
@@ -142,6 +158,59 @@ public final class JsonMultiBlockMetadata {
             types.put(symbol, Set.copyOf(symbolTypes.values()));
         }
         return copyReplaceableCompartmentTypes(types);
+    }
+
+    private static StructureDir readStructureDir(JsonObject metadata, ResourceLocation resourceId) {
+        if (!metadata.has(STRUCTURE_DIR_PROPERTY)) {
+            return DEFAULT_STRUCTURE_DIR;
+        }
+        JsonElement structureDirElement = metadata.get(STRUCTURE_DIR_PROPERTY);
+        if (!structureDirElement.isJsonObject()) {
+            throw new IllegalArgumentException("JSON multiblock structure_dir metadata must be an object: " +
+                    resourceId);
+        }
+        JsonObject structureDir = structureDirElement.getAsJsonObject();
+        RelativeDirection charDir = readRelativeDirection(structureDir, CHAR_DIRECTION_PROPERTY, resourceId);
+        RelativeDirection stringDir = readRelativeDirection(structureDir, STRING_DIRECTION_PROPERTY, resourceId);
+        RelativeDirection aisleDir = readRelativeDirection(structureDir, AISLE_DIRECTION_PROPERTY, resourceId);
+        validateDistinctStructureAxes(charDir, stringDir, aisleDir, resourceId);
+        return new StructureDir(charDir, stringDir, aisleDir);
+    }
+
+    private static RelativeDirection readRelativeDirection(JsonObject structureDir,
+                                                           String property,
+                                                           ResourceLocation resourceId) {
+        JsonElement directionElement = structureDir.get(property);
+        if (directionElement == null || directionElement.isJsonNull()) {
+            throw new IllegalArgumentException("JSON multiblock structure_dir is missing direction '" + property +
+                    "': " + resourceId);
+        }
+        if (!directionElement.isJsonPrimitive() || !directionElement.getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException("JSON multiblock structure_dir direction '" + property +
+                    "' must be a string: " + resourceId);
+        }
+        String directionName = directionElement.getAsString();
+        if (directionName.isBlank()) {
+            throw new IllegalArgumentException("JSON multiblock structure_dir direction '" + property +
+                    "' must not be blank: " + resourceId);
+        }
+        for (RelativeDirection direction : RelativeDirection.values()) {
+            if (direction.getSerializedName().equalsIgnoreCase(directionName)) {
+                return direction;
+            }
+        }
+        throw new IllegalArgumentException("Unknown JSON multiblock structure_dir direction '" + directionName +
+                "' for '" + property + "': " + resourceId);
+    }
+
+    private static void validateDistinctStructureAxes(RelativeDirection charDir,
+                                                      RelativeDirection stringDir,
+                                                      RelativeDirection aisleDir,
+                                                      ResourceLocation resourceId) {
+        if (charDir.isSameAxis(stringDir) || charDir.isSameAxis(aisleDir) || stringDir.isSameAxis(aisleDir)) {
+            throw new IllegalArgumentException("JSON multiblock structure_dir directions must use three distinct axes: " +
+                    resourceId);
+        }
     }
 
     private static void validateSymbol(String symbol, String label, ResourceLocation resourceId) {

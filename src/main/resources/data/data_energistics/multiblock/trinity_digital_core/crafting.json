@@ -1,0 +1,261 @@
+{
+	"metadata": {
+		"structure_dir": {
+			"char": "right",
+			"string": "front",
+			"aisle": "up"
+		}
+	},
+	"aisles": [
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    A    A",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"~         "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    A    A",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    A    A",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    A    A",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    A    A",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    AEEEEA",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    BPPPPB",
+					"    ABBBBA",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			],
+			"repeat": {
+				"min": 1,
+				"max": 12
+			}
+		},
+		{
+			"slices": [
+				[
+					"    ABBBBA",
+					"    BAAAAB",
+					"    BAAAAB",
+					"    BAAAAB",
+					"    BAAAAB",
+					"    ABBBBA",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          ",
+					"          "
+				]
+			]
+		}
+	],
+	"predicates": {
+		"A": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_framework"
+		},
+		"B": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_glass"
+		},
+		"P": {
+			"type": "mdlib:blocks",
+			"blocks": [
+				"data_energistics:me_digital_pattern_processing_core",
+				"data_energistics:extended_me_digital_pattern_processing_core",
+				"data_energistics:overlimit_me_digital_pattern_processing_core"
+			]
+		},
+		"E": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_slab"
+		}
+	}
+}
