@@ -59,6 +59,18 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
     public String cpuLastFailureReason = NO_FAILURE;
     @GuiSync(949)
     public String cpuLastFailurePosition = NO_FAILURE;
+    @GuiSync(950)
+    public boolean craftingStructureFormed;
+    @GuiSync(951)
+    public int craftingStructureMatchedBlockCount;
+    @GuiSync(952)
+    public int craftingPatternCoreCount;
+    @GuiSync(953)
+    public int craftingPatternCapacity;
+    @GuiSync(954)
+    public String craftingLastFailureReason = NO_FAILURE;
+    @GuiSync(955)
+    public String craftingLastFailurePosition = NO_FAILURE;
 
     public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
         super(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), id, playerInventory, host);
@@ -79,6 +91,12 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
             this.cpuStructureMatchedBlockCount = this.host.getCpuStructureMatchedBlockCount();
             this.cpuLastFailureReason = this.host.getCpuLastFailureReason();
             this.cpuLastFailurePosition = formatFailurePosition(this.host.getCpuLastFailurePosition());
+            this.craftingStructureFormed = this.host.isCraftingStructureFormed();
+            this.craftingStructureMatchedBlockCount = this.host.getCraftingStructureMatchedBlockCount();
+            this.craftingPatternCoreCount = this.host.getCraftingPatternCoreCount();
+            this.craftingPatternCapacity = this.host.getCraftingPatternCapacity();
+            this.craftingLastFailureReason = this.host.getCraftingLastFailureReason();
+            this.craftingLastFailurePosition = formatFailurePosition(this.host.getCraftingLastFailurePosition());
             this.lastFailureReason = this.host.getLastFailureReason();
             this.lastFailurePosition = formatFailurePosition(this.host.getLastFailurePosition());
 
@@ -115,6 +133,12 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         this.cpuStructureMatchedBlockCount = 0;
         this.cpuLastFailureReason = NO_FAILURE;
         this.cpuLastFailurePosition = NO_FAILURE;
+        this.craftingStructureFormed = false;
+        this.craftingStructureMatchedBlockCount = 0;
+        this.craftingPatternCoreCount = 0;
+        this.craftingPatternCapacity = 0;
+        this.craftingLastFailureReason = NO_FAILURE;
+        this.craftingLastFailurePosition = NO_FAILURE;
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = NO_FAILURE;
         this.busyCraftingCpuCount = 0;

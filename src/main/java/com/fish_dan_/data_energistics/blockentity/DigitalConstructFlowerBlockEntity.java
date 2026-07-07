@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageGroup;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
@@ -22,6 +23,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFront
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCpuCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCraftingCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
@@ -62,6 +64,7 @@ import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -83,10 +86,18 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String CPU_STRUCTURE_MATCHED_BLOCK_COUNT_TAG = "cpu_structure_matched_block_count";
     private static final String CPU_LAST_FAILURE_REASON_TAG = "cpu_last_failure_reason";
     private static final String CPU_LAST_FAILURE_POSITION_TAG = "cpu_last_failure_position";
+    private static final String CRAFTING_STRUCTURE_FORMED_TAG = "crafting_structure_formed";
+    private static final String CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT_TAG = "crafting_structure_matched_block_count";
+    private static final String CRAFTING_LAST_FAILURE_REASON_TAG = "crafting_last_failure_reason";
+    private static final String CRAFTING_LAST_FAILURE_POSITION_TAG = "crafting_last_failure_position";
+    private static final String CRAFTING_PATTERN_CORE_COUNT_TAG = "crafting_pattern_core_count";
+    private static final String CRAFTING_PATTERN_CAPACITY_TAG = "crafting_pattern_capacity";
     private static final String CRAFTING_RUNTIME_TAG = "crafting_runtime";
     private static final String STORAGE_ID_TAG = "storage_id";
     private static final String NO_FAILURE = "";
+    private static final String MAIN_STRUCTURE_NOT_FORMED = "Main structure is not formed";
     private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME;
+    private static final String CRAFTING_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
@@ -104,9 +115,16 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private String cpuLastFailureReason = NO_FAILURE;
     @Nullable
     private BlockPos cpuLastFailurePosition;
+    private boolean craftingStructureFormed;
+    private int craftingStructureMatchedBlockCount;
+    private DigitalConstructFlowerCraftingCoreProfile craftingProfile = DigitalConstructFlowerCraftingCoreProfile.EMPTY;
+    private String craftingLastFailureReason = NO_FAILURE;
+    @Nullable
+    private BlockPos craftingLastFailurePosition;
     private boolean recheckRequested = true;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
+    private final CompartmentStorage patternBufferStorageView = new CompartmentStorageGroup(this::recognizedPatternBufferStorages);
     private final DigitalConstructFlowerCraftingRuntime craftingRuntime = new DigitalConstructFlowerCraftingRuntime(this);
 
     public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -211,6 +229,40 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return this.cpuLastFailurePosition;
     }
 
+    @Override
+    public boolean isCraftingStructureFormed() {
+        return this.craftingStructureFormed;
+    }
+
+    @Override
+    public int getCraftingStructureMatchedBlockCount() {
+        return this.craftingStructureMatchedBlockCount;
+    }
+
+    @Override
+    public int getCraftingPatternCoreCount() {
+        return this.craftingProfile.patternCoreCount();
+    }
+
+    @Override
+    public int getCraftingPatternCapacity() {
+        return this.craftingProfile.patternCapacity();
+    }
+
+    @Override
+    public String getCraftingLastFailureReason() {
+        return this.craftingLastFailureReason;
+    }
+
+    @Override
+    public @Nullable BlockPos getCraftingLastFailurePosition() {
+        return this.craftingLastFailurePosition;
+    }
+
+    public boolean isCraftingAvailable() {
+        return this.formed && this.craftingStructureFormed && this.craftingProfile.active();
+    }
+
     public List<BlockPos> getMatchedPositions() {
         return this.matchedPositions;
     }
@@ -260,23 +312,63 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     /**
-     * Returns the main structure's aggregate pattern buffer view without exposing concrete compartment block entities.
+     * Returns the crafting child structure's recognized pattern buffer view without exposing concrete compartment block
+     * entities.
      */
     public CompartmentStorage patternBufferStorage() {
-        if (!this.formed) {
-            return UnavailableCompartmentStorage.INSTANCE;
-        }
-        return compartmentHost$patternBufferStorage(mainDefinitionKey().structureName());
+        return this.patternBufferStorageView;
     }
 
     /**
-     * Returns main structure pattern buffers for recipe logic without depending on concrete block entities.
+     * Returns main structure pattern buffers that are visible to the current crafting child structure.
      */
     public Collection<PatternBufferCompartmentPart> patternBuffers() {
-        if (!this.formed) {
+        return recognizedPatternBuffers();
+    }
+
+    private Collection<PatternBufferCompartmentPart> recognizedPatternBuffers() {
+        if (!isCraftingAvailable()) {
             return List.of();
         }
-        return compartmentHost$getPatternBuffers(mainDefinitionKey().structureName());
+        int remainingCapacity = this.craftingProfile.patternCapacity();
+        List<PatternBufferCompartmentPart> patternBuffers = new ArrayList<>();
+        for (PatternBufferCompartmentPart patternBuffer : compartmentHost$getPatternBuffers(mainDefinitionKey().structureName())) {
+            int slotCount = patternBuffer.patternBufferSlotCount();
+            if (slotCount < 0) {
+                throw new IllegalStateException("Pattern buffer slot count must not be negative");
+            }
+            if (slotCount == 0) {
+                continue;
+            }
+            if (remainingCapacity <= 0) {
+                break;
+            }
+            patternBuffers.add(patternBuffer);
+            remainingCapacity -= Math.min(remainingCapacity, slotCount);
+        }
+        return List.copyOf(patternBuffers);
+    }
+
+    private Collection<CompartmentStorage> recognizedPatternBufferStorages() {
+        if (!isCraftingAvailable()) {
+            return List.of();
+        }
+        int remainingCapacity = this.craftingProfile.patternCapacity();
+        List<CompartmentStorage> storages = new ArrayList<>();
+        for (PatternBufferCompartmentPart patternBuffer : compartmentHost$getPatternBuffers(mainDefinitionKey().structureName())) {
+            int slotCount = patternBuffer.patternBufferSlotCount();
+            if (slotCount < 0) {
+                throw new IllegalStateException("Pattern buffer slot count must not be negative");
+            }
+            for (int slot = 0; slot < slotCount && remainingCapacity > 0; slot++) {
+                storages.add(patternBuffer.patternBufferStorage(slot));
+                remainingCapacity--;
+            }
+            if (remainingCapacity <= 0) {
+                break;
+            }
+        }
+        return List.copyOf(storages);
     }
 
     public UUID getStorageId() {
@@ -511,6 +603,15 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         } else {
             this.cpuLastFailurePosition = null;
         }
+        this.craftingStructureFormed = data.getBoolean(CRAFTING_STRUCTURE_FORMED_TAG);
+        this.craftingStructureMatchedBlockCount = data.getInt(CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT_TAG);
+        this.craftingProfile = readCraftingProfile(data);
+        this.craftingLastFailureReason = data.getString(CRAFTING_LAST_FAILURE_REASON_TAG);
+        if (data.contains(CRAFTING_LAST_FAILURE_POSITION_TAG)) {
+            this.craftingLastFailurePosition = BlockPos.of(data.getLong(CRAFTING_LAST_FAILURE_POSITION_TAG));
+        } else {
+            this.craftingLastFailurePosition = null;
+        }
         this.craftingRuntime.setMainStructureFormed(this.formed);
         if (data.contains(CRAFTING_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
             this.craftingRuntime.readFromTag(data.getCompound(CRAFTING_RUNTIME_TAG), registries);
@@ -535,6 +636,14 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         data.putString(CPU_LAST_FAILURE_REASON_TAG, this.cpuLastFailureReason);
         if (this.cpuLastFailurePosition != null) {
             data.putLong(CPU_LAST_FAILURE_POSITION_TAG, this.cpuLastFailurePosition.asLong());
+        }
+        data.putBoolean(CRAFTING_STRUCTURE_FORMED_TAG, this.craftingStructureFormed);
+        data.putInt(CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT_TAG, this.craftingStructureMatchedBlockCount);
+        data.putInt(CRAFTING_PATTERN_CORE_COUNT_TAG, this.craftingProfile.patternCoreCount());
+        data.putInt(CRAFTING_PATTERN_CAPACITY_TAG, this.craftingProfile.patternCapacity());
+        data.putString(CRAFTING_LAST_FAILURE_REASON_TAG, this.craftingLastFailureReason);
+        if (this.craftingLastFailurePosition != null) {
+            data.putLong(CRAFTING_LAST_FAILURE_POSITION_TAG, this.craftingLastFailurePosition.asLong());
         }
         CompoundTag runtimeTag = new CompoundTag();
         this.craftingRuntime.writeToTag(runtimeTag, registries);
@@ -561,25 +670,49 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 return;
             }
             applyMatch(world, result.positions(), declaredCompartments, mainDefinitionKey().structureName());
-            updateCpuStructureMatch(world, preferredFrontFacing);
+            boolean childStructureFlipped = !result.flipped();
+            updateCpuStructureMatch(world, result.frontFacing(), childStructureFlipped);
+            updateCraftingStructureMatch(world, result.frontFacing(), childStructureFlipped);
         } else {
             applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
         }
     }
 
-    private void updateCpuStructureMatch(StructureWorldView world, Direction preferredFrontFacing) {
+    private void updateCpuStructureMatch(StructureWorldView world,
+                                         Direction mainStructureFrontFacing,
+                                         boolean mainStructureFlipped) {
         JsonMultiBlockDefinition definition = requireCpuJsonDefinition();
-        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
                 definition.pattern(),
                 world,
                 this.worldPosition,
-                preferredFrontFacing,
+                mainStructureFrontFacing,
+                mainStructureFlipped,
                 CPU_STRUCTURE_NAME);
 
         if (result.matched()) {
             applyCpuMatch(world, result.positions());
         } else {
             applyCpuFailure(result.diagnostic());
+        }
+    }
+
+    private void updateCraftingStructureMatch(StructureWorldView world,
+                                              Direction mainStructureFrontFacing,
+                                              boolean mainStructureFlipped) {
+        JsonMultiBlockDefinition definition = requireCraftingJsonDefinition();
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
+                definition.pattern(),
+                world,
+                this.worldPosition,
+                mainStructureFrontFacing,
+                mainStructureFlipped,
+                CRAFTING_STRUCTURE_NAME);
+
+        if (result.matched()) {
+            applyCraftingMatch(world, result.positions());
+        } else {
+            applyCraftingFailure(result.diagnostic());
         }
     }
 
@@ -670,6 +803,56 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
+    private void applyCraftingMatch(StructureWorldView world, List<BlockPos> positions) {
+        DigitalConstructFlowerCraftingCoreProfile nextProfile = buildCraftingProfile(world, positions);
+        boolean statusChanged = !this.craftingStructureFormed ||
+                this.craftingStructureMatchedBlockCount != positions.size() ||
+                !this.craftingProfile.equals(nextProfile) ||
+                !NO_FAILURE.equals(this.craftingLastFailureReason) ||
+                this.craftingLastFailurePosition != null;
+
+        this.craftingStructureFormed = true;
+        this.craftingStructureMatchedBlockCount = positions.size();
+        this.craftingProfile = nextProfile;
+        this.craftingLastFailureReason = NO_FAILURE;
+        this.craftingLastFailurePosition = null;
+        if (statusChanged) {
+            setChanged();
+        }
+    }
+
+    private void applyCraftingFailure(PatternDiagnostic diagnostic) {
+        String nextFailureReason;
+        BlockPos nextFailurePosition;
+        if (diagnostic == null) {
+            nextFailureReason = "Structure pattern did not match";
+            nextFailurePosition = null;
+        } else {
+            nextFailureReason = diagnostic.message();
+            nextFailurePosition = diagnostic.position();
+        }
+        if (!this.craftingStructureFormed &&
+                this.craftingStructureMatchedBlockCount == 0 &&
+                this.craftingProfile.equals(DigitalConstructFlowerCraftingCoreProfile.EMPTY) &&
+                Objects.equals(this.craftingLastFailureReason, nextFailureReason) &&
+                Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
+            return;
+        }
+        if (this.craftingStructureFormed && diagnostic != null) {
+            LOGGER.warn(
+                    "Trinity Digital Core structure '{}' failed at {}: {}",
+                    CRAFTING_STRUCTURE_NAME,
+                    diagnostic.position(),
+                    diagnostic.message());
+        }
+        this.craftingStructureFormed = false;
+        this.craftingStructureMatchedBlockCount = 0;
+        this.craftingProfile = DigitalConstructFlowerCraftingCoreProfile.EMPTY;
+        this.craftingLastFailureReason = nextFailureReason;
+        this.craftingLastFailurePosition = nextFailurePosition;
+        setChanged();
+    }
+
     private void applyFailure(PatternDiagnostic diagnostic, String structureName) {
         String nextFailureReason;
         BlockPos nextFailurePosition;
@@ -684,7 +867,12 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 Objects.equals(this.lastFailurePosition, nextFailurePosition) &&
                 !hasCpuStructureContribution() &&
                 !this.cpuStructureFormed &&
-                this.cpuStructureMatchedBlockCount == 0) {
+                this.cpuStructureMatchedBlockCount == 0 &&
+                !this.craftingStructureFormed &&
+                this.craftingStructureMatchedBlockCount == 0 &&
+                this.craftingProfile.equals(DigitalConstructFlowerCraftingCoreProfile.EMPTY) &&
+                Objects.equals(this.craftingLastFailureReason, MAIN_STRUCTURE_NOT_FORMED) &&
+                this.craftingLastFailurePosition == null) {
             return;
         }
         LOGGER.warn(
@@ -693,7 +881,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 nextFailurePosition,
                 nextFailureReason);
         clearCompartmentBindings(structureName);
-        clearCpuStructureStatus(nextFailureReason, nextFailurePosition);
+        clearCpuStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
+        clearCraftingStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
         this.formed = false;
         this.matchedPositions = List.of();
         this.storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
@@ -732,6 +921,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return requireJsonDefinition(cpuDefinitionKey());
     }
 
+    private static JsonMultiBlockDefinition requireCraftingJsonDefinition() {
+        return requireJsonDefinition(craftingDefinitionKey());
+    }
+
     private static JsonMultiBlockDefinition requireJsonDefinition(JsonMultiBlockStructureKey key) {
         return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
                 .get(key)
@@ -752,11 +945,26 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 CPU_STRUCTURE_NAME);
     }
 
+    private static JsonMultiBlockStructureKey craftingDefinitionKey() {
+        return new JsonMultiBlockStructureKey(
+                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID),
+                CRAFTING_STRUCTURE_NAME);
+    }
+
     private static List<BlockPos> readMatchedPositions(CompoundTag data) {
         ListTag positions = data.getList(MATCHED_POSITIONS_TAG, Tag.TAG_LONG);
         return positions.stream()
                 .map(tag -> BlockPos.of(((LongTag) tag).getAsLong()))
                 .toList();
+    }
+
+    private static DigitalConstructFlowerCraftingCoreProfile readCraftingProfile(CompoundTag data) {
+        if (!data.contains(CRAFTING_PATTERN_CORE_COUNT_TAG) && !data.contains(CRAFTING_PATTERN_CAPACITY_TAG)) {
+            return DigitalConstructFlowerCraftingCoreProfile.EMPTY;
+        }
+        return new DigitalConstructFlowerCraftingCoreProfile(
+                data.getInt(CRAFTING_PATTERN_CORE_COUNT_TAG),
+                data.getInt(CRAFTING_PATTERN_CAPACITY_TAG));
     }
 
     private ListTag createMatchedPositionsTag() {
@@ -783,6 +991,17 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (state.getBlock() instanceof TrinityCoreComponent component && component.kind() == TrinityCoreKind.STORAGE_TYPES) {
+                builder.add(component);
+            }
+        }
+        return builder.build();
+    }
+
+    private static DigitalConstructFlowerCraftingCoreProfile buildCraftingProfile(StructureWorldView world, List<BlockPos> positions) {
+        DigitalConstructFlowerCraftingCoreProfile.Builder builder = DigitalConstructFlowerCraftingCoreProfile.builder();
+        for (BlockPos pos : positions) {
+            BlockState state = world.getBlockState(pos);
+            if (state.getBlock() instanceof TrinityCoreComponent component && component.kind() == TrinityCoreKind.PATTERN_PROCESSING) {
                 builder.add(component);
             }
         }
@@ -830,6 +1049,14 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         this.cpuStructureMatchedBlockCount = 0;
         this.cpuLastFailureReason = failureReason;
         this.cpuLastFailurePosition = failurePosition;
+    }
+
+    private void clearCraftingStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
+        this.craftingStructureFormed = false;
+        this.craftingStructureMatchedBlockCount = 0;
+        this.craftingProfile = DigitalConstructFlowerCraftingCoreProfile.EMPTY;
+        this.craftingLastFailureReason = failureReason;
+        this.craftingLastFailurePosition = failurePosition;
     }
 
     private boolean hasCpuStructureContribution() {

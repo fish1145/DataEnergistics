@@ -103,8 +103,14 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         }
         flower.loadTag(formedTag(), helper.getLevel().registryAccess());
         flower.setCpuContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 1, 1));
+        flower.loadTag(formedCraftingProfileTag(), helper.getLevel().registryAccess());
 
         helper.assertValueEqual(flower.getCpuPartitions().size(), 1, "CPU child contribution should be active before recheck");
+        helper.assertTrue(flower.isCraftingStructureFormed(), "Crafting child structure should be active before recheck");
+        helper.assertValueEqual(
+                flower.getCraftingPatternCapacity(),
+                704,
+                "Crafting child profile should be active before recheck");
 
         flower.serverTick();
 
@@ -117,6 +123,53 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 flower.getCpuPartitions().size(),
                 0,
                 "Main structure failure should clear CPU child partitions");
+        helper.assertFalse(flower.isCraftingStructureFormed(), "Main structure failure should clear crafting child status");
+        helper.assertValueEqual(
+                flower.getCraftingPatternCapacity(),
+                0,
+                "Main structure failure should clear crafting child pattern capacity");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_crafting_profile_round_trips_through_nbt")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void craftingProfileRoundTripsThroughNbt(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity original = digitalConstructFlower(false);
+        original.loadTag(formedCraftingProfileTag(), HolderLookup.Provider.create(Stream.empty()));
+
+        helper.assertTrue(original.isCraftingStructureFormed(), "Loaded crafting child structure should be formed");
+        helper.assertValueEqual(
+                original.getCraftingStructureMatchedBlockCount(),
+                314,
+                "Loaded crafting child structure should preserve matched block count");
+        helper.assertValueEqual(
+                original.getCraftingPatternCoreCount(),
+                3,
+                "Loaded crafting child structure should preserve pattern core count");
+        helper.assertValueEqual(
+                original.getCraftingPatternCapacity(),
+                704,
+                "Loaded crafting child structure should preserve pattern capacity");
+
+        CompoundTag saved = new CompoundTag();
+        original.saveAdditional(saved, HolderLookup.Provider.create(Stream.empty()));
+        DigitalConstructFlowerBlockEntity loaded = digitalConstructFlower(false);
+        loaded.loadTag(saved, HolderLookup.Provider.create(Stream.empty()));
+
+        helper.assertTrue(loaded.isCraftingStructureFormed(), "Saved crafting child structure should remain formed");
+        helper.assertValueEqual(
+                loaded.getCraftingStructureMatchedBlockCount(),
+                314,
+                "Saved crafting child structure should round-trip matched block count");
+        helper.assertValueEqual(
+                loaded.getCraftingPatternCoreCount(),
+                3,
+                "Saved crafting child structure should round-trip pattern core count");
+        helper.assertValueEqual(
+                loaded.getCraftingPatternCapacity(),
+                704,
+                "Saved crafting child structure should round-trip pattern capacity");
         helper.succeed();
     }
 
@@ -191,6 +244,15 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
     private static CompoundTag formedTag() {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("formed", true);
+        return tag;
+    }
+
+    private static CompoundTag formedCraftingProfileTag() {
+        CompoundTag tag = formedTag();
+        tag.putBoolean("crafting_structure_formed", true);
+        tag.putInt("crafting_structure_matched_block_count", 314);
+        tag.putInt("crafting_pattern_core_count", 3);
+        tag.putInt("crafting_pattern_capacity", 704);
         return tag;
     }
 }

@@ -94,6 +94,11 @@ public class MePatternBufferBlockEntity extends CompartmentBlockEntity implement
     }
 
     @Override
+    public int patternBufferSlotCount() {
+        return this.patternBufferStorages.size();
+    }
+
+    @Override
     public CompartmentStorage patternAggregateStorage() {
         return this.patternAggregateStorageView;
     }

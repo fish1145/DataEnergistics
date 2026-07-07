@@ -90,8 +90,11 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_structure_label", Component.translatable(
                 this.menu.cpuStructureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
                 statusColor(this.menu.cpuStructureFormed), LEFT_TEXT_WIDTH);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.crafting_structure_label", Component.translatable(
+                this.menu.craftingStructureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5,
+                statusColor(this.menu.craftingStructureFormed && this.menu.craftingPatternCapacity > 0), LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.last_failure_label", getFailureSummary(),
-                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5, hasFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
+                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 6, hasAnyFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
     }
 
     private void drawCpuStatus(GuiGraphics guiGraphics) {
@@ -119,8 +122,9 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private void drawCraftingStatus(GuiGraphics guiGraphics) {
+        int statusColor = craftingUnavailable() ? ERROR_COLOR : this.menu.hasCraftingTarget() ? BUSY_COLOR : SUCCESS_COLOR;
         drawCenteredKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.molecular_label", getMolecularStatus(),
-                RIGHT_TEXT_X, CRAFTING_TEXT_Y, this.menu.hasCraftingTarget() ? BUSY_COLOR : SUCCESS_COLOR, RIGHT_TEXT_WIDTH);
+                RIGHT_TEXT_X, CRAFTING_TEXT_Y, statusColor, RIGHT_TEXT_WIDTH);
     }
 
     private static void drawKeyValueText(GuiGraphics guiGraphics, String labelKey, Component value, int x, int y, int valueColor,
@@ -149,7 +153,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         GenericStack target = this.menu.getCraftingTarget();
-        if (this.menu.getCarried().isEmpty() && target != null && target.what() != null &&
+        if (this.menu.getCarried().isEmpty() && !craftingUnavailable() && target != null && target.what() != null &&
                 isMouseOverLocal(mouseX, mouseY, CRAFTING_HOVER_X, CRAFTING_HOVER_Y, CRAFTING_HOVER_WIDTH, CRAFTING_HOVER_HEIGHT)) {
             List<Component> tooltip = new ArrayList<>();
             tooltip.add(target.what().getDisplayName());
@@ -157,11 +161,14 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             tooltip.add(Component.translatable(
                     "screen.data_energistics.digital_construct_flower.busy_cpus",
                     this.menu.busyCraftingCpuCount).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
+            tooltip.add(Component.translatable(
+                    "screen.data_energistics.digital_construct_flower.crafting_pattern_capacity",
+                    this.menu.craftingPatternCapacity).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
         }
 
-        if (this.menu.getCarried().isEmpty() && (hasFailure() || hasCpuFailure()) &&
+        if (this.menu.getCarried().isEmpty() && (hasFailure() || hasCpuFailure() || hasCraftingFailure()) &&
                 isMouseOverLocal(mouseX, mouseY, STATUS_X, STATUS_Y, STATUS_WIDTH, STATUS_HEIGHT)) {
             List<Component> tooltip = new ArrayList<>();
             if (hasFailure()) {
@@ -184,6 +191,16 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
                             this.menu.cpuLastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
                 }
             }
+            if (hasCraftingFailure()) {
+                tooltip.add(Component.translatable(
+                        "screen.data_energistics.digital_construct_flower.crafting_failure",
+                        MultiBlockFailureText.describe(this.menu.craftingLastFailureReason)));
+                if (!this.menu.craftingLastFailurePosition.isBlank()) {
+                    tooltip.add(Component.translatable(
+                            "screen.data_energistics.digital_construct_flower.crafting_failure_position",
+                            this.menu.craftingLastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
+                }
+            }
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
         }
@@ -192,13 +209,22 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private Component getFailureSummary() {
-        if (!hasFailure()) {
+        if (!hasFailure() && !hasCpuFailure() && !hasCraftingFailure()) {
             return Component.translatable("screen.data_energistics.digital_construct_flower.no_failure");
         }
-        return MultiBlockFailureText.describe(this.menu.lastFailureReason);
+        if (hasFailure()) {
+            return MultiBlockFailureText.describe(this.menu.lastFailureReason);
+        }
+        if (hasCpuFailure()) {
+            return MultiBlockFailureText.describe(this.menu.cpuLastFailureReason);
+        }
+        return MultiBlockFailureText.describe(this.menu.craftingLastFailureReason);
     }
 
     private Component getMolecularStatus() {
+        if (craftingUnavailable()) {
+            return Component.translatable("screen.data_energistics.digital_construct_flower.molecular_unavailable");
+        }
         GenericStack target = this.menu.getCraftingTarget();
         if (target == null || target.what() == null) {
             return Component.translatable("screen.data_energistics.digital_construct_flower.molecular_idle");
@@ -272,6 +298,18 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private boolean hasCpuFailure() {
         return this.menu.cpuLastFailureReason != null && !this.menu.cpuLastFailureReason.isBlank();
+    }
+
+    private boolean hasCraftingFailure() {
+        return this.menu.craftingLastFailureReason != null && !this.menu.craftingLastFailureReason.isBlank();
+    }
+
+    private boolean hasAnyFailure() {
+        return hasFailure() || hasCpuFailure() || hasCraftingFailure();
+    }
+
+    private boolean craftingUnavailable() {
+        return !this.menu.craftingStructureFormed || this.menu.craftingPatternCapacity <= 0;
     }
 
     private boolean isMouseOverLocal(int mouseX, int mouseY, int x, int y, int width, int height) {

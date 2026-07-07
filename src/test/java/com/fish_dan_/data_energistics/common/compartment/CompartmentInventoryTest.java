@@ -1170,7 +1170,7 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void digitalConstructFlowerExposesMainCompartmentViews(GameTestHelper helper) {
-        DigitalConstructFlowerBlockEntity flower = formedDigitalConstructFlower();
+        DigitalConstructFlowerBlockEntity flower = formedCraftingDigitalConstructFlower(128);
         CompositeWarehouseBlockEntity input = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
@@ -1241,6 +1241,83 @@ public final class CompartmentInventoryTest {
                 alternatePatternBuffer.patternBufferStorage(0).amount(gold),
                 0L,
                 "Flower pattern buffer write should not reach alternate structure buffers");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_requires_crafting_child_for_pattern_buffers")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void digitalConstructFlowerRequiresCraftingChildForPatternBuffers(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = formedDigitalConstructFlower();
+        MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+
+        patternBuffer.compartment$bindToHost("main", flower);
+        patternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
+
+        helper.assertFalse(flower.isCraftingAvailable(), "Formed main structure without crafting child should not recognize patterns");
+        helper.assertValueEqual(
+                flower.patternBuffers(),
+                List.of(),
+                "Flower should hide pattern buffers without a valid crafting child structure");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().amount(diamond),
+                0L,
+                "Flower should not read pattern buffer contents without a valid crafting child structure");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().insert(gold, 3L, false),
+                0L,
+                "Flower should not write pattern buffer contents without a valid crafting child structure");
+        helper.assertValueEqual(
+                patternBuffer.patternBufferStorage(0).amount(diamond),
+                5L,
+                "Hidden pattern buffer storage should keep its backing contents");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_limits_pattern_buffers_by_crafting_capacity")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void digitalConstructFlowerLimitsPatternBuffersByCraftingCapacity(GameTestHelper helper) {
+        DigitalConstructFlowerBlockEntity flower = formedCraftingDigitalConstructFlower(
+                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT + 1);
+        MePatternBufferBlockEntity patternBuffer = patternBuffer();
+        MePatternBufferBlockEntity secondPatternBuffer = patternBuffer();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+
+        patternBuffer.compartment$bindToHost("main", flower);
+        secondPatternBuffer.compartment$bindToHost("main", flower);
+        patternBuffer.patternBufferStorage(MePatternBufferBlockEntity.PATTERN_SLOT_COUNT - 1).insert(iron, 2L, false);
+        secondPatternBuffer.patternBufferStorage(0).insert(diamond, 3L, false);
+        secondPatternBuffer.patternBufferStorage(1).insert(gold, 5L, false);
+
+        helper.assertValueEqual(
+                flower.patternBuffers(),
+                List.of(patternBuffer, secondPatternBuffer),
+                "Capacity that reaches into a second pattern buffer should expose both buffers");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().amount(iron),
+                2L,
+                "Flower should recognize the last slot allowed in the first pattern buffer");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().amount(diamond),
+                3L,
+                "Flower should recognize the first slot allowed in the second pattern buffer");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().amount(gold),
+                0L,
+                "Flower should not recognize pattern slots beyond crafting child capacity");
+        helper.assertValueEqual(
+                flower.patternBufferStorage().extract(gold, 1L, false),
+                0L,
+                "Flower should not extract from pattern slots beyond crafting child capacity");
+        helper.assertValueEqual(
+                secondPatternBuffer.patternBufferStorage(1).amount(gold),
+                5L,
+                "Unrecognized pattern slots should keep their backing contents");
         helper.succeed();
     }
 
@@ -1457,6 +1534,18 @@ public final class CompartmentInventoryTest {
         DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("formed", true);
+        flower.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
+        return flower;
+    }
+
+    private static DigitalConstructFlowerBlockEntity formedCraftingDigitalConstructFlower(int patternCapacity) {
+        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("formed", true);
+        tag.putBoolean("crafting_structure_formed", true);
+        tag.putInt("crafting_structure_matched_block_count", 1);
+        tag.putInt("crafting_pattern_core_count", 1);
+        tag.putInt("crafting_pattern_capacity", patternCapacity);
         flower.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
         return flower;
     }
@@ -1713,6 +1802,11 @@ public final class CompartmentInventoryTest {
                 throw new IllegalArgumentException("Test pattern buffer slot out of range: " + slot);
             }
             return this.patternBufferStorage;
+        }
+
+        @Override
+        public int patternBufferSlotCount() {
+            return 1;
         }
 
         @Override

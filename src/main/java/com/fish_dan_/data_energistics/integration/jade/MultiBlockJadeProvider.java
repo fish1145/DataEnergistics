@@ -39,6 +39,14 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     private static final String TAG_CPU_FAILURE_X = "cpu_failure_x";
     private static final String TAG_CPU_FAILURE_Y = "cpu_failure_y";
     private static final String TAG_CPU_FAILURE_Z = "cpu_failure_z";
+    private static final String TAG_CRAFTING_STRUCTURE_FORMED = "crafting_structure_formed";
+    private static final String TAG_CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT = "crafting_structure_matched_block_count";
+    private static final String TAG_CRAFTING_PATTERN_CORE_COUNT = "crafting_pattern_core_count";
+    private static final String TAG_CRAFTING_PATTERN_CAPACITY = "crafting_pattern_capacity";
+    private static final String TAG_CRAFTING_FAILURE_REASON = "crafting_failure_reason";
+    private static final String TAG_CRAFTING_FAILURE_X = "crafting_failure_x";
+    private static final String TAG_CRAFTING_FAILURE_Y = "crafting_failure_y";
+    private static final String TAG_CRAFTING_FAILURE_Z = "crafting_failure_z";
     private static final String TAG_STORED_TYPE_COUNT = "stored_type_count";
     private static final String TAG_STORED_AMOUNT = "stored_amount";
     private static final String TAG_STORED_TYPE_CAPACITY = "stored_type_capacity";
@@ -117,6 +125,18 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                 serverData.getInt(TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT)));
         appendCpuFailureTooltip(tooltip, serverData);
         tooltip.add(Component.translatable(
+                serverData.getBoolean(TAG_CRAFTING_STRUCTURE_FORMED) ? "jade.data_energistics.multiblock.crafting_structure.formed" : "jade.data_energistics.multiblock.crafting_structure.unformed"));
+        tooltip.add(Component.translatable(
+                "jade.data_energistics.multiblock.crafting_blocks",
+                serverData.getInt(TAG_CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT)));
+        tooltip.add(Component.translatable(
+                "jade.data_energistics.multiblock.crafting_pattern_cores",
+                serverData.getInt(TAG_CRAFTING_PATTERN_CORE_COUNT)));
+        tooltip.add(Component.translatable(
+                "jade.data_energistics.multiblock.crafting_pattern_capacity",
+                serverData.getInt(TAG_CRAFTING_PATTERN_CAPACITY)));
+        appendCraftingFailureTooltip(tooltip, serverData);
+        tooltip.add(Component.translatable(
                 "jade.data_energistics.multiblock.pattern_buffers",
                 serverData.getInt(TAG_PATTERN_BUFFER_COUNT)));
         tooltip.add(Component.translatable(
@@ -151,6 +171,22 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                     serverData.getInt(TAG_CPU_FAILURE_X),
                     serverData.getInt(TAG_CPU_FAILURE_Y),
                     serverData.getInt(TAG_CPU_FAILURE_Z)));
+        }
+    }
+
+    private static void appendCraftingFailureTooltip(ITooltip tooltip, CompoundTag serverData) {
+        if (serverData.contains(TAG_CRAFTING_FAILURE_REASON)) {
+            tooltip.add(Component.translatable(
+                    "jade.data_energistics.multiblock.crafting_failure",
+                    MultiBlockFailureText.describe(serverData.getString(TAG_CRAFTING_FAILURE_REASON))));
+        }
+        if (serverData.contains(TAG_CRAFTING_FAILURE_X) && serverData.contains(TAG_CRAFTING_FAILURE_Y) &&
+                serverData.contains(TAG_CRAFTING_FAILURE_Z)) {
+            tooltip.add(Component.translatable(
+                    "jade.data_energistics.multiblock.crafting_failure_position",
+                    serverData.getInt(TAG_CRAFTING_FAILURE_X),
+                    serverData.getInt(TAG_CRAFTING_FAILURE_Y),
+                    serverData.getInt(TAG_CRAFTING_FAILURE_Z)));
         }
     }
 
@@ -195,6 +231,20 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
             data.putInt(TAG_CPU_FAILURE_X, cpuFailurePosition.getX());
             data.putInt(TAG_CPU_FAILURE_Y, cpuFailurePosition.getY());
             data.putInt(TAG_CPU_FAILURE_Z, cpuFailurePosition.getZ());
+        }
+        data.putBoolean(TAG_CRAFTING_STRUCTURE_FORMED, host.isCraftingStructureFormed());
+        data.putInt(TAG_CRAFTING_STRUCTURE_MATCHED_BLOCK_COUNT, host.getCraftingStructureMatchedBlockCount());
+        data.putInt(TAG_CRAFTING_PATTERN_CORE_COUNT, host.getCraftingPatternCoreCount());
+        data.putInt(TAG_CRAFTING_PATTERN_CAPACITY, host.getCraftingPatternCapacity());
+        String craftingFailureReason = host.getCraftingLastFailureReason();
+        if (!craftingFailureReason.isBlank()) {
+            data.putString(TAG_CRAFTING_FAILURE_REASON, craftingFailureReason);
+        }
+        BlockPos craftingFailurePosition = host.getCraftingLastFailurePosition();
+        if (craftingFailurePosition != null) {
+            data.putInt(TAG_CRAFTING_FAILURE_X, craftingFailurePosition.getX());
+            data.putInt(TAG_CRAFTING_FAILURE_Y, craftingFailurePosition.getY());
+            data.putInt(TAG_CRAFTING_FAILURE_Z, craftingFailurePosition.getZ());
         }
         data.putInt(TAG_STORED_TYPE_COUNT, host.getStoredTypeCount());
         data.putString(TAG_STORED_AMOUNT, host.getStoredAmountText());
