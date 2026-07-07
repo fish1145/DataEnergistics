@@ -46,7 +46,7 @@ public final class TrinityCoreComponentTest {
 
         assertEquals(TrinityCoreKind.STORAGE_TYPES, metadata.kind());
         assertEquals(512, metadata.capacityValue());
-        assertEquals(0, metadata.patternRows());
+        assertEquals(0, metadata.patternCapacity());
     }
 
     @Test
@@ -55,7 +55,7 @@ public final class TrinityCoreComponentTest {
 
         assertEquals(TrinityCoreKind.PARALLEL_CPU, metadata.kind());
         assertEquals(2048, metadata.capacityValue());
-        assertEquals(0, metadata.patternRows());
+        assertEquals(0, metadata.patternCapacity());
     }
 
     @Test
@@ -63,15 +63,15 @@ public final class TrinityCoreComponentTest {
         DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder();
         builder.actualRepeatCount(DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT);
 
-        for (int index = 0; index < 272; index++) {
+        for (int index = 0; index < 256; index++) {
             builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         }
 
         DigitalConstructFlowerCpuCoreProfile profile = builder.build();
 
-        assertEquals(73_014_444_032L, profile.storageBytes());
-        assertEquals(139_264, profile.coProcessors());
-        assertEquals(272, profile.filledCoreSlots());
+        assertEquals(68_719_476_736L, profile.storageBytes());
+        assertEquals(131_072, profile.coProcessors());
+        assertEquals(256, profile.filledCoreSlots());
         assertEquals(256, profile.threadCount());
         assertTrue(profile.fullCpu());
         assertEquals(Long.MAX_VALUE, profile.contribution().storageBytes());
@@ -89,10 +89,12 @@ public final class TrinityCoreComponentTest {
 
     @Test
     void cpuCoreProfileCountsOnlyContinuousRepeatLayersFromRepeatStart() {
-        assertEquals(0, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(4, 6, 7, 8, 18)));
-        assertEquals(3, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(5, 6, 7, 9, 17)));
+        assertEquals(0, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(2, 4, 5, 6, 16)));
+        assertEquals(3, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(3, 4, 5, 7, 15)));
         assertEquals(13, DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(Set.of(
-                1,
+                0,
+                3,
+                4,
                 5,
                 6,
                 7,
@@ -104,24 +106,22 @@ public final class TrinityCoreComponentTest {
                 13,
                 14,
                 15,
-                16,
-                17,
-                18)));
+                16)));
     }
 
     @Test
     void cpuCoreProfileRequiresExactRepeatHeightForFullCpuCapacity() {
         DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder()
                 .actualRepeatCount(20);
-        for (int index = 0; index < 272; index++) {
+        for (int index = 0; index < 256; index++) {
             builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         }
 
         DigitalConstructFlowerCpuCoreProfile profile = builder.build();
 
         assertFalse(profile.fullCpu());
-        assertEquals(73_014_444_032L, profile.contribution().storageBytes());
-        assertEquals(139_264, profile.contribution().coProcessors());
+        assertEquals(68_719_476_736L, profile.contribution().storageBytes());
+        assertEquals(131_072, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 
@@ -129,15 +129,15 @@ public final class TrinityCoreComponentTest {
     void cpuCoreProfileUsesFiniteCapacityWhenAnyCoreSlotIsMissing() {
         DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder()
                 .actualRepeatCount(DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT);
-        for (int index = 0; index < 271; index++) {
+        for (int index = 0; index < 255; index++) {
             builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         }
 
         DigitalConstructFlowerCpuCoreProfile profile = builder.build();
 
         assertFalse(profile.fullCpu());
-        assertEquals(72_746_008_576L, profile.contribution().storageBytes());
-        assertEquals(138_752, profile.contribution().coProcessors());
+        assertEquals(68_451_041_280L, profile.contribution().storageBytes());
+        assertEquals(130_560, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 
@@ -149,16 +149,46 @@ public final class TrinityCoreComponentTest {
     }
 
     @Test
-    void patternProcessingCoreExposesPatternRows() {
-        TrinityCoreMetadata ordinary = TrinityCoreMetadata.patternProcessingCore(4);
-        TrinityCoreMetadata extended = TrinityCoreMetadata.patternProcessingCore(8);
-        TrinityCoreMetadata overlimit = TrinityCoreMetadata.patternProcessingCore(12);
+    void patternProcessingCoreExposesPatternCapacity() {
+        TrinityCoreMetadata ordinary = TrinityCoreMetadata.patternProcessingCore(64);
+        TrinityCoreMetadata extended = TrinityCoreMetadata.patternProcessingCore(128);
+        TrinityCoreMetadata overlimit = TrinityCoreMetadata.patternProcessingCore(512);
 
         assertEquals(TrinityCoreKind.PATTERN_PROCESSING, ordinary.kind());
         assertEquals(0, ordinary.capacityValue());
-        assertEquals(4, ordinary.patternRows());
-        assertEquals(8, extended.patternRows());
-        assertEquals(12, overlimit.patternRows());
+        assertEquals(64, ordinary.patternCapacity());
+        assertEquals(128, extended.patternCapacity());
+        assertEquals(512, overlimit.patternCapacity());
+    }
+
+    @Test
+    void craftingCoreProfileAggregatesOnlyPatternProcessingCores() {
+        DigitalConstructFlowerCraftingCoreProfile.Builder builder = DigitalConstructFlowerCraftingCoreProfile.builder();
+
+        builder.add(TrinityCoreMetadata.patternProcessingCore(64));
+        builder.add(TrinityCoreMetadata.patternProcessingCore(128));
+        builder.add(TrinityCoreMetadata.patternProcessingCore(512));
+        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_256M));
+        builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
+
+        DigitalConstructFlowerCraftingCoreProfile profile = builder.build();
+
+        assertTrue(profile.active());
+        assertEquals(3, profile.patternCoreCount());
+        assertEquals(704, profile.patternCapacity());
+    }
+
+    @Test
+    void craftingCoreProfileIsEmptyWhenNoPatternProcessingCoreExists() {
+        DigitalConstructFlowerCraftingCoreProfile.Builder builder = DigitalConstructFlowerCraftingCoreProfile.builder();
+
+        builder.add(TrinityCoreMetadata.storageCore(TrinityCoreTier.SIZE_256M));
+        builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
+
+        DigitalConstructFlowerCraftingCoreProfile profile = builder.build();
+
+        assertFalse(profile.active());
+        assertEquals(DigitalConstructFlowerCraftingCoreProfile.EMPTY, profile);
     }
 
     @Test

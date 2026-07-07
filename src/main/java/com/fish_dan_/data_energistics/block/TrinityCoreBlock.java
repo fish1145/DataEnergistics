@@ -37,10 +37,10 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     }
 
     /**
-     * Creates a pattern processing core with a fixed row count.
+     * Creates a pattern processing core with a fixed recognizable pattern capacity.
      */
-    public static TrinityCoreBlock patternProcessingCore(Properties properties, int patternRows) {
-        return new TrinityCoreBlock(properties, TrinityCoreMetadata.patternProcessingCore(patternRows));
+    public static TrinityCoreBlock patternProcessingCore(Properties properties, int patternCapacity) {
+        return new TrinityCoreBlock(properties, TrinityCoreMetadata.patternProcessingCore(patternCapacity));
     }
 
     @Override
@@ -54,7 +54,7 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     }
 
     @Override
-    public int patternRows() {
-        return this.metadata.patternRows();
+    public int patternCapacity() {
+        return this.metadata.patternCapacity();
     }
 }

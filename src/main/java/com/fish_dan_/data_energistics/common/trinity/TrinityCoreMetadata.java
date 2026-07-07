@@ -11,14 +11,14 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final TrinityCoreKind kind;
     /** Storage type or parallel CPU count contributed by capacity-based cores. */
     private final int capacityValue;
-    /** Pattern row count contributed by pattern processing cores. */
-    private final int patternRows;
+    /** Pattern count contributed by pattern processing cores. */
+    private final int patternCapacity;
 
-    public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternRows) {
+    public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
         this.kind = Objects.requireNonNull(kind, "kind");
-        validateCoreData(this.kind, capacityValue, patternRows);
+        validateCoreData(this.kind, capacityValue, patternCapacity);
         this.capacityValue = capacityValue;
-        this.patternRows = patternRows;
+        this.patternCapacity = patternCapacity;
     }
 
     /**
@@ -36,10 +36,10 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     /**
-     * Creates pattern processing metadata with a fixed row count.
+     * Creates pattern processing metadata with a fixed recognizable pattern capacity.
      */
-    public static TrinityCoreMetadata patternProcessingCore(int patternRows) {
-        return new TrinityCoreMetadata(TrinityCoreKind.PATTERN_PROCESSING, 0, patternRows);
+    public static TrinityCoreMetadata patternProcessingCore(int patternCapacity) {
+        return new TrinityCoreMetadata(TrinityCoreKind.PATTERN_PROCESSING, 0, patternCapacity);
     }
 
     @Override
@@ -53,20 +53,20 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     }
 
     @Override
-    public int patternRows() {
-        return this.patternRows;
+    public int patternCapacity() {
+        return this.patternCapacity;
     }
 
-    private static void validateCoreData(TrinityCoreKind kind, int capacityValue, int patternRows) {
+    private static void validateCoreData(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
         switch (kind) {
             case STORAGE_TYPES, PARALLEL_CPU -> {
-                if (capacityValue <= 0 || patternRows != 0) {
-                    throw new IllegalArgumentException(kind + " cores require positive capacity and zero pattern rows");
+                if (capacityValue <= 0 || patternCapacity != 0) {
+                    throw new IllegalArgumentException(kind + " cores require positive capacity and zero pattern capacity");
                 }
             }
             case PATTERN_PROCESSING -> {
-                if (capacityValue != 0 || patternRows <= 0) {
-                    throw new IllegalArgumentException("Pattern processing cores require zero capacity and positive pattern rows");
+                if (capacityValue != 0 || patternCapacity <= 0) {
+                    throw new IllegalArgumentException("Pattern processing cores require zero capacity and positive pattern capacity");
                 }
             }
         }

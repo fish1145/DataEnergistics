@@ -16,7 +16,8 @@ public interface TrinityCoreComponent {
     int capacityValue();
 
     /**
-     * Returns the number of pattern rows; storage and parallel CPU cores return zero.
+     * Returns the number of patterns this core lets the crafting child structure recognize; storage and parallel CPU
+     * cores return zero.
      */
-    int patternRows();
+    int patternCapacity();
 }
