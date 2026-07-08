@@ -72,6 +72,8 @@ public final class ModUpgrades {
                 "item.data_energistics.data_capture_ball");
         Upgrades.add(AEItems.FUZZY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 1,
                 "item.data_energistics.data_capture_ball");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.ME_VACUUM.get(), 3,
+                "item.data_energistics.me_vacuum");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
                 "item.data_energistics.data_crystal_sword");
         Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
