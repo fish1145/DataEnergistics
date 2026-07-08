@@ -2,17 +2,22 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.MeVacuumItem;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.DigitalStorageDepotScrollPayload;
+import com.fish_dan_.data_energistics.network.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.registry.ModMobEffects;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.Input;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+
+import org.lwjgl.glfw.GLFW;
 
 final class ClientInputHandler {
 
@@ -36,14 +41,69 @@ final class ClientInputHandler {
 
     static void onInteractionKeyTriggered(InputEvent.InteractionKeyMappingTriggered event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.screen != null || !minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER)) {
+        if (minecraft.player == null || minecraft.screen != null) {
             return;
         }
 
-        if (event.isAttack() || event.isUseItem() || event.isPickBlock()) {
-            event.setCanceled(true);
-            event.setSwingHand(false);
+        if (minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER)) {
+            if (event.isAttack() || event.isUseItem() || event.isPickBlock()) {
+                event.setCanceled(true);
+                event.setSwingHand(false);
+            }
+            return;
         }
+
+        if (!event.isAttack() || !tryLaunchMeVacuum(minecraft)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        event.setSwingHand(false);
+    }
+
+    static void onMouseButtonPre(InputEvent.MouseButton.Pre event) {
+        if (event.getAction() != GLFW.GLFW_PRESS) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.options.keyAttack.matchesMouse(event.getButton())) {
+            return;
+        }
+
+        if (tryLaunchMeVacuum(minecraft)) {
+            event.setCanceled(true);
+        }
+    }
+
+    static void onKeyInput(InputEvent.Key event) {
+        if (event.getAction() != GLFW.GLFW_PRESS) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.options.keyAttack.matches(event.getKey(), event.getScanCode())) {
+            tryLaunchMeVacuum(minecraft);
+        }
+    }
+
+    private static boolean tryLaunchMeVacuum(Minecraft minecraft) {
+        if (minecraft.player == null || minecraft.screen != null) {
+            return false;
+        }
+
+        if (minecraft.player.hasEffect(ModMobEffects.DATA_DISORDER) || !minecraft.player.isUsingItem() || minecraft.player.isShiftKeyDown()) {
+            return false;
+        }
+
+        ItemStack stack = minecraft.player.getUseItem();
+        if (!(stack.getItem() instanceof MeVacuumItem)) {
+            return false;
+        }
+
+        InteractionHand usedHand = minecraft.player.getUsedItemHand();
+        PacketDistributor.sendToServer(new MeVacuumLaunchPayload(usedHand == InteractionHand.OFF_HAND));
+        return true;
     }
 
     static void onMouseScroll(InputEvent.MouseScrollingEvent event) {

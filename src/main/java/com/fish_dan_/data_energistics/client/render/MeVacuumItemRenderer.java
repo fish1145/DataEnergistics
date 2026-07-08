@@ -16,6 +16,7 @@ import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -64,6 +65,15 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
         renderBakedModel(minecraft.getItemRenderer(), stack, model, poseStack, bufferSource, combinedLight,
                 combinedOverlay);
         renderCellLeds(stack, poseStack, bufferSource);
+        if (shouldRenderFirstPersonWind(minecraft, displayContext, stack)) {
+            MeVacuumBreezeVisualRenderer.renderFirstPersonItemWind(minecraft, poseStack, bufferSource);
+        }
+    }
+
+    private static boolean shouldRenderFirstPersonWind(Minecraft minecraft, ItemDisplayContext displayContext,
+                                                       ItemStack stack) {
+        Player player = minecraft.player;
+        return displayContext.firstPerson() && player != null && player.isUsingItem() && !player.isShiftKeyDown() && MeVacuumBreezeVisualRenderer.isWorkingVacuum(stack) && ItemStack.isSameItemSameComponents(player.getUseItem(), stack);
     }
 
     private static void renderBakedModel(ItemRenderer itemRenderer, ItemStack stack, BakedModel model,

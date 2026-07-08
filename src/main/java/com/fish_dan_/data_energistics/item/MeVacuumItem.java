@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -45,8 +46,8 @@ import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -65,10 +66,10 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
     private static final int LAUNCH_READY_TICKS = 30;
     private static final int HOVER_TRACKING_TTL_TICKS = 10;
     private static final double LAUNCH_RANGE = 15.0D;
-    private static final double LAUNCH_SPEED = 3.6D;
+    private static final double LAUNCH_SPEED = 15.0D;
     private static final double LAUNCH_UPWARD_SPEED = 0.45D;
     private static final long FLUID_SOURCE_AMOUNT = AEFluidKey.AMOUNT_BLOCK;
-    private static final Map<UUID, HoveredEntityState> HOVERED_ENTITIES = new HashMap<>();
+    private static final Map<UUID, HoveredEntityState> HOVERED_ENTITY_STATES = new HashMap<>();
 
     public MeVacuumItem(Properties properties) {
         super(properties);
@@ -175,32 +176,39 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         if (!this.hasSufficientEnergy(stack)) {
             return true;
         }
-        if (!isLaunchReady(player, entity)) {
-            return false;
-        }
-
-        Vec3 launchDirection = player.getLookAngle().normalize();
-        Vec3 fromPlayer = entity.position().subtract(player.position());
-        if (fromPlayer.lengthSqr() > 1.0E-4D) {
-            launchDirection = fromPlayer.normalize().add(launchDirection).normalize();
-        }
-
-        entity.setDeltaMovement(launchDirection.scale(LAUNCH_SPEED).add(0.0D, LAUNCH_UPWARD_SPEED, 0.0D));
-        entity.resetFallDistance();
-        entity.hasImpulse = true;
-        entity.hurtMarked = true;
-        HOVERED_ENTITIES.remove(entity.getUUID());
-        this.consumeActionEnergy(stack);
-
-        player.level().playSound(null, entity.getX(), entity.getY(), entity.getZ(), SoundEvents.WARDEN_SONIC_BOOM,
-                SoundSource.PLAYERS, 1.0F, 1.0F);
-        return true;
+        return isLaunchReady(player, entity) && this.tryLaunchEntity(stack, player, entity);
     }
 
     @Override
     public @Nullable ItemMenuHost<?> getMenuHost(Player player, ItemMenuHostLocator locator,
                                                  @Nullable BlockHitResult hitResult) {
         return new MeVacuumMenuHost(this, player, locator);
+    }
+
+    @SuppressWarnings("UnusedReturnValue")
+    public boolean tryLaunchTrackedEntity(ItemStack stack, Player player) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+        if (stack.getItem() != this) {
+            return false;
+        }
+        if (!player.isUsingItem() || !ItemStack.isSameItemSameComponents(player.getUseItem(), stack)) {
+            return false;
+        }
+
+        HoveredEntityState state = HOVERED_ENTITY_STATES.get(player.getUUID());
+        if (!isLaunchReady(player, state)) {
+            return false;
+        }
+
+        Entity target = serverLevel.getEntity(state.targetId());
+        if (target == null || !target.isAlive() || player.distanceToSqr(target) > LAUNCH_RANGE * LAUNCH_RANGE) {
+            HOVERED_ENTITY_STATES.remove(player.getUUID());
+            return false;
+        }
+
+        return this.tryLaunchEntity(stack, player, target);
     }
 
     private boolean vacuumInFront(ServerLevel level, Player player, ItemStack stack, boolean absorbThisTick) {
@@ -316,9 +324,11 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         Vec3 look = player.getLookAngle().normalize();
         Vec3 hoverPoint = player.getEyePosition().add(look.scale(HOVER_DISTANCE));
         long gameTime = level.getGameTime();
+        List<Entity> candidates = level.getEntitiesOfClass(Entity.class, area,
+                MeVacuumItem::isVacuumHoverCandidate);
         boolean moved = false;
 
-        for (Entity target : level.getEntitiesOfClass(Entity.class, area, entity -> entity.isAlive() && entity != player && !(entity instanceof Player) && !(entity instanceof ItemEntity) && !(entity instanceof DispersingDataEntity))) {
+        for (Entity target : candidates) {
             Vec3 targetCenter = target.getBoundingBox().getCenter();
             Vec3 toHoverPoint = hoverPoint.subtract(targetCenter);
             Vec3 movement = toHoverPoint.scale(HOVER_PULL_STRENGTH);
@@ -330,10 +340,10 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
             target.resetFallDistance();
             target.hasImpulse = true;
             target.hurtMarked = true;
-            trackHoveredEntity(player, target, gameTime);
             moved = true;
         }
 
+        updateHoveredEntityState(level, player, candidates, hoverPoint, gameTime);
         cleanupHoveredEntities(gameTime);
         return moved;
     }
@@ -380,29 +390,103 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         return new AABB(minX, minY, minZ, maxX + 1.0D, maxY + 1.0D, maxZ + 1.0D);
     }
 
-    private static void trackHoveredEntity(Player player, Entity entity, long gameTime) {
-        HoveredEntityState previous = HOVERED_ENTITIES.get(entity.getUUID());
-        if (previous != null && previous.playerId.equals(player.getUUID()) && previous.lastSeenTick + 1 >= gameTime) {
-            HOVERED_ENTITIES.put(entity.getUUID(), new HoveredEntityState(player.getUUID(), previous.hoveredTicks + 1,
-                    gameTime));
-        } else {
-            HOVERED_ENTITIES.put(entity.getUUID(), new HoveredEntityState(player.getUUID(), 1, gameTime));
+    private static boolean isVacuumHoverCandidate(Entity entity) {
+        return entity.isAlive() && !(entity instanceof Player) && !(entity instanceof ItemEntity) && !(entity instanceof DispersingDataEntity);
+    }
+
+    private static void updateHoveredEntityState(ServerLevel level, Player player, List<Entity> candidates,
+                                                 Vec3 hoverPoint, long gameTime) {
+        UUID playerId = player.getUUID();
+        HoveredEntityState previous = HOVERED_ENTITY_STATES.get(playerId);
+        if (previous != null) {
+            Entity trackedTarget = level.getEntity(previous.targetId());
+            if (trackedTarget == null || !trackedTarget.isAlive()) {
+                HOVERED_ENTITY_STATES.remove(playerId);
+                previous = null;
+            }
         }
+
+        if (previous != null) {
+            Entity trackedCandidate = findCandidate(candidates, previous.targetId());
+            if (trackedCandidate != null) {
+                trackHoveredEntity(player, trackedCandidate, gameTime);
+                return;
+            }
+            if (gameTime - previous.lastSeenTick() <= HOVER_TRACKING_TTL_TICKS) {
+                return;
+            }
+            HOVERED_ENTITY_STATES.remove(playerId);
+        }
+
+        candidates.stream()
+                .min(Comparator.comparingDouble((Entity target) -> target.getBoundingBox().getCenter()
+                        .distanceToSqr(hoverPoint))
+                        .thenComparingInt(Entity::getId))
+                .ifPresent(target -> trackHoveredEntity(player, target, gameTime));
+    }
+
+    private static @Nullable Entity findCandidate(List<Entity> candidates, UUID targetId) {
+        for (Entity candidate : candidates) {
+            if (candidate.getUUID().equals(targetId)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static void trackHoveredEntity(Player player, Entity entity, long gameTime) {
+        UUID playerId = player.getUUID();
+        HoveredEntityState previous = HOVERED_ENTITY_STATES.get(playerId);
+        int hoverTicks = previous != null && previous.targetId().equals(entity.getUUID()) && gameTime - previous.lastSeenTick() <= HOVER_TRACKING_TTL_TICKS ? previous.hoverTicks() + 1 : 1;
+        HOVERED_ENTITY_STATES.put(playerId, new HoveredEntityState(entity.getUUID(), hoverTicks, gameTime));
     }
 
     private static boolean isLaunchReady(Player player, Entity entity) {
-        HoveredEntityState state = HOVERED_ENTITIES.get(entity.getUUID());
-        return state != null && state.playerId.equals(player.getUUID()) && player.level().getGameTime() - state.lastSeenTick <= HOVER_TRACKING_TTL_TICKS && state.hoveredTicks >= LAUNCH_READY_TICKS && player.distanceToSqr(entity) <= LAUNCH_RANGE * LAUNCH_RANGE;
+        HoveredEntityState state = HOVERED_ENTITY_STATES.get(player.getUUID());
+        return entity.isAlive() && state != null && state.targetId().equals(entity.getUUID()) && isLaunchReady(player, state) && player.distanceToSqr(entity) <= LAUNCH_RANGE * LAUNCH_RANGE;
+    }
+
+    private static boolean isLaunchReady(Player player, @Nullable HoveredEntityState state) {
+        return state != null && player.level().getGameTime() - state.lastSeenTick() <= HOVER_TRACKING_TTL_TICKS && state.hoverTicks() >= LAUNCH_READY_TICKS;
+    }
+
+    private boolean tryLaunchEntity(ItemStack stack, Player player, Entity target) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+        if (!this.hasSufficientEnergy(stack) || !isLaunchReady(player, target)) {
+            return false;
+        }
+
+        Vec3 direction = new Vec3(target.getX() - player.getX(), 0.0D, target.getZ() - player.getZ());
+        if (direction.lengthSqr() <= 1.0E-4D) {
+            Vec3 look = player.getLookAngle();
+            direction = new Vec3(look.x, 0.0D, look.z);
+        }
+        if (direction.lengthSqr() <= 1.0E-4D) {
+            return false;
+        }
+
+        direction = direction.normalize();
+        target.setDeltaMovement(direction.scale(LAUNCH_SPEED).add(0.0D, LAUNCH_UPWARD_SPEED, 0.0D));
+        target.resetFallDistance();
+        target.hasImpulse = true;
+        target.hurtMarked = true;
+        HOVERED_ENTITY_STATES.remove(player.getUUID());
+        this.consumeActionEnergy(stack);
+
+        Vec3 center = target.getBoundingBox().getCenter();
+        serverLevel.playSound(null, center.x, center.y, center.z, SoundEvents.WARDEN_SONIC_BOOM,
+                SoundSource.PLAYERS, 1.0F, 1.0F);
+        serverLevel.sendParticles(ParticleTypes.SONIC_BOOM, center.x, center.y, center.z, 1,
+                0.0D, 0.0D, 0.0D, 0.0D);
+        return true;
     }
 
     private static void cleanupHoveredEntities(long gameTime) {
-        Iterator<Map.Entry<UUID, HoveredEntityState>> iterator = HOVERED_ENTITIES.entrySet().iterator();
-        while (iterator.hasNext()) {
-            if (gameTime - iterator.next().getValue().lastSeenTick > HOVER_TRACKING_TTL_TICKS) {
-                iterator.remove();
-            }
-        }
+        HOVERED_ENTITY_STATES.entrySet()
+                .removeIf(entry -> gameTime - entry.getValue().lastSeenTick() > HOVER_TRACKING_TTL_TICKS);
     }
 
-    private record HoveredEntityState(UUID playerId, int hoveredTicks, long lastSeenTick) {}
+    private record HoveredEntityState(UUID targetId, int hoverTicks, long lastSeenTick) {}
 }
