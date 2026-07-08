@@ -2,8 +2,10 @@ package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.MeVacuumMenuHost;
+import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -17,14 +19,13 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.Blocks;
 
 import appeng.api.implementations.blockentities.IChestOrDrive;
 import appeng.api.networking.IGridNode;
 import appeng.api.storage.MEStorage;
-import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.CellState;
 import appeng.api.storage.cells.StorageCell;
 import appeng.client.render.tesr.CellLedRenderer;
@@ -34,8 +35,7 @@ import org.joml.Matrix4f;
 
 public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer {
 
-    private static final ModelResourceLocation ME_VACUUM_MODEL =
-            ModelResourceLocation.inventory(Data_Energistics.id("me_vacuum"));
+    private static final ModelResourceLocation ME_VACUUM_MODEL = ModelResourceLocation.inventory(Data_Energistics.id("me_vacuum"));
     private static final CellLedTransform[] LED_TRANSFORMS = {
             CellLedTransform.left(7.25F, 4.00F, 6.00F),
             CellLedTransform.left(7.25F, 4.00F, 9.00F),
@@ -43,8 +43,7 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
             CellLedTransform.right(8.75F, 4.00F, 9.00F)
     };
 
-    public MeVacuumItemRenderer(BlockEntityRenderDispatcher dispatcher,
-                                net.minecraft.client.model.geom.EntityModelSet entityModelSet) {
+    public MeVacuumItemRenderer(BlockEntityRenderDispatcher dispatcher, EntityModelSet entityModelSet) {
         super(dispatcher, entityModelSet);
     }
 
@@ -86,7 +85,8 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
         }
 
         NonNullList<ItemStack> cells = MeVacuumMenuHost.readStoredCells(stack, registries);
-        VacuumLedDrive ledDrive = new VacuumLedDrive(cells);
+        CellState[] states = MeVacuumMenuHost.readStoredCellStates(stack, registries);
+        VacuumLedDrive ledDrive = new VacuumLedDrive(cells, states, isPowered(stack));
         var buffer = bufferSource.getBuffer(CellLedRenderer.RENDER_LAYER);
 
         for (int slot = 0; slot < Math.min(cells.size(), LED_TRANSFORMS.length); slot++) {
@@ -112,16 +112,36 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
         return connection == null ? null : connection.registryAccess();
     }
 
+    static CellState getCellLedState(NonNullList<ItemStack> cells, CellState[] states, int slot) {
+        if (slot < 0 || slot >= cells.size() || slot >= states.length || cells.get(slot).isEmpty()) {
+            return CellState.ABSENT;
+        }
+
+        return states[slot];
+    }
+
+    static boolean isPowered(ItemStack stack) {
+        return stack.getItem() instanceof PoweredEnergyItem poweredItem && poweredItem.getAECurrentPower(stack) > 0.0D;
+    }
+
     private record CellLedTransform(float x, float y, float z, boolean rightSide) {
 
         private Matrix4f matrix() {
             float tx = (this.x + (this.rightSide ? 2.0F : -2.0F)) / 16.0F;
             float ty = this.y / 16.0F;
-            float tz = this.z / 16.0F;
+            float tz = (this.z + (this.rightSide ? 1.0F : 0.0F)) / 16.0F;
+            if (this.rightSide) {
+                return new Matrix4f().set(
+                        0.0F, 1.0F, 0.0F, 0.0F,
+                        0.0F, 0.0F, -1.0F, 0.0F,
+                        -1.0F, 0.0F, 0.0F, 0.0F,
+                        tx, ty, tz, 1.0F);
+            }
+
             return new Matrix4f().set(
                     0.0F, 1.0F, 0.0F, 0.0F,
                     0.0F, 0.0F, 1.0F, 0.0F,
-                    this.rightSide ? -1.0F : 1.0F, 0.0F, 0.0F, 0.0F,
+                    1.0F, 0.0F, 0.0F, 0.0F,
                     tx, ty, tz, 1.0F);
         }
 
@@ -137,10 +157,14 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
     private static final class VacuumLedDrive extends BlockEntity implements IChestOrDrive {
 
         private final NonNullList<ItemStack> cells;
+        private final CellState[] states;
+        private final boolean powered;
 
-        private VacuumLedDrive(NonNullList<ItemStack> cells) {
+        private VacuumLedDrive(NonNullList<ItemStack> cells, CellState[] states, boolean powered) {
             super(BlockEntityType.BARREL, BlockPos.ZERO, Blocks.BARREL.defaultBlockState());
             this.cells = cells;
+            this.states = states;
+            this.powered = powered;
         }
 
         @Override
@@ -150,17 +174,12 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
 
         @Override
         public CellState getCellStatus(int slot) {
-            if (slot < 0 || slot >= this.cells.size() || this.cells.get(slot).isEmpty()) {
-                return CellState.ABSENT;
-            }
-
-            StorageCell cellInventory = StorageCells.getCellInventory(this.cells.get(slot), () -> {});
-            return cellInventory == null ? CellState.NOT_EMPTY : cellInventory.getStatus();
+            return getCellLedState(this.cells, this.states, slot);
         }
 
         @Override
         public boolean isPowered() {
-            return true;
+            return this.powered;
         }
 
         @Override
@@ -175,16 +194,12 @@ public final class MeVacuumItemRenderer extends BlockEntityWithoutLevelRenderer 
 
         @Override
         public MEStorage getCellInventory(int slot) {
-            return slot >= 0 && slot < this.cells.size()
-                    ? StorageCells.getCellInventory(this.cells.get(slot), () -> {})
-                    : null;
+            return null;
         }
 
         @Override
         public StorageCell getOriginalCellInventory(int slot) {
-            return slot >= 0 && slot < this.cells.size()
-                    ? StorageCells.getCellInventory(this.cells.get(slot), () -> {})
-                    : null;
+            return null;
         }
 
         @Override

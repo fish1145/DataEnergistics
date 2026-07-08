@@ -29,6 +29,7 @@ import appeng.api.client.StorageCellModels;
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class MeVacuumBakedModel implements BakedModel {
@@ -172,7 +173,7 @@ public final class MeVacuumBakedModel implements BakedModel {
         @Override
         public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction direction, RandomSource random,
                                         ModelData data, @Nullable RenderType renderType) {
-            var quads = new java.util.ArrayList<BakedQuad>(
+            var quads = new ArrayList<BakedQuad>(
                     this.delegate.getQuads(state, direction, random, data, renderType));
             Minecraft minecraft = Minecraft.getInstance();
 
@@ -198,7 +199,7 @@ public final class MeVacuumBakedModel implements BakedModel {
         private static List<BakedQuad> getAllCellQuads(BakedModel cellModel, @Nullable BlockState state,
                                                        RandomSource random,
                                                        @Nullable RenderType renderType) {
-            var quads = new java.util.ArrayList<BakedQuad>();
+            var quads = new ArrayList<BakedQuad>();
             quads.addAll(cellModel.getQuads(state, null, random, ModelData.EMPTY, renderType));
             for (Direction side : Direction.values()) {
                 quads.addAll(cellModel.getQuads(state, side, random, ModelData.EMPTY, renderType));

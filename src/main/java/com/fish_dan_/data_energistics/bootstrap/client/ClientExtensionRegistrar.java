@@ -15,6 +15,7 @@ final class ClientExtensionRegistrar {
     static void register(RegisterClientExtensionsEvent event) {
         ModFluidClientExtensions.register(event);
         event.registerItem(new IClientItemExtensions() {
+
             private BlockEntityWithoutLevelRenderer renderer;
 
             @Override

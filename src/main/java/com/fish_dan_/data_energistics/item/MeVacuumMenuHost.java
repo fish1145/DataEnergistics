@@ -13,14 +13,19 @@ import appeng.api.implementations.menuobjects.ItemMenuHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.StorageCells;
+import appeng.api.storage.cells.CellState;
+import appeng.api.storage.cells.ISaveProvider;
 import appeng.menu.locator.ItemMenuHostLocator;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
+import lombok.Getter;
 
+@Getter
 public class MeVacuumMenuHost extends ItemMenuHost<MeVacuumItem> implements InternalInventoryHost {
 
     public static final int STORAGE_SLOT_COUNT = 4;
     private static final String TAG_STORAGE = "StorageComponents";
+    private static final ISaveProvider READ_ONLY_SAVE_PROVIDER = () -> {};
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOT_COUNT);
 
@@ -34,10 +39,6 @@ public class MeVacuumMenuHost extends ItemMenuHost<MeVacuumItem> implements Inte
         loadStorage();
     }
 
-    public AppEngInternalInventory getStorage() {
-        return this.storage;
-    }
-
     public static NonNullList<ItemStack> readStoredCells(ItemStack stack, HolderLookup.Provider registries) {
         var inventory = new AppEngInternalInventory(null, STORAGE_SLOT_COUNT, 1);
         inventory.readFromNBT(stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag(),
@@ -48,6 +49,22 @@ public class MeVacuumMenuHost extends ItemMenuHost<MeVacuumItem> implements Inte
             cells.set(i, inventory.getStackInSlot(i).copy());
         }
         return cells;
+    }
+
+    public static CellState[] readStoredCellStates(ItemStack stack, HolderLookup.Provider registries) {
+        var states = new CellState[STORAGE_SLOT_COUNT];
+        var cells = readStoredCells(stack, registries);
+        for (int i = 0; i < STORAGE_SLOT_COUNT; i++) {
+            ItemStack cellStack = i < cells.size() ? cells.get(i) : ItemStack.EMPTY;
+            if (cellStack.isEmpty()) {
+                states[i] = CellState.ABSENT;
+                continue;
+            }
+
+            var cellInventory = StorageCells.getCellInventory(cellStack, READ_ONLY_SAVE_PROVIDER);
+            states[i] = cellInventory == null ? CellState.ABSENT : cellInventory.getStatus();
+        }
+        return states;
     }
 
     public static long insertIntoStoredCells(ItemStack stack, HolderLookup.Provider registries, AEKey key, long amount,

@@ -11,6 +11,11 @@
 			"top": 21,
 			"grid": "HORIZONTAL"
 		},
+		"ME_VACUUM_STORAGE_CELL_RIGHT": {
+			"left": 98,
+			"top": 21,
+			"grid": "HORIZONTAL"
+		},
 		"UPGRADE": {
 			"left": 152,
 			"top": 22,
@@ -46,6 +51,12 @@
 				"left": 8,
 				"top": 47
 			}
+		}
+	},
+	"widgets": {
+		"upgrades": {
+			"left": 174,
+			"top": 0
 		}
 	}
 }
