@@ -59,7 +59,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static final String MISSING_BLOCK_ID = "data_energistics:missing_block_for_json_multiblock_test";
     private static final String MISSING_BLOCKS_ID = "data_energistics:missing_blocks_for_json_multiblock_test";
     private static final Set<String> DIRECTION_PROPERTY_NAMES = Set.of("facing", "horizontal_facing", "axis");
-    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.trinity_digital_core\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
+    private static final String MINIMAL_JSON_WITH_METADATA = "{\"metadata\":{\"display_name\":\"multiblock.data_energistics.trinity_data_core\"},\"aisles\":[{\"slices\":[[\"~\"]]}]}";
     private static final String MINIMAL_JSON_WITH_COMPARTMENTS = "{\"metadata\":{\"compartments\":{\"I\":\"input\",\"O\":\"output\",\"M\":\"me_input\",\"N\":\"me_output\",\"P\":\"pattern_buffer\"}},\"aisles\":[{\"slices\":[[\"~IOMNP\"]]}]}";
 
     private JsonMultiBlockDefinitionLoaderTest() {}
@@ -128,7 +128,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_parses_bundled_trinity_digital_core_structure")
+    @TestHolder("json_multiblock_loader_parses_bundled_trinity_data_core_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void parsesBundledTrinityDigitalCoreStructure(GameTestHelper helper) {
@@ -145,11 +145,11 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Bundled Trinity Digital Core JSON should resolve to the main trinity_digital_core structure key");
         helper.assertTrue(
                 definition.displayNameTranslationKey().isPresent(),
-                "Bundled Trinity Digital Core JSON should expose structure display metadata");
+                "Bundled Trinity Data Core JSON should expose structure display metadata");
         helper.assertValueEqual(
                 definition.displayNameTranslationKey().orElseThrow(),
-                "multiblock.data_energistics.trinity_digital_core",
-                "Bundled Trinity Digital Core display metadata should resolve to the structure lang key");
+                "multiblock.data_energistics.trinity_data_core",
+                "Bundled Trinity Data Core display metadata should resolve to the structure lang key");
         helper.assertValueEqual(
                 definition.compartmentTypes().size(),
                 0,
@@ -667,7 +667,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
         helper.assertValueEqual(
                 definition.displayNameTranslationKey().orElseThrow(),
-                "multiblock.data_energistics.trinity_digital_core",
+                "multiblock.data_energistics.trinity_data_core",
                 "Loader should expose display metadata without passing it into MDLib pattern parsing");
         helper.assertTrue(definition.pattern() != null, "Loader should still parse the MDLib pattern");
         helper.succeed();

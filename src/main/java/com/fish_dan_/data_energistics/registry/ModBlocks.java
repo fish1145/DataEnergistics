@@ -55,7 +55,7 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DIGITAL_CONSTRUCT_FLOWER = BLOCKS.registerBlock(
-            "digital_construct_flower",
+            "trinity_data_core",
             DigitalConstructFlowerBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 

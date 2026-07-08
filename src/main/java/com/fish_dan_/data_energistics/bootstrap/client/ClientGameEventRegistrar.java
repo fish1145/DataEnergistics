@@ -9,6 +9,8 @@ final class ClientGameEventRegistrar {
     static void register() {
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMovementInputUpdate);
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onInteractionKeyTriggered);
+        NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMouseButtonPre);
+        NeoForge.EVENT_BUS.addListener(ClientInputHandler::onKeyInput);
         NeoForge.EVENT_BUS.addListener(ClientTickHandler::onClientTickPost);
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMouseScroll);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenOpening);

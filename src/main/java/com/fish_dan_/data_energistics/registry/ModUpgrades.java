@@ -72,6 +72,8 @@ public final class ModUpgrades {
                 "item.data_energistics.data_capture_ball");
         Upgrades.add(AEItems.FUZZY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 1,
                 "item.data_energistics.data_capture_ball");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.ME_VACUUM.get(), 3,
+                "item.data_energistics.me_vacuum");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
                 "item.data_energistics.data_crystal_sword");
         Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
@@ -118,9 +120,10 @@ public final class ModUpgrades {
                 "item.data_energistics.data_sanctifier");
         Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_SANCTIFIER.get(), 1,
                 "item.data_energistics.data_sanctifier");
-        Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
-        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
+        Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
+        Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 7, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
+        Upgrades.add(AEItems.FUZZY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 1, "block.data_energistics.data_extractor");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 4, "block.data_energistics.data_reassembler");
         Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
         Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");

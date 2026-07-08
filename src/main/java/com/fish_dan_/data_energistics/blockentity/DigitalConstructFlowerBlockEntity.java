@@ -722,7 +722,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 state,
                 DataRipperReassemblerBlock.FACING,
                 this.worldPosition,
-                "Trinity Digital Core");
+                "Trinity Data Core");
     }
 
     private void applyMatch(StructureWorldView world,
@@ -876,7 +876,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return;
         }
         LOGGER.warn(
-                "Trinity Digital Core structure '{}' failed at {}: {}",
+                "Trinity Data Core structure '{}' failed at {}: {}",
                 structureName,
                 nextFailurePosition,
                 nextFailureReason);

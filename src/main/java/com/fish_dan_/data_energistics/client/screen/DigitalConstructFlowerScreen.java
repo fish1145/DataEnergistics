@@ -13,6 +13,7 @@ import net.minecraft.world.entity.player.Inventory;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.core.localization.Tooltips;
 
@@ -28,6 +29,8 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     private static final int WARNING_COLOR = 0xFFB347;
     private static final int ERROR_COLOR = 0xFF6B6B;
     private static final int BUSY_COLOR = 0xFFE066;
+    private static final int CPU_X = 102;
+    private static final int CPU_Y = 65;
     private static final int STATUS_X = 6;
     private static final int STATUS_Y = 19;
     private static final int STATUS_WIDTH = 73;
@@ -51,16 +54,53 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     private static final BigInteger UNIT_BASE = BigInteger.valueOf(1024L);
     private static final String[] COMPACT_UNITS = { "", "K", "M", "G", "T", "P", "E" };
 
+    private final Blitter cpuIdle;
+    private final Blitter cpuTaskOverlay;
+
     public DigitalConstructFlowerScreen(DigitalConstructFlowerMenu menu, Inventory playerInventory, Component title,
                                         ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.cpuIdle = style.getImage("cpuIdle");
+        this.cpuTaskOverlay = style.getImage("cpuTaskOverlay");
     }
 
     @Override
     protected void updateBeforeRender() {
         super.updateBeforeRender();
 
-        setTextContent("dialog_title", Component.translatable("block.data_energistics.digital_construct_flower"));
+        setTextContent("dialog_title", Component.translatable("block.data_energistics.trinity_data_core"));
+        setTextContent("online", Component.translatable(
+                this.menu.online ? "screen.data_energistics.trinity_data_core.status_online" : "screen.data_energistics.trinity_data_core.status_offline"));
+        setTextContent("formed", Component.translatable(
+                "screen.data_energistics.trinity_data_core.formed",
+                Component.translatable(this.menu.structureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no")));
+        setTextContent("matched_blocks", Component.translatable(
+                "screen.data_energistics.trinity_data_core.matched_blocks",
+                this.menu.matchedBlockCount));
+        setTextContent("pattern_buffers", Component.translatable(
+                "screen.data_energistics.trinity_data_core.pattern_buffers",
+                this.menu.patternBufferCount));
+        setTextContent("last_failure", Component.translatable(
+                "screen.data_energistics.trinity_data_core.last_failure",
+                getFailureSummary()));
+        setTextContent("busy_cpus", Component.translatable(
+                "screen.data_energistics.trinity_data_core.busy_cpus",
+                this.menu.busyCraftingCpuCount));
+    }
+
+    @Override
+    public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY,
+                       float partialTicks) {
+        super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
+
+        this.cpuIdle.copy()
+                .dest(offsetX + CPU_X, offsetY + CPU_Y)
+                .blit(guiGraphics);
+        if (this.menu.hasCraftingTarget()) {
+            this.cpuTaskOverlay.copy()
+                    .dest(offsetX + CPU_X, offsetY + CPU_Y)
+                    .blit(guiGraphics);
+        }
     }
 
     @Override
@@ -77,53 +117,53 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private void drawStructureStatus(GuiGraphics guiGraphics) {
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.status_label", Component.translatable(
-                this.menu.online ? "screen.data_energistics.digital_construct_flower.status_online" : "screen.data_energistics.digital_construct_flower.status_offline"), LEFT_TEXT_X, LEFT_TEXT_Y, statusColor(this.menu.online), LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.formed_label", Component.translatable(
-                this.menu.structureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT, statusColor(this.menu.structureFormed), LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.matched_blocks_label", Component.literal(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.status_label", Component.translatable(
+                this.menu.online ? "screen.data_energistics.trinity_data_core.status_online" : "screen.data_energistics.trinity_data_core.status_offline"), LEFT_TEXT_X, LEFT_TEXT_Y, statusColor(this.menu.online), LEFT_TEXT_WIDTH);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.formed_label", Component.translatable(
+                this.menu.structureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT, statusColor(this.menu.structureFormed), LEFT_TEXT_WIDTH);
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.matched_blocks_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.matchedBlockCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 2, VALUE_COLOR,
                 LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.pattern_buffers_label", Component.literal(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.pattern_buffers_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.patternBufferCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 3, VALUE_COLOR,
                 LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_structure_label", Component.translatable(
-                this.menu.cpuStructureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_structure_label", Component.translatable(
+                this.menu.cpuStructureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
                 statusColor(this.menu.cpuStructureFormed), LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.crafting_structure_label", Component.translatable(
-                this.menu.craftingStructureFormed ? "screen.data_energistics.digital_construct_flower.formed.yes" : "screen.data_energistics.digital_construct_flower.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5,
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.crafting_structure_label", Component.translatable(
+                this.menu.craftingStructureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5,
                 statusColor(this.menu.craftingStructureFormed && this.menu.craftingPatternCapacity > 0), LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.last_failure_label", getFailureSummary(),
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.last_failure_label", getFailureSummary(),
                 LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 6, hasAnyFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
     }
 
     private void drawCpuStatus(GuiGraphics guiGraphics) {
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_label", Component.literal(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_label", Component.literal(
                 Integer.toString(this.menu.busyCraftingCpuCount)), RIGHT_TEXT_X, CPU_TEXT_Y,
                 this.menu.busyCraftingCpuCount > 0 ? BUSY_COLOR : VALUE_COLOR, RIGHT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_partitions_label", Component.literal(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_partitions_label", Component.literal(
                 this.menu.busyCpuPartitionCount + "/" + this.menu.cpuPartitionCount), RIGHT_TEXT_X, CPU_TEXT_Y + LINE_HEIGHT,
                 this.menu.busyCpuPartitionCount > 0 ? BUSY_COLOR : VALUE_COLOR, RIGHT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_storage_label", Component.literal(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_storage_label", Component.literal(
                 compactNumber(Long.toString(this.menu.cpuStorageBytes))), RIGHT_TEXT_X, CPU_TEXT_Y + LINE_HEIGHT * 2, VALUE_COLOR,
                 RIGHT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.cpu_coprocessors_label", Component.literal(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_coprocessors_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.cpuCoProcessors))), RIGHT_TEXT_X, CPU_TEXT_Y + LINE_HEIGHT * 3, VALUE_COLOR,
                 RIGHT_TEXT_WIDTH);
     }
 
     private void drawStorageStatus(GuiGraphics guiGraphics) {
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_types_label",
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.storage_types_label",
                 Component.literal(formatCapacityPair(Integer.toString(this.menu.storedTypeCount), this.menu.storedTypeCapacityText)),
                 STORAGE_TEXT_X, STORAGE_TYPES_TEXT_Y, VALUE_COLOR, STORAGE_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.storage_amount_label",
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.storage_amount_label",
                 Component.literal(formatCapacityPair(this.menu.storedAmountText, this.menu.storedAmountCapacityText)),
                 STORAGE_TEXT_X, STORAGE_AMOUNT_TEXT_Y, VALUE_COLOR, STORAGE_TEXT_WIDTH);
     }
 
     private void drawCraftingStatus(GuiGraphics guiGraphics) {
         int statusColor = craftingUnavailable() ? ERROR_COLOR : this.menu.hasCraftingTarget() ? BUSY_COLOR : SUCCESS_COLOR;
-        drawCenteredKeyValueText(guiGraphics, "screen.data_energistics.digital_construct_flower.molecular_label", getMolecularStatus(),
+        drawCenteredKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.molecular_label", getMolecularStatus(),
                 RIGHT_TEXT_X, CRAFTING_TEXT_Y, statusColor, RIGHT_TEXT_WIDTH);
     }
 
@@ -159,10 +199,10 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             tooltip.add(target.what().getDisplayName());
             tooltip.add(GenericStackDisplayHelper.createAmountTooltip(target));
             tooltip.add(Component.translatable(
-                    "screen.data_energistics.digital_construct_flower.busy_cpus",
+                    "screen.data_energistics.trinity_data_core.busy_cpus",
                     this.menu.busyCraftingCpuCount).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
             tooltip.add(Component.translatable(
-                    "screen.data_energistics.digital_construct_flower.crafting_pattern_capacity",
+                    "screen.data_energistics.trinity_data_core.crafting_pattern_capacity",
                     this.menu.craftingPatternCapacity).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
@@ -173,31 +213,31 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             List<Component> tooltip = new ArrayList<>();
             if (hasFailure()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.digital_construct_flower.last_failure",
+                        "screen.data_energistics.trinity_data_core.last_failure",
                         MultiBlockFailureText.describe(this.menu.lastFailureReason)));
                 if (!this.menu.lastFailurePosition.isBlank()) {
                     tooltip.add(Component.translatable(
-                            "screen.data_energistics.digital_construct_flower.failure_position",
+                            "screen.data_energistics.trinity_data_core.failure_position",
                             this.menu.lastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
                 }
             }
             if (hasCpuFailure()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.digital_construct_flower.cpu_failure",
+                        "screen.data_energistics.trinity_data_core.cpu_failure",
                         MultiBlockFailureText.describe(this.menu.cpuLastFailureReason)));
                 if (!this.menu.cpuLastFailurePosition.isBlank()) {
                     tooltip.add(Component.translatable(
-                            "screen.data_energistics.digital_construct_flower.cpu_failure_position",
+                            "screen.data_energistics.trinity_data_core.cpu_failure_position",
                             this.menu.cpuLastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
                 }
             }
             if (hasCraftingFailure()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.digital_construct_flower.crafting_failure",
+                        "screen.data_energistics.trinity_data_core.crafting_failure",
                         MultiBlockFailureText.describe(this.menu.craftingLastFailureReason)));
                 if (!this.menu.craftingLastFailurePosition.isBlank()) {
                     tooltip.add(Component.translatable(
-                            "screen.data_energistics.digital_construct_flower.crafting_failure_position",
+                            "screen.data_energistics.trinity_data_core.crafting_failure_position",
                             this.menu.craftingLastFailurePosition).withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
                 }
             }
@@ -210,7 +250,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private Component getFailureSummary() {
         if (!hasFailure() && !hasCpuFailure() && !hasCraftingFailure()) {
-            return Component.translatable("screen.data_energistics.digital_construct_flower.no_failure");
+            return Component.translatable("screen.data_energistics.trinity_data_core.no_failure");
         }
         if (hasFailure()) {
             return MultiBlockFailureText.describe(this.menu.lastFailureReason);
@@ -223,11 +263,11 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private Component getMolecularStatus() {
         if (craftingUnavailable()) {
-            return Component.translatable("screen.data_energistics.digital_construct_flower.molecular_unavailable");
+            return Component.translatable("screen.data_energistics.trinity_data_core.molecular_unavailable");
         }
         GenericStack target = this.menu.getCraftingTarget();
         if (target == null || target.what() == null) {
-            return Component.translatable("screen.data_energistics.digital_construct_flower.molecular_idle");
+            return Component.translatable("screen.data_energistics.trinity_data_core.molecular_idle");
         }
         return target.what().getDisplayName();
     }

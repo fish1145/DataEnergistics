@@ -26,6 +26,10 @@ public final class ModPayloads {
                 DataTeleportAnchorKnifeTeleportPayload.STREAM_CODEC,
                 DataTeleportAnchorKnifeTeleportPayload::handle);
         registrar.playToServer(
+                MeVacuumLaunchPayload.TYPE,
+                MeVacuumLaunchPayload.STREAM_CODEC,
+                MeVacuumLaunchPayload::handle);
+        registrar.playToServer(
                 DigitalStorageDepotScrollPayload.TYPE,
                 DigitalStorageDepotScrollPayload.STREAM_CODEC,
                 DigitalStorageDepotScrollPayload::handle);

@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.api.inventories.InternalInventory;
 import appeng.api.util.IConfigManager;
+import appeng.client.gui.Icon;
 import appeng.core.definitions.AEItems;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
@@ -37,6 +38,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     public static final SlotSemantic SWORD_INPUT = SlotSemantics.register("DATA_EXTRACTOR_SWORD", false);
     public static final SlotSemantic ORE_INPUT = SlotSemantics.register("DATA_EXTRACTOR_ORE", false);
     public static final SlotSemantic CROP_INPUT = SlotSemantics.register("DATA_EXTRACTOR_CROP", false);
+    public static final SlotSemantic DISPLAY_COMPONENT_INPUT = SlotSemantics.register("DATA_EXTRACTOR_DISPLAY_COMPONENT", false);
 
     @GuiSync(760)
     public boolean online;
@@ -78,6 +80,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         this.addSlot(new SwordInputSlot(storage, 1), SWORD_INPUT);
         this.addSlot(new OreInputSlot(storage, 2), ORE_INPUT);
         this.addSlot(new CropInputSlot(storage, 3), CROP_INPUT);
+        this.addSlot(new DisplayComponentInputSlot(storage, 4), DISPLAY_COMPONENT_INPUT);
     }
 
     @Override
@@ -286,6 +289,20 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         @Override
         public boolean mayPlace(ItemStack stack) {
             return DataExtractorBlockEntity.isSupportedCrop(stack) && super.mayPlace(stack);
+        }
+    }
+
+    private static final class DisplayComponentInputSlot extends RestrictedInputSlot {
+
+        private DisplayComponentInputSlot(InternalInventory inv, int invSlot) {
+            super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
+            this.setStackLimit(1);
+            this.setIcon(Icon.BACKGROUND_VIEW_CELL);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return DataExtractorBlockEntity.isDisplayComponentItem(stack) && super.mayPlace(stack);
         }
     }
 }

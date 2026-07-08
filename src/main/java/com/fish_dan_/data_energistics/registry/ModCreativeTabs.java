@@ -102,6 +102,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.CROP_DATA_CARRIER);
                         output.accept(ModItems.ORE_DATA_CARRIER);
                         output.accept(ModItems.TIME_CORE);
+                        output.accept(ModItems.ME_VACUUM);
                         output.accept(ModItems.DATA_FLOW_COMPONENT_HOUSING);
                         output.accept(ModItems.DATA_DISTRIBUTION_CONNECTOR);
                         output.accept(ModItems.DATA_INSCRIBER_TEMPLATE);

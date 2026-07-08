@@ -154,7 +154,7 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
     @Nullable
     @Override
     public Component getName() {
-        return Component.translatable("block.data_energistics.digital_construct_flower")
+        return Component.translatable("block.data_energistics.trinity_data_core")
                 .append(" #")
                 .append(Integer.toString(this.profile.index() + 1));
     }

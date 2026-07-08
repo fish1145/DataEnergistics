@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.item.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
@@ -33,6 +34,7 @@ import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
+import com.fish_dan_.data_energistics.menu.MeVacuumMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
@@ -41,6 +43,7 @@ import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -74,9 +77,9 @@ public final class ModMenus {
             .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<DigitalConstructFlowerMenu>> DIGITAL_CONSTRUCT_FLOWER = MENUS.register("digital_construct_flower", () -> MenuTypeBuilder
+    public static final DeferredHolder<MenuType<?>, MenuType<DigitalConstructFlowerMenu>> DIGITAL_CONSTRUCT_FLOWER = MENUS.register("trinity_data_core", () -> MenuTypeBuilder
             .create(DigitalConstructFlowerMenu::new, DigitalConstructFlowerBlockEntity.class)
-            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "digital_construct_flower")));
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_data_core")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder
             .create(DataMimeticFieldMenu::new, DataMimeticFieldBlockEntity.class)
@@ -105,6 +108,11 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<MePatternBufferMenu>> ME_PATTERN_BUFFER = MENUS.register("me_pattern_buffer", () -> MenuTypeBuilder
             .create(MePatternBufferMenu::new, MePatternBufferBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_pattern_buffer")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<MeVacuumMenu>> ME_VACUUM = MENUS.register("me_vacuum", () -> MenuTypeBuilder
+            .create(MeVacuumMenu::new, MeVacuumMenuHost.class)
+            .withMenuTitle(host -> Component.translatable("item." + Data_Energistics.MODID + ".me_vacuum"))
+            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_vacuum")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataTeleportAnchorMenu>> DATA_TELEPORT_ANCHOR = MENUS.register("data_teleport_anchor", () -> MenuTypeBuilder
             .create(DataTeleportAnchorMenu::new, DataTeleportAnchorBlockEntity.class)
