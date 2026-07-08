@@ -30,11 +30,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 
 @Mixin(CraftingService.class)
 public abstract class CraftingServiceMixin {
@@ -182,18 +184,15 @@ public abstract class CraftingServiceMixin {
         }
     }
 
-    @Inject(method = "getCpus", at = @At("RETURN"), cancellable = true)
-    private void dataEnergistics$getFlowerCpus(CallbackInfoReturnable<ImmutableSet<ICraftingCPU>> cir) {
-        ImmutableSet.Builder<ICraftingCPU> cpus = ImmutableSet.builder();
-        cpus.addAll(cir.getReturnValue());
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
-            for (DigitalConstructFlowerVirtualCpu cpu : runtime.partitions()) {
-                if (cpu.isActive()) {
-                    cpus.add(cpu);
-                }
-            }
-        }
-        cir.setReturnValue(cpus.build());
+    @Inject(
+            method = "getCpus",
+            at = @At(
+                     value = "INVOKE",
+                     target = "Lcom/google/common/collect/ImmutableSet$Builder;build()Lcom/google/common/collect/ImmutableSet;"),
+            locals = LocalCapture.CAPTURE_FAILHARD)
+    private void dataEnergistics$getFlowerCpus(CallbackInfoReturnable<ImmutableSet<ICraftingCPU>> cir,
+                                               ImmutableSet.Builder<ICraftingCPU> cpus) {
+        dataEnergistics$addActiveFlowerCpus(cpus);
     }
 
     @Inject(method = "getRequestedAmount", at = @At("RETURN"), cancellable = true)
@@ -245,6 +244,45 @@ public abstract class CraftingServiceMixin {
             validCpus.add(cpu);
         }
 
+        DataEnergisticsCpuCandidateCounts flowerCounts = dataEnergistics$collectFlowerCpuCandidates(job, source, validCpus);
+        offline += flowerCounts.offline();
+        busy += flowerCounts.busy();
+        tooSmall += flowerCounts.tooSmall();
+        excluded += flowerCounts.excluded();
+
+        if (validCpus.isEmpty()) {
+            return new DataEnergisticsCpuSelection(null, offline, busy, tooSmall, excluded);
+        }
+        validCpus.sort((first, second) -> {
+            boolean firstPreferred = dataEnergistics$isPreferredFor(first, source);
+            boolean secondPreferred = dataEnergistics$isPreferredFor(second, source);
+            if (firstPreferred != secondPreferred) {
+                return Boolean.compare(secondPreferred, firstPreferred);
+            }
+            Comparator<ICraftingCPU> comparator = prioritizePower ? DATA_ENERGISTICS_FAST_FIRST_COMPARATOR : DATA_ENERGISTICS_FAST_LAST_COMPARATOR;
+            return comparator.compare(first, second);
+        });
+        return new DataEnergisticsCpuSelection(validCpus.getFirst(), offline, busy, tooSmall, excluded);
+    }
+
+    @Unique
+    private void dataEnergistics$addActiveFlowerCpus(ImmutableSet.Builder<ICraftingCPU> cpus) {
+        dataEnergistics$forEachFlowerCpu(cpu -> {
+            if (cpu.isActive()) {
+                cpus.add(cpu);
+            }
+        });
+    }
+
+    @Unique
+    private DataEnergisticsCpuCandidateCounts dataEnergistics$collectFlowerCpuCandidates(ICraftingPlan job,
+                                                                                         IActionSource source,
+                                                                                         ArrayList<ICraftingCPU> validCpus) {
+        int offline = 0;
+        int busy = 0;
+        int tooSmall = 0;
+        int excluded = 0;
+
         for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
             for (DigitalConstructFlowerVirtualCpu cpu : runtime.partitions()) {
                 if (!cpu.isActive()) {
@@ -266,20 +304,16 @@ public abstract class CraftingServiceMixin {
                 validCpus.add(cpu);
             }
         }
+        return new DataEnergisticsCpuCandidateCounts(offline, busy, tooSmall, excluded);
+    }
 
-        if (validCpus.isEmpty()) {
-            return new DataEnergisticsCpuSelection(null, offline, busy, tooSmall, excluded);
-        }
-        validCpus.sort((first, second) -> {
-            boolean firstPreferred = dataEnergistics$isPreferredFor(first, source);
-            boolean secondPreferred = dataEnergistics$isPreferredFor(second, source);
-            if (firstPreferred != secondPreferred) {
-                return Boolean.compare(secondPreferred, firstPreferred);
+    @Unique
+    private void dataEnergistics$forEachFlowerCpu(Consumer<DigitalConstructFlowerVirtualCpu> consumer) {
+        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+            for (DigitalConstructFlowerVirtualCpu cpu : runtime.partitions()) {
+                consumer.accept(cpu);
             }
-            Comparator<ICraftingCPU> comparator = prioritizePower ? DATA_ENERGISTICS_FAST_FIRST_COMPARATOR : DATA_ENERGISTICS_FAST_LAST_COMPARATOR;
-            return comparator.compare(first, second);
-        });
-        return new DataEnergisticsCpuSelection(validCpus.getFirst(), offline, busy, tooSmall, excluded);
+        }
     }
 
     @Unique
@@ -311,4 +345,7 @@ public abstract class CraftingServiceMixin {
             return new UnsuitableCpus(this.offline, this.busy, this.tooSmall, this.excluded);
         }
     }
+
+    @Unique
+    private record DataEnergisticsCpuCandidateCounts(int offline, int busy, int tooSmall, int excluded) {}
 }
