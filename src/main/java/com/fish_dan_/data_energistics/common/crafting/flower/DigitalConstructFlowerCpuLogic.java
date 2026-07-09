@@ -31,8 +31,10 @@ import appeng.me.service.CraftingService;
 import com.google.common.base.Preconditions;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Executes one virtual Digital Construct Flower crafting CPU partition.
@@ -50,6 +52,7 @@ final class DigitalConstructFlowerCpuLogic {
     private DigitalConstructFlowerExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
     private final int[] usedOps = new int[3];
+    private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
     private long lastModifiedOnTick = TickHandler.instance().getCurrentTick();
 
@@ -140,7 +143,6 @@ final class DigitalConstructFlowerCpuLogic {
             cancel();
             return;
         }
-
         int remainingOperations = this.cpu.getCoProcessors() + 1 -
                 (this.usedOps[0] + this.usedOps[1] + this.usedOps[2]);
         int started = remainingOperations;
@@ -424,6 +426,45 @@ final class DigitalConstructFlowerCpuLogic {
         return this.cantStoreItems;
     }
 
+    void getAllItems(KeyCounter out) {
+        out.addAll(this.inventory.list);
+        if (this.job == null) {
+            return;
+        }
+        out.addAll(this.job.waitingFor.list);
+        for (var entry : this.job.tasks.entrySet()) {
+            for (GenericStack output : entry.getKey().getOutputs()) {
+                out.add(output.what(), output.amount() * entry.getValue().value);
+            }
+        }
+    }
+
+    long getStored(AEKey template) {
+        return this.inventory.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+    }
+
+    long getPendingOutputs(AEKey template) {
+        long count = 0L;
+        if (this.job != null) {
+            for (var entry : this.job.tasks.entrySet()) {
+                for (GenericStack output : entry.getKey().getOutputs()) {
+                    if (template.matches(output)) {
+                        count += output.amount() * entry.getValue().value;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    void addListener(Consumer<AEKey> listener) {
+        this.listeners.add(listener);
+    }
+
+    void removeListener(Consumer<AEKey> listener) {
+        this.listeners.remove(listener);
+    }
+
     private void finishJob(boolean success) {
         if (this.job == null) {
             return;
@@ -471,6 +512,9 @@ final class DigitalConstructFlowerCpuLogic {
 
     private void postChange(AEKey what) {
         this.lastModifiedOnTick = TickHandler.instance().getCurrentTick();
+        for (Consumer<AEKey> listener : this.listeners) {
+            listener.accept(what);
+        }
     }
 
     private void notifyJobOwner(DigitalConstructFlowerExecutingCraftingJob job, CraftingJobStatusPacket.Status status) {

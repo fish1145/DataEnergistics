@@ -17,10 +17,12 @@ import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 import appeng.me.service.CraftingService;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * AE2-visible virtual crafting CPU partition owned by a Digital Construct Flower host.
@@ -106,10 +108,81 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
     }
 
     /**
+     * @param what displayed key
+     * @return amount currently stored inside the virtual CPU inventory
+     */
+    public long getStored(AEKey what) {
+        return this.logic.getStored(what);
+    }
+
+    /**
+     * @param what displayed key
+     * @return amount still scheduled by unpushed crafting tasks
+     */
+    public long getPendingOutputs(AEKey what) {
+        return this.logic.getPendingOutputs(what);
+    }
+
+    /**
+     * Adds every key currently visible in AE2's CPU status table.
+     *
+     * @param out destination counter
+     */
+    public void getAllItems(KeyCounter out) {
+        this.logic.getAllItems(out);
+    }
+
+    /**
+     * Registers a CPU status table listener.
+     *
+     * @param listener changed key listener
+     */
+    public void addListener(Consumer<AEKey> listener) {
+        this.logic.addListener(listener);
+    }
+
+    /**
+     * Unregisters a CPU status table listener.
+     *
+     * @param listener changed key listener
+     */
+    public void removeListener(Consumer<AEKey> listener) {
+        this.logic.removeListener(listener);
+    }
+
+    /**
+     * @return true when idle inventory could not be returned to the network
+     */
+    public boolean isCantStoreItems() {
+        return this.logic.isCantStoreItems();
+    }
+
+    /**
      * @return last tick where this CPU changed crafting-visible state
      */
     public long getLastModifiedOnTick() {
         return this.logic.getLastModifiedOnTick();
+    }
+
+    /**
+     * @return elapsed nanoseconds for the active job
+     */
+    public long getElapsedTimeNanos() {
+        return this.logic.elapsedTimeTracker().elapsedTimeNanos();
+    }
+
+    /**
+     * @return AE2-compatible remaining work count for GUI progress
+     */
+    public long getRemainingItemCount() {
+        return this.logic.elapsedTimeTracker().remainingItemCount();
+    }
+
+    /**
+     * @return AE2-compatible total work count for GUI progress
+     */
+    public long getStartItemCount() {
+        return this.logic.elapsedTimeTracker().startItemCount();
     }
 
     /**
