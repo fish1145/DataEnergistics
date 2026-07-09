@@ -1,12 +1,16 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePattern;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -36,7 +40,9 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
+import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.Predicates;
+import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import com.modularmc.mdl.api.multiblock.structurepredicate.BlockPredicate;
@@ -266,6 +272,145 @@ public final class DigitalConstructFlowerAutoBuildTest {
                 Blocks.LAPIS_BLOCK,
                 "Child structure targets below the exported host anchor should be placed below the origin");
         helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_auto_build_cpu_child_matches_after_build")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void cpuChildMatchesAfterBuild(GameTestHelper helper) {
+        assertAutoBuiltChildMatches(helper, DigitalConstructFlowerAutoBuildTarget.CPU);
+    }
+
+    @TestHolder("digital_construct_flower_auto_build_crafting_child_matches_after_build")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void craftingChildMatchesAfterBuild(GameTestHelper helper) {
+        assertAutoBuiltChildMatches(helper, DigitalConstructFlowerAutoBuildTarget.CRAFTING);
+    }
+
+    @TestHolder("digital_construct_flower_auto_build_children_form_on_host_recheck")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void childrenFormOnHostRecheck(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos localOrigin = new BlockPos(25, 4, 25);
+        BlockPos origin = helper.absolutePos(localOrigin);
+        Player player = creativePlayer(helper);
+
+        helper.setBlock(localOrigin, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
+                .defaultBlockState()
+                .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
+        BlockEntity blockEntity = level.getBlockEntity(origin);
+        if (!(blockEntity instanceof DigitalConstructFlowerBlockEntity flower)) {
+            helper.fail("Expected a placed Trinity Data Core block entity", localOrigin);
+            return;
+        }
+
+        autoBuild(level, player, origin, DigitalConstructFlowerAutoBuildTarget.MAIN, Direction.SOUTH, false);
+        StructureMatchResult mainResult = JsonMultiBlockPatternMatcher.match(
+                definition(DigitalConstructFlowerAutoBuildTarget.MAIN).pattern(),
+                world(level),
+                origin,
+                Direction.SOUTH,
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.MAIN));
+        helper.assertTrue(mainResult.matched(), "Auto-built main structure should match before building children: " +
+                diagnosticMessage(mainResult));
+
+        autoBuild(
+                level,
+                player,
+                origin,
+                DigitalConstructFlowerAutoBuildTarget.CPU,
+                mainResult.frontFacing(),
+                mainResult.flipped());
+        autoBuild(
+                level,
+                player,
+                origin,
+                DigitalConstructFlowerAutoBuildTarget.CRAFTING,
+                mainResult.frontFacing(),
+                mainResult.flipped());
+        flower.serverTick();
+
+        helper.assertTrue(flower.isStructureFormed(), "Auto-built main structure should form on host recheck: " +
+                flower.getLastFailureReason() + " at " + flower.getLastFailurePosition());
+        helper.assertTrue(flower.isCpuStructureFormed(), "Auto-built CPU child should form on host recheck: " +
+                flower.getCpuLastFailureReason() + " at " + flower.getCpuLastFailurePosition());
+        helper.assertTrue(flower.isCraftingStructureFormed(), "Auto-built crafting child should form on host recheck: " +
+                flower.getCraftingLastFailureReason() + " at " + flower.getCraftingLastFailurePosition());
+        helper.succeed();
+    }
+
+    private static void assertAutoBuiltChildMatches(GameTestHelper helper, DigitalConstructFlowerAutoBuildTarget target) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(new BlockPos(25, 4, 25));
+        JsonMultiBlockDefinition definition = definition(target);
+        String structureName = DigitalConstructFlowerBlockEntity.autoBuildStructureName(target);
+
+        DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
+                level,
+                creativePlayer(helper),
+                world(level),
+                definition.pattern(),
+                origin,
+                structureName,
+                Direction.SOUTH,
+                true);
+
+        helper.assertTrue(stats.placed() > 0, target + " auto-build should place structure blocks");
+        helper.assertValueEqual(stats.missing(), 0, target + " auto-build should have all creative candidates");
+        helper.assertValueEqual(stats.blocked(), 0, target + " auto-build should not hit blocked targets");
+        helper.assertValueEqual(stats.unloaded(), 0, target + " auto-build should not target unloaded blocks");
+        helper.assertValueEqual(stats.placeFailed(), 0, target + " auto-build should place every candidate");
+
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.matchExact(
+                definition.pattern(),
+                world(level),
+                origin,
+                Direction.SOUTH,
+                true,
+                structureName);
+        helper.assertTrue(result.matched(), target + " auto-built child should match: " + diagnosticMessage(result));
+        helper.succeed();
+    }
+
+    private static void autoBuild(ServerLevel level,
+                                  Player player,
+                                  BlockPos origin,
+                                  DigitalConstructFlowerAutoBuildTarget target,
+                                  Direction front,
+                                  boolean flipped) {
+        JsonMultiBlockDefinition definition = definition(target);
+        DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
+                level,
+                player,
+                world(level),
+                definition.pattern(),
+                origin,
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(target),
+                front,
+                flipped);
+        if (stats.missing() != 0 || stats.blocked() != 0 || stats.unloaded() != 0 || stats.placeFailed() != 0) {
+            throw new IllegalStateException(target + " auto-build failed: placed=" + stats.placed() +
+                    ", missing=" + stats.missing() +
+                    ", blocked=" + stats.blocked() +
+                    ", unloaded=" + stats.unloaded() +
+                    ", failed=" + stats.placeFailed());
+        }
+    }
+
+    private static JsonMultiBlockDefinition definition(DigitalConstructFlowerAutoBuildTarget target) {
+        return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
+                .get(DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(target))
+                .orElseThrow(() -> new IllegalStateException("Missing auto-build test definition for " + target));
+    }
+
+    private static String diagnosticMessage(StructureMatchResult result) {
+        PatternDiagnostic diagnostic = result.diagnostic();
+        if (diagnostic == null) {
+            return "no diagnostic";
+        }
+        return diagnostic.message() + " at " + diagnostic.position();
     }
 
     private static DigitalConstructFlowerAutoBuild.Stats build(ServerLevel level,

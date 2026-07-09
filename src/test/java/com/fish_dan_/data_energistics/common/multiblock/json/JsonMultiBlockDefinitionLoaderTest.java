@@ -334,8 +334,17 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 pattern.structureSlices[1][1].substring(4, 8),
                 "CCCC",
                 "CPU child mirrored core row should map the imported core placeholder area to C symbols");
+        helper.assertValueEqual(
+                pattern.structureSlices[0][0],
+                "         ",
+                "CPU child should leave the four shared main-structure cube corners to the main JSON");
+        helper.assertValueEqual(
+                pattern.structureSlices[0][5],
+                "         ",
+                "CPU child should not duplicate shared main-structure cube corners");
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 2, "CPU child controller min aisle should match the exported host height");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 2, "CPU child controller max aisle should match the exported host height");
+        helper.assertValueEqual(countSymbol(pattern, 'A'), 60, "CPU child should omit the four shared main-structure cube corners");
         helper.assertValueEqual(countSymbol(pattern, 'C'), 96, "CPU child compressed core units should expose six core layers");
         helper.assertValueEqual(countExpandedSymbol(pattern, 'C'), 272, "CPU child expanded structure should expose all merged storage core positions");
         helper.assertValueEqual(
@@ -486,12 +495,21 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 2, "Crafting child controller min aisle should match the exported host height");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 2, "Crafting child controller max aisle should match the exported host height");
         helper.assertValueEqual(countSymbol(pattern, '~'), 1, "Crafting child should use the digital construct flower only as the host anchor");
+        helper.assertValueEqual(countSymbol(pattern, 'A'), 60, "Crafting child should omit the four shared main-structure cube corners");
         helper.assertValueEqual(countSymbol(pattern, 'P'), 96, "Crafting child compressed core units should expose six pattern core layers");
         helper.assertValueEqual(countExpandedSymbol(pattern, 'P'), 272, "Crafting child expanded structure should expose all pattern core positions");
         helper.assertValueEqual(
                 firstSymbol(pattern, 'P'),
                 new BlockPos(1, 1, 1),
                 "Crafting child first pattern core slot should keep the body in its original local column");
+        helper.assertValueEqual(
+                pattern.structureSlices[0][0],
+                "         ",
+                "Crafting child should leave the four shared main-structure cube corners to the main JSON");
+        helper.assertValueEqual(
+                pattern.structureSlices[0][5],
+                "         ",
+                "Crafting child should not duplicate shared main-structure cube corners");
         BlockPos hostPos = new BlockPos(-142, -43, 83);
         helper.assertValueEqual(
                 mapPatternPosition(pattern, new BlockPos(8, 21, 2), hostPos, Direction.EAST, Direction.NORTH),
