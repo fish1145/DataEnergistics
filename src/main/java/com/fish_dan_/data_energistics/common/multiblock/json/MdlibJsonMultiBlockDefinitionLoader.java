@@ -125,6 +125,7 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
         JsonMultiBlockCompartmentPredicate.registerType();
         JsonMultiBlockReplaceableCompartmentPredicate.registerType();
         JsonMultiBlockStatePropertiesPredicate.registerType();
+        JsonMultiBlockPlacementPredicate.registerType();
         applySlabBlockPredicates(patternRoot);
         applyPartialBlockStatePredicates(patternRoot);
         applyCompartmentPredicates(resourceId, patternRoot, metadata.compartmentTypes());

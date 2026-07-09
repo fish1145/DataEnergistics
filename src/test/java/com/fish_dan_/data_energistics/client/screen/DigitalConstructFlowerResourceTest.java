@@ -110,6 +110,9 @@ public final class DigitalConstructFlowerResourceTest {
         assertFalse(
                 values.contains("extendedae:assembler_matrix_pattern"),
                 "Trinity Data Core should not reference the missing ExtendedAE namespace");
+        JsonObject cableBusPredicate = object(predicates, "#");
+        assertEquals("data_energistics:placement_items", string(cableBusPredicate, "type"));
+        assertEquals("ae2:fluix_covered_cable", string(cableBusPredicate, "item"));
     }
 
     @Test

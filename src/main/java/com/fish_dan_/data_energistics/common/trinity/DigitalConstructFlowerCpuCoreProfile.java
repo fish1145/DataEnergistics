@@ -26,7 +26,7 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
     public static final int FULL_CORE_SLOT_COUNT = 256;
     public static final int MAX_REPEAT_COUNT = 13;
     public static final int MAX_THREADS = 256;
-    public static final int CONTROLLER_LOCAL_Y = 0;
+    public static final int CONTROLLER_LOCAL_Y = 1;
     public static final DigitalConstructFlowerCpuCoreProfile EMPTY = new DigitalConstructFlowerCpuCoreProfile(
             0L,
             0,

@@ -97,6 +97,11 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
     }
 
     @Override
+    public List<BlockState> blockStateCandidates() {
+        return this.statePatterns.stream().map(StatePattern::preferredState).distinct().toList();
+    }
+
+    @Override
     public boolean hasAir() {
         return this.statePatterns.stream().anyMatch(pattern -> pattern.block() == Blocks.AIR);
     }
@@ -196,6 +201,14 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
             return true;
         }
 
+        BlockState preferredState() {
+            BlockState state = this.block.defaultBlockState();
+            for (StatePropertyValue<?> property : this.properties) {
+                state = property.apply(state);
+            }
+            return state;
+        }
+
         String asExpectedString() {
             String blockId = BuiltInRegistries.BLOCK.getKey(this.block).toString();
             if (this.properties.isEmpty()) {
@@ -216,6 +229,10 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
 
         boolean matches(BlockState actualState) {
             return actualState.getValue(this.property).equals(this.value);
+        }
+
+        BlockState apply(BlockState state) {
+            return state.setValue(this.property, this.value);
         }
 
         String asExpectedString() {

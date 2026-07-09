@@ -5,7 +5,9 @@ import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -101,6 +103,27 @@ public record JsonMultiBlockReplaceableCompartmentPredicate(Set<CompartmentType>
         ArrayList<Block> candidates = new ArrayList<>(this.delegate.blockCandidates());
         for (CompartmentType type : this.compartmentTypes) {
             candidates.add(JsonMultiBlockCompartmentPredicate.blockFor(type));
+        }
+        return List.copyOf(candidates);
+    }
+
+    @Override
+    public List<BlockState> blockStateCandidates() {
+        ArrayList<BlockState> candidates = new ArrayList<>(this.delegate.blockStateCandidates());
+        for (CompartmentType type : this.compartmentTypes) {
+            candidates.add(JsonMultiBlockCompartmentPredicate.blockFor(type).defaultBlockState());
+        }
+        return List.copyOf(candidates);
+    }
+
+    @Override
+    public List<ItemStack> placementCandidates() {
+        ArrayList<ItemStack> candidates = new ArrayList<>(this.delegate.placementCandidates());
+        for (CompartmentType type : this.compartmentTypes) {
+            ItemStack stack = JsonMultiBlockCompartmentPredicate.blockFor(type).asItem().getDefaultInstance();
+            if (!stack.isEmpty()) {
+                candidates.add(stack);
+            }
         }
         return List.copyOf(candidates);
     }

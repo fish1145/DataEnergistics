@@ -8,7 +8,9 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 
 import com.google.gson.JsonObject;
 import com.modularmc.mdl.api.multiblock.MultiblockState;
@@ -99,6 +101,16 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     @Override
     public List<Block> blockCandidates() {
         return List.of(blockFor(this.compartmentType));
+    }
+
+    @Override
+    public List<BlockState> blockStateCandidates() {
+        return List.of(blockFor(this.compartmentType).defaultBlockState());
+    }
+
+    @Override
+    public List<ItemStack> placementCandidates() {
+        return List.of(blockFor(this.compartmentType).asItem().getDefaultInstance());
     }
 
     private List<String> expected() {

@@ -7,14 +7,7 @@
 			"aisle": "front"
 		},
 		"replaceable_compartments": {
-			"H": [
-				"input",
-				"output",
-				"me_input",
-				"me_output",
-				"pattern_buffer",
-				"me_storage_access"
-			]
+			"@": ["me_storage_access"]
 		}
 	},
 	"aisles": [
@@ -838,9 +831,9 @@
 			"slices": [
 				[
 					"    ABBBBF  BBB  JBBBBA    ",
-					"            MHM            ",
+					"            M@M            ",
 					"            M~M            ",
-					"            MHM            ",
+					"            M@M            ",
 					"                           ",
 					"                           ",
 					"                           ",
@@ -1127,6 +1120,10 @@
 			"type": "mdlib:blocks",
 			"block": "ae2:quartz_vibrant_glass"
 		},
+		"@": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_vibrant_glass"
+		},
 		"A": {
 			"type": "mdlib:blocks",
 			"block": "minecraft:smooth_stone"
@@ -1310,8 +1307,12 @@
 			}
 		},
 		"#": {
-			"type": "mdlib:blocks",
-			"block": "ae2:cable_bus"
+			"type": "data_energistics:placement_items",
+			"item": "ae2:fluix_covered_cable",
+			"predicate": {
+				"type": "mdlib:blocks",
+				"block": "ae2:cable_bus"
+			}
 		},
 		"$": {
 			"type": "mdlib:blocks",

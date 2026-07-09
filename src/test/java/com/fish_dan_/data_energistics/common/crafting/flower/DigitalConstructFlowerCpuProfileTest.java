@@ -1,9 +1,13 @@
 package com.fish_dan_.data_energistics.common.crafting.flower;
 
+import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCpuCoreProfile;
+
 import appeng.api.config.CpuSelectionMode;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -79,5 +83,27 @@ public final class DigitalConstructFlowerCpuProfileTest {
                 () -> DigitalConstructFlowerCpuProfile.fromContributions(Map.of(
                         "player", new DigitalConstructFlowerCpuContribution(4L, 0, 1, CpuSelectionMode.PLAYER_ONLY),
                         "machine", new DigitalConstructFlowerCpuContribution(4L, 0, 1, CpuSelectionMode.MACHINE_ONLY))));
+    }
+
+    @Test
+    void exportedControllerLayerMapsFullCpuRepeatToMaxThreads() {
+        assertEquals(1, DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y);
+        Set<Integer> exportedRawLayers = new HashSet<>();
+        for (int rawY = 4; rawY <= 16; rawY++) {
+            exportedRawLayers.add(rawY - DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y);
+        }
+
+        int repeatCount = DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(exportedRawLayers);
+        DigitalConstructFlowerCpuCoreProfile profile = new DigitalConstructFlowerCpuCoreProfile(
+                Long.MAX_VALUE,
+                Integer.MAX_VALUE,
+                DigitalConstructFlowerCpuCoreProfile.FULL_CORE_SLOT_COUNT,
+                DigitalConstructFlowerCpuCoreProfile.FULL_CORE_SLOT_COUNT,
+                repeatCount,
+                DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT,
+                DigitalConstructFlowerCpuCoreProfile.MAX_THREADS);
+
+        assertEquals(DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT, repeatCount);
+        assertEquals(DigitalConstructFlowerCpuCoreProfile.MAX_THREADS, profile.threadCount());
     }
 }
