@@ -187,8 +187,8 @@
 	"screen.data_energistics.trinity_data_core.status_offline": "离线",
 	"screen.data_energistics.trinity_data_core.formed_label": "结构：",
 	"screen.data_energistics.trinity_data_core.cpu_label": "CPU：",
-	"screen.data_energistics.trinity_data_core.cpu_structure_label": "子结构：",
-	"screen.data_energistics.trinity_data_core.crafting_structure_label": "合成：",
+	"screen.data_energistics.trinity_data_core.cpu_structure_label": "CPU结构：",
+	"screen.data_energistics.trinity_data_core.crafting_structure_label": "合成结构：",
 	"screen.data_energistics.trinity_data_core.cpu_partitions_label": "子CPU：",
 	"screen.data_energistics.trinity_data_core.cpu_storage_label": "容量：",
 	"screen.data_energistics.trinity_data_core.cpu_coprocessors_label": "并行：",
@@ -507,5 +507,14 @@
 	"block.data_energistics.me_digital_storage_core_4m": "4M ME 数位存储核心",
 	"block.data_energistics.me_digital_storage_core_64g": "64G ME 数位存储核心",
 	"block.data_energistics.me_digital_storage_core_64m": "64M ME 数位存储核心",
-	"block.data_energistics.overlimit_me_digital_pattern_processing_core": "超限 ME 数位样板处理核心"
+	"block.data_energistics.overlimit_me_digital_pattern_processing_core": "超限 ME 数位样板处理核心",
+	"button.data_energistics.trinity_data_core.auto_build": "搭建选中结构",
+	"message.data_energistics.trinity_data_core.auto_build": "自动搭建 %s：放置 %s 个，缺少 %s 个，阻挡 %s 个，未加载 %s 个，失败 %s 个",
+	"button.data_energistics.trinity_data_core.auto_build.target.main": "自动搭建目标：主体",
+	"button.data_energistics.trinity_data_core.auto_build.target.cpu": "自动搭建目标：CPU",
+	"button.data_energistics.trinity_data_core.auto_build.target.crafting": "自动搭建目标：合成",
+	"message.data_energistics.trinity_data_core.auto_build.target.main": "主体",
+	"message.data_energistics.trinity_data_core.auto_build.target.cpu": "CPU",
+	"message.data_energistics.trinity_data_core.auto_build.target.crafting": "合成",
+	"screen.data_energistics.trinity_data_core.main_structure_label": "主体："
 }

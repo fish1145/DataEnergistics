@@ -29,6 +29,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerCraftingStatus;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
+import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -43,8 +44,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.LongTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -58,6 +61,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
@@ -289,6 +293,38 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     public void requestStructureRecheck() {
         this.recheckRequested = true;
+    }
+
+    public void autoBuildTrinityStructure(ServerPlayer player, DigitalConstructFlowerAutoBuildTarget target) {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        JsonMultiBlockDefinition mainDefinition = requireMainJsonDefinition();
+        JsonMultiBlockDefinition targetDefinition = autoBuildDefinition(target);
+        StructureWorldView world = new LevelStructureWorldView(serverLevel);
+        AutoBuildOrientation orientation = resolveAutoBuildOrientation(mainDefinition.pattern(), world, serverLevel);
+        DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
+                serverLevel,
+                player,
+                world,
+                targetDefinition.pattern(),
+                this.worldPosition,
+                autoBuildStructureName(target),
+                orientation.front(),
+                orientation.flipped());
+
+        requestStructureRecheck();
+        player.displayClientMessage(
+                Component.translatable(
+                        "message.data_energistics.trinity_data_core.auto_build",
+                        target.targetName(),
+                        stats.placed(),
+                        stats.missing(),
+                        stats.blocked(),
+                        stats.unloaded(),
+                        stats.placeFailed()),
+                true);
     }
 
     /**
@@ -670,7 +706,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 return;
             }
             applyMatch(world, result.positions(), declaredCompartments, mainDefinitionKey().structureName());
-            boolean childStructureFlipped = !result.flipped();
+            boolean childStructureFlipped = result.flipped();
             updateCpuStructureMatch(world, result.frontFacing(), childStructureFlipped);
             updateCraftingStructureMatch(world, result.frontFacing(), childStructureFlipped);
         } else {
@@ -714,6 +750,22 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         } else {
             applyCraftingFailure(result.diagnostic());
         }
+    }
+
+    private AutoBuildOrientation resolveAutoBuildOrientation(BlockPattern pattern,
+                                                             StructureWorldView world,
+                                                             ServerLevel serverLevel) {
+        Direction preferredFront = getStructureFrontFacing(serverLevel);
+        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
+                pattern,
+                world,
+                this.worldPosition,
+                preferredFront,
+                mainDefinitionKey().structureName());
+        if (result.matched()) {
+            return new AutoBuildOrientation(result.frontFacing(), result.flipped());
+        }
+        return new AutoBuildOrientation(preferredFront, false);
     }
 
     private Direction getStructureFrontFacing(Level level) {
@@ -925,6 +977,26 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return requireJsonDefinition(craftingDefinitionKey());
     }
 
+    static JsonMultiBlockStructureKey autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget target) {
+        return switch (target) {
+            case MAIN -> mainDefinitionKey();
+            case CPU -> cpuDefinitionKey();
+            case CRAFTING -> craftingDefinitionKey();
+        };
+    }
+
+    static String autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget target) {
+        return switch (target) {
+            case MAIN -> mainDefinitionKey().structureName();
+            case CPU -> CPU_STRUCTURE_NAME;
+            case CRAFTING -> CRAFTING_STRUCTURE_NAME;
+        };
+    }
+
+    private static JsonMultiBlockDefinition autoBuildDefinition(DigitalConstructFlowerAutoBuildTarget target) {
+        return requireJsonDefinition(autoBuildDefinitionKey(target));
+    }
+
     private static JsonMultiBlockDefinition requireJsonDefinition(JsonMultiBlockStructureKey key) {
         return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
                 .get(key)
@@ -1062,6 +1134,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private boolean hasCpuStructureContribution() {
         return this.cpuStructureContribution != null || this.craftingRuntime.hasContribution(CPU_STRUCTURE_NAME);
     }
+
+    private record AutoBuildOrientation(Direction front, boolean flipped) {}
 
     private record LevelStructureWorldView(Level level) implements StructureWorldView {
 

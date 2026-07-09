@@ -1,15 +1,19 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenu;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
+import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
@@ -56,12 +60,23 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private final Blitter cpuIdle;
     private final Blitter cpuTaskOverlay;
+    private final OutputSideActionButton autoBuildTargetButton;
+    private final OutputSideActionButton autoBuildButton;
+    private DigitalConstructFlowerAutoBuildTarget autoBuildTarget = DigitalConstructFlowerAutoBuildTarget.MAIN;
 
     public DigitalConstructFlowerScreen(DigitalConstructFlowerMenu menu, Inventory playerInventory, Component title,
                                         ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.cpuIdle = style.getImage("cpuIdle");
         this.cpuTaskOverlay = style.getImage("cpuTaskOverlay");
+        this.autoBuildTargetButton = new OutputSideActionButton(button -> cycleAutoBuildTarget(),
+                autoBuildTargetMessageKey());
+        this.autoBuildTargetButton.setIconName("SETTINGS");
+        this.autoBuildButton = new OutputSideActionButton(
+                button -> PacketDistributor.sendToServer(new DigitalConstructFlowerAutoBuildPayload(this.autoBuildTarget)),
+                "button.data_energistics.trinity_data_core.auto_build");
+        this.addToLeftToolbar(this.autoBuildTargetButton);
+        this.addToLeftToolbar(this.autoBuildButton);
     }
 
     @Override
@@ -119,7 +134,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     private void drawStructureStatus(GuiGraphics guiGraphics) {
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.status_label", Component.translatable(
                 this.menu.online ? "screen.data_energistics.trinity_data_core.status_online" : "screen.data_energistics.trinity_data_core.status_offline"), LEFT_TEXT_X, LEFT_TEXT_Y, statusColor(this.menu.online), LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.formed_label", Component.translatable(
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.main_structure_label", Component.translatable(
                 this.menu.structureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT, statusColor(this.menu.structureFormed), LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.matched_blocks_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.matchedBlockCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 2, VALUE_COLOR,
@@ -127,14 +142,31 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.pattern_buffers_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.patternBufferCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 3, VALUE_COLOR,
                 LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_structure_label", Component.translatable(
-                this.menu.cpuStructureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_structure_label", structureCountStatus(
+                this.menu.cpuStructureFormed,
+                this.menu.cpuStructureMatchedBlockCount), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
                 statusColor(this.menu.cpuStructureFormed), LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.crafting_structure_label", Component.translatable(
-                this.menu.craftingStructureFormed ? "screen.data_energistics.trinity_data_core.formed.yes" : "screen.data_energistics.trinity_data_core.formed.no"), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5,
+        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.crafting_structure_label", craftingStructureStatus(),
+                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5,
                 statusColor(this.menu.craftingStructureFormed && this.menu.craftingPatternCapacity > 0), LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.last_failure_label", getFailureSummary(),
                 LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 6, hasAnyFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
+    }
+
+    private Component structureCountStatus(boolean formed, int matchedBlocks) {
+        if (!formed) {
+            return Component.translatable("screen.data_energistics.trinity_data_core.formed.no");
+        }
+        return Component.literal(compactNumber(Integer.toString(matchedBlocks)));
+    }
+
+    private Component craftingStructureStatus() {
+        if (!this.menu.craftingStructureFormed) {
+            return Component.translatable("screen.data_energistics.trinity_data_core.formed.no");
+        }
+        return Component.literal(formatCapacityPair(
+                Integer.toString(this.menu.craftingPatternCoreCount),
+                Integer.toString(this.menu.craftingPatternCapacity)));
     }
 
     private void drawCpuStatus(GuiGraphics guiGraphics) {
@@ -356,5 +388,14 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         int screenX = this.leftPos + x;
         int screenY = this.topPos + y;
         return mouseX >= screenX && mouseX < screenX + width && mouseY >= screenY && mouseY < screenY + height;
+    }
+
+    private void cycleAutoBuildTarget() {
+        this.autoBuildTarget = this.autoBuildTarget.next();
+        this.autoBuildTargetButton.setMessageKey(autoBuildTargetMessageKey());
+    }
+
+    private String autoBuildTargetMessageKey() {
+        return "button.data_energistics.trinity_data_core.auto_build.target." + this.autoBuildTarget.id();
     }
 }

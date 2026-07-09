@@ -38,6 +38,10 @@ public final class ModPayloads {
                 DigitalStorageDepotBucketModePayload.STREAM_CODEC,
                 DigitalStorageDepotBucketModePayload::handle);
         registrar.playToServer(
+                DigitalConstructFlowerAutoBuildPayload.TYPE,
+                DigitalConstructFlowerAutoBuildPayload.STREAM_CODEC,
+                DigitalConstructFlowerAutoBuildPayload::handle);
+        registrar.playToServer(
                 DataMeteoriteCompassRequestPayload.TYPE,
                 DataMeteoriteCompassRequestPayload.STREAM_CODEC,
                 DataMeteoriteCompassRequestPayload::handle);

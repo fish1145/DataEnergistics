@@ -120,6 +120,10 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         return this.craftingTarget.target();
     }
 
+    public @Nullable DigitalConstructFlowerMenuHost getHost() {
+        return this.host;
+    }
+
     public boolean hasCraftingTarget() {
         return this.craftingTarget.hasTarget();
     }

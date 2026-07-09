@@ -187,8 +187,8 @@
 	"screen.data_energistics.trinity_data_core.status_offline": "Offline",
 	"screen.data_energistics.trinity_data_core.formed_label": "Form: ",
 	"screen.data_energistics.trinity_data_core.cpu_label": "CPU: ",
-	"screen.data_energistics.trinity_data_core.cpu_structure_label": "Child: ",
-	"screen.data_energistics.trinity_data_core.crafting_structure_label": "Crafting: ",
+	"screen.data_energistics.trinity_data_core.cpu_structure_label": "CPU Structure: ",
+	"screen.data_energistics.trinity_data_core.crafting_structure_label": "Craft Structure: ",
 	"screen.data_energistics.trinity_data_core.cpu_partitions_label": "Sub CPU: ",
 	"screen.data_energistics.trinity_data_core.cpu_storage_label": "Cap: ",
 	"screen.data_energistics.trinity_data_core.cpu_coprocessors_label": "Parallel: ",
@@ -502,5 +502,14 @@
 	"block.data_energistics.me_digital_storage_core_4m": "4M ME Digital Storage Core",
 	"block.data_energistics.me_digital_storage_core_64g": "64G ME Digital Storage Core",
 	"block.data_energistics.me_digital_storage_core_64m": "64M ME Digital Storage Core",
-	"block.data_energistics.overlimit_me_digital_pattern_processing_core": "Overlimit ME Digital Pattern Processing Core"
+	"block.data_energistics.overlimit_me_digital_pattern_processing_core": "Overlimit ME Digital Pattern Processing Core",
+	"button.data_energistics.trinity_data_core.auto_build": "Build Selected Structure",
+	"button.data_energistics.trinity_data_core.auto_build.target.main": "Auto-build Target: Main",
+	"button.data_energistics.trinity_data_core.auto_build.target.cpu": "Auto-build Target: CPU",
+	"button.data_energistics.trinity_data_core.auto_build.target.crafting": "Auto-build Target: Crafting",
+	"message.data_energistics.trinity_data_core.auto_build.target.main": "Main",
+	"message.data_energistics.trinity_data_core.auto_build.target.cpu": "CPU",
+	"message.data_energistics.trinity_data_core.auto_build.target.crafting": "Crafting",
+	"message.data_energistics.trinity_data_core.auto_build": "Auto-build %s: placed %s, missing %s, blocked %s, unloaded %s, failed %s",
+	"screen.data_energistics.trinity_data_core.main_structure_label": "Main: "
 }
