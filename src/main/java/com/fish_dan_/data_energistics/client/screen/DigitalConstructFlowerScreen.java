@@ -17,7 +17,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.core.localization.Tooltips;
 
@@ -33,33 +32,29 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     private static final int WARNING_COLOR = 0xFFB347;
     private static final int ERROR_COLOR = 0xFF6B6B;
     private static final int BUSY_COLOR = 0xFFE066;
-    private static final int CPU_X = 102;
-    private static final int CPU_Y = 65;
-    private static final int STATUS_X = 6;
+    private static final int STATUS_X = 14;
     private static final int STATUS_Y = 19;
-    private static final int STATUS_WIDTH = 73;
-    private static final int STATUS_HEIGHT = 86;
-    private static final int LEFT_TEXT_X = 10;
+    private static final int STATUS_WIDTH = 113;
+    private static final int STATUS_HEIGHT = 100;
+    private static final int LEFT_TEXT_X = 18;
     private static final int LEFT_TEXT_Y = 23;
-    private static final int LEFT_TEXT_WIDTH = 66;
-    private static final int RIGHT_TEXT_X = 83;
-    private static final int RIGHT_TEXT_WIDTH = 83;
-    private static final int CPU_TEXT_Y = 23;
-    private static final int STORAGE_TEXT_X = 81;
-    private static final int STORAGE_TEXT_WIDTH = 87;
-    private static final int STORAGE_TYPES_TEXT_Y = 74;
-    private static final int STORAGE_AMOUNT_TEXT_Y = 83;
-    private static final int CRAFTING_TEXT_Y = 96;
-    private static final int CRAFTING_HOVER_X = 79;
-    private static final int CRAFTING_HOVER_Y = 94;
-    private static final int CRAFTING_HOVER_WIDTH = 91;
-    private static final int CRAFTING_HOVER_HEIGHT = 12;
+    private static final int LEFT_TEXT_WIDTH = 105;
+    private static final int RIGHT_TEXT_X = 132;
+    private static final int RIGHT_TEXT_WIDTH = 105;
+    private static final int CPU_TEXT_Y = 21;
+    private static final int STORAGE_TEXT_X = 132;
+    private static final int STORAGE_TEXT_WIDTH = 105;
+    private static final int STORAGE_TYPES_TEXT_Y = 68;
+    private static final int STORAGE_AMOUNT_TEXT_Y = 78;
+    private static final int CRAFTING_TEXT_Y = 98;
+    private static final int CRAFTING_HOVER_X = 129;
+    private static final int CRAFTING_HOVER_Y = 93;
+    private static final int CRAFTING_HOVER_WIDTH = 112;
+    private static final int CRAFTING_HOVER_HEIGHT = 27;
     private static final int LINE_HEIGHT = 10;
     private static final BigInteger UNIT_BASE = BigInteger.valueOf(1024L);
     private static final String[] COMPACT_UNITS = { "", "K", "M", "G", "T", "P", "E" };
 
-    private final Blitter cpuIdle;
-    private final Blitter cpuTaskOverlay;
     private final OutputSideActionButton autoBuildTargetButton;
     private final OutputSideActionButton autoBuildButton;
     private DigitalConstructFlowerAutoBuildTarget autoBuildTarget = DigitalConstructFlowerAutoBuildTarget.MAIN;
@@ -67,8 +62,6 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     public DigitalConstructFlowerScreen(DigitalConstructFlowerMenu menu, Inventory playerInventory, Component title,
                                         ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.cpuIdle = style.getImage("cpuIdle");
-        this.cpuTaskOverlay = style.getImage("cpuTaskOverlay");
         this.autoBuildTargetButton = new OutputSideActionButton(button -> cycleAutoBuildTarget(),
                 autoBuildTargetMessageKey());
         this.autoBuildTargetButton.setIconName("SETTINGS");
@@ -101,21 +94,6 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
         setTextContent("busy_cpus", Component.translatable(
                 "screen.data_energistics.trinity_data_core.busy_cpus",
                 this.menu.busyCraftingCpuCount));
-    }
-
-    @Override
-    public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY,
-                       float partialTicks) {
-        super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
-
-        this.cpuIdle.copy()
-                .dest(offsetX + CPU_X, offsetY + CPU_Y)
-                .blit(guiGraphics);
-        if (this.menu.hasCraftingTarget()) {
-            this.cpuTaskOverlay.copy()
-                    .dest(offsetX + CPU_X, offsetY + CPU_Y)
-                    .blit(guiGraphics);
-        }
     }
 
     @Override

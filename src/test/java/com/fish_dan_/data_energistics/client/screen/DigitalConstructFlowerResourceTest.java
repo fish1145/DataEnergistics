@@ -60,7 +60,7 @@ public final class DigitalConstructFlowerResourceTest {
         JsonObject background = object(root, "background");
         String backgroundTexture = string(background, "texture");
         assertEquals("guis/digital_construct_flower/gui.png", backgroundTexture);
-        assertSourceRect(background, 176, 212);
+        assertSourceRect(background, 256, 212);
         assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Digital Construct Flower GUI texture should exist");
         assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
 
@@ -70,9 +70,14 @@ public final class DigitalConstructFlowerResourceTest {
                 text.keySet(),
                 "Dynamic host status text should be drawn by DigitalConstructFlowerScreen");
 
-        JsonObject images = object(root, "images");
-        assertGuiImage(images, "cpuIdle", "guis/digital_construct_flower/cpu_idle.png");
-        assertGuiImage(images, "cpuTaskOverlay", "guis/digital_construct_flower/cpu_task_overlay.png");
+        assertResourceExists(
+                GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_idle.png",
+                "Trinity CPU list idle overlay should exist");
+        assertResourceExists(
+                GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_task_overlay.png",
+                "Trinity CPU list task overlay should exist");
+        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_idle.png", 67, 22);
+        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_task_overlay.png", 67, 22);
     }
 
     @Test
@@ -136,12 +141,6 @@ public final class DigitalConstructFlowerResourceTest {
                 "Structure block did not match",
                 string(enUs, "text.data_energistics.multiblock.failure.block_predicate"),
                 "English predicate diagnostic should avoid exposing the raw MDLib message");
-    }
-
-    private static void assertGuiImage(JsonObject images, String id, String expectedTexture) {
-        JsonObject image = object(images, id);
-        assertEquals(expectedTexture, string(image, "texture"), id + " should use the moved GUI texture");
-        assertResourceExists(GUI_TEXTURE_ROOT + expectedTexture, id + " texture should exist");
     }
 
     private static void assertStorageCorePredicate(JsonObject predicates, String symbol) {
