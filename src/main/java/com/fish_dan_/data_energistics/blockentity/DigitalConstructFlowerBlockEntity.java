@@ -10,10 +10,10 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageGroup
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCpuContribution;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCpuProfile;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuProfile;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
@@ -22,13 +22,13 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefin
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFrontFacing;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCpuCoreProfile;
-import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCraftingCoreProfile;
-import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAccessLease;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCraftingCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
@@ -119,12 +119,12 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private boolean patternCatalogValid;
     private boolean formed;
     private List<BlockPos> matchedPositions = List.of();
-    private DigitalConstructFlowerStorageProfile storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
+    private TrinityDataCoreStorageProfile storageProfile = TrinityDataCoreStorageProfile.EMPTY;
     private String lastFailureReason = NO_FAILURE;
     @Nullable
     private BlockPos lastFailurePosition;
     @Nullable
-    private DigitalConstructFlowerCpuContribution cpuStructureContribution;
+    private TrinityDataCoreCpuContribution cpuStructureContribution;
     private boolean cpuStructureFormed;
     private int cpuStructureMatchedBlockCount;
     private String cpuLastFailureReason = NO_FAILURE;
@@ -132,7 +132,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private BlockPos cpuLastFailurePosition;
     private boolean craftingStructureFormed;
     private int craftingStructureMatchedBlockCount;
-    private DigitalConstructFlowerCraftingCoreProfile craftingProfile = DigitalConstructFlowerCraftingCoreProfile.EMPTY;
+    private TrinityDataCoreCraftingCoreProfile craftingProfile = TrinityDataCoreCraftingCoreProfile.EMPTY;
     private String craftingLastFailureReason = NO_FAILURE;
     @Nullable
     private BlockPos craftingLastFailurePosition;
@@ -140,7 +140,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
     private final CompartmentStorage patternBufferStorageView = new CompartmentStorageGroup(this::recognizedPatternBufferStorages);
-    private final DigitalConstructFlowerCraftingRuntime craftingRuntime = new DigitalConstructFlowerCraftingRuntime(this);
+    private final TrinityDataCoreCraftingRuntime craftingRuntime = new TrinityDataCoreCraftingRuntime(this);
     @Nullable
     private TrinityAccessLease accessLease;
     private long accessLeaseEpoch;
@@ -469,7 +469,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return this.storageId;
     }
 
-    public DigitalConstructFlowerStorageProfile storageProfile() {
+    public TrinityDataCoreStorageProfile storageProfile() {
         return this.storageProfile;
     }
 
@@ -527,7 +527,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     @Override
     public int getBusyCpuPartitionCount() {
         int busyPartitions = 0;
-        for (DigitalConstructFlowerVirtualCpu cpu : this.craftingRuntime.partitions()) {
+        for (TrinityDataCoreVirtualCpu cpu : this.craftingRuntime.partitions()) {
             if (cpu.isBusy()) {
                 busyPartitions++;
             }
@@ -551,7 +551,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
      * @param structureName child structure name that owns the contribution
      * @param contribution  CPU data contributed by the child structure
      */
-    public void setCpuContribution(String structureName, DigitalConstructFlowerCpuContribution contribution) {
+    public void setCpuContribution(String structureName, TrinityDataCoreCpuContribution contribution) {
         this.craftingRuntime.setContribution(structureName, contribution);
         notifyTrinityAccessChanged();
         setChanged();
@@ -571,14 +571,14 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     /**
      * @return virtual CPU partitions currently exposed by this formed structure
      */
-    public List<DigitalConstructFlowerVirtualCpu> getCpuPartitions() {
+    public List<TrinityDataCoreVirtualCpu> getCpuPartitions() {
         return this.craftingRuntime.partitions();
     }
 
     /**
      * @return crafting runtime used by AE2 CraftingService mixins
      */
-    public DigitalConstructFlowerCraftingRuntime getCraftingRuntime() {
+    public TrinityDataCoreCraftingRuntime getCraftingRuntime() {
         return this.craftingRuntime;
     }
 
@@ -606,7 +606,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             }
         }
 
-        DigitalConstructFlowerCpuProfile profile = this.craftingRuntime.profile();
+        TrinityDataCoreCpuProfile profile = this.craftingRuntime.profile();
         GenericStack target = selectedJob == null ? null : selectedJob.crafting();
         return new DigitalConstructFlowerCraftingStatus(
                 target,
@@ -1030,7 +1030,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                             Map<BlockPos, CompartmentType> declaredCompartments,
                             String structureName) {
         List<BlockPos> nextPositions = List.copyOf(positions);
-        DigitalConstructFlowerStorageProfile nextStorageProfile = buildStorageProfile(world, nextPositions);
+        TrinityDataCoreStorageProfile nextStorageProfile = buildStorageProfile(world, nextPositions);
         if (this.formed &&
                 this.matchedPositions.equals(nextPositions) &&
                 this.storageProfile.equals(nextStorageProfile) &&
@@ -1053,7 +1053,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyCpuMatch(StructureWorldView world, List<BlockPos> positions) {
-        DigitalConstructFlowerCpuContribution contribution = buildCpuContribution(world, positions);
+        TrinityDataCoreCpuContribution contribution = buildCpuContribution(world, positions);
         boolean contributionChanged = !Objects.equals(this.cpuStructureContribution, contribution);
         boolean statusChanged = !this.cpuStructureFormed ||
                 this.cpuStructureMatchedBlockCount != positions.size() ||
@@ -1105,7 +1105,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyCraftingMatch(StructureWorldView world, List<BlockPos> positions, boolean catalogChanged) {
-        DigitalConstructFlowerCraftingCoreProfile nextProfile = buildCraftingProfile(world, positions);
+        TrinityDataCoreCraftingCoreProfile nextProfile = buildCraftingProfile(world, positions);
         boolean statusChanged = !this.craftingStructureFormed ||
                 this.craftingStructureMatchedBlockCount != positions.size() ||
                 !this.craftingProfile.equals(nextProfile) ||
@@ -1279,11 +1279,11 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 .toList();
     }
 
-    private static DigitalConstructFlowerCraftingCoreProfile readCraftingProfile(CompoundTag data) {
+    private static TrinityDataCoreCraftingCoreProfile readCraftingProfile(CompoundTag data) {
         if (!data.contains(CRAFTING_PATTERN_CORE_COUNT_TAG) && !data.contains(CRAFTING_PATTERN_CAPACITY_TAG)) {
-            return DigitalConstructFlowerCraftingCoreProfile.EMPTY;
+            return TrinityDataCoreCraftingCoreProfile.EMPTY;
         }
-        return new DigitalConstructFlowerCraftingCoreProfile(
+        return new TrinityDataCoreCraftingCoreProfile(
                 data.getInt(CRAFTING_PATTERN_CORE_COUNT_TAG),
                 data.getInt(CRAFTING_PATTERN_CAPACITY_TAG));
     }
@@ -1320,8 +1320,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         this.accessLease = null;
     }
 
-    private static DigitalConstructFlowerStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {
-        DigitalConstructFlowerStorageProfile.Builder builder = DigitalConstructFlowerStorageProfile.builder(MAIN_STORAGE_CORE_SLOT_COUNT);
+    private static TrinityDataCoreStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {
+        TrinityDataCoreStorageProfile.Builder builder = TrinityDataCoreStorageProfile.builder(MAIN_STORAGE_CORE_SLOT_COUNT);
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (state.getBlock() instanceof TrinityCoreComponent component && component.kind() == TrinityCoreKind.STORAGE_TYPES) {
@@ -1331,8 +1331,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return builder.build();
     }
 
-    private static DigitalConstructFlowerCraftingCoreProfile buildCraftingProfile(StructureWorldView world, List<BlockPos> positions) {
-        DigitalConstructFlowerCraftingCoreProfile.Builder builder = DigitalConstructFlowerCraftingCoreProfile.builder();
+    private static TrinityDataCoreCraftingCoreProfile buildCraftingProfile(StructureWorldView world, List<BlockPos> positions) {
+        TrinityDataCoreCraftingCoreProfile.Builder builder = TrinityDataCoreCraftingCoreProfile.builder();
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (state.getBlock() instanceof TrinityCoreComponent component && component.kind() == TrinityCoreKind.PATTERN_PROCESSING) {
@@ -1361,17 +1361,17 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return PatternCatalogScanResult.success(mounts);
     }
 
-    private DigitalConstructFlowerCpuContribution buildCpuContribution(StructureWorldView world, List<BlockPos> positions) {
-        DigitalConstructFlowerCpuCoreProfile.Builder builder = DigitalConstructFlowerCpuCoreProfile.builder();
+    private TrinityDataCoreCpuContribution buildCpuContribution(StructureWorldView world, List<BlockPos> positions) {
+        TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder();
         Set<Integer> repeatedLayers = new HashSet<>();
         for (BlockPos pos : positions) {
             int localY = cpuLocalY(pos);
-            if (localY >= DigitalConstructFlowerCpuCoreProfile.REPEAT_START_Y &&
-                    localY <= DigitalConstructFlowerCpuCoreProfile.REPEAT_END_Y) {
+            if (localY >= TrinityDataCoreCpuCoreProfile.REPEAT_START_Y &&
+                    localY <= TrinityDataCoreCpuCoreProfile.REPEAT_END_Y) {
                 repeatedLayers.add(localY);
             }
-            if (localY < DigitalConstructFlowerCpuCoreProfile.CORE_SLOT_START_Y ||
-                    localY > DigitalConstructFlowerCpuCoreProfile.CORE_SLOT_END_Y) {
+            if (localY < TrinityDataCoreCpuCoreProfile.CORE_SLOT_START_Y ||
+                    localY > TrinityDataCoreCpuCoreProfile.CORE_SLOT_END_Y) {
                 continue;
             }
             BlockState state = world.getBlockState(pos);
@@ -1379,13 +1379,13 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 builder.add(component);
             }
         }
-        return builder.actualRepeatCount(DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(repeatedLayers))
+        return builder.actualRepeatCount(TrinityDataCoreCpuCoreProfile.actualRepeatCount(repeatedLayers))
                 .build()
                 .contribution();
     }
 
     private int cpuLocalY(BlockPos pos) {
-        return pos.getY() - this.worldPosition.getY() + DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y;
+        return pos.getY() - this.worldPosition.getY() + TrinityDataCoreCpuCoreProfile.CONTROLLER_LOCAL_Y;
     }
 
     private void clearCpuStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {

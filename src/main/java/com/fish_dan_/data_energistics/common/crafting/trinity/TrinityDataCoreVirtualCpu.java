@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 
@@ -25,20 +25,20 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * AE2-visible virtual crafting CPU partition owned by a Digital Construct Flower host.
+ * AE2-visible virtual crafting CPU partition owned by a Trinity Data Core host.
  *
  * <p>
  * Each partition accepts one crafting job and lets the host expose a large formed structure as multiple selectable
  * CPUs.
  */
-public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
+public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     private final DigitalConstructFlowerBlockEntity host;
-    private final DigitalConstructFlowerCpuLogic logic = new DigitalConstructFlowerCpuLogic(this);
-    private DigitalConstructFlowerCpuPartitionProfile profile;
+    private final TrinityDataCoreCpuLogic logic = new TrinityDataCoreCpuLogic(this);
+    private TrinityDataCoreCpuPartitionProfile profile;
 
-    DigitalConstructFlowerVirtualCpu(DigitalConstructFlowerBlockEntity host,
-                                     DigitalConstructFlowerCpuPartitionProfile profile) {
+    TrinityDataCoreVirtualCpu(DigitalConstructFlowerBlockEntity host,
+                              TrinityDataCoreCpuPartitionProfile profile) {
         this.host = host;
         this.profile = profile;
     }
@@ -48,7 +48,7 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
      *
      * @param profile new immutable partition profile
      */
-    void updateProfile(DigitalConstructFlowerCpuPartitionProfile profile) {
+    void updateProfile(TrinityDataCoreCpuPartitionProfile profile) {
         this.profile = profile;
     }
 
@@ -204,7 +204,7 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
         if (finalOutput == null) {
             return null;
         }
-        DigitalConstructFlowerElapsedTimeTracker tracker = this.logic.elapsedTimeTracker();
+        TrinityDataCoreElapsedTimeTracker tracker = this.logic.elapsedTimeTracker();
         long progress = Math.max(0L, tracker.startItemCount() - tracker.remainingItemCount());
         return new CraftingJobStatus(finalOutput, tracker.startItemCount(), progress, tracker.elapsedTimeNanos());
     }
@@ -291,7 +291,7 @@ public final class DigitalConstructFlowerVirtualCpu implements ICraftingCPU {
         this.host.setChanged();
     }
 
-    DigitalConstructFlowerCpuLogic logic() {
+    TrinityDataCoreCpuLogic logic() {
         return this.logic;
     }
 

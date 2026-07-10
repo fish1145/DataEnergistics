@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
@@ -46,9 +46,9 @@ import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class DigitalConstructFlowerCraftingRuntimeTest {
+public final class TrinityDataCoreCraftingRuntimeTest {
 
-    private DigitalConstructFlowerCraftingRuntimeTest() {}
+    private TrinityDataCoreCraftingRuntimeTest() {}
 
     @TestHolder("digital_construct_flower_cpu_partitions_require_formed_structure")
     @EmptyTemplate("5")
@@ -74,7 +74,7 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
     public static void cpuContributionRebuildsPartitions(GameTestHelper helper) {
         DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(true);
 
-        flower.setCpuContribution("petal", DigitalConstructFlowerCpuContribution.of(1024L, 2, 2));
+        flower.setCpuContribution("petal", TrinityDataCoreCpuContribution.of(1024L, 2, 2));
 
         helper.assertValueEqual(flower.getCpuPartitions().size(), 2, "Child contribution should add CPU partitions");
         helper.assertValueEqual(
@@ -118,7 +118,7 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
     @GameTest(template = "empty_5x5")
     public static void cpuRuntimeRetainsJobAcrossStructurePause(GameTestHelper helper) {
         BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
-        DigitalConstructFlowerVirtualCpu originalCpu = fixture.cpu();
+        TrinityDataCoreVirtualCpu originalCpu = fixture.cpu();
 
         fixture.runtime().setPaused(true);
         fixture.runtime().clearContribution("cpu");
@@ -128,7 +128,7 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         helper.assertTrue(fixture.runtime().hasBusyJobs(), "Invalid structure must retain its existing CPU job");
 
         fixture.runtime().setMainStructureFormed(true);
-        fixture.runtime().setContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 2, 1));
+        fixture.runtime().setContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
         fixture.runtime().setPaused(false);
 
         helper.assertValueEqual(fixture.runtime().partitions().size(), 1, "Recovered structure should republish its CPU partition");
@@ -158,14 +158,14 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         TestFlower restoredFlower = new TestFlower(helper.absolutePos(new BlockPos(2, 1, 1)));
         restoredFlower.setLevel(helper.getLevel());
         restoredFlower.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
-        DigitalConstructFlowerCraftingRuntime restored = restoredFlower.getCraftingRuntime();
+        TrinityDataCoreCraftingRuntime restored = restoredFlower.getCraftingRuntime();
         restored.readFromTag(saved, helper.getLevel().registryAccess());
 
         helper.assertValueEqual(restored.partitions().size(), 0, "Inactive persisted CPU must remain withdrawn after reload");
         helper.assertTrue(restored.hasBusyJobs(), "Inactive persisted CPU must restore its paused job");
 
         restored.setMainStructureFormed(true);
-        restored.setContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 2, 1));
+        restored.setContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
 
         helper.assertValueEqual(restored.partitions().size(), 1, "Restored CPU should republish after contribution recovery");
         helper.assertTrue(restored.partitions().getFirst().isBusy(), "Republished CPU should still own the restored job");
@@ -181,11 +181,11 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         helper.setBlock(flowerPos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
         BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(flowerPos));
         if (!(blockEntity instanceof DigitalConstructFlowerBlockEntity flower)) {
-            helper.fail("Expected a placed Digital Construct Flower block entity", flowerPos);
+            helper.fail("Expected a placed Trinity Data Core block entity", flowerPos);
             return;
         }
         flower.loadTag(formedTag(), helper.getLevel().registryAccess());
-        flower.setCpuContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 1, 1));
+        flower.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 1, 1));
         flower.loadTag(formedCraftingProfileTag(), helper.getLevel().registryAccess());
 
         helper.assertValueEqual(flower.getCpuPartitions().size(), 1, "CPU child contribution should be active before recheck");
@@ -194,7 +194,7 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 flower.getCraftingPatternCapacity(),
                 704,
                 "Crafting child profile should be active before recheck");
-        DigitalConstructFlowerVirtualCpu retainedPartition = flower.getCpuPartitions().getFirst();
+        TrinityDataCoreVirtualCpu retainedPartition = flower.getCpuPartitions().getFirst();
 
         flower.serverTick();
 
@@ -355,10 +355,10 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         TestFlower flower = new TestFlower(helper.absolutePos(flowerPos));
         flower.setLevel(helper.getLevel());
         flower.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
-        flower.setCpuContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 2, 1));
+        flower.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
         TestGrid grid = new TestGrid();
 
-        DigitalConstructFlowerVirtualCpu cpu = flower.getCpuPartitions().getFirst();
+        TrinityDataCoreVirtualCpu cpu = flower.getCpuPartitions().getFirst();
         ICraftingSubmitResult result = cpu.submitJob(
                 grid,
                 new CraftingPlan(
@@ -387,8 +387,8 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         return tag;
     }
 
-    private record BusyRuntimeFixture(DigitalConstructFlowerCraftingRuntime runtime,
-                                      DigitalConstructFlowerVirtualCpu cpu) {}
+    private record BusyRuntimeFixture(TrinityDataCoreCraftingRuntime runtime,
+                                      TrinityDataCoreVirtualCpu cpu) {}
 
     private static final class TestFlower extends DigitalConstructFlowerBlockEntity {
 

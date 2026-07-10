@@ -7,7 +7,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -223,7 +223,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    public @Nullable DigitalConstructFlowerCraftingRuntime boundCraftingRuntime() {
+    public @Nullable TrinityDataCoreCraftingRuntime boundCraftingRuntime() {
         DigitalConstructFlowerBlockEntity flower = boundFlower(false);
         return flower == null || !isCandidateOnline() || !flower.isLeaseOwner(this) ||
                 !flower.canExposeTrinityCapabilities() ? null : flower.getCraftingRuntime();

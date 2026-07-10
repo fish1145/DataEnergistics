@@ -1,22 +1,22 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import appeng.api.config.CpuSelectionMode;
 
 /**
- * Contribution from one formed Digital Construct Flower structure section to the host CPU profile.
+ * Contribution from one formed Trinity Data Core structure section to the host CPU profile.
  *
  * <p>
  * Substructures use this data object to add crafting storage, co-processors, and virtual CPU partitions without
  * reaching into the host's runtime state.
  */
-public record DigitalConstructFlowerCpuContribution(long storageBytes,
-                                                    int coProcessors,
-                                                    int partitionCount,
-                                                    CpuSelectionMode selectionMode) {
+public record TrinityDataCoreCpuContribution(long storageBytes,
+                                             int coProcessors,
+                                             int partitionCount,
+                                             CpuSelectionMode selectionMode) {
 
-    public static final DigitalConstructFlowerCpuContribution EMPTY = new DigitalConstructFlowerCpuContribution(0L, 0, 0, CpuSelectionMode.ANY);
+    public static final TrinityDataCoreCpuContribution EMPTY = new TrinityDataCoreCpuContribution(0L, 0, 0, CpuSelectionMode.ANY);
 
-    public DigitalConstructFlowerCpuContribution {
+    public TrinityDataCoreCpuContribution {
         if (storageBytes < 0) {
             throw new IllegalArgumentException("CPU contribution storage bytes must not be negative");
         }
@@ -36,7 +36,7 @@ public record DigitalConstructFlowerCpuContribution(long storageBytes,
      * @param partitionCount virtual CPU partitions added by the structure section
      * @return validated contribution data
      */
-    public static DigitalConstructFlowerCpuContribution of(long storageBytes, int coProcessors, int partitionCount) {
-        return new DigitalConstructFlowerCpuContribution(storageBytes, coProcessors, partitionCount, CpuSelectionMode.ANY);
+    public static TrinityDataCoreCpuContribution of(long storageBytes, int coProcessors, int partitionCount) {
+        return new TrinityDataCoreCpuContribution(storageBytes, coProcessors, partitionCount, CpuSelectionMode.ANY);
     }
 }

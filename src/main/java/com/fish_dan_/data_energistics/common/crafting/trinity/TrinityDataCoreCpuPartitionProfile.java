@@ -1,20 +1,20 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import appeng.api.config.CpuSelectionMode;
 
 /**
- * Resolved resource slice for one virtual Digital Construct Flower crafting CPU.
+ * Resolved resource slice for one virtual Trinity Data Core crafting CPU.
  *
  * <p>
  * Runtime CPU objects copy this immutable profile so structure changes can rebuild partitions deterministically.
  */
-public record DigitalConstructFlowerCpuPartitionProfile(int index,
-                                                        int totalPartitions,
-                                                        long storageBytes,
-                                                        int coProcessors,
-                                                        CpuSelectionMode selectionMode) {
+public record TrinityDataCoreCpuPartitionProfile(int index,
+                                                 int totalPartitions,
+                                                 long storageBytes,
+                                                 int coProcessors,
+                                                 CpuSelectionMode selectionMode) {
 
-    public DigitalConstructFlowerCpuPartitionProfile {
+    public TrinityDataCoreCpuPartitionProfile {
         if (totalPartitions <= 0) {
             throw new IllegalArgumentException("CPU partition total must be positive");
         }

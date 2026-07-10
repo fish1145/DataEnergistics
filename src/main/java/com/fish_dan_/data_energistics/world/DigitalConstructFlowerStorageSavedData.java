@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -74,14 +74,14 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     }
 
     public long insert(UUID hostId, AEKey key, long amount, Actionable mode) {
-        return insert(hostId, key, amount, mode, DigitalConstructFlowerStorageProfile.UNLIMITED);
+        return insert(hostId, key, amount, mode, TrinityDataCoreStorageProfile.UNLIMITED);
     }
 
     public long insert(UUID hostId,
                        AEKey key,
                        long amount,
                        Actionable mode,
-                       DigitalConstructFlowerStorageProfile profile) {
+                       TrinityDataCoreStorageProfile profile) {
         if (amount <= 0L) {
             return 0L;
         }
@@ -153,7 +153,7 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
         return typeCount == 0 ? StorageSummary.EMPTY : new StorageSummary(typeCount, total.toString());
     }
 
-    private long acceptedInsertAmount(UUID hostId, AEKey key, long amount, DigitalConstructFlowerStorageProfile profile) {
+    private long acceptedInsertAmount(UUID hostId, AEKey key, long amount, TrinityDataCoreStorageProfile profile) {
         if (profile.unlimited()) {
             return amount;
         }

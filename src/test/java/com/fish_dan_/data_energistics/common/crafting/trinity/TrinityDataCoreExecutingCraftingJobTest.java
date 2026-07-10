@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public final class DigitalConstructFlowerExecutingCraftingJobTest {
+public final class TrinityDataCoreExecutingCraftingJobTest {
 
     @Test
     void routedTaskRestoresItsExactRouteAroundDecodedPattern() {
@@ -26,10 +26,10 @@ public final class DigitalConstructFlowerExecutingCraftingJobTest {
         IPatternDetails decoded = new StubPatternDetails();
         RoutedCraftingPatternDetails routed = new RoutedCraftingPatternDetails(route, original);
 
-        CompoundTag saved = DigitalConstructFlowerExecutingCraftingJob.writeTaskDetails(
+        CompoundTag saved = TrinityDataCoreExecutingCraftingJob.writeTaskDetails(
                 routed,
                 ignored -> definitionTag());
-        IPatternDetails restored = DigitalConstructFlowerExecutingCraftingJob.readTaskDetails(
+        IPatternDetails restored = TrinityDataCoreExecutingCraftingJob.readTaskDetails(
                 saved,
                 definition -> {
                     assertEquals("encoded", definition.getString("marker"));
@@ -46,10 +46,10 @@ public final class DigitalConstructFlowerExecutingCraftingJobTest {
         IPatternDetails original = new StubPatternDetails();
         IPatternDetails decoded = new StubPatternDetails();
 
-        CompoundTag saved = DigitalConstructFlowerExecutingCraftingJob.writeTaskDetails(
+        CompoundTag saved = TrinityDataCoreExecutingCraftingJob.writeTaskDetails(
                 original,
                 ignored -> definitionTag());
-        IPatternDetails restored = DigitalConstructFlowerExecutingCraftingJob.readTaskDetails(saved, ignored -> decoded);
+        IPatternDetails restored = TrinityDataCoreExecutingCraftingJob.readTaskDetails(saved, ignored -> decoded);
 
         assertSame(decoded, restored);
     }
@@ -61,7 +61,7 @@ public final class DigitalConstructFlowerExecutingCraftingJobTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> DigitalConstructFlowerExecutingCraftingJob.readTaskDetails(
+                () -> TrinityDataCoreExecutingCraftingJob.readTaskDetails(
                         malformed,
                         ignored -> new StubPatternDetails()));
     }

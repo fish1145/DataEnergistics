@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCpuContribution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
 
 import java.math.BigInteger;
 import java.util.Collection;
@@ -8,13 +8,13 @@ import java.util.Collection;
 /**
  * CPU capability resolved from trinity merged storage core blocks in formed child structures.
  */
-public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
-                                                   int coProcessors,
-                                                   int filledCoreSlots,
-                                                   int fullCoreSlots,
-                                                   int actualRepeatCount,
-                                                   int maxRepeatCount,
-                                                   int maxThreads) {
+public record TrinityDataCoreCpuCoreProfile(long storageBytes,
+                                            int coProcessors,
+                                            int filledCoreSlots,
+                                            int fullCoreSlots,
+                                            int actualRepeatCount,
+                                            int maxRepeatCount,
+                                            int maxThreads) {
 
     private static final BigInteger PARALLEL_VALUE_PER_M = BigInteger.valueOf(2L);
 
@@ -26,7 +26,7 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
     public static final int MAX_REPEAT_COUNT = 13;
     public static final int MAX_THREADS = 256;
     public static final int CONTROLLER_LOCAL_Y = 1;
-    public static final DigitalConstructFlowerCpuCoreProfile EMPTY = new DigitalConstructFlowerCpuCoreProfile(
+    public static final TrinityDataCoreCpuCoreProfile EMPTY = new TrinityDataCoreCpuCoreProfile(
             0L,
             0,
             0,
@@ -35,7 +35,7 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
             MAX_REPEAT_COUNT,
             MAX_THREADS);
 
-    public DigitalConstructFlowerCpuCoreProfile {
+    public TrinityDataCoreCpuCoreProfile {
         if (storageBytes < 0) {
             throw new IllegalArgumentException("CPU core profile storage bytes must not be negative");
         }
@@ -94,7 +94,7 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
             throw new IllegalArgumentException("Only merged storage CPU cores contribute crafting storage bytes");
         }
         BigInteger bytes = BigInteger.valueOf(component.capacityValue())
-                .multiply(DigitalConstructFlowerStorageProfile.AMOUNT_PER_M)
+                .multiply(TrinityDataCoreStorageProfile.AMOUNT_PER_M)
                 .divide(PARALLEL_VALUE_PER_M);
         return bytes.longValueExact();
     }
@@ -102,14 +102,14 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
     /**
      * Converts this profile into the runtime contribution object used by the host.
      */
-    public DigitalConstructFlowerCpuContribution contribution() {
+    public TrinityDataCoreCpuContribution contribution() {
         if (this.filledCoreSlots == 0 || this.actualRepeatCount == 0) {
-            return DigitalConstructFlowerCpuContribution.EMPTY;
+            return TrinityDataCoreCpuContribution.EMPTY;
         }
         if (fullCpu()) {
-            return DigitalConstructFlowerCpuContribution.of(Long.MAX_VALUE, Integer.MAX_VALUE, threadCount());
+            return TrinityDataCoreCpuContribution.of(Long.MAX_VALUE, Integer.MAX_VALUE, threadCount());
         }
-        return DigitalConstructFlowerCpuContribution.of(this.storageBytes, this.coProcessors, threadCount());
+        return TrinityDataCoreCpuContribution.of(this.storageBytes, this.coProcessors, threadCount());
     }
 
     /**
@@ -169,11 +169,11 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
         /**
          * Builds the immutable CPU core profile.
          */
-        public DigitalConstructFlowerCpuCoreProfile build() {
+        public TrinityDataCoreCpuCoreProfile build() {
             if (this.filledCoreSlots == 0 || this.actualRepeatCount == 0) {
                 return EMPTY;
             }
-            return new DigitalConstructFlowerCpuCoreProfile(
+            return new TrinityDataCoreCpuCoreProfile(
                     this.storageBytes,
                     this.coProcessors,
                     this.filledCoreSlots,

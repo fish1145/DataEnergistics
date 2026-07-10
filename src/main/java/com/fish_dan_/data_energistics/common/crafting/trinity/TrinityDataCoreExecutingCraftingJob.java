@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
@@ -27,13 +27,13 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Persisted job state for one Digital Construct Flower virtual CPU.
+ * Persisted job state for one Trinity Data Core virtual CPU.
  *
  * <p>
  * The runtime mirrors AE2's execution model but keeps the state local so virtual CPUs do not depend on native cluster
  * internals.
  */
-final class DigitalConstructFlowerExecutingCraftingJob {
+final class TrinityDataCoreExecutingCraftingJob {
 
     private static final String LINK_TAG = "link";
     private static final String PLAYER_ID_TAG = "player_id";
@@ -48,7 +48,7 @@ final class DigitalConstructFlowerExecutingCraftingJob {
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
     final Map<IPatternDetails, TaskProgress> tasks = new HashMap<>();
-    final DigitalConstructFlowerElapsedTimeTracker timeTracker;
+    final TrinityDataCoreElapsedTimeTracker timeTracker;
     GenericStack finalOutput;
     long remainingAmount;
     @Nullable
@@ -65,14 +65,14 @@ final class DigitalConstructFlowerExecutingCraftingJob {
         void onCraftingDifference(AEKey what);
     }
 
-    DigitalConstructFlowerExecutingCraftingJob(ICraftingPlan plan,
-                                               CraftingDifferenceListener differenceListener,
-                                               CraftingLink link,
-                                               @Nullable Integer playerId) {
+    TrinityDataCoreExecutingCraftingJob(ICraftingPlan plan,
+                                        CraftingDifferenceListener differenceListener,
+                                        CraftingLink link,
+                                        @Nullable Integer playerId) {
         this.finalOutput = plan.finalOutput();
         this.remainingAmount = this.finalOutput.amount();
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
-        this.timeTracker = new DigitalConstructFlowerElapsedTimeTracker();
+        this.timeTracker = new TrinityDataCoreElapsedTimeTracker();
         for (var entry : plan.emittedItems()) {
             this.waitingFor.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
             this.timeTracker.addMaxItems(entry.getLongValue(), entry.getKey().getType());
@@ -88,10 +88,10 @@ final class DigitalConstructFlowerExecutingCraftingJob {
         this.playerId = playerId;
     }
 
-    DigitalConstructFlowerExecutingCraftingJob(CompoundTag data,
-                                               HolderLookup.Provider registries,
-                                               CraftingDifferenceListener differenceListener,
-                                               DigitalConstructFlowerCpuLogic logic) {
+    TrinityDataCoreExecutingCraftingJob(CompoundTag data,
+                                        HolderLookup.Provider registries,
+                                        CraftingDifferenceListener differenceListener,
+                                        TrinityDataCoreCpuLogic logic) {
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         IGrid grid = logic.cpu().grid();
         if (grid != null) {
@@ -102,7 +102,7 @@ final class DigitalConstructFlowerExecutingCraftingJob {
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(WAITING_FOR_TAG, Tag.TAG_COMPOUND), registries);
-        this.timeTracker = new DigitalConstructFlowerElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
+        this.timeTracker = new TrinityDataCoreElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
         this.playerId = data.contains(PLAYER_ID_TAG, Tag.TAG_INT) ? data.getInt(PLAYER_ID_TAG) : null;
 
         Level level = logic.cpu().level();

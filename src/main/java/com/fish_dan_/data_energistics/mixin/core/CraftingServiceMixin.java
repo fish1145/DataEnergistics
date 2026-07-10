@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 
 import net.minecraft.nbt.CompoundTag;
 
@@ -53,7 +53,7 @@ public abstract class CraftingServiceMixin {
             .thenComparingLong(ICraftingCPU::getAvailableStorage);
 
     @Unique
-    private final Set<DigitalConstructFlowerCraftingRuntime> dataEnergistics$flowerRuntimes = new HashSet<>();
+    private final Set<TrinityDataCoreCraftingRuntime> dataEnergistics$flowerRuntimes = new HashSet<>();
 
     @Unique
     private long dataEnergistics$lastProcessedFlowerCraftingLogicChangeTick;
@@ -101,7 +101,7 @@ public abstract class CraftingServiceMixin {
         this.dataEnergistics$flowerRuntimes.clear();
         CraftingService service = (CraftingService) (Object) this;
         for (TrinityAccessHatchBlockEntity hatch : this.grid.getMachines(TrinityAccessHatchBlockEntity.class)) {
-            DigitalConstructFlowerCraftingRuntime runtime = hatch.boundCraftingRuntime();
+            TrinityDataCoreCraftingRuntime runtime = hatch.boundCraftingRuntime();
             if (runtime == null || runtime.partitions().isEmpty()) {
                 continue;
             }
@@ -114,7 +114,7 @@ public abstract class CraftingServiceMixin {
     private void dataEnergistics$tickFlowerCpuClusters(CallbackInfo ci) {
         CraftingService service = (CraftingService) (Object) this;
         long latestChange = 0L;
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
             runtime.tick(this.energyGrid, service);
             latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
         }
@@ -132,7 +132,7 @@ public abstract class CraftingServiceMixin {
                      opcode = Opcodes.GETFIELD,
                      ordinal = 0))
     private void dataEnergistics$collectFlowerCpuWaitingKeys(CallbackInfo ci) {
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
             runtime.getAllWaitingFor(this.currentlyCrafting);
         }
     }
@@ -143,7 +143,7 @@ public abstract class CraftingServiceMixin {
                                                       Actionable type,
                                                       CallbackInfoReturnable<Long> cir) {
         long inserted = cir.getReturnValue();
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
             inserted = runtime.insertIntoCpus(what, amount, type, inserted);
         }
         cir.setReturnValue(inserted);
@@ -160,7 +160,7 @@ public abstract class CraftingServiceMixin {
             cir.setReturnValue(CraftingSubmitResult.INCOMPLETE_PLAN);
             return;
         }
-        if (target instanceof DigitalConstructFlowerVirtualCpu flowerCpu) {
+        if (target instanceof TrinityDataCoreVirtualCpu flowerCpu) {
             cir.setReturnValue(flowerCpu.submitJob(this.grid, job, src, requestingMachine));
             return;
         }
@@ -170,7 +170,7 @@ public abstract class CraftingServiceMixin {
 
         DataEnergisticsCpuSelection selection = dataEnergistics$findSuitableCpu(job, prioritizePower, src);
         ICraftingCPU selectedCpu = selection.cpu();
-        if (selectedCpu instanceof DigitalConstructFlowerVirtualCpu flowerCpu) {
+        if (selectedCpu instanceof TrinityDataCoreVirtualCpu flowerCpu) {
             cir.setReturnValue(flowerCpu.submitJob(this.grid, job, src, requestingMachine));
             return;
         }
@@ -199,7 +199,7 @@ public abstract class CraftingServiceMixin {
     @Inject(method = "getRequestedAmount", at = @At("RETURN"), cancellable = true)
     private void dataEnergistics$getFlowerRequestedAmount(AEKey what, CallbackInfoReturnable<Long> cir) {
         long requested = cir.getReturnValue();
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
             requested += runtime.getRequestedAmount(what);
         }
         cir.setReturnValue(requested);
@@ -207,7 +207,7 @@ public abstract class CraftingServiceMixin {
 
     @Inject(method = "hasCpu", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$hasFlowerCpu(ICraftingCPU cpu, CallbackInfoReturnable<Boolean> cir) {
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
             if (runtime.hasCpu(cpu)) {
                 cir.setReturnValue(true);
                 return;
@@ -284,8 +284,8 @@ public abstract class CraftingServiceMixin {
         int tooSmall = 0;
         int excluded = 0;
 
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
-            for (DigitalConstructFlowerVirtualCpu cpu : runtime.partitions()) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+            for (TrinityDataCoreVirtualCpu cpu : runtime.partitions()) {
                 if (!cpu.isActive()) {
                     offline++;
                     continue;
@@ -309,9 +309,9 @@ public abstract class CraftingServiceMixin {
     }
 
     @Unique
-    private void dataEnergistics$forEachFlowerCpu(Consumer<DigitalConstructFlowerVirtualCpu> consumer) {
-        for (DigitalConstructFlowerCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
-            for (DigitalConstructFlowerVirtualCpu cpu : runtime.partitions()) {
+    private void dataEnergistics$forEachFlowerCpu(Consumer<TrinityDataCoreVirtualCpu> consumer) {
+        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$flowerRuntimes) {
+            for (TrinityDataCoreVirtualCpu cpu : runtime.partitions()) {
                 consumer.accept(cpu);
             }
         }

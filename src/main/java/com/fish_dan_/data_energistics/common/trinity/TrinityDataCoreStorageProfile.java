@@ -5,19 +5,19 @@ import java.math.BigInteger;
 /**
  * Storage capability resolved from trinity storage core blocks in a formed main structure.
  */
-public record DigitalConstructFlowerStorageProfile(BigInteger totalCapacity,
-                                                   int typeCapacity,
-                                                   int coreCount,
-                                                   int fullCoreCount,
-                                                   boolean unlimited) {
+public record TrinityDataCoreStorageProfile(BigInteger totalCapacity,
+                                            int typeCapacity,
+                                            int coreCount,
+                                            int fullCoreCount,
+                                            boolean unlimited) {
 
     public static final BigInteger AMOUNT_PER_M = BigInteger.valueOf(1_048_576L);
-    public static final DigitalConstructFlowerStorageProfile EMPTY = new DigitalConstructFlowerStorageProfile(BigInteger.ZERO, 0, 0, 0, false);
-    public static final DigitalConstructFlowerStorageProfile UNLIMITED = new DigitalConstructFlowerStorageProfile(BigInteger.ZERO, Integer.MAX_VALUE, 0, 0, true);
+    public static final TrinityDataCoreStorageProfile EMPTY = new TrinityDataCoreStorageProfile(BigInteger.ZERO, 0, 0, 0, false);
+    public static final TrinityDataCoreStorageProfile UNLIMITED = new TrinityDataCoreStorageProfile(BigInteger.ZERO, Integer.MAX_VALUE, 0, 0, true);
 
     private static final BigInteger TYPE_VALUE_PER_M = BigInteger.valueOf(2L);
 
-    public DigitalConstructFlowerStorageProfile {
+    public TrinityDataCoreStorageProfile {
         if (totalCapacity.signum() < 0) {
             throw new IllegalArgumentException("Storage total capacity must not be negative");
         }
@@ -94,9 +94,9 @@ public record DigitalConstructFlowerStorageProfile(BigInteger totalCapacity,
         /**
          * Builds the immutable storage profile.
          */
-        public DigitalConstructFlowerStorageProfile build() {
+        public TrinityDataCoreStorageProfile build() {
             boolean unlimited = this.fullCoreCount > 0 && this.coreCount >= this.fullCoreCount;
-            return new DigitalConstructFlowerStorageProfile(
+            return new TrinityDataCoreStorageProfile(
                     this.totalCapacity,
                     this.typeCapacity,
                     this.coreCount,

@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import appeng.api.config.CpuSelectionMode;
 
@@ -8,19 +8,19 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Aggregate CPU data for a formed Digital Construct Flower host.
+ * Aggregate CPU data for a formed Trinity Data Core host.
  *
  * <p>
  * The profile is built from named structure contributions and resolves them into stable virtual CPU partitions.
  */
-public record DigitalConstructFlowerCpuProfile(long storageBytes,
-                                               int coProcessors,
-                                               int partitionCount,
-                                               CpuSelectionMode selectionMode) {
+public record TrinityDataCoreCpuProfile(long storageBytes,
+                                        int coProcessors,
+                                        int partitionCount,
+                                        CpuSelectionMode selectionMode) {
 
-    public static final DigitalConstructFlowerCpuProfile EMPTY = new DigitalConstructFlowerCpuProfile(0L, 0, 0, CpuSelectionMode.ANY);
+    public static final TrinityDataCoreCpuProfile EMPTY = new TrinityDataCoreCpuProfile(0L, 0, 0, CpuSelectionMode.ANY);
 
-    public DigitalConstructFlowerCpuProfile {
+    public TrinityDataCoreCpuProfile {
         if (storageBytes < 0) {
             throw new IllegalArgumentException("CPU profile storage bytes must not be negative");
         }
@@ -44,27 +44,27 @@ public record DigitalConstructFlowerCpuProfile(long storageBytes,
      * @param contributions contributions keyed by structure name
      * @return aggregate profile
      */
-    public static DigitalConstructFlowerCpuProfile fromContributions(
-                                                                     Map<String, DigitalConstructFlowerCpuContribution> contributions) {
-        Map<String, DigitalConstructFlowerCpuContribution> sorted = new TreeMap<>(contributions);
+    public static TrinityDataCoreCpuProfile fromContributions(
+                                                              Map<String, TrinityDataCoreCpuContribution> contributions) {
+        Map<String, TrinityDataCoreCpuContribution> sorted = new TreeMap<>(contributions);
 
         long storageBytes = 0L;
         int coProcessors = 0;
         int partitionCount = 0;
         CpuSelectionMode selectionMode = CpuSelectionMode.ANY;
-        for (Map.Entry<String, DigitalConstructFlowerCpuContribution> entry : sorted.entrySet()) {
+        for (Map.Entry<String, TrinityDataCoreCpuContribution> entry : sorted.entrySet()) {
             String structureName = entry.getKey();
             if (structureName.isBlank()) {
                 throw new IllegalArgumentException("CPU contribution structure name must not be blank");
             }
-            DigitalConstructFlowerCpuContribution contribution = entry.getValue();
+            TrinityDataCoreCpuContribution contribution = entry.getValue();
             storageBytes = Math.addExact(storageBytes, contribution.storageBytes());
             coProcessors = Math.addExact(coProcessors, contribution.coProcessors());
             partitionCount = Math.addExact(partitionCount, contribution.partitionCount());
             selectionMode = mergeSelectionMode(selectionMode, contribution.selectionMode(), structureName);
         }
 
-        return new DigitalConstructFlowerCpuProfile(storageBytes, coProcessors, partitionCount, selectionMode);
+        return new TrinityDataCoreCpuProfile(storageBytes, coProcessors, partitionCount, selectionMode);
     }
 
     /**
@@ -79,14 +79,14 @@ public record DigitalConstructFlowerCpuProfile(long storageBytes,
      *
      * @return partition profiles ordered by index
      */
-    public List<DigitalConstructFlowerCpuPartitionProfile> partitions() {
+    public List<TrinityDataCoreCpuPartitionProfile> partitions() {
         if (!active()) {
             return List.of();
         }
 
-        List<DigitalConstructFlowerCpuPartitionProfile> partitions = new ArrayList<>(this.partitionCount);
+        List<TrinityDataCoreCpuPartitionProfile> partitions = new ArrayList<>(this.partitionCount);
         for (int index = 0; index < this.partitionCount; index++) {
-            partitions.add(new DigitalConstructFlowerCpuPartitionProfile(
+            partitions.add(new TrinityDataCoreCpuPartitionProfile(
                     index,
                     this.partitionCount,
                     this.storageBytes,

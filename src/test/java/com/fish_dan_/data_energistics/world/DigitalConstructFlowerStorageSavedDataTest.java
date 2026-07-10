@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
@@ -103,7 +103,7 @@ public final class DigitalConstructFlowerStorageSavedDataTest {
             helper.fail("Item keys should be available in the GameTest registry");
             return;
         }
-        DigitalConstructFlowerStorageProfile profile = new DigitalConstructFlowerStorageProfile(
+        TrinityDataCoreStorageProfile profile = new TrinityDataCoreStorageProfile(
                 BigInteger.TEN,
                 1,
                 1,
@@ -148,11 +148,11 @@ public final class DigitalConstructFlowerStorageSavedDataTest {
         }
 
         helper.assertValueEqual(
-                data.insert(hostId, iron, Long.MAX_VALUE, Actionable.MODULATE, DigitalConstructFlowerStorageProfile.UNLIMITED),
+                data.insert(hostId, iron, Long.MAX_VALUE, Actionable.MODULATE, TrinityDataCoreStorageProfile.UNLIMITED),
                 Long.MAX_VALUE,
                 "Unlimited profile should accept the full requested amount");
         helper.assertValueEqual(
-                data.insert(hostId, gold, 1L, Actionable.MODULATE, DigitalConstructFlowerStorageProfile.UNLIMITED),
+                data.insert(hostId, gold, 1L, Actionable.MODULATE, TrinityDataCoreStorageProfile.UNLIMITED),
                 1L,
                 "Unlimited profile should accept additional key types");
         helper.assertValueEqual(data.summary(hostId).typeCount(), 2, "Unlimited profile should store both key types");

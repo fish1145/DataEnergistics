@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -37,33 +37,33 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Executes one virtual Digital Construct Flower crafting CPU partition.
+ * Executes one virtual Trinity Data Core crafting CPU partition.
  *
  * <p>
  * This logic follows AE2's CPU execution flow while replacing native cluster callbacks with the flower runtime.
  */
-final class DigitalConstructFlowerCpuLogic {
+final class TrinityDataCoreCpuLogic {
 
     private static final String INVENTORY_TAG = "inventory";
     private static final String JOB_TAG = "job";
 
-    private final DigitalConstructFlowerVirtualCpu cpu;
+    private final TrinityDataCoreVirtualCpu cpu;
     @Nullable
-    private DigitalConstructFlowerExecutingCraftingJob job;
+    private TrinityDataCoreExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
     private final int[] usedOps = new int[3];
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
     private long lastModifiedOnTick = TickHandler.instance().getCurrentTick();
 
-    DigitalConstructFlowerCpuLogic(DigitalConstructFlowerVirtualCpu cpu) {
+    TrinityDataCoreCpuLogic(TrinityDataCoreVirtualCpu cpu) {
         this.cpu = cpu;
     }
 
     /**
      * @return CPU partition owning this logic
      */
-    DigitalConstructFlowerVirtualCpu cpu() {
+    TrinityDataCoreVirtualCpu cpu() {
         return this.cpu;
     }
 
@@ -90,7 +90,7 @@ final class DigitalConstructFlowerCpuLogic {
             return CraftingSubmitResult.CPU_TOO_SMALL;
         }
         if (!this.inventory.list.isEmpty()) {
-            Data_Energistics.LOGGER.warn("Digital Construct Flower CPU inventory is not empty when a job is submitted");
+            Data_Energistics.LOGGER.warn("Trinity Data Core CPU inventory is not empty when a job is submitted");
         }
 
         GenericStack missingIngredient = CraftingCpuHelper.tryExtractInitialItems(plan, grid, this.inventory, source);
@@ -105,7 +105,7 @@ final class DigitalConstructFlowerCpuLogic {
         CraftingLink linkCpu = new CraftingLink(
                 CraftingCpuHelper.generateLinkData(craftId, requester == null, false),
                 this.cpu);
-        this.job = new DigitalConstructFlowerExecutingCraftingJob(plan, this::postChange, linkCpu, playerId);
+        this.job = new TrinityDataCoreExecutingCraftingJob(plan, this::postChange, linkCpu, playerId);
         this.cpu.markDirty();
         notifyJobOwner(this.job, CraftingJobStatusPacket.Status.STARTED);
 
@@ -147,7 +147,7 @@ final class DigitalConstructFlowerCpuLogic {
         int started = remainingOperations;
         Level level = this.cpu.level();
         if (level == null) {
-            Data_Energistics.LOGGER.warn("Digital Construct Flower CPU cannot tick crafting job without a level");
+            Data_Energistics.LOGGER.warn("Trinity Data Core CPU cannot tick crafting job without a level");
             return;
         }
 
@@ -194,7 +194,7 @@ final class DigitalConstructFlowerCpuLogic {
      * @return number of pushed patterns
      */
     int executeCrafting(int maxPatterns, CraftingService craftingService, IEnergyService energyService, Level level) {
-        DigitalConstructFlowerExecutingCraftingJob currentJob = this.job;
+        TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null) {
             return 0;
         }
@@ -357,11 +357,11 @@ final class DigitalConstructFlowerCpuLogic {
     /**
      * @return progress tracker for the active job
      */
-    DigitalConstructFlowerElapsedTimeTracker elapsedTimeTracker() {
+    TrinityDataCoreElapsedTimeTracker elapsedTimeTracker() {
         if (this.job != null) {
             return this.job.timeTracker;
         }
-        return new DigitalConstructFlowerElapsedTimeTracker();
+        return new TrinityDataCoreElapsedTimeTracker();
     }
 
     /**
@@ -426,7 +426,7 @@ final class DigitalConstructFlowerCpuLogic {
     void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
         this.inventory.readFromNBT(data.getList(INVENTORY_TAG, 10), registries);
         if (data.contains(JOB_TAG)) {
-            this.job = new DigitalConstructFlowerExecutingCraftingJob(
+            this.job = new TrinityDataCoreExecutingCraftingJob(
                     data.getCompound(JOB_TAG),
                     registries,
                     this::postChange,
@@ -537,7 +537,7 @@ final class DigitalConstructFlowerCpuLogic {
         }
     }
 
-    private void notifyJobOwner(DigitalConstructFlowerExecutingCraftingJob job, CraftingJobStatusPacket.Status status) {
+    private void notifyJobOwner(TrinityDataCoreExecutingCraftingJob job, CraftingJobStatusPacket.Status status) {
         this.lastModifiedOnTick = TickHandler.instance().getCurrentTick();
         Integer playerId = job.playerId;
         if (playerId == null) {

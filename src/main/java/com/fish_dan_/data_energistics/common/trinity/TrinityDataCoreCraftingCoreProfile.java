@@ -3,11 +3,11 @@ package com.fish_dan_.data_energistics.common.trinity;
 /**
  * Pattern recognition capability resolved from trinity pattern processing cores in the crafting child structure.
  */
-public record DigitalConstructFlowerCraftingCoreProfile(int patternCoreCount, int patternCapacity) {
+public record TrinityDataCoreCraftingCoreProfile(int patternCoreCount, int patternCapacity) {
 
-    public static final DigitalConstructFlowerCraftingCoreProfile EMPTY = new DigitalConstructFlowerCraftingCoreProfile(0, 0);
+    public static final TrinityDataCoreCraftingCoreProfile EMPTY = new TrinityDataCoreCraftingCoreProfile(0, 0);
 
-    public DigitalConstructFlowerCraftingCoreProfile {
+    public TrinityDataCoreCraftingCoreProfile {
         if (patternCoreCount < 0) {
             throw new IllegalArgumentException("Crafting core profile pattern core count must not be negative");
         }
@@ -60,11 +60,11 @@ public record DigitalConstructFlowerCraftingCoreProfile(int patternCoreCount, in
         /**
          * Builds the immutable crafting core profile.
          */
-        public DigitalConstructFlowerCraftingCoreProfile build() {
+        public TrinityDataCoreCraftingCoreProfile build() {
             if (this.patternCoreCount == 0) {
                 return EMPTY;
             }
-            return new DigitalConstructFlowerCraftingCoreProfile(this.patternCoreCount, this.patternCapacity);
+            return new TrinityDataCoreCraftingCoreProfile(this.patternCoreCount, this.patternCapacity);
         }
     }
 }

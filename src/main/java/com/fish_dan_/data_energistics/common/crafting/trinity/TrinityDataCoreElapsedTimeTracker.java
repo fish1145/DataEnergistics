@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
@@ -9,13 +9,13 @@ import it.unimi.dsi.fastutil.objects.Reference2LongMap;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 
 /**
- * Progress tracker for a Digital Construct Flower virtual CPU job.
+ * Progress tracker for a Trinity Data Core virtual CPU job.
  *
  * <p>
  * AE2's tracker keeps mutation methods package-private, so this local tracker preserves the same visible progress
  * contract while remaining accessible to the flower runtime.
  */
-final class DigitalConstructFlowerElapsedTimeTracker {
+final class TrinityDataCoreElapsedTimeTracker {
 
     private static final String ELAPSED_TIME_TAG = "elapsed_time";
     private static final String STARTED_WORK_TAG = "started_work";
@@ -28,9 +28,9 @@ final class DigitalConstructFlowerElapsedTimeTracker {
     private final Reference2LongMap<AEKeyType> completedWorkByType = new Reference2LongOpenHashMap<>(
             AEKeyTypes.getAll().size());
 
-    DigitalConstructFlowerElapsedTimeTracker() {}
+    TrinityDataCoreElapsedTimeTracker() {}
 
-    DigitalConstructFlowerElapsedTimeTracker(CompoundTag data) {
+    TrinityDataCoreElapsedTimeTracker(CompoundTag data) {
         this.elapsedTime = data.getLong(ELAPSED_TIME_TAG);
         readLongByTypeMap(data.getCompound(STARTED_WORK_TAG), this.startedWorkByType);
         readLongByTypeMap(data.getCompound(COMPLETED_WORK_TAG), this.completedWorkByType);

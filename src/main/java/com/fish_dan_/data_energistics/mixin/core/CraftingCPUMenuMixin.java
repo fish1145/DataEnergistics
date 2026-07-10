@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -52,7 +52,7 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
 
     @Unique
     @Nullable
-    private DigitalConstructFlowerVirtualCpu dataEnergistics$cpu;
+    private TrinityDataCoreVirtualCpu dataEnergistics$cpu;
 
     public CraftingCPUMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
@@ -64,7 +64,7 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
             this.dataEnergistics$cpu.removeListener(this.cpuChangeListener);
             this.dataEnergistics$cpu = null;
         }
-        if (!(c instanceof DigitalConstructFlowerVirtualCpu flowerCpu)) {
+        if (!(c instanceof TrinityDataCoreVirtualCpu flowerCpu)) {
             return;
         }
 
@@ -118,7 +118,7 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
 
     @Unique
     private static CraftingStatus dataEnergistics$createStatus(IncrementalUpdateHelper changes,
-                                                               DigitalConstructFlowerVirtualCpu cpu) {
+                                                               TrinityDataCoreVirtualCpu cpu) {
         boolean full = changes.isFullUpdate();
         ImmutableList.Builder<CraftingStatusEntry> entries = ImmutableList.builder();
         for (AEKey what : changes) {

@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
-import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
@@ -336,7 +336,7 @@ public final class CompartmentBlockEntityTest {
         }
         AtomicReference<TestGridPower> testGridPower = new AtomicReference<>();
         AtomicBoolean invalidated = new AtomicBoolean();
-        AtomicReference<List<DigitalConstructFlowerVirtualCpu>> retainedCpuPartitions = new AtomicReference<>();
+        AtomicReference<List<TrinityDataCoreVirtualCpu>> retainedCpuPartitions = new AtomicReference<>();
         helper.succeedWhen(() -> {
             if (!invalidated.get()) {
                 connectAccessHatches(helper, level, hatches, testGridPower);
@@ -381,7 +381,7 @@ public final class CompartmentBlockEntityTest {
                     "Invalidation must retain route-owned work for lease locking");
             helper.assertValueEqual(mount.core().pendingOutputs(route).size(), 1,
                     "Invalidation must retain pending route outputs");
-            List<DigitalConstructFlowerVirtualCpu> currentCpuPartitions = flower.getCraftingRuntime().partitions();
+            List<TrinityDataCoreVirtualCpu> currentCpuPartitions = flower.getCraftingRuntime().partitions();
             helper.assertValueEqual(currentCpuPartitions.size(), retainedCpuPartitions.get().size(),
                     "Temporary CPU structure failure must retain every virtual CPU partition");
             for (int index = 0; index < currentCpuPartitions.size(); index++) {

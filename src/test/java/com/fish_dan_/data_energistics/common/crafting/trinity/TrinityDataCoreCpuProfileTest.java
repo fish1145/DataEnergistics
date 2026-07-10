@@ -1,6 +1,6 @@
-package com.fish_dan_.data_energistics.common.crafting.flower;
+package com.fish_dan_.data_energistics.common.crafting.trinity;
 
-import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCpuCoreProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
 
 import appeng.api.config.CpuSelectionMode;
 import org.junit.jupiter.api.Test;
@@ -12,20 +12,20 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public final class DigitalConstructFlowerCpuProfileTest {
+public final class TrinityDataCoreCpuProfileTest {
 
     @Test
     void rejectsNegativeContributionValues() {
-        assertThrows(IllegalArgumentException.class, () -> DigitalConstructFlowerCpuContribution.of(-1L, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> DigitalConstructFlowerCpuContribution.of(0L, -1, 0));
-        assertThrows(IllegalArgumentException.class, () -> DigitalConstructFlowerCpuContribution.of(0L, 0, -1));
+        assertThrows(IllegalArgumentException.class, () -> TrinityDataCoreCpuContribution.of(-1L, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> TrinityDataCoreCpuContribution.of(0L, -1, 0));
+        assertThrows(IllegalArgumentException.class, () -> TrinityDataCoreCpuContribution.of(0L, 0, -1));
     }
 
     @Test
     void aggregatesNamedContributionsDeterministically() {
-        DigitalConstructFlowerCpuProfile profile = DigitalConstructFlowerCpuProfile.fromContributions(Map.of(
-                "zeta", new DigitalConstructFlowerCpuContribution(9L, 2, 2, CpuSelectionMode.ANY),
-                "alpha", new DigitalConstructFlowerCpuContribution(6L, 1, 1, CpuSelectionMode.PLAYER_ONLY)));
+        TrinityDataCoreCpuProfile profile = TrinityDataCoreCpuProfile.fromContributions(Map.of(
+                "zeta", new TrinityDataCoreCpuContribution(9L, 2, 2, CpuSelectionMode.ANY),
+                "alpha", new TrinityDataCoreCpuContribution(6L, 1, 1, CpuSelectionMode.PLAYER_ONLY)));
 
         assertEquals(15L, profile.storageBytes());
         assertEquals(3, profile.coProcessors());
@@ -35,7 +35,7 @@ public final class DigitalConstructFlowerCpuProfileTest {
 
     @Test
     void partitionsCopyFullStorageAndCoProcessors() {
-        DigitalConstructFlowerCpuProfile profile = new DigitalConstructFlowerCpuProfile(
+        TrinityDataCoreCpuProfile profile = new TrinityDataCoreCpuProfile(
                 10L,
                 5,
                 3,
@@ -54,7 +54,7 @@ public final class DigitalConstructFlowerCpuProfileTest {
 
     @Test
     void partitionsCopyMaxStorageAndCoProcessorsWithoutDivision() {
-        DigitalConstructFlowerCpuProfile profile = new DigitalConstructFlowerCpuProfile(
+        TrinityDataCoreCpuProfile profile = new TrinityDataCoreCpuProfile(
                 Long.MAX_VALUE,
                 Integer.MAX_VALUE,
                 256,
@@ -73,37 +73,37 @@ public final class DigitalConstructFlowerCpuProfileTest {
     void rejectsProfilesThatWouldCreateZeroStoragePartitions() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new DigitalConstructFlowerCpuProfile(2L, 0, 3, CpuSelectionMode.ANY));
+                () -> new TrinityDataCoreCpuProfile(2L, 0, 3, CpuSelectionMode.ANY));
     }
 
     @Test
     void rejectsConflictingSelectionModeContributions() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> DigitalConstructFlowerCpuProfile.fromContributions(Map.of(
-                        "player", new DigitalConstructFlowerCpuContribution(4L, 0, 1, CpuSelectionMode.PLAYER_ONLY),
-                        "machine", new DigitalConstructFlowerCpuContribution(4L, 0, 1, CpuSelectionMode.MACHINE_ONLY))));
+                () -> TrinityDataCoreCpuProfile.fromContributions(Map.of(
+                        "player", new TrinityDataCoreCpuContribution(4L, 0, 1, CpuSelectionMode.PLAYER_ONLY),
+                        "machine", new TrinityDataCoreCpuContribution(4L, 0, 1, CpuSelectionMode.MACHINE_ONLY))));
     }
 
     @Test
     void exportedControllerLayerMapsFullCpuRepeatToMaxThreads() {
-        assertEquals(1, DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y);
+        assertEquals(1, TrinityDataCoreCpuCoreProfile.CONTROLLER_LOCAL_Y);
         Set<Integer> exportedRawLayers = new HashSet<>();
         for (int rawY = 4; rawY <= 16; rawY++) {
-            exportedRawLayers.add(rawY - DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y);
+            exportedRawLayers.add(rawY - TrinityDataCoreCpuCoreProfile.CONTROLLER_LOCAL_Y);
         }
 
-        int repeatCount = DigitalConstructFlowerCpuCoreProfile.actualRepeatCount(exportedRawLayers);
-        DigitalConstructFlowerCpuCoreProfile profile = new DigitalConstructFlowerCpuCoreProfile(
+        int repeatCount = TrinityDataCoreCpuCoreProfile.actualRepeatCount(exportedRawLayers);
+        TrinityDataCoreCpuCoreProfile profile = new TrinityDataCoreCpuCoreProfile(
                 Long.MAX_VALUE,
                 Integer.MAX_VALUE,
-                DigitalConstructFlowerCpuCoreProfile.FULL_CORE_SLOT_COUNT,
-                DigitalConstructFlowerCpuCoreProfile.FULL_CORE_SLOT_COUNT,
+                TrinityDataCoreCpuCoreProfile.FULL_CORE_SLOT_COUNT,
+                TrinityDataCoreCpuCoreProfile.FULL_CORE_SLOT_COUNT,
                 repeatCount,
-                DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT,
-                DigitalConstructFlowerCpuCoreProfile.MAX_THREADS);
+                TrinityDataCoreCpuCoreProfile.MAX_REPEAT_COUNT,
+                TrinityDataCoreCpuCoreProfile.MAX_THREADS);
 
-        assertEquals(DigitalConstructFlowerCpuCoreProfile.MAX_REPEAT_COUNT, repeatCount);
-        assertEquals(DigitalConstructFlowerCpuCoreProfile.MAX_THREADS, profile.threadCount());
+        assertEquals(TrinityDataCoreCpuCoreProfile.MAX_REPEAT_COUNT, repeatCount);
+        assertEquals(TrinityDataCoreCpuCoreProfile.MAX_THREADS, profile.threadCount());
     }
 }
