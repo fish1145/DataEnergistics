@@ -5,7 +5,6 @@ import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Server datapack reload listener that atomically applies JSON multiblock definitions.
@@ -21,8 +20,8 @@ public final class JsonMultiBlockReloadListener
     }
 
     public JsonMultiBlockReloadListener(JsonMultiBlockDefinitionRegistry registry, JsonMultiBlockDefinitionLoader loader) {
-        this.registry = Objects.requireNonNull(registry, "registry");
-        this.loader = Objects.requireNonNull(loader, "loader");
+        this.registry = registry;
+        this.loader = loader;
     }
 
     @Override

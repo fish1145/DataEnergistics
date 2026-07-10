@@ -5,8 +5,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 
-import java.util.Objects;
-
 /**
  * Resolves structure-facing directions for JSON multiblocks imported from WorldEdit schematics.
  */
@@ -21,10 +19,6 @@ public final class JsonMultiBlockFrontFacing {
                                            DirectionProperty facingProperty,
                                            BlockPos pos,
                                            String hostName) {
-        Objects.requireNonNull(state, "state");
-        Objects.requireNonNull(facingProperty, "facingProperty");
-        Objects.requireNonNull(pos, "pos");
-        Objects.requireNonNull(hostName, "hostName");
         if (!state.hasProperty(facingProperty)) {
             throw new IllegalStateException(hostName + " is missing facing property at " + pos);
         }

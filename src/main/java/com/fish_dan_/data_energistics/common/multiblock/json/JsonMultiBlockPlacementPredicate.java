@@ -18,7 +18,6 @@ import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicateTyp
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Wraps a structure predicate with explicit item candidates for automatic placement.
@@ -35,7 +34,6 @@ public record JsonMultiBlockPlacementPredicate(StructurePredicate delegate, List
     private static boolean registered;
 
     public JsonMultiBlockPlacementPredicate {
-        delegate = Objects.requireNonNull(delegate, "delegate");
         placementCandidates = placementCandidates.stream().map(ItemStack::copy).toList();
         if (placementCandidates.isEmpty()) {
             throw new IllegalArgumentException("Placement item predicate requires at least one item candidate");
@@ -51,9 +49,6 @@ public record JsonMultiBlockPlacementPredicate(StructurePredicate delegate, List
     }
 
     public static JsonMultiBlockPlacementPredicate fromJson(JsonObject object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Placement item predicate JSON cannot be null");
-        }
         StructurePredicate delegate = StructurePredicateTypes.decode(readRequiredObject(object, PREDICATE_PROPERTY));
         List<ItemStack> items = new ArrayList<>();
         for (String itemId : readItemIds(object)) {

@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import java.util.Objects;
-
 /**
  * Immutable capability metadata shared by trinity core blocks and tests that do not boot Minecraft registries.
  */
@@ -15,7 +13,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final int patternCapacity;
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
-        this.kind = Objects.requireNonNull(kind, "kind");
+        this.kind = kind;
         validateCoreData(this.kind, capacityValue, patternCapacity);
         this.capacityValue = capacityValue;
         this.patternCapacity = patternCapacity;

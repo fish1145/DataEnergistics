@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Defines one ECO-style vertical multiblock structure.
@@ -28,9 +27,6 @@ public record VerticalMultiBlockDefinition<S>(String id,
     public VerticalMultiBlockDefinition {
         id = requireId(id);
         structureName = requireStructureName(structureName);
-        bottomLayer = Objects.requireNonNull(bottomLayer, "bottomLayer");
-        middleLayer = Objects.requireNonNull(middleLayer, "middleLayer");
-        topLayer = Objects.requireNonNull(topLayer, "topLayer");
         controllerCandidates = List.copyOf(controllerCandidates);
         if (controllerCandidates.isEmpty()) {
             throw new IllegalStateException("Vertical multiblock " + id + " has no controller candidates");
@@ -105,14 +101,14 @@ public record VerticalMultiBlockDefinition<S>(String id,
     }
 
     private static String requireId(String id) {
-        if (id == null || id.isBlank()) {
+        if (id.isBlank()) {
             throw new IllegalArgumentException("Vertical multiblock id must not be blank");
         }
         return id;
     }
 
     private static String requireStructureName(String structureName) {
-        if (structureName == null || structureName.isBlank()) {
+        if (structureName.isBlank()) {
             throw new IllegalArgumentException("Vertical multiblock structure name must not be blank");
         }
         return structureName;

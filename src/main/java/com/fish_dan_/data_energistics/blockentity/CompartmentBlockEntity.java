@@ -32,7 +32,6 @@ import appeng.blockentity.AEBaseBlockEntity;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -158,9 +157,6 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
 
     @Override
     public void compartment$bindToHost(String structureName, CompartmentHost host) {
-        Objects.requireNonNull(structureName, "structureName");
-        Objects.requireNonNull(host, "host");
-
         if (this.compartmentHost == host && structureName.equals(this.structureName)) {
             if (!host.compartmentHost$getCompartments(structureName).contains(this)) {
                 CompartmentPart.super.compartment$bindToHost(structureName, host);
@@ -169,10 +165,6 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
         }
 
         if (this.compartmentHost != null) {
-            if (this.structureName == null) {
-                throw new IllegalStateException("Bound compartment at " + this.worldPosition +
-                        " has no structure name before rebinding");
-            }
             CompartmentPart.super.compartment$unbindFromHost(this.structureName, this.compartmentHost);
         }
 
@@ -187,7 +179,7 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
     @Override
     public void compartment$unbindFromHost(String structureName, CompartmentHost host) {
         CompartmentPart.super.compartment$unbindFromHost(structureName, host);
-        if (this.compartmentHost == host && (this.structureName == null || this.structureName.equals(structureName))) {
+        if (this.compartmentHost == host && this.structureName.equals(structureName)) {
             this.compartmentHost = null;
             this.structureName = null;
             invalidateCapabilities();
@@ -207,7 +199,7 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
     public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
                                                          String structureName) {
         CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName);
-        if (this.compartmentHost == controller && (this.structureName == null || this.structureName.equals(structureName))) {
+        if (this.compartmentHost == controller && this.structureName.equals(structureName)) {
             this.compartmentHost = null;
             this.structureName = null;
             invalidateCapabilities();

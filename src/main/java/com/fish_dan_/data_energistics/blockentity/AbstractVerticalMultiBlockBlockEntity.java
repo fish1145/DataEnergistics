@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -89,14 +88,12 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
 
     @Override
     public final void verticalMultiBlock$onStructureFormed(VerticalMultiBlockContext<?> context) {
-        Objects.requireNonNull(context, "context");
         verticalMultiBlock$onStructureFormed(context.structureName(), context);
     }
 
     @Override
     public final void verticalMultiBlock$onStructureFormed(String structureName, VerticalMultiBlockContext<?> context) {
         requireStructureName(structureName);
-        Objects.requireNonNull(context, "context");
         if (VerticalMultiBlockDefinition.DEFAULT_STRUCTURE_NAME.equals(structureName)) {
             this.defaultStructureController = true;
         }
@@ -112,7 +109,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     @Override
     public final void verticalMultiBlock$onStructureInvalid(String structureName, String reason) {
         requireStructureName(structureName);
-        Objects.requireNonNull(reason, "reason");
         if (VerticalMultiBlockDefinition.DEFAULT_STRUCTURE_NAME.equals(structureName)) {
             this.defaultStructureController = false;
         }
@@ -144,7 +140,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     @Override
     public final void verticalMultiBlock$setRuntimeState(String structureName, VerticalMultiBlockRuntimeState state) {
         requireStructureName(structureName);
-        Objects.requireNonNull(state, "state");
         if (state.formed()) {
             this.verticalMultiBlockStates.put(structureName, state);
         } else {
@@ -168,7 +163,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
 
     @Override
     public final void verticalMultiBlock$addedToController(VerticalMultiBlockController controller, VerticalMultiBlockContext<?> context) {
-        Objects.requireNonNull(context, "context");
         verticalMultiBlock$addedToController(controller, context.structureName(), context);
     }
 
@@ -176,9 +170,7 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     public final void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                            String structureName,
                                                            VerticalMultiBlockContext<?> context) {
-        Objects.requireNonNull(controller, "controller");
         requireStructureName(structureName);
-        Objects.requireNonNull(context, "context");
         if (VerticalMultiBlockDefinition.DEFAULT_STRUCTURE_NAME.equals(structureName)) {
             this.defaultStructureController = controller == this;
         }
@@ -198,7 +190,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
 
     @Override
     public final void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
-        Objects.requireNonNull(controller, "controller");
         requireStructureName(structureName);
         VerticalMultiBlockRuntimeState previousState = verticalMultiBlock$getRuntimeState(structureName);
         verticalMultiBlock$setRuntimeState(structureName, VerticalMultiBlockRuntimeState.unformed());
@@ -271,9 +262,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
                                                                  BlockPos origin,
                                                                  int radius,
                                                                  Predicate<BlockEntity> blockEntityFilter) {
-        Objects.requireNonNull(level, "level");
-        Objects.requireNonNull(origin, "origin");
-        Objects.requireNonNull(blockEntityFilter, "blockEntityFilter");
         if (radius < 0) {
             throw new IllegalArgumentException("Vertical multiblock recheck radius must not be negative");
         }
@@ -290,12 +278,10 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     }
 
     protected static VerticalMultiBlockPos toVerticalPos(BlockPos pos) {
-        Objects.requireNonNull(pos, "pos");
         return new VerticalMultiBlockPos(pos.getX(), pos.getY(), pos.getZ());
     }
 
     protected static BlockPos toBlockPos(VerticalMultiBlockPos pos) {
-        Objects.requireNonNull(pos, "pos");
         return new BlockPos(pos.x(), pos.y(), pos.z());
     }
 
@@ -321,7 +307,7 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     }
 
     private static void requireStructureName(String structureName) {
-        if (structureName == null || structureName.isBlank()) {
+        if (structureName.isBlank()) {
             throw new IllegalArgumentException("Vertical multiblock structure name must not be blank");
         }
     }

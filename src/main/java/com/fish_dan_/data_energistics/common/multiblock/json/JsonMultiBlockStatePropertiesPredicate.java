@@ -21,7 +21,6 @@ import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicateTyp
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -39,7 +38,7 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
     private static boolean registered;
 
     public JsonMultiBlockStatePropertiesPredicate {
-        statePatterns = List.copyOf(Objects.requireNonNull(statePatterns, "statePatterns"));
+        statePatterns = List.copyOf(statePatterns);
         if (statePatterns.isEmpty()) {
             throw new IllegalArgumentException("Block state properties predicate must contain at least one state");
         }
@@ -54,9 +53,6 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
     }
 
     public static JsonMultiBlockStatePropertiesPredicate fromJson(JsonObject object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Block state properties predicate JSON cannot be null");
-        }
         if (object.has(BLOCK_STATES_PROPERTY)) {
             JsonArray states = readRequiredArray(object, BLOCK_STATES_PROPERTY);
             List<StatePattern> statePatterns = new ArrayList<>();
@@ -185,8 +181,7 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
     public record StatePattern(Block block, List<StatePropertyValue<?>> properties) {
 
         public StatePattern {
-            block = Objects.requireNonNull(block, "block");
-            properties = List.copyOf(Objects.requireNonNull(properties, "properties"));
+            properties = List.copyOf(properties);
         }
 
         boolean matches(BlockState actualState) {
@@ -221,11 +216,6 @@ public record JsonMultiBlockStatePropertiesPredicate(List<StatePattern> statePat
     }
 
     public record StatePropertyValue<T extends Comparable<T>>(Property<T> property, T value) {
-
-        public StatePropertyValue {
-            property = Objects.requireNonNull(property, "property");
-            value = Objects.requireNonNull(value, "value");
-        }
 
         boolean matches(BlockState actualState) {
             return actualState.getValue(this.property).equals(this.value);

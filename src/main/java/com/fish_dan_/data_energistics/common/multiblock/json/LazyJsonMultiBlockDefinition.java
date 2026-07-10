@@ -7,7 +7,6 @@ import com.modularmc.mdl.api.multiblock.BlockPattern;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -35,8 +34,8 @@ public final class LazyJsonMultiBlockDefinition implements JsonMultiBlockDefinit
 
     private LazyJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
                                          Supplier<JsonMultiBlockDefinition> definitionFactory) {
-        this.key = Objects.requireNonNull(key, "key");
-        this.definitionFactory = Objects.requireNonNull(definitionFactory, "definitionFactory");
+        this.key = key;
+        this.definitionFactory = definitionFactory;
     }
 
     public static LazyJsonMultiBlockDefinition fromDefinition(JsonMultiBlockStructureKey key,
@@ -52,7 +51,7 @@ public final class LazyJsonMultiBlockDefinition implements JsonMultiBlockDefinit
                 key,
                 () -> new ResolvedJsonMultiBlockDefinition(
                         key,
-                        Objects.requireNonNull(patternFactory.get(), "pattern"),
+                        patternFactory.get(),
                         displayNameTranslationKey,
                         compartmentTypes,
                         Map.of()));
@@ -86,9 +85,7 @@ public final class LazyJsonMultiBlockDefinition implements JsonMultiBlockDefinit
     private synchronized JsonMultiBlockDefinition definition() {
         if (this.definition == null) {
             try {
-                JsonMultiBlockDefinition resolvedDefinition = Objects.requireNonNull(
-                        this.definitionFactory.get(),
-                        "definition");
+                JsonMultiBlockDefinition resolvedDefinition = this.definitionFactory.get();
                 if (!this.key.equals(resolvedDefinition.key())) {
                     throw new IllegalStateException("Built-in JSON multiblock definition key mismatch: expected " +
                             this.key + " but received " + resolvedDefinition.key());

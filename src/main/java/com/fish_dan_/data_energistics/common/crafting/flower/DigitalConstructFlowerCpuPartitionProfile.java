@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.flower;
 
 import appeng.api.config.CpuSelectionMode;
 
-import java.util.Objects;
-
 /**
  * Resolved resource slice for one virtual Digital Construct Flower crafting CPU.
  *
@@ -29,6 +27,5 @@ public record DigitalConstructFlowerCpuPartitionProfile(int index,
         if (coProcessors < 0) {
             throw new IllegalArgumentException("CPU partition co-processors must not be negative");
         }
-        selectionMode = Objects.requireNonNull(selectionMode, "selectionMode");
     }
 }

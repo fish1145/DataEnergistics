@@ -8,8 +8,6 @@ import com.modularmc.mdl.api.multiblock.MultiblockState;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 
-import java.util.Objects;
-
 /**
  * Runs a resolved JSON multiblock pattern against a controller view.
  */
@@ -60,11 +58,6 @@ public final class JsonMultiBlockPatternMatcher {
                                                   Direction frontFacing,
                                                   boolean flipped,
                                                   String structureName) {
-        Objects.requireNonNull(pattern, "pattern");
-        Objects.requireNonNull(world, "world");
-        Objects.requireNonNull(controllerPos, "controllerPos");
-        Objects.requireNonNull(frontFacing, "frontFacing");
-        Objects.requireNonNull(structureName, "structureName");
         return matchOne(pattern, world, controllerPos, frontFacing, flipped, structureName);
     }
 

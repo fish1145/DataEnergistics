@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.multiblock.vertical;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * One fixed horizontal layer in a vertical multiblock definition.
@@ -38,14 +37,14 @@ public record VerticalMultiBlockLayer<S>(List<List<VerticalMultiBlockPredicate<S
     }
 
     private static <S> List<List<VerticalMultiBlockPredicate<S>>> copyRows(List<List<VerticalMultiBlockPredicate<S>>> inputRows) {
-        if (inputRows == null || inputRows.isEmpty()) {
+        if (inputRows.isEmpty()) {
             throw new IllegalArgumentException("Vertical multiblock layer must have at least one row");
         }
 
         int width = -1;
         ArrayList<List<VerticalMultiBlockPredicate<S>>> copied = new ArrayList<>(inputRows.size());
         for (List<VerticalMultiBlockPredicate<S>> inputRow : inputRows) {
-            if (inputRow == null || inputRow.isEmpty()) {
+            if (inputRow.isEmpty()) {
                 throw new IllegalArgumentException("Vertical multiblock layer rows must not be empty");
             }
             if (width < 0) {
@@ -56,7 +55,7 @@ public record VerticalMultiBlockLayer<S>(List<List<VerticalMultiBlockPredicate<S
 
             ArrayList<VerticalMultiBlockPredicate<S>> row = new ArrayList<>(inputRow.size());
             for (VerticalMultiBlockPredicate<S> predicate : inputRow) {
-                row.add(Objects.requireNonNull(predicate, "predicate"));
+                row.add(predicate);
             }
             copied.add(List.copyOf(row));
         }

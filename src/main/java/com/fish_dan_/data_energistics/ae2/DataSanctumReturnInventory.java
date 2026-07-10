@@ -78,7 +78,6 @@ public class DataSanctumReturnInventory extends ConfigInventory {
 
     @Override
     public long insert(int slot, AEKey what, long amount, Actionable mode) {
-        Objects.requireNonNull(what, "what");
         if (amount < 0) {
             throw new IllegalArgumentException("amount >= 0");
         }

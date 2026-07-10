@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.flower;
 
 import appeng.api.config.CpuSelectionMode;
 
-import java.util.Objects;
-
 /**
  * Contribution from one formed Digital Construct Flower structure section to the host CPU profile.
  *
@@ -28,7 +26,6 @@ public record DigitalConstructFlowerCpuContribution(long storageBytes,
         if (partitionCount < 0) {
             throw new IllegalArgumentException("CPU contribution partition count must not be negative");
         }
-        selectionMode = Objects.requireNonNull(selectionMode, "selectionMode");
     }
 
     /**

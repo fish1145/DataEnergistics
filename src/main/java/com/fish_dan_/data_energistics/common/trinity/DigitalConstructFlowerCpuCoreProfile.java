@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlo
 
 import java.math.BigInteger;
 import java.util.Collection;
-import java.util.Objects;
 
 /**
  * CPU capability resolved from trinity merged storage core blocks in formed child structures.
@@ -77,7 +76,6 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
      * Counts the continuous matched repeated CPU layers starting at the first repeat layer.
      */
     public static int actualRepeatCount(Collection<Integer> localLayers) {
-        Objects.requireNonNull(localLayers, "localLayers");
         int repeatCount = 0;
         for (int localY = REPEAT_START_Y; localY <= REPEAT_END_Y; localY++) {
             if (!localLayers.contains(localY)) {
@@ -92,7 +90,6 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
      * Converts a merged storage core's M/G tier value into AE2 crafting storage bytes.
      */
     public static long craftingStorageBytes(TrinityCoreComponent component) {
-        Objects.requireNonNull(component, "component");
         if (component.kind() != TrinityCoreKind.PARALLEL_CPU) {
             throw new IllegalArgumentException("Only merged storage CPU cores contribute crafting storage bytes");
         }
@@ -161,7 +158,6 @@ public record DigitalConstructFlowerCpuCoreProfile(long storageBytes,
          * Adds one merged storage core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            Objects.requireNonNull(component, "component");
             if (component.kind() != TrinityCoreKind.PARALLEL_CPU) {
                 return;
             }

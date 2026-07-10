@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -65,7 +64,6 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
 
     @Override
     public Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> load(ResourceManager resourceManager) {
-        Objects.requireNonNull(resourceManager, "resourceManager");
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = new LinkedHashMap<>();
         Map<JsonMultiBlockStructureKey, ResourceLocation> sources = new LinkedHashMap<>();
         for (Map.Entry<ResourceLocation, Resource> entry : FILE_TO_ID.listMatchingResources(resourceManager).entrySet()) {
@@ -87,12 +85,11 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
 
     @Override
     public Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> load(Map<ResourceLocation, String> resources) {
-        Objects.requireNonNull(resources, "resources");
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = new LinkedHashMap<>();
         Map<JsonMultiBlockStructureKey, ResourceLocation> sources = new LinkedHashMap<>();
         for (Map.Entry<ResourceLocation, String> entry : resources.entrySet()) {
-            ResourceLocation resourceId = Objects.requireNonNull(entry.getKey(), "resourceId");
-            String json = Objects.requireNonNull(entry.getValue(), "json");
+            ResourceLocation resourceId = entry.getKey();
+            String json = entry.getValue();
             try (Reader reader = new StringReader(json)) {
                 putDefinition(definitions, sources, parse(resourceId, reader), resourceId);
             } catch (RuntimeException exception) {
@@ -366,7 +363,6 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
     }
 
     private static String readSource(Reader reader, ResourceLocation resourceId) {
-        Objects.requireNonNull(reader, "reader");
         try {
             StringWriter writer = new StringWriter();
             reader.transferTo(writer);

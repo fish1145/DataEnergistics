@@ -11,7 +11,6 @@ import com.modularmc.mdl.api.multiblock.util.RelativeDirection;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,7 +41,7 @@ public final class JsonMultiBlockMetadata {
         this.displayNameTranslationKey = displayNameTranslationKey;
         this.compartmentTypes = Map.copyOf(compartmentTypes);
         this.replaceableCompartmentTypes = copyReplaceableCompartmentTypes(replaceableCompartmentTypes);
-        this.structureDir = Objects.requireNonNull(structureDir, "structureDir");
+        this.structureDir = structureDir;
     }
 
     public static JsonMultiBlockMetadata read(JsonObject root, ResourceLocation resourceId) {

@@ -5,7 +5,6 @@ import appeng.api.config.CpuSelectionMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -37,7 +36,6 @@ public record DigitalConstructFlowerCpuProfile(long storageBytes,
         if (partitionCount == 0 && storageBytes > 0) {
             throw new IllegalArgumentException("CPU profile with storage bytes must expose at least one partition");
         }
-        selectionMode = Objects.requireNonNull(selectionMode, "selectionMode");
     }
 
     /**
@@ -48,7 +46,6 @@ public record DigitalConstructFlowerCpuProfile(long storageBytes,
      */
     public static DigitalConstructFlowerCpuProfile fromContributions(
                                                                      Map<String, DigitalConstructFlowerCpuContribution> contributions) {
-        Objects.requireNonNull(contributions, "contributions");
         Map<String, DigitalConstructFlowerCpuContribution> sorted = new TreeMap<>(contributions);
 
         long storageBytes = 0L;
@@ -57,12 +54,10 @@ public record DigitalConstructFlowerCpuProfile(long storageBytes,
         CpuSelectionMode selectionMode = CpuSelectionMode.ANY;
         for (Map.Entry<String, DigitalConstructFlowerCpuContribution> entry : sorted.entrySet()) {
             String structureName = entry.getKey();
-            if (structureName == null || structureName.isBlank()) {
+            if (structureName.isBlank()) {
                 throw new IllegalArgumentException("CPU contribution structure name must not be blank");
             }
-            DigitalConstructFlowerCpuContribution contribution = Objects.requireNonNull(
-                    entry.getValue(),
-                    "CPU contribution must not be null: " + structureName);
+            DigitalConstructFlowerCpuContribution contribution = entry.getValue();
             storageBytes = Math.addExact(storageBytes, contribution.storageBytes());
             coProcessors = Math.addExact(coProcessors, contribution.coProcessors());
             partitionCount = Math.addExact(partitionCount, contribution.partitionCount());

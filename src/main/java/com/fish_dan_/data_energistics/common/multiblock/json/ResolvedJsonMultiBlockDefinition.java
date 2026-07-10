@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,10 +20,7 @@ public record ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
         implements JsonMultiBlockDefinition {
 
     public ResolvedJsonMultiBlockDefinition {
-        key = Objects.requireNonNull(key, "key");
-        pattern = Objects.requireNonNull(pattern, "pattern");
-        displayNameTranslationKey = Objects.requireNonNull(displayNameTranslationKey, "displayNameTranslationKey");
-        compartmentTypes = Map.copyOf(Objects.requireNonNull(compartmentTypes, "compartmentTypes"));
+        compartmentTypes = Map.copyOf(compartmentTypes);
         replaceableCompartmentTypes = copyReplaceableCompartmentTypes(replaceableCompartmentTypes);
     }
 
@@ -40,7 +36,6 @@ public record ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
 
     private static Map<String, Set<CompartmentType>> copyReplaceableCompartmentTypes(
                                                                                      Map<String, Set<CompartmentType>> source) {
-        Objects.requireNonNull(source, "replaceableCompartmentTypes");
         return source.entrySet()
                 .stream()
                 .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, entry -> Set.copyOf(entry.getValue())));

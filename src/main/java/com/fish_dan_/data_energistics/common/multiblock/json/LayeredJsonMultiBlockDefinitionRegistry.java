@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -26,7 +25,6 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
 
     @Override
     public synchronized void registerBuiltin(JsonMultiBlockDefinition definition) {
-        Objects.requireNonNull(definition, "definition");
         JsonMultiBlockDefinition existing = this.builtins.putIfAbsent(definition.key(), definition);
         if (existing != null) {
             String message = "Duplicate built-in JSON multiblock definition: " + definition.key();
@@ -43,11 +41,9 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
 
     @Override
     public synchronized void applyJsonDefinitions(Collection<JsonMultiBlockDefinition> definitions) {
-        Objects.requireNonNull(definitions, "definitions");
         Set<JsonMultiBlockStructureKey> jsonKeys = new LinkedHashSet<>();
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> next = new LinkedHashMap<>(this.builtins);
         for (JsonMultiBlockDefinition definition : definitions) {
-            Objects.requireNonNull(definition, "definition");
             if (!jsonKeys.add(definition.key())) {
                 String message = "Duplicate JSON multiblock definition in reload apply: " + definition.key();
                 LOGGER.error(message);
@@ -67,7 +63,7 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
 
     @Override
     public synchronized Optional<JsonMultiBlockDefinition> get(JsonMultiBlockStructureKey key) {
-        return Optional.ofNullable(this.active.get(Objects.requireNonNull(key, "key")));
+        return Optional.ofNullable(this.active.get(key));
     }
 
     @Override

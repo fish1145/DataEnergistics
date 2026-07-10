@@ -17,7 +17,6 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
 
 @Mod(Data_Energistics.MODID)
 public class Data_Energistics {
@@ -33,7 +32,7 @@ public class Data_Energistics {
 
     public static final Logger LOGGER = LogManager.getLogger(MODNAME);
 
-    public Data_Energistics(IEventBus modEventBus, @Nullable ModContainer modContainer) {
+    public Data_Energistics(IEventBus modEventBus, ModContainer modContainer) {
         CommonBootstrap.init(modEventBus, modContainer);
         String[] selectedLogPair = STARTUP_SHUTDOWN_LOG_PAIRS[RandomSource.create().nextInt(STARTUP_SHUTDOWN_LOG_PAIRS.length)];
         LOGGER.info(selectedLogPair[0]);

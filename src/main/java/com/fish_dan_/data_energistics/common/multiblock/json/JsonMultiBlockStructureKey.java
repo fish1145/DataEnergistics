@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.Objects;
-
 /**
  * Names one JSON-backed multiblock structure by GTM-style machine id and structure name.
  *
@@ -15,7 +13,6 @@ public record JsonMultiBlockStructureKey(ResourceLocation machineId, String stru
     public static final String DEFAULT_STRUCTURE_NAME = "main";
 
     public JsonMultiBlockStructureKey {
-        machineId = Objects.requireNonNull(machineId, "machineId");
         structureName = requireStructureName(structureName);
     }
 
@@ -32,7 +29,7 @@ public record JsonMultiBlockStructureKey(ResourceLocation machineId, String stru
     }
 
     private static String requireStructureName(String structureName) {
-        if (structureName == null || structureName.isBlank()) {
+        if (structureName.isBlank()) {
             throw new IllegalArgumentException("JSON multiblock structureName must not be blank");
         }
         if (structureName.indexOf('/') >= 0 || structureName.indexOf('\\') >= 0) {

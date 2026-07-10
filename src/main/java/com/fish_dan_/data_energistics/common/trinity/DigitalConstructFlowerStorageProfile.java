@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import java.math.BigInteger;
-import java.util.Objects;
 
 /**
  * Storage capability resolved from trinity storage core blocks in a formed main structure.
@@ -19,7 +18,6 @@ public record DigitalConstructFlowerStorageProfile(BigInteger totalCapacity,
     private static final BigInteger TYPE_VALUE_PER_M = BigInteger.valueOf(2L);
 
     public DigitalConstructFlowerStorageProfile {
-        Objects.requireNonNull(totalCapacity, "totalCapacity");
         if (totalCapacity.signum() < 0) {
             throw new IllegalArgumentException("Storage total capacity must not be negative");
         }
@@ -51,7 +49,6 @@ public record DigitalConstructFlowerStorageProfile(BigInteger totalCapacity,
      * Converts a storage core's M/G tier value into total stored amount capacity.
      */
     public static BigInteger amountCapacity(TrinityCoreComponent component) {
-        Objects.requireNonNull(component, "component");
         if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
             throw new IllegalArgumentException("Only storage type cores contribute storage amount capacity");
         }
@@ -86,7 +83,6 @@ public record DigitalConstructFlowerStorageProfile(BigInteger totalCapacity,
          * Adds one storage core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            Objects.requireNonNull(component, "component");
             if (component.kind() != TrinityCoreKind.STORAGE_TYPES) {
                 return;
             }

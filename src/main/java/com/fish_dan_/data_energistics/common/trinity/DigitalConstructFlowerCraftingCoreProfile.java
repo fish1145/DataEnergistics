@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import java.util.Objects;
-
 /**
  * Pattern recognition capability resolved from trinity pattern processing cores in the crafting child structure.
  */
@@ -52,7 +50,6 @@ public record DigitalConstructFlowerCraftingCoreProfile(int patternCoreCount, in
          * Adds one pattern processing core contribution to this profile.
          */
         public void add(TrinityCoreComponent component) {
-            Objects.requireNonNull(component, "component");
             if (component.kind() != TrinityCoreKind.PATTERN_PROCESSING) {
                 return;
             }

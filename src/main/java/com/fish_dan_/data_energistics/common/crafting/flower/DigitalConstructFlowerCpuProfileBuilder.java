@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.flower;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -22,7 +21,7 @@ public final class DigitalConstructFlowerCpuProfileBuilder {
      * @param contribution  contribution data
      */
     public void put(String structureName, DigitalConstructFlowerCpuContribution contribution) {
-        this.contributions.put(requireStructureName(structureName), Objects.requireNonNull(contribution, "contribution"));
+        this.contributions.put(requireStructureName(structureName), contribution);
     }
 
     /**
@@ -56,7 +55,7 @@ public final class DigitalConstructFlowerCpuProfileBuilder {
     }
 
     private static String requireStructureName(String structureName) {
-        if (structureName == null || structureName.isBlank()) {
+        if (structureName.isBlank()) {
             throw new IllegalArgumentException("CPU contribution structure name must not be blank");
         }
         return structureName;

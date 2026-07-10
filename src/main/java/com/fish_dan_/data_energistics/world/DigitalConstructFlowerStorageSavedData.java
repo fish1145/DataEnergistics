@@ -20,7 +20,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -43,7 +42,6 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     private final Object2ObjectOpenHashMap<UUID, Object2ObjectOpenHashMap<AEKey, BigInteger>> hosts = new Object2ObjectOpenHashMap<>();
 
     public static DigitalConstructFlowerStorageSavedData get(MinecraftServer server) {
-        Objects.requireNonNull(server, "server");
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
     }
 
@@ -84,10 +82,6 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
                        long amount,
                        Actionable mode,
                        DigitalConstructFlowerStorageProfile profile) {
-        Objects.requireNonNull(hostId, "hostId");
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(mode, "mode");
-        Objects.requireNonNull(profile, "profile");
         if (amount <= 0L) {
             return 0L;
         }
@@ -107,9 +101,6 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     }
 
     public long extract(UUID hostId, AEKey key, long amount, Actionable mode) {
-        Objects.requireNonNull(hostId, "hostId");
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(mode, "mode");
         if (amount <= 0L) {
             return 0L;
         }
@@ -140,14 +131,11 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     }
 
     public BigInteger amount(UUID hostId, AEKey key) {
-        Objects.requireNonNull(hostId, "hostId");
-        Objects.requireNonNull(key, "key");
         Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
         return entries == null ? BigInteger.ZERO : entries.getOrDefault(key, BigInteger.ZERO);
     }
 
     public StorageSummary summary(UUID hostId) {
-        Objects.requireNonNull(hostId, "hostId");
         Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
         if (entries == null || entries.isEmpty()) {
             return StorageSummary.EMPTY;
@@ -215,8 +203,6 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     }
 
     public void addAvailableStacks(UUID hostId, KeyCounter out) {
-        Objects.requireNonNull(hostId, "hostId");
-        Objects.requireNonNull(out, "out");
         Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
         if (entries == null || entries.isEmpty()) {
             return;

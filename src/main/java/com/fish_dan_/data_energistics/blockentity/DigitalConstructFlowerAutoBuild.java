@@ -28,8 +28,6 @@ import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
-
 final class DigitalConstructFlowerAutoBuild {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
@@ -271,7 +269,7 @@ final class DigitalConstructFlowerAutoBuild {
         private final int palmLength;
 
         private PatternCoordinates(BlockPattern pattern) {
-            this.pattern = Objects.requireNonNull(pattern, "pattern");
+            this.pattern = pattern;
             this.minX = pattern.getMinX();
             this.minY = pattern.getMinY();
             this.minZ = pattern.getMinZ();

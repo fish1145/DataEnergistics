@@ -15,8 +15,6 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.me.helpers.MachineSource;
 
-import java.util.Objects;
-
 /**
  * Persistent state and AE pull logic for ME input compartments.
  */
@@ -90,7 +88,6 @@ public class MeCompositeInputWarehouseBlockEntity extends AeCompartmentBlockEnti
     }
 
     void pullMarkedKeysFromNetwork(MEStorage networkStorage) {
-        Objects.requireNonNull(networkStorage, "networkStorage");
         boolean changed = false;
         for (int slot = 0; slot < Math.min(this.markerInventory.size(), unlockedSlotCount()); slot++) {
             AEKey marker = CompartmentKeyNormalizer.normalize(this.markerInventory.getKey(slot));

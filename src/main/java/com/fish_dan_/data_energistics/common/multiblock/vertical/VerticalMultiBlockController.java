@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.multiblock.vertical;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -113,7 +112,6 @@ public interface VerticalMultiBlockController {
      */
     default void verticalMultiBlock$setRuntimeState(String structureName, VerticalMultiBlockRuntimeState state) {
         structureName = requireStructureName(structureName);
-        Objects.requireNonNull(state, "state");
         if (state.formed()) {
             verticalMultiBlock$setRuntimeState(state);
             return;
@@ -203,7 +201,7 @@ public interface VerticalMultiBlockController {
     }
 
     private static String requireStructureName(String structureName) {
-        if (structureName == null || structureName.isBlank()) {
+        if (structureName.isBlank()) {
             throw new IllegalArgumentException("Vertical multiblock structure name must not be blank");
         }
         return structureName;

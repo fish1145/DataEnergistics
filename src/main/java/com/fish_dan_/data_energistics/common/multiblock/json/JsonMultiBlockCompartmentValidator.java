@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -20,8 +19,7 @@ public final class JsonMultiBlockCompartmentValidator {
      * Returns the compartment type declared for a pattern symbol.
      */
     public static Optional<CompartmentType> declaredType(JsonMultiBlockDefinition definition, String symbol) {
-        Objects.requireNonNull(definition, "definition");
-        if (symbol == null || symbol.isBlank()) {
+        if (symbol.isBlank()) {
             return Optional.empty();
         }
         return Optional.ofNullable(definition.compartmentTypes().get(symbol));
@@ -31,8 +29,7 @@ public final class JsonMultiBlockCompartmentValidator {
      * Returns compartment roles that may replace a normal block symbol.
      */
     public static Set<CompartmentType> replaceableTypes(JsonMultiBlockDefinition definition, String symbol) {
-        Objects.requireNonNull(definition, "definition");
-        if (symbol == null || symbol.isBlank()) {
+        if (symbol.isBlank()) {
             return Set.of();
         }
         return definition.replaceableCompartmentTypes().getOrDefault(symbol, Set.of());
@@ -49,12 +46,12 @@ public final class JsonMultiBlockCompartmentValidator {
         Optional<CompartmentType> declared = declaredType(definition, symbol);
         if (declared.isEmpty()) {
             Set<CompartmentType> replaceable = replaceableTypes(definition, symbol);
-            if (replaceable.isEmpty() || state == null || !(state.getBlock() instanceof CompartmentBlock block)) {
+            if (replaceable.isEmpty() || !(state.getBlock() instanceof CompartmentBlock block)) {
                 return true;
             }
             return replaceable.contains(block.compartmentType());
         }
-        if (state == null || !(state.getBlock() instanceof CompartmentBlock block)) {
+        if (!(state.getBlock() instanceof CompartmentBlock block)) {
             return false;
         }
         return block.compartmentType() == declared.orElseThrow();
