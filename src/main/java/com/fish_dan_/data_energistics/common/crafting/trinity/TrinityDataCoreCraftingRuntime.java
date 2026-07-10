@@ -308,6 +308,11 @@ public final class TrinityDataCoreCraftingRuntime {
         restorePendingPartitionLogic(registries);
     }
 
+    /** Discards all persisted CPU contributions and jobs after the owning host rejects its root NBT schema. */
+    public void discardPersistedState() {
+        clearPersistedState();
+    }
+
     private void clearPersistedState() {
         this.externalContributions.clear();
         this.partitions.clear();
@@ -406,7 +411,7 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private static String requireStructureName(String structureName) {
-        if (structureName == null || structureName.isBlank()) {
+        if (structureName.isBlank()) {
             throw new IllegalArgumentException("Trinity Data Core CPU contribution structure name must not be blank");
         }
         return structureName;

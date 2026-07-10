@@ -14,7 +14,7 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.world.DigitalConstructFlowerStorageSavedData;
+import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -437,7 +437,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             if (!canUseStorage(flower) || !(level instanceof ServerLevel serverLevel)) {
                 return 0L;
             }
-            long inserted = DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer())
+            long inserted = TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                     .insert(flower.getStorageId(), what, amount, mode, flower.storageProfile());
             if (inserted > 0L && mode == Actionable.MODULATE) {
                 requestStorageUpdate();
@@ -452,7 +452,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             if (!canUseStorage(flower) || !(level instanceof ServerLevel serverLevel)) {
                 return 0L;
             }
-            long extracted = DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer())
+            long extracted = TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                     .extract(flower.getStorageId(), what, amount, mode);
             if (extracted > 0L && mode == Actionable.MODULATE) {
                 requestStorageUpdate();
@@ -466,7 +466,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             if (!canUseStorage(flower) || !(level instanceof ServerLevel serverLevel)) {
                 return;
             }
-            DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer()).addAvailableStacks(flower.getStorageId(), out);
+            TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).addAvailableStacks(flower.getStorageId(), out);
         }
 
         @Override

@@ -25,6 +25,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -56,6 +57,7 @@ import appeng.menu.slot.IOptionalSlot;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -1092,7 +1094,7 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_hides_compartment_views_until_formed")
+    @TestHolder("trinity_data_core_hides_compartment_views_until_formed")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void digitalConstructFlowerHidesCompartmentViewsUntilFormed(GameTestHelper helper) {
@@ -1166,7 +1168,7 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_exposes_main_compartment_views")
+    @TestHolder("trinity_data_core_exposes_main_compartment_views")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void digitalConstructFlowerExposesMainCompartmentViews(GameTestHelper helper) {
@@ -1244,7 +1246,7 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_requires_crafting_child_for_pattern_buffers")
+    @TestHolder("trinity_data_core_requires_crafting_child_for_pattern_buffers")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void digitalConstructFlowerRequiresCraftingChildForPatternBuffers(GameTestHelper helper) {
@@ -1276,7 +1278,7 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_limits_pattern_buffers_by_crafting_capacity")
+    @TestHolder("trinity_data_core_limits_pattern_buffers_by_crafting_capacity")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void digitalConstructFlowerLimitsPatternBuffersByCraftingCapacity(GameTestHelper helper) {
@@ -1532,7 +1534,7 @@ public final class CompartmentInventoryTest {
 
     private static DigitalConstructFlowerBlockEntity formedDigitalConstructFlower() {
         DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag = currentTrinityHostTag();
         tag.putBoolean("formed", true);
         flower.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
         return flower;
@@ -1540,7 +1542,7 @@ public final class CompartmentInventoryTest {
 
     private static DigitalConstructFlowerBlockEntity formedCraftingDigitalConstructFlower(int patternCapacity) {
         DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag = currentTrinityHostTag();
         tag.putBoolean("formed", true);
         tag.putBoolean("crafting_structure_formed", true);
         tag.putInt("crafting_structure_matched_block_count", 1);
@@ -1548,6 +1550,19 @@ public final class CompartmentInventoryTest {
         tag.putInt("crafting_pattern_capacity", patternCapacity);
         flower.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
         return flower;
+    }
+
+    private static CompoundTag currentTrinityHostTag() {
+        CompoundTag tag = new CompoundTag();
+        tag.putInt("schema_version", 1);
+        tag.putUUID("trinity_data_core_storage_id", UUID.randomUUID());
+        tag.putUUID("trinity_data_core_host_id", UUID.randomUUID());
+        CompoundTag runtimeTag = new CompoundTag();
+        runtimeTag.putInt("schema_version", 1);
+        runtimeTag.put("contributions", new ListTag());
+        runtimeTag.put("partitions", new ListTag());
+        tag.put("trinity_data_core_crafting_runtime", runtimeTag);
+        return tag;
     }
 
     private static void installCapacityCards(CompositeWarehouseBlockEntity compartment) {

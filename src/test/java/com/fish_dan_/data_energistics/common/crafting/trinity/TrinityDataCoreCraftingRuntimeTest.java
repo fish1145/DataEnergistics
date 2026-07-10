@@ -49,9 +49,11 @@ import java.util.stream.Stream;
 @PrefixGameTestTemplate(false)
 public final class TrinityDataCoreCraftingRuntimeTest {
 
+    private static final int SCHEMA_VERSION = 1;
+
     private TrinityDataCoreCraftingRuntimeTest() {}
 
-    @TestHolder("digital_construct_flower_cpu_partitions_require_formed_structure")
+    @TestHolder("trinity_data_core_cpu_partitions_require_formed_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuPartitionsRequireFormedStructure(GameTestHelper helper) {
@@ -69,7 +71,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_cpu_contribution_rebuilds_partitions")
+    @TestHolder("trinity_data_core_cpu_contribution_rebuilds_partitions")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuContributionRebuildsPartitions(GameTestHelper helper) {
@@ -90,7 +92,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_cpu_runtime_pauses_and_resumes_existing_job")
+    @TestHolder("trinity_data_core_cpu_runtime_pauses_and_resumes_existing_job")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuRuntimePausesAndResumesExistingJob(GameTestHelper helper) {
@@ -114,7 +116,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_cpu_runtime_retains_job_across_structure_pause")
+    @TestHolder("trinity_data_core_cpu_runtime_retains_job_across_structure_pause")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuRuntimeRetainsJobAcrossStructurePause(GameTestHelper helper) {
@@ -144,7 +146,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_inactive_cpu_job_round_trips_through_nbt")
+    @TestHolder("trinity_data_core_inactive_cpu_job_round_trips_through_nbt")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void inactiveCpuJobRoundTripsThroughNbt(GameTestHelper helper) {
@@ -174,7 +176,37 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_main_structure_failure_retains_cpu_child_state")
+    @TestHolder("trinity_data_core_host_root_nbt_round_trips_active_job")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void hostRootNbtRoundTripsActiveJob(GameTestHelper helper) {
+        BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        UUID storageId = fixture.flower().getStorageId();
+        UUID hostId = fixture.flower().getHostId();
+        helper.assertTrue(fixture.runtime().hasBusyJobs(), "Source host should own an active CPU job before saving");
+
+        CompoundTag saved = new CompoundTag();
+        fixture.flower().saveAdditional(saved, helper.getLevel().registryAccess());
+
+        TestFlower restored = new TestFlower(helper.absolutePos(new BlockPos(3, 1, 1)));
+        restored.setLevel(helper.getLevel());
+        restored.loadTag(saved, helper.getLevel().registryAccess());
+
+        helper.assertValueEqual(restored.getStorageId(), storageId, "Root NBT should preserve the storage UUID");
+        helper.assertValueEqual(restored.getHostId(), hostId, "Root NBT should preserve the routing UUID");
+        helper.assertTrue(restored.isStructureFormed(), "Root NBT should preserve the main structure state");
+        helper.assertTrue(restored.isCpuStructureFormed(), "Root NBT should preserve the CPU structure state");
+        helper.assertTrue(restored.isCraftingStructureFormed(), "Root NBT should preserve the crafting structure state");
+        helper.assertValueEqual(restored.getCpuPartitions().size(), 1, "Root NBT should restore the active CPU partition");
+        helper.assertTrue(restored.getCraftingRuntime().hasBusyJobs(), "Root NBT should restore the active CPU job");
+        helper.assertTrue(restored.getCpuPartitions().getFirst().isBusy(), "Restored CPU partition should own the active job");
+
+        fixture.runtime().cancelAllJobs();
+        restored.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_main_structure_failure_retains_cpu_child_state")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void mainStructureFailureRetainsCpuChildState(GameTestHelper helper) {
@@ -185,9 +217,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             helper.fail("Expected a placed Trinity Data Core block entity", flowerPos);
             return;
         }
-        flower.loadTag(formedTag(), helper.getLevel().registryAccess());
-        flower.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 1, 1));
         flower.loadTag(formedCraftingProfileTag(), helper.getLevel().registryAccess());
+        flower.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 1, 1));
 
         helper.assertValueEqual(flower.getCpuPartitions().size(), 1, "CPU child contribution should be active before recheck");
         helper.assertTrue(flower.isCraftingStructureFormed(), "Crafting child structure should be active before recheck");
@@ -223,7 +254,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_crafting_profile_round_trips_through_nbt")
+    @TestHolder("trinity_data_core_crafting_profile_round_trips_through_nbt")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void craftingProfileRoundTripsThroughNbt(GameTestHelper helper) {
@@ -265,13 +296,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_cpu_runtime_defers_partition_logic_until_level_exists")
+    @TestHolder("trinity_data_core_cpu_runtime_defers_partition_logic_until_level_exists")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuRuntimeDefersPartitionLogicUntilLevelExists(GameTestHelper helper) {
         DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(true);
 
         CompoundTag runtimeTag = new CompoundTag();
+        runtimeTag.putInt("schema_version", SCHEMA_VERSION);
         runtimeTag.put("contributions", new ListTag());
         ListTag partitionsTag = new ListTag();
         CompoundTag partitionTag = new CompoundTag();
@@ -293,6 +325,43 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 flower.getCpuPartitions().size(),
                 0,
                 "Pending partition logic should not create CPU partitions without a child contribution");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_host_rejects_legacy_and_unsupported_schema")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void hostRejectsLegacyAndUnsupportedSchema(GameTestHelper helper) {
+        BusyRuntimeFixture legacyFixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        UUID legacyStorageId = legacyFixture.flower().getStorageId();
+        UUID legacyHostId = legacyFixture.flower().getHostId();
+        CompoundTag legacyTag = formedTrinityTag();
+        legacyTag.remove("schema_version");
+        legacyTag.remove("trinity_data_core_storage_id");
+        legacyTag.remove("trinity_data_core_host_id");
+        legacyTag.putString("storage_id", legacyStorageId.toString());
+        legacyTag.putUUID("host_id", legacyHostId);
+
+        legacyFixture.flower().loadTag(legacyTag, helper.getLevel().registryAccess());
+
+        assertRejectedHostState(helper, legacyFixture, legacyStorageId, legacyHostId, "Legacy root NBT");
+
+        BusyRuntimeFixture unsupportedFixture = busyRuntime(helper, new BlockPos(3, 1, 1));
+        UUID unsupportedStorageId = unsupportedFixture.flower().getStorageId();
+        UUID unsupportedHostId = unsupportedFixture.flower().getHostId();
+        CompoundTag unsupportedTag = formedTrinityTag();
+        unsupportedTag.putInt("schema_version", SCHEMA_VERSION + 1);
+        unsupportedTag.putUUID("trinity_data_core_storage_id", unsupportedStorageId);
+        unsupportedTag.putUUID("trinity_data_core_host_id", unsupportedHostId);
+
+        unsupportedFixture.flower().loadTag(unsupportedTag, helper.getLevel().registryAccess());
+
+        assertRejectedHostState(
+                helper,
+                unsupportedFixture,
+                unsupportedStorageId,
+                unsupportedHostId,
+                "Unsupported root NBT");
         helper.succeed();
     }
 
@@ -338,8 +407,21 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     }
 
     private static CompoundTag formedTag() {
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag = currentHostTag();
         tag.putBoolean("formed", true);
+        return tag;
+    }
+
+    private static CompoundTag currentHostTag() {
+        CompoundTag tag = new CompoundTag();
+        tag.putInt("schema_version", SCHEMA_VERSION);
+        tag.putUUID("trinity_data_core_storage_id", UUID.randomUUID());
+        tag.putUUID("trinity_data_core_host_id", UUID.randomUUID());
+        CompoundTag runtimeTag = new CompoundTag();
+        runtimeTag.putInt("schema_version", SCHEMA_VERSION);
+        runtimeTag.put("contributions", new ListTag());
+        runtimeTag.put("partitions", new ListTag());
+        tag.put("trinity_data_core_crafting_runtime", runtimeTag);
         return tag;
     }
 
@@ -376,7 +458,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         if (!result.successful()) {
             throw new IllegalStateException("Test CPU job submission failed: " + result.errorCode());
         }
-        return new BusyRuntimeFixture(flower.getCraftingRuntime(), cpu);
+        return new BusyRuntimeFixture(flower, flower.getCraftingRuntime(), cpu);
     }
 
     private static CompoundTag formedTrinityTag() {
@@ -388,7 +470,31 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         return tag;
     }
 
-    private record BusyRuntimeFixture(TrinityDataCoreCraftingRuntime runtime,
+    private static void assertRejectedHostState(GameTestHelper helper,
+                                                BusyRuntimeFixture fixture,
+                                                UUID persistedStorageId,
+                                                UUID persistedHostId,
+                                                String source) {
+        helper.assertFalse(fixture.flower().isStructureFormed(), source + " must not restore the main structure state");
+        helper.assertFalse(fixture.flower().isCpuStructureFormed(), source + " must not restore the CPU child state");
+        helper.assertFalse(
+                fixture.flower().isCraftingStructureFormed(),
+                source + " must not restore the crafting child state");
+        helper.assertValueEqual(
+                fixture.runtime().profile().storageBytes(),
+                0L,
+                source + " must discard CPU contributions");
+        helper.assertFalse(fixture.runtime().hasBusyJobs(), source + " must discard running CPU jobs");
+        helper.assertFalse(
+                fixture.flower().getStorageId().equals(persistedStorageId),
+                source + " must not retain the persisted storage identity");
+        helper.assertFalse(
+                fixture.flower().getHostId().equals(persistedHostId),
+                source + " must not retain the persisted routing identity");
+    }
+
+    private record BusyRuntimeFixture(TestFlower flower,
+                                      TrinityDataCoreCraftingRuntime runtime,
                                       TrinityDataCoreVirtualCpu cpu) {}
 
     private static final class TestFlower extends DigitalConstructFlowerBlockEntity {

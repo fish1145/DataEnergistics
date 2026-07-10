@@ -22,31 +22,43 @@ import java.math.BigInteger;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * World-level storage contents for Digital Construct Flower hosts, keyed by the host UUID saved on the dropped item.
- */
-public class DigitalConstructFlowerStorageSavedData extends SavedData {
+/** World-level storage contents for Trinity Data Core hosts, keyed by the storage UUID carried by the host item. */
+public class TrinityDataCoreStorageSavedData extends SavedData {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final String DATA_NAME = Data_Energistics.MODID + "_digital_construct_flower_storage";
+    private static final String DATA_NAME = Data_Energistics.MODID + "_trinity_data_core_storage";
+    private static final String SCHEMA_VERSION_TAG = "schema_version";
+    private static final int SCHEMA_VERSION = 1;
     private static final String HOSTS_TAG = "hosts";
     private static final String HOST_ID_TAG = "host_id";
     private static final String ENTRIES_TAG = "entries";
     private static final String KEY_TAG = "key";
     private static final String AMOUNT_TAG = "amount";
     private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
-    private static final Factory<DigitalConstructFlowerStorageSavedData> FACTORY = new Factory<>(
-            DigitalConstructFlowerStorageSavedData::new,
-            DigitalConstructFlowerStorageSavedData::load);
+    private static final Factory<TrinityDataCoreStorageSavedData> FACTORY = new Factory<>(
+            TrinityDataCoreStorageSavedData::new,
+            TrinityDataCoreStorageSavedData::load);
 
     private final Object2ObjectOpenHashMap<UUID, Object2ObjectOpenHashMap<AEKey, BigInteger>> hosts = new Object2ObjectOpenHashMap<>();
 
-    public static DigitalConstructFlowerStorageSavedData get(MinecraftServer server) {
+    public static TrinityDataCoreStorageSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
     }
 
-    static DigitalConstructFlowerStorageSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
-        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+    static TrinityDataCoreStorageSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
+        if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
+            LOGGER.warn("Ignoring Trinity Data Core storage SavedData without a schema version");
+            return data;
+        }
+        int schemaVersion = tag.getInt(SCHEMA_VERSION_TAG);
+        if (schemaVersion != SCHEMA_VERSION) {
+            LOGGER.warn(
+                    "Ignoring Trinity Data Core storage SavedData schema version {}; expected {}",
+                    schemaVersion,
+                    SCHEMA_VERSION);
+            return data;
+        }
         Tag hostsTag = tag.get(HOSTS_TAG);
         if (!(hostsTag instanceof ListTag hostList)) {
             return data;
@@ -217,10 +229,11 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        tag.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         ListTag hostList = new ListTag();
         for (Object2ObjectMap.Entry<UUID, Object2ObjectOpenHashMap<AEKey, BigInteger>> hostEntry : this.hosts.object2ObjectEntrySet()) {
             CompoundTag hostTag = new CompoundTag();
-            hostTag.putString(HOST_ID_TAG, hostEntry.getKey().toString());
+            hostTag.putUUID(HOST_ID_TAG, hostEntry.getKey());
             ListTag entryList = new ListTag();
             for (Map.Entry<AEKey, BigInteger> storageEntry : hostEntry.getValue().entrySet()) {
                 BigInteger amount = storageEntry.getValue();
@@ -258,29 +271,23 @@ public class DigitalConstructFlowerStorageSavedData extends SavedData {
     }
 
     private static UUID readHostId(CompoundTag tag) {
-        String rawId = tag.getString(HOST_ID_TAG);
-        if (rawId.isBlank()) {
-            LOGGER.warn("Digital Construct Flower storage entry is missing host id");
+        if (!tag.hasUUID(HOST_ID_TAG)) {
+            LOGGER.warn("Trinity Data Core storage entry is missing a valid storage id");
             return null;
         }
-        try {
-            return UUID.fromString(rawId);
-        } catch (IllegalArgumentException exception) {
-            LOGGER.warn("Digital Construct Flower storage entry has invalid host id '{}'", rawId, exception);
-            return null;
-        }
+        return tag.getUUID(HOST_ID_TAG);
     }
 
     private static BigInteger readAmount(UUID hostId, CompoundTag tag) {
         String rawAmount = tag.getString(AMOUNT_TAG);
         if (rawAmount.isBlank()) {
-            LOGGER.warn("Digital Construct Flower storage entry for {} is missing amount", hostId);
+            LOGGER.warn("Trinity Data Core storage entry for {} is missing amount", hostId);
             return BigInteger.ZERO;
         }
         try {
             return new BigInteger(rawAmount);
         } catch (NumberFormatException exception) {
-            LOGGER.warn("Digital Construct Flower storage entry for {} has invalid amount '{}'", hostId, rawAmount, exception);
+            LOGGER.warn("Trinity Data Core storage entry for {} has invalid amount '{}'", hostId, rawAmount, exception);
             return BigInteger.ZERO;
         }
     }

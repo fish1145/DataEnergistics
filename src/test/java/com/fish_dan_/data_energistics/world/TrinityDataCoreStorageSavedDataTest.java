@@ -7,6 +7,8 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -22,21 +24,17 @@ import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class DigitalConstructFlowerStorageSavedDataTest {
+public final class TrinityDataCoreStorageSavedDataTest {
 
-    private DigitalConstructFlowerStorageSavedDataTest() {}
+    private TrinityDataCoreStorageSavedDataTest() {}
 
-    @TestHolder("digital_construct_flower_storage_saved_data_saturates_network_counter")
+    @TestHolder("trinity_data_core_storage_saved_data_saturates_network_counter")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void storesBigIntegerAmountsAndSaturatesNetworkCounter(GameTestHelper helper) {
-        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
         UUID hostId = UUID.randomUUID();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        if (iron == null) {
-            helper.fail("Iron item key should be available in the GameTest registry");
-            return;
-        }
 
         long simulated = data.insert(hostId, iron, Long.MAX_VALUE, Actionable.SIMULATE);
         helper.assertValueEqual(simulated, Long.MAX_VALUE, "Simulated insert should return the requested amount");
@@ -55,24 +53,24 @@ public final class DigitalConstructFlowerStorageSavedDataTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_storage_saved_data_serializes_and_extracts")
+    @TestHolder("trinity_data_core_storage_saved_data_serializes_and_extracts")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void serializesLoadsExtractsAndRemovesEmptyEntries(GameTestHelper helper) {
-        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
         UUID hostId = UUID.randomUUID();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        if (iron == null) {
-            helper.fail("Iron item key should be available in the GameTest registry");
-            return;
-        }
         HolderLookup.Provider registries = helper.getLevel().registryAccess();
 
         data.insert(hostId, iron, Long.MAX_VALUE, Actionable.MODULATE);
         data.insert(hostId, iron, 7L, Actionable.MODULATE);
 
         CompoundTag tag = data.save(new CompoundTag(), registries);
-        DigitalConstructFlowerStorageSavedData loaded = DigitalConstructFlowerStorageSavedData.load(tag, registries);
+        helper.assertValueEqual(tag.getInt("schema_version"), 1, "SavedData should write the current schema version");
+        helper.assertTrue(
+                tag.getList("hosts", Tag.TAG_COMPOUND).getCompound(0).hasUUID("host_id"),
+                "SavedData should persist storage identities as UUID NBT");
+        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(tag, registries);
         helper.assertValueEqual(loaded.summary(hostId), data.summary(hostId), "Saved data should reload the same summary");
 
         helper.assertValueEqual(
@@ -86,23 +84,81 @@ public final class DigitalConstructFlowerStorageSavedDataTest {
                 "Extract should clamp to the remaining amount");
         helper.assertValueEqual(
                 loaded.summary(hostId),
-                DigitalConstructFlowerStorageSavedData.StorageSummary.EMPTY,
+                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
                 "Storage should remove empty entries");
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_storage_saved_data_profile_limits_insert")
+    @TestHolder("trinity_data_core_storage_saved_data_ignores_legacy_schema")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void ignoresSavedDataWithoutCurrentSchema(GameTestHelper helper) {
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+        UUID storageId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+
+        TrinityDataCoreStorageSavedData current = new TrinityDataCoreStorageSavedData();
+        current.insert(storageId, iron, 17L, Actionable.MODULATE);
+        CompoundTag legacy = current.save(new CompoundTag(), registries);
+        legacy.remove("schema_version");
+
+        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(legacy, registries);
+        helper.assertValueEqual(
+                loaded.summary(storageId),
+                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
+                "SavedData without the Trinity schema must not migrate legacy storage");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_storage_saved_data_ignores_unsupported_schema")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void ignoresSavedDataWithUnsupportedSchema(GameTestHelper helper) {
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+        UUID storageId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TrinityDataCoreStorageSavedData current = new TrinityDataCoreStorageSavedData();
+        current.insert(storageId, iron, 19L, Actionable.MODULATE);
+        CompoundTag unsupported = current.save(new CompoundTag(), registries);
+        unsupported.putInt("schema_version", 2);
+
+        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(unsupported, registries);
+        helper.assertValueEqual(
+                loaded.summary(storageId),
+                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
+                "SavedData with an unsupported schema must not restore storage");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_storage_saved_data_ignores_legacy_string_identity")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void ignoresLegacyStringStorageIdentity(GameTestHelper helper) {
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+        UUID storageId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TrinityDataCoreStorageSavedData current = new TrinityDataCoreStorageSavedData();
+        current.insert(storageId, iron, 23L, Actionable.MODULATE);
+        CompoundTag legacy = current.save(new CompoundTag(), registries);
+        ListTag hosts = legacy.getList("hosts", Tag.TAG_COMPOUND);
+        hosts.getCompound(0).putString("host_id", storageId.toString());
+
+        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(legacy, registries);
+        helper.assertValueEqual(
+                loaded.summary(storageId),
+                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
+                "SavedData must not migrate legacy string storage identities");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_storage_saved_data_profile_limits_insert")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void profileLimitsInsertedAmountAndTypes(GameTestHelper helper) {
-        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
         UUID hostId = UUID.randomUUID();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-        if (iron == null || gold == null) {
-            helper.fail("Item keys should be available in the GameTest registry");
-            return;
-        }
         TrinityDataCoreStorageProfile profile = new TrinityDataCoreStorageProfile(
                 BigInteger.TEN,
                 1,
@@ -134,18 +190,14 @@ public final class DigitalConstructFlowerStorageSavedDataTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_storage_saved_data_unlimited_profile_accepts_all")
+    @TestHolder("trinity_data_core_storage_saved_data_unlimited_profile_accepts_all")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void unlimitedProfileAcceptsAllTypesAndAmounts(GameTestHelper helper) {
-        DigitalConstructFlowerStorageSavedData data = new DigitalConstructFlowerStorageSavedData();
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
         UUID hostId = UUID.randomUUID();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-        if (iron == null || gold == null) {
-            helper.fail("Item keys should be available in the GameTest registry");
-            return;
-        }
 
         helper.assertValueEqual(
                 data.insert(hostId, iron, Long.MAX_VALUE, Actionable.MODULATE, TrinityDataCoreStorageProfile.UNLIMITED),

@@ -40,8 +40,8 @@ import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
-import com.fish_dan_.data_energistics.world.DigitalConstructFlowerStorageSavedData;
-import com.fish_dan_.data_energistics.world.DigitalConstructFlowerStorageSavedData.StorageSummary;
+import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
+import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData.StorageSummary;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -102,9 +102,11 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_LAST_FAILURE_POSITION_TAG = "crafting_last_failure_position";
     private static final String CRAFTING_PATTERN_CORE_COUNT_TAG = "crafting_pattern_core_count";
     private static final String CRAFTING_PATTERN_CAPACITY_TAG = "crafting_pattern_capacity";
-    private static final String CRAFTING_RUNTIME_TAG = "crafting_runtime";
-    private static final String STORAGE_ID_TAG = "storage_id";
-    private static final String HOST_ID_TAG = "host_id";
+    private static final String SCHEMA_VERSION_TAG = "schema_version";
+    private static final int SCHEMA_VERSION = 1;
+    private static final String CRAFTING_RUNTIME_TAG = "trinity_data_core_crafting_runtime";
+    private static final String STORAGE_ID_TAG = "trinity_data_core_storage_id";
+    private static final String HOST_ID_TAG = "trinity_data_core_host_id";
     private static final String NO_FAILURE = "";
     private static final String MAIN_STRUCTURE_NOT_FORMED = "Main structure is not formed";
     private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME;
@@ -623,7 +625,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return StorageSummary.EMPTY;
         }
-        return DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
+        return TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
     }
 
     private String storageCapacityText(String finiteCapacity) {
@@ -728,7 +730,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return;
         }
 
-        DigitalConstructFlowerStorageSavedData storage = DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer());
+        TrinityDataCoreStorageSavedData storage = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
         boolean routedAnyOutput = false;
         for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
             if (!(mount.core() instanceof TrinityPatternCoreBlockEntity patternCore)) {
@@ -756,7 +758,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     private boolean routePendingOutputs(TrinityPatternCoreBlockEntity core,
                                         CraftingService craftingService,
-                                        DigitalConstructFlowerStorageSavedData storage) {
+                                        TrinityDataCoreStorageSavedData storage) {
         boolean changed = false;
         for (int slot = 0; slot < core.patternCapacity(); slot++) {
             PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
@@ -812,15 +814,6 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
-    private static UUID parseStorageId(String rawId, String source) {
-        try {
-            return UUID.fromString(rawId);
-        } catch (IllegalArgumentException exception) {
-            LOGGER.warn("Invalid Digital Construct Flower storage id '{}' from {}; generating a replacement", rawId, source, exception);
-            return UUID.randomUUID();
-        }
-    }
-
     public static void requestRecheckAround(Level level, BlockPos origin) {
         if (!(level instanceof ServerLevel) || level.isClientSide()) {
             return;
@@ -839,12 +832,28 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        if (data.contains(STORAGE_ID_TAG, Tag.TAG_STRING)) {
-            setStorageId(parseStorageId(data.getString(STORAGE_ID_TAG), "block entity tag"));
+        if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
+            discardPersistedTrinityState();
+            LOGGER.warn("Ignoring Trinity Data Core block entity data without a schema version at {}", this.worldPosition);
+            return;
         }
-        if (data.hasUUID(HOST_ID_TAG)) {
-            this.hostId = data.getUUID(HOST_ID_TAG);
+        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
+        if (schemaVersion != SCHEMA_VERSION) {
+            discardPersistedTrinityState();
+            LOGGER.warn(
+                    "Ignoring Trinity Data Core block entity schema version {} at {}; expected {}",
+                    schemaVersion,
+                    this.worldPosition,
+                    SCHEMA_VERSION);
+            return;
         }
+        if (!data.hasUUID(STORAGE_ID_TAG) || !data.hasUUID(HOST_ID_TAG)) {
+            discardPersistedTrinityState();
+            LOGGER.warn("Ignoring Trinity Data Core block entity data with missing identities at {}", this.worldPosition);
+            return;
+        }
+        this.storageId = data.getUUID(STORAGE_ID_TAG);
+        this.hostId = data.getUUID(HOST_ID_TAG);
         this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
         this.patternCatalogValid = false;
         this.formed = data.getBoolean(FORMED_TAG);
@@ -875,6 +884,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         this.craftingRuntime.setMainStructureFormed(this.formed);
         if (data.contains(CRAFTING_RUNTIME_TAG, Tag.TAG_COMPOUND)) {
             this.craftingRuntime.readFromTag(data.getCompound(CRAFTING_RUNTIME_TAG), registries);
+        } else {
+            this.craftingRuntime.discardPersistedState();
+            LOGGER.warn("Trinity Data Core block entity is missing crafting runtime data at {}", this.worldPosition);
         }
         if (!data.contains(CPU_STRUCTURE_FORMED_TAG)) {
             this.cpuStructureFormed = this.craftingRuntime.hasContribution(CPU_STRUCTURE_NAME);
@@ -884,7 +896,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
-        data.putString(STORAGE_ID_TAG, this.storageId.toString());
+        data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
+        data.putUUID(STORAGE_ID_TAG, this.storageId);
         data.putUUID(HOST_ID_TAG, this.hostId);
         data.putBoolean(FORMED_TAG, this.formed);
         data.put(MATCHED_POSITIONS_TAG, createMatchedPositionsTag());
@@ -909,6 +922,31 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         CompoundTag runtimeTag = new CompoundTag();
         this.craftingRuntime.writeToTag(runtimeTag, registries);
         data.put(CRAFTING_RUNTIME_TAG, runtimeTag);
+    }
+
+    private void discardPersistedTrinityState() {
+        this.storageId = UUID.randomUUID();
+        this.hostId = UUID.randomUUID();
+        this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
+        this.patternCatalogValid = false;
+        this.formed = false;
+        this.matchedPositions = List.of();
+        this.storageProfile = TrinityDataCoreStorageProfile.EMPTY;
+        this.lastFailureReason = NO_FAILURE;
+        this.lastFailurePosition = null;
+        this.cpuStructureContribution = null;
+        this.cpuStructureFormed = false;
+        this.cpuStructureMatchedBlockCount = 0;
+        this.cpuLastFailureReason = NO_FAILURE;
+        this.cpuLastFailurePosition = null;
+        this.craftingStructureFormed = false;
+        this.craftingStructureMatchedBlockCount = 0;
+        this.craftingProfile = TrinityDataCoreCraftingCoreProfile.EMPTY;
+        this.craftingLastFailureReason = NO_FAILURE;
+        this.craftingLastFailurePosition = null;
+        this.craftingRuntime.setMainStructureFormed(false);
+        this.craftingRuntime.discardPersistedState();
+        this.recheckRequested = true;
     }
 
     private void updateStructureMatch(Level level) {
