@@ -19,7 +19,6 @@ import appeng.me.service.CraftingService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -46,7 +45,9 @@ public final class DigitalConstructFlowerCraftingRuntime {
     private final Map<String, DigitalConstructFlowerCpuContribution> externalContributions = new TreeMap<>();
     private final List<DigitalConstructFlowerVirtualCpu> partitions = new ArrayList<>();
     private DigitalConstructFlowerCpuProfile profile = DigitalConstructFlowerCpuProfile.EMPTY;
+    private int activePartitionCount;
     private boolean mainStructureFormed;
+    private boolean paused;
     private ListTag pendingPartitionLogic;
 
     public DigitalConstructFlowerCraftingRuntime(DigitalConstructFlowerBlockEntity host) {
@@ -64,12 +65,35 @@ public final class DigitalConstructFlowerCraftingRuntime {
             return;
         }
         this.mainStructureFormed = formed;
-        if (!formed) {
-            for (DigitalConstructFlowerVirtualCpu cpu : this.partitions) {
-                cpu.cancelJob();
+        rebuildPartitions();
+    }
+
+    /**
+     * Pauses or resumes execution without discarding jobs or their inventories.
+     */
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
+    /**
+     * Cancels every active job. This is reserved for permanent host removal.
+     */
+    public void cancelAllJobs() {
+        for (DigitalConstructFlowerVirtualCpu cpu : this.partitions) {
+            cpu.cancelJob();
+        }
+    }
+
+    /**
+     * Returns whether at least one partition currently owns a job.
+     */
+    public boolean hasBusyJobs() {
+        for (DigitalConstructFlowerVirtualCpu cpu : this.partitions) {
+            if (cpu.isBusy()) {
+                return true;
             }
         }
-        rebuildPartitions();
+        return false;
     }
 
     /**
@@ -79,9 +103,7 @@ public final class DigitalConstructFlowerCraftingRuntime {
      * @param contribution  contribution data
      */
     public void setContribution(String structureName, DigitalConstructFlowerCpuContribution contribution) {
-        this.externalContributions.put(
-                requireStructureName(structureName),
-                Objects.requireNonNull(contribution, "contribution"));
+        this.externalContributions.put(requireStructureName(structureName), contribution);
         rebuildPartitions();
     }
 
@@ -109,10 +131,10 @@ public final class DigitalConstructFlowerCraftingRuntime {
      * @return active virtual CPU partitions owned by the formed host
      */
     public List<DigitalConstructFlowerVirtualCpu> partitions() {
-        if (!this.mainStructureFormed) {
+        if (!this.mainStructureFormed || this.activePartitionCount == 0) {
             return List.of();
         }
-        return List.copyOf(this.partitions);
+        return List.copyOf(activePartitions());
     }
 
     /**
@@ -129,7 +151,10 @@ public final class DigitalConstructFlowerCraftingRuntime {
      * @param craftingService AE2 crafting service
      */
     public void tick(IEnergyService energyService, CraftingService craftingService) {
-        for (DigitalConstructFlowerVirtualCpu cpu : this.partitions) {
+        if (this.paused) {
+            return;
+        }
+        for (DigitalConstructFlowerVirtualCpu cpu : activePartitions()) {
             cpu.tick(energyService, craftingService);
         }
     }
@@ -207,7 +232,7 @@ public final class DigitalConstructFlowerCraftingRuntime {
      * @param service AE2 crafting service
      */
     public void restoreLinks(CraftingService service) {
-        for (DigitalConstructFlowerVirtualCpu cpu : this.partitions) {
+        for (DigitalConstructFlowerVirtualCpu cpu : activePartitions()) {
             ICraftingLink link = cpu.logic().getLastLink();
             if (link instanceof CraftingLink craftingLink) {
                 service.addLink(craftingLink);
@@ -235,6 +260,10 @@ public final class DigitalConstructFlowerCraftingRuntime {
         for (DigitalConstructFlowerVirtualCpu cpu : this.partitions) {
             CompoundTag partitionTag = new CompoundTag();
             partitionTag.putInt(PARTITION_INDEX_TAG, cpu.index());
+            partitionTag.putInt(PARTITION_COUNT_TAG, this.partitions.size());
+            partitionTag.putLong(STORAGE_BYTES_TAG, cpu.getAvailableStorage());
+            partitionTag.putInt(CO_PROCESSORS_TAG, cpu.getCoProcessors());
+            partitionTag.putString(SELECTION_MODE_TAG, cpu.getSelectionMode().name());
             partitionTag.put(PARTITION_LOGIC_TAG, cpu.logic().writeToTag(registries));
             partitionsTag.add(partitionTag);
         }
@@ -249,6 +278,8 @@ public final class DigitalConstructFlowerCraftingRuntime {
      */
     public void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
         this.externalContributions.clear();
+        this.partitions.clear();
+        this.activePartitionCount = 0;
         ListTag contributionsTag = data.getList(CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < contributionsTag.size(); index++) {
             CompoundTag contributionTag = contributionsTag.getCompound(index);
@@ -258,6 +289,7 @@ public final class DigitalConstructFlowerCraftingRuntime {
         }
         this.pendingPartitionLogic = data.getList(PARTITIONS_TAG, Tag.TAG_COMPOUND);
         rebuildPartitions();
+        restoreRetainedPartitions();
         restorePendingPartitionLogic(registries);
     }
 
@@ -272,32 +304,47 @@ public final class DigitalConstructFlowerCraftingRuntime {
 
     private void rebuildPartitions() {
         Map<String, DigitalConstructFlowerCpuContribution> contributions = new TreeMap<>(this.externalContributions);
-        if (!this.mainStructureFormed) {
-            contributions.clear();
-        }
         this.profile = DigitalConstructFlowerCpuProfile.fromContributions(contributions);
         List<DigitalConstructFlowerCpuPartitionProfile> partitionProfiles = this.profile.partitions();
-
-        if (partitionProfiles.size() < this.partitions.size()) {
-            for (int index = partitionProfiles.size(); index < this.partitions.size(); index++) {
-                DigitalConstructFlowerVirtualCpu cpu = this.partitions.get(index);
-                if (cpu.isBusy()) {
-                    Data_Energistics.LOGGER.warn(
-                            "Cancelling Digital Construct Flower CPU job because partition {} was removed",
-                            index);
-                    cpu.cancelJob();
-                }
-            }
-        }
-
-        while (this.partitions.size() > partitionProfiles.size()) {
-            this.partitions.remove(this.partitions.size() - 1);
-        }
+        this.activePartitionCount = partitionProfiles.size();
         for (DigitalConstructFlowerCpuPartitionProfile partitionProfile : partitionProfiles) {
             if (partitionProfile.index() < this.partitions.size()) {
                 this.partitions.get(partitionProfile.index()).updateProfile(partitionProfile);
             } else {
                 this.partitions.add(new DigitalConstructFlowerVirtualCpu(this.host, partitionProfile));
+            }
+        }
+    }
+
+    private List<DigitalConstructFlowerVirtualCpu> activePartitions() {
+        return this.partitions.subList(0, this.activePartitionCount);
+    }
+
+    private void restoreRetainedPartitions() {
+        for (int tagIndex = 0; tagIndex < this.pendingPartitionLogic.size(); tagIndex++) {
+            CompoundTag partitionTag = this.pendingPartitionLogic.getCompound(tagIndex);
+            int cpuIndex = partitionTag.getInt(PARTITION_INDEX_TAG);
+            if (cpuIndex < this.partitions.size()) {
+                continue;
+            }
+            if (cpuIndex != this.partitions.size()) {
+                Data_Energistics.LOGGER.error(
+                        "Cannot restore Trinity CPU partition {} because partition {} is missing",
+                        cpuIndex,
+                        this.partitions.size());
+                continue;
+            }
+            try {
+                this.partitions.add(new DigitalConstructFlowerVirtualCpu(
+                        this.host,
+                        new DigitalConstructFlowerCpuPartitionProfile(
+                                cpuIndex,
+                                partitionTag.getInt(PARTITION_COUNT_TAG),
+                                partitionTag.getLong(STORAGE_BYTES_TAG),
+                                partitionTag.getInt(CO_PROCESSORS_TAG),
+                                CpuSelectionMode.valueOf(partitionTag.getString(SELECTION_MODE_TAG)))));
+            } catch (IllegalArgumentException exception) {
+                Data_Energistics.LOGGER.error("Cannot restore Trinity CPU partition {}", cpuIndex, exception);
             }
         }
     }

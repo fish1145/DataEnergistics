@@ -11,13 +11,36 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.IGridService;
+import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingSubmitResult;
+import appeng.api.networking.events.GridEvent;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.storage.IStorageService;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.IStorageProvider;
+import appeng.api.storage.MEStorage;
+import appeng.crafting.CraftingPlan;
+import com.google.gson.stream.JsonWriter;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -65,28 +88,87 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_cpu_contribution_rejects_null_without_changing_partitions")
+    @TestHolder("digital_construct_flower_cpu_runtime_pauses_and_resumes_existing_job")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void cpuContributionRejectsNullWithoutChangingPartitions(GameTestHelper helper) {
-        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower(true);
-        int partitionCount = flower.getCpuPartitions().size();
-
-        try {
-            flower.setCpuContribution("petal", null);
-            helper.fail("Null CPU contribution should be rejected");
-        } catch (NullPointerException expected) {
-            helper.assertValueEqual(expected.getMessage(), "contribution", "Null contribution failure message");
+    public static void cpuRuntimePausesAndResumesExistingJob(GameTestHelper helper) {
+        BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        ICraftingLink link = fixture.cpu().logic().getLastLink();
+        if (link == null) {
+            helper.fail("Submitted CPU job should expose its crafting link");
+            return;
         }
 
-        helper.assertValueEqual(
-                flower.getCpuPartitions().size(),
-                partitionCount,
-                "Rejected contribution should not change CPU partitions");
-        helper.assertValueEqual(
-                flower.getCraftingRuntime().profile().storageBytes(),
-                0L,
-                "Rejected contribution should not pollute the CPU profile");
+        link.cancel();
+        fixture.runtime().setPaused(true);
+        fixture.runtime().tick(null, null);
+
+        helper.assertTrue(fixture.runtime().hasBusyJobs(), "Paused runtime must not process or discard the canceled job");
+
+        fixture.runtime().setPaused(false);
+        fixture.runtime().tick(null, null);
+
+        helper.assertFalse(fixture.runtime().hasBusyJobs(), "Resumed runtime should process the canceled job on its next tick");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_cpu_runtime_retains_job_across_structure_pause")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimeRetainsJobAcrossStructurePause(GameTestHelper helper) {
+        BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        DigitalConstructFlowerVirtualCpu originalCpu = fixture.cpu();
+
+        fixture.runtime().setPaused(true);
+        fixture.runtime().clearContribution("cpu");
+        fixture.runtime().setMainStructureFormed(false);
+
+        helper.assertValueEqual(fixture.runtime().partitions().size(), 0, "Invalid structure must withdraw CPU partitions");
+        helper.assertTrue(fixture.runtime().hasBusyJobs(), "Invalid structure must retain its existing CPU job");
+
+        fixture.runtime().setMainStructureFormed(true);
+        fixture.runtime().setContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 2, 1));
+        fixture.runtime().setPaused(false);
+
+        helper.assertValueEqual(fixture.runtime().partitions().size(), 1, "Recovered structure should republish its CPU partition");
+        helper.assertTrue(
+                fixture.runtime().partitions().getFirst() == originalCpu,
+                "Recovered structure should reuse the partition that owns the paused job");
+        helper.assertTrue(fixture.runtime().hasBusyJobs(), "Recovered partition should still own the paused job");
+
+        fixture.runtime().cancelAllJobs();
+
+        helper.assertFalse(fixture.runtime().hasBusyJobs(), "Explicit host removal should cancel all retained jobs");
+        helper.succeed();
+    }
+
+    @TestHolder("digital_construct_flower_inactive_cpu_job_round_trips_through_nbt")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void inactiveCpuJobRoundTripsThroughNbt(GameTestHelper helper) {
+        BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        fixture.runtime().setPaused(true);
+        fixture.runtime().clearContribution("cpu");
+        fixture.runtime().setMainStructureFormed(false);
+
+        CompoundTag saved = new CompoundTag();
+        fixture.runtime().writeToTag(saved, helper.getLevel().registryAccess());
+
+        TestFlower restoredFlower = new TestFlower(helper.absolutePos(new BlockPos(2, 1, 1)));
+        restoredFlower.setLevel(helper.getLevel());
+        restoredFlower.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        DigitalConstructFlowerCraftingRuntime restored = restoredFlower.getCraftingRuntime();
+        restored.readFromTag(saved, helper.getLevel().registryAccess());
+
+        helper.assertValueEqual(restored.partitions().size(), 0, "Inactive persisted CPU must remain withdrawn after reload");
+        helper.assertTrue(restored.hasBusyJobs(), "Inactive persisted CPU must restore its paused job");
+
+        restored.setMainStructureFormed(true);
+        restored.setContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 2, 1));
+
+        helper.assertValueEqual(restored.partitions().size(), 1, "Restored CPU should republish after contribution recovery");
+        helper.assertTrue(restored.partitions().getFirst().isBusy(), "Republished CPU should still own the restored job");
+        restored.cancelAllJobs();
         helper.succeed();
     }
 
@@ -254,5 +336,181 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         tag.putInt("crafting_pattern_core_count", 3);
         tag.putInt("crafting_pattern_capacity", 704);
         return tag;
+    }
+
+    private static BusyRuntimeFixture busyRuntime(GameTestHelper helper, BlockPos flowerPos) {
+        TestFlower flower = new TestFlower(helper.absolutePos(flowerPos));
+        flower.setLevel(helper.getLevel());
+        flower.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        flower.setCpuContribution("cpu", DigitalConstructFlowerCpuContribution.of(1024L, 2, 1));
+        TestGrid grid = new TestGrid();
+
+        DigitalConstructFlowerVirtualCpu cpu = flower.getCpuPartitions().getFirst();
+        ICraftingSubmitResult result = cpu.submitJob(
+                grid,
+                new CraftingPlan(
+                        new GenericStack(AEItemKey.of(Items.DIAMOND), 1L),
+                        1L,
+                        false,
+                        false,
+                        new KeyCounter(),
+                        new KeyCounter(),
+                        new KeyCounter(),
+                        Map.of()),
+                IActionSource.empty(),
+                null);
+        if (!result.successful()) {
+            throw new IllegalStateException("Test CPU job submission failed: " + result.errorCode());
+        }
+        return new BusyRuntimeFixture(flower.getCraftingRuntime(), cpu);
+    }
+
+    private static CompoundTag formedTrinityTag() {
+        CompoundTag tag = formedTag();
+        tag.putBoolean("cpu_structure_formed", true);
+        tag.putBoolean("crafting_structure_formed", true);
+        tag.putInt("crafting_pattern_core_count", 1);
+        tag.putInt("crafting_pattern_capacity", 64);
+        return tag;
+    }
+
+    private record BusyRuntimeFixture(DigitalConstructFlowerCraftingRuntime runtime,
+                                      DigitalConstructFlowerVirtualCpu cpu) {}
+
+    private static final class TestFlower extends DigitalConstructFlowerBlockEntity {
+
+        private TestFlower(BlockPos pos) {
+            super(pos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+        }
+
+        @Override
+        public boolean hasActiveAccessHatch() {
+            return true;
+        }
+    }
+
+    private static final class TestGrid implements IGrid {
+
+        private final IStorageService storageService = new EmptyStorageService();
+
+        @Override
+        public <C extends IGridService> C getService(Class<C> serviceType) {
+            if (serviceType == IStorageService.class) {
+                return serviceType.cast(this.storageService);
+            }
+            throw new IllegalArgumentException("Unsupported test grid service: " + serviceType.getName());
+        }
+
+        @Override
+        public <T extends GridEvent> T postEvent(T event) {
+            return event;
+        }
+
+        @Override
+        public Iterable<Class<?>> getMachineClasses() {
+            return Set.of();
+        }
+
+        @Override
+        public Iterable<IGridNode> getMachineNodes(Class<?> machineClass) {
+            return Set.of();
+        }
+
+        @Override
+        public <T> Set<T> getMachines(Class<T> machineClass) {
+            return Set.of();
+        }
+
+        @Override
+        public <T> Set<T> getActiveMachines(Class<T> machineClass) {
+            return Set.of();
+        }
+
+        @Override
+        public Iterable<IGridNode> getNodes() {
+            return Set.of();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return true;
+        }
+
+        @Override
+        public IGridNode getPivot() {
+            throw new IllegalStateException("Test grid has no pivot node");
+        }
+
+        @Override
+        public int size() {
+            return 0;
+        }
+
+        @Override
+        public void export(JsonWriter jsonWriter) throws IOException {
+            jsonWriter.beginObject();
+            jsonWriter.endObject();
+        }
+    }
+
+    private static final class EmptyStorageService implements IStorageService {
+
+        private final MEStorage inventory = new EmptyStorage();
+
+        @Override
+        public MEStorage getInventory() {
+            return this.inventory;
+        }
+
+        @Override
+        public KeyCounter getCachedInventory() {
+            return new KeyCounter();
+        }
+
+        @Override
+        public void addGlobalStorageProvider(IStorageProvider provider) {
+            throw new UnsupportedOperationException("Test storage does not mount providers");
+        }
+
+        @Override
+        public void removeGlobalStorageProvider(IStorageProvider provider) {
+            throw new UnsupportedOperationException("Test storage does not mount providers");
+        }
+
+        @Override
+        public void refreshNodeStorageProvider(IGridNode node) {
+            throw new UnsupportedOperationException("Test storage does not mount providers");
+        }
+
+        @Override
+        public void refreshGlobalStorageProvider(IStorageProvider provider) {
+            throw new UnsupportedOperationException("Test storage does not mount providers");
+        }
+
+        @Override
+        public void invalidateCache() {
+            throw new UnsupportedOperationException("Test storage has no cache");
+        }
+    }
+
+    private static final class EmptyStorage implements MEStorage {
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            return 0L;
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            return 0L;
+        }
+
+        @Override
+        public void getAvailableStacks(KeyCounter out) {}
+
+        @Override
+        public Component getDescription() {
+            return Component.literal("empty test storage");
+        }
     }
 }
