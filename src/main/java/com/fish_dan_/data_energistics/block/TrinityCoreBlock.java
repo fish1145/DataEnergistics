@@ -7,8 +7,6 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreTier;
 
 import net.minecraft.world.level.block.Block;
 
-import java.util.Objects;
-
 /**
  * Plain trinity structure component block that only carries static capability metadata.
  */
@@ -19,7 +17,7 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
 
     public TrinityCoreBlock(Properties properties, TrinityCoreMetadata metadata) {
         super(properties);
-        this.metadata = Objects.requireNonNull(metadata, "metadata");
+        this.metadata = metadata;
     }
 
     /**
@@ -39,8 +37,8 @@ public class TrinityCoreBlock extends Block implements TrinityCoreComponent {
     /**
      * Creates a pattern processing core with a fixed recognizable pattern capacity.
      */
-    public static TrinityCoreBlock patternProcessingCore(Properties properties, int patternCapacity) {
-        return new TrinityCoreBlock(properties, TrinityCoreMetadata.patternProcessingCore(patternCapacity));
+    public static TrinityPatternCoreBlock patternProcessingCore(Properties properties, int patternCapacity) {
+        return new TrinityPatternCoreBlock(properties, TrinityCoreMetadata.patternProcessingCore(patternCapacity));
     }
 
     @Override

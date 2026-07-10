@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common;
 
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEventHandler;
 import com.fish_dan_.data_energistics.effect.DataDisorderControlLogic;
 import com.fish_dan_.data_energistics.item.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.PersistentFarmlandLogic;
@@ -23,6 +24,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new DataCrystalSwordAiStripLogic());
         NeoForge.EVENT_BUS.register(new DataDisorderControlLogic());
         NeoForge.EVENT_BUS.register(new PersistentFarmlandLogic());
+        NeoForge.EVENT_BUS.register(new TrinityPatternCoreReloadEventHandler());
         NeoForge.EVENT_BUS.register(new DataMeteoritePreloader());
         NeoForge.EVENT_BUS.register(new DataSanctumPortalLogic());
         NeoForge.EVENT_BUS.register(new ServerTickDelayQueue());

@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlock
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -111,6 +112,13 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(
                     MeStorageAccessHatchBlockEntity::new,
                     ModBlocks.ME_STORAGE_ACCESS_HATCH.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityPatternCoreBlockEntity>> TRINITY_PATTERN_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "trinity_pattern_core",
+            () -> BlockEntityType.Builder.of(
+                    TrinityPatternCoreBlockEntity::new,
+                    ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
+                    ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
+                    ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()).build(null));
 
     private ModBlockEntities() {}
 

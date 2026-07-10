@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.TrinityCoreBlock;
+import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreTier;
@@ -203,9 +204,9 @@ public final class ModBlocks {
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_64G = registerParallelCore("me_digital_merged_storage_core_64g", TrinityCoreTier.SIZE_64G);
     public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_MERGED_STORAGE_CORE_256G = registerParallelCore("me_digital_merged_storage_core_256g", TrinityCoreTier.SIZE_256G);
 
-    public static final DeferredBlock<TrinityCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("me_digital_pattern_processing_core", 64);
-    public static final DeferredBlock<TrinityCoreBlock> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("extended_me_digital_pattern_processing_core", 128);
-    public static final DeferredBlock<TrinityCoreBlock> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("overlimit_me_digital_pattern_processing_core", 512);
+    public static final DeferredBlock<TrinityPatternCoreBlock> ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("me_digital_pattern_processing_core", 64);
+    public static final DeferredBlock<TrinityPatternCoreBlock> EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("extended_me_digital_pattern_processing_core", 128);
+    public static final DeferredBlock<TrinityPatternCoreBlock> OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE = registerPatternProcessingCore("overlimit_me_digital_pattern_processing_core", 512);
 
     public static final DeferredBlock<CompartmentBlock> COMPOSITE_INPUT_WAREHOUSE = registerCompartment(
             "composite_input_warehouse",
@@ -319,7 +320,7 @@ public final class ModBlocks {
                 trinityCoreProperties());
     }
 
-    private static DeferredBlock<TrinityCoreBlock> registerPatternProcessingCore(String id, int patternCapacity) {
+    private static DeferredBlock<TrinityPatternCoreBlock> registerPatternProcessingCore(String id, int patternCapacity) {
         return BLOCKS.registerBlock(
                 id,
                 properties -> TrinityCoreBlock.patternProcessingCore(properties, patternCapacity),
