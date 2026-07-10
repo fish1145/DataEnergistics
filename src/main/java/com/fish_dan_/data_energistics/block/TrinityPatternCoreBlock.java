@@ -4,8 +4,10 @@ import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreMetadata;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
+import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -17,8 +19,11 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.hooks.WrenchHook;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -44,6 +49,15 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new TrinityPatternCoreBlockEntity(pos, state);
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+                                               BlockHitResult hitResult) {
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore) {
+            MenuOpener.open(ModMenus.TRINITY_PATTERN_CORE.get(), player, MenuLocators.forBlockEntity(patternCore));
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override

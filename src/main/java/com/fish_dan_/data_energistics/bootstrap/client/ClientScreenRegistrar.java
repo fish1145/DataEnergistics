@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.client.screen.MeCompositeInputWarehouseScr
 import com.fish_dan_.data_energistics.client.screen.MeCompositeOutputWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.MePatternBufferScreen;
 import com.fish_dan_.data_energistics.client.screen.MeVacuumScreen;
+import com.fish_dan_.data_energistics.client.screen.TrinityPatternCoreScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
@@ -51,6 +52,7 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, ModMenus.DATA_SANCTUM_INTERFACE.get(), DataSanctumInterfaceScreen::new, "/screens/data_sanctum_interface.json");
         InitScreens.register(event, ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), DataSanctumLargeInterfaceScreen::new, "/screens/data_sanctum_large_interface.json");
         InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
+        InitScreens.register(event, ModMenus.TRINITY_PATTERN_CORE.get(), TrinityPatternCoreScreen::new, "/screens/trinity_pattern_core.json");
         InitScreens.register(event, ModMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
         InitScreens.register(event, ModMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");
         InitScreens.register(event, ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), UniversalPatternEncodingTermScreen::new, "/screens/universal_pattern_encoding_terminal.json");

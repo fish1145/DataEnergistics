@@ -511,5 +511,9 @@
 	"message.data_energistics.trinity_data_core.auto_build.target.cpu": "CPU",
 	"message.data_energistics.trinity_data_core.auto_build.target.crafting": "Crafting",
 	"message.data_energistics.trinity_data_core.auto_build": "Auto-build %s: placed %s, missing %s, blocked %s, unloaded %s, failed %s",
-	"screen.data_energistics.trinity_data_core.main_structure_label": "Main: "
+	"screen.data_energistics.trinity_data_core.main_structure_label": "Main: ",
+	"button.data_energistics.trinity_pattern_core.refund": "Return Core Contents",
+	"button.data_energistics.trinity_pattern_core.refund.hint": "Returns patterns, queued inputs, and pending outputs only when the inventory can hold all of them",
+	"message.data_energistics.trinity_pattern_core.refund.success": "Returned all pattern core contents",
+	"message.data_energistics.trinity_pattern_core.refund.failure": "Not enough inventory space to return all pattern core contents"
 }
