@@ -2,7 +2,7 @@
 	"$schema": "schema.json",
 	"includes": ["common/common.json", "common/player_inventory.json"],
 	"background": {
-		"texture": "guis/digital_construct_flower/gui.png",
+		"texture": "guis/trinity_data_core/gui.png",
 		"srcRect": [0, 0, 256, 212]
 	},
 	"slots": {

@@ -31,10 +31,10 @@ public abstract class CPUSelectionListMixin {
     private static final String DATA_ENERGISTICS_TRINITY_CPU_NAME_KEY = "block.data_energistics.trinity_data_core";
 
     @Unique
-    private static final ResourceLocation DATA_ENERGISTICS_CPU_IDLE_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/digital_construct_flower/cpu_idle.png");
+    private static final ResourceLocation DATA_ENERGISTICS_CPU_IDLE_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/trinity_data_core/cpu_idle.png");
 
     @Unique
-    private static final ResourceLocation DATA_ENERGISTICS_CPU_TASK_OVERLAY_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/digital_construct_flower/cpu_task_overlay.png");
+    private static final ResourceLocation DATA_ENERGISTICS_CPU_TASK_OVERLAY_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/trinity_data_core/cpu_task_overlay.png");
 
     @Unique
     private static final Blitter DATA_ENERGISTICS_CPU_IDLE = Blitter.texture(DATA_ENERGISTICS_CPU_IDLE_TEXTURE, 67, 22).src(0, 0, 67, 22);

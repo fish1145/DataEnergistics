@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class DigitalConstructFlowerResourceTest {
+public final class TrinityDataCoreResourceTest {
 
     private static final String MODEL_ROOT = "assets/data_energistics/models/block/";
     private static final String DATA_TEXTURE_ROOT = "assets/data_energistics/textures/";
@@ -30,11 +30,11 @@ public final class DigitalConstructFlowerResourceTest {
     private static final String SCREEN_ROOT = "assets/ae2/screens/";
     private static final String GUI_TEXTURE_ROOT = "assets/ae2/textures/";
     private static final String MULTIBLOCK_ROOT = "data/data_energistics/multiblock/";
-    private static final String DIGITAL_CONSTRUCT_FLOWER_TEXTURE_PREFIX = "data_energistics:block/digital_construct_flower/";
+    private static final String TRINITY_DATA_CORE_TEXTURE_PREFIX = "data_energistics:block/trinity_data_core/";
     private static final Set<String> MODEL_TEXTURE_KEYS = Set.of("2", "3", "top_light", "5", "screen");
 
     @Test
-    void digitalConstructFlowerBlockModelsUseMovedTextureFolder() {
+    void trinityDataCoreBlockModelsUseRenamedTextureFolder() {
         for (String model : Set.of("trinity_data_core_off.json", "trinity_data_core_on.json")) {
             JsonObject root = readJson(MODEL_ROOT + model);
             assertNoAbsolutePaths(root, model);
@@ -43,8 +43,8 @@ public final class DigitalConstructFlowerResourceTest {
             for (String textureKey : MODEL_TEXTURE_KEYS) {
                 String textureId = string(textures, textureKey);
                 assertTrue(
-                        textureId.startsWith(DIGITAL_CONSTRUCT_FLOWER_TEXTURE_PREFIX),
-                        model + " texture " + textureKey + " should use the digital_construct_flower texture folder");
+                        textureId.startsWith(TRINITY_DATA_CORE_TEXTURE_PREFIX),
+                        model + " texture " + textureKey + " should use the trinity_data_core texture folder");
                 assertFalse(textureId.contains("data_reassembler"), model + " should not reuse data_reassembler textures");
                 assertFalse(textureId.contains("ae2:block/generics/bottom"), model + " should not reference the old AE2 bottom texture");
                 assertResourceExists(textureResourcePath(textureId), model + " texture " + textureId + " should exist");
@@ -53,35 +53,35 @@ public final class DigitalConstructFlowerResourceTest {
     }
 
     @Test
-    void digitalConstructFlowerScreenUsesGuiTextureFolder() {
+    void trinityDataCoreScreenUsesRenamedGuiTextureFolder() {
         JsonObject root = readJson(SCREEN_ROOT + "trinity_data_core.json");
         assertNoAbsolutePaths(root, "trinity_data_core screen");
 
         JsonObject background = object(root, "background");
         String backgroundTexture = string(background, "texture");
-        assertEquals("guis/digital_construct_flower/gui.png", backgroundTexture);
+        assertEquals("guis/trinity_data_core/gui.png", backgroundTexture);
         assertSourceRect(background, 256, 212);
-        assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Digital Construct Flower GUI texture should exist");
+        assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Trinity Data Core GUI texture should exist");
         assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
 
         JsonObject text = object(root, "text");
         assertEquals(
                 Set.of("dialog_title", "player_inventory_title"),
                 text.keySet(),
-                "Dynamic host status text should be drawn by DigitalConstructFlowerScreen");
+                "Dynamic host status text should be drawn by TrinityDataCoreScreen");
 
         assertResourceExists(
-                GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_idle.png",
+                GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png",
                 "Trinity CPU list idle overlay should exist");
         assertResourceExists(
-                GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_task_overlay.png",
+                GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png",
                 "Trinity CPU list task overlay should exist");
-        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_idle.png", 67, 22);
-        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/digital_construct_flower/cpu_task_overlay.png", 67, 22);
+        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png", 67, 22);
+        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png", 67, 22);
     }
 
     @Test
-    void digitalConstructFlowerMultiblockUsesTrinityDigitalCoreStructure() {
+    void trinityDataCoreMultiblockUsesRenamedStructure() {
         JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core/main.json");
         JsonObject metadata = object(root, "metadata");
         assertEquals(
@@ -121,7 +121,7 @@ public final class DigitalConstructFlowerResourceTest {
     }
 
     @Test
-    void digitalConstructFlowerLanguageUsesTrinityDigitalCoreNames() {
+    void trinityDataCoreLanguageUsesRenamedDisplayNames() {
         JsonObject zhCn = readJson(LANG_ROOT + "zh_cn.json");
         assertEquals(
                 "三位一体数位化核心",
@@ -171,7 +171,7 @@ public final class DigitalConstructFlowerResourceTest {
     }
 
     private static JsonObject readJson(String path) {
-        try (InputStream stream = DigitalConstructFlowerResourceTest.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = TrinityDataCoreResourceTest.class.getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, "Missing resource " + path);
             try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 JsonElement element = JsonParser.parseReader(reader);
@@ -202,15 +202,15 @@ public final class DigitalConstructFlowerResourceTest {
         assertTrue(separator > 0, "Texture id should include a namespace: " + textureId);
         String namespace = textureId.substring(0, separator);
         String path = textureId.substring(separator + 1);
-        assertEquals("data_energistics", namespace, "Digital Construct Flower texture namespace should be local");
+        assertEquals("data_energistics", namespace, "Trinity Data Core texture namespace should be local");
         assertTrue(
-                path.startsWith("block/digital_construct_flower/"),
-                textureId + " should be under block/digital_construct_flower");
+                path.startsWith("block/trinity_data_core/"),
+                textureId + " should be under block/trinity_data_core");
         return DATA_TEXTURE_ROOT + path + ".png";
     }
 
     private static void assertResourceExists(String path, String message) {
-        try (InputStream stream = DigitalConstructFlowerResourceTest.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = TrinityDataCoreResourceTest.class.getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, message + ": " + path);
         } catch (IOException exception) {
             throw new IllegalStateException("Could not close resource " + path, exception);
@@ -218,7 +218,7 @@ public final class DigitalConstructFlowerResourceTest {
     }
 
     private static void assertPngDimensions(String path, int expectedWidth, int expectedHeight) {
-        try (InputStream stream = DigitalConstructFlowerResourceTest.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = TrinityDataCoreResourceTest.class.getClassLoader().getResourceAsStream(path)) {
             assertNotNull(stream, "Missing PNG resource " + path);
             BufferedImage image = ImageIO.read(stream);
             assertNotNull(image, "Could not decode PNG resource " + path);
