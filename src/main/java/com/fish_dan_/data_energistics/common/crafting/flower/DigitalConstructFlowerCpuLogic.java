@@ -143,8 +143,7 @@ final class DigitalConstructFlowerCpuLogic {
             cancel();
             return;
         }
-        int remainingOperations = this.cpu.getCoProcessors() + 1 -
-                (this.usedOps[0] + this.usedOps[1] + this.usedOps[2]);
+        int remainingOperations = operationBudget(this.cpu.getCoProcessors(), this.usedOps);
         int started = remainingOperations;
         Level level = this.cpu.level();
         if (level == null) {
@@ -162,6 +161,27 @@ final class DigitalConstructFlowerCpuLogic {
         this.usedOps[2] = this.usedOps[1];
         this.usedOps[1] = this.usedOps[0];
         this.usedOps[0] = started - remainingOperations;
+    }
+
+    /**
+     * Calculates this tick's dispatch window without overflowing at the maximum co-processor count.
+     */
+    static int operationBudget(int coProcessors, int[] usedOps) {
+        if (coProcessors < 0) {
+            throw new IllegalArgumentException("coProcessors must not be negative");
+        }
+        if (usedOps.length != 3) {
+            throw new IllegalArgumentException("usedOps must contain exactly three ticks");
+        }
+        long recentlyUsed = 0L;
+        for (int used : usedOps) {
+            if (used < 0) {
+                throw new IllegalArgumentException("usedOps must not contain negative values");
+            }
+            recentlyUsed += used;
+        }
+        long available = (long) coProcessors + 1L - recentlyUsed;
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, available));
     }
 
     /**
