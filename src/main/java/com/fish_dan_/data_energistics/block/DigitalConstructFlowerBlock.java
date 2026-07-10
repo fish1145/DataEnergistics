@@ -53,6 +53,7 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
         super.setPlacedBy(level, pos, state, placer, stack);
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
             flower.restoreStorageIdFromItem(stack);
+            flower.restoreHostIdFromItem(stack);
         }
         DigitalConstructFlowerBlockEntity.requestRecheckAround(level, pos);
     }
@@ -63,6 +64,7 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
         ItemStack stack = new ItemStack(this);
         if (blockEntity instanceof DigitalConstructFlowerBlockEntity flower) {
             flower.saveStorageIdToItem(stack);
+            flower.saveHostIdToItem(stack);
         }
         return List.of(stack);
     }
@@ -70,6 +72,9 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
+            if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
+                flower.onPermanentRemoval();
+            }
             DigitalConstructFlowerBlockEntity.requestRecheckAround(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);

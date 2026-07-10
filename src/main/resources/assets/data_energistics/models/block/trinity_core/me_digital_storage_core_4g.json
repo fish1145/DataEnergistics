@@ -1,5 +1,5 @@
 {
-	"parent": "data_energistics:block/trinity_core/me_storage_access_hatch",
+	"parent": "data_energistics:block/trinity_core/trinity_access_hatch",
 	"textures": {
 		"1": "data_energistics:block/trinity_core/storage_core",
 		"4": "data_energistics:block/trinity_core/front",

@@ -25,7 +25,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * MDLib predicate wrapper that requires a JSON symbol to be a declared compartment role.
@@ -42,10 +41,6 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     private static final String PREDICATE_PROPERTY = "predicate";
     private static boolean registered;
 
-    public JsonMultiBlockCompartmentPredicate {
-        Objects.requireNonNull(compartmentType, "compartmentType");
-    }
-
     public static synchronized void registerType() {
         if (registered) {
             return;
@@ -55,9 +50,6 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     }
 
     public static JsonMultiBlockCompartmentPredicate fromJson(JsonObject object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Compartment predicate JSON cannot be null");
-        }
         CompartmentType compartmentType = CompartmentType.byId(readRequiredString(object, COMPARTMENT_PROPERTY))
                 .orElseThrow(() -> new IllegalArgumentException("Unknown compartment predicate type: " +
                         object.get(COMPARTMENT_PROPERTY)));
@@ -118,7 +110,6 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     }
 
     public static Map<BlockPos, CompartmentType> declaredCompartments(PatternMatchContext context) {
-        Objects.requireNonNull(context, "context");
         Long2ObjectMap<CompartmentType> matchedCompartments = context.get(
                 MATCHED_COMPARTMENTS_CONTEXT_KEY,
                 Long2ObjectMap.class);
@@ -140,9 +131,6 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     }
 
     public static void recordMatchedCompartment(PatternMatchContext context, BlockPos pos, CompartmentType type) {
-        Objects.requireNonNull(context, "context");
-        Objects.requireNonNull(pos, "pos");
-        Objects.requireNonNull(type, "type");
         matchedCompartments(context).put(pos.asLong(), type);
     }
 
@@ -153,7 +141,7 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
             case ME_INPUT -> ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get();
             case ME_OUTPUT -> ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get();
             case PATTERN_BUFFER -> ModBlocks.ME_PATTERN_BUFFER.get();
-            case ME_STORAGE_ACCESS -> ModBlocks.ME_STORAGE_ACCESS_HATCH.get();
+            case TRINITY_ACCESS -> ModBlocks.TRINITY_ACCESS_HATCH.get();
         };
     }
 

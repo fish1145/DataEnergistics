@@ -18,7 +18,7 @@ import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 
 import net.minecraft.core.registries.Registries;
@@ -107,11 +107,11 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(
                     MePatternBufferBlockEntity::new,
                     ModBlocks.ME_PATTERN_BUFFER.get()).build(null));
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MeStorageAccessHatchBlockEntity>> ME_STORAGE_ACCESS_HATCH_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "me_storage_access_hatch",
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityAccessHatchBlockEntity>> TRINITY_ACCESS_HATCH_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "trinity_access_hatch",
             () -> BlockEntityType.Builder.of(
-                    MeStorageAccessHatchBlockEntity::new,
-                    ModBlocks.ME_STORAGE_ACCESS_HATCH.get()).build(null));
+                    TrinityAccessHatchBlockEntity::new,
+                    ModBlocks.TRINITY_ACCESS_HATCH.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityPatternCoreBlockEntity>> TRINITY_PATTERN_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "trinity_pattern_core",
             () -> BlockEntityType.Builder.of(
@@ -127,7 +127,7 @@ public final class ModBlockEntities {
                 type == ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get() ||
-                type == ME_STORAGE_ACCESS_HATCH_BLOCK_ENTITY.get();
+                type == TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get();
     }
 
     public static void register(IEventBus modEventBus) {

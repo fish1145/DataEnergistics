@@ -12,7 +12,7 @@ public interface DigitalConstructFlowerMenuHost {
     String UNLIMITED_STORAGE_CAPACITY = "MAX";
 
     /**
-     * Reports whether the host has an active ME storage access hatch.
+     * Reports whether the host has an active Trinity access hatch.
      */
     boolean isOnline();
 

@@ -54,6 +54,7 @@ public final class ModUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), ModBlocks.ME_PATTERN_BUFFER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), ModBlocks.TRINITY_ACCESS_HATCH.get().asItem());
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");

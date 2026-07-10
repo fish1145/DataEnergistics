@@ -7,7 +7,7 @@
 			"aisle": "front"
 		},
 		"replaceable_compartments": {
-			"@": ["me_storage_access"]
+			"@": ["trinity_access"]
 		}
 	},
 	"aisles": [

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.flower.DigitalConstructFlowerVirtualCpu;
 
@@ -84,14 +84,14 @@ public abstract class CraftingServiceMixin {
     private void dataEnergistics$markFlowerCpuListDirty(IGridNode gridNode,
                                                         CompoundTag savedData,
                                                         CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof MeStorageAccessHatchBlockEntity) {
+        if (gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }
 
     @Inject(method = "removeNode", at = @At("RETURN"))
     private void dataEnergistics$markFlowerCpuListDirty(IGridNode gridNode, CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof MeStorageAccessHatchBlockEntity) {
+        if (gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }
@@ -100,7 +100,7 @@ public abstract class CraftingServiceMixin {
     private void dataEnergistics$updateFlowerCpuClusters(CallbackInfo ci) {
         this.dataEnergistics$flowerRuntimes.clear();
         CraftingService service = (CraftingService) (Object) this;
-        for (MeStorageAccessHatchBlockEntity hatch : this.grid.getMachines(MeStorageAccessHatchBlockEntity.class)) {
+        for (TrinityAccessHatchBlockEntity hatch : this.grid.getMachines(TrinityAccessHatchBlockEntity.class)) {
             DigitalConstructFlowerCraftingRuntime runtime = hatch.boundCraftingRuntime();
             if (runtime == null || runtime.partitions().isEmpty()) {
                 continue;

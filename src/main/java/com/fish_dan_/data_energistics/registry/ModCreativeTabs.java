@@ -142,7 +142,7 @@ public final class ModCreativeTabs {
         output.accept(ModItems.ME_COMPOSITE_INPUT_WAREHOUSE);
         output.accept(ModItems.ME_COMPOSITE_OUTPUT_WAREHOUSE);
         output.accept(ModItems.ME_PATTERN_BUFFER);
-        output.accept(ModItems.ME_STORAGE_ACCESS_HATCH);
+        output.accept(ModItems.TRINITY_ACCESS_HATCH);
 
         output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_1M);
         output.accept(ModItems.ME_DIGITAL_STORAGE_CORE_4M);

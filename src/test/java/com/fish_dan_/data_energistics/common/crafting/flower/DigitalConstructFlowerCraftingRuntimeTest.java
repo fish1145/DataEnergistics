@@ -21,6 +21,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
@@ -172,10 +173,10 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_main_structure_failure_clears_cpu_child_contribution")
+    @TestHolder("digital_construct_flower_main_structure_failure_retains_cpu_child_state")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void mainStructureFailureClearsCpuChildContribution(GameTestHelper helper) {
+    public static void mainStructureFailureRetainsCpuChildState(GameTestHelper helper) {
         BlockPos flowerPos = new BlockPos(1, 1, 1);
         helper.setBlock(flowerPos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
         BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(flowerPos));
@@ -193,23 +194,31 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
                 flower.getCraftingPatternCapacity(),
                 704,
                 "Crafting child profile should be active before recheck");
+        DigitalConstructFlowerVirtualCpu retainedPartition = flower.getCpuPartitions().getFirst();
 
         flower.serverTick();
 
         helper.assertFalse(flower.isStructureFormed(), "Missing main structure should make the host unformed");
         helper.assertValueEqual(
                 flower.getCraftingRuntime().profile().storageBytes(),
-                0L,
-                "Main structure failure should clear CPU child storage");
+                1024L,
+                "Main structure failure should retain the last valid CPU contribution");
         helper.assertValueEqual(
                 flower.getCpuPartitions().size(),
                 0,
-                "Main structure failure should clear CPU child partitions");
-        helper.assertFalse(flower.isCraftingStructureFormed(), "Main structure failure should clear crafting child status");
+                "Main structure failure should withdraw CPU partitions from AE2 while paused");
+        helper.assertFalse(flower.isCraftingStructureFormed(), "Main structure failure should withdraw crafting child status");
         helper.assertValueEqual(
                 flower.getCraftingPatternCapacity(),
-                0,
-                "Main structure failure should clear crafting child pattern capacity");
+                704,
+                "Main structure failure should retain the last valid crafting profile");
+
+        flower.getCraftingRuntime().setMainStructureFormed(true);
+
+        helper.assertValueEqual(flower.getCpuPartitions().size(), 1,
+                "Recovered main structure should republish the retained CPU partition");
+        helper.assertTrue(flower.getCpuPartitions().getFirst() == retainedPartition,
+                "Recovered main structure should reuse the retained CPU partition and its job state");
         helper.succeed();
     }
 
@@ -266,6 +275,10 @@ public final class DigitalConstructFlowerCraftingRuntimeTest {
         ListTag partitionsTag = new ListTag();
         CompoundTag partitionTag = new CompoundTag();
         partitionTag.putInt("index", 0);
+        partitionTag.putInt("partition_count", 1);
+        partitionTag.putLong("storage_bytes", 1024L);
+        partitionTag.putInt("co_processors", 0);
+        partitionTag.putString("selection_mode", CpuSelectionMode.ANY.name());
         CompoundTag logicTag = new CompoundTag();
         logicTag.put("job", new CompoundTag());
         partitionTag.put("logic", logicTag);

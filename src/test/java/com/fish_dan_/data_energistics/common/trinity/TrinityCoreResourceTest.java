@@ -29,7 +29,7 @@ public final class TrinityCoreResourceTest {
     private static final String RECIPE_ROOT = "data/data_energistics/recipe/crafting/trinity_core/";
     private static final String DATA_ROOT = "data/";
     private static final String LANG_ROOT = "assets/data_energistics/lang/";
-    private static final String MODEL_PARENT = "data_energistics:block/trinity_core/me_storage_access_hatch";
+    private static final String MODEL_PARENT = "data_energistics:block/trinity_core/trinity_access_hatch";
     private static final List<String> TIER_SUFFIXES = List.of(
             "1m", "4m", "16m", "64m", "256m", "1g", "4g", "16g", "64g", "256g");
     private static final List<CoreResource> CORE_RESOURCES = createCoreResources();
@@ -58,14 +58,14 @@ public final class TrinityCoreResourceTest {
 
     @Test
     void baseModelUsesOnlyTrinityCoreTextureReferences() {
-        JsonObject root = readJson(BLOCK_MODEL_ROOT + "me_storage_access_hatch.json");
+        JsonObject root = readJson(BLOCK_MODEL_ROOT + "trinity_access_hatch.json");
         assertEquals("cutout", string(root, "render_type"));
-        assertModelHasNoTemporaryReferences(root, "me_storage_access_hatch");
+        assertModelHasNoTemporaryReferences(root, "trinity_access_hatch");
 
         JsonObject textures = object(root, "textures");
         for (Map.Entry<String, JsonElement> entry : textures.entrySet()) {
             String textureId = entry.getValue().getAsString();
-            assertTextureReference(textureId, "me_storage_access_hatch texture " + entry.getKey());
+            assertTextureReference(textureId, "trinity_access_hatch texture " + entry.getKey());
         }
     }
 

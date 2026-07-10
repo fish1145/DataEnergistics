@@ -1487,7 +1487,7 @@ public final class CompartmentInventoryTest {
             case ME_INPUT -> new MeCompositeInputWarehouseBlockEntity(BlockPos.ZERO, state);
             case ME_OUTPUT -> new MeCompositeOutputWarehouseBlockEntity(BlockPos.ZERO, state);
             case PATTERN_BUFFER -> new MePatternBufferBlockEntity(BlockPos.ZERO, state);
-            case ME_STORAGE_ACCESS -> throw new IllegalArgumentException("ME storage access hatch is not a CompartmentBlockEntity");
+            case TRINITY_ACCESS -> throw new IllegalArgumentException("Trinity access hatch is not a CompartmentBlockEntity");
         };
     }
 

@@ -25,8 +25,14 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStruc
 import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCpuCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerCraftingCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.DigitalConstructFlowerStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAccessLease;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerCraftingStatus;
 import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
 import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
@@ -56,11 +62,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
-import appeng.api.networking.events.GridCraftingCpuChange;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.me.service.CraftingService;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
@@ -98,6 +104,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_PATTERN_CAPACITY_TAG = "crafting_pattern_capacity";
     private static final String CRAFTING_RUNTIME_TAG = "crafting_runtime";
     private static final String STORAGE_ID_TAG = "storage_id";
+    private static final String HOST_ID_TAG = "host_id";
     private static final String NO_FAILURE = "";
     private static final String MAIN_STRUCTURE_NOT_FORMED = "Main structure is not formed";
     private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME;
@@ -106,6 +113,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
     private UUID storageId = UUID.randomUUID();
+    private UUID hostId = UUID.randomUUID();
+    private TrinityPatternCatalog patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
+    private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouterImpl();
+    private boolean patternCatalogValid;
     private boolean formed;
     private List<BlockPos> matchedPositions = List.of();
     private DigitalConstructFlowerStorageProfile storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
@@ -130,6 +141,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
     private final CompartmentStorage patternBufferStorageView = new CompartmentStorageGroup(this::recognizedPatternBufferStorages);
     private final DigitalConstructFlowerCraftingRuntime craftingRuntime = new DigitalConstructFlowerCraftingRuntime(this);
+    @Nullable
+    private TrinityAccessLease accessLease;
+    private long accessLeaseEpoch;
 
     public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -161,11 +175,27 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
-        if (!this.recheckRequested && Math.floorMod(this.level.getGameTime() + this.worldPosition.asLong(), RECHECK_INTERVAL_TICKS) != 0) {
-            return;
+        try {
+            tickServerState();
+        } catch (RuntimeException exception) {
+            this.craftingRuntime.setPaused(true);
+            LOGGER.error("Failed to tick Trinity Data Core at {}; runtime was paused", this.worldPosition, exception);
         }
-        this.recheckRequested = false;
-        updateStructureMatch(this.level);
+    }
+
+    private void tickServerState() {
+        boolean periodicRecheck = Math.floorMod(
+                this.level.getGameTime() + this.worldPosition.asLong(),
+                RECHECK_INTERVAL_TICKS) == 0;
+        if (this.recheckRequested || periodicRecheck) {
+            this.recheckRequested = false;
+            updateStructureMatch(this.level);
+        }
+        reevaluateAccessLease();
+        if (this.patternCatalogValid && this.patternCatalog.refreshChangedPatterns()) {
+            notifyTrinityAccessChanged();
+        }
+        tickOwnedPatternCores();
     }
 
     @Override
@@ -265,6 +295,34 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
     public boolean isCraftingAvailable() {
         return this.formed && this.craftingStructureFormed && this.craftingProfile.active();
+    }
+
+    /**
+     * Returns whether the lease owner may publish the aggregated crafting patterns to AE2.
+     */
+    public boolean isPatternProviderAvailable() {
+        return canExposeTrinityCapabilities() && this.patternCatalogValid && this.craftingProfile.active();
+    }
+
+    /**
+     * Returns whether all three structures are valid, allowing the lease owner to expose storage, CPUs, and patterns.
+     */
+    public boolean canExposeTrinityCapabilities() {
+        return isTrinityRuntimeAvailable();
+    }
+
+    /**
+     * Returns the stable crafting identity, which is deliberately independent from the saved-data storage UUID.
+     */
+    public UUID getHostId() {
+        return this.hostId;
+    }
+
+    /**
+     * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
+     */
+    public TrinityPatternCatalog getPatternCatalog() {
+        return this.patternCatalog;
     }
 
     public List<BlockPos> getMatchedPositions() {
@@ -427,6 +485,20 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         stack.set(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID, this.storageId.toString());
     }
 
+    /** Restores the stable crafting host identity carried by a moved Trinity host item. */
+    public void restoreHostIdFromItem(ItemStack stack) {
+        String rawId = stack.get(ModDataComponents.TRINITY_PATTERN_HOST_ID);
+        if (rawId == null || rawId.isBlank()) {
+            return;
+        }
+        setHostId(parseHostId(rawId, "item component"));
+    }
+
+    /** Saves the crafting host identity independently from the legacy main-storage identity. */
+    public void saveHostIdToItem(ItemStack stack) {
+        stack.set(ModDataComponents.TRINITY_PATTERN_HOST_ID, this.hostId.toString());
+    }
+
     @Override
     public int getStoredTypeCount() {
         return storageSummary().typeCount();
@@ -481,7 +553,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
      */
     public void setCpuContribution(String structureName, DigitalConstructFlowerCpuContribution contribution) {
         this.craftingRuntime.setContribution(structureName, contribution);
-        notifyCraftingCpuChanged();
+        notifyTrinityAccessChanged();
         setChanged();
     }
 
@@ -492,7 +564,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
      */
     public void clearCpuContribution(String structureName) {
         this.craftingRuntime.clearContribution(structureName);
-        notifyCraftingCpuChanged();
+        notifyTrinityAccessChanged();
         setChanged();
     }
 
@@ -546,7 +618,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private static boolean hasCraftingTarget(@Nullable GenericStack stack) {
-        return stack != null && stack.what() != null && stack.amount() > 0;
+        return stack != null && stack.amount() > 0;
     }
 
     private StorageSummary storageSummary() {
@@ -561,28 +633,166 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     public boolean hasActiveAccessHatch() {
-        return accessGrid() != null;
+        reevaluateAccessLease();
+        return canExposeTrinityCapabilities() && activeLeaseHatch() != null;
     }
 
     public @Nullable IGrid accessGrid() {
+        reevaluateAccessLease();
+        if (!canExposeTrinityCapabilities()) {
+            return null;
+        }
+        TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
+        return hatch == null ? null : hatch.connectedGrid();
+    }
+
+    public IActionSource accessActionSource() {
+        reevaluateAccessLease();
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof MeStorageAccessHatchBlockEntity hatch) {
-                IGrid grid = hatch.accessGrid();
-                if (grid != null) {
-                    return grid;
-                }
+            if (part instanceof TrinityAccessHatchBlockEntity hatch && isLeaseOwner(hatch)) {
+                return hatch.actionSource();
+            }
+        }
+        throw new IllegalStateException("Trinity Digital Core has no active Trinity access hatch");
+    }
+
+    public boolean isLeaseOwner(TrinityAccessHatchBlockEntity hatch) {
+        return this.accessLease != null && this.accessLease.matches(hatch.getBlockPos(), hatch.connectedGrid());
+    }
+
+    public void requestAccessLeaseReevaluation() {
+        reevaluateAccessLease();
+    }
+
+    private void reevaluateAccessLease() {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+        List<TrinityAccessHatchBlockEntity> candidates = compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
+                .filter(TrinityAccessHatchBlockEntity.class::isInstance)
+                .map(TrinityAccessHatchBlockEntity.class::cast)
+                .filter(TrinityAccessHatchBlockEntity::isCandidateOnline)
+                .sorted((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
+                .toList();
+
+        if (this.accessLease != null) {
+            boolean currentStillValid = candidates.stream().anyMatch(this::isLeaseOwner);
+            if (currentStillValid || hasPendingTrinityWork()) {
+                this.craftingRuntime.setPaused(!currentStillValid || !isTrinityRuntimeAvailable());
+                return;
+            }
+        }
+
+        TrinityAccessLease previous = this.accessLease;
+        this.accessLease = candidates.isEmpty() ? null : new TrinityAccessLease(
+                candidates.getFirst().getBlockPos(),
+                candidates.getFirst().connectedGrid(),
+                ++this.accessLeaseEpoch);
+        this.craftingRuntime.setPaused(this.accessLease == null || !isTrinityRuntimeAvailable());
+        if (!Objects.equals(previous, this.accessLease)) {
+            notifyTrinityAccessChanged();
+        }
+    }
+
+    private boolean hasPendingTrinityWork() {
+        return this.craftingRuntime.hasBusyJobs() || this.patternCatalog.hasWork();
+    }
+
+    private boolean isTrinityRuntimeAvailable() {
+        return this.formed && this.cpuStructureFormed && this.craftingStructureFormed;
+    }
+
+    @Nullable
+    private TrinityAccessHatchBlockEntity activeLeaseHatch() {
+        if (this.accessLease == null) {
+            return null;
+        }
+        for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
+            if (part instanceof TrinityAccessHatchBlockEntity hatch && hatch.isCandidateOnline() && isLeaseOwner(hatch)) {
+                return hatch;
             }
         }
         return null;
     }
 
-    public IActionSource accessActionSource() {
-        for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof MeStorageAccessHatchBlockEntity hatch && hatch.accessGrid() != null) {
-                return hatch.actionSource();
+    private void tickOwnedPatternCores() {
+        if (!isPatternProviderAvailable() || !(this.level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
+        IGrid grid = hatch == null ? null : hatch.connectedGrid();
+        if (grid == null) {
+            return;
+        }
+        if (!(grid.getCraftingService() instanceof CraftingService craftingService)) {
+            LOGGER.error("Trinity host {} cannot route pattern outputs because its AE crafting service is unsupported",
+                    this.worldPosition);
+            return;
+        }
+
+        DigitalConstructFlowerStorageSavedData storage = DigitalConstructFlowerStorageSavedData.get(serverLevel.getServer());
+        boolean routedAnyOutput = false;
+        for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
+            if (!(mount.core() instanceof TrinityPatternCoreBlockEntity patternCore)) {
+                LOGGER.error("Trinity host {} catalog contains a non-block pattern core at {}",
+                        this.worldPosition,
+                        mount.position());
+                continue;
+            }
+            try {
+                patternCore.executeOwnedBatches(this.hostId, this.level.getGameTime());
+                routedAnyOutput |= routePendingOutputs(patternCore, craftingService, storage);
+            } catch (RuntimeException exception) {
+                LOGGER.error(
+                        "Failed to execute or route Trinity pattern core {} at {} for host {}",
+                        patternCore.coreId(),
+                        mount.position(),
+                        this.worldPosition,
+                        exception);
             }
         }
-        throw new IllegalStateException("Trinity Digital Core has no active ME storage access hatch");
+        if (routedAnyOutput) {
+            notifyTrinityAccessChanged();
+        }
+    }
+
+    private boolean routePendingOutputs(TrinityPatternCoreBlockEntity core,
+                                        CraftingService craftingService,
+                                        DigitalConstructFlowerStorageSavedData storage) {
+        boolean changed = false;
+        for (int slot = 0; slot < core.patternCapacity(); slot++) {
+            PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
+            List<ItemStack> pending = core.pendingOutputs(route);
+            if (pending.isEmpty()) {
+                continue;
+            }
+            boolean[] checkpointed = { false };
+            try {
+                this.patternOutputRouter.route(
+                        pending,
+                        craftingService::getRequestedAmount,
+                        craftingService::insertIntoCpus,
+                        (key, amount, mode) -> storage.insert(
+                                this.storageId,
+                                key,
+                                amount,
+                                mode,
+                                this.storageProfile),
+                        remaining -> {
+                            core.replacePendingOutputs(route, remaining);
+                            checkpointed[0] = true;
+                        });
+            } catch (RuntimeException exception) {
+                LOGGER.error(
+                        "Failed to route Trinity pattern core {} slot {} outputs for host {}",
+                        core.coreId(),
+                        slot,
+                        this.worldPosition,
+                        exception);
+            }
+            changed |= checkpointed[0];
+        }
+        return changed;
     }
 
     private void setStorageId(UUID storageId) {
@@ -593,11 +803,31 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
+    private void setHostId(UUID hostId) {
+        if (this.hostId.equals(hostId)) {
+            return;
+        }
+        this.hostId = hostId;
+        this.patternCatalog = new TrinityPatternCatalogImpl(hostId);
+        this.patternCatalogValid = false;
+        requestStructureRecheck();
+        setChanged();
+    }
+
     private static UUID parseStorageId(String rawId, String source) {
         try {
             return UUID.fromString(rawId);
         } catch (IllegalArgumentException exception) {
             LOGGER.warn("Invalid Digital Construct Flower storage id '{}' from {}; generating a replacement", rawId, source, exception);
+            return UUID.randomUUID();
+        }
+    }
+
+    private static UUID parseHostId(String rawId, String source) {
+        try {
+            return UUID.fromString(rawId);
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Invalid Trinity crafting host id '{}' from {}; generating a replacement", rawId, source, exception);
             return UUID.randomUUID();
         }
     }
@@ -623,6 +853,11 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         if (data.contains(STORAGE_ID_TAG, Tag.TAG_STRING)) {
             setStorageId(parseStorageId(data.getString(STORAGE_ID_TAG), "block entity tag"));
         }
+        if (data.hasUUID(HOST_ID_TAG)) {
+            this.hostId = data.getUUID(HOST_ID_TAG);
+        }
+        this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
+        this.patternCatalogValid = false;
         this.formed = data.getBoolean(FORMED_TAG);
         this.matchedPositions = readMatchedPositions(data);
         this.lastFailureReason = data.getString(LAST_FAILURE_REASON_TAG);
@@ -661,6 +896,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         data.putString(STORAGE_ID_TAG, this.storageId.toString());
+        data.putUUID(HOST_ID_TAG, this.hostId);
         data.putBoolean(FORMED_TAG, this.formed);
         data.put(MATCHED_POSITIONS_TAG, createMatchedPositionsTag());
         data.putString(LAST_FAILURE_REASON_TAG, this.lastFailureReason);
@@ -746,7 +982,19 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 CRAFTING_STRUCTURE_NAME);
 
         if (result.matched()) {
-            applyCraftingMatch(world, result.positions());
+            PatternCatalogScanResult scan = scanPatternCores(world, result.positions());
+            if (!scan.valid()) {
+                this.patternCatalogValid = false;
+                applyCraftingFailure(scan.failureReason(), scan.failurePosition());
+                return;
+            }
+            TrinityPatternCatalog.RebuildResult rebuild = this.patternCatalog.rebuild(scan.mounts());
+            this.patternCatalogValid = rebuild.valid();
+            if (!rebuild.valid()) {
+                applyCraftingFailure(rebuild.failureReason(), rebuild.failurePosition());
+                return;
+            }
+            applyCraftingMatch(world, result.positions(), rebuild.changed());
         } else {
             applyCraftingFailure(result.diagnostic());
         }
@@ -799,7 +1047,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = null;
         this.craftingRuntime.setMainStructureFormed(true);
-        notifyCraftingCpuChanged();
+        this.craftingRuntime.setPaused(!isTrinityRuntimeAvailable());
+        notifyTrinityAccessChanged();
         setChanged();
     }
 
@@ -819,6 +1068,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             this.cpuStructureContribution = contribution;
             setCpuContribution(CPU_STRUCTURE_NAME, contribution);
         } else if (statusChanged) {
+            notifyTrinityAccessChanged();
             setChanged();
         }
     }
@@ -836,30 +1086,30 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         if (!this.cpuStructureFormed &&
                 this.cpuStructureMatchedBlockCount == 0 &&
                 Objects.equals(this.cpuLastFailureReason, nextFailureReason) &&
-                Objects.equals(this.cpuLastFailurePosition, nextFailurePosition) &&
-                !hasCpuStructureContribution()) {
+                Objects.equals(this.cpuLastFailurePosition, nextFailurePosition)) {
             return;
         }
-        if ((this.cpuStructureFormed || hasCpuStructureContribution()) && diagnostic != null) {
+        if (this.cpuStructureFormed && diagnostic != null) {
             LOGGER.warn(
                     "Trinity Digital Core structure '{}' failed at {}: {}",
                     CPU_STRUCTURE_NAME,
                     diagnostic.position(),
                     diagnostic.message());
         }
-        clearCpuStructureContribution();
         this.cpuStructureFormed = false;
         this.cpuStructureMatchedBlockCount = 0;
         this.cpuLastFailureReason = nextFailureReason;
         this.cpuLastFailurePosition = nextFailurePosition;
+        notifyTrinityAccessChanged();
         setChanged();
     }
 
-    private void applyCraftingMatch(StructureWorldView world, List<BlockPos> positions) {
+    private void applyCraftingMatch(StructureWorldView world, List<BlockPos> positions, boolean catalogChanged) {
         DigitalConstructFlowerCraftingCoreProfile nextProfile = buildCraftingProfile(world, positions);
         boolean statusChanged = !this.craftingStructureFormed ||
                 this.craftingStructureMatchedBlockCount != positions.size() ||
                 !this.craftingProfile.equals(nextProfile) ||
+                catalogChanged ||
                 !NO_FAILURE.equals(this.craftingLastFailureReason) ||
                 this.craftingLastFailurePosition != null;
 
@@ -869,39 +1119,40 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         this.craftingLastFailureReason = NO_FAILURE;
         this.craftingLastFailurePosition = null;
         if (statusChanged) {
+            notifyTrinityAccessChanged();
             setChanged();
         }
     }
 
     private void applyCraftingFailure(PatternDiagnostic diagnostic) {
-        String nextFailureReason;
-        BlockPos nextFailurePosition;
         if (diagnostic == null) {
-            nextFailureReason = "Structure pattern did not match";
-            nextFailurePosition = null;
+            applyCraftingFailure("Structure pattern did not match", null);
         } else {
-            nextFailureReason = diagnostic.message();
-            nextFailurePosition = diagnostic.position();
+            applyCraftingFailure(diagnostic.message(), diagnostic.position());
         }
+    }
+
+    private void applyCraftingFailure(String nextFailureReason, @Nullable BlockPos nextFailurePosition) {
+        this.patternCatalogValid = false;
         if (!this.craftingStructureFormed &&
                 this.craftingStructureMatchedBlockCount == 0 &&
-                this.craftingProfile.equals(DigitalConstructFlowerCraftingCoreProfile.EMPTY) &&
                 Objects.equals(this.craftingLastFailureReason, nextFailureReason) &&
                 Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
             return;
         }
-        if (this.craftingStructureFormed && diagnostic != null) {
+        if (this.craftingStructureFormed || !Objects.equals(this.craftingLastFailureReason, nextFailureReason) ||
+                !Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
             LOGGER.warn(
                     "Trinity Digital Core structure '{}' failed at {}: {}",
                     CRAFTING_STRUCTURE_NAME,
-                    diagnostic.position(),
-                    diagnostic.message());
+                    nextFailurePosition,
+                    nextFailureReason);
         }
         this.craftingStructureFormed = false;
         this.craftingStructureMatchedBlockCount = 0;
-        this.craftingProfile = DigitalConstructFlowerCraftingCoreProfile.EMPTY;
         this.craftingLastFailureReason = nextFailureReason;
         this.craftingLastFailurePosition = nextFailurePosition;
+        notifyTrinityAccessChanged();
         setChanged();
     }
 
@@ -917,12 +1168,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         }
         if (!this.formed && this.matchedPositions.isEmpty() && Objects.equals(this.lastFailureReason, nextFailureReason) &&
                 Objects.equals(this.lastFailurePosition, nextFailurePosition) &&
-                !hasCpuStructureContribution() &&
                 !this.cpuStructureFormed &&
                 this.cpuStructureMatchedBlockCount == 0 &&
                 !this.craftingStructureFormed &&
                 this.craftingStructureMatchedBlockCount == 0 &&
-                this.craftingProfile.equals(DigitalConstructFlowerCraftingCoreProfile.EMPTY) &&
                 Objects.equals(this.craftingLastFailureReason, MAIN_STRUCTURE_NOT_FORMED) &&
                 this.craftingLastFailurePosition == null) {
             return;
@@ -937,11 +1186,11 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         clearCraftingStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
         this.formed = false;
         this.matchedPositions = List.of();
-        this.storageProfile = DigitalConstructFlowerStorageProfile.EMPTY;
         this.lastFailureReason = nextFailureReason;
         this.lastFailurePosition = nextFailurePosition;
         this.craftingRuntime.setMainStructureFormed(false);
-        notifyCraftingCpuChanged();
+        this.craftingRuntime.setPaused(true);
+        notifyTrinityAccessChanged();
         setChanged();
     }
 
@@ -1047,15 +1296,28 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return positions;
     }
 
-    private void notifyCraftingCpuChanged() {
+    private void notifyTrinityAccessChanged() {
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
-            if (part instanceof MeStorageAccessHatchBlockEntity hatch) {
-                var node = hatch.getMainNode().getNode();
-                if (node != null) {
-                    node.getGrid().postEvent(new GridCraftingCpuChange(node));
-                }
+            if (part instanceof TrinityAccessHatchBlockEntity hatch) {
+                hatch.refreshTrinityAccess();
             }
         }
+    }
+
+    @Override
+    public void setRemoved() {
+        this.craftingRuntime.setPaused(true);
+        clearCompartmentBindings(mainDefinitionKey().structureName());
+        this.accessLease = null;
+        super.setRemoved();
+    }
+
+    /** Cancels active CPU jobs only when the host block is being permanently removed from the world. */
+    public void onPermanentRemoval() {
+        this.craftingRuntime.cancelAllJobs();
+        this.craftingRuntime.setPaused(true);
+        clearCompartmentBindings(mainDefinitionKey().structureName());
+        this.accessLease = null;
     }
 
     private static DigitalConstructFlowerStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {
@@ -1078,6 +1340,25 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             }
         }
         return builder.build();
+    }
+
+    private static PatternCatalogScanResult scanPatternCores(StructureWorldView world, List<BlockPos> positions) {
+        ArrayList<TrinityPatternCatalog.CoreMount> mounts = new ArrayList<>();
+        for (BlockPos pos : positions) {
+            BlockState state = world.getBlockState(pos);
+            if (!(state.getBlock() instanceof TrinityCoreComponent component) ||
+                    component.kind() != TrinityCoreKind.PATTERN_PROCESSING) {
+                continue;
+            }
+            BlockEntity blockEntity = world.getBlockEntity(pos);
+            if (!(blockEntity instanceof TrinityPatternCoreBlockEntity patternCore)) {
+                return PatternCatalogScanResult.failure(
+                        pos,
+                        "Trinity pattern processing core at " + pos + " has no matching block entity");
+            }
+            mounts.add(new TrinityPatternCatalog.CoreMount(pos, component.patternCapacity(), patternCore));
+        }
+        return PatternCatalogScanResult.success(mounts);
     }
 
     private DigitalConstructFlowerCpuContribution buildCpuContribution(StructureWorldView world, List<BlockPos> positions) {
@@ -1107,16 +1388,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return pos.getY() - this.worldPosition.getY() + DigitalConstructFlowerCpuCoreProfile.CONTROLLER_LOCAL_Y;
     }
 
-    private void clearCpuStructureContribution() {
-        if (!hasCpuStructureContribution()) {
-            return;
-        }
-        this.cpuStructureContribution = null;
-        clearCpuContribution(CPU_STRUCTURE_NAME);
-    }
-
     private void clearCpuStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
-        clearCpuStructureContribution();
         this.cpuStructureFormed = false;
         this.cpuStructureMatchedBlockCount = 0;
         this.cpuLastFailureReason = failureReason;
@@ -1124,18 +1396,28 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private void clearCraftingStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
+        this.patternCatalogValid = false;
         this.craftingStructureFormed = false;
         this.craftingStructureMatchedBlockCount = 0;
-        this.craftingProfile = DigitalConstructFlowerCraftingCoreProfile.EMPTY;
         this.craftingLastFailureReason = failureReason;
         this.craftingLastFailurePosition = failurePosition;
     }
 
-    private boolean hasCpuStructureContribution() {
-        return this.cpuStructureContribution != null || this.craftingRuntime.hasContribution(CPU_STRUCTURE_NAME);
-    }
-
     private record AutoBuildOrientation(Direction front, boolean flipped) {}
+
+    private record PatternCatalogScanResult(boolean valid,
+                                            List<TrinityPatternCatalog.CoreMount> mounts,
+                                            @Nullable BlockPos failurePosition,
+                                            String failureReason) {
+
+        private static PatternCatalogScanResult success(List<TrinityPatternCatalog.CoreMount> mounts) {
+            return new PatternCatalogScanResult(true, List.copyOf(mounts), null, "");
+        }
+
+        private static PatternCatalogScanResult failure(BlockPos position, String reason) {
+            return new PatternCatalogScanResult(false, List.of(), position.immutable(), reason);
+        }
+    }
 
     private record LevelStructureWorldView(Level level) implements StructureWorldView {
 

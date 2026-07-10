@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.MeStorageAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -17,6 +17,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -168,8 +169,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Bundled Trinity Digital Core H symbol should remain ordinary quartz vibrant glass");
         Set<CompartmentType> accessHatchTypes = definition.replaceableCompartmentTypes().getOrDefault("@", Set.of());
         helper.assertTrue(
-                accessHatchTypes.contains(CompartmentType.ME_STORAGE_ACCESS),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should allow the ME storage access hatch");
+                accessHatchTypes.contains(CompartmentType.TRINITY_ACCESS),
+                "Bundled Trinity Digital Core dedicated access hatch symbol should allow the Trinity access hatch");
         helper.assertFalse(
                 accessHatchTypes.contains(CompartmentType.INPUT),
                 "Bundled Trinity Digital Core dedicated access hatch symbol should not accept input warehouses");
@@ -200,7 +201,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(
                 pattern.structureSlices[24][1],
                 "            M@M            ",
-                "Bundled Trinity Digital Core should allow ME storage access replacement directly above the host");
+                "Bundled Trinity Digital Core should allow Trinity access replacement directly above the host");
         helper.assertValueEqual(
                 pattern.structureSlices[24][2],
                 "            M~M            ",
@@ -208,7 +209,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(
                 pattern.structureSlices[24][3],
                 "            M@M            ",
-                "Bundled Trinity Digital Core should allow ME storage access replacement directly below the host");
+                "Bundled Trinity Digital Core should allow Trinity access replacement directly below the host");
         helper.assertValueEqual(
                 pattern.structureSlices[0][0],
                 "                           ",
@@ -221,6 +222,10 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Digital Core should expose all storage core slots through Z");
         helper.assertValueEqual(countSymbol(pattern, '@'), 2, "Main Trinity Digital Core should expose exactly two access hatch replacement slots");
         helper.assertValueEqual(countSymbol(pattern, 'H'), 36, "Main Trinity Digital Core should keep all other quartz vibrant glass slots fixed");
+        ItemStack firstAccessPlacementCandidate = predicateForFirstSymbol(pattern, '@').placementCandidates().getFirst();
+        helper.assertTrue(
+                firstAccessPlacementCandidate.is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
+                "Auto-build should prefer placing the Trinity access hatch in @ slots before falling back to quartz glass");
         JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
         helper.assertValueEqual(structureDir.get("char").getAsString(), "left", "Main JSON should map chars to left");
         helper.assertValueEqual(structureDir.get("string").getAsString(), "up", "Main JSON should map rows to height");
@@ -264,22 +269,22 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
         BlockPos accessSlot = mapPatternPosition(pattern, firstSymbol(pattern, '@'), hostPos, frontFacing, Direction.NORTH);
         Map<BlockPos, BlockState> accessStates = new LinkedHashMap<>(states);
-        accessStates.put(accessSlot, ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState());
+        accessStates.put(accessSlot, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult accessResult = JsonMultiBlockPatternMatcher.matchExact(
                 pattern,
                 world(accessStates),
                 hostPos,
                 frontFacing,
                 "main");
-        helper.assertTrue(accessResult.matched(), "Dedicated @ slot should accept the ME storage access hatch");
+        helper.assertTrue(accessResult.matched(), "Dedicated @ slot should accept the Trinity access hatch");
         helper.assertValueEqual(
                 JsonMultiBlockCompartmentPredicate.declaredCompartments(accessResult.context()).get(accessSlot),
-                CompartmentType.ME_STORAGE_ACCESS,
-                "Dedicated @ slot should be declared as the ME storage access hatch");
+                CompartmentType.TRINITY_ACCESS,
+                "Dedicated @ slot should be declared as the Trinity access hatch");
 
         BlockPos fixedGlassSlot = mapPatternPosition(pattern, firstSymbol(pattern, 'H'), hostPos, frontFacing, Direction.NORTH);
         Map<BlockPos, BlockState> fixedGlassStates = new LinkedHashMap<>(states);
-        fixedGlassStates.put(fixedGlassSlot, ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState());
+        fixedGlassStates.put(fixedGlassSlot, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult fixedGlassResult = JsonMultiBlockPatternMatcher.matchExact(
                 pattern,
                 world(fixedGlassStates),
@@ -1004,7 +1009,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     public static void replaceableCompartmentAcceptsOriginalBlockAndAllowedRoles(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
                 resource("replaceable_compartment"),
-                new StringReader(jsonWithReplaceableCompartment("A", "input", "me_storage_access")));
+                new StringReader(jsonWithReplaceableCompartment("A", "input", "trinity_access")));
 
         BlockPos replaceablePos = new BlockPos(-1, 0, 0);
         StructureMatchResult originalBlock = JsonMultiBlockPatternMatcher.match(
@@ -1035,15 +1040,37 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 definition.pattern(),
                 world(Map.of(
                         CONTROLLER, Blocks.STONE.defaultBlockState(),
-                        replaceablePos, ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState())),
+                        replaceablePos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState())),
                 CONTROLLER,
                 Direction.NORTH,
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME);
-        helper.assertTrue(accessHatch.matched(), "Allowed ME storage access hatch should replace glass");
+        helper.assertTrue(accessHatch.matched(), "Allowed Trinity access hatch should replace glass");
         helper.assertValueEqual(
                 JsonMultiBlockCompartmentPredicate.declaredCompartments(accessHatch.context()).get(replaceablePos),
-                CompartmentType.ME_STORAGE_ACCESS,
+                CompartmentType.TRINITY_ACCESS,
                 "Allowed access hatch replacement should be recorded for binder validation");
+        helper.succeed();
+    }
+
+    @TestHolder("json_multiblock_replaceable_compartment_preserves_declared_placement_order")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void replaceableCompartmentPreservesDeclaredPlacementOrder(GameTestHelper helper) {
+        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("replaceable_compartment_placement_order"),
+                new StringReader(jsonWithReplaceableCompartment("A", "input", "trinity_access")));
+
+        List<ItemStack> candidates = predicateForFirstSymbol(definition.pattern(), 'A').placementCandidates();
+        helper.assertValueEqual(candidates.size(), 3, "Replacement candidates should contain two compartments and the delegate block");
+        helper.assertTrue(
+                candidates.get(0).is(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
+                "First declared compartment should remain the first placement candidate");
+        helper.assertTrue(
+                candidates.get(1).is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
+                "Second declared compartment should remain the second placement candidate");
+        helper.assertTrue(
+                candidates.get(2).is(Items.GLASS),
+                "Original block should remain the final placement fallback");
         helper.succeed();
     }
 
@@ -1171,29 +1198,29 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_compartment_binder_binds_me_storage_access_hatch")
+    @TestHolder("json_multiblock_compartment_binder_binds_trinity_access_hatch")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void compartmentBinderBindsMeStorageAccessHatch(GameTestHelper helper) {
+    public static void compartmentBinderBindsTrinityAccessHatch(GameTestHelper helper) {
         JsonDeclaredCompartmentBinder binder = new JsonDeclaredCompartmentBinder();
         TestCompartmentHost host = new TestCompartmentHost();
         BlockPos hatchPos = new BlockPos(1, 0, 0);
-        MeStorageAccessHatchBlockEntity hatch = new MeStorageAccessHatchBlockEntity(
+        TrinityAccessHatchBlockEntity hatch = new TrinityAccessHatchBlockEntity(
                 hatchPos,
-                ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState());
+                ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult result = StructureMatchResult.success(
                 false,
                 Direction.NORTH,
                 List.of(hatchPos),
                 new PatternMatchContext());
         StructureWorldView world = world(
-                Map.of(hatchPos, ModBlocks.ME_STORAGE_ACCESS_HATCH.get().defaultBlockState()),
+                Map.of(hatchPos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
                 Map.of(hatchPos, hatch));
-        Map<BlockPos, CompartmentType> declaredCompartments = Map.of(hatchPos, CompartmentType.ME_STORAGE_ACCESS);
+        Map<BlockPos, CompartmentType> declaredCompartments = Map.of(hatchPos, CompartmentType.TRINITY_ACCESS);
 
         PatternDiagnostic diagnostic = binder.validate(world, result, declaredCompartments);
         if (diagnostic != null) {
-            helper.fail("ME storage access hatch should validate as a declared compartment: " + diagnostic.message());
+            helper.fail("Trinity access hatch should validate as a declared compartment: " + diagnostic.message());
             return;
         }
 
@@ -1201,21 +1228,21 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(
                 host.compartmentHost$getCompartments("main"),
                 List.of(hatch),
-                "Binder should register the ME storage access hatch with the host");
-        helper.assertValueEqual(hatch.compartmentHost(), host, "Bound ME storage access hatch should remember its host");
+                "Binder should register the Trinity access hatch with the host");
+        helper.assertValueEqual(hatch.compartmentHost(), host, "Bound Trinity access hatch should remember its host");
         helper.assertValueEqual(
                 hatch.compartmentStructureName(),
                 "main",
-                "Bound ME storage access hatch should remember the structure name");
+                "Bound Trinity access hatch should remember the structure name");
 
         binder.unbind("main", host);
         helper.assertTrue(
                 host.compartmentHost$getCompartments("main").isEmpty(),
-                "Binder unbind should remove the ME storage access hatch from the host");
-        helper.assertTrue(hatch.compartmentHost() == null, "Unbound ME storage access hatch should clear its host");
+                "Binder unbind should remove the Trinity access hatch from the host");
+        helper.assertTrue(hatch.compartmentHost() == null, "Unbound Trinity access hatch should clear its host");
         helper.assertTrue(
                 hatch.compartmentStructureName() == null,
-                "Unbound ME storage access hatch should clear the structure name");
+                "Unbound Trinity access hatch should clear the structure name");
         helper.succeed();
     }
 
@@ -1705,6 +1732,11 @@ public final class JsonMultiBlockDefinitionLoaderTest {
             }
         }
         throw new IllegalStateException("Pattern does not contain symbol '" + symbol + "'");
+    }
+
+    private static TraceabilityPredicate predicateForFirstSymbol(BlockPattern pattern, char symbol) {
+        BlockPos pos = firstSymbol(pattern, symbol);
+        return pattern.getPredicate(pos.getZ(), pos.getY(), pos.getX());
     }
 
     private static int countSymbol(String[] slice, char symbol) {

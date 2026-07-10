@@ -18,9 +18,9 @@ import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicate;
 import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicateTypes;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -38,11 +38,10 @@ public record JsonMultiBlockReplaceableCompartmentPredicate(Set<CompartmentType>
     private static boolean registered;
 
     public JsonMultiBlockReplaceableCompartmentPredicate {
-        if (compartmentTypes == null || compartmentTypes.isEmpty()) {
+        if (compartmentTypes.isEmpty()) {
             throw new IllegalArgumentException("Replaceable compartment predicate requires at least one compartment type");
         }
-        compartmentTypes = Set.copyOf(compartmentTypes);
-        delegate = Objects.requireNonNull(delegate, "delegate");
+        compartmentTypes = Collections.unmodifiableSet(new LinkedHashSet<>(compartmentTypes));
     }
 
     public static synchronized void registerType() {
@@ -54,9 +53,6 @@ public record JsonMultiBlockReplaceableCompartmentPredicate(Set<CompartmentType>
     }
 
     public static JsonMultiBlockReplaceableCompartmentPredicate fromJson(JsonObject object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Replaceable compartment predicate JSON cannot be null");
-        }
         return new JsonMultiBlockReplaceableCompartmentPredicate(
                 readCompartmentTypes(object),
                 StructurePredicateTypes.decode(readRequiredObject(object, PREDICATE_PROPERTY)));
@@ -118,13 +114,14 @@ public record JsonMultiBlockReplaceableCompartmentPredicate(Set<CompartmentType>
 
     @Override
     public List<ItemStack> placementCandidates() {
-        ArrayList<ItemStack> candidates = new ArrayList<>(this.delegate.placementCandidates());
+        ArrayList<ItemStack> candidates = new ArrayList<>();
         for (CompartmentType type : this.compartmentTypes) {
             ItemStack stack = JsonMultiBlockCompartmentPredicate.blockFor(type).asItem().getDefaultInstance();
             if (!stack.isEmpty()) {
                 candidates.add(stack);
             }
         }
+        candidates.addAll(this.delegate.placementCandidates());
         return List.copyOf(candidates);
     }
 
@@ -153,7 +150,7 @@ public record JsonMultiBlockReplaceableCompartmentPredicate(Set<CompartmentType>
                     .orElseThrow(() -> new IllegalArgumentException("Unknown replaceable compartment type: " + typeId));
             types.add(type);
         }
-        return Set.copyOf(types);
+        return types;
     }
 
     private static JsonObject readRequiredObject(JsonObject object, String property) {

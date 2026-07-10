@@ -119,6 +119,14 @@ public final class ModDataComponents {
                     .cacheEncoding()
                     .build());
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> TRINITY_PATTERN_HOST_ID = DATA_COMPONENT_TYPES.register(
+            "trinity_pattern_host_id",
+            () -> DataComponentType.<String>builder()
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8)
+                    .cacheEncoding()
+                    .build());
+
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> MATTER_CONVERGING_CROSSBOW_STORED_DATA = DATA_COMPONENT_TYPES.register(
             "matter_converging_crossbow_stored_data",
             () -> DataComponentType.<Long>builder()
