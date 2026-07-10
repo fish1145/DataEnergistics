@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.flower;
 
+import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -21,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Persisted job state for one Digital Construct Flower virtual CPU.
@@ -40,6 +43,7 @@ final class DigitalConstructFlowerExecutingCraftingJob {
     private static final String REMAINING_AMOUNT_TAG = "remaining_amount";
     private static final String TASKS_TAG = "tasks";
     private static final String CRAFTING_PROGRESS_TAG = "crafting_progress";
+    private static final String ROUTE_TAG = "route";
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
@@ -101,15 +105,14 @@ final class DigitalConstructFlowerExecutingCraftingJob {
         this.timeTracker = new DigitalConstructFlowerElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
         this.playerId = data.contains(PLAYER_ID_TAG, Tag.TAG_INT) ? data.getInt(PLAYER_ID_TAG) : null;
 
-        Level level = Objects.requireNonNull(
-                logic.cpu().level(),
-                "Digital Construct Flower CPU job tasks require a level");
+        Level level = logic.cpu().level();
 
         ListTag tasksTag = data.getList(TASKS_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < tasksTag.size(); index++) {
             CompoundTag item = tasksTag.getCompound(index);
-            AEItemKey pattern = AEItemKey.fromTag(registries, item);
-            IPatternDetails details = PatternDetailsHelper.decodePattern(pattern, level);
+            IPatternDetails details = readTaskDetails(
+                    item,
+                    taskTag -> PatternDetailsHelper.decodePattern(AEItemKey.fromTag(registries, taskTag), level));
             if (details != null) {
                 TaskProgress progress = new TaskProgress();
                 progress.value = item.getLong(CRAFTING_PROGRESS_TAG);
@@ -135,7 +138,7 @@ final class DigitalConstructFlowerExecutingCraftingJob {
 
         ListTag taskList = new ListTag();
         for (Map.Entry<IPatternDetails, TaskProgress> entry : this.tasks.entrySet()) {
-            CompoundTag item = entry.getKey().getDefinition().toTag(registries);
+            CompoundTag item = writeTaskDetails(entry.getKey(), registries);
             item.putLong(CRAFTING_PROGRESS_TAG, entry.getValue().value);
             taskList.add(item);
         }
@@ -147,6 +150,37 @@ final class DigitalConstructFlowerExecutingCraftingJob {
         }
 
         return data;
+    }
+
+    static CompoundTag writeTaskDetails(IPatternDetails details, HolderLookup.Provider registries) {
+        return writeTaskDetails(details, definition -> definition.toTag(registries));
+    }
+
+    /**
+     * Writes the definition and optional Trinity route for one persisted task.
+     *
+     * <p>
+     * The supplied definition writer keeps this policy independent of the registry serialization mechanism.
+     */
+    static CompoundTag writeTaskDetails(IPatternDetails details, Function<AEItemKey, CompoundTag> definitionWriter) {
+        CompoundTag item = definitionWriter.apply(details.getDefinition());
+        if (details instanceof RoutedCraftingPatternDetails routedDetails) {
+            item.put(ROUTE_TAG, routedDetails.route().writeToTag());
+        }
+        return item;
+    }
+
+    /**
+     * Rebuilds a persisted task and reapplies its exact Trinity route after decoding the pattern definition.
+     */
+    @Nullable
+    static IPatternDetails readTaskDetails(CompoundTag item,
+                                           Function<CompoundTag, IPatternDetails> definitionReader) {
+        IPatternDetails details = definitionReader.apply(item);
+        if (details != null && item.contains(ROUTE_TAG, Tag.TAG_COMPOUND)) {
+            return new RoutedCraftingPatternDetails(PatternRoute.readFromTag(item.getCompound(ROUTE_TAG)), details);
+        }
+        return details;
     }
 
     static final class TaskProgress {
