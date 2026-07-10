@@ -31,7 +31,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     private static final String TAG_FAILURE_X = "failure_x";
     private static final String TAG_FAILURE_Y = "failure_y";
     private static final String TAG_FAILURE_Z = "failure_z";
-    private static final String TAG_DIGITAL_CONSTRUCT_FLOWER = "digital_construct_flower";
+    private static final String TAG_TRINITY_DATA_CORE = "trinity_data_core";
     private static final String TAG_PATTERN_BUFFER_COUNT = "pattern_buffer_count";
     private static final String TAG_CPU_STRUCTURE_FORMED = "cpu_structure_formed";
     private static final String TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT = "cpu_structure_matched_block_count";
@@ -75,7 +75,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         } else {
             appendFailureTooltip(tooltip, serverData);
         }
-        if (config.get(DEBUG_ID) && serverData.getBoolean(TAG_DIGITAL_CONSTRUCT_FLOWER)) {
+        if (config.get(DEBUG_ID) && serverData.getBoolean(TAG_TRINITY_DATA_CORE)) {
             appendDigitalConstructFlowerDebugTooltip(tooltip, serverData);
         }
     }
@@ -218,7 +218,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     }
 
     private static void appendDigitalConstructFlowerServerData(CompoundTag data, DigitalConstructFlowerMenuHost host) {
-        data.putBoolean(TAG_DIGITAL_CONSTRUCT_FLOWER, true);
+        data.putBoolean(TAG_TRINITY_DATA_CORE, true);
         data.putInt(TAG_PATTERN_BUFFER_COUNT, host.getPatternBufferCount());
         data.putBoolean(TAG_CPU_STRUCTURE_FORMED, host.isCpuStructureFormed());
         data.putInt(TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT, host.getCpuStructureMatchedBlockCount());

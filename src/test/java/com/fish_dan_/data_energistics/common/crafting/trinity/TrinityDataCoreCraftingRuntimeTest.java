@@ -211,7 +211,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     @GameTest(template = "empty_5x5")
     public static void mainStructureFailureRetainsCpuChildState(GameTestHelper helper) {
         BlockPos flowerPos = new BlockPos(1, 1, 1);
-        helper.setBlock(flowerPos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+        helper.setBlock(flowerPos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(flowerPos));
         if (!(blockEntity instanceof DigitalConstructFlowerBlockEntity flower)) {
             helper.fail("Expected a placed Trinity Data Core block entity", flowerPos);
@@ -370,13 +370,13 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     @GameTest(template = "empty_5x5")
     public static void storageIdRoundTripsThroughItemAndNbt(GameTestHelper helper) {
         DigitalConstructFlowerBlockEntity original = digitalConstructFlower(false);
-        ItemStack stack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        ItemStack stack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
         original.saveStorageIdToItem(stack);
         UUID storageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
 
         DigitalConstructFlowerBlockEntity placed = digitalConstructFlower(false);
         placed.restoreStorageIdFromItem(stack);
-        ItemStack placedStack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        ItemStack placedStack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
         placed.saveStorageIdToItem(placedStack);
         helper.assertValueEqual(
                 placedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
@@ -387,7 +387,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         placed.saveAdditional(saved, HolderLookup.Provider.create(Stream.empty()));
         DigitalConstructFlowerBlockEntity loaded = digitalConstructFlower(false);
         loaded.loadTag(saved, HolderLookup.Provider.create(Stream.empty()));
-        ItemStack loadedStack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        ItemStack loadedStack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
         loaded.saveStorageIdToItem(loadedStack);
         helper.assertValueEqual(
                 loadedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
@@ -399,7 +399,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private static DigitalConstructFlowerBlockEntity digitalConstructFlower(boolean formed) {
         DigitalConstructFlowerBlockEntity flower = new DigitalConstructFlowerBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+                ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         if (formed) {
             flower.loadTag(formedTag(), HolderLookup.Provider.create(Stream.empty()));
         }
@@ -500,7 +500,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private static final class TestFlower extends DigitalConstructFlowerBlockEntity {
 
         private TestFlower(BlockPos pos) {
-            super(pos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+            super(pos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         }
 
         @Override

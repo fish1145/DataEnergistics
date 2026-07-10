@@ -1529,7 +1529,7 @@ public final class CompartmentInventoryTest {
     private static DigitalConstructFlowerBlockEntity digitalConstructFlower() {
         return new DigitalConstructFlowerBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+                ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
     }
 
     private static DigitalConstructFlowerBlockEntity formedDigitalConstructFlower() {

@@ -124,7 +124,7 @@ public final class ModCreativeTabs {
             Data_Energistics.MODID + "_multiblock",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + Data_Energistics.MODID + ".multiblock"))
-                    .icon(ModItems.DIGITAL_CONSTRUCT_FLOWER::toStack)
+                    .icon(ModItems.TRINITY_DATA_CORE::toStack)
                     .displayItems((parameters, output) -> acceptMultiblockItems(output))
                     .withTabsBefore(DATA_ENERGISTICS_TAB_KEY)
                     .build());
@@ -136,7 +136,7 @@ public final class ModCreativeTabs {
     }
 
     private static void acceptMultiblockItems(CreativeModeTab.Output output) {
-        output.accept(ModItems.DIGITAL_CONSTRUCT_FLOWER);
+        output.accept(ModItems.TRINITY_DATA_CORE);
         output.accept(ModItems.COMPOSITE_INPUT_WAREHOUSE);
         output.accept(ModItems.COMPOSITE_OUTPUT_WAREHOUSE);
         output.accept(ModItems.ME_COMPOSITE_INPUT_WAREHOUSE);

@@ -148,9 +148,9 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private long accessLeaseEpoch;
 
     public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), blockPos, blockState);
+        super(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get())
+                .setVisualRepresentation(ModBlocks.TRINITY_DATA_CORE.get())
                 .setExposedOnSides(Set.of())
                 .setIdlePowerUsage(0.0D);
     }

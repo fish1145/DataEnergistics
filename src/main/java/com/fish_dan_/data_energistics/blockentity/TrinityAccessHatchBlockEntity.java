@@ -382,8 +382,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     private PatternContainerGroup terminalGroup() {
-        AEItemKey icon = AEItemKey.of(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
-        return new PatternContainerGroup(icon, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().getName(), List.of());
+        AEItemKey icon = AEItemKey.of(ModBlocks.TRINITY_DATA_CORE.get());
+        return new PatternContainerGroup(icon, ModBlocks.TRINITY_DATA_CORE.get().getName(), List.of());
     }
 
     private void detachTerminalPartitions() {

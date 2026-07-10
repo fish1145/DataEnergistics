@@ -73,7 +73,7 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
     public String craftingLastFailurePosition = NO_FAILURE;
 
     public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
-        super(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), id, playerInventory, host);
+        super(ModMenus.TRINITY_DATA_CORE.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
     }

@@ -147,7 +147,7 @@ public final class TrinityDataCoreCraftingPersistenceTest {
     private static final class TestHost extends DigitalConstructFlowerBlockEntity {
 
         private TestHost(BlockPos pos) {
-            super(pos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+            super(pos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         }
     }
 }

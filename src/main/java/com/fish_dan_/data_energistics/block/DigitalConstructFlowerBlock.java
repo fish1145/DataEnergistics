@@ -43,7 +43,7 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
-            MenuOpener.open(ModMenus.DIGITAL_CONSTRUCT_FLOWER.get(), player, MenuLocators.forBlockEntity(flower));
+            MenuOpener.open(ModMenus.TRINITY_DATA_CORE.get(), player, MenuLocators.forBlockEntity(flower));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -93,7 +93,7 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
         if (!(level instanceof ServerLevel)) {
             return null;
         }
-        if (blockEntityType != ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get()) {
+        if (blockEntityType != ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get()) {
             return null;
         }
         return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((DigitalConstructFlowerBlockEntity) tickerBlockEntity).serverTick();

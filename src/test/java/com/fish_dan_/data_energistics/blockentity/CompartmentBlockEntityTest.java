@@ -228,7 +228,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
+        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
 
@@ -314,7 +314,7 @@ public final class CompartmentBlockEntityTest {
         ServerLevel level = helper.getLevel();
         BlockPos localOrigin = new BlockPos(25, 4, 25);
         BlockPos origin = helper.absolutePos(localOrigin);
-        helper.setBlock(localOrigin, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
+        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);

@@ -297,7 +297,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         BlockPos origin = helper.absolutePos(localOrigin);
         Player player = creativePlayer(helper);
 
-        helper.setBlock(localOrigin, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
+        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);

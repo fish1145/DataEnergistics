@@ -29,7 +29,7 @@ public final class TrinityPatternHostIdentityTest {
     public static void hostIdentitySurvivesItemMovement(GameTestHelper helper) {
         BlockPos sourcePos = new BlockPos(1, 1, 1);
         BlockPos destinationPos = new BlockPos(3, 1, 1);
-        helper.setBlock(sourcePos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
+        helper.setBlock(sourcePos, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         DigitalConstructFlowerBlockEntity source = requireHost(helper, sourcePos);
@@ -37,7 +37,7 @@ public final class TrinityPatternHostIdentityTest {
                 !source.getHostId().equals(source.getStorageId()),
                 "Trinity crafting host UUID must be independent from the legacy storage UUID");
 
-        ItemStack movedHost = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
+        ItemStack movedHost = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
         source.saveStorageIdToItem(movedHost);
         source.saveHostIdToItem(movedHost);
         helper.assertValueEqual(
@@ -49,7 +49,7 @@ public final class TrinityPatternHostIdentityTest {
                 source.getHostId(),
                 "Moved host item should carry the route UUID as a typed component");
 
-        helper.setBlock(destinationPos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
+        helper.setBlock(destinationPos, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         DigitalConstructFlowerBlockEntity destination = requireHost(helper, destinationPos);

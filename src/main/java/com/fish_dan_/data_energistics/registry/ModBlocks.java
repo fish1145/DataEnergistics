@@ -55,7 +55,7 @@ public final class ModBlocks {
             DataRipperReassemblerMainBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
-    public static final DeferredBlock<Block> DIGITAL_CONSTRUCT_FLOWER = BLOCKS.registerBlock(
+    public static final DeferredBlock<Block> TRINITY_DATA_CORE = BLOCKS.registerBlock(
             "trinity_data_core",
             DigitalConstructFlowerBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
