@@ -100,11 +100,11 @@ public final class DigitalConstructFlowerAutoBuildTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void targetMapsToRequestedStructure(GameTestHelper helper) {
-        ResourceLocation trinityDigitalCore = ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID);
+        ResourceLocation trinityDataCore = ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID);
 
         helper.assertValueEqual(
                 DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget.MAIN),
-                JsonMultiBlockStructureKey.main(trinityDigitalCore),
+                JsonMultiBlockStructureKey.main(trinityDataCore),
                 "MAIN auto-build target should select only the main structure definition");
         helper.assertValueEqual(
                 DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.MAIN),
@@ -112,19 +112,19 @@ public final class DigitalConstructFlowerAutoBuildTest {
                 "MAIN auto-build target should build only the main structure name");
         helper.assertValueEqual(
                 DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget.CPU),
-                new JsonMultiBlockStructureKey(trinityDigitalCore, ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME),
+                new JsonMultiBlockStructureKey(trinityDataCore, ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME),
                 "CPU auto-build target should select only the CPU child definition");
         helper.assertValueEqual(
                 DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.CPU),
-                ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME,
+                ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
                 "CPU auto-build target should build only the CPU child structure name");
         helper.assertValueEqual(
                 DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget.CRAFTING),
-                new JsonMultiBlockStructureKey(trinityDigitalCore, ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME),
+                new JsonMultiBlockStructureKey(trinityDataCore, ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME),
                 "CRAFTING auto-build target should select only the crafting child definition");
         helper.assertValueEqual(
                 DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.CRAFTING),
-                ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME,
+                ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME,
                 "CRAFTING auto-build target should build only the crafting child structure name");
         helper.succeed();
     }

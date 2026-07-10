@@ -82,7 +82,7 @@ public final class TrinityDataCoreResourceTest {
 
     @Test
     void trinityDataCoreMultiblockUsesRenamedStructure() {
-        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_digital_core/main.json");
+        JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_data_core/main.json");
         JsonObject metadata = object(root, "metadata");
         assertEquals(
                 "multiblock.data_energistics.trinity_data_core",
@@ -95,14 +95,14 @@ public final class TrinityDataCoreResourceTest {
 
         assertFalse(
                 values.contains("ae2:crafting_unit"),
-                "Trinity Digital Core storage core positions should not keep the exported AE2 crafting unit placeholder");
+                "Trinity Data Core storage core positions should not keep the exported AE2 crafting unit placeholder");
         assertFalse(
                 values.contains("ae2:drive"),
-                "Trinity Digital Core storage core positions should not keep the exported AE2 drive placeholder");
+                "Trinity Data Core storage core positions should not keep the exported AE2 drive placeholder");
         assertStorageCorePredicate(predicates, "Z");
         assertFalse(
                 predicates.has("d"),
-                "Trinity Digital Core storage core positions should use Z instead of duplicate d");
+                "Trinity Data Core storage core positions should use Z instead of duplicate d");
         assertTrue(
                 values.contains("ae2:controller"),
                 "Trinity Data Core should reference the exported AE2 controller body");

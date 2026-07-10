@@ -21,12 +21,12 @@ import java.nio.charset.StandardCharsets;
  */
 public final class ModVerticalMultiBlocks {
 
-    public static final String TRINITY_DIGITAL_CORE_ID = Data_Energistics.id("trinity_digital_core").toString();
-    public static final String TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME = "cpu";
-    public static final String TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME = "crafting";
-    private static final String TRINITY_DIGITAL_CORE_PATH = "/data/data_energistics/multiblock/trinity_digital_core/main.json";
-    private static final String TRINITY_DIGITAL_CORE_CPU_PATH = "/data/data_energistics/multiblock/trinity_digital_core/cpu.json";
-    private static final String TRINITY_DIGITAL_CORE_CRAFTING_PATH = "/data/data_energistics/multiblock/trinity_digital_core/crafting.json";
+    public static final String TRINITY_DATA_CORE_ID = Data_Energistics.id("trinity_data_core").toString();
+    public static final String TRINITY_DATA_CORE_CPU_STRUCTURE_NAME = "cpu";
+    public static final String TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME = "crafting";
+    private static final String TRINITY_DATA_CORE_PATH = "/data/data_energistics/multiblock/trinity_data_core/main.json";
+    private static final String TRINITY_DATA_CORE_CPU_PATH = "/data/data_energistics/multiblock/trinity_data_core/cpu.json";
+    private static final String TRINITY_DATA_CORE_CRAFTING_PATH = "/data/data_energistics/multiblock/trinity_data_core/crafting.json";
 
     public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new LayeredJsonMultiBlockDefinitionRegistry();
 
@@ -34,14 +34,14 @@ public final class ModVerticalMultiBlocks {
 
     public static void init() {
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
-                JsonMultiBlockStructureKey.main(trinityDigitalCoreId()),
-                ModVerticalMultiBlocks::trinityDigitalCoreDefinition));
+                JsonMultiBlockStructureKey.main(trinityDataCoreId()),
+                ModVerticalMultiBlocks::trinityDataCoreDefinition));
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
-                trinityDigitalCoreCpuKey(),
-                ModVerticalMultiBlocks::trinityDigitalCoreCpuDefinition));
+                trinityDataCoreCpuKey(),
+                ModVerticalMultiBlocks::trinityDataCoreCpuDefinition));
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
-                trinityDigitalCoreCraftingKey(),
-                ModVerticalMultiBlocks::trinityDigitalCoreCraftingDefinition));
+                trinityDataCoreCraftingKey(),
+                ModVerticalMultiBlocks::trinityDataCoreCraftingDefinition));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -49,34 +49,34 @@ public final class ModVerticalMultiBlocks {
         return new JsonMultiBlockReloadEventHandler(JSON_MULTI_BLOCKS);
     }
 
-    private static ResourceLocation trinityDigitalCoreId() {
-        return Data_Energistics.id("trinity_digital_core");
+    private static ResourceLocation trinityDataCoreId() {
+        return Data_Energistics.id("trinity_data_core");
     }
 
-    private static JsonMultiBlockDefinition trinityDigitalCoreDefinition() {
+    private static JsonMultiBlockDefinition trinityDataCoreDefinition() {
         return loadBundledJsonDefinition(
-                TRINITY_DIGITAL_CORE_PATH,
-                Data_Energistics.id("trinity_digital_core/" + JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME));
+                TRINITY_DATA_CORE_PATH,
+                Data_Energistics.id("trinity_data_core/" + JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME));
     }
 
-    private static JsonMultiBlockStructureKey trinityDigitalCoreCpuKey() {
-        return new JsonMultiBlockStructureKey(trinityDigitalCoreId(), TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME);
+    private static JsonMultiBlockStructureKey trinityDataCoreCpuKey() {
+        return new JsonMultiBlockStructureKey(trinityDataCoreId(), TRINITY_DATA_CORE_CPU_STRUCTURE_NAME);
     }
 
-    private static JsonMultiBlockStructureKey trinityDigitalCoreCraftingKey() {
-        return new JsonMultiBlockStructureKey(trinityDigitalCoreId(), TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME);
+    private static JsonMultiBlockStructureKey trinityDataCoreCraftingKey() {
+        return new JsonMultiBlockStructureKey(trinityDataCoreId(), TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME);
     }
 
-    private static JsonMultiBlockDefinition trinityDigitalCoreCpuDefinition() {
+    private static JsonMultiBlockDefinition trinityDataCoreCpuDefinition() {
         return loadBundledJsonDefinition(
-                TRINITY_DIGITAL_CORE_CPU_PATH,
-                Data_Energistics.id("trinity_digital_core/" + TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME));
+                TRINITY_DATA_CORE_CPU_PATH,
+                Data_Energistics.id("trinity_data_core/" + TRINITY_DATA_CORE_CPU_STRUCTURE_NAME));
     }
 
-    private static JsonMultiBlockDefinition trinityDigitalCoreCraftingDefinition() {
+    private static JsonMultiBlockDefinition trinityDataCoreCraftingDefinition() {
         return loadBundledJsonDefinition(
-                TRINITY_DIGITAL_CORE_CRAFTING_PATH,
-                Data_Energistics.id("trinity_digital_core/" + TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME));
+                TRINITY_DATA_CORE_CRAFTING_PATH,
+                Data_Energistics.id("trinity_data_core/" + TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME));
     }
 
     private static JsonMultiBlockDefinition loadBundledJsonDefinition(String path, ResourceLocation resourceId) {

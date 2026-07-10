@@ -109,8 +109,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private static final String HOST_ID_TAG = "trinity_data_core_host_id";
     private static final String NO_FAILURE = "";
     private static final String MAIN_STRUCTURE_NOT_FORMED = "Main structure is not formed";
-    private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CPU_STRUCTURE_NAME;
-    private static final String CRAFTING_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_CRAFTING_STRUCTURE_NAME;
+    private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME;
+    private static final String CRAFTING_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
@@ -653,7 +653,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
                 return hatch.actionSource();
             }
         }
-        throw new IllegalStateException("Trinity Digital Core has no active Trinity access hatch");
+        throw new IllegalStateException("Trinity Data Core has no active Trinity access hatch");
     }
 
     public boolean isLeaseOwner(TrinityAccessHatchBlockEntity hatch) {
@@ -1118,7 +1118,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         }
         if (this.cpuStructureFormed && diagnostic != null) {
             LOGGER.warn(
-                    "Trinity Digital Core structure '{}' failed at {}: {}",
+                    "Trinity Data Core structure '{}' failed at {}: {}",
                     CPU_STRUCTURE_NAME,
                     diagnostic.position(),
                     diagnostic.message());
@@ -1170,7 +1170,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         if (this.craftingStructureFormed || !Objects.equals(this.craftingLastFailureReason, nextFailureReason) ||
                 !Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
             LOGGER.warn(
-                    "Trinity Digital Core structure '{}' failed at {}: {}",
+                    "Trinity Data Core structure '{}' failed at {}: {}",
                     CRAFTING_STRUCTURE_NAME,
                     nextFailurePosition,
                     nextFailureReason);
@@ -1284,18 +1284,18 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
-        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID));
+        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID));
     }
 
     private static JsonMultiBlockStructureKey cpuDefinitionKey() {
         return new JsonMultiBlockStructureKey(
-                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID),
+                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID),
                 CPU_STRUCTURE_NAME);
     }
 
     private static JsonMultiBlockStructureKey craftingDefinitionKey() {
         return new JsonMultiBlockStructureKey(
-                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DIGITAL_CORE_ID),
+                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID),
                 CRAFTING_STRUCTURE_NAME);
     }
 

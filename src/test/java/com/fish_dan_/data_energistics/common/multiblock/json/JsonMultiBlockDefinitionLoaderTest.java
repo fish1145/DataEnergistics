@@ -134,18 +134,18 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @TestHolder("json_multiblock_loader_parses_bundled_trinity_data_core_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parsesBundledTrinityDigitalCoreStructure(GameTestHelper helper) {
+    public static void parsesBundledTrinityDataCoreStructure(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core/main"),
-                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/main.json"));
+                resource("trinity_data_core/main"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/main.json"));
         BlockPattern pattern = definition.pattern();
-        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/main.json"))
+        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/main.json"))
                 .getAsJsonObject();
 
         helper.assertValueEqual(
                 definition.key(),
-                JsonMultiBlockStructureKey.main(resource("trinity_digital_core")),
-                "Bundled Trinity Digital Core JSON should resolve to the main trinity_digital_core structure key");
+                JsonMultiBlockStructureKey.main(resource("trinity_data_core")),
+                "Bundled Trinity Data Core JSON should resolve to the main trinity_data_core structure key");
         helper.assertTrue(
                 definition.displayNameTranslationKey().isPresent(),
                 "Bundled Trinity Data Core JSON should expose structure display metadata");
@@ -156,72 +156,72 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(
                 definition.compartmentTypes().size(),
                 0,
-                "Bundled Trinity Digital Core should not declare compartment roles yet");
+                "Bundled Trinity Data Core should not declare compartment roles yet");
         helper.assertValueEqual(
                 definition.replaceableCompartmentTypes().size(),
                 1,
-                "Bundled Trinity Digital Core should declare the dedicated access hatch symbol");
+                "Bundled Trinity Data Core should declare the dedicated access hatch symbol");
         helper.assertTrue(
                 definition.replaceableCompartmentTypes().containsKey("@"),
-                "Bundled Trinity Digital Core should allow replacements only at the dedicated access hatch symbol");
+                "Bundled Trinity Data Core should allow replacements only at the dedicated access hatch symbol");
         helper.assertFalse(
                 definition.replaceableCompartmentTypes().containsKey("H"),
-                "Bundled Trinity Digital Core H symbol should remain ordinary quartz vibrant glass");
+                "Bundled Trinity Data Core H symbol should remain ordinary quartz vibrant glass");
         Set<CompartmentType> accessHatchTypes = definition.replaceableCompartmentTypes().getOrDefault("@", Set.of());
         helper.assertTrue(
                 accessHatchTypes.contains(CompartmentType.TRINITY_ACCESS),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should allow the Trinity access hatch");
+                "Bundled Trinity Data Core dedicated access hatch symbol should allow the Trinity access hatch");
         helper.assertFalse(
                 accessHatchTypes.contains(CompartmentType.INPUT),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should not accept input warehouses");
+                "Bundled Trinity Data Core dedicated access hatch symbol should not accept input warehouses");
         helper.assertFalse(
                 accessHatchTypes.contains(CompartmentType.OUTPUT),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should not accept output warehouses");
+                "Bundled Trinity Data Core dedicated access hatch symbol should not accept output warehouses");
         helper.assertFalse(
                 accessHatchTypes.contains(CompartmentType.ME_INPUT),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should not accept ME input warehouses");
+                "Bundled Trinity Data Core dedicated access hatch symbol should not accept ME input warehouses");
         helper.assertFalse(
                 accessHatchTypes.contains(CompartmentType.ME_OUTPUT),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should not accept ME output warehouses");
+                "Bundled Trinity Data Core dedicated access hatch symbol should not accept ME output warehouses");
         helper.assertFalse(
                 accessHatchTypes.contains(CompartmentType.PATTERN_BUFFER),
-                "Bundled Trinity Digital Core dedicated access hatch symbol should not accept pattern buffer warehouses");
+                "Bundled Trinity Data Core dedicated access hatch symbol should not accept pattern buffer warehouses");
         helper.assertTrue(
                 !definition.replaceableCompartmentTypes().containsKey("Y"),
-                "Bundled Trinity Digital Core should not allow compartments to replace plain glass");
+                "Bundled Trinity Data Core should not allow compartments to replace plain glass");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 32, 28, 27 },
-                "Bundled Trinity Digital Core dimensions should match the shipped main JSON resource");
-        helper.assertValueEqual(pattern.structureSlices.length, 32, "Bundled Trinity Digital Core should use one aisle per exported front layer");
-        helper.assertValueEqual(pattern.aisleRepetitions.length, 32, "Each Trinity Digital Core aisle should be a fixed non-repeatable unit");
-        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Trinity Digital Core aisle unit should contain exactly one slice");
-        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Trinity Digital Core aisle unit should repeat exactly once");
+                "Bundled Trinity Data Core dimensions should match the shipped main JSON resource");
+        helper.assertValueEqual(pattern.structureSlices.length, 32, "Bundled Trinity Data Core should use one aisle per exported front layer");
+        helper.assertValueEqual(pattern.aisleRepetitions.length, 32, "Each Trinity Data Core aisle should be a fixed non-repeatable unit");
+        assertAllIntValuesEqual(helper, pattern.unitDepths, 1, "Each Trinity Data Core aisle unit should contain exactly one slice");
+        assertAllIntPairValuesEqual(helper, pattern.aisleRepetitions, 1, "Each Trinity Data Core aisle unit should repeat exactly once");
         helper.assertValueEqual(pattern.structureDir.charDir(), RelativeDirection.LEFT, "Main structure char axis should point left");
         helper.assertValueEqual(pattern.structureDir.stringDir(), RelativeDirection.UP, "Main structure row axis should point up");
         helper.assertValueEqual(pattern.structureDir.aisleDir(), RelativeDirection.FRONT, "Main structure aisle axis should point front");
         helper.assertValueEqual(
                 pattern.structureSlices[24][1],
                 "            M@M            ",
-                "Bundled Trinity Digital Core should allow Trinity access replacement directly above the host");
+                "Bundled Trinity Data Core should allow Trinity access replacement directly above the host");
         helper.assertValueEqual(
                 pattern.structureSlices[24][2],
                 "            M~M            ",
-                "Bundled Trinity Digital Core should map the exported controller to the host position");
+                "Bundled Trinity Data Core should map the exported controller to the host position");
         helper.assertValueEqual(
                 pattern.structureSlices[24][3],
                 "            M@M            ",
-                "Bundled Trinity Digital Core should allow Trinity access replacement directly below the host");
+                "Bundled Trinity Data Core should allow Trinity access replacement directly below the host");
         helper.assertValueEqual(
                 pattern.structureSlices[0][0],
                 "                           ",
-                "Bundled Trinity Digital Core should retain empty exported boundary rows");
+                "Bundled Trinity Data Core should retain empty exported boundary rows");
         helper.assertValueEqual(pattern.getCenterOffset().x(), 13, "Controller X offset should match the exported host column");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 2, "Controller Y offset should match the GregTech bottom-to-top JSON row");
         helper.assertValueEqual(pattern.getCenterOffset().z(), 24, "Controller Z offset should match the exported host aisle");
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 24, "Controller Z min offset should match the placeholder aisle");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 24, "Controller Z max offset should match the placeholder aisle");
-        helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Digital Core should expose all storage core slots through Z");
-        helper.assertValueEqual(countSymbol(pattern, '@'), 2, "Main Trinity Digital Core should expose exactly two access hatch replacement slots");
-        helper.assertValueEqual(countSymbol(pattern, 'H'), 36, "Main Trinity Digital Core should keep all other quartz vibrant glass slots fixed");
+        helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Data Core should expose all storage core slots through Z");
+        helper.assertValueEqual(countSymbol(pattern, '@'), 2, "Main Trinity Data Core should expose exactly two access hatch replacement slots");
+        helper.assertValueEqual(countSymbol(pattern, 'H'), 36, "Main Trinity Data Core should keep all other quartz vibrant glass slots fixed");
         ItemStack firstAccessPlacementCandidate = predicateForFirstSymbol(pattern, '@').placementCandidates().getFirst();
         helper.assertTrue(
                 firstAccessPlacementCandidate.is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
@@ -242,7 +242,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         JsonObject quartzSlabPredicate = root.getAsJsonObject("predicates").getAsJsonObject("$");
         helper.assertValueEqual(quartzSlabPredicate.get("type").getAsString(), "mdlib:blocks", "Main quartz slab should match by block id only");
         helper.assertFalse(quartzSlabPredicate.has("properties"), "Main quartz slab should not keep slab type or waterlogged states");
-        assertOnlyDirectionProperties(helper, root, "Main Trinity Digital Core predicates");
+        assertOnlyDirectionProperties(helper, root, "Main Trinity Data Core predicates");
         helper.succeed();
     }
 
@@ -251,8 +251,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @GameTest(template = "empty_5x5")
     public static void limitsTrinityDataCoreAccessHatchReplacementSlots(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core/main"),
-                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/main.json"));
+                resource("trinity_data_core/main"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/main.json"));
         BlockPattern pattern = definition.pattern();
         BlockPos hostPos = new BlockPos(200, 64, -200);
         Direction frontFacing = Direction.EAST;
@@ -295,21 +295,21 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_parses_bundled_trinity_digital_core_cpu_structure")
+    @TestHolder("json_multiblock_loader_parses_bundled_trinity_data_core_cpu_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parsesBundledTrinityDigitalCoreCpuStructure(GameTestHelper helper) {
+    public static void parsesBundledTrinityDataCoreCpuStructure(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core/cpu"),
-                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/cpu.json"));
+                resource("trinity_data_core/cpu"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/cpu.json"));
         BlockPattern pattern = definition.pattern();
 
         helper.assertValueEqual(
                 definition.key(),
-                new JsonMultiBlockStructureKey(resource("trinity_digital_core"), "cpu"),
-                "Bundled Trinity Digital Core CPU JSON should resolve to the cpu child structure key");
+                new JsonMultiBlockStructureKey(resource("trinity_data_core"), "cpu"),
+                "Bundled Trinity Data Core CPU JSON should resolve to the cpu child structure key");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 8, 22, 9 },
-                "Bundled Trinity Digital Core CPU dimensions should map width/depth/height from the new export");
+                "Bundled Trinity Data Core CPU dimensions should map width/depth/height from the new export");
         helper.assertValueEqual(expandedDepth(pattern), 19, "CPU child expanded aisle depth should express the variable height");
         helper.assertValueEqual(pattern.structureSlices.length, 8, "CPU child should keep the manually corrected height units");
         helper.assertValueEqual(pattern.aisleRepetitions.length, 8, "CPU child should keep eight height repeat units");
@@ -371,7 +371,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 hostPos.offset(4, -1, -20),
                 "CPU child should map the first C slot to the mirrored right CPU bay and one block below the host in flipped context");
 
-        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/cpu.json"))
+        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/cpu.json"))
                 .getAsJsonObject();
         JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
         helper.assertValueEqual(structureDir.get("char").getAsString(), "right", "CPU child JSON should map chars to right");
@@ -461,19 +461,19 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.succeed();
     }
 
-    @TestHolder("json_multiblock_loader_parses_bundled_trinity_digital_core_crafting_structure")
+    @TestHolder("json_multiblock_loader_parses_bundled_trinity_data_core_crafting_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void parsesBundledTrinityDigitalCoreCraftingStructure(GameTestHelper helper) {
+    public static void parsesBundledTrinityDataCoreCraftingStructure(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core/crafting"),
-                bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/crafting.json"));
+                resource("trinity_data_core/crafting"),
+                bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/crafting.json"));
         BlockPattern pattern = definition.pattern();
 
         helper.assertValueEqual(
                 definition.key(),
-                new JsonMultiBlockStructureKey(resource("trinity_digital_core"), "crafting"),
-                "Bundled Trinity Digital Core crafting JSON should resolve to the crafting child structure key");
+                new JsonMultiBlockStructureKey(resource("trinity_data_core"), "crafting"),
+                "Bundled Trinity Data Core crafting JSON should resolve to the crafting child structure key");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 8, 22, 9 },
                 "Crafting child dimensions should map compressed height, front depth, and local width from carft.schem");
         helper.assertValueEqual(expandedDepth(pattern), 19, "Crafting child expanded aisle depth should preserve carft.schem height");
@@ -529,7 +529,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 hostPos.offset(-7, -1, -20),
                 "Crafting child should map the first P slot to the mirrored left pattern bay and one block below the host in flipped context");
 
-        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_digital_core/crafting.json"))
+        JsonObject root = JsonParser.parseReader(bundledJsonReader("/data/data_energistics/multiblock/trinity_data_core/crafting.json"))
                 .getAsJsonObject();
         JsonObject structureDir = root.getAsJsonObject("metadata").getAsJsonObject("structure_dir");
         helper.assertValueEqual(structureDir.get("char").getAsString(), "right", "Crafting child JSON should map chars to right");
@@ -836,7 +836,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @GameTest(template = "empty_5x5")
     public static void stripsDisplayMetadataBeforeMdlibParse(GameTestHelper helper) {
         JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("trinity_digital_core"),
+                resource("trinity_data_core"),
                 new StringReader(MINIMAL_JSON_WITH_METADATA));
 
         helper.assertValueEqual(
