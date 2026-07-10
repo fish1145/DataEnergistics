@@ -84,25 +84,16 @@ public final class RoutedCraftingPatternDetails implements IPatternDetails {
         if (!(other instanceof RoutedCraftingPatternDetails that)) {
             return false;
         }
-        return this.route.equals(that.route) && definitionsEqual(this.definition, that.definition);
+        return this.route.equals(that.route) && this.definition.equals(that.definition);
     }
 
     @Override
     public int hashCode() {
-        int result = this.route.hashCode();
-        return 31 * result + definitionHash(this.definition);
+        return 31 * this.route.hashCode() + this.definition.hashCode();
     }
 
     @Override
     public String toString() {
         return "RoutedCraftingPatternDetails[route=" + this.route + ", delegate=" + this.delegate + "]";
-    }
-
-    private static boolean definitionsEqual(AEItemKey left, AEItemKey right) {
-        return left == right || left != null && left.equals(right);
-    }
-
-    private static int definitionHash(AEItemKey definition) {
-        return definition == null ? 0 : definition.hashCode();
     }
 }

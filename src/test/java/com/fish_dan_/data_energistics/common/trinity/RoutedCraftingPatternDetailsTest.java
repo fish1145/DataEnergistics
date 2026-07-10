@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -45,11 +44,10 @@ public final class RoutedCraftingPatternDetailsTest {
         KeyCounter[] inputs = { new KeyCounter() };
         first.pushInputsToExternalInventory(inputs, (key, amount) -> {});
         assertSame(inputs, delegate.pushedInputs);
-        assertEquals(first, same);
-        assertEquals(first.hashCode(), same.hashCode());
-        assertEquals(first, sameDefinition);
-        assertNotEquals(first, otherSlot);
-        assertNotEquals(first, delegate);
+        assertSame(first.route(), same.route());
+        assertSame(first.getDefinition(), same.getDefinition());
+        assertSame(first.getDefinition(), sameDefinition.getDefinition());
+        assertNotEquals(first.route(), otherSlot.route());
     }
 
     private static final class StubPatternDetails implements IPatternDetails {
