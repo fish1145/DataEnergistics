@@ -6,7 +6,6 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import appeng.api.stacks.AEFluidKey;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdaptivePatternProviderReturnFluidHandler implements IFluidHandler {
@@ -14,7 +13,7 @@ public class AdaptivePatternProviderReturnFluidHandler implements IFluidHandler 
     private final Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier;
 
     public AdaptivePatternProviderReturnFluidHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {
-        this.logicSupplier = Objects.requireNonNull(logicSupplier, "logicSupplier");
+        this.logicSupplier = logicSupplier;
     }
 
     @Override

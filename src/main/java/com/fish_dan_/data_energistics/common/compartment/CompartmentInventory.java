@@ -12,7 +12,6 @@ import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigInventory;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
@@ -55,18 +54,15 @@ public class CompartmentInventory extends ConfigInventory {
                                 Predicate<AEKey> keyFilter,
                                 boolean wrappedItemOrFluidOnly) {
         super(supportedTypes, null, mode, size, listener, true);
-        this.unlockedSlotCountSupplier = Objects.requireNonNull(
-                unlockedSlotCountSupplier,
-                "unlockedSlotCountSupplier");
-        this.keyFilter = Objects.requireNonNull(keyFilter, "keyFilter");
+        this.unlockedSlotCountSupplier = unlockedSlotCountSupplier;
+        this.keyFilter = keyFilter;
         this.wrappedItemOrFluidOnly = wrappedItemOrFluidOnly;
     }
 
     @Override
     public boolean isAllowedIn(int slot, AEKey what) {
         AEKey normalized = CompartmentKeyNormalizer.normalize(what);
-        return normalized != null &&
-                isSlotUnlocked(slot) &&
+        return isSlotUnlocked(slot) &&
                 isOriginalKeyAllowed(what, normalized) &&
                 this.keyFilter.test(normalized) &&
                 super.isAllowedIn(slot, normalized);
@@ -90,7 +86,7 @@ public class CompartmentInventory extends ConfigInventory {
             return 0L;
         }
         AEKey normalized = CompartmentKeyNormalizer.normalize(what);
-        if (normalized == null || !isOriginalKeyAllowed(what, normalized)) {
+        if (!isOriginalKeyAllowed(what, normalized)) {
             return 0L;
         }
         return super.insert(slot, normalized, amount, mode);
@@ -99,16 +95,15 @@ public class CompartmentInventory extends ConfigInventory {
     @Override
     public long getMaxAmount(AEKey key) {
         AEKey normalized = CompartmentKeyNormalizer.normalize(key);
-        return normalized != null && this.keyFilter.test(normalized) ? Long.MAX_VALUE : 0L;
+        return this.keyFilter.test(normalized) ? Long.MAX_VALUE : 0L;
     }
 
     public boolean isSlotUnlocked(int slot) {
         return slot >= 0 && slot < Math.min(size(), this.unlockedSlotCountSupplier.getAsInt());
     }
 
-    private boolean isOriginalStackAllowed(int slot, @Nullable GenericStack original, GenericStack normalized) {
-        return normalized.what() != null &&
-                (original == null || isOriginalKeyAllowed(original.what(), normalized.what())) &&
+    private boolean isOriginalStackAllowed(int slot, GenericStack original, GenericStack normalized) {
+        return isOriginalKeyAllowed(original.what(), normalized.what()) &&
                 this.keyFilter.test(normalized.what()) &&
                 super.isAllowedIn(slot, normalized.what());
     }
@@ -119,7 +114,7 @@ public class CompartmentInventory extends ConfigInventory {
         }
         if (original instanceof AEItemKey itemKey) {
             GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-            return wrapped != null && wrapped.what() != null;
+            return wrapped != null;
         }
         return !(normalized instanceof AEItemKey) && !(normalized instanceof AEFluidKey);
     }
@@ -189,7 +184,7 @@ public class CompartmentInventory extends ConfigInventory {
                 size,
                 listener,
                 unlockedSlotCountSupplier,
-                key -> key != null,
+                key -> true,
                 true);
     }
 }

@@ -24,8 +24,6 @@ import net.neoforged.neoforge.client.model.IQuadTransformer;
 import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
-
 /**
  * Holds all the array offsets and bit-wise encoders/decoders for packing/unpacking quad data in an array of integers.
  * All of this is implementation-specific - that's why it isn't a "helper" class.
@@ -69,7 +67,7 @@ public class EncodingFormat {
     }
 
     static Direction lightFace(long bits) {
-        return Objects.requireNonNull(GeometryHelper.faceFromIndex((int) ((bits >> LIGHT_SHIFT) & DIRECTION_MASK)));
+        return GeometryHelper.faceFromIndex((int) ((bits >> LIGHT_SHIFT) & DIRECTION_MASK));
     }
 
     static long lightFace(long bits, Direction face) {

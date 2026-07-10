@@ -47,7 +47,7 @@ public final class CompartmentOutputStorage implements MEStorage {
             return;
         }
         for (var entry : this.storage.entries().object2LongEntrySet()) {
-            if (entry.getKey() != null && entry.getLongValue() > 0L) {
+            if (entry.getLongValue() > 0L) {
                 out.add(entry.getKey(), entry.getLongValue());
             }
         }

@@ -6,7 +6,6 @@ import net.neoforged.neoforge.items.IItemHandler;
 import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdaptivePatternProviderReturnItemHandler implements IItemHandler {
@@ -14,7 +13,7 @@ public class AdaptivePatternProviderReturnItemHandler implements IItemHandler {
     private final Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier;
 
     public AdaptivePatternProviderReturnItemHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {
-        this.logicSupplier = Objects.requireNonNull(logicSupplier, "logicSupplier");
+        this.logicSupplier = logicSupplier;
     }
 
     @Override
@@ -41,7 +40,7 @@ public class AdaptivePatternProviderReturnItemHandler implements IItemHandler {
         }
 
         GenericStack genericStack = GenericStack.fromItemStack(stack);
-        if (genericStack == null || genericStack.what() == null || genericStack.amount() <= 0) {
+        if (genericStack == null || genericStack.amount() <= 0) {
             return stack;
         }
 

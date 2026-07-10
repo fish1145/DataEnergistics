@@ -4,8 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import net.neoforged.fml.loading.FMLEnvironment;
 
-import java.util.Objects;
-
 public final class DataEnergisticsClientBridgeAccess {
 
     private static volatile DataEnergisticsClientBridge bridge;
@@ -13,7 +11,7 @@ public final class DataEnergisticsClientBridgeAccess {
     private DataEnergisticsClientBridgeAccess() {}
 
     public static void register(DataEnergisticsClientBridge clientBridge) {
-        bridge = Objects.requireNonNull(clientBridge, "clientBridge");
+        bridge = clientBridge;
     }
 
     public static DataEnergisticsClientBridge get() {

@@ -30,7 +30,7 @@ public final class CompartmentKeyNormalizer {
             return key;
         }
         GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-        return wrapped != null && wrapped.what() != null ? wrapped.what() : key;
+        return wrapped != null ? wrapped.what() : key;
     }
 
     /**
@@ -43,14 +43,11 @@ public final class CompartmentKeyNormalizer {
         }
         if (stack.what() instanceof AEItemKey itemKey) {
             GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-            if (wrapped != null && wrapped.what() != null) {
+            if (wrapped != null) {
                 return wrapped;
             }
         }
         AEKey normalized = normalize(stack.what());
-        if (normalized == null) {
-            return null;
-        }
         return normalized == stack.what() ? stack : new GenericStack(normalized, stack.amount());
     }
 }
