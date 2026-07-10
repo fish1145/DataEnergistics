@@ -1056,11 +1056,12 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void replaceableCompartmentPreservesDeclaredPlacementOrder(GameTestHelper helper) {
-        JsonMultiBlockDefinition definition = new MdlibJsonMultiBlockDefinitionLoader().parse(
-                resource("replaceable_compartment_placement_order"),
-                new StringReader(jsonWithReplaceableCompartment("A", "input", "trinity_access")));
-
-        List<ItemStack> candidates = predicateForFirstSymbol(definition.pattern(), 'A').placementCandidates();
+        JsonObject predicateJson = JsonParser.parseString(
+                "{\"compartments\":[\"input\",\"trinity_access\"]," +
+                        "\"predicate\":{\"type\":\"mdlib:blocks\",\"block\":\"minecraft:glass\"}}")
+                .getAsJsonObject();
+        List<ItemStack> candidates = JsonMultiBlockReplaceableCompartmentPredicate.fromJson(predicateJson)
+                .placementCandidates();
         helper.assertValueEqual(candidates.size(), 3, "Replacement candidates should contain two compartments and the delegate block");
         helper.assertTrue(
                 candidates.get(0).is(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
