@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -39,6 +40,14 @@ public final class TrinityPatternHostIdentityTest {
         ItemStack movedHost = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
         source.saveStorageIdToItem(movedHost);
         source.saveHostIdToItem(movedHost);
+        helper.assertValueEqual(
+                movedHost.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
+                source.getStorageId(),
+                "Moved host item should carry the storage UUID as a typed component");
+        helper.assertValueEqual(
+                movedHost.get(ModDataComponents.TRINITY_DATA_CORE_HOST_ID),
+                source.getHostId(),
+                "Moved host item should carry the route UUID as a typed component");
 
         helper.setBlock(destinationPos, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()
                 .defaultBlockState()

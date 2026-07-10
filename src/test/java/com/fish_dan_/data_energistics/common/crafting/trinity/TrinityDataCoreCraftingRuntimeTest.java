@@ -42,6 +42,7 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -295,21 +296,21 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_storage_id_round_trips_through_item_and_nbt")
+    @TestHolder("trinity_data_core_storage_id_round_trips_through_item_and_nbt")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void storageIdRoundTripsThroughItemAndNbt(GameTestHelper helper) {
         DigitalConstructFlowerBlockEntity original = digitalConstructFlower(false);
         ItemStack stack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
         original.saveStorageIdToItem(stack);
-        String storageId = stack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID);
+        UUID storageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
 
         DigitalConstructFlowerBlockEntity placed = digitalConstructFlower(false);
         placed.restoreStorageIdFromItem(stack);
         ItemStack placedStack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
         placed.saveStorageIdToItem(placedStack);
         helper.assertValueEqual(
-                placedStack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID),
+                placedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
                 "Placed host should restore the storage id from the item component");
 
@@ -320,7 +321,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         ItemStack loadedStack = new ItemStack(ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get());
         loaded.saveStorageIdToItem(loadedStack);
         helper.assertValueEqual(
-                loadedStack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID),
+                loadedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
                 "Loaded host should keep the storage id from block entity NBT");
         helper.succeed();

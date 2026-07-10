@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.item.MobDataCarrierItemData;
 import com.fish_dan_.data_energistics.item.OreDataCarrierItemData;
 import com.fish_dan_.data_energistics.item.UniversalTerminalItemData;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -18,6 +19,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.mojang.serialization.Codec;
+
+import java.util.UUID;
 
 public final class ModDataComponents {
 
@@ -111,19 +114,19 @@ public final class ModDataComponents {
                     .cacheEncoding()
                     .build());
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID = DATA_COMPONENT_TYPES.register(
-            "digital_construct_flower_storage_id",
-            () -> DataComponentType.<String>builder()
-                    .persistent(Codec.STRING)
-                    .networkSynchronized(ByteBufCodecs.STRING_UTF8)
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<UUID>> TRINITY_DATA_CORE_STORAGE_ID = DATA_COMPONENT_TYPES.register(
+            "trinity_data_core_storage_id",
+            () -> DataComponentType.<UUID>builder()
+                    .persistent(UUIDUtil.CODEC)
+                    .networkSynchronized(UUIDUtil.STREAM_CODEC)
                     .cacheEncoding()
                     .build());
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> TRINITY_PATTERN_HOST_ID = DATA_COMPONENT_TYPES.register(
-            "trinity_pattern_host_id",
-            () -> DataComponentType.<String>builder()
-                    .persistent(Codec.STRING)
-                    .networkSynchronized(ByteBufCodecs.STRING_UTF8)
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<UUID>> TRINITY_DATA_CORE_HOST_ID = DATA_COMPONENT_TYPES.register(
+            "trinity_data_core_host_id",
+            () -> DataComponentType.<UUID>builder()
+                    .persistent(UUIDUtil.CODEC)
+                    .networkSynchronized(UUIDUtil.STREAM_CODEC)
                     .cacheEncoding()
                     .build());
 

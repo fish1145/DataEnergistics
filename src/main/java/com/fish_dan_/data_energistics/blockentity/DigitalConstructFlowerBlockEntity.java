@@ -474,29 +474,27 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     public void restoreStorageIdFromItem(ItemStack stack) {
-        String rawId = stack.get(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID);
-        if (rawId == null || rawId.isBlank()) {
-            return;
+        UUID itemStorageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
+        if (itemStorageId != null) {
+            setStorageId(itemStorageId);
         }
-        setStorageId(parseStorageId(rawId, "item component"));
     }
 
     public void saveStorageIdToItem(ItemStack stack) {
-        stack.set(ModDataComponents.DIGITAL_CONSTRUCT_FLOWER_STORAGE_ID, this.storageId.toString());
+        stack.set(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
     }
 
     /** Restores the stable crafting host identity carried by a moved Trinity host item. */
     public void restoreHostIdFromItem(ItemStack stack) {
-        String rawId = stack.get(ModDataComponents.TRINITY_PATTERN_HOST_ID);
-        if (rawId == null || rawId.isBlank()) {
-            return;
+        UUID itemHostId = stack.get(ModDataComponents.TRINITY_DATA_CORE_HOST_ID);
+        if (itemHostId != null) {
+            setHostId(itemHostId);
         }
-        setHostId(parseHostId(rawId, "item component"));
     }
 
     /** Saves the crafting host identity independently from the legacy main-storage identity. */
     public void saveHostIdToItem(ItemStack stack) {
-        stack.set(ModDataComponents.TRINITY_PATTERN_HOST_ID, this.hostId.toString());
+        stack.set(ModDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
     }
 
     @Override
@@ -819,15 +817,6 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
             return UUID.fromString(rawId);
         } catch (IllegalArgumentException exception) {
             LOGGER.warn("Invalid Digital Construct Flower storage id '{}' from {}; generating a replacement", rawId, source, exception);
-            return UUID.randomUUID();
-        }
-    }
-
-    private static UUID parseHostId(String rawId, String source) {
-        try {
-            return UUID.fromString(rawId);
-        } catch (IllegalArgumentException exception) {
-            LOGGER.warn("Invalid Trinity crafting host id '{}' from {}; generating a replacement", rawId, source, exception);
             return UUID.randomUUID();
         }
     }
