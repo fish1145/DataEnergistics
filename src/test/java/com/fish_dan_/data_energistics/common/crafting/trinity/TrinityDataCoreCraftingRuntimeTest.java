@@ -22,11 +22,16 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
 import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingRequester;
+import appeng.api.networking.crafting.ICraftingService;
 import appeng.api.networking.crafting.ICraftingSubmitResult;
+import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.events.GridEvent;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
@@ -37,9 +42,14 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.crafting.CraftingPlan;
+import appeng.me.service.CraftingService;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.stream.JsonWriter;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -113,6 +123,258 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         fixture.runtime().tick(null, null);
 
         helper.assertFalse(fixture.runtime().hasBusyJobs(), "Resumed runtime should process the canceled job on its next tick");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_waits_for_all_requested_outputs")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuWaitsForAllRequestedOutputs(GameTestHelper helper) {
+        OutputRuntimeFixture fixture = outputRuntime(helper, new BlockPos(1, 1, 1));
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        AEItemKey bucket = AEItemKey.of(Items.BUCKET);
+        TestRequester requester = new TestRequester(Long.MAX_VALUE);
+        submitOutputJob(
+                fixture.cpu(),
+                fixture.grid(),
+                requester,
+                outputPlan(new GenericStack(diamond, 1L), new GenericStack(bucket, 1L)));
+
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                1L,
+                "Requester should accept the final output");
+        helper.assertTrue(fixture.cpu().isBusy(), "CPU must remain busy while a container output is still requested");
+        helper.assertValueEqual(
+                fixture.cpu().getWaitingFor(bucket),
+                1L,
+                "Container output must remain requested after the final output arrives");
+
+        helper.assertValueEqual(
+                fixture.cpu().insert(bucket, 1L, Actionable.MODULATE),
+                1L,
+                "CPU should accept the remaining container output");
+        helper.assertFalse(fixture.cpu().isBusy(), "CPU should finish after every requested output has arrived");
+        helper.assertValueEqual(
+                fixture.cpu().getStored(bucket),
+                1L,
+                "Container output should be retained in CPU inventory until network storage accepts it");
+        helper.assertValueEqual(requester.jobStateChanges(), 1, "Requester should be notified exactly once on completion");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_accounts_only_accepted_final_output")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuAccountsOnlyAcceptedFinalOutput(GameTestHelper helper) {
+        OutputRuntimeFixture fixture = outputRuntime(helper, new BlockPos(1, 1, 1));
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        TestRequester requester = new TestRequester(0L);
+        submitOutputJob(
+                fixture.cpu(),
+                fixture.grid(),
+                requester,
+                outputPlan(new GenericStack(diamond, 5L)));
+        KeyCounter statusChanges = new KeyCounter();
+        fixture.cpu().addListener(what -> statusChanges.add(what, 1L));
+
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 5L, Actionable.MODULATE),
+                0L,
+                "A requester with no capacity should reject the final output");
+        helper.assertValueEqual(
+                fixture.cpu().getWaitingFor(diamond),
+                5L,
+                "Rejected final output must not mutate the requested amount");
+        helper.assertTrue(fixture.cpu().isBusy(), "Rejected final output must keep the CPU busy");
+        helper.assertValueEqual(requester.jobStateChanges(), 0, "Rejected output must not complete the job");
+        helper.assertValueEqual(statusChanges.get(diamond), 0L, "Rejected output must not notify CPU status listeners");
+
+        requester.setMaxAccepted(2L, 1L);
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 5L, Actionable.SIMULATE),
+                2L,
+                "Simulation should report the requester's partial capacity");
+        helper.assertValueEqual(
+                fixture.cpu().getWaitingFor(diamond),
+                5L,
+                "Simulation must not mutate the requested amount");
+        helper.assertValueEqual(statusChanges.get(diamond), 0L, "Simulation must not notify CPU status listeners");
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 5L, Actionable.MODULATE),
+                1L,
+                "Modulation should report the amount actually accepted by the requester");
+
+        helper.assertTrue(fixture.cpu().isBusy(), "Partially delivered final output must keep the CPU busy");
+        helper.assertValueEqual(
+                fixture.cpu().getWaitingFor(diamond),
+                4L,
+                "Only accepted final output may be removed from waiting state");
+        CompoundTag jobTag = fixture.cpu()
+                .logic()
+                .writeToTag(helper.getLevel().registryAccess())
+                .getCompound("job");
+        helper.assertValueEqual(
+                jobTag.getLong("remaining_amount"),
+                4L,
+                "Remaining final output must decrease by the accepted amount only");
+        helper.assertValueEqual(
+                jobTag.getCompound("time_tracker")
+                        .getCompound("completed_work")
+                        .getLong(diamond.getType().getId().toString()),
+                1L,
+                "Progress tracking must count only accepted final output");
+        helper.assertValueEqual(
+                statusChanges.get(diamond),
+                1L,
+                "Actually accepted output must notify CPU status listeners exactly once");
+        helper.assertValueEqual(requester.jobStateChanges(), 0, "Partial output must not complete the job");
+
+        requester.setMaxAccepted(4L);
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 4L, Actionable.MODULATE),
+                4L,
+                "Requester should accept the remaining final output");
+        helper.assertFalse(fixture.cpu().isBusy(), "CPU should finish after the final remainder is delivered");
+        helper.assertValueEqual(requester.jobStateChanges(), 1, "Requester should be notified exactly once on completion");
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                0L,
+                "A completed CPU must reject later output");
+        helper.assertValueEqual(requester.jobStateChanges(), 1, "Completion notification must not repeat");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_rejects_invalid_requester_acceptance")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRejectsInvalidRequesterAcceptance(GameTestHelper helper) {
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        OutputRuntimeFixture negativeFixture = outputRuntime(helper, new BlockPos(1, 1, 1));
+        TestRequester negativeRequester = new TestRequester(1L);
+        negativeRequester.returnExactly(-1L, -1L);
+        submitOutputJob(
+                negativeFixture.cpu(),
+                negativeFixture.grid(),
+                negativeRequester,
+                outputPlan(new GenericStack(diamond, 1L)));
+
+        IllegalStateException negativeFailure = assertThrows(
+                helper,
+                IllegalStateException.class,
+                () -> negativeFixture.cpu().insert(diamond, 1L, Actionable.SIMULATE),
+                "Negative requester acceptance must fail fast");
+        assertAcceptanceFailureMessage(helper, negativeFailure, diamond, Actionable.SIMULATE, 1L, -1L);
+        helper.assertValueEqual(
+                negativeFixture.cpu().getWaitingFor(diamond),
+                1L,
+                "Rejected simulation result must not mutate waiting state");
+        helper.assertTrue(negativeFixture.cpu().isBusy(), "Rejected simulation result must retain the CPU job");
+
+        OutputRuntimeFixture excessFixture = outputRuntime(helper, new BlockPos(3, 1, 1));
+        TestRequester excessRequester = new TestRequester(1L);
+        excessRequester.returnExactly(2L, 2L);
+        submitOutputJob(
+                excessFixture.cpu(),
+                excessFixture.grid(),
+                excessRequester,
+                outputPlan(new GenericStack(diamond, 1L)));
+
+        IllegalStateException excessFailure = assertThrows(
+                helper,
+                IllegalStateException.class,
+                () -> excessFixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                "Excess requester acceptance must fail fast");
+        assertAcceptanceFailureMessage(helper, excessFailure, diamond, Actionable.MODULATE, 1L, 2L);
+        helper.assertValueEqual(
+                excessFixture.cpu().getWaitingFor(diamond),
+                1L,
+                "Rejected modulation result must not mutate waiting state");
+        helper.assertTrue(excessFixture.cpu().isBusy(), "Rejected modulation result must retain the CPU job");
+        helper.assertValueEqual(excessRequester.jobStateChanges(), 0, "Rejected result must not complete the CPU job");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_does_not_finish_with_pending_tasks")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuDoesNotFinishWithPendingTasks(GameTestHelper helper) {
+        OutputRuntimeFixture fixture = outputRuntime(helper, new BlockPos(1, 1, 1));
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        TestRequester requester = new TestRequester(Long.MAX_VALUE);
+        KeyCounter emittedItems = new KeyCounter();
+        emittedItems.add(diamond, 1L);
+        CraftingPlan plan = new CraftingPlan(
+                new GenericStack(diamond, 1L),
+                1L,
+                false,
+                false,
+                new KeyCounter(),
+                emittedItems,
+                new KeyCounter(),
+                Map.of(new PendingPatternDetails(diamond), 1L));
+        submitOutputJob(fixture.cpu(), fixture.grid(), requester, plan);
+
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                1L,
+                "Requester should accept the final output");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(diamond), 0L, "Final output should leave no waiting amount");
+        helper.assertTrue(fixture.cpu().isBusy(), "Pending pattern tasks must prevent job completion");
+        helper.assertValueEqual(requester.jobStateChanges(), 0, "Pending tasks must suppress completion notification");
+        CompoundTag jobTag = fixture.cpu()
+                .logic()
+                .writeToTag(helper.getLevel().registryAccess())
+                .getCompound("job");
+        helper.assertValueEqual(jobTag.getLong("remaining_amount"), 0L, "Final output should be fully delivered");
+        helper.assertValueEqual(jobTag.getList("tasks", 10).size(), 1, "The undispatched pattern task must remain queued");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_standalone_output_returns_to_network")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void standaloneOutputReturnsToNetwork(GameTestHelper helper) {
+        OutputRuntimeFixture fixture = outputRuntime(helper, new BlockPos(1, 1, 1));
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        fixture.grid().storage().setMaxAcceptedPerInsert(2L);
+        submitOutputJob(
+                fixture.cpu(),
+                fixture.grid(),
+                null,
+                outputPlan(new GenericStack(diamond, 4L)));
+
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 4L, Actionable.SIMULATE),
+                4L,
+                "Standalone CPU should advertise internal capacity for its final output");
+        helper.assertValueEqual(
+                fixture.cpu().getWaitingFor(diamond),
+                4L,
+                "Standalone simulation must not mutate waiting state");
+        helper.assertValueEqual(
+                fixture.cpu().insert(diamond, 4L, Actionable.MODULATE),
+                4L,
+                "Standalone CPU should accept its final output into internal inventory");
+
+        helper.assertFalse(fixture.cpu().isBusy(), "Standalone job should finish after its output is accepted");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(diamond), 0L, "Finished job should have no waiting output");
+        helper.assertValueEqual(
+                fixture.grid().storage().getStored(diamond),
+                2L,
+                "Job completion should return the accepted portion to network storage");
+        helper.assertValueEqual(
+                fixture.cpu().getStored(diamond),
+                2L,
+                "Network remainder must stay in CPU inventory for retry");
+
+        fixture.grid().storage().setMaxAcceptedPerInsert(Long.MAX_VALUE);
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        helper.assertValueEqual(fixture.cpu().getStored(diamond), 0L, "Idle CPU should retry returning retained output");
+        helper.assertValueEqual(
+                fixture.grid().storage().getStored(diamond),
+                4L,
+                "Retried standalone output should fully return to network storage");
         helper.succeed();
     }
 
@@ -461,6 +723,78 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         return new BusyRuntimeFixture(host, host.getCraftingRuntime(), cpu);
     }
 
+    private static OutputRuntimeFixture outputRuntime(GameTestHelper helper, BlockPos hostPos) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(hostPos), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
+        return new OutputRuntimeFixture(grid, host.getCpuPartitions().getFirst());
+    }
+
+    private static CraftingPlan outputPlan(GenericStack finalOutput, GenericStack... additionalOutputs) {
+        KeyCounter emittedItems = new KeyCounter();
+        emittedItems.add(finalOutput.what(), finalOutput.amount());
+        for (GenericStack output : additionalOutputs) {
+            emittedItems.add(output.what(), output.amount());
+        }
+        return new CraftingPlan(
+                finalOutput,
+                1L,
+                false,
+                false,
+                new KeyCounter(),
+                emittedItems,
+                new KeyCounter(),
+                Map.of());
+    }
+
+    private static void submitOutputJob(TrinityDataCoreVirtualCpu cpu,
+                                        TestGrid grid,
+                                        @Nullable TestRequester requester,
+                                        CraftingPlan plan) {
+        ICraftingSubmitResult result = cpu.submitJob(grid, plan, IActionSource.empty(), requester);
+        if (!result.successful()) {
+            throw new IllegalStateException("Test CPU output job submission failed: " + result.errorCode());
+        }
+        if (requester != null) {
+            ICraftingLink link = result.link();
+            if (link == null) {
+                throw new IllegalStateException("Requester job submission did not return its crafting link");
+            }
+            requester.track(link);
+        }
+    }
+
+    private static void assertAcceptanceFailureMessage(GameTestHelper helper,
+                                                       IllegalStateException failure,
+                                                       AEKey what,
+                                                       Actionable mode,
+                                                       long requested,
+                                                       long accepted) {
+        String message = failure.getMessage();
+        helper.assertTrue(message.contains(what.toString()), "Failure must identify the rejected key");
+        helper.assertTrue(message.contains(mode.toString()), "Failure must identify the insertion mode");
+        helper.assertTrue(message.contains("requested " + requested), "Failure must identify the requested amount");
+        helper.assertTrue(message.contains("accepted " + accepted), "Failure must identify the returned amount");
+    }
+
+    private static <T extends Throwable> T assertThrows(GameTestHelper helper,
+                                                        Class<T> expectedType,
+                                                        Runnable action,
+                                                        String message) {
+        try {
+            action.run();
+        } catch (Throwable thrown) {
+            if (expectedType.isInstance(thrown)) {
+                return expectedType.cast(thrown);
+            }
+            helper.fail(message + ": expected " + expectedType.getSimpleName() + " but caught " + thrown.getClass().getSimpleName() + " (" + thrown.getMessage() + ")");
+        }
+        helper.fail(message + ": expected " + expectedType.getSimpleName() + " but no exception was thrown");
+        throw new IllegalStateException("GameTest failure did not abort execution");
+    }
+
     private static CompoundTag formedTrinityTag() {
         CompoundTag tag = formedTag();
         tag.putBoolean("cpu_structure_formed", true);
@@ -497,6 +831,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                                       TrinityDataCoreCraftingRuntime runtime,
                                       TrinityDataCoreVirtualCpu cpu) {}
 
+    private record OutputRuntimeFixture(TestGrid grid, TrinityDataCoreVirtualCpu cpu) {}
+
     private static final class TestHost extends TrinityDataCoreBlockEntity {
 
         private TestHost(BlockPos pos) {
@@ -509,14 +845,63 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
     }
 
+    private static final class NetworkedTestHost extends TrinityDataCoreBlockEntity {
+
+        private final TestGrid grid;
+
+        private NetworkedTestHost(BlockPos pos, TestGrid grid) {
+            super(pos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
+            this.grid = grid;
+        }
+
+        @Override
+        public boolean hasActiveAccessHatch() {
+            return true;
+        }
+
+        @Override
+        public IGrid accessGrid() {
+            return this.grid;
+        }
+
+        @Override
+        public IActionSource accessActionSource() {
+            return IActionSource.empty();
+        }
+    }
+
     private static final class TestGrid implements IGrid {
 
-        private final IStorageService storageService = new EmptyStorageService();
+        private final TestStorage storage = new TestStorage();
+        private final IStorageService storageService = new TestStorageService(this.storage);
+        private final IEnergyService energyService = new TestEnergyService();
+        private final CraftingService craftingService = new CraftingService(
+                this,
+                this.storageService,
+                this.energyService);
+
+        private TestStorage storage() {
+            return this.storage;
+        }
+
+        private IEnergyService energyService() {
+            return this.energyService;
+        }
+
+        private CraftingService craftingService() {
+            return this.craftingService;
+        }
 
         @Override
         public <C extends IGridService> C getService(Class<C> serviceType) {
             if (serviceType == IStorageService.class) {
                 return serviceType.cast(this.storageService);
+            }
+            if (serviceType == IEnergyService.class) {
+                return serviceType.cast(this.energyService);
+            }
+            if (serviceType == ICraftingService.class) {
+                return serviceType.cast(this.craftingService);
             }
             throw new IllegalArgumentException("Unsupported test grid service: " + serviceType.getName());
         }
@@ -573,9 +958,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
     }
 
-    private static final class EmptyStorageService implements IStorageService {
+    private static final class TestStorageService implements IStorageService {
 
-        private final MEStorage inventory = new EmptyStorage();
+        private final TestStorage inventory;
+        private final Set<IStorageProvider> globalProviders = new HashSet<>();
+
+        private TestStorageService(TestStorage inventory) {
+            this.inventory = inventory;
+        }
 
         @Override
         public MEStorage getInventory() {
@@ -584,17 +974,19 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         @Override
         public KeyCounter getCachedInventory() {
-            return new KeyCounter();
+            KeyCounter cached = new KeyCounter();
+            this.inventory.getAvailableStacks(cached);
+            return cached;
         }
 
         @Override
         public void addGlobalStorageProvider(IStorageProvider provider) {
-            throw new UnsupportedOperationException("Test storage does not mount providers");
+            this.globalProviders.add(provider);
         }
 
         @Override
         public void removeGlobalStorageProvider(IStorageProvider provider) {
-            throw new UnsupportedOperationException("Test storage does not mount providers");
+            this.globalProviders.remove(provider);
         }
 
         @Override
@@ -604,33 +996,192 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         @Override
         public void refreshGlobalStorageProvider(IStorageProvider provider) {
-            throw new UnsupportedOperationException("Test storage does not mount providers");
+            if (!this.globalProviders.contains(provider)) {
+                throw new IllegalArgumentException("Test storage provider is not registered");
+            }
         }
 
         @Override
-        public void invalidateCache() {
-            throw new UnsupportedOperationException("Test storage has no cache");
-        }
+        public void invalidateCache() {}
     }
 
-    private static final class EmptyStorage implements MEStorage {
+    private static final class TestStorage implements MEStorage {
+
+        private final KeyCounter contents = new KeyCounter();
+        private long maxAcceptedPerInsert;
+
+        private void setMaxAcceptedPerInsert(long maxAcceptedPerInsert) {
+            this.maxAcceptedPerInsert = maxAcceptedPerInsert;
+        }
+
+        private long getStored(AEKey what) {
+            return this.contents.get(what);
+        }
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
-            return 0L;
+            long accepted = Math.min(amount, this.maxAcceptedPerInsert);
+            if (mode == Actionable.MODULATE) {
+                this.contents.add(what, accepted);
+            }
+            return accepted;
         }
 
         @Override
         public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
-            return 0L;
+            long extracted = Math.min(amount, this.contents.get(what));
+            if (mode == Actionable.MODULATE) {
+                this.contents.remove(what, extracted);
+            }
+            return extracted;
         }
 
         @Override
-        public void getAvailableStacks(KeyCounter out) {}
+        public void getAvailableStacks(KeyCounter out) {
+            out.addAll(this.contents);
+        }
 
         @Override
         public Component getDescription() {
-            return Component.literal("empty test storage");
+            return Component.literal("Trinity CPU test storage");
+        }
+    }
+
+    private static final class TestEnergyService implements IEnergyService {
+
+        @Override
+        public double extractAEPower(double amount, Actionable mode, PowerMultiplier multiplier) {
+            return amount;
+        }
+
+        @Override
+        public double getIdlePowerUsage() {
+            return 0.0D;
+        }
+
+        @Override
+        public double getChannelPowerUsage() {
+            return 0.0D;
+        }
+
+        @Override
+        public double getAvgPowerUsage() {
+            return 0.0D;
+        }
+
+        @Override
+        public double getAvgPowerInjection() {
+            return 0.0D;
+        }
+
+        @Override
+        public boolean isNetworkPowered() {
+            return true;
+        }
+
+        @Override
+        public double injectPower(double amount, Actionable mode) {
+            return 0.0D;
+        }
+
+        @Override
+        public double getStoredPower() {
+            return Double.MAX_VALUE;
+        }
+
+        @Override
+        public double getMaxStoredPower() {
+            return Double.MAX_VALUE;
+        }
+
+        @Override
+        public double getEnergyDemand(double maxRequired) {
+            return 0.0D;
+        }
+    }
+
+    private static final class TestRequester implements ICraftingRequester {
+
+        private final Set<ICraftingLink> requestedJobs = new HashSet<>();
+        private final KeyCounter received = new KeyCounter();
+        private long simulatedAcceptance;
+        private long modulatedAcceptance;
+        private boolean capAcceptanceAtRequested;
+        private int jobStateChanges;
+
+        private TestRequester(long maxAccepted) {
+            setMaxAccepted(maxAccepted);
+        }
+
+        private void setMaxAccepted(long maxAccepted) {
+            setMaxAccepted(maxAccepted, maxAccepted);
+        }
+
+        private void setMaxAccepted(long maxSimulatedAccepted, long maxModulatedAccepted) {
+            this.simulatedAcceptance = maxSimulatedAccepted;
+            this.modulatedAcceptance = maxModulatedAccepted;
+            this.capAcceptanceAtRequested = true;
+        }
+
+        private void returnExactly(long simulatedAccepted, long modulatedAccepted) {
+            this.simulatedAcceptance = simulatedAccepted;
+            this.modulatedAcceptance = modulatedAccepted;
+            this.capAcceptanceAtRequested = false;
+        }
+
+        private void track(ICraftingLink link) {
+            this.requestedJobs.add(link);
+        }
+
+        private int jobStateChanges() {
+            return this.jobStateChanges;
+        }
+
+        @Override
+        public ImmutableSet<ICraftingLink> getRequestedJobs() {
+            return ImmutableSet.copyOf(this.requestedJobs);
+        }
+
+        @Override
+        public long insertCraftedItems(ICraftingLink link,
+                                       AEKey what,
+                                       long amount,
+                                       Actionable mode) {
+            long configuredAcceptance = mode == Actionable.SIMULATE ? this.simulatedAcceptance : this.modulatedAcceptance;
+            long accepted = this.capAcceptanceAtRequested ? Math.min(amount, configuredAcceptance) : configuredAcceptance;
+            if (mode == Actionable.MODULATE) {
+                this.received.add(what, accepted);
+            }
+            return accepted;
+        }
+
+        @Override
+        public void jobStateChange(ICraftingLink link) {
+            this.jobStateChanges++;
+        }
+
+        @Nullable
+        @Override
+        public IGridNode getActionableNode() {
+            return null;
+        }
+    }
+
+    private record PendingPatternDetails(AEItemKey output) implements IPatternDetails {
+
+        @Override
+        public AEItemKey getDefinition() {
+            return AEItemKey.of(Items.CRAFTING_TABLE);
+        }
+
+        @Override
+        public IInput[] getInputs() {
+            return new IInput[0];
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return List.of(new GenericStack(this.output, 1L));
         }
     }
 }

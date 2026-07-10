@@ -295,42 +295,55 @@ final class TrinityDataCoreCpuLogic {
      * @return accepted amount
      */
     long insert(AEKey what, long amount, Actionable type) {
-        if (this.job == null || amount <= 0) {
+        TrinityDataCoreExecutingCraftingJob currentJob = this.job;
+        if (currentJob == null || amount <= 0) {
             return 0L;
         }
 
-        long waitingFor = this.job.waitingFor.extract(what, amount, Actionable.SIMULATE);
+        long waitingFor = currentJob.waitingFor.extract(what, amount, Actionable.SIMULATE);
         if (waitingFor <= 0) {
             return 0L;
         }
-        if (amount > waitingFor) {
-            amount = waitingFor;
+        long requested = Math.min(amount, waitingFor);
+        boolean finalOutput = what.matches(currentJob.finalOutput);
+        boolean receiveLocally = !finalOutput || currentJob.link.isStandalone();
+        long accepted;
+        if (receiveLocally) {
+            accepted = requested;
+        } else {
+            accepted = currentJob.link.insert(what, requested, type);
+            validateLinkAcceptance(what, requested, accepted, type);
+        }
+        if (accepted <= 0L || type == Actionable.SIMULATE) {
+            return accepted;
         }
 
-        if (type == Actionable.MODULATE) {
-            this.job.timeTracker.decrementItems(amount, what.getType());
-            this.job.waitingFor.extract(what, amount, Actionable.MODULATE);
-            this.cpu.markDirty();
+        if (receiveLocally) {
+            this.inventory.insert(what, accepted, Actionable.MODULATE);
         }
-
-        long inserted = amount;
-        if (what.matches(this.job.finalOutput)) {
-            inserted = this.job.link.insert(what, amount, type);
-            if (type == Actionable.MODULATE) {
-                postChange(what);
-                this.job.remainingAmount = Math.max(0L, this.job.remainingAmount - amount);
-
-                if (this.job.remainingAmount <= 0) {
-                    finishJob(true);
-                } else {
-                    this.cpu.markDirty();
-                }
-            }
-        } else if (type == Actionable.MODULATE) {
-            this.inventory.insert(what, amount, Actionable.MODULATE);
+        currentJob.timeTracker.decrementItems(accepted, what.getType());
+        currentJob.waitingFor.extract(what, accepted, Actionable.MODULATE);
+        if (finalOutput) {
+            currentJob.remainingAmount = Math.max(0L, currentJob.remainingAmount - accepted);
         }
+        this.cpu.markDirty();
 
-        return inserted;
+        if (currentJob.isComplete()) {
+            finishJob(true);
+        }
+        return accepted;
+    }
+
+    private static void validateLinkAcceptance(AEKey what,
+                                               long requested,
+                                               long accepted,
+                                               Actionable type) {
+        if (accepted >= 0L && accepted <= requested) {
+            return;
+        }
+        String message = "Crafting link violated the insertion contract for " + what + " in " + type + " mode: requested " + requested + ", accepted " + accepted + "; expected 0 <= accepted <= requested";
+        Data_Energistics.LOGGER.error(message);
+        throw new IllegalStateException(message);
     }
 
     /**

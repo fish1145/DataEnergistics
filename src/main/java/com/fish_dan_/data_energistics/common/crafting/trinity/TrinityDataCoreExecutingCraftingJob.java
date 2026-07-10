@@ -163,6 +163,15 @@ final class TrinityDataCoreExecutingCraftingJob {
         return data;
     }
 
+    /**
+     * Determines whether every scheduled task and requested output has completed.
+     *
+     * @return true when the job can transition to its finished state
+     */
+    boolean isComplete() {
+        return this.remainingAmount <= 0L && this.tasks.isEmpty() && this.waitingFor.list.isEmpty();
+    }
+
     static CompoundTag writeTaskDetails(IPatternDetails details, HolderLookup.Provider registries) {
         return writeTaskDetails(details, definition -> definition.toTag(registries));
     }
