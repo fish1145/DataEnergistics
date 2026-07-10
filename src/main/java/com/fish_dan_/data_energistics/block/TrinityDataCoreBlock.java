@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
@@ -28,22 +28,22 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock implements EntityBlock {
+public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements EntityBlock {
 
-    public DigitalConstructFlowerBlock(BlockBehaviour.Properties properties) {
+    public TrinityDataCoreBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
     @Override
     public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
-        return new DigitalConstructFlowerBlockEntity(blockPos, blockState);
+        return new TrinityDataCoreBlockEntity(blockPos, blockState);
     }
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
-            MenuOpener.open(ModMenus.TRINITY_DATA_CORE.get(), player, MenuLocators.forBlockEntity(flower));
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
+            MenuOpener.open(ModMenus.TRINITY_DATA_CORE.get(), player, MenuLocators.forBlockEntity(host));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -51,20 +51,20 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
-            flower.restoreStorageIdFromItem(stack);
-            flower.restoreHostIdFromItem(stack);
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
+            host.restoreStorageIdFromItem(stack);
+            host.restoreHostIdFromItem(stack);
         }
-        DigitalConstructFlowerBlockEntity.requestRecheckAround(level, pos);
+        TrinityDataCoreBlockEntity.requestRecheckAround(level, pos);
     }
 
     @Override
     public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
         BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
         ItemStack stack = new ItemStack(this);
-        if (blockEntity instanceof DigitalConstructFlowerBlockEntity flower) {
-            flower.saveStorageIdToItem(stack);
-            flower.saveHostIdToItem(stack);
+        if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
+            host.saveStorageIdToItem(stack);
+            host.saveHostIdToItem(stack);
         }
         return List.of(stack);
     }
@@ -72,10 +72,10 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
-            if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DigitalConstructFlowerBlockEntity flower) {
-                flower.onPermanentRemoval();
+            if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
+                host.onPermanentRemoval();
             }
-            DigitalConstructFlowerBlockEntity.requestRecheckAround(level, pos);
+            TrinityDataCoreBlockEntity.requestRecheckAround(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);
     }
@@ -83,7 +83,7 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
     @Override
     public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
-        DigitalConstructFlowerBlockEntity.requestRecheckAround(level, pos);
+        TrinityDataCoreBlockEntity.requestRecheckAround(level, pos);
     }
 
     @Override
@@ -96,6 +96,6 @@ public class DigitalConstructFlowerBlock extends DataRipperReassemblerBlock impl
         if (blockEntityType != ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get()) {
             return null;
         }
-        return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((DigitalConstructFlowerBlockEntity) tickerBlockEntity).serverTick();
+        return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((TrinityDataCoreBlockEntity) tickerBlockEntity).serverTick();
     }
 }

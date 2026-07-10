@@ -499,7 +499,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(pattern.getCenterOffset().z(), 2, "Crafting child compressed controller aisle should match the exported host height");
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 2, "Crafting child controller min aisle should match the exported host height");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 2, "Crafting child controller max aisle should match the exported host height");
-        helper.assertValueEqual(countSymbol(pattern, '~'), 1, "Crafting child should use the digital construct flower only as the host anchor");
+        helper.assertValueEqual(countSymbol(pattern, '~'), 1, "Crafting child should use the Trinity Data Core only as the host anchor");
         helper.assertValueEqual(countSymbol(pattern, 'A'), 60, "Crafting child should omit the four shared main-structure cube corners");
         helper.assertValueEqual(countSymbol(pattern, 'P'), 96, "Crafting child compressed core units should expose six pattern core layers");
         helper.assertValueEqual(countExpandedSymbol(pattern, 'P'), 272, "Crafting child expanded structure should expose all pattern core positions");

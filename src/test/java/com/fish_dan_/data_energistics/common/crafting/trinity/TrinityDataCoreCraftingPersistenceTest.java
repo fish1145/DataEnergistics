@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -144,7 +144,7 @@ public final class TrinityDataCoreCraftingPersistenceTest {
         return runtime;
     }
 
-    private static final class TestHost extends DigitalConstructFlowerBlockEntity {
+    private static final class TestHost extends TrinityDataCoreBlockEntity {
 
         private TestHost(BlockPos pos) {
             super(pos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());

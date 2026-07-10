@@ -13,7 +13,7 @@ import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
  *
  * <p>
  * AE2's tracker keeps mutation methods package-private, so this local tracker preserves the same visible progress
- * contract while remaining accessible to the flower runtime.
+ * contract while remaining accessible to the Trinity Data Core runtime.
  */
 final class TrinityDataCoreElapsedTimeTracker {
 

@@ -64,7 +64,7 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
             this.dataEnergistics$cpu.removeListener(this.cpuChangeListener);
             this.dataEnergistics$cpu = null;
         }
-        if (!(c instanceof TrinityDataCoreVirtualCpu flowerCpu)) {
+        if (!(c instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu)) {
             return;
         }
 
@@ -73,14 +73,14 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
             this.cpu = null;
         }
         this.incrementalUpdateHelper.reset();
-        this.dataEnergistics$cpu = flowerCpu;
+        this.dataEnergistics$cpu = trinityDataCoreCpu;
 
         KeyCounter allItems = new KeyCounter();
-        flowerCpu.getAllItems(allItems);
+        trinityDataCoreCpu.getAllItems(allItems);
         for (var entry : allItems) {
             this.incrementalUpdateHelper.addChange(entry.getKey());
         }
-        flowerCpu.addListener(this.cpuChangeListener);
+        trinityDataCoreCpu.addListener(this.cpuChangeListener);
         ci.cancel();
     }
 

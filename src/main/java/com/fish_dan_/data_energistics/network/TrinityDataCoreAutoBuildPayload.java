@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.network;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
 
@@ -46,8 +46,8 @@ public record TrinityDataCoreAutoBuildPayload(TrinityDataCoreAutoBuildTarget tar
             }
 
             TrinityDataCoreMenuHost host = trinityMenu.getHost();
-            if (host instanceof DigitalConstructFlowerBlockEntity flower) {
-                flower.autoBuildTrinityStructure(serverPlayer, payload.target);
+            if (host instanceof TrinityDataCoreBlockEntity trinityDataCore) {
+                trinityDataCore.autoBuildTrinityStructure(serverPlayer, payload.target);
             }
         });
     }

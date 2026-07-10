@@ -41,7 +41,8 @@ import java.util.function.Consumer;
  * Executes one virtual Trinity Data Core crafting CPU partition.
  *
  * <p>
- * This logic follows AE2's CPU execution flow while replacing native cluster callbacks with the flower runtime.
+ * This logic follows AE2's CPU execution flow while replacing native cluster callbacks with the Trinity Data Core
+ * runtime.
  */
 final class TrinityDataCoreCpuLogic {
 
@@ -294,7 +295,7 @@ final class TrinityDataCoreCpuLogic {
      * @return accepted amount
      */
     long insert(AEKey what, long amount, Actionable type) {
-        if (what == null || this.job == null || amount <= 0) {
+        if (this.job == null || amount <= 0) {
             return 0L;
         }
 

@@ -28,11 +28,11 @@ import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-final class DigitalConstructFlowerAutoBuild {
+final class TrinityDataCoreAutoBuild {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
-    private DigitalConstructFlowerAutoBuild() {}
+    private TrinityDataCoreAutoBuild() {}
 
     static Stats buildPattern(ServerLevel serverLevel,
                               Player player,

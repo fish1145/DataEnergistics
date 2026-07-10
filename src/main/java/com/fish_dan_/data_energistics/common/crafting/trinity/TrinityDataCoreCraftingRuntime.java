@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -43,7 +43,7 @@ public final class TrinityDataCoreCraftingRuntime {
     private static final String PARTITION_INDEX_TAG = "index";
     private static final String PARTITION_LOGIC_TAG = "logic";
 
-    private final DigitalConstructFlowerBlockEntity host;
+    private final TrinityDataCoreBlockEntity host;
     private final Map<String, TrinityDataCoreCpuContribution> externalContributions = new TreeMap<>();
     private final List<TrinityDataCoreVirtualCpu> partitions = new ArrayList<>();
     private TrinityDataCoreCpuProfile profile = TrinityDataCoreCpuProfile.EMPTY;
@@ -52,7 +52,7 @@ public final class TrinityDataCoreCraftingRuntime {
     private boolean paused;
     private ListTag pendingPartitionLogic;
 
-    public TrinityDataCoreCraftingRuntime(DigitalConstructFlowerBlockEntity host) {
+    public TrinityDataCoreCraftingRuntime(TrinityDataCoreBlockEntity host) {
         this.host = host;
     }
 

@@ -50,7 +50,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * AE network hatch that exposes the bound Digital Construct Flower UUID storage instead of storing contents locally.
+ * AE network hatch that exposes the bound Trinity Data Core UUID storage instead of storing contents locally.
  */
 public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implements CompartmentPart {
 
@@ -111,30 +111,30 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Override
     public void onMainNodeStateChanged(IGridNodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
-        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
-        if (flower != null) {
-            flower.requestAccessLeaseReevaluation();
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host != null) {
+            host.requestAccessLeaseReevaluation();
         }
     }
 
     @Override
     public void onChunkUnloaded() {
         detachTerminalPartitions();
-        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
+        TrinityDataCoreBlockEntity host = boundHost(false);
         super.onChunkUnloaded();
-        if (flower != null) {
-            flower.requestAccessLeaseReevaluation();
+        if (host != null) {
+            host.requestAccessLeaseReevaluation();
         }
     }
 
     @Override
     public void setRemoved() {
         detachTerminalPartitions();
-        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
+        TrinityDataCoreBlockEntity host = boundHost(false);
         super.setRemoved();
-        if (flower != null) {
-            flower.requestAccessLeaseReevaluation();
-            flower.requestStructureRecheck();
+        if (host != null) {
+            host.requestAccessLeaseReevaluation();
+            host.requestStructureRecheck();
         }
     }
 
@@ -224,13 +224,13 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     public @Nullable TrinityDataCoreCraftingRuntime boundCraftingRuntime() {
-        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
-        return flower == null || !isCandidateOnline() || !flower.isLeaseOwner(this) ||
-                !flower.canExposeTrinityCapabilities() ? null : flower.getCraftingRuntime();
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host == null || !isCandidateOnline() || !host.isLeaseOwner(this) ||
+                !host.canExposeTrinityCapabilities() ? null : host.getCraftingRuntime();
     }
 
     public @Nullable IGrid connectedGrid() {
-        if (boundFlower(false) == null) {
+        if (boundHost(false) == null) {
             return null;
         }
         var node = this.getMainNode().getNode();
@@ -245,7 +245,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     public boolean isCandidateOnline() {
-        if (boundFlower(false) == null) {
+        if (boundHost(false) == null) {
             return false;
         }
         var node = this.getMainNode().getNode();
@@ -253,8 +253,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     public boolean isAccessOnline() {
-        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
-        return flower != null && flower.isLeaseOwner(this) && flower.canExposeTrinityCapabilities() &&
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host != null && host.isLeaseOwner(this) && host.canExposeTrinityCapabilities() &&
                 isCandidateOnline();
     }
 
@@ -268,36 +268,36 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     @Nullable
-    private DigitalConstructFlowerBlockEntity boundFlower() {
-        return boundFlower(true);
+    private TrinityDataCoreBlockEntity boundHost() {
+        return boundHost(true);
     }
 
     @Nullable
-    private DigitalConstructFlowerBlockEntity boundFlower(boolean logUnavailable) {
+    private TrinityDataCoreBlockEntity boundHost(boolean logUnavailable) {
         if (this.compartmentHost == null || this.structureName == null) {
             logUnavailable(logUnavailable, "not bound to a trinity structure");
             return null;
         }
-        if (!(this.compartmentHost instanceof DigitalConstructFlowerBlockEntity flower)) {
-            logUnavailable(logUnavailable, "bound host is not a Digital Construct Flower");
+        if (!(this.compartmentHost instanceof TrinityDataCoreBlockEntity host)) {
+            logUnavailable(logUnavailable, "bound host is not a Trinity Data Core");
             return null;
         }
-        if (!flower.isStructureFormed()) {
-            logUnavailable(logUnavailable, "bound Digital Construct Flower structure is not formed");
+        if (!host.isStructureFormed()) {
+            logUnavailable(logUnavailable, "bound Trinity Data Core structure is not formed");
             return null;
         }
         this.lastUnavailableReason = null;
-        return flower;
+        return host;
     }
 
     @Nullable
-    private DigitalConstructFlowerBlockEntity patternProviderHost() {
-        DigitalConstructFlowerBlockEntity flower = boundFlower(false);
-        if (flower == null || !isCandidateOnline() || !flower.isLeaseOwner(this) ||
-                !flower.isPatternProviderAvailable()) {
+    private TrinityDataCoreBlockEntity patternProviderHost() {
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host == null || !isCandidateOnline() || !host.isLeaseOwner(this) ||
+                !host.isPatternProviderAvailable()) {
             return null;
         }
-        return flower;
+        return host;
     }
 
     private void logUnavailable(boolean shouldLog, String reason) {
@@ -340,9 +340,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     private void refreshTerminalPartitions() {
-        DigitalConstructFlowerBlockEntity flower = patternProviderHost();
+        TrinityDataCoreBlockEntity host = patternProviderHost();
         IGridNode accessNode = this.getMainNode().getNode();
-        if (flower == null || !(this.level instanceof ServerLevel serverLevel) || accessNode == null ||
+        if (host == null || !(this.level instanceof ServerLevel serverLevel) || accessNode == null ||
                 !accessNode.isActive()) {
             detachTerminalPartitions();
             return;
@@ -350,8 +350,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         IGrid grid = accessNode.getGrid();
         List<TrinityPatternTerminalPartition> desired = TrinityPatternTerminalPartition.createLayout(
-                flower.getHostId(),
-                flower.getPatternCatalog().mountedCores(),
+                host.getHostId(),
+                host.getPatternCatalog().mountedCores(),
                 terminalGroup());
         Map<TrinityPatternTerminalPartition.PartitionKey, TrinityPatternTerminalPartition> existingByKey = new HashMap<>();
         for (TrinityPatternTerminalPartition existing : this.terminalPartitions) {
@@ -397,9 +397,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         @Override
         public void mountInventories(IStorageMounts storageMounts) {
-            DigitalConstructFlowerBlockEntity flower = boundFlower(false);
-            if (flower != null && flower.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
-                    flower.canExposeTrinityCapabilities()) {
+            TrinityDataCoreBlockEntity host = boundHost(false);
+            if (host != null && host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
+                    host.canExposeTrinityCapabilities()) {
                 storageMounts.mount(networkStorage, 0);
             }
         }
@@ -409,17 +409,17 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         @Override
         public List<IPatternDetails> getAvailablePatterns() {
-            DigitalConstructFlowerBlockEntity flower = patternProviderHost();
-            return flower == null ? List.of() : flower.getPatternCatalog().getAvailablePatterns();
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            return host == null ? List.of() : host.getPatternCatalog().getAvailablePatterns();
         }
 
         @Override
         public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-            DigitalConstructFlowerBlockEntity flower = patternProviderHost();
-            if (flower == null || level == null || level.isClientSide()) {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            if (host == null || level == null || level.isClientSide()) {
                 return false;
             }
-            return flower.getPatternCatalog().pushPattern(patternDetails, inputHolder, level.getGameTime());
+            return host.getPatternCatalog().pushPattern(patternDetails, inputHolder, level.getGameTime());
         }
 
         @Override
@@ -433,12 +433,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
-            DigitalConstructFlowerBlockEntity flower = boundFlower();
-            if (!canUseStorage(flower) || !(level instanceof ServerLevel serverLevel)) {
+            TrinityDataCoreBlockEntity host = boundHost();
+            if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
                 return 0L;
             }
             long inserted = TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
-                    .insert(flower.getStorageId(), what, amount, mode, flower.storageProfile());
+                    .insert(host.getStorageId(), what, amount, mode, host.storageProfile());
             if (inserted > 0L && mode == Actionable.MODULATE) {
                 requestStorageUpdate();
             }
@@ -448,12 +448,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         @Override
         public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
             MEStorage.checkPreconditions(what, amount, mode, source);
-            DigitalConstructFlowerBlockEntity flower = boundFlower();
-            if (!canUseStorage(flower) || !(level instanceof ServerLevel serverLevel)) {
+            TrinityDataCoreBlockEntity host = boundHost();
+            if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
                 return 0L;
             }
             long extracted = TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
-                    .extract(flower.getStorageId(), what, amount, mode);
+                    .extract(host.getStorageId(), what, amount, mode);
             if (extracted > 0L && mode == Actionable.MODULATE) {
                 requestStorageUpdate();
             }
@@ -462,11 +462,11 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         @Override
         public void getAvailableStacks(KeyCounter out) {
-            DigitalConstructFlowerBlockEntity flower = boundFlower();
-            if (!canUseStorage(flower) || !(level instanceof ServerLevel serverLevel)) {
+            TrinityDataCoreBlockEntity host = boundHost();
+            if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
                 return;
             }
-            TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).addAvailableStacks(flower.getStorageId(), out);
+            TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).addAvailableStacks(host.getStorageId(), out);
         }
 
         @Override
@@ -474,10 +474,10 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             return ModBlocks.TRINITY_ACCESS_HATCH.get().getName();
         }
 
-        private boolean canUseStorage(@Nullable DigitalConstructFlowerBlockEntity flower) {
-            return flower != null && isCandidateOnline() &&
-                    flower.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
-                    flower.canExposeTrinityCapabilities();
+        private boolean canUseStorage(@Nullable TrinityDataCoreBlockEntity host) {
+            return host != null && isCandidateOnline() &&
+                    host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
+                    host.canExposeTrinityCapabilities();
         }
     }
 }

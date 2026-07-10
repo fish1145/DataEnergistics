@@ -232,13 +232,13 @@ public final class CompartmentBlockEntityTest {
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
 
-        BlockEntity flowerBlockEntity = level.getBlockEntity(origin);
-        if (!(flowerBlockEntity instanceof DigitalConstructFlowerBlockEntity flower)) {
+        BlockEntity hostBlockEntity = level.getBlockEntity(origin);
+        if (!(hostBlockEntity instanceof TrinityDataCoreBlockEntity host)) {
             helper.fail("Expected a placed Trinity Data Core block entity", localOrigin);
             return;
         }
 
-        helper.assertTrue(flower.accessGrid() == null, "Unformed Trinity Data Core should not expose an AE grid");
+        helper.assertTrue(host.accessGrid() == null, "Unformed Trinity Data Core should not expose an AE grid");
 
         buildMainStructure(helper, level, origin);
         List<TrinityAccessHatchBlockEntity> builtHatches = requireBuiltTrinityAccessHatches(helper, level, origin);
@@ -250,10 +250,10 @@ public final class CompartmentBlockEntityTest {
             assertTrinityAccessCableConnections(helper, hatch);
         }
 
-        flower.serverTick();
-        helper.assertTrue(flower.isStructureFormed(), "Auto-built Trinity Data Core main structure should form: " +
-                flower.getLastFailureReason() + " at " + flower.getLastFailurePosition());
-        List<TrinityAccessHatchBlockEntity> boundHatches = boundTrinityAccessHatches(flower);
+        host.serverTick();
+        helper.assertTrue(host.isStructureFormed(), "Auto-built Trinity Data Core main structure should form: " +
+                host.getLastFailureReason() + " at " + host.getLastFailurePosition());
+        List<TrinityAccessHatchBlockEntity> boundHatches = boundTrinityAccessHatches(host);
         helper.assertTrue(!boundHatches.isEmpty(), "Formed Trinity Data Core should bind Trinity access hatches");
         helper.assertTrue(
                 boundHatches.stream().anyMatch(builtHatches::contains),
@@ -264,42 +264,42 @@ public final class CompartmentBlockEntityTest {
         }
 
         helper.assertTrue(
-                flower.accessGrid() == null,
+                host.accessGrid() == null,
                 "Trinity access must stay offline until the CPU and crafting child structures are also formed");
         buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
         buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
-        flower.requestStructureRecheck();
-        flower.serverTick();
-        helper.assertTrue(flower.isCpuStructureFormed(),
-                "Auto-built Trinity CPU child structure should form: " + flower.getCpuLastFailureReason());
-        helper.assertTrue(flower.isCraftingStructureFormed(),
-                "Auto-built Trinity crafting child structure should form: " + flower.getCraftingLastFailureReason());
+        host.requestStructureRecheck();
+        host.serverTick();
+        helper.assertTrue(host.isCpuStructureFormed(),
+                "Auto-built Trinity CPU child structure should form: " + host.getCpuLastFailureReason());
+        helper.assertTrue(host.isCraftingStructureFormed(),
+                "Auto-built Trinity crafting child structure should form: " + host.getCraftingLastFailureReason());
         for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
             hatch.refreshTrinityAccess();
         }
         AtomicReference<TestGridPower> testGridPower = new AtomicReference<>();
         helper.succeedWhen(() -> {
             connectAccessHatches(helper, level, boundHatches, testGridPower);
-            flower.serverTick();
+            host.serverTick();
             for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
                 hatch.refreshTrinityAccess();
             }
-            assertFlowerUsesBoundTrinityAccessGrid(helper, flower, boundHatches);
-            assertSingleLeaseOwner(helper, flower, boundHatches);
-            IGrid grid = flower.accessGrid();
+            assertHostUsesBoundTrinityAccessGrid(helper, host, boundHatches);
+            assertSingleLeaseOwner(helper, host, boundHatches);
+            IGrid grid = host.accessGrid();
             helper.assertTrue(grid != null, "Complete Trinity structure should expose one powered AE grid");
             helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.connectedGrid() == grid),
                     "Both Trinity access hatches should share one AE grid in this test");
             helper.assertTrue(boundHatches.stream()
-                    .filter(flower::isLeaseOwner)
+                    .filter(host::isLeaseOwner)
                     .flatMap(hatch -> hatch.terminalPartitions().stream())
                     .allMatch(partition -> partition.isAttachedTo(grid)),
                     "The lease owner should attach every terminal partition to its selected grid");
-            helper.assertTrue(boundHatches.stream().filter(flower::isLeaseOwner)
+            helper.assertTrue(boundHatches.stream().filter(host::isLeaseOwner)
                     .anyMatch(hatch -> !hatch.terminalPartitions().isEmpty()),
                     "The lease owner should publish at least one terminal partition");
             helper.assertValueEqual(
-                    boundHatches.stream().filter(hatch -> !flower.isLeaseOwner(hatch))
+                    boundHatches.stream().filter(hatch -> !host.isLeaseOwner(hatch))
                             .mapToInt(hatch -> hatch.terminalPartitions().size()).sum(),
                     0,
                     "Non-owning access hatches must not mount duplicate terminal partitions");
@@ -318,19 +318,19 @@ public final class CompartmentBlockEntityTest {
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
         BlockEntity blockEntity = level.getBlockEntity(origin);
-        if (!(blockEntity instanceof DigitalConstructFlowerBlockEntity flower)) {
+        if (!(blockEntity instanceof TrinityDataCoreBlockEntity host)) {
             helper.fail("Expected a placed Trinity Data Core block entity", localOrigin);
             return;
         }
 
         buildMainStructure(helper, level, origin);
-        flower.serverTick();
-        List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(flower);
+        host.serverTick();
+        List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
         helper.assertTrue(!hatches.isEmpty(), "Complete Trinity structure should bind at least one access hatch");
         buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
         buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
-        flower.requestStructureRecheck();
-        flower.serverTick();
+        host.requestStructureRecheck();
+        host.serverTick();
         for (TrinityAccessHatchBlockEntity hatch : hatches) {
             hatch.refreshTrinityAccess();
         }
@@ -340,55 +340,55 @@ public final class CompartmentBlockEntityTest {
         helper.succeedWhen(() -> {
             if (!invalidated.get()) {
                 connectAccessHatches(helper, level, hatches, testGridPower);
-                flower.serverTick();
+                host.serverTick();
                 for (TrinityAccessHatchBlockEntity hatch : hatches) {
                     hatch.refreshTrinityAccess();
                 }
-                helper.assertTrue(flower.accessGrid() != null,
+                helper.assertTrue(host.accessGrid() != null,
                         "Complete Trinity structure should expose its owner grid before invalidation");
-                assertSingleLeaseOwner(helper, flower, hatches);
-                retainedCpuPartitions.set(flower.getCraftingRuntime().partitions());
+                assertSingleLeaseOwner(helper, host, hatches);
+                retainedCpuPartitions.set(host.getCraftingRuntime().partitions());
                 helper.assertTrue(!retainedCpuPartitions.get().isEmpty(),
                         "Formed CPU structure should expose at least one virtual CPU partition");
-                helper.assertTrue(hatches.stream().filter(flower::isLeaseOwner)
+                helper.assertTrue(hatches.stream().filter(host::isLeaseOwner)
                         .flatMap(hatch -> hatch.terminalPartitions().stream())
-                        .allMatch(partition -> partition.isAttachedTo(flower.accessGrid())),
+                        .allMatch(partition -> partition.isAttachedTo(host.accessGrid())),
                         "Terminal partitions should be mounted before capability invalidation");
-                TrinityPatternCatalog.CoreMount mount = flower.getPatternCatalog().mountedCores().getFirst();
-                PatternRoute route = new PatternRoute(flower.getHostId(), mount.core().coreId(), 0);
+                TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
+                PatternRoute route = new PatternRoute(host.getHostId(), mount.core().coreId(), 0);
                 mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
 
                 BlockPos cpuCorePosition = findCpuCore(level, origin);
                 level.setBlock(cpuCorePosition, Blocks.AIR.defaultBlockState(), 3);
-                flower.requestStructureRecheck();
-                flower.serverTick();
+                host.requestStructureRecheck();
+                host.serverTick();
                 for (TrinityAccessHatchBlockEntity hatch : hatches) {
                     hatch.refreshTrinityAccess();
                 }
                 invalidated.set(true);
             }
 
-            TrinityPatternCatalog.CoreMount mount = flower.getPatternCatalog().mountedCores().getFirst();
-            PatternRoute route = new PatternRoute(flower.getHostId(), mount.core().coreId(), 0);
-            helper.assertTrue(!flower.isCpuStructureFormed(), "Broken CPU child structure must invalidate capabilities");
-            helper.assertTrue(!flower.canExposeTrinityCapabilities(),
+            TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
+            PatternRoute route = new PatternRoute(host.getHostId(), mount.core().coreId(), 0);
+            helper.assertTrue(!host.isCpuStructureFormed(), "Broken CPU child structure must invalidate capabilities");
+            helper.assertTrue(!host.canExposeTrinityCapabilities(),
                     "A Trinity host with one invalid child structure must withdraw all capabilities");
-            helper.assertTrue(!flower.isPatternProviderAvailable(),
+            helper.assertTrue(!host.isPatternProviderAvailable(),
                     "Pattern provider must be unavailable while any Trinity structure is invalid");
-            helper.assertTrue(flower.accessGrid() == null,
+            helper.assertTrue(host.accessGrid() == null,
                     "Storage access must be unavailable while any Trinity structure is invalid");
-            helper.assertTrue(flower.getPatternCatalog().hasWork(),
+            helper.assertTrue(host.getPatternCatalog().hasWork(),
                     "Invalidation must retain route-owned work for lease locking");
             helper.assertValueEqual(mount.core().pendingOutputs(route).size(), 1,
                     "Invalidation must retain pending route outputs");
-            List<TrinityDataCoreVirtualCpu> currentCpuPartitions = flower.getCraftingRuntime().partitions();
+            List<TrinityDataCoreVirtualCpu> currentCpuPartitions = host.getCraftingRuntime().partitions();
             helper.assertValueEqual(currentCpuPartitions.size(), retainedCpuPartitions.get().size(),
                     "Temporary CPU structure failure must retain every virtual CPU partition");
             for (int index = 0; index < currentCpuPartitions.size(); index++) {
                 helper.assertTrue(currentCpuPartitions.get(index) == retainedCpuPartitions.get().get(index),
                         "Temporary CPU structure failure must not rebuild or cancel CPU partition " + index);
             }
-            helper.assertValueEqual(hatches.stream().filter(flower::isLeaseOwner).count(), 1L,
+            helper.assertValueEqual(hatches.stream().filter(host::isLeaseOwner).count(), 1L,
                     "Pending work must keep the original grid lease owner");
             for (TrinityAccessHatchBlockEntity hatch : hatches) {
                 helper.assertTrue(hatch.accessGrid() == null,
@@ -460,13 +460,13 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static void buildMainStructure(GameTestHelper helper, ServerLevel level, BlockPos origin) {
-        DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
+        TrinityDataCoreAutoBuild.Stats stats = TrinityDataCoreAutoBuild.buildPattern(
                 level,
                 helper.makeMockPlayer(GameType.CREATIVE),
                 world(level),
                 definition(TrinityDataCoreAutoBuildTarget.MAIN).pattern(),
                 origin,
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN),
+                TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN),
                 Direction.SOUTH,
                 false);
         helper.assertTrue(stats.placed() > 0, "Trinity Data Core main auto-build should place structure blocks");
@@ -480,13 +480,13 @@ public final class CompartmentBlockEntityTest {
                                             ServerLevel level,
                                             BlockPos origin,
                                             TrinityDataCoreAutoBuildTarget target) {
-        DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
+        TrinityDataCoreAutoBuild.Stats stats = TrinityDataCoreAutoBuild.buildPattern(
                 level,
                 helper.makeMockPlayer(GameType.CREATIVE),
                 world(level),
                 definition(target).pattern(),
                 origin,
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(target),
+                TrinityDataCoreBlockEntity.autoBuildStructureName(target),
                 Direction.SOUTH,
                 false);
         helper.assertTrue(stats.placed() > 0, "Trinity " + target + " auto-build should place structure blocks");
@@ -522,9 +522,9 @@ public final class CompartmentBlockEntityTest {
         throw new IllegalStateException("Auto-built Trinity Data Core main structure did not place a Trinity access hatch");
     }
 
-    private static List<TrinityAccessHatchBlockEntity> boundTrinityAccessHatches(DigitalConstructFlowerBlockEntity flower) {
+    private static List<TrinityAccessHatchBlockEntity> boundTrinityAccessHatches(TrinityDataCoreBlockEntity host) {
         List<TrinityAccessHatchBlockEntity> hatches = new ArrayList<>();
-        for (CompartmentPart part : flower.compartmentHost$getCompartments(mainStructureName())) {
+        for (CompartmentPart part : host.compartmentHost$getCompartments(mainStructureName())) {
             if (part instanceof TrinityAccessHatchBlockEntity hatch) {
                 hatches.add(hatch);
             }
@@ -563,27 +563,27 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static void assertSingleLeaseOwner(GameTestHelper helper,
-                                               DigitalConstructFlowerBlockEntity flower,
+                                               TrinityDataCoreBlockEntity host,
                                                List<TrinityAccessHatchBlockEntity> hatches) {
         TrinityAccessHatchBlockEntity expected = hatches.stream()
                 .min((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
                 .orElseThrow();
-        helper.assertValueEqual(hatches.stream().filter(flower::isLeaseOwner).count(), 1L,
+        helper.assertValueEqual(hatches.stream().filter(host::isLeaseOwner).count(), 1L,
                 "Exactly one Trinity access hatch may own the network lease");
-        helper.assertTrue(flower.isLeaseOwner(expected),
+        helper.assertTrue(host.isLeaseOwner(expected),
                 "Simultaneously online Trinity access hatches must elect the lowest coordinate");
     }
 
-    private static void assertFlowerUsesBoundTrinityAccessGrid(GameTestHelper helper,
-                                                               DigitalConstructFlowerBlockEntity flower,
-                                                               List<TrinityAccessHatchBlockEntity> boundHatches) {
-        IGrid flowerGrid = flower.accessGrid();
-        if (flowerGrid == null) {
+    private static void assertHostUsesBoundTrinityAccessGrid(GameTestHelper helper,
+                                                             TrinityDataCoreBlockEntity host,
+                                                             List<TrinityAccessHatchBlockEntity> boundHatches) {
+        IGrid hostGrid = host.accessGrid();
+        if (hostGrid == null) {
             helper.fail("Formed Trinity Data Core should expose an AE grid through a bound Trinity access hatch");
             return;
         }
         for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
-            if (flowerGrid == hatch.accessGrid()) {
+            if (hostGrid == hatch.accessGrid()) {
                 return;
             }
         }
@@ -591,12 +591,12 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static String mainStructureName() {
-        return DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN);
+        return TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN);
     }
 
     private static JsonMultiBlockDefinition definition(TrinityDataCoreAutoBuildTarget target) {
         return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
-                .get(DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(target))
+                .get(TrinityDataCoreBlockEntity.autoBuildDefinitionKey(target))
                 .orElseThrow(() -> new IllegalStateException("Missing Trinity auto-build test definition for " + target));
     }
 

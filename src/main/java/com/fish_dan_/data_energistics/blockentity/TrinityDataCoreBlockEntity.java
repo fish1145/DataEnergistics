@@ -83,8 +83,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
-                                               implements MultiBlockStatusProvider, CompartmentHost, TrinityDataCoreMenuHost {
+public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
+                                        implements MultiBlockStatusProvider, CompartmentHost, TrinityDataCoreMenuHost {
 
     private static final int RECHECK_RADIUS = 24;
     private static final int RECHECK_INTERVAL_TICKS = 100;
@@ -147,7 +147,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     private TrinityAccessLease accessLease;
     private long accessLeaseEpoch;
 
-    public DigitalConstructFlowerBlockEntity(BlockPos blockPos, BlockState blockState) {
+    public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.TRINITY_DATA_CORE.get())
@@ -364,7 +364,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         JsonMultiBlockDefinition targetDefinition = autoBuildDefinition(target);
         StructureWorldView world = new LevelStructureWorldView(serverLevel);
         AutoBuildOrientation orientation = resolveAutoBuildOrientation(mainDefinition.pattern(), world, serverLevel);
-        DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
+        TrinityDataCoreAutoBuild.Stats stats = TrinityDataCoreAutoBuild.buildPattern(
                 serverLevel,
                 player,
                 world,
@@ -823,8 +823,8 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         BlockPos max = origin.offset(RECHECK_RADIUS, RECHECK_RADIUS, RECHECK_RADIUS);
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
             BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof DigitalConstructFlowerBlockEntity flower) {
-                flower.requestStructureRecheck();
+            if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
+                host.requestStructureRecheck();
             }
         }
     }

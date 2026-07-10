@@ -16,12 +16,12 @@ import com.fish_dan_.data_energistics.block.DataSanctumInterfaceBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumReturnPortalBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
-import com.fish_dan_.data_energistics.block.DigitalConstructFlowerBlock;
 import com.fish_dan_.data_energistics.block.DigitalStorageDepotBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import com.fish_dan_.data_energistics.block.TrinityCoreBlock;
+import com.fish_dan_.data_energistics.block.TrinityDataCoreBlock;
 import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
@@ -57,7 +57,7 @@ public final class ModBlocks {
 
     public static final DeferredBlock<Block> TRINITY_DATA_CORE = BLOCKS.registerBlock(
             "trinity_data_core",
-            DigitalConstructFlowerBlock::new,
+            TrinityDataCoreBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(

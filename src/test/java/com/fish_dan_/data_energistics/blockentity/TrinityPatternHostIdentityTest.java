@@ -32,7 +32,7 @@ public final class TrinityPatternHostIdentityTest {
         helper.setBlock(sourcePos, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
-        DigitalConstructFlowerBlockEntity source = requireHost(helper, sourcePos);
+        TrinityDataCoreBlockEntity source = requireHost(helper, sourcePos);
         helper.assertTrue(
                 !source.getHostId().equals(source.getStorageId()),
                 "Trinity crafting host UUID must be independent from the legacy storage UUID");
@@ -52,7 +52,7 @@ public final class TrinityPatternHostIdentityTest {
         helper.setBlock(destinationPos, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
                 .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
-        DigitalConstructFlowerBlockEntity destination = requireHost(helper, destinationPos);
+        TrinityDataCoreBlockEntity destination = requireHost(helper, destinationPos);
         destination.restoreStorageIdFromItem(movedHost);
         destination.restoreHostIdFromItem(movedHost);
 
@@ -63,9 +63,9 @@ public final class TrinityPatternHostIdentityTest {
         helper.succeed();
     }
 
-    private static DigitalConstructFlowerBlockEntity requireHost(GameTestHelper helper, BlockPos position) {
+    private static TrinityDataCoreBlockEntity requireHost(GameTestHelper helper, BlockPos position) {
         BlockEntity blockEntity = helper.getBlockEntity(position);
-        if (blockEntity instanceof DigitalConstructFlowerBlockEntity host) {
+        if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
             return host;
         }
         helper.fail("Expected a Trinity host block entity", position);

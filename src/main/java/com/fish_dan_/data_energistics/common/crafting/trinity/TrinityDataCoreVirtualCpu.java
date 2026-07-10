@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
@@ -33,11 +33,11 @@ import java.util.function.Consumer;
  */
 public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
-    private final DigitalConstructFlowerBlockEntity host;
+    private final TrinityDataCoreBlockEntity host;
     private final TrinityDataCoreCpuLogic logic = new TrinityDataCoreCpuLogic(this);
     private TrinityDataCoreCpuPartitionProfile profile;
 
-    TrinityDataCoreVirtualCpu(DigitalConstructFlowerBlockEntity host,
+    TrinityDataCoreVirtualCpu(TrinityDataCoreBlockEntity host,
                               TrinityDataCoreCpuPartitionProfile profile) {
         this.host = host;
         this.profile = profile;
