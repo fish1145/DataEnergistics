@@ -10,9 +10,7 @@ import appeng.api.stacks.AEItemKey;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Default two-phase implementation of {@link TrinityPatternOutputRouter}.
- */
+/** Default two-phase, ordered implementation of {@link TrinityPatternOutputRouter}. */
 public final class TrinityPatternOutputRouterImpl implements TrinityPatternOutputRouter {
 
     @Override
@@ -59,6 +57,13 @@ public final class TrinityPatternOutputRouterImpl implements TrinityPatternOutpu
             }
             if (insertedIntoStorage > 0L) {
                 checkpoint.replace(checkpointState(retainedPrefix, snapshot, index + 1));
+            }
+            if (requestedRemainder > 0L) {
+                List<ItemStack> blockedState = checkpointState(retainedPrefix, snapshot, index + 1);
+                if (insertedIntoCpu == 0L && insertedIntoStorage == 0L) {
+                    checkpoint.replace(blockedState);
+                }
+                return new RoutingResult(blockedState, totalInserted);
             }
         }
         return new RoutingResult(retainedPrefix, totalInserted);

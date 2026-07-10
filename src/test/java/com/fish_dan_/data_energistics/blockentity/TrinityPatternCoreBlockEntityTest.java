@@ -110,6 +110,29 @@ public final class TrinityPatternCoreBlockEntityTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_core_routes_container_remainders_before_primary_output")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void routesContainerRemaindersBeforePrimaryOutput(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 1, 1);
+        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
+        ItemStack encodedPattern = encodedCakePattern(helper);
+        PatternRoute route = new PatternRoute(HOST_ID, core.coreId(), 0);
+
+        assertTrue(core.trySetPattern(0, encodedPattern));
+        assertTrue(core.enqueueBatch(route, encodedPattern, cakeInputs(), 10L));
+        assertEquals(1, core.executeOwnedBatches(HOST_ID, 11L));
+
+        List<ItemStack> outputs = core.pendingOutputs(route);
+        assertEquals(4, outputs.size());
+        assertTrue(outputs.get(0).is(Items.BUCKET));
+        assertTrue(outputs.get(1).is(Items.BUCKET));
+        assertTrue(outputs.get(2).is(Items.BUCKET));
+        assertTrue(outputs.get(3).is(Items.CAKE));
+        helper.succeed();
+    }
+
     private static ItemStack encodedOakPlanksPattern(GameTestHelper helper) {
         RecipeHolder<?> recipe = helper.getLevel()
                 .getRecipeManager()
@@ -127,6 +150,23 @@ public final class TrinityPatternCoreBlockEntityTest {
                 false);
     }
 
+    private static ItemStack encodedCakePattern(GameTestHelper helper) {
+        RecipeHolder<?> recipe = helper.getLevel()
+                .getRecipeManager()
+                .byKey(ResourceLocation.withDefaultNamespace("cake"))
+                .orElseThrow();
+        if (!(recipe.value() instanceof CraftingRecipe craftingRecipe)) {
+            throw new GameTestAssertException("Expected minecraft:cake to be a crafting recipe");
+        }
+        RecipeHolder<CraftingRecipe> craftingRecipeHolder = new RecipeHolder<>(recipe.id(), craftingRecipe);
+        return PatternDetailsHelper.encodeCraftingPattern(
+                craftingRecipeHolder,
+                cakeInputs().toArray(ItemStack[]::new),
+                new ItemStack(Items.CAKE),
+                false,
+                false);
+    }
+
     private static List<ItemStack> oakLogInputs() {
         ArrayList<ItemStack> inputs = new ArrayList<>(9);
         inputs.add(new ItemStack(Items.OAK_LOG));
@@ -134,6 +174,19 @@ public final class TrinityPatternCoreBlockEntityTest {
             inputs.add(ItemStack.EMPTY);
         }
         return inputs;
+    }
+
+    private static List<ItemStack> cakeInputs() {
+        return List.of(
+                new ItemStack(Items.MILK_BUCKET),
+                new ItemStack(Items.MILK_BUCKET),
+                new ItemStack(Items.MILK_BUCKET),
+                new ItemStack(Items.SUGAR),
+                new ItemStack(Items.EGG),
+                new ItemStack(Items.SUGAR),
+                new ItemStack(Items.WHEAT),
+                new ItemStack(Items.WHEAT),
+                new ItemStack(Items.WHEAT));
     }
 
     private static void assertTrue(boolean condition) {

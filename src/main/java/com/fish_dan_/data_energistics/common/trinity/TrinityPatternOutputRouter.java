@@ -8,7 +8,7 @@ import appeng.api.stacks.AEItemKey;
 import java.util.List;
 
 /**
- * Routes completed Trinity crafting outputs without allowing CPU-reserved items to leak into general storage.
+ * Routes ordered Trinity crafting output batches without allowing CPU-reserved items to leak into general storage.
  */
 public interface TrinityPatternOutputRouter {
 
@@ -40,16 +40,14 @@ public interface TrinityPatternOutputRouter {
         long insert(AEItemKey key, long amount, Actionable mode);
     }
 
-    /**
-     * Persists exact route-owned remainders after each output stack changes external state.
-     */
+    /** Persists exact ordered route-owned remainders after each output stack changes external state. */
     @FunctionalInterface
     interface OutputCheckpoint {
 
         /**
          * Durably replaces the route-owned state before routing may perform another mutating insertion.
          *
-         * @param remaining exact outputs that must remain after the completed insertion
+         * @param remaining exact outputs, in routing order, that must remain after the completed insertion
          */
         void replace(List<ItemStack> remaining);
     }
@@ -75,8 +73,11 @@ public interface TrinityPatternOutputRouter {
 
     /**
      * Routes each pending stack to waiting CPUs first and only offers its non-requested portion to main storage.
+     * Pending order is significant: when a stack retains a CPU-requested amount, the router checkpoints that stack and
+     * every later stack, then ends the pass. The current stack's non-requested portion may still enter main storage
+     * before that barrier. A remainder caused only by main-storage capacity does not block later stacks.
      *
-     * @param pending         pending route-owned outputs
+     * @param pending         pending route-owned outputs in required routing order
      * @param requestedAmount lease-grid CPU request lookup
      * @param cpuSink         lease-grid crafting CPU insertion
      * @param storageSink     Trinity main storage insertion

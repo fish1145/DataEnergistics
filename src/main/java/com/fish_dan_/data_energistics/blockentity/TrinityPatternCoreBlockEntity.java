@@ -267,12 +267,12 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             CraftingEvent.fireAutoCraftingEvent(this.level, pattern, output, container);
             NonNullList<ItemStack> remainingItems = pattern.getRemainingItems(craftingInput);
             ArrayList<ItemStack> outputs = new ArrayList<>(remainingItems.size() + 1);
-            outputs.add(output.copy());
             for (ItemStack remaining : remainingItems) {
                 if (!remaining.isEmpty()) {
                     outputs.add(remaining.copy());
                 }
             }
+            outputs.add(output.copy());
             return BatchExecutionResult.completed(outputs);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
