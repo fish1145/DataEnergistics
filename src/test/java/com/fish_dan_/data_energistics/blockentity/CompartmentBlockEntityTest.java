@@ -14,7 +14,7 @@ import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
-import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
+import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
@@ -266,8 +266,8 @@ public final class CompartmentBlockEntityTest {
         helper.assertTrue(
                 flower.accessGrid() == null,
                 "Trinity access must stay offline until the CPU and crafting child structures are also formed");
-        buildChildStructure(helper, level, origin, DigitalConstructFlowerAutoBuildTarget.CPU);
-        buildChildStructure(helper, level, origin, DigitalConstructFlowerAutoBuildTarget.CRAFTING);
+        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
+        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
         flower.requestStructureRecheck();
         flower.serverTick();
         helper.assertTrue(flower.isCpuStructureFormed(),
@@ -327,8 +327,8 @@ public final class CompartmentBlockEntityTest {
         flower.serverTick();
         List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(flower);
         helper.assertTrue(!hatches.isEmpty(), "Complete Trinity structure should bind at least one access hatch");
-        buildChildStructure(helper, level, origin, DigitalConstructFlowerAutoBuildTarget.CPU);
-        buildChildStructure(helper, level, origin, DigitalConstructFlowerAutoBuildTarget.CRAFTING);
+        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
+        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
         flower.requestStructureRecheck();
         flower.serverTick();
         for (TrinityAccessHatchBlockEntity hatch : hatches) {
@@ -464,9 +464,9 @@ public final class CompartmentBlockEntityTest {
                 level,
                 helper.makeMockPlayer(GameType.CREATIVE),
                 world(level),
-                definition(DigitalConstructFlowerAutoBuildTarget.MAIN).pattern(),
+                definition(TrinityDataCoreAutoBuildTarget.MAIN).pattern(),
                 origin,
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.MAIN),
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN),
                 Direction.SOUTH,
                 false);
         helper.assertTrue(stats.placed() > 0, "Trinity Data Core main auto-build should place structure blocks");
@@ -479,7 +479,7 @@ public final class CompartmentBlockEntityTest {
     private static void buildChildStructure(GameTestHelper helper,
                                             ServerLevel level,
                                             BlockPos origin,
-                                            DigitalConstructFlowerAutoBuildTarget target) {
+                                            TrinityDataCoreAutoBuildTarget target) {
         DigitalConstructFlowerAutoBuild.Stats stats = DigitalConstructFlowerAutoBuild.buildPattern(
                 level,
                 helper.makeMockPlayer(GameType.CREATIVE),
@@ -591,10 +591,10 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static String mainStructureName() {
-        return DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.MAIN);
+        return DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN);
     }
 
-    private static JsonMultiBlockDefinition definition(DigitalConstructFlowerAutoBuildTarget target) {
+    private static JsonMultiBlockDefinition definition(TrinityDataCoreAutoBuildTarget target) {
         return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
                 .get(DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(target))
                 .orElseThrow(() -> new IllegalStateException("Missing Trinity auto-build test definition for " + target));

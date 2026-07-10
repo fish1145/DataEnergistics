@@ -30,12 +30,12 @@ import com.fish_dan_.data_energistics.menu.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
-import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenu;
 import com.fish_dan_.data_energistics.menu.DigitalStorageDepotMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
 import com.fish_dan_.data_energistics.menu.MeVacuumMenu;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
@@ -79,8 +79,8 @@ public final class ModMenus {
             .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<DigitalConstructFlowerMenu>> TRINITY_DATA_CORE = MENUS.register("trinity_data_core", () -> MenuTypeBuilder
-            .create(DigitalConstructFlowerMenu::new, DigitalConstructFlowerBlockEntity.class)
+    public static final DeferredHolder<MenuType<?>, MenuType<TrinityDataCoreMenu>> TRINITY_DATA_CORE = MENUS.register("trinity_data_core", () -> MenuTypeBuilder
+            .create(TrinityDataCoreMenu::new, DigitalConstructFlowerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_data_core")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder

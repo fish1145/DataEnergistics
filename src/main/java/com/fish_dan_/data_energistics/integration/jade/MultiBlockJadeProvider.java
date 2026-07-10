@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.integration.jade;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
-import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -76,7 +76,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
             appendFailureTooltip(tooltip, serverData);
         }
         if (config.get(DEBUG_ID) && serverData.getBoolean(TAG_TRINITY_DATA_CORE)) {
-            appendDigitalConstructFlowerDebugTooltip(tooltip, serverData);
+            appendTrinityDataCoreDebugTooltip(tooltip, serverData);
         }
     }
 
@@ -114,7 +114,7 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
         }
     }
 
-    private static void appendDigitalConstructFlowerDebugTooltip(ITooltip tooltip, CompoundTag serverData) {
+    private static void appendTrinityDataCoreDebugTooltip(ITooltip tooltip, CompoundTag serverData) {
         tooltip.add(Component.translatable(
                 "jade.data_energistics.multiblock.online",
                 Component.translatable(serverData.getBoolean(TAG_ONLINE) ? "jade.data_energistics.yes" : "jade.data_energistics.no")));
@@ -212,12 +212,12 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
             data.putInt(TAG_FAILURE_Y, failurePosition.getY());
             data.putInt(TAG_FAILURE_Z, failurePosition.getZ());
         }
-        if (multiBlock instanceof DigitalConstructFlowerMenuHost host) {
-            appendDigitalConstructFlowerServerData(data, host);
+        if (multiBlock instanceof TrinityDataCoreMenuHost host) {
+            appendTrinityDataCoreServerData(data, host);
         }
     }
 
-    private static void appendDigitalConstructFlowerServerData(CompoundTag data, DigitalConstructFlowerMenuHost host) {
+    private static void appendTrinityDataCoreServerData(CompoundTag data, TrinityDataCoreMenuHost host) {
         data.putBoolean(TAG_TRINITY_DATA_CORE, true);
         data.putInt(TAG_PATTERN_BUFFER_COUNT, host.getPatternBufferCount());
         data.putBoolean(TAG_CPU_STRUCTURE_FORMED, host.isCpuStructureFormed());

@@ -12,12 +12,12 @@ import com.fish_dan_.data_energistics.client.screen.DataSanctumLargeInterfaceScr
 import com.fish_dan_.data_energistics.client.screen.DataSanctumStatusScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
-import com.fish_dan_.data_energistics.client.screen.DigitalConstructFlowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DigitalStorageDepotScreen;
 import com.fish_dan_.data_energistics.client.screen.MeCompositeInputWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.MeCompositeOutputWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.MePatternBufferScreen;
 import com.fish_dan_.data_energistics.client.screen.MeVacuumScreen;
+import com.fish_dan_.data_energistics.client.screen.TrinityDataCoreScreen;
 import com.fish_dan_.data_energistics.client.screen.TrinityPatternCoreScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
@@ -38,7 +38,7 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, ModMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, ModMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
         InitScreens.register(event, ModMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
-        InitScreens.register(event, ModMenus.TRINITY_DATA_CORE.get(), DigitalConstructFlowerScreen::new, "/screens/trinity_data_core.json");
+        InitScreens.register(event, ModMenus.TRINITY_DATA_CORE.get(), TrinityDataCoreScreen::new, "/screens/trinity_data_core.json");
         InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
         InitScreens.register(event, ModMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
         InitScreens.register(event, ModMenus.DIGITAL_STORAGE_DEPOT.get(), DigitalStorageDepotScreen::new, "/screens/digital_storage_depot.json");

@@ -3,10 +3,10 @@ package com.fish_dan_.data_energistics.client.screen;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
-import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenu;
-import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
-import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildPayload;
-import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -24,7 +24,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructFlowerMenu> {
+public class TrinityDataCoreScreen extends AEBaseScreen<TrinityDataCoreMenu> {
 
     private static final int LABEL_COLOR = 0x080C1B;
     private static final int VALUE_COLOR = 0x9CD3FF;
@@ -57,16 +57,16 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
 
     private final OutputSideActionButton autoBuildTargetButton;
     private final OutputSideActionButton autoBuildButton;
-    private DigitalConstructFlowerAutoBuildTarget autoBuildTarget = DigitalConstructFlowerAutoBuildTarget.MAIN;
+    private TrinityDataCoreAutoBuildTarget autoBuildTarget = TrinityDataCoreAutoBuildTarget.MAIN;
 
-    public DigitalConstructFlowerScreen(DigitalConstructFlowerMenu menu, Inventory playerInventory, Component title,
-                                        ScreenStyle style) {
+    public TrinityDataCoreScreen(TrinityDataCoreMenu menu, Inventory playerInventory, Component title,
+                                 ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.autoBuildTargetButton = new OutputSideActionButton(button -> cycleAutoBuildTarget(),
                 autoBuildTargetMessageKey());
         this.autoBuildTargetButton.setIconName("SETTINGS");
         this.autoBuildButton = new OutputSideActionButton(
-                button -> PacketDistributor.sendToServer(new DigitalConstructFlowerAutoBuildPayload(this.autoBuildTarget)),
+                button -> PacketDistributor.sendToServer(new TrinityDataCoreAutoBuildPayload(this.autoBuildTarget)),
                 "button.data_energistics.trinity_data_core.auto_build");
         this.addToLeftToolbar(this.autoBuildTargetButton);
         this.addToLeftToolbar(this.autoBuildButton);
@@ -203,7 +203,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         GenericStack target = this.menu.getCraftingTarget();
-        if (this.menu.getCarried().isEmpty() && !craftingUnavailable() && target != null && target.what() != null &&
+        if (this.menu.getCarried().isEmpty() && !craftingUnavailable() && target != null &&
                 isMouseOverLocal(mouseX, mouseY, CRAFTING_HOVER_X, CRAFTING_HOVER_Y, CRAFTING_HOVER_WIDTH, CRAFTING_HOVER_HEIGHT)) {
             List<Component> tooltip = new ArrayList<>();
             tooltip.add(target.what().getDisplayName());
@@ -276,7 +276,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
             return Component.translatable("screen.data_energistics.trinity_data_core.molecular_unavailable");
         }
         GenericStack target = this.menu.getCraftingTarget();
-        if (target == null || target.what() == null) {
+        if (target == null) {
             return Component.translatable("screen.data_energistics.trinity_data_core.molecular_idle");
         }
         return target.what().getDisplayName();
@@ -287,7 +287,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private static String compactNumber(String value) {
-        if (value == null || value.isBlank()) {
+        if (value.isBlank()) {
             return "0";
         }
         BigInteger amount = new BigInteger(value.trim());
@@ -320,7 +320,7 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private static String compactCapacityNumber(String value) {
-        if (DigitalConstructFlowerMenuHost.UNLIMITED_STORAGE_CAPACITY.equals(value)) {
+        if (TrinityDataCoreMenuHost.UNLIMITED_STORAGE_CAPACITY.equals(value)) {
             return value;
         }
         return compactNumber(value);
@@ -343,15 +343,15 @@ public class DigitalConstructFlowerScreen extends AEBaseScreen<DigitalConstructF
     }
 
     private boolean hasFailure() {
-        return this.menu.lastFailureReason != null && !this.menu.lastFailureReason.isBlank();
+        return !this.menu.lastFailureReason.isBlank();
     }
 
     private boolean hasCpuFailure() {
-        return this.menu.cpuLastFailureReason != null && !this.menu.cpuLastFailureReason.isBlank();
+        return !this.menu.cpuLastFailureReason.isBlank();
     }
 
     private boolean hasCraftingFailure() {
-        return this.menu.craftingLastFailureReason != null && !this.menu.craftingLastFailureReason.isBlank();
+        return !this.menu.craftingLastFailureReason.isBlank();
     }
 
     private boolean hasAnyFailure() {

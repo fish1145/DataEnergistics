@@ -33,9 +33,9 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
-import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerCraftingStatus;
-import com.fish_dan_.data_energistics.menu.DigitalConstructFlowerMenuHost;
-import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
+import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -84,7 +84,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
-                                               implements MultiBlockStatusProvider, CompartmentHost, DigitalConstructFlowerMenuHost {
+                                               implements MultiBlockStatusProvider, CompartmentHost, TrinityDataCoreMenuHost {
 
     private static final int RECHECK_RADIUS = 24;
     private static final int RECHECK_INTERVAL_TICKS = 100;
@@ -355,7 +355,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         this.recheckRequested = true;
     }
 
-    public void autoBuildTrinityStructure(ServerPlayer player, DigitalConstructFlowerAutoBuildTarget target) {
+    public void autoBuildTrinityStructure(ServerPlayer player, TrinityDataCoreAutoBuildTarget target) {
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -583,10 +583,10 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public DigitalConstructFlowerCraftingStatus getCraftingStatus() {
+    public TrinityDataCoreCraftingStatus getCraftingStatus() {
         IGrid grid = accessGrid();
         if (grid == null) {
-            return DigitalConstructFlowerCraftingStatus.EMPTY;
+            return TrinityDataCoreCraftingStatus.EMPTY;
         }
 
         int busyCpuCount = 0;
@@ -608,7 +608,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
 
         TrinityDataCoreCpuProfile profile = this.craftingRuntime.profile();
         GenericStack target = selectedJob == null ? null : selectedJob.crafting();
-        return new DigitalConstructFlowerCraftingStatus(
+        return new TrinityDataCoreCraftingStatus(
                 target,
                 busyCpuCount,
                 profile.partitionCount(),
@@ -629,7 +629,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
     }
 
     private String storageCapacityText(String finiteCapacity) {
-        return this.storageProfile.unlimited() ? DigitalConstructFlowerMenuHost.UNLIMITED_STORAGE_CAPACITY : finiteCapacity;
+        return this.storageProfile.unlimited() ? TrinityDataCoreMenuHost.UNLIMITED_STORAGE_CAPACITY : finiteCapacity;
     }
 
     public boolean hasActiveAccessHatch() {
@@ -1253,7 +1253,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         return requireJsonDefinition(craftingDefinitionKey());
     }
 
-    static JsonMultiBlockStructureKey autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget target) {
+    static JsonMultiBlockStructureKey autoBuildDefinitionKey(TrinityDataCoreAutoBuildTarget target) {
         return switch (target) {
             case MAIN -> mainDefinitionKey();
             case CPU -> cpuDefinitionKey();
@@ -1261,7 +1261,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         };
     }
 
-    static String autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget target) {
+    static String autoBuildStructureName(TrinityDataCoreAutoBuildTarget target) {
         return switch (target) {
             case MAIN -> mainDefinitionKey().structureName();
             case CPU -> CPU_STRUCTURE_NAME;
@@ -1269,7 +1269,7 @@ public class DigitalConstructFlowerBlockEntity extends AENetworkedBlockEntity
         };
     }
 
-    private static JsonMultiBlockDefinition autoBuildDefinition(DigitalConstructFlowerAutoBuildTarget target) {
+    private static JsonMultiBlockDefinition autoBuildDefinition(TrinityDataCoreAutoBuildTarget target) {
         return requireJsonDefinition(autoBuildDefinitionKey(target));
     }
 

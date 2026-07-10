@@ -5,10 +5,11 @@ import net.minecraft.core.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Exposes the Digital Construct Flower host state required by its status GUI.
+ * Exposes the Trinity Data Core host state required by its status GUI.
  */
-public interface DigitalConstructFlowerMenuHost {
+public interface TrinityDataCoreMenuHost {
 
+    /** Sentinel displayed when the formed main storage core structure has no finite capacity limit. */
     String UNLIMITED_STORAGE_CAPACITY = "MAX";
 
     /**
@@ -97,7 +98,7 @@ public interface DigitalConstructFlowerMenuHost {
     /**
      * Returns the live crafting CPU target snapshot visible from this host's ME network.
      */
-    DigitalConstructFlowerCraftingStatus getCraftingStatus();
+    TrinityDataCoreCraftingStatus getCraftingStatus();
 
     /**
      * Returns how many AE key types are stored in the host UUID storage.

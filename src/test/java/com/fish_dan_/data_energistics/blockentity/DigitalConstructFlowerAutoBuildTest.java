@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockState
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePattern;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
-import com.fish_dan_.data_energistics.network.DigitalConstructFlowerAutoBuildTarget;
+import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
@@ -62,7 +62,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
 
     private DigitalConstructFlowerAutoBuildTest() {}
 
-    @TestHolder("digital_construct_flower_auto_build_only_places_requested_pattern")
+    @TestHolder("trinity_data_core_auto_build_only_places_requested_pattern")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void onlyPlacesRequestedPattern(GameTestHelper helper) {
@@ -96,40 +96,40 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_target_maps_to_requested_structure")
+    @TestHolder("trinity_data_core_auto_build_target_maps_to_requested_structure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void targetMapsToRequestedStructure(GameTestHelper helper) {
         ResourceLocation trinityDataCore = ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID);
 
         helper.assertValueEqual(
-                DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget.MAIN),
+                DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(TrinityDataCoreAutoBuildTarget.MAIN),
                 JsonMultiBlockStructureKey.main(trinityDataCore),
                 "MAIN auto-build target should select only the main structure definition");
         helper.assertValueEqual(
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.MAIN),
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN),
                 JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME,
                 "MAIN auto-build target should build only the main structure name");
         helper.assertValueEqual(
-                DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget.CPU),
+                DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(TrinityDataCoreAutoBuildTarget.CPU),
                 new JsonMultiBlockStructureKey(trinityDataCore, ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME),
                 "CPU auto-build target should select only the CPU child definition");
         helper.assertValueEqual(
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.CPU),
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.CPU),
                 ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
                 "CPU auto-build target should build only the CPU child structure name");
         helper.assertValueEqual(
-                DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(DigitalConstructFlowerAutoBuildTarget.CRAFTING),
+                DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(TrinityDataCoreAutoBuildTarget.CRAFTING),
                 new JsonMultiBlockStructureKey(trinityDataCore, ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME),
                 "CRAFTING auto-build target should select only the crafting child definition");
         helper.assertValueEqual(
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.CRAFTING),
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.CRAFTING),
                 ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME,
                 "CRAFTING auto-build target should build only the crafting child structure name");
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_applies_block_state_after_placement")
+    @TestHolder("trinity_data_core_auto_build_applies_block_state_after_placement")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void appliesBlockStateAfterPlacement(GameTestHelper helper) {
@@ -152,7 +152,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_counts_missing_block_candidate")
+    @TestHolder("trinity_data_core_auto_build_counts_missing_block_candidate")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void countsMissingBlockCandidate(GameTestHelper helper) {
@@ -171,7 +171,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_counts_blocked_target")
+    @TestHolder("trinity_data_core_auto_build_counts_blocked_target")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void countsBlockedTarget(GameTestHelper helper) {
@@ -190,7 +190,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_counts_unsupported_placement_item_failure")
+    @TestHolder("trinity_data_core_auto_build_counts_unsupported_placement_item_failure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void countsUnsupportedPlacementItemFailure(GameTestHelper helper) {
@@ -207,7 +207,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_places_ae2_cable_bus_part_candidate")
+    @TestHolder("trinity_data_core_auto_build_places_ae2_cable_bus_part_candidate")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void placesAe2CableBusPartCandidate(GameTestHelper helper) {
@@ -233,7 +233,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_counts_unloaded_world_view_target")
+    @TestHolder("trinity_data_core_auto_build_counts_unloaded_world_view_target")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void countsUnloadedWorldViewTarget(GameTestHelper helper) {
@@ -251,7 +251,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_uses_exported_child_anchor_height")
+    @TestHolder("trinity_data_core_auto_build_uses_exported_child_anchor_height")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void usesExportedChildAnchorHeight(GameTestHelper helper) {
@@ -274,21 +274,21 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_auto_build_cpu_child_matches_after_build")
+    @TestHolder("trinity_data_core_auto_build_cpu_child_matches_after_build")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
     public static void cpuChildMatchesAfterBuild(GameTestHelper helper) {
-        assertAutoBuiltChildMatches(helper, DigitalConstructFlowerAutoBuildTarget.CPU);
+        assertAutoBuiltChildMatches(helper, TrinityDataCoreAutoBuildTarget.CPU);
     }
 
-    @TestHolder("digital_construct_flower_auto_build_crafting_child_matches_after_build")
+    @TestHolder("trinity_data_core_auto_build_crafting_child_matches_after_build")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
     public static void craftingChildMatchesAfterBuild(GameTestHelper helper) {
-        assertAutoBuiltChildMatches(helper, DigitalConstructFlowerAutoBuildTarget.CRAFTING);
+        assertAutoBuiltChildMatches(helper, TrinityDataCoreAutoBuildTarget.CRAFTING);
     }
 
-    @TestHolder("digital_construct_flower_auto_build_children_form_on_host_recheck")
+    @TestHolder("trinity_data_core_auto_build_children_form_on_host_recheck")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
     public static void childrenFormOnHostRecheck(GameTestHelper helper) {
@@ -306,13 +306,13 @@ public final class DigitalConstructFlowerAutoBuildTest {
             return;
         }
 
-        autoBuild(level, player, origin, DigitalConstructFlowerAutoBuildTarget.MAIN, Direction.SOUTH, false);
+        autoBuild(level, player, origin, TrinityDataCoreAutoBuildTarget.MAIN, Direction.SOUTH, false);
         StructureMatchResult mainResult = JsonMultiBlockPatternMatcher.match(
-                definition(DigitalConstructFlowerAutoBuildTarget.MAIN).pattern(),
+                definition(TrinityDataCoreAutoBuildTarget.MAIN).pattern(),
                 world(level),
                 origin,
                 Direction.SOUTH,
-                DigitalConstructFlowerBlockEntity.autoBuildStructureName(DigitalConstructFlowerAutoBuildTarget.MAIN));
+                DigitalConstructFlowerBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN));
         helper.assertTrue(mainResult.matched(), "Auto-built main structure should match before building children: " +
                 diagnosticMessage(mainResult));
 
@@ -320,14 +320,14 @@ public final class DigitalConstructFlowerAutoBuildTest {
                 level,
                 player,
                 origin,
-                DigitalConstructFlowerAutoBuildTarget.CPU,
+                TrinityDataCoreAutoBuildTarget.CPU,
                 mainResult.frontFacing(),
                 mainResult.flipped());
         autoBuild(
                 level,
                 player,
                 origin,
-                DigitalConstructFlowerAutoBuildTarget.CRAFTING,
+                TrinityDataCoreAutoBuildTarget.CRAFTING,
                 mainResult.frontFacing(),
                 mainResult.flipped());
         flower.serverTick();
@@ -341,7 +341,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         helper.succeed();
     }
 
-    private static void assertAutoBuiltChildMatches(GameTestHelper helper, DigitalConstructFlowerAutoBuildTarget target) {
+    private static void assertAutoBuiltChildMatches(GameTestHelper helper, TrinityDataCoreAutoBuildTarget target) {
         ServerLevel level = helper.getLevel();
         BlockPos origin = helper.absolutePos(new BlockPos(25, 4, 25));
         JsonMultiBlockDefinition definition = definition(target);
@@ -377,7 +377,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
     private static void autoBuild(ServerLevel level,
                                   Player player,
                                   BlockPos origin,
-                                  DigitalConstructFlowerAutoBuildTarget target,
+                                  TrinityDataCoreAutoBuildTarget target,
                                   Direction front,
                                   boolean flipped) {
         JsonMultiBlockDefinition definition = definition(target);
@@ -399,7 +399,7 @@ public final class DigitalConstructFlowerAutoBuildTest {
         }
     }
 
-    private static JsonMultiBlockDefinition definition(DigitalConstructFlowerAutoBuildTarget target) {
+    private static JsonMultiBlockDefinition definition(TrinityDataCoreAutoBuildTarget target) {
         return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
                 .get(DigitalConstructFlowerBlockEntity.autoBuildDefinitionKey(target))
                 .orElseThrow(() -> new IllegalStateException("Missing auto-build test definition for " + target));

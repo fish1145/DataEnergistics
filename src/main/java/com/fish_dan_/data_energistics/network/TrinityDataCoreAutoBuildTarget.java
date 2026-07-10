@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 /**
  * Selects which Trinity Data Core structure the GUI auto-build action should place.
  */
-public enum DigitalConstructFlowerAutoBuildTarget {
+public enum TrinityDataCoreAutoBuildTarget {
 
     MAIN("main"),
     CPU("cpu"),
@@ -14,7 +14,7 @@ public enum DigitalConstructFlowerAutoBuildTarget {
 
     private final String id;
 
-    DigitalConstructFlowerAutoBuildTarget(String id) {
+    TrinityDataCoreAutoBuildTarget(String id) {
         this.id = id;
     }
 
@@ -30,16 +30,16 @@ public enum DigitalConstructFlowerAutoBuildTarget {
         return Component.translatable("message.data_energistics.trinity_data_core.auto_build.target." + this.id);
     }
 
-    public DigitalConstructFlowerAutoBuildTarget next() {
-        DigitalConstructFlowerAutoBuildTarget[] values = values();
+    public TrinityDataCoreAutoBuildTarget next() {
+        TrinityDataCoreAutoBuildTarget[] values = values();
         return values[(this.ordinal() + 1) % values.length];
     }
 
-    public static DigitalConstructFlowerAutoBuildTarget read(RegistryFriendlyByteBuf buf) {
-        return buf.readEnum(DigitalConstructFlowerAutoBuildTarget.class);
+    public static TrinityDataCoreAutoBuildTarget read(RegistryFriendlyByteBuf buf) {
+        return buf.readEnum(TrinityDataCoreAutoBuildTarget.class);
     }
 
-    public static void write(RegistryFriendlyByteBuf buf, DigitalConstructFlowerAutoBuildTarget target) {
+    public static void write(RegistryFriendlyByteBuf buf, TrinityDataCoreAutoBuildTarget target) {
         buf.writeEnum(target);
     }
 }

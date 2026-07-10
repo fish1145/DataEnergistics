@@ -12,12 +12,12 @@ import appeng.menu.guisync.GuiSync;
 import appeng.menu.guisync.PacketWritable;
 import org.jetbrains.annotations.Nullable;
 
-public class DigitalConstructFlowerMenu extends AEBaseMenu {
+public class TrinityDataCoreMenu extends AEBaseMenu {
 
     private static final String NO_FAILURE = "";
 
     @Nullable
-    private final DigitalConstructFlowerMenuHost host;
+    private final TrinityDataCoreMenuHost host;
 
     @GuiSync(930)
     public boolean online;
@@ -72,7 +72,7 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
     @GuiSync(955)
     public String craftingLastFailurePosition = NO_FAILURE;
 
-    public DigitalConstructFlowerMenu(int id, Inventory playerInventory, @Nullable DigitalConstructFlowerMenuHost host) {
+    public TrinityDataCoreMenu(int id, Inventory playerInventory, @Nullable TrinityDataCoreMenuHost host) {
         super(ModMenus.TRINITY_DATA_CORE.get(), id, playerInventory, host);
         this.host = host;
         createPlayerInventorySlots(playerInventory);
@@ -100,7 +100,7 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
             this.lastFailureReason = this.host.getLastFailureReason();
             this.lastFailurePosition = formatFailurePosition(this.host.getLastFailurePosition());
 
-            DigitalConstructFlowerCraftingStatus craftingStatus = this.host.getCraftingStatus();
+            TrinityDataCoreCraftingStatus craftingStatus = this.host.getCraftingStatus();
             this.busyCraftingCpuCount = craftingStatus.busyCpuCount();
             this.craftingTarget = craftingStatus.hasTarget() ? new SyncedCraftingTarget(craftingStatus.target()) : SyncedCraftingTarget.EMPTY;
             this.storedTypeCount = this.host.getStoredTypeCount();
@@ -120,7 +120,7 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         return this.craftingTarget.target();
     }
 
-    public @Nullable DigitalConstructFlowerMenuHost getHost() {
+    public @Nullable TrinityDataCoreMenuHost getHost() {
         return this.host;
     }
 
@@ -188,7 +188,7 @@ public class DigitalConstructFlowerMenu extends AEBaseMenu {
         }
 
         private static boolean hasTarget(@Nullable GenericStack stack) {
-            return stack != null && stack.what() != null && stack.amount() > 0;
+            return stack != null && stack.amount() > 0;
         }
     }
 }
