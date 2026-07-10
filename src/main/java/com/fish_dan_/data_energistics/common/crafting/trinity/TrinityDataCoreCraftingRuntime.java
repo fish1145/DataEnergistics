@@ -31,6 +31,8 @@ import java.util.TreeMap;
  */
 public final class TrinityDataCoreCraftingRuntime {
 
+    private static final String SCHEMA_VERSION_TAG = "schema_version";
+    private static final int SCHEMA_VERSION = 1;
     private static final String CONTRIBUTIONS_TAG = "contributions";
     private static final String CONTRIBUTION_NAME_TAG = "name";
     private static final String STORAGE_BYTES_TAG = "storage_bytes";
@@ -247,6 +249,8 @@ public final class TrinityDataCoreCraftingRuntime {
      * @param registries registry lookup
      */
     public void writeToTag(CompoundTag data, HolderLookup.Provider registries) {
+        data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
+
         ListTag contributionsTag = new ListTag();
         for (Map.Entry<String, TrinityDataCoreCpuContribution> entry : this.externalContributions.entrySet()) {
             CompoundTag contributionTag = new CompoundTag();
@@ -277,9 +281,20 @@ public final class TrinityDataCoreCraftingRuntime {
      * @param registries registry lookup
      */
     public void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
-        this.externalContributions.clear();
-        this.partitions.clear();
-        this.activePartitionCount = 0;
+        clearPersistedState();
+        if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
+            Data_Energistics.LOGGER.warn("Ignoring Trinity Data Core CPU runtime without a schema version");
+            return;
+        }
+        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
+        if (schemaVersion != SCHEMA_VERSION) {
+            Data_Energistics.LOGGER.warn(
+                    "Ignoring Trinity Data Core CPU runtime schema version {}; expected {}",
+                    schemaVersion,
+                    SCHEMA_VERSION);
+            return;
+        }
+
         ListTag contributionsTag = data.getList(CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND);
         for (int index = 0; index < contributionsTag.size(); index++) {
             CompoundTag contributionTag = contributionsTag.getCompound(index);
@@ -291,6 +306,14 @@ public final class TrinityDataCoreCraftingRuntime {
         rebuildPartitions();
         restoreRetainedPartitions();
         restorePendingPartitionLogic(registries);
+    }
+
+    private void clearPersistedState() {
+        this.externalContributions.clear();
+        this.partitions.clear();
+        this.profile = TrinityDataCoreCpuProfile.EMPTY;
+        this.activePartitionCount = 0;
+        this.pendingPartitionLogic = null;
     }
 
     /**

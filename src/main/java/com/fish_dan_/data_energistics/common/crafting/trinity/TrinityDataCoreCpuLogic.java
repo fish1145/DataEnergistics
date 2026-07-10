@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
@@ -44,6 +45,8 @@ import java.util.function.Consumer;
  */
 final class TrinityDataCoreCpuLogic {
 
+    private static final String SCHEMA_VERSION_TAG = "schema_version";
+    private static final int SCHEMA_VERSION = 1;
     private static final String INVENTORY_TAG = "inventory";
     private static final String JOB_TAG = "job";
 
@@ -410,6 +413,7 @@ final class TrinityDataCoreCpuLogic {
      */
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
+        data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         data.put(INVENTORY_TAG, this.inventory.writeToNBT(registries));
         if (this.job != null) {
             data.put(JOB_TAG, this.job.writeToTag(registries));
@@ -424,19 +428,51 @@ final class TrinityDataCoreCpuLogic {
      * @param registries registry lookup
      */
     void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
+        clearPersistedState();
+        if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
+            Data_Energistics.LOGGER.warn("Ignoring Trinity Data Core CPU logic without a schema version");
+            return;
+        }
+        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
+        if (schemaVersion != SCHEMA_VERSION) {
+            Data_Energistics.LOGGER.warn(
+                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {}",
+                    schemaVersion,
+                    SCHEMA_VERSION);
+            return;
+        }
+
         this.inventory.readFromNBT(data.getList(INVENTORY_TAG, 10), registries);
-        if (data.contains(JOB_TAG)) {
+        if (!data.contains(JOB_TAG)) {
+            return;
+        }
+        if (!data.contains(JOB_TAG, Tag.TAG_COMPOUND)) {
+            Data_Energistics.LOGGER.error("Ignoring Trinity Data Core CPU job because its persisted tag is not a compound");
+            return;
+        }
+
+        CompoundTag jobData = data.getCompound(JOB_TAG);
+        if (!TrinityDataCoreExecutingCraftingJob.hasCurrentSchema(jobData)) {
+            return;
+        }
+        try {
             this.job = new TrinityDataCoreExecutingCraftingJob(
-                    data.getCompound(JOB_TAG),
+                    jobData,
                     registries,
                     this::postChange,
                     this);
             if (this.job.finalOutput == null) {
                 finishJob(false);
             }
-        } else {
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Ignoring invalid persisted Trinity Data Core CPU job", exception);
             this.job = null;
         }
+    }
+
+    private void clearPersistedState() {
+        this.inventory.clear();
+        this.job = null;
     }
 
     /**

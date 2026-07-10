@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
 
@@ -35,6 +36,8 @@ import java.util.function.Function;
  */
 final class TrinityDataCoreExecutingCraftingJob {
 
+    private static final String SCHEMA_VERSION_TAG = "schema_version";
+    private static final int SCHEMA_VERSION = 1;
     private static final String LINK_TAG = "link";
     private static final String PLAYER_ID_TAG = "player_id";
     private static final String FINAL_OUTPUT_TAG = "final_output";
@@ -43,6 +46,10 @@ final class TrinityDataCoreExecutingCraftingJob {
     private static final String REMAINING_AMOUNT_TAG = "remaining_amount";
     private static final String TASKS_TAG = "tasks";
     private static final String CRAFTING_PROGRESS_TAG = "crafting_progress";
+    private static final String TASK_KIND_TAG = "kind";
+    private static final String TASK_DEFINITION_TAG = "definition";
+    private static final String PROVIDER_TASK_KIND = "provider";
+    private static final String TRINITY_TASK_KIND = "trinity";
     private static final String ROUTE_TAG = "route";
 
     final CraftingLink link;
@@ -92,12 +99,10 @@ final class TrinityDataCoreExecutingCraftingJob {
                                         HolderLookup.Provider registries,
                                         CraftingDifferenceListener differenceListener,
                                         TrinityDataCoreCpuLogic logic) {
-        this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
-        IGrid grid = logic.cpu().grid();
-        if (grid != null) {
-            ((CraftingService) grid.getCraftingService()).addLink(this.link);
+        if (!hasCurrentSchema(data)) {
+            throw new IllegalArgumentException("Unsupported persisted Trinity Data Core CPU job schema");
         }
-
+        this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
@@ -119,6 +124,11 @@ final class TrinityDataCoreExecutingCraftingJob {
                 this.tasks.put(details, progress);
             }
         }
+
+        IGrid grid = logic.cpu().grid();
+        if (grid != null) {
+            ((CraftingService) grid.getCraftingService()).addLink(this.link);
+        }
     }
 
     /**
@@ -127,6 +137,7 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
+        data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
 
         CompoundTag linkData = new CompoundTag();
         this.link.writeToNBT(linkData);
@@ -157,30 +168,75 @@ final class TrinityDataCoreExecutingCraftingJob {
     }
 
     /**
-     * Writes the definition and optional Trinity route for one persisted task.
+     * Writes an explicitly typed task with its definition isolated from routing metadata.
      *
      * <p>
      * The supplied definition writer keeps this policy independent of the registry serialization mechanism.
      */
     static CompoundTag writeTaskDetails(IPatternDetails details, Function<AEItemKey, CompoundTag> definitionWriter) {
-        CompoundTag item = definitionWriter.apply(details.getDefinition());
+        CompoundTag item = new CompoundTag();
         if (details instanceof RoutedCraftingPatternDetails routedDetails) {
+            item.putString(TASK_KIND_TAG, TRINITY_TASK_KIND);
             item.put(ROUTE_TAG, routedDetails.route().writeToTag());
+        } else {
+            item.putString(TASK_KIND_TAG, PROVIDER_TASK_KIND);
         }
+        item.put(TASK_DEFINITION_TAG, definitionWriter.apply(details.getDefinition()));
         return item;
     }
 
     /**
-     * Rebuilds a persisted task and reapplies its exact Trinity route after decoding the pattern definition.
+     * Rebuilds a task only when its persisted kind, definition and route satisfy the current schema.
      */
     @Nullable
     static IPatternDetails readTaskDetails(CompoundTag item,
                                            Function<CompoundTag, IPatternDetails> definitionReader) {
-        IPatternDetails details = definitionReader.apply(item);
-        if (details != null && item.contains(ROUTE_TAG, Tag.TAG_COMPOUND)) {
-            return new RoutedCraftingPatternDetails(PatternRoute.readFromTag(item.getCompound(ROUTE_TAG)), details);
+        if (!item.contains(TASK_DEFINITION_TAG, Tag.TAG_COMPOUND)) {
+            throw new IllegalArgumentException("Persisted Trinity CPU task is missing its pattern definition");
         }
-        return details;
+
+        String taskKind = item.getString(TASK_KIND_TAG);
+        return switch (taskKind) {
+            case PROVIDER_TASK_KIND -> readProviderTask(item, definitionReader);
+            case TRINITY_TASK_KIND -> readTrinityTask(item, definitionReader);
+            default -> throw new IllegalArgumentException("Unknown persisted Trinity CPU task kind: " + taskKind);
+        };
+    }
+
+    @Nullable
+    private static IPatternDetails readProviderTask(CompoundTag item,
+                                                    Function<CompoundTag, IPatternDetails> definitionReader) {
+        if (item.contains(ROUTE_TAG)) {
+            throw new IllegalArgumentException("Persisted provider task must not contain a Trinity route");
+        }
+        return definitionReader.apply(item.getCompound(TASK_DEFINITION_TAG));
+    }
+
+    @Nullable
+    private static IPatternDetails readTrinityTask(CompoundTag item,
+                                                   Function<CompoundTag, IPatternDetails> definitionReader) {
+        if (!item.contains(ROUTE_TAG, Tag.TAG_COMPOUND)) {
+            throw new IllegalArgumentException("Persisted Trinity task is missing its route");
+        }
+        PatternRoute route = PatternRoute.readFromTag(item.getCompound(ROUTE_TAG));
+        IPatternDetails details = definitionReader.apply(item.getCompound(TASK_DEFINITION_TAG));
+        return details == null ? null : new RoutedCraftingPatternDetails(route, details);
+    }
+
+    static boolean hasCurrentSchema(CompoundTag data) {
+        if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
+            Data_Energistics.LOGGER.warn("Ignoring persisted Trinity Data Core CPU job without a schema version");
+            return false;
+        }
+        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
+        if (schemaVersion != SCHEMA_VERSION) {
+            Data_Energistics.LOGGER.warn(
+                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {}",
+                    schemaVersion,
+                    SCHEMA_VERSION);
+            return false;
+        }
+        return true;
     }
 
     static final class TaskProgress {
