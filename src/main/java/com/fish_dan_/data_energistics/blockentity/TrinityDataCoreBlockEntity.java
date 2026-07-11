@@ -649,6 +649,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     this.craftingRuntime.setPaused(!isCpuProviderAvailable());
                     return;
                 }
+                if (this.accessLease.grid() != null && hasPendingTrinityWork()) {
+                    this.craftingRuntime.setPaused(true);
+                    return;
+                }
                 this.accessLease = this.accessLease.bind(electedGrid);
                 this.craftingRuntime.setPaused(!isCpuProviderAvailable());
                 notifyTrinityAccessChanged();
