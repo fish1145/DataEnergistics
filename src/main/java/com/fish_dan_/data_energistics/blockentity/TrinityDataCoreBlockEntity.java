@@ -588,13 +588,13 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static Component autoBuildTargetName(int structureIndex) {
-        String target = switch (structureIndex) {
-            case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> "main";
-            case TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX -> "cpu";
-            case TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX -> "crafting";
+        String structureKey = switch (structureIndex) {
+            case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> "screen.data_energistics.trinity_data_core.auto_build.structure.main";
+            case TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX -> "screen.data_energistics.trinity_data_core.auto_build.structure.cpu";
+            case TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX -> "screen.data_energistics.trinity_data_core.auto_build.structure.crafting";
             default -> throw new IllegalArgumentException("Unknown Trinity auto-build structure index: " + structureIndex);
         };
-        return Component.translatable("message.data_energistics.trinity_data_core.auto_build.target." + target);
+        return Component.translatable(structureKey);
     }
 
     private static Map<BlockPos, TraceabilityPredicate> autoBuildPredicates(BlockPattern pattern,

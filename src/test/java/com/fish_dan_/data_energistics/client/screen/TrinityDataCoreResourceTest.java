@@ -78,6 +78,10 @@ public final class TrinityDataCoreResourceTest {
                 "Trinity CPU list task overlay should exist");
         assertPngDimensions(GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png", 67, 22);
         assertPngDimensions(GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png", 67, 22);
+        assertResourceExists(
+                DATA_TEXTURE_ROOT + "guis/list.png",
+                "Trinity auto-build overlay texture should exist in the formal data_energistics namespace");
+        assertPngDimensions(DATA_TEXTURE_ROOT + "guis/list.png", 256, 256);
     }
 
     @Test
@@ -141,6 +145,19 @@ public final class TrinityDataCoreResourceTest {
                 "Structure block did not match",
                 string(enUs, "text.data_energistics.multiblock.failure.block_predicate"),
                 "English predicate diagnostic should avoid exposing the raw MDLib message");
+        assertAutoBuildStructureLabels(zhCn);
+        assertAutoBuildStructureLabels(enUs);
+    }
+
+    private static void assertAutoBuildStructureLabels(JsonObject language) {
+        for (String key : Set.of(
+                "screen.data_energistics.trinity_data_core.auto_build.structure.main",
+                "screen.data_energistics.trinity_data_core.auto_build.structure.cpu",
+                "screen.data_energistics.trinity_data_core.auto_build.structure.crafting")) {
+            assertTrue(language.has(key), "Auto-build message structure label should exist: " + key);
+            assertFalse(language.get(key).getAsString().isBlank(),
+                    "Auto-build message structure label should not be blank: " + key);
+        }
     }
 
     private static void assertStorageCorePredicate(JsonObject predicates, String symbol) {

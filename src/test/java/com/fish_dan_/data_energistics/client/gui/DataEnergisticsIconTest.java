@@ -43,6 +43,19 @@ public final class DataEnergisticsIconTest {
     }
 
     @Test
+    void multiblockBuilderEntryIconUsesTheReservedAtlasCell() {
+        JsonObject icon = readJson("assets/data_energistics/textures/guis/states.json")
+                .getAsJsonObject("icons")
+                .getAsJsonObject("MULTIBLOCK_BUILDER_OPEN");
+
+        assertNotNull(icon);
+        assertEquals(0, icon.get("x").getAsInt());
+        assertEquals(112, icon.get("y").getAsInt());
+        assertEquals(16, icon.get("width").getAsInt());
+        assertEquals(16, icon.get("height").getAsInt());
+    }
+
+    @Test
     void relativeTextureReferenceUsesTheDefaultTextureNamespace() {
         assertEquals(AE2_STATES_TEXTURE, DataEnergisticsIcon.resolveTexture("guis/states.png", AE2_STATES_TEXTURE));
     }
