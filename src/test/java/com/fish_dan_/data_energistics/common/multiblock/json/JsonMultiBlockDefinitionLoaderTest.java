@@ -379,7 +379,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(structureDir.get("aisle").getAsString(), "up", "CPU child JSON should map aisles to height");
         JsonObject cpuMetadata = root.getAsJsonObject("metadata").getAsJsonObject("cpu_core");
         helper.assertValueEqual(cpuMetadata.get("core_slot_start_y").getAsInt(), 0, "CPU child core slot start should include the bottom layer");
-        helper.assertValueEqual(cpuMetadata.get("core_slot_end_y").getAsInt(), 15, "CPU child core slot end should match the last core layer");
+        helper.assertValueEqual(cpuMetadata.get("core_slot_end_y").getAsInt(), 16, "CPU child core slot end should match the last core layer");
         helper.assertValueEqual(cpuMetadata.get("repeat_start_y").getAsInt(), 3, "CPU child repeat start should match the repeated section");
         helper.assertValueEqual(cpuMetadata.get("repeat_end_y").getAsInt(), 15, "CPU child repeat end should match the repeated section");
         helper.assertValueEqual(cpuMetadata.get("max_repeat_count").getAsInt(), 13, "CPU child repeat count should map the 13 repeated layers");

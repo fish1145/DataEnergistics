@@ -63,15 +63,15 @@ public final class TrinityCoreComponentTest {
         TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder();
         builder.actualRepeatCount(TrinityDataCoreCpuCoreProfile.MAX_REPEAT_COUNT);
 
-        for (int index = 0; index < 256; index++) {
+        for (int index = 0; index < 272; index++) {
             builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         }
 
         TrinityDataCoreCpuCoreProfile profile = builder.build();
 
-        assertEquals(68_719_476_736L, profile.storageBytes());
-        assertEquals(131_072, profile.coProcessors());
-        assertEquals(256, profile.filledCoreSlots());
+        assertEquals(73_014_444_032L, profile.storageBytes());
+        assertEquals(139_264, profile.coProcessors());
+        assertEquals(272, profile.filledCoreSlots());
         assertEquals(256, profile.threadCount());
         assertTrue(profile.fullCpu());
         assertEquals(Long.MAX_VALUE, profile.contribution().storageBytes());
@@ -113,15 +113,15 @@ public final class TrinityCoreComponentTest {
     void cpuCoreProfileRequiresExactRepeatHeightForFullCpuCapacity() {
         TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder()
                 .actualRepeatCount(20);
-        for (int index = 0; index < 256; index++) {
+        for (int index = 0; index < 272; index++) {
             builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         }
 
         TrinityDataCoreCpuCoreProfile profile = builder.build();
 
         assertFalse(profile.fullCpu());
-        assertEquals(68_719_476_736L, profile.contribution().storageBytes());
-        assertEquals(131_072, profile.contribution().coProcessors());
+        assertEquals(73_014_444_032L, profile.contribution().storageBytes());
+        assertEquals(139_264, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 
@@ -129,15 +129,15 @@ public final class TrinityCoreComponentTest {
     void cpuCoreProfileUsesFiniteCapacityWhenAnyCoreSlotIsMissing() {
         TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder()
                 .actualRepeatCount(TrinityDataCoreCpuCoreProfile.MAX_REPEAT_COUNT);
-        for (int index = 0; index < 255; index++) {
+        for (int index = 0; index < 271; index++) {
             builder.add(TrinityCoreMetadata.parallelCpuCore(TrinityCoreTier.SIZE_256M));
         }
 
         TrinityDataCoreCpuCoreProfile profile = builder.build();
 
         assertFalse(profile.fullCpu());
-        assertEquals(68_451_041_280L, profile.contribution().storageBytes());
-        assertEquals(130_560, profile.contribution().coProcessors());
+        assertEquals(72_746_008_576L, profile.contribution().storageBytes());
+        assertEquals(138_752, profile.contribution().coProcessors());
         assertEquals(256, profile.contribution().partitionCount());
     }
 

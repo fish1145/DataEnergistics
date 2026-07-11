@@ -7,7 +7,7 @@
 		},
 		"cpu_core": {
 			"core_slot_start_y": 0,
-			"core_slot_end_y": 15,
+			"core_slot_end_y": 16,
 			"repeat_start_y": 3,
 			"repeat_end_y": 15,
 			"max_repeat_count": 13,
