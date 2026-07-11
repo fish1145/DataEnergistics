@@ -16,7 +16,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-/** Verifies that crafting routes use an identity distinct from legacy main-storage ownership. */
+/** Verifies that crafting routes use an identity distinct from main-storage ownership. */
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
 public final class TrinityPatternHostIdentityTest {
@@ -35,7 +35,7 @@ public final class TrinityPatternHostIdentityTest {
         TrinityDataCoreBlockEntity source = requireHost(helper, sourcePos);
         helper.assertTrue(
                 !source.getHostId().equals(source.getStorageId()),
-                "Trinity crafting host UUID must be independent from the legacy storage UUID");
+                "Trinity crafting host UUID must be independent from the main-storage UUID");
 
         ItemStack movedHost = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
         source.saveStorageIdToItem(movedHost);

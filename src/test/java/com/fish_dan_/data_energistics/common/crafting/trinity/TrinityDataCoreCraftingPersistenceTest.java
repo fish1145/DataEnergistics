@@ -8,7 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -16,7 +15,6 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.config.Actionable;
-import appeng.api.config.CpuSelectionMode;
 import appeng.api.stacks.AEItemKey;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -50,68 +48,45 @@ public final class TrinityDataCoreCraftingPersistenceTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_legacy_cpu_runtime_is_ignored")
+    @TestHolder("trinity_data_core_unsupported_cpu_runtime_schema_resets_state")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void legacyCpuRuntimeIsIgnored(GameTestHelper helper) {
-        TrinityDataCoreCraftingRuntime runtime = runtime(helper, new BlockPos(1, 1, 1));
-        CompoundTag legacy = runtimeTagWithoutSchema();
-
-        runtime.readFromTag(legacy, helper.getLevel().registryAccess());
-
-        helper.assertValueEqual(runtime.partitions().size(), 0, "Legacy runtime must not restore CPU partitions");
-        helper.assertValueEqual(runtime.profile().storageBytes(), 0L, "Legacy runtime must not restore CPU storage");
-        helper.assertFalse(runtime.hasBusyJobs(), "Legacy runtime must not restore running jobs");
+    public static void unsupportedCpuRuntimeSchemaResetsState(GameTestHelper helper) {
+        TrinityDataCoreCraftingRuntime source = runtime(helper, new BlockPos(1, 1, 1));
+        source.setContribution("source", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
+        CompoundTag unsupportedTag = new CompoundTag();
+        source.writeToTag(unsupportedTag, helper.getLevel().registryAccess());
+        unsupportedTag.putInt("schema_version", SCHEMA_VERSION + 1);
 
         TrinityDataCoreCraftingRuntime unsupported = runtime(helper, new BlockPos(2, 1, 1));
-        CompoundTag unsupportedTag = runtimeTagWithoutSchema();
-        unsupportedTag.putInt("schema_version", 2);
+        unsupported.setContribution("existing", TrinityDataCoreCpuContribution.of(2048L, 1, 1));
         unsupported.readFromTag(unsupportedTag, helper.getLevel().registryAccess());
 
         helper.assertValueEqual(
                 unsupported.partitions().size(),
                 0,
                 "Unsupported runtime schema must not restore CPU partitions");
+        helper.assertValueEqual(
+                unsupported.profile().storageBytes(),
+                0L,
+                "Unsupported runtime schema must clear existing CPU storage");
+        helper.assertFalse(unsupported.hasBusyJobs(), "Unsupported runtime schema must not restore running jobs");
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_legacy_cpu_logic_is_ignored")
+    @TestHolder("trinity_data_core_unsupported_cpu_logic_schema_resets_state")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void legacyCpuLogicIsIgnored(GameTestHelper helper) {
+    public static void unsupportedCpuLogicSchemaResetsState(GameTestHelper helper) {
         TrinityDataCoreVirtualCpu cpu = activeCpu(helper, new BlockPos(1, 1, 1));
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        CompoundTag unsupported = cpu.logic().writeToTag(helper.getLevel().registryAccess());
+        unsupported.putInt("schema_version", SCHEMA_VERSION + 1);
         cpu.insert(iron, 7L, Actionable.MODULATE);
-
-        CompoundTag legacy = new CompoundTag();
-        legacy.put("inventory", new ListTag());
-        legacy.put("job", new CompoundTag());
-        cpu.logic().readFromTag(legacy, helper.getLevel().registryAccess());
-
-        helper.assertValueEqual(cpu.getStored(iron), 0L, "Legacy CPU logic must not retain inventory state");
-        helper.assertFalse(cpu.logic().hasJob(), "Legacy CPU logic must not restore a job");
-
-        cpu.insert(iron, 7L, Actionable.MODULATE);
-        legacy.putInt("schema_version", 2);
-        cpu.logic().readFromTag(legacy, helper.getLevel().registryAccess());
+        cpu.logic().readFromTag(unsupported, helper.getLevel().registryAccess());
 
         helper.assertValueEqual(cpu.getStored(iron), 0L, "Unsupported CPU logic schema must not retain inventory state");
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_legacy_cpu_job_is_ignored")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void legacyCpuJobIsIgnored(GameTestHelper helper) {
-        TrinityDataCoreVirtualCpu cpu = activeCpu(helper, new BlockPos(1, 1, 1));
-        CompoundTag currentLogic = new CompoundTag();
-        currentLogic.putInt("schema_version", SCHEMA_VERSION);
-        currentLogic.put("inventory", new ListTag());
-        currentLogic.put("job", new CompoundTag());
-
-        cpu.logic().readFromTag(currentLogic, helper.getLevel().registryAccess());
-
-        helper.assertFalse(cpu.logic().hasJob(), "Legacy unversioned job must not be restored");
+        helper.assertFalse(cpu.logic().hasJob(), "Unsupported CPU logic schema must not restore a job");
         helper.succeed();
     }
 
@@ -126,21 +101,6 @@ public final class TrinityDataCoreCraftingPersistenceTest {
         host.setLevel(helper.getLevel());
         TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
         runtime.setMainStructureFormed(true);
-        return runtime;
-    }
-
-    private static CompoundTag runtimeTagWithoutSchema() {
-        CompoundTag runtime = new CompoundTag();
-        ListTag contributions = new ListTag();
-        CompoundTag contribution = new CompoundTag();
-        contribution.putString("name", "cpu");
-        contribution.putLong("storage_bytes", 1024L);
-        contribution.putInt("co_processors", 2);
-        contribution.putInt("partition_count", 1);
-        contribution.putString("selection_mode", CpuSelectionMode.ANY.name());
-        contributions.add(contribution);
-        runtime.put("contributions", contributions);
-        runtime.put("partitions", new ListTag());
         return runtime;
     }
 

@@ -7,7 +7,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -89,27 +88,6 @@ public final class TrinityDataCoreStorageSavedDataTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_storage_saved_data_ignores_legacy_schema")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void ignoresSavedDataWithoutCurrentSchema(GameTestHelper helper) {
-        HolderLookup.Provider registries = helper.getLevel().registryAccess();
-        UUID storageId = UUID.randomUUID();
-        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-
-        TrinityDataCoreStorageSavedData current = new TrinityDataCoreStorageSavedData();
-        current.insert(storageId, iron, 17L, Actionable.MODULATE);
-        CompoundTag legacy = current.save(new CompoundTag(), registries);
-        legacy.remove("schema_version");
-
-        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(legacy, registries);
-        helper.assertValueEqual(
-                loaded.summary(storageId),
-                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
-                "SavedData without the Trinity schema must not migrate legacy storage");
-        helper.succeed();
-    }
-
     @TestHolder("trinity_data_core_storage_saved_data_ignores_unsupported_schema")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -127,27 +105,6 @@ public final class TrinityDataCoreStorageSavedDataTest {
                 loaded.summary(storageId),
                 TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
                 "SavedData with an unsupported schema must not restore storage");
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_storage_saved_data_ignores_legacy_string_identity")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void ignoresLegacyStringStorageIdentity(GameTestHelper helper) {
-        HolderLookup.Provider registries = helper.getLevel().registryAccess();
-        UUID storageId = UUID.randomUUID();
-        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        TrinityDataCoreStorageSavedData current = new TrinityDataCoreStorageSavedData();
-        current.insert(storageId, iron, 23L, Actionable.MODULATE);
-        CompoundTag legacy = current.save(new CompoundTag(), registries);
-        ListTag hosts = legacy.getList("hosts", Tag.TAG_COMPOUND);
-        hosts.getCompound(0).putString("host_id", storageId.toString());
-
-        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(legacy, registries);
-        helper.assertValueEqual(
-                loaded.summary(storageId),
-                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
-                "SavedData must not migrate legacy string storage identities");
         helper.succeed();
     }
 

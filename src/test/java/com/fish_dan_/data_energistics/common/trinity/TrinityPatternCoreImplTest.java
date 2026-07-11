@@ -253,19 +253,19 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(loaded.enqueueBatch(route, pattern, inputs(new ItemStack(Items.DIAMOND)), 12L));
         assertEquals(2L, loaded.revision());
 
-        CompoundTag legacyQueueState = saved.copy();
-        legacyQueueState.getList("queues", Tag.TAG_COMPOUND)
+        CompoundTag malformedQueueState = saved.copy();
+        malformedQueueState.getList("queues", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .getList("batches", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .remove("route");
         assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(128, TrinityPatternCoreImplTest::decode, () -> {})
-                .readFromTag(legacyQueueState, helper.getLevel().registryAccess()));
+                .readFromTag(malformedQueueState, helper.getLevel().registryAccess()));
 
-        CompoundTag legacyOutputState = saved.copy();
-        legacyOutputState.getList("pending_outputs", Tag.TAG_COMPOUND).getCompound(0).remove("route");
+        CompoundTag malformedOutputState = saved.copy();
+        malformedOutputState.getList("pending_outputs", Tag.TAG_COMPOUND).getCompound(0).remove("route");
         assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(128, TrinityPatternCoreImplTest::decode, () -> {})
-                .readFromTag(legacyOutputState, helper.getLevel().registryAccess()));
+                .readFromTag(malformedOutputState, helper.getLevel().registryAccess()));
         helper.succeed();
     }
 

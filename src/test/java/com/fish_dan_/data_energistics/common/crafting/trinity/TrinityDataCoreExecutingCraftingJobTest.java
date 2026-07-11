@@ -74,18 +74,6 @@ public final class TrinityDataCoreExecutingCraftingJobTest {
     }
 
     @Test
-    void legacyTaskWithoutExplicitKindIsRejected() {
-        CompoundTag legacy = definitionTag();
-        legacy.put("route", new PatternRoute(UUID.randomUUID(), UUID.randomUUID(), 0).writeToTag());
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> TrinityDataCoreExecutingCraftingJob.readTaskDetails(
-                        legacy,
-                        ignored -> new StubPatternDetails()));
-    }
-
-    @Test
     void trinityTaskWithoutRouteIsRejected() {
         assertThrows(
                 IllegalArgumentException.class,

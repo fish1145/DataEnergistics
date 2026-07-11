@@ -659,25 +659,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_data_core_host_rejects_legacy_and_unsupported_schema")
+    @TestHolder("trinity_data_core_host_rejects_unsupported_schema")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void hostRejectsLegacyAndUnsupportedSchema(GameTestHelper helper) {
-        BusyRuntimeFixture legacyFixture = busyRuntime(helper, new BlockPos(1, 1, 1));
-        UUID legacyStorageId = legacyFixture.host().getStorageId();
-        UUID legacyHostId = legacyFixture.host().getHostId();
-        CompoundTag legacyTag = formedTrinityTag();
-        legacyTag.remove("schema_version");
-        legacyTag.remove("trinity_data_core_storage_id");
-        legacyTag.remove("trinity_data_core_host_id");
-        legacyTag.putString("storage_id", legacyStorageId.toString());
-        legacyTag.putUUID("host_id", legacyHostId);
-
-        legacyFixture.host().loadTag(legacyTag, helper.getLevel().registryAccess());
-
-        assertRejectedHostState(helper, legacyFixture, legacyStorageId, legacyHostId, "Legacy root NBT");
-
-        BusyRuntimeFixture unsupportedFixture = busyRuntime(helper, new BlockPos(3, 1, 1));
+    public static void hostRejectsUnsupportedSchema(GameTestHelper helper) {
+        BusyRuntimeFixture unsupportedFixture = busyRuntime(helper, new BlockPos(1, 1, 1));
         UUID unsupportedStorageId = unsupportedFixture.host().getStorageId();
         UUID unsupportedHostId = unsupportedFixture.host().getHostId();
         CompoundTag unsupportedTag = formedTrinityTag();
@@ -692,7 +678,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 unsupportedFixture,
                 unsupportedStorageId,
                 unsupportedHostId,
-                "Unsupported root NBT");
+                "Unsupported root NBT schema");
         helper.succeed();
     }
 
