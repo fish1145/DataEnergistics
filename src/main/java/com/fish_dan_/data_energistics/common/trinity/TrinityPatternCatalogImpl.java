@@ -10,6 +10,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,12 +25,15 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
     private static final int CRAFTING_GRID_SLOT_COUNT = 9;
 
+    /** Initial inactive topology supplied before the first successful structure scan. */
+    private static final LayoutSnapshot EMPTY_LAYOUT = new LayoutSnapshot(0L, false, 0, List.of(), List.of());
+
     private final UUID hostId;
     private final Map<UUID, CorePatternCache> coreCaches = new HashMap<>();
-    private List<CoreMount> mountedCores = List.of();
+    private LayoutSnapshot layout = EMPTY_LAYOUT;
+    private List<CoreMount> retainedWorkCores = List.of();
     private Map<UUID, CoreMount> coresById = Map.of();
     private List<IPatternDetails> availablePatterns = List.of();
-    private boolean valid;
 
     /**
      * Creates a catalog whose published routes remain independent from the host's storage identity.
@@ -43,6 +47,47 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     @Override
     public UUID hostId() {
         return this.hostId;
+    }
+
+    @Override
+    public LayoutSnapshot layoutSnapshot() {
+        return this.layout;
+    }
+
+    @Override
+    public boolean isMountCurrent(long expectedRevision, CoreMount mount) {
+        LayoutSnapshot currentLayout = this.layout;
+        if (!currentLayout.active() || currentLayout.revision() != expectedRevision) {
+            return false;
+        }
+        for (CoreRange range : currentLayout.ranges()) {
+            if (matchesMount(range, mount)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    @Override
+    public GlobalSlot resolveGlobalSlot(long expectedRevision, int globalIndex) {
+        LayoutSnapshot currentLayout = this.layout;
+        if (!currentLayout.active() || currentLayout.revision() != expectedRevision ||
+                globalIndex < 0 || globalIndex >= currentLayout.slotCount()) {
+            return null;
+        }
+        for (CoreRange range : currentLayout.ranges()) {
+            if (!range.contains(globalIndex)) {
+                continue;
+            }
+            CoreMount mount = range.mount();
+            if (!matchesMount(range, mount)) {
+                return null;
+            }
+            return new GlobalSlot(expectedRevision, globalIndex, range,
+                    globalIndex - range.firstGlobalIndex());
+        }
+        throw new IllegalStateException("Active Trinity pattern layout did not resolve global slot " + globalIndex);
     }
 
     @Override
@@ -73,23 +118,48 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         }
 
         List<CoreMount> nextMounts = List.copyOf(sorted);
-        boolean mountSetChanged = !this.mountedCores.equals(nextMounts);
-        boolean validityChanged = !this.valid;
-        this.mountedCores = nextMounts;
+        List<CoreRange> nextRanges = createRanges(nextMounts);
+        boolean layoutChanged = !hasSameActiveLayout(nextMounts, nextRanges);
+        long nextRevision = layoutChanged ? Math.incrementExact(this.layout.revision()) : this.layout.revision();
+        int slotCount = nextRanges.isEmpty() ? 0 : nextRanges.getLast().lastGlobalIndexExclusive();
+        this.layout = new LayoutSnapshot(nextRevision, true, slotCount, nextMounts, nextRanges);
+        this.retainedWorkCores = nextMounts;
         this.coresById = Map.copyOf(scannedById);
         this.coreCaches.keySet().retainAll(scannedById.keySet());
-        this.valid = true;
         boolean patternChanged = refreshChangedPatterns();
-        if (mountSetChanged && !patternChanged) {
+        if (layoutChanged && !patternChanged) {
             rebuildAvailablePatterns();
         }
-        return new RebuildResult(true, validityChanged || mountSetChanged || patternChanged, null, "");
+        return new RebuildResult(true, layoutChanged || patternChanged, null, "");
     }
 
     @Override
     public boolean refreshChangedPatterns() {
+        LayoutSnapshot currentLayout = this.layout;
+        if (!currentLayout.active()) {
+            return false;
+        }
+        for (int index = 0; index < currentLayout.ranges().size(); index++) {
+            CoreRange range = currentLayout.ranges().get(index);
+            CoreMount mount = currentLayout.mounts().get(index);
+            if (!matchesMount(range, mount)) {
+                TrinityPatternCore core = mount.core();
+                Data_Energistics.LOGGER.warn(
+                        "Invalidating Trinity pattern catalog {} after mounted core identity changed at {}: " +
+                                "captured UUID {}, current UUID {}, block capacity {}, core capacity {}",
+                        this.hostId,
+                        mount.position(),
+                        range.coreId(),
+                        core.coreId(),
+                        mount.blockCapacity(),
+                        core.patternCapacity());
+                invalidateLayout();
+                return true;
+            }
+        }
+
         boolean changed = false;
-        for (CoreMount mount : this.mountedCores) {
+        for (CoreMount mount : currentLayout.mounts()) {
             TrinityPatternCore core = mount.core();
             CorePatternCache cache = this.coreCaches.get(core.coreId());
             if (cache == null || cache.core() != core || cache.revision() != core.revision()) {
@@ -106,12 +176,12 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     @Override
     public List<IPatternDetails> getAvailablePatterns() {
         refreshChangedPatterns();
-        return this.valid ? this.availablePatterns : List.of();
+        return this.layout.active() ? this.availablePatterns : List.of();
     }
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, long queuedTick) {
-        if (!this.valid || !(patternDetails instanceof RoutedCraftingPatternDetails routed) || queuedTick < 0L) {
+        if (!this.layout.active() || !(patternDetails instanceof RoutedCraftingPatternDetails routed) || queuedTick < 0L) {
             return false;
         }
         PatternRoute route = routed.route();
@@ -161,12 +231,12 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
     @Override
     public List<CoreMount> mountedCores() {
-        return this.mountedCores;
+        return this.layout.mounts();
     }
 
     @Override
     public boolean hasWork() {
-        for (CoreMount mount : this.mountedCores) {
+        for (CoreMount mount : this.retainedWorkCores) {
             TrinityPatternCore core = mount.core();
             for (int slot = 0; slot < core.patternCapacity(); slot++) {
                 PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
@@ -184,18 +254,79 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     }
 
     @Override
-    public void clear() {
-        this.valid = false;
-        this.mountedCores = List.of();
+    public void invalidateLayout() {
+        if (this.layout.active()) {
+            LayoutSnapshot currentLayout = this.layout;
+            LayoutSnapshot invalidLayout = new LayoutSnapshot(
+                    Math.incrementExact(currentLayout.revision()),
+                    false,
+                    0,
+                    List.of(),
+                    List.of());
+            this.retainedWorkCores = currentLayout.mounts();
+            this.layout = invalidLayout;
+        }
         this.coresById = Map.of();
         this.coreCaches.clear();
         this.availablePatterns = List.of();
     }
 
+    @Override
+    public void clear() {
+        invalidateLayout();
+        this.retainedWorkCores = List.of();
+    }
+
     private RebuildResult rejectScan(BlockPos position, String reason) {
-        boolean changed = this.valid;
-        this.valid = false;
+        boolean changed = this.layout.active();
+        invalidateLayout();
         return new RebuildResult(false, changed, position, reason);
+    }
+
+    private List<CoreRange> createRanges(List<CoreMount> mounts) {
+        ArrayList<CoreRange> ranges = new ArrayList<>(mounts.size());
+        int firstGlobalIndex = 0;
+        for (CoreMount mount : mounts) {
+            int lastGlobalIndexExclusive = Math.addExact(firstGlobalIndex, mount.blockCapacity());
+            ranges.add(new CoreRange(
+                    mount,
+                    mount.core().coreId(),
+                    firstGlobalIndex,
+                    lastGlobalIndexExclusive));
+            firstGlobalIndex = lastGlobalIndexExclusive;
+        }
+        return List.copyOf(ranges);
+    }
+
+    private boolean hasSameActiveLayout(List<CoreMount> nextMounts, List<CoreRange> nextRanges) {
+        if (!this.layout.active() || this.layout.ranges().size() != nextRanges.size()) {
+            return false;
+        }
+        for (int index = 0; index < nextRanges.size(); index++) {
+            CoreRange current = this.layout.ranges().get(index);
+            CoreRange next = nextRanges.get(index);
+            CoreMount currentMount = current.mount();
+            CoreMount nextMount = nextMounts.get(index);
+            if (currentMount.core() != nextMount.core() ||
+                    !current.coreId().equals(next.coreId()) ||
+                    !currentMount.position().equals(nextMount.position()) ||
+                    currentMount.blockCapacity() != nextMount.blockCapacity() ||
+                    current.firstGlobalIndex() != next.firstGlobalIndex() ||
+                    current.lastGlobalIndexExclusive() != next.lastGlobalIndexExclusive()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean matchesMount(CoreRange range, CoreMount mount) {
+        CoreMount capturedMount = range.mount();
+        TrinityPatternCore core = mount.core();
+        return capturedMount.core() == core &&
+                range.coreId().equals(core.coreId()) &&
+                capturedMount.position().equals(mount.position()) &&
+                capturedMount.blockCapacity() == mount.blockCapacity() &&
+                capturedMount.blockCapacity() == core.patternCapacity();
     }
 
     private CorePatternCache createCoreCache(TrinityPatternCore core) {
@@ -213,7 +344,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
     private void rebuildAvailablePatterns() {
         ArrayList<IPatternDetails> patterns = new ArrayList<>();
-        for (CoreMount mount : this.mountedCores) {
+        for (CoreMount mount : this.layout.mounts()) {
             CorePatternCache cache = this.coreCaches.get(mount.core().coreId());
             if (cache == null) {
                 throw new IllegalStateException("Missing pattern cache for mounted Trinity core " + mount.core().coreId());
