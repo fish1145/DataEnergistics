@@ -4,11 +4,17 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -18,6 +24,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -54,6 +62,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
     private static final int TABLE_PATTERN_SLOT = 37;
     private static final int CAKE_PATTERN_SLOT = 38;
     private static final int REMOVAL_PATTERN_SLOT = 39;
+    private static final int STRUCTURE_PAUSE_PATTERN_SLOT = 40;
 
     private TrinityDataCoreAe2CraftingGameTest() {}
 
@@ -261,6 +270,142 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Every former access hatch should withdraw CPU, storage and terminal capabilities");
                 })
                 .thenSucceed();
+    }
+
+    @TestHolder("trinity_data_core_real_ae2_crafting_pauses_across_structure_failure")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void realAe2QueuedBatchSurvivesCraftingStructureFailure(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        ServerLevel level = helper.getLevel();
+        TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
+        TrinityPatternCore core = mount.core();
+        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
+        PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), STRUCTURE_PAUSE_PATTERN_SLOT);
+        ItemStack pattern = craftingTablePattern(level);
+        PendingCraftingPlan plan = new PendingCraftingPlan(level, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
+        BlockPos interruptedPosition = findAdjacentCraftingFrame(level, host.getPatternCatalog().mountedCores());
+        BlockState interruptedState = level.getBlockState(interruptedPosition);
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(core.trySetPattern(STRUCTURE_PAUSE_PATTERN_SLOT, pattern),
+                            "Pause test pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+                    assertPublishedRoute(
+                            helper,
+                            fixture.grid(),
+                            AEItemKey.of(Items.CRAFTING_TABLE),
+                            route);
+                })
+                .thenExecute(() -> {
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
+                    plan.start(fixture.grid(), host.accessActionSource());
+                })
+                .thenWaitUntil(plan::await)
+                .thenExecute(() -> {
+                    assertPlan(helper, plan.plan(), route, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
+                    submitAndDispatch(helper, fixture, cpu, plan.plan());
+                    helper.assertValueEqual(core.queuedBatchCount(STRUCTURE_PAUSE_PATTERN_SLOT), 1,
+                            "Real AE2 dispatch should enqueue one routed batch before structure interruption");
+                    helper.assertValueEqual(
+                            cpu.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
+                            1L,
+                            "Trinity CPU should wait for the interrupted routed output");
+
+                    helper.assertTrue(level.destroyBlock(interruptedPosition, false),
+                            "Pause test should physically remove one crafting frame block");
+                    host.requestStructureRecheck();
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+
+                    helper.assertFalse(host.isCraftingStructureFormed(),
+                            "Removing a real crafting frame block should invalidate the crafting structure");
+                    assertPausedRoutedBatch(helper, fixture, core, cpu, route);
+                })
+                .thenIdle(2)
+                .thenExecute(() -> {
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+                    helper.assertFalse(host.isCraftingStructureFormed(),
+                            "Crafting structure should remain invalid while its frame block is absent");
+                    assertPausedRoutedBatch(helper, fixture, core, cpu, route);
+
+                    var rebuild = TrinityDataCoreBlockEntity.executeAutoBuild(
+                            level,
+                            helper.makeMockPlayer(GameType.CREATIVE),
+                            host.getBlockPos(),
+                            Direction.SOUTH,
+                            false,
+                            new TrinityAutoBuildRequest(
+                                    TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX,
+                                    new TrinityAutoBuildOptions(
+                                            true,
+                                            1,
+                                            Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 1))));
+                    helper.assertTrue(rebuild.success(),
+                            "Crafting structure rebuild should restore the interrupted frame: " + rebuild.failure());
+                    helper.assertValueEqual(rebuild.placed(), 1,
+                            "Crafting structure rebuild should replace exactly the removed frame block");
+                    helper.assertValueEqual(level.getBlockState(interruptedPosition), interruptedState,
+                            "Crafting structure rebuild should restore the original frame state");
+                    host.requestStructureRecheck();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+
+                    helper.assertTrue(host.isCraftingStructureFormed(),
+                            "Restored crafting structure should pass a real host recheck");
+                    helper.assertValueEqual(core.queuedBatchCount(STRUCTURE_PAUSE_PATTERN_SLOT), 0,
+                            "The same retained routed batch should execute after structure recovery");
+                    helper.assertTrue(core.pendingOutputs(route).isEmpty(),
+                            "Recovered routed output should leave the P core after CPU routing");
+                    helper.assertFalse(cpu.isBusy(),
+                            "Trinity CPU should complete after the recovered routed output returns");
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
+                })
+                .thenSucceed();
+    }
+
+    private static BlockPos findAdjacentCraftingFrame(ServerLevel level,
+                                                      List<TrinityPatternCatalog.CoreMount> mounts) {
+        for (TrinityPatternCatalog.CoreMount mount : mounts) {
+            for (Direction direction : Direction.values()) {
+                BlockPos candidate = mount.position().relative(direction);
+                if (level.getBlockState(candidate).is(ModBlocks.DATA_FRAMEWORK.get())) {
+                    return candidate.immutable();
+                }
+            }
+        }
+        throw new IllegalStateException("Formed Trinity crafting structure has no frame adjacent to a P core");
+    }
+
+    private static void assertPausedRoutedBatch(GameTestHelper helper,
+                                                TrinityDataCoreGameTestFixture fixture,
+                                                TrinityPatternCore core,
+                                                TrinityDataCoreVirtualCpu cpu,
+                                                PatternRoute route) {
+        helper.assertValueEqual(core.queuedBatchCount(route.slot()), 1,
+                "Invalid crafting structure must retain the routed P-core queue");
+        helper.assertTrue(core.pendingOutputs(route).isEmpty(),
+                "Invalid crafting structure must not execute the retained routed batch");
+        helper.assertTrue(cpu.isBusy(),
+                "Trinity CPU must remain busy while the routed P-core batch is paused");
+        helper.assertValueEqual(
+                cpu.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
+                1L,
+                "Paused Trinity CPU must retain its requested routed output");
+        assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
+        assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 0L);
     }
 
     private static void assertPublishedRoute(GameTestHelper helper,

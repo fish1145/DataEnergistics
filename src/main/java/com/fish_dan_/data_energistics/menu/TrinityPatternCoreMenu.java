@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
-import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.chat.Component;
@@ -176,7 +175,7 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
     }
 
     void refundAll() {
-        boolean refunded = this.host.tryRefundAll(new TrinityRefundDeliveryImpl(getPlayer(), null, null));
+        boolean refunded = this.host.tryRefundAll(getPlayer());
         getPlayer().displayClientMessage(Component.translatable(
                 refunded ? "message.data_energistics.trinity_pattern_core.refund.success" : "message.data_energistics.trinity_pattern_core.refund.failure"), true);
         refreshState();

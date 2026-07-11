@@ -6,15 +6,18 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDelivery;
+import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -46,6 +49,8 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
 
     private final TrinityPatternCoreImpl core;
     private long observedReloadEpoch = TrinityPatternCoreReloadEpoch.current();
+    @Nullable
+    private TrinityPatternCoreHost patternHost;
 
     /**
      * Creates a core and derives its fixed inventory size directly from the placed block metadata.
@@ -76,6 +81,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * unbound, offline, or structurally invalid core cannot craft independently.
      */
     public void serverTick() {
+        ensurePatternCachesCurrent();
+    }
+
+    @Override
+    public void ensurePatternCachesCurrent() {
         long reloadEpoch = TrinityPatternCoreReloadEpoch.current();
         if (this.observedReloadEpoch != reloadEpoch) {
             this.observedReloadEpoch = reloadEpoch;
@@ -91,7 +101,65 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * @return number of completed batches
      */
     public int executeOwnedBatches(UUID hostId, long currentTick) {
+        ensurePatternCachesCurrent();
         return this.core.executeReadyBatches(currentTick, (slot, batch) -> hostId.equals(batch.route().hostId()) ? executeBatch(slot, batch) : BatchExecutionResult.paused());
+    }
+
+    /**
+     * Reports whether this physical core can join a host without stealing an active catalog binding.
+     *
+     * @param host host attempting to mount this core
+     * @return whether the existing binding is absent, stale, or already owned by that host
+     */
+    public boolean canBindPatternHost(TrinityPatternCoreHost host) {
+        TrinityPatternCoreHost current = currentPatternHost();
+        return current == null || current == host;
+    }
+
+    /**
+     * Binds the core to the host that successfully published it in a structure catalog.
+     *
+     * @param host authoritative formed host
+     * @return false when another active host still owns this physical core
+     */
+    public boolean bindPatternHost(TrinityPatternCoreHost host) {
+        if (!canBindPatternHost(host)) {
+            return false;
+        }
+        this.patternHost = host;
+        return true;
+    }
+
+    /**
+     * Releases a transient binding only when the supplied host still owns it.
+     *
+     * @param host host withdrawing its catalog
+     */
+    public void unbindPatternHost(TrinityPatternCoreHost host) {
+        if (this.patternHost == host) {
+            this.patternHost = null;
+        }
+    }
+
+    /**
+     * Refunds local queued state through the mounted host's AE lease when available.
+     *
+     * @param player player requesting the refund
+     * @return whether queued inputs or pending outputs were returned
+     */
+    public boolean tryRefundAll(Player player) {
+        TrinityPatternCoreHost host = currentPatternHost();
+        if (host != null) {
+            try {
+                return host.tryRefundPatternCore(this, player);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to refund Trinity pattern core {} through its mounted host; using player fallbacks",
+                        coreId(),
+                        exception);
+            }
+        }
+        return this.core.tryRefundAll(new TrinityRefundDeliveryImpl(player, null, null));
     }
 
     @Override
@@ -229,6 +297,18 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         }
     }
 
+    @Override
+    public void onChunkUnloaded() {
+        releasePatternHost();
+        super.onChunkUnloaded();
+    }
+
+    @Override
+    public void setRemoved() {
+        releasePatternHost();
+        super.setRemoved();
+    }
+
     @Nullable
     private IMolecularAssemblerSupportedPattern decodeSupportedPattern(ItemStack pattern) {
         if (pattern.isEmpty() || this.level == null) {
@@ -319,6 +399,24 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         setChanged();
         if (this.level != null && !this.level.isClientSide()) {
             markForClientUpdate();
+        }
+    }
+
+    @Nullable
+    private TrinityPatternCoreHost currentPatternHost() {
+        TrinityPatternCoreHost current = this.patternHost;
+        if (current != null && !current.isPatternCoreMounted(this)) {
+            this.patternHost = null;
+            return null;
+        }
+        return current;
+    }
+
+    private void releasePatternHost() {
+        TrinityPatternCoreHost current = this.patternHost;
+        this.patternHost = null;
+        if (current != null) {
+            current.onPatternCoreUnavailable(this);
         }
     }
 

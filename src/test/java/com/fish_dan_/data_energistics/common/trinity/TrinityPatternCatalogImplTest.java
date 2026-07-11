@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -150,6 +151,73 @@ public final class TrinityPatternCatalogImplTest {
         assertNotSame(firstBefore, refreshed.get(0));
         assertSame(secondBefore, refreshed.get(2));
         assertFalse(catalog.refreshChangedPatterns());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_synchronizes_reload_before_publication")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void synchronizesReloadBeforePublicationAndDispatch(GameTestHelper helper) {
+        AtomicBoolean decodable = new AtomicBoolean(true);
+        AtomicBoolean reloadPending = new AtomicBoolean();
+        TrinityPatternCoreImpl delegate = new TrinityPatternCoreImpl(
+                64,
+                UUID.randomUUID(),
+                stack -> decodable.get() && stack.is(Items.PAPER) ? new FillingPattern(stack) : null,
+                () -> {});
+        TopologyCapacityCore core = new TopologyCapacityCore(delegate, () -> {
+            if (reloadPending.getAndSet(false)) {
+                delegate.refreshAllPatternCaches();
+            }
+        });
+        assertTrue(core.trySetPattern(0, new ItemStack(Items.PAPER)));
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+        RoutedCraftingPatternDetails staleRoute = (RoutedCraftingPatternDetails) catalog
+                .getAvailablePatterns()
+                .getFirst();
+
+        decodable.set(false);
+        reloadPending.set(true);
+
+        assertTrue(catalog.getAvailablePatterns().isEmpty());
+        assertFalse(reloadPending.get());
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        KeyCounter[] inputs = counters(iron, 1L);
+        assertFalse(catalog.pushPattern(staleRoute, inputs, 1L));
+        assertEquals(1L, inputs[0].get(iron));
+        assertEquals(0, core.queuedBatchCount());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_push_rolls_back_notification_failure")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void pushKeepsInputsWhenCoreNotificationRejectsEnqueue(GameTestHelper helper) {
+        AtomicBoolean rejectNotification = new AtomicBoolean();
+        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+                64,
+                UUID.randomUUID(),
+                stack -> stack.is(Items.PAPER) ? new FillingPattern(stack) : null,
+                () -> {
+                    if (rejectNotification.get()) {
+                        throw new IllegalStateException("test persistence notification failure");
+                    }
+                });
+        assertTrue(core.trySetPattern(0, new ItemStack(Items.PAPER)));
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+        RoutedCraftingPatternDetails route = (RoutedCraftingPatternDetails) catalog
+                .getAvailablePatterns()
+                .getFirst();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        KeyCounter[] inputs = counters(iron, 1L);
+
+        rejectNotification.set(true);
+
+        assertFalse(catalog.pushPattern(route, inputs, 1L));
+        assertEquals(1L, inputs[0].get(iron));
+        assertEquals(0, core.queuedBatchCount());
         helper.succeed();
     }
 
@@ -791,16 +859,30 @@ public final class TrinityPatternCatalogImplTest {
     private static final class TopologyCapacityCore implements TrinityPatternCore {
 
         private final int topologyCapacity;
-        private final TrinityPatternCore delegate = core(UUID.randomUUID());
+        private final TrinityPatternCore delegate;
         private final boolean rejectRefundCommit;
+        private final Runnable cacheSynchronizer;
 
         private TopologyCapacityCore(int topologyCapacity) {
             this(topologyCapacity, false);
         }
 
         private TopologyCapacityCore(int topologyCapacity, boolean rejectRefundCommit) {
+            this(topologyCapacity, core(UUID.randomUUID()), rejectRefundCommit, () -> {});
+        }
+
+        private TopologyCapacityCore(TrinityPatternCore delegate, Runnable cacheSynchronizer) {
+            this(delegate.patternCapacity(), delegate, false, cacheSynchronizer);
+        }
+
+        private TopologyCapacityCore(int topologyCapacity,
+                                     TrinityPatternCore delegate,
+                                     boolean rejectRefundCommit,
+                                     Runnable cacheSynchronizer) {
             this.topologyCapacity = topologyCapacity;
+            this.delegate = delegate;
             this.rejectRefundCommit = rejectRefundCommit;
+            this.cacheSynchronizer = cacheSynchronizer;
         }
 
         @Override
@@ -846,6 +928,12 @@ public final class TrinityPatternCatalogImplTest {
         @Override
         public void refreshAllPatternCaches() {
             this.delegate.refreshAllPatternCaches();
+        }
+
+        @Override
+        public void ensurePatternCachesCurrent() {
+            this.cacheSynchronizer.run();
+            this.delegate.ensurePatternCachesCurrent();
         }
 
         @Override

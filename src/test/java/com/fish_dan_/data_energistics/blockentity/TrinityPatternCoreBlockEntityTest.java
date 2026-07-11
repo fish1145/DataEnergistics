@@ -28,6 +28,9 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import appeng.core.definitions.AEItems;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -107,6 +110,24 @@ public final class TrinityPatternCoreBlockEntityTest {
 
         assertEquals(revisionBeforeReload + 1L, core.revision());
         assertTrue(core.decodedPattern(0) != null);
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_rejects_non_crafting_patterns")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsBlankProcessingAndOrdinaryItemsUsingRealDecoder(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 1, 1);
+        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
+        ItemStack processingPattern = PatternDetailsHelper.encodeProcessingPattern(
+                List.of(new GenericStack(AEItemKey.of(Items.IRON_INGOT), 1L)),
+                List.of(new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1L)));
+
+        assertFalse(core.trySetPattern(0, AEItems.BLANK_PATTERN.stack()));
+        assertFalse(core.trySetPattern(0, processingPattern));
+        assertFalse(core.trySetPattern(0, new ItemStack(Items.STICK)));
+        assertTrue(core.pattern(0).isEmpty());
         helper.succeed();
     }
 
@@ -192,6 +213,12 @@ public final class TrinityPatternCoreBlockEntityTest {
     private static void assertTrue(boolean condition) {
         if (!condition) {
             throw new GameTestAssertException("Expected condition to be true");
+        }
+    }
+
+    private static void assertFalse(boolean condition) {
+        if (condition) {
+            throw new GameTestAssertException("Expected condition to be false");
         }
     }
 

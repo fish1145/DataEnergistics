@@ -142,6 +142,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         for (int index = 0; index < currentLayout.ranges().size(); index++) {
             CoreRange range = currentLayout.ranges().get(index);
             CoreMount mount = currentLayout.mounts().get(index);
+            mount.core().ensurePatternCachesCurrent();
             if (!matchesMount(range, mount)) {
                 TrinityPatternCore core = mount.core();
                 Data_Energistics.LOGGER.warn(
@@ -194,6 +195,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             return false;
         }
         TrinityPatternCore core = mount.core();
+        core.ensurePatternCachesCurrent();
         IMolecularAssemblerSupportedPattern currentPattern = core.decodedPattern(route.slot());
         if (currentPattern == null || !(routed.delegate() instanceof IMolecularAssemblerSupportedPattern supported)) {
             return false;

@@ -123,6 +123,33 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_core_enqueue_rolls_back_failed_notification")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void enqueueRollsBackWhenPersistenceNotificationFails(GameTestHelper helper) {
+        AtomicBoolean rejectNotification = new AtomicBoolean();
+        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+                64,
+                TrinityPatternCoreImplTest::decode,
+                () -> {
+                    if (rejectNotification.get()) {
+                        throw new IllegalStateException("test persistence notification failure");
+                    }
+                });
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = route(core, 0);
+        assertTrue(core.trySetPattern(0, pattern));
+
+        rejectNotification.set(true);
+        assertFalse(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+        assertEquals(0, core.queuedBatchCount(0));
+
+        rejectNotification.set(false);
+        assertTrue(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+        assertEquals(1, core.queuedBatchCount(0));
+        helper.succeed();
+    }
+
     @TestHolder("trinity_pattern_core_replacement_sleeps_and_restores_batch")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -282,6 +309,33 @@ public final class TrinityPatternCoreImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> destination.readFromTag(saved, helper.getLevel().registryAccess()));
         assertTrue(destination.pattern(0).isEmpty());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_nbt_requires_current_state_lists_atomically")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void currentNbtRequiresAllStateListsBeforeMutation(GameTestHelper helper) {
+        TrinityPatternCoreImpl source = core(64);
+        source.trySetPattern(0, pattern(Items.PAPER));
+        CompoundTag saved = new CompoundTag();
+        source.writeToTag(saved, helper.getLevel().registryAccess());
+
+        TrinityPatternCoreImpl destination = core(64);
+        destination.trySetPattern(0, pattern(Items.MAP));
+        for (String requiredList : List.of("patterns", "queues", "pending_outputs")) {
+            CompoundTag missingList = saved.copy();
+            missingList.remove(requiredList);
+            assertThrows(IllegalArgumentException.class,
+                    () -> destination.readFromTag(missingList, helper.getLevel().registryAccess()));
+            assertTrue(destination.pattern(0).is(Items.MAP));
+        }
+
+        CompoundTag wrongListType = saved.copy();
+        wrongListType.putString("queues", "invalid");
+        assertThrows(IllegalArgumentException.class,
+                () -> destination.readFromTag(wrongListType, helper.getLevel().registryAccess()));
+        assertTrue(destination.pattern(0).is(Items.MAP));
         helper.succeed();
     }
 

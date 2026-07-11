@@ -158,6 +158,15 @@ public interface TrinityPatternCore {
     void refreshAllPatternCaches();
 
     /**
+     * Synchronizes externally invalidated recipe caches before a catalog publishes, dispatches, or executes them.
+     *
+     * <p>
+     * Pure logical cores use their explicit refresh lifecycle. World-backed cores additionally compare the global
+     * data-reload epoch here so correctness does not depend on block-entity tick order.
+     */
+    void ensurePatternCachesCurrent();
+
+    /**
      * Atomically appends one complete crafting input snapshot to a slot FIFO.
      *
      * @param route           exact host/core/slot destination selected by the crafting plan

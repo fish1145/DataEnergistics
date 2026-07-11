@@ -4,12 +4,16 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
@@ -27,7 +31,11 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEKey;
+import appeng.api.storage.MEStorage;
 import appeng.client.gui.Icon;
 import appeng.menu.SlotSemantic;
 import appeng.menu.slot.AppEngSlot;
@@ -126,6 +134,41 @@ public final class TrinityPatternCoreMenuTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_core_menu_refund_prefers_mounted_host_ae")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundUsesMountedHostAeBeforePlayerInventory(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 1, 1);
+        helper.setBlock(pos, ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState());
+        TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
+        ItemStack encodedPattern = encodedOakPlanksPattern(helper);
+        assertTrue(core.trySetPattern(0, encodedPattern));
+        core.appendPendingOutputs(
+                new PatternRoute(UUID.randomUUID(), core.coreId(), 0),
+                List.of(new ItemStack(Items.DIAMOND, 2)));
+
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.items.size(); slot++) {
+            inventory.items.set(slot, new ItemStack(Items.STONE, 64));
+        }
+        RecordingStorage storage = new RecordingStorage();
+        RecordingPatternHost patternHost = new RecordingPatternHost(core, storage);
+        assertTrue(core.bindPatternHost(patternHost));
+
+        TrinityPatternCoreMenu menu = new TrinityPatternCoreMenu(1, inventory, core);
+        menu.refundAll();
+
+        assertEquals(2L, storage.insertedAmount);
+        assertStackMatches(encodedPattern, core.pattern(0));
+        assertFalse(core.hasWork());
+        for (ItemStack stack : inventory.items) {
+            assertTrue(stack.is(Items.STONE));
+            assertEquals(64, stack.getCount());
+        }
+        helper.succeed();
+    }
+
     private static ItemStack encodedOakPlanksPattern(GameTestHelper helper) {
         RecipeHolder<?> recipe = helper.getLevel()
                 .getRecipeManager()
@@ -161,6 +204,59 @@ public final class TrinityPatternCoreMenuTest {
         assertTrue(found);
     }
 
+    /** Active host stub that exercises the same refund destination contract used by the real Trinity host. */
+    private static final class RecordingPatternHost implements TrinityPatternCoreHost {
+
+        private final TrinityPatternCore mountedCore;
+        private final MEStorage storage;
+        private boolean available = true;
+
+        private RecordingPatternHost(TrinityPatternCore mountedCore, MEStorage storage) {
+            this.mountedCore = mountedCore;
+            this.storage = storage;
+        }
+
+        @Override
+        public boolean isPatternCoreMounted(TrinityPatternCore core) {
+            return this.available && this.mountedCore == core;
+        }
+
+        @Override
+        public boolean tryRefundPatternCore(TrinityPatternCore core, Player player) {
+            if (!isPatternCoreMounted(core)) {
+                return false;
+            }
+            return core.tryRefundAll(new TrinityRefundDeliveryImpl(player, this.storage, IActionSource.empty()));
+        }
+
+        @Override
+        public void onPatternCoreUnavailable(TrinityPatternCore core) {
+            if (this.mountedCore == core) {
+                this.available = false;
+            }
+        }
+    }
+
+    /** Storage sink that makes the menu's first refund destination directly observable. */
+    private static final class RecordingStorage implements MEStorage {
+
+        private long insertedAmount;
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            if (mode != Actionable.MODULATE) {
+                return 0L;
+            }
+            this.insertedAmount += amount;
+            return amount;
+        }
+
+        @Override
+        public Component getDescription() {
+            return Component.literal("Trinity pattern menu refund test storage");
+        }
+    }
+
     private static void assertTrue(boolean condition) {
         if (!condition) {
             throw new GameTestAssertException("Expected condition to be true");
@@ -174,6 +270,12 @@ public final class TrinityPatternCoreMenuTest {
     }
 
     private static void assertEquals(int expected, int actual) {
+        if (expected != actual) {
+            throw new GameTestAssertException("Expected " + expected + ", got " + actual);
+        }
+    }
+
+    private static void assertEquals(long expected, long actual) {
         if (expected != actual) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }

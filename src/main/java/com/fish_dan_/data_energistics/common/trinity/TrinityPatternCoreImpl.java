@@ -172,6 +172,11 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     @Override
+    public void ensurePatternCachesCurrent() {
+        ensureNoActiveRefundTransaction();
+    }
+
+    @Override
     public boolean enqueueBatch(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick) {
         ensureNoActiveRefundTransaction();
         int slot = route.slot();
@@ -190,9 +195,22 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                 route,
                 normalizePattern(patternSnapshot),
                 inputs);
-        this.queues.get(slot).addLast(batch);
-        markPersistentStateChanged();
-        return true;
+        ArrayDeque<TrinityCraftingBatch> queue = this.queues.get(slot);
+        long previousStateRevision = this.stateRevision;
+        queue.addLast(batch);
+        try {
+            markPersistentStateChanged();
+            return true;
+        } catch (RuntimeException exception) {
+            queue.removeLast();
+            this.stateRevision = previousStateRevision;
+            Data_Energistics.LOGGER.error(
+                    "Failed to persist Trinity pattern core {} slot {} batch; the enqueue was rolled back",
+                    this.coreId,
+                    slot,
+                    exception);
+            return false;
+        }
     }
 
     @Override
@@ -545,13 +563,16 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
 
         UUID loadedId = data.getUUID(CORE_ID_TAG);
-        List<ItemStack> loadedPatterns = readPatterns(data.getList(PATTERNS_TAG, Tag.TAG_COMPOUND), registries);
+        ListTag patternEntries = requiredCompoundList(data, PATTERNS_TAG);
+        ListTag queueEntries = requiredCompoundList(data, QUEUES_TAG);
+        ListTag outputEntries = requiredCompoundList(data, PENDING_OUTPUTS_TAG);
+        List<ItemStack> loadedPatterns = readPatterns(patternEntries, registries);
         List<ArrayDeque<TrinityCraftingBatch>> loadedQueues = readQueues(
-                data.getList(QUEUES_TAG, Tag.TAG_COMPOUND),
+                queueEntries,
                 registries,
                 loadedId);
         List<LinkedHashMap<PatternRoute, ArrayList<ItemStack>>> loadedOutputs = readPendingOutputs(
-                data.getList(PENDING_OUTPUTS_TAG, Tag.TAG_COMPOUND),
+                outputEntries,
                 registries,
                 loadedId);
 
@@ -782,6 +803,15 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private static boolean containsCoreState(CompoundTag data) {
         return data.contains(PATTERN_CAPACITY_TAG) || data.contains(PATTERNS_TAG) || data.contains(QUEUES_TAG) ||
                 data.contains(PENDING_OUTPUTS_TAG);
+    }
+
+    private static ListTag requiredCompoundList(CompoundTag data, String tagName) {
+        if (!(data.get(tagName) instanceof ListTag entries) ||
+                !entries.isEmpty() && entries.getElementType() != Tag.TAG_COMPOUND) {
+            throw new IllegalArgumentException(
+                    "Persisted Trinity pattern core state requires compound list '" + tagName + "'");
+        }
+        return entries;
     }
 
     private static void validateCapacity(int patternCapacity) {
