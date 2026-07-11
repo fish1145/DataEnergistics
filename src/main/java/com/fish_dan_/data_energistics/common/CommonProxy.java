@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotKeyContainerItemStrategy;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -61,6 +63,9 @@ public class CommonProxy {
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             ModUpgrades.init();
+            if (ModFlags.isCuriosLoaded()) {
+                CuriosDataDistributionConnectorAccess.register();
+            }
             if (Data_Energistics.isModLoaded("ftbultimine")) {
                 Data_Energistics.LOGGER.info("Registering Data Crystal Pickaxe FTB Ultimine duplicate ore integration");
                 DataCrystalPickaxeFtbUltimineCompat.init();

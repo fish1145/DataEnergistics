@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.integration.ModFlags;
+import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -60,6 +64,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlock {
@@ -67,6 +72,8 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     public static final IntegerProperty PART = IntegerProperty.create("part", 0, 2);
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
+    /** Selects the mutable connector stack used by empty-main-hand tower interactions. */
+    private static final DataDistributionConnectorSelector CONNECTOR_SELECTOR = DataDistributionConnectorSelector.create();
     private static final VoxelShape BOTTOM_SHAPE_NORTH = Shapes.or(
             Block.box(2, 0, 2, 14, 9, 14),
             Block.box(0, 1, 0, 16, 5, 16),
@@ -394,6 +401,17 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
             return InteractionResult.sidedSuccess(level.isClientSide());
         }
 
+        if (player.getMainHandItem().isEmpty()) {
+            Optional<ItemStack> connectorStack = CONNECTOR_SELECTOR.select(
+                    player.getOffhandItem(),
+                    () -> findEquippedConnector(player));
+            if (connectorStack.isPresent()) {
+                ItemStack stack = connectorStack.get();
+                DataDistributionConnectorItem connectorItem = (DataDistributionConnectorItem) stack.getItem();
+                return connectorItem.bindTower(stack, player, level, pos, state);
+            }
+        }
+
         if (!level.isClientSide()) {
             boolean showing = tower.toggleRangeDisplay();
             player.displayClientMessage(Component.translatable(
@@ -401,6 +419,20 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         }
 
         return InteractionResult.sidedSuccess(level.isClientSide());
+    }
+
+    /**
+     * Defers the optional Curios class reference until the loader confirms the integration is present.
+     *
+     * @param player player whose dedicated connector slot should be inspected
+     * @return the original equipped connector stack, or an empty optional when Curios is unavailable or the slot is
+     *         empty
+     */
+    private static Optional<ItemStack> findEquippedConnector(Player player) {
+        if (!ModFlags.isCuriosLoaded()) {
+            return Optional.empty();
+        }
+        return CuriosDataDistributionConnectorAccess.find(player);
     }
 
     @Override
