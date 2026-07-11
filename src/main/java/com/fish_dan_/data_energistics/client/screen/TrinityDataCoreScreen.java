@@ -85,9 +85,6 @@ public class TrinityDataCoreScreen extends AEBaseScreen<TrinityDataCoreMenu> {
         setTextContent("matched_blocks", Component.translatable(
                 "screen.data_energistics.trinity_data_core.matched_blocks",
                 this.menu.matchedBlockCount));
-        setTextContent("pattern_buffers", Component.translatable(
-                "screen.data_energistics.trinity_data_core.pattern_buffers",
-                this.menu.patternBufferCount));
         setTextContent("last_failure", Component.translatable(
                 "screen.data_energistics.trinity_data_core.last_failure",
                 getFailureSummary()));
@@ -117,18 +114,15 @@ public class TrinityDataCoreScreen extends AEBaseScreen<TrinityDataCoreMenu> {
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.matched_blocks_label", Component.literal(
                 compactNumber(Integer.toString(this.menu.matchedBlockCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 2, VALUE_COLOR,
                 LEFT_TEXT_WIDTH);
-        drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.pattern_buffers_label", Component.literal(
-                compactNumber(Integer.toString(this.menu.patternBufferCount))), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 3, VALUE_COLOR,
-                LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.cpu_structure_label", structureCountStatus(
                 this.menu.cpuStructureFormed,
-                this.menu.cpuStructureMatchedBlockCount), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
+                this.menu.cpuStructureMatchedBlockCount), LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 3,
                 statusColor(this.menu.cpuStructureFormed), LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.crafting_structure_label", craftingStructureStatus(),
-                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5,
+                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 4,
                 statusColor(this.menu.craftingStructureFormed && this.menu.craftingPatternCapacity > 0), LEFT_TEXT_WIDTH);
         drawKeyValueText(guiGraphics, "screen.data_energistics.trinity_data_core.last_failure_label", getFailureSummary(),
-                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 6, hasAnyFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
+                LEFT_TEXT_X, LEFT_TEXT_Y + LINE_HEIGHT * 5, hasAnyFailure() ? ERROR_COLOR : SUCCESS_COLOR, LEFT_TEXT_WIDTH);
     }
 
     private Component structureCountStatus(boolean formed, int matchedBlocks) {

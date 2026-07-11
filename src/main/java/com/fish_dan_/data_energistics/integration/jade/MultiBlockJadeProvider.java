@@ -32,7 +32,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
     private static final String TAG_FAILURE_Y = "failure_y";
     private static final String TAG_FAILURE_Z = "failure_z";
     private static final String TAG_TRINITY_DATA_CORE = "trinity_data_core";
-    private static final String TAG_PATTERN_BUFFER_COUNT = "pattern_buffer_count";
     private static final String TAG_CPU_STRUCTURE_FORMED = "cpu_structure_formed";
     private static final String TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT = "cpu_structure_matched_block_count";
     private static final String TAG_CPU_FAILURE_REASON = "cpu_failure_reason";
@@ -137,9 +136,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
                 serverData.getInt(TAG_CRAFTING_PATTERN_CAPACITY)));
         appendCraftingFailureTooltip(tooltip, serverData);
         tooltip.add(Component.translatable(
-                "jade.data_energistics.multiblock.pattern_buffers",
-                serverData.getInt(TAG_PATTERN_BUFFER_COUNT)));
-        tooltip.add(Component.translatable(
                 "jade.data_energistics.multiblock.storage_types",
                 serverData.getInt(TAG_STORED_TYPE_COUNT),
                 serverData.getString(TAG_STORED_TYPE_CAPACITY)));
@@ -219,7 +215,6 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
 
     private static void appendTrinityDataCoreServerData(CompoundTag data, TrinityDataCoreMenuHost host) {
         data.putBoolean(TAG_TRINITY_DATA_CORE, true);
-        data.putInt(TAG_PATTERN_BUFFER_COUNT, host.getPatternBufferCount());
         data.putBoolean(TAG_CPU_STRUCTURE_FORMED, host.isCpuStructureFormed());
         data.putInt(TAG_CPU_STRUCTURE_MATCHED_BLOCK_COUNT, host.getCpuStructureMatchedBlockCount());
         String cpuFailureReason = host.getCpuLastFailureReason();

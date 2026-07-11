@@ -25,8 +25,6 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
     public boolean structureFormed;
     @GuiSync(932)
     public int matchedBlockCount;
-    @GuiSync(933)
-    public int patternBufferCount;
     @GuiSync(934)
     public String lastFailureReason = NO_FAILURE;
     @GuiSync(935)
@@ -86,7 +84,6 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
             this.online = this.host.isOnline();
             this.structureFormed = this.host.isStructureFormed();
             this.matchedBlockCount = this.host.getMatchedBlockCount();
-            this.patternBufferCount = this.host.getPatternBufferCount();
             this.cpuStructureFormed = this.host.isCpuStructureFormed();
             this.cpuStructureMatchedBlockCount = this.host.getCpuStructureMatchedBlockCount();
             this.cpuLastFailureReason = this.host.getCpuLastFailureReason();
@@ -132,7 +129,6 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
         this.online = false;
         this.structureFormed = false;
         this.matchedBlockCount = 0;
-        this.patternBufferCount = 0;
         this.cpuStructureFormed = false;
         this.cpuStructureMatchedBlockCount = 0;
         this.cpuLastFailureReason = NO_FAILURE;

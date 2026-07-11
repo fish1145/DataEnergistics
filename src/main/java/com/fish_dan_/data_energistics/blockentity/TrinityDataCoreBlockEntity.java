@@ -6,9 +6,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
-import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageGroup;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
-import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuProfile;
@@ -141,7 +139,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean recheckRequested = true;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
-    private final CompartmentStorage patternBufferStorageView = new CompartmentStorageGroup(this::recognizedPatternBufferStorages);
     private final TrinityDataCoreCraftingRuntime craftingRuntime = new TrinityDataCoreCraftingRuntime(this);
     @Nullable
     private TrinityAccessLease accessLease;
@@ -238,11 +235,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public int getMatchedBlockCount() {
         return this.matchedPositions.size();
-    }
-
-    @Override
-    public int getPatternBufferCount() {
-        return patternBuffers().size();
     }
 
     @Override
@@ -405,66 +397,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return UnavailableCompartmentStorage.INSTANCE;
         }
         return compartmentHost$outputStorage(mainDefinitionKey().structureName());
-    }
-
-    /**
-     * Returns the crafting child structure's recognized pattern buffer view without exposing concrete compartment block
-     * entities.
-     */
-    public CompartmentStorage patternBufferStorage() {
-        return this.patternBufferStorageView;
-    }
-
-    /**
-     * Returns main structure pattern buffers that are visible to the current crafting child structure.
-     */
-    public Collection<PatternBufferCompartmentPart> patternBuffers() {
-        return recognizedPatternBuffers();
-    }
-
-    private Collection<PatternBufferCompartmentPart> recognizedPatternBuffers() {
-        if (!isCraftingAvailable()) {
-            return List.of();
-        }
-        int remainingCapacity = this.craftingProfile.patternCapacity();
-        List<PatternBufferCompartmentPart> patternBuffers = new ArrayList<>();
-        for (PatternBufferCompartmentPart patternBuffer : compartmentHost$getPatternBuffers(mainDefinitionKey().structureName())) {
-            int slotCount = patternBuffer.patternBufferSlotCount();
-            if (slotCount < 0) {
-                throw new IllegalStateException("Pattern buffer slot count must not be negative");
-            }
-            if (slotCount == 0) {
-                continue;
-            }
-            if (remainingCapacity <= 0) {
-                break;
-            }
-            patternBuffers.add(patternBuffer);
-            remainingCapacity -= Math.min(remainingCapacity, slotCount);
-        }
-        return List.copyOf(patternBuffers);
-    }
-
-    private Collection<CompartmentStorage> recognizedPatternBufferStorages() {
-        if (!isCraftingAvailable()) {
-            return List.of();
-        }
-        int remainingCapacity = this.craftingProfile.patternCapacity();
-        List<CompartmentStorage> storages = new ArrayList<>();
-        for (PatternBufferCompartmentPart patternBuffer : compartmentHost$getPatternBuffers(mainDefinitionKey().structureName())) {
-            int slotCount = patternBuffer.patternBufferSlotCount();
-            if (slotCount < 0) {
-                throw new IllegalStateException("Pattern buffer slot count must not be negative");
-            }
-            for (int slot = 0; slot < slotCount && remainingCapacity > 0; slot++) {
-                storages.add(patternBuffer.patternBufferStorage(slot));
-                remainingCapacity--;
-            }
-            if (remainingCapacity <= 0) {
-                break;
-            }
-        }
-        return List.copyOf(storages);
     }
 
     public UUID getStorageId() {

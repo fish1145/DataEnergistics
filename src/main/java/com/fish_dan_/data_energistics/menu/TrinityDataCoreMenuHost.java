@@ -28,11 +28,6 @@ public interface TrinityDataCoreMenuHost {
     int getMatchedBlockCount();
 
     /**
-     * Returns how many pattern buffer compartments are currently bound to the formed structure.
-     */
-    int getPatternBufferCount();
-
-    /**
      * Reports whether the declared crafting CPU child structure is currently formed.
      */
     boolean isCpuStructureFormed();

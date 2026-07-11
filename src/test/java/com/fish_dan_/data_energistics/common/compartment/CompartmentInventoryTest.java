@@ -1103,16 +1103,12 @@ public final class CompartmentInventoryTest {
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
                 ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
-        MePatternBufferBlockEntity patternBuffer = patternBuffer();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
 
         input.storage().insert(iron, 4L, false);
         input.compartment$bindToHost("main", host);
         output.compartment$bindToHost("main", host);
-        patternBuffer.compartment$bindToHost("main", host);
-        patternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
 
         helper.assertFalse(host.isStructureFormed(), "Trinity Data Core should start unformed for this stale binding test");
         helper.assertValueEqual(
@@ -1138,33 +1134,6 @@ public final class CompartmentInventoryTest {
                 output.storage().amount(gold),
                 0L,
                 "Unformed host output accessor should not modify stale output backing storage");
-        helper.assertValueEqual(
-                host.patternBuffers(),
-                List.of(),
-                "Unformed host pattern buffer accessor should hide stale pattern buffer bindings");
-        helper.assertValueEqual(
-                host.patternBufferStorage().amount(diamond),
-                0L,
-                "Unformed host pattern buffer storage should hide stale pattern buffer contents");
-        helper.assertTrue(
-                host.patternBufferStorage().entries().isEmpty(),
-                "Unformed host pattern buffer entries should be empty");
-        helper.assertValueEqual(
-                host.patternBufferStorage().extract(diamond, 1L, false),
-                0L,
-                "Unformed host pattern buffer storage should not extract from stale pattern buffers");
-        helper.assertValueEqual(
-                host.patternBufferStorage().insert(gold, 3L, false),
-                0L,
-                "Unformed host pattern buffer storage should reject writes through stale pattern buffers");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(diamond),
-                5L,
-                "Unformed host pattern buffer storage should not drain stale backing storage");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(gold),
-                0L,
-                "Unformed host pattern buffer storage should not write stale backing storage");
         helper.succeed();
     }
 
@@ -1172,31 +1141,21 @@ public final class CompartmentInventoryTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void trinityDataCoreExposesMainCompartmentViews(GameTestHelper helper) {
-        TrinityDataCoreBlockEntity host = formedCraftingTrinityDataCore(128);
+        TrinityDataCoreBlockEntity host = formedTrinityDataCore();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
                 ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity alternateInput = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
-        MePatternBufferBlockEntity patternBuffer = patternBuffer();
-        MePatternBufferBlockEntity secondPatternBuffer = patternBuffer();
-        MePatternBufferBlockEntity alternatePatternBuffer = patternBuffer();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
 
         input.storage().insert(iron, 4L, false);
         alternateInput.storage().insert(iron, 10L, false);
         input.compartment$bindToHost("main", host);
         output.compartment$bindToHost("main", host);
-        patternBuffer.compartment$bindToHost("main", host);
-        secondPatternBuffer.compartment$bindToHost("main", host);
         alternateInput.compartment$bindToHost("alternate", host);
-        alternatePatternBuffer.compartment$bindToHost("alternate", host);
-        patternBuffer.patternBufferStorage(0).insert(diamond, 4L, false);
-        secondPatternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
-        alternatePatternBuffer.patternBufferStorage(0).insert(diamond, 13L, false);
 
         helper.assertValueEqual(
                 host.compartmentInputStorage().amount(iron),
@@ -1207,119 +1166,6 @@ public final class CompartmentInventoryTest {
                 2L,
                 "Trinity Data Core output accessor should write through the main output view");
         helper.assertValueEqual(output.storage().amount(gold), 2L, "Trinity Data Core output write should reach output backing storage");
-        helper.assertValueEqual(
-                host.patternBuffers(),
-                List.of(patternBuffer, secondPatternBuffer),
-                "Trinity Data Core pattern buffer accessor should expose main structure pattern buffers");
-        helper.assertValueEqual(
-                host.patternBufferStorage().amount(diamond),
-                9L,
-                "Trinity Data Core pattern buffer storage should aggregate main pattern buffers only");
-        helper.assertValueEqual(
-                host.patternBufferStorage().extract(diamond, 6L, false),
-                6L,
-                "Trinity Data Core pattern buffer storage should extract across main pattern buffers");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(diamond),
-                0L,
-                "Trinity Data Core pattern buffer extract should drain the first main pattern buffer first");
-        helper.assertValueEqual(
-                secondPatternBuffer.patternBufferStorage(0).amount(diamond),
-                3L,
-                "Trinity Data Core pattern buffer extract should continue into the second main pattern buffer");
-        helper.assertValueEqual(
-                alternatePatternBuffer.patternBufferStorage(0).amount(diamond),
-                13L,
-                "Trinity Data Core pattern buffer storage should not include alternate structure buffers");
-        helper.assertValueEqual(
-                host.patternBufferStorage().insert(gold, 3L, false),
-                3L,
-                "Trinity Data Core pattern buffer storage should write to a main pattern buffer");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(gold),
-                3L,
-                "Trinity Data Core pattern buffer write should reach a main pattern buffer backing storage");
-        helper.assertValueEqual(
-                alternatePatternBuffer.patternBufferStorage(0).amount(gold),
-                0L,
-                "Trinity Data Core pattern buffer write should not reach alternate structure buffers");
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_requires_crafting_child_for_pattern_buffers")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void trinityDataCoreRequiresCraftingChildForPatternBuffers(GameTestHelper helper) {
-        TrinityDataCoreBlockEntity host = formedTrinityDataCore();
-        MePatternBufferBlockEntity patternBuffer = patternBuffer();
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
-        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-
-        patternBuffer.compartment$bindToHost("main", host);
-        patternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
-
-        helper.assertFalse(host.isCraftingAvailable(), "Formed main structure without crafting child should not recognize patterns");
-        helper.assertValueEqual(
-                host.patternBuffers(),
-                List.of(),
-                "Trinity Data Core should hide pattern buffers without a valid crafting child structure");
-        helper.assertValueEqual(
-                host.patternBufferStorage().amount(diamond),
-                0L,
-                "Trinity Data Core should not read pattern buffer contents without a valid crafting child structure");
-        helper.assertValueEqual(
-                host.patternBufferStorage().insert(gold, 3L, false),
-                0L,
-                "Trinity Data Core should not write pattern buffer contents without a valid crafting child structure");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(diamond),
-                5L,
-                "Hidden pattern buffer storage should keep its backing contents");
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_data_core_limits_pattern_buffers_by_crafting_capacity")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void trinityDataCoreLimitsPatternBuffersByCraftingCapacity(GameTestHelper helper) {
-        TrinityDataCoreBlockEntity host = formedCraftingTrinityDataCore(
-                MePatternBufferBlockEntity.PATTERN_SLOT_COUNT + 1);
-        MePatternBufferBlockEntity patternBuffer = patternBuffer();
-        MePatternBufferBlockEntity secondPatternBuffer = patternBuffer();
-        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
-        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-
-        patternBuffer.compartment$bindToHost("main", host);
-        secondPatternBuffer.compartment$bindToHost("main", host);
-        patternBuffer.patternBufferStorage(MePatternBufferBlockEntity.PATTERN_SLOT_COUNT - 1).insert(iron, 2L, false);
-        secondPatternBuffer.patternBufferStorage(0).insert(diamond, 3L, false);
-        secondPatternBuffer.patternBufferStorage(1).insert(gold, 5L, false);
-
-        helper.assertValueEqual(
-                host.patternBuffers(),
-                List.of(patternBuffer, secondPatternBuffer),
-                "Capacity that reaches into a second pattern buffer should expose both buffers");
-        helper.assertValueEqual(
-                host.patternBufferStorage().amount(iron),
-                2L,
-                "Trinity Data Core should recognize the last slot allowed in the first pattern buffer");
-        helper.assertValueEqual(
-                host.patternBufferStorage().amount(diamond),
-                3L,
-                "Trinity Data Core should recognize the first slot allowed in the second pattern buffer");
-        helper.assertValueEqual(
-                host.patternBufferStorage().amount(gold),
-                0L,
-                "Trinity Data Core should not recognize pattern slots beyond crafting child capacity");
-        helper.assertValueEqual(
-                host.patternBufferStorage().extract(gold, 1L, false),
-                0L,
-                "Trinity Data Core should not extract from pattern slots beyond crafting child capacity");
-        helper.assertValueEqual(
-                secondPatternBuffer.patternBufferStorage(1).amount(gold),
-                5L,
-                "Unrecognized pattern slots should keep their backing contents");
         helper.succeed();
     }
 
@@ -1536,18 +1382,6 @@ public final class CompartmentInventoryTest {
         TrinityDataCoreBlockEntity host = trinityDataCore();
         CompoundTag tag = currentTrinityHostTag();
         tag.putBoolean("formed", true);
-        host.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
-        return host;
-    }
-
-    private static TrinityDataCoreBlockEntity formedCraftingTrinityDataCore(int patternCapacity) {
-        TrinityDataCoreBlockEntity host = trinityDataCore();
-        CompoundTag tag = currentTrinityHostTag();
-        tag.putBoolean("formed", true);
-        tag.putBoolean("crafting_structure_formed", true);
-        tag.putInt("crafting_structure_matched_block_count", 1);
-        tag.putInt("crafting_pattern_core_count", 1);
-        tag.putInt("crafting_pattern_capacity", patternCapacity);
         host.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
         return host;
     }
