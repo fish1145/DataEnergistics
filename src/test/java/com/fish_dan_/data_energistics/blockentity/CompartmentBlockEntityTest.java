@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
@@ -39,6 +40,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -66,6 +68,7 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
+import appeng.helpers.patternprovider.PatternContainer;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import java.util.ArrayList;
@@ -417,6 +420,131 @@ public final class CompartmentBlockEntityTest {
                 }
                 helper.assertTrue(hatch.terminalPartitions().isEmpty(),
                         "Catalog self-invalidation must detach every terminal partition");
+            }
+            destroyGridPower(testGridPower);
+        });
+    }
+
+    @TestHolder("trinity_access_hatch_partitions_512_core_on_real_grid")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void trinityAccessHatchPartitions512CoreOnRealGrid(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos localOrigin = new BlockPos(25, 4, 25);
+        BlockPos origin = helper.absolutePos(localOrigin);
+        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+                .defaultBlockState()
+                .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
+        BlockEntity blockEntity = level.getBlockEntity(origin);
+        if (!(blockEntity instanceof TrinityDataCoreBlockEntity host)) {
+            helper.fail("Expected a placed Trinity Data Core block entity", localOrigin);
+            return;
+        }
+
+        buildMainStructure(helper, level, origin);
+        host.serverTick();
+        List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
+        helper.assertValueEqual(hatches.size(), 2, "Main structure must bind exactly two access hatches");
+        buildCraftingStructure(helper, level, origin);
+        host.requestStructureRecheck();
+        host.serverTick();
+        helper.assertTrue(host.isCraftingStructureFormed(),
+                "Crafting structure should form before terminal partition integration");
+
+        TrinityPatternCatalog.CoreMount originalMount = host.getPatternCatalog().mountedCores().getFirst();
+        BlockPos upgradedCorePosition = originalMount.position();
+        level.setBlock(
+                upgradedCorePosition,
+                ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get().defaultBlockState(),
+                Block.UPDATE_ALL);
+        host.requestStructureRecheck();
+        host.serverTick();
+        TrinityPatternCatalog.CoreMount upgradedMount = host.getPatternCatalog().mountedCores().stream()
+                .filter(mount -> mount.position().equals(upgradedCorePosition))
+                .findFirst()
+                .orElseThrow();
+        helper.assertValueEqual(upgradedMount.blockCapacity(), 512,
+                "Selected physical P core should expose the tier-3 capacity");
+        if (!(upgradedMount.core() instanceof TrinityPatternCoreBlockEntity physicalCore)) {
+            helper.fail("Expected the upgraded terminal mount to use a physical Trinity P-core block entity");
+            return;
+        }
+
+        AtomicReference<TestGridPower> testGridPower = new AtomicReference<>();
+        registerGridPowerCleanup(helper, List.of(testGridPower));
+        AtomicBoolean patternsWritten = new AtomicBoolean();
+        ItemStack encodedPattern = encodedOakPlanksPattern(helper);
+        int[] partitionIndexes = { 0, 0, 1, 3 };
+        int[] partitionSlots = { 0, 127, 0, 127 };
+        int[] physicalSlots = { 0, 127, 128, 511 };
+
+        helper.succeedWhen(() -> {
+            connectAccessHatches(helper, level, hatches, testGridPower);
+            host.serverTick();
+            for (TrinityAccessHatchBlockEntity hatch : hatches) {
+                hatch.refreshTrinityAccess();
+            }
+            assertSingleLeaseOwner(helper, host, hatches);
+            TrinityAccessHatchBlockEntity leaseHatch = hatches.stream()
+                    .filter(host::isLeaseOwner)
+                    .findFirst()
+                    .orElseThrow();
+            IGrid grid = host.accessGrid();
+            helper.assertTrue(grid != null, "Lease hatch should expose its powered AE grid");
+
+            List<TrinityPatternTerminalPartition> corePartitions = new ArrayList<>();
+            for (var partition : leaseHatch.terminalPartitions()) {
+                if (partition.key().coreId().equals(physicalCore.coreId())) {
+                    corePartitions.add(partition);
+                }
+            }
+            helper.assertValueEqual(corePartitions.size(), 4,
+                    "One 512-slot P core must publish exactly four PatternContainers");
+            for (int partitionIndex = 0; partitionIndex < corePartitions.size(); partitionIndex++) {
+                TrinityPatternTerminalPartition partition = corePartitions.get(partitionIndex);
+                helper.assertValueEqual(partition.key().partitionIndex(), partitionIndex,
+                        "Tier-3 P-core terminal partitions must retain stable indexes");
+                helper.assertValueEqual(partition.firstCoreSlot(), partitionIndex * 128,
+                        "Tier-3 P-core terminal partitions must cover contiguous physical ranges");
+            }
+            List<PatternContainer> coreContainers = new ArrayList<>(corePartitions);
+            var terminalGroup = coreContainers.getFirst().getTerminalGroup();
+            for (PatternContainer container : coreContainers) {
+                helper.assertValueEqual(container.getTerminalPatternInventory().size(), 128,
+                        "Every tier-3 P-core terminal partition must expose exactly 128 slots");
+                helper.assertTrue(container.getGrid() == grid,
+                        "Every published PatternContainer must belong to the lease grid");
+                helper.assertTrue(container.isVisibleInTerminal(),
+                        "Every current PatternContainer must be visible to the pattern terminal");
+                helper.assertTrue(container.getTerminalGroup() == terminalGroup,
+                        "All partitions of one P core must share one terminal group");
+            }
+
+            if (patternsWritten.compareAndSet(false, true)) {
+                for (int index = 0; index < physicalSlots.length; index++) {
+                    ItemStack remainder = coreContainers.get(partitionIndexes[index])
+                            .getTerminalPatternInventory()
+                            .insertItem(partitionSlots[index], encodedPattern.copy(), false);
+                    helper.assertTrue(remainder.isEmpty(),
+                            "Terminal partition should accept boundary write for physical slot " + physicalSlots[index]);
+                }
+            }
+
+            int installedPatternCount = 0;
+            for (int slot = 0; slot < physicalCore.patternCapacity(); slot++) {
+                ItemStack installed = physicalCore.pattern(slot);
+                if (!installed.isEmpty()) {
+                    installedPatternCount++;
+                }
+            }
+            helper.assertValueEqual(installedPatternCount, 4,
+                    "Four terminal boundary writes must reach four distinct physical slots");
+            for (int physicalSlot : physicalSlots) {
+                ItemStack installed = physicalCore.pattern(physicalSlot);
+                helper.assertTrue(
+                        ItemStack.isSameItemSameComponents(installed, encodedPattern) &&
+                                installed.getCount() == encodedPattern.getCount(),
+                        "Terminal partition boundary must map to physical P-core slot " + physicalSlot);
             }
             destroyGridPower(testGridPower);
         });

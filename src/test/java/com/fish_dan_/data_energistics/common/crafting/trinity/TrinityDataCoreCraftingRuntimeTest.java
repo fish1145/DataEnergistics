@@ -29,6 +29,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
 import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.crafting.ICraftingService;
 import appeng.api.networking.crafting.ICraftingSubmitResult;
@@ -168,6 +169,48 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 host.getCpuPartitions().size(),
                 0,
                 "Clearing child contribution should remove child CPU partitions");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_maximum_cpu_profile_dispatches_pattern")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void maximumCpuProfileDispatchesPattern(GameTestHelper helper) {
+        AEItemKey output = AEItemKey.of(Items.DIAMOND);
+        PendingPatternDetails pattern = new PendingPatternDetails(output);
+        RecordingCraftingProvider provider = new RecordingCraftingProvider(pattern);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution(
+                "maximum",
+                TrinityDataCoreCpuContribution.of(Long.MAX_VALUE, Integer.MAX_VALUE, 1));
+        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
+        CraftingPlan plan = new CraftingPlan(
+                new GenericStack(output, 1L),
+                1L,
+                false,
+                false,
+                new KeyCounter(),
+                new KeyCounter(),
+                new KeyCounter(),
+                Map.of(pattern, 1L));
+
+        ICraftingSubmitResult result = cpu.submitJob(grid, plan, IActionSource.empty(), null);
+        helper.assertTrue(result.successful(), "Maximum CPU profile should accept a directly dispatched pattern job");
+        helper.assertValueEqual(
+                cpu.getCoProcessors(),
+                Integer.MAX_VALUE,
+                "The dispatch test must exercise the full co-processor profile");
+
+        cpu.tick(grid.energyService(), grid.craftingService());
+
+        helper.assertValueEqual(provider.pushCount(), 1, "Maximum CPU profile must push at least one pattern");
+        helper.assertTrue(provider.pushedPattern() == pattern, "The provider must receive the submitted pattern task");
+        helper.assertValueEqual(provider.pushedInputSlots(), 0, "The zero-input test pattern should dispatch intact");
+        helper.assertValueEqual(cpu.getWaitingFor(output), 1L, "The dispatched output must enter CPU waiting state");
         helper.succeed();
     }
 
@@ -997,10 +1040,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         private final TestStorage storage = new TestStorage();
         private final IStorageService storageService = new TestStorageService(this.storage);
         private final IEnergyService energyService = new TestEnergyService();
-        private final CraftingService craftingService = new CraftingService(
+        private final TestCraftingService craftingService = new TestCraftingService(
                 this,
                 this.storageService,
                 this.energyService);
+
+        private void setCraftingProvider(ICraftingProvider provider) {
+            this.craftingService.setProvider(provider);
+        }
 
         private TestStorage storage() {
             return this.storage;
@@ -1077,6 +1124,30 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         public void export(JsonWriter jsonWriter) throws IOException {
             jsonWriter.beginObject();
             jsonWriter.endObject();
+        }
+    }
+
+    private static final class TestCraftingService extends CraftingService {
+
+        @Nullable
+        private ICraftingProvider provider;
+
+        private TestCraftingService(IGrid grid, IStorageService storageService, IEnergyService energyService) {
+            super(grid, storageService, energyService);
+        }
+
+        private void setProvider(ICraftingProvider provider) {
+            this.provider = provider;
+        }
+
+        @Override
+        public Iterable<ICraftingProvider> getProviders(IPatternDetails pattern) {
+            ICraftingProvider currentProvider = this.provider;
+            if (currentProvider == null || currentProvider.getAvailablePatterns().stream()
+                    .noneMatch(candidate -> candidate == pattern)) {
+                return List.of();
+            }
+            return List.of(currentProvider);
         }
     }
 
@@ -1219,6 +1290,50 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         @Override
         public double getEnergyDemand(double maxRequired) {
             return 0.0D;
+        }
+    }
+
+    private static final class RecordingCraftingProvider implements ICraftingProvider {
+
+        private final IPatternDetails pattern;
+        @Nullable
+        private IPatternDetails pushedPattern;
+        private int pushedInputSlots = -1;
+        private int pushCount;
+
+        private RecordingCraftingProvider(IPatternDetails pattern) {
+            this.pattern = pattern;
+        }
+
+        private int pushCount() {
+            return this.pushCount;
+        }
+
+        @Nullable
+        private IPatternDetails pushedPattern() {
+            return this.pushedPattern;
+        }
+
+        private int pushedInputSlots() {
+            return this.pushedInputSlots;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.pattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            this.pushedPattern = patternDetails;
+            this.pushedInputSlots = inputHolder.length;
+            this.pushCount++;
+            return true;
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
         }
     }
 

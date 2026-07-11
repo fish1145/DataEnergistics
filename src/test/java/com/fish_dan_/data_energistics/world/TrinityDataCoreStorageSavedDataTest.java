@@ -147,6 +147,49 @@ public final class TrinityDataCoreStorageSavedDataTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_storage_saved_data_capacity_reduction_retains_extract")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void capacityReductionRejectsInsertButRetainsExtraction(GameTestHelper helper) {
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
+        UUID hostId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TrinityDataCoreStorageProfile highCapacity = new TrinityDataCoreStorageProfile(
+                BigInteger.valueOf(20L),
+                1,
+                1,
+                2,
+                false);
+        TrinityDataCoreStorageProfile reducedCapacity = new TrinityDataCoreStorageProfile(
+                BigInteger.TEN,
+                1,
+                1,
+                2,
+                false);
+
+        helper.assertValueEqual(
+                data.insert(hostId, iron, 20L, Actionable.MODULATE, highCapacity),
+                20L,
+                "Higher capacity should accept the initial stored amount");
+        helper.assertValueEqual(
+                data.insert(hostId, iron, 1L, Actionable.SIMULATE, reducedCapacity),
+                0L,
+                "Reduced capacity must reject simulated inserts while existing contents exceed capacity");
+        helper.assertValueEqual(
+                data.insert(hostId, iron, 1L, Actionable.MODULATE, reducedCapacity),
+                0L,
+                "Reduced capacity must reject modulated inserts while existing contents exceed capacity");
+        helper.assertValueEqual(
+                data.extract(hostId, iron, 20L, Actionable.MODULATE),
+                20L,
+                "Capacity reduction must not prevent complete extraction of existing contents");
+        helper.assertValueEqual(
+                data.summary(hostId),
+                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
+                "Complete extraction after capacity reduction should clear the storage entry");
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_storage_saved_data_unlimited_profile_accepts_all")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
