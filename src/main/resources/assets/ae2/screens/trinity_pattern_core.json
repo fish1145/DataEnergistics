@@ -2,7 +2,7 @@
 	"$schema": "schema.json",
 	"includes": ["common/common.json", "common/player_inventory.json"],
 	"background": {
-		"texture": "guis/adaptive_pattern_provider.png",
+		"texture": "guis/me_digital_pattern_processing_core.png",
 		"srcRect": [0, 0, 176, 256]
 	},
 	"slots": {
