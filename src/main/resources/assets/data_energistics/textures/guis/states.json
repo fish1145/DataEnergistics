@@ -147,6 +147,48 @@
 			"width": 16,
 			"height": 16
 		},
+		"MULTIBLOCK_BUILDER_OPEN": {
+			"x": 0,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
+		"MULTIBLOCK_BUILDER_STRUCTURE_4": {
+			"x": 32,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
+		"MULTIBLOCK_BUILDER_STRUCTURE_3": {
+			"x": 48,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
+		"MULTIBLOCK_BUILDER_STRUCTURE_2": {
+			"x": 64,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
+		"MULTIBLOCK_BUILDER_STRUCTURE_1": {
+			"x": 80,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
+		"MULTIBLOCK_BUILDER_STRUCTURE_0": {
+			"x": 96,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
+		"MULTIBLOCK_BUILDER_BUILD": {
+			"x": 112,
+			"y": 112,
+			"width": 16,
+			"height": 16
+		},
 		"AE2LTPP_PROVIDER_COSE_BASE": {
 			"x": 0,
 			"y": 238,
