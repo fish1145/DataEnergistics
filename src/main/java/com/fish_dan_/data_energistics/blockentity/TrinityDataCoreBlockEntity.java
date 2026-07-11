@@ -67,6 +67,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
@@ -1645,13 +1646,35 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     /** Cancels active CPU jobs only when the host block is being permanently removed from the world. */
     public void onPermanentRemoval() {
-        this.loaded = false;
         this.craftingRuntime.cancelAllJobs();
+        recoverCancelledCpuInventory();
+        this.loaded = false;
         this.craftingRuntime.setPaused(true);
         this.patternCatalog.clear();
         this.patternCatalogValid = false;
         this.accessLease = null;
         clearCompartmentBindings(mainDefinitionKey().structureName());
+    }
+
+    private void recoverCancelledCpuInventory() {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            String message = "Trinity host " + this.worldPosition +
+                    " cannot durably recover cancelled CPU inventory without a server level";
+            LOGGER.error(message);
+            throw new IllegalStateException(message);
+        }
+        TrinityDataCoreStorageSavedData storage = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
+        boolean recoveredAll = this.craftingRuntime.recoverCancelledInventory((key, amount) -> storage.insert(
+                this.storageId,
+                key,
+                amount,
+                Actionable.MODULATE));
+        if (!recoveredAll) {
+            String message = "Trinity host " + this.worldPosition +
+                    " retained CPU inventory after durable removal recovery";
+            LOGGER.error(message);
+            throw new IllegalStateException(message);
+        }
     }
 
     private static TrinityDataCoreStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {

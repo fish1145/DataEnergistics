@@ -22,6 +22,7 @@ import appeng.me.service.CraftingService;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
@@ -157,6 +158,11 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.logic.isCantStoreItems();
     }
 
+    /** Delegates durable removal recovery to this partition's concrete CPU inventory. */
+    boolean recoverIdleInventory(BiFunction<AEKey, Long, Long> recovery) {
+        return this.logic.recoverIdleInventory(recovery);
+    }
+
     /**
      * @return last tick where this CPU changed crafting-visible state
      */
@@ -186,10 +192,24 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
     }
 
     /**
-     * @return true when the host is formed and at least one bound access hatch is online
+     * @return true only while the CPU child publishes this current partition on an active lease grid
      */
     public boolean isActive() {
-        return this.host.isStructureFormed() && this.host.hasActiveAccessHatch();
+        return this.host.isCpuProviderAvailable() && isCurrentPartition() && this.host.accessGrid() != null;
+    }
+
+    /**
+     * Returns whether this partition is still published by its host on the exact grid submitting a job.
+     *
+     * @param grid grid attempting to submit the job
+     * @return true only while this remains a current CPU partition on the host's active lease grid
+     */
+    boolean isActiveOnGrid(IGrid grid) {
+        return this.host.isCpuProviderAvailable() && isCurrentPartition() && this.host.accessGrid() == grid;
+    }
+
+    private boolean isCurrentPartition() {
+        return this.host.getCpuPartitions().stream().anyMatch(partition -> partition == this);
     }
 
     @Override

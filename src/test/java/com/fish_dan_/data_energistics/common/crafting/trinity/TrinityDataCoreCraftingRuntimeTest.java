@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -42,12 +43,14 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.crafting.CraftingPlan;
+import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.service.CraftingService;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.stream.JsonWriter;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +81,72 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 host.getCraftingRuntime().profile().storageBytes(),
                 0L,
                 "Formed main structure should not contribute crafting storage");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_rejects_wrong_grid_and_stale_partition_without_extracting")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRejectsWrongGridAndStalePartitionWithoutExtracting(GameTestHelper helper) {
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TestGrid leaseGrid = new TestGrid();
+        TestGrid wrongGrid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), leaseGrid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
+        CraftingPlan plan = ingredientPlan(iron, 2L);
+        seedStorage(leaseGrid.storage(), iron, 2L);
+        seedStorage(wrongGrid.storage(), iron, 2L);
+
+        assertOfflineWithoutExtraction(helper, cpu, wrongGrid, plan, iron, "Wrong grid");
+
+        host.setCpuProviderAvailable(false);
+        assertOfflineWithoutExtraction(helper, cpu, leaseGrid, plan, iron, "Unavailable CPU child");
+
+        host.setCpuProviderAvailable(true);
+        host.clearCpuContribution("cpu");
+        assertOfflineWithoutExtraction(helper, cpu, leaseGrid, plan, iron, "Stale CPU partition");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_permanent_removal_recovers_cpu_inventory_when_grid_rejects")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void permanentRemovalRecoversCpuInventoryWhenGridRejects(GameTestHelper helper) {
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(2048L, 0, 2));
+        List<TrinityDataCoreVirtualCpu> cpus = host.getCpuPartitions();
+        seedStorage(grid.storage(), iron, 4L);
+
+        for (TrinityDataCoreVirtualCpu cpu : cpus) {
+            ICraftingSubmitResult result = cpu.submitJob(
+                    grid,
+                    ingredientPlan(iron, 2L),
+                    IActionSource.empty(),
+                    null);
+            helper.assertTrue(result.successful(), "Recovery test should submit a job to every retained CPU");
+        }
+        helper.assertValueEqual(grid.storage().getStored(iron), 0L,
+                "Submitted CPU jobs should own all four extracted ingredients");
+
+        grid.storage().setMaxAcceptedPerInsert(0L);
+        host.onPermanentRemoval();
+
+        for (TrinityDataCoreVirtualCpu cpu : cpus) {
+            helper.assertFalse(cpu.isBusy(), "Permanent removal should cancel every recovery test job");
+            helper.assertValueEqual(cpu.getStored(iron), 0L,
+                    "Every retained CPU inventory must be empty after durable recovery");
+        }
+        helper.assertValueEqual(
+                TrinityDataCoreStorageSavedData.get(helper.getLevel().getServer()).amount(host.getStorageId(), iron),
+                BigInteger.valueOf(4L),
+                "All grid-rejected CPU ingredients should persist under the dropped host storage UUID");
         helper.succeed();
     }
 
@@ -697,11 +766,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     }
 
     private static BusyRuntimeFixture busyRuntime(GameTestHelper helper, BlockPos hostPos) {
-        TestHost host = new TestHost(helper.absolutePos(hostPos));
+        TestGrid grid = new TestGrid();
+        TestHost host = new TestHost(helper.absolutePos(hostPos), grid);
         host.setLevel(helper.getLevel());
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
-        TestGrid grid = new TestGrid();
 
         TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
         ICraftingSubmitResult result = cpu.submitJob(
@@ -747,6 +816,45 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 emittedItems,
                 new KeyCounter(),
                 Map.of());
+    }
+
+    private static CraftingPlan ingredientPlan(AEKey ingredient, long amount) {
+        KeyCounter usedItems = new KeyCounter();
+        usedItems.add(ingredient, amount);
+        return new CraftingPlan(
+                new GenericStack(AEItemKey.of(Items.DIAMOND), 1L),
+                1L,
+                false,
+                false,
+                usedItems,
+                new KeyCounter(),
+                new KeyCounter(),
+                Map.of());
+    }
+
+    private static void seedStorage(TestStorage storage, AEKey key, long amount) {
+        storage.setMaxAcceptedPerInsert(Long.MAX_VALUE);
+        long inserted = storage.insert(key, amount, Actionable.MODULATE, IActionSource.empty());
+        if (inserted != amount) {
+            throw new IllegalStateException("Test storage rejected seeded amount for " + key);
+        }
+    }
+
+    private static void assertOfflineWithoutExtraction(GameTestHelper helper,
+                                                       TrinityDataCoreVirtualCpu cpu,
+                                                       TestGrid grid,
+                                                       CraftingPlan plan,
+                                                       AEKey ingredient,
+                                                       String scenario) {
+        long before = grid.storage().getStored(ingredient);
+        ICraftingSubmitResult result = cpu.submitJob(grid, plan, IActionSource.empty(), null);
+        helper.assertTrue(result == CraftingSubmitResult.CPU_OFFLINE,
+                scenario + " should reject the old CPU reference as offline");
+        helper.assertValueEqual(
+                grid.storage().getStored(ingredient),
+                before,
+                scenario + " must reject before extracting any ingredient");
+        helper.assertFalse(cpu.isBusy(), scenario + " must not install a CPU job");
     }
 
     private static void submitOutputJob(TrinityDataCoreVirtualCpu cpu,
@@ -835,19 +943,38 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
     private static final class TestHost extends TrinityDataCoreBlockEntity {
 
+        @Nullable
+        private final IGrid grid;
+
         private TestHost(BlockPos pos) {
+            this(pos, null);
+        }
+
+        private TestHost(BlockPos pos, @Nullable IGrid grid) {
             super(pos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
+            this.grid = grid;
         }
 
         @Override
         public boolean hasActiveAccessHatch() {
             return true;
         }
+
+        @Override
+        public boolean isCpuProviderAvailable() {
+            return true;
+        }
+
+        @Override
+        public @Nullable IGrid accessGrid() {
+            return this.grid;
+        }
     }
 
     private static final class NetworkedTestHost extends TrinityDataCoreBlockEntity {
 
         private final TestGrid grid;
+        private boolean cpuProviderAvailable = true;
 
         private NetworkedTestHost(BlockPos pos, TestGrid grid) {
             super(pos, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
@@ -857,6 +984,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         @Override
         public boolean hasActiveAccessHatch() {
             return true;
+        }
+
+        @Override
+        public boolean isCpuProviderAvailable() {
+            return this.cpuProviderAvailable;
+        }
+
+        private void setCpuProviderAvailable(boolean cpuProviderAvailable) {
+            this.cpuProviderAvailable = cpuProviderAvailable;
         }
 
         @Override

@@ -35,6 +35,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
@@ -84,11 +85,11 @@ final class TrinityDataCoreCpuLogic {
                                        ICraftingPlan plan,
                                        IActionSource source,
                                        @Nullable ICraftingRequester requester) {
+        if (!this.cpu.isActiveOnGrid(grid)) {
+            return CraftingSubmitResult.CPU_OFFLINE;
+        }
         if (this.job != null) {
             return CraftingSubmitResult.CPU_BUSY;
-        }
-        if (!this.cpu.isActive()) {
-            return CraftingSubmitResult.CPU_OFFLINE;
         }
         if (this.cpu.getAvailableStorage() < plan.bytes()) {
             return CraftingSubmitResult.CPU_TOO_SMALL;
@@ -494,6 +495,26 @@ final class TrinityDataCoreCpuLogic {
      */
     boolean isCantStoreItems() {
         return this.cantStoreItems;
+    }
+
+    /** Moves idle inventory through a durable sink and reports whether no remainder is retained. */
+    boolean recoverIdleInventory(BiFunction<AEKey, Long, Long> recovery) {
+        Preconditions.checkState(this.job == null, "CPU should not have a job while recovering inventory");
+        for (var entry : this.inventory.list) {
+            long available = entry.getLongValue();
+            long recovered = recovery.apply(entry.getKey(), available);
+            if (recovered < 0L || recovered > available) {
+                throw new IllegalStateException("Trinity CPU inventory recovery violated the insertion contract for " +
+                        entry.getKey() + ": offered " + available + ", recovered " + recovered);
+            }
+            if (recovered > 0L) {
+                postChange(entry.getKey());
+                entry.setValue(available - recovered);
+            }
+        }
+        this.inventory.list.removeZeros();
+        this.cpu.markDirty();
+        return this.inventory.list.isEmpty();
     }
 
     void getAllItems(KeyCounter out) {

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
 
 /**
  * Runtime CPU container owned by a Trinity Data Core block entity.
@@ -84,6 +85,20 @@ public final class TrinityDataCoreCraftingRuntime {
         for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
             cpu.cancelJob();
         }
+    }
+
+    /**
+     * Moves inventory left behind after cancellation into durable host-owned storage.
+     *
+     * @param recovery sink that reports how much of each offered key was durably recovered
+     * @return true when every retained partition has no remaining inventory
+     */
+    public boolean recoverCancelledInventory(BiFunction<AEKey, Long, Long> recovery) {
+        boolean recoveredAll = true;
+        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+            recoveredAll &= cpu.recoverIdleInventory(recovery);
+        }
+        return recoveredAll;
     }
 
     /**

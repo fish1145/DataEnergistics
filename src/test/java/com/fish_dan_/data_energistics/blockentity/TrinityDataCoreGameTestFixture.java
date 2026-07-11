@@ -98,6 +98,10 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
         return this.host;
     }
 
+    List<TrinityAccessHatchBlockEntity> accessHatches() {
+        return this.hatches;
+    }
+
     IGrid grid() {
         IGrid grid = this.host.accessGrid();
         if (grid == null) {

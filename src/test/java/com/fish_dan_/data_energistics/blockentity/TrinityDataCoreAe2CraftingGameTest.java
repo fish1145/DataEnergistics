@@ -34,6 +34,7 @@ import appeng.api.networking.crafting.ICraftingSubmitResult;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.KeyCounter;
 import appeng.me.service.CraftingService;
 
 import java.math.BigInteger;
@@ -44,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -51,6 +53,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
 
     private static final int TABLE_PATTERN_SLOT = 37;
     private static final int CAKE_PATTERN_SLOT = 38;
+    private static final int REMOVAL_PATTERN_SLOT = 39;
 
     private TrinityDataCoreAe2CraftingGameTest() {}
 
@@ -170,6 +173,92 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.EGG), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.WHEAT), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("trinity_data_core_permanent_removal_cancels_job_before_withdrawing_network")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void permanentRemovalCancelsJobBeforeWithdrawingNetwork(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
+        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
+        PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), REMOVAL_PATTERN_SLOT);
+        PendingCraftingPlan plan = new PendingCraftingPlan(
+                helper.getLevel(),
+                AEItemKey.of(Items.CRAFTING_TABLE),
+                1L);
+        ItemStack pattern = craftingTablePattern(helper.getLevel());
+        AtomicReference<IGrid> removalGrid = new AtomicReference<>();
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(core.trySetPattern(REMOVAL_PATTERN_SLOT, pattern),
+                            "Removal test pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshAccessHatches();
+                    assertPublishedRoute(
+                            helper,
+                            fixture.grid(),
+                            AEItemKey.of(Items.CRAFTING_TABLE),
+                            route);
+                })
+                .thenExecute(() -> {
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
+                    plan.start(fixture.grid(), host.accessActionSource());
+                })
+                .thenWaitUntil(plan::await)
+                .thenExecute(() -> {
+                    IGrid grid = fixture.grid();
+                    ICraftingSubmitResult result = grid.getCraftingService().submitJob(
+                            plan.plan(),
+                            null,
+                            cpu,
+                            true,
+                            host.accessActionSource());
+                    helper.assertTrue(result.successful(),
+                            "Removal test should submit a real AE2 job: " + result.errorCode());
+                    helper.assertTrue(cpu.isBusy(), "Submitted removal test CPU should own an active job");
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
+                    removalGrid.set(grid);
+
+                    helper.getLevel().destroyBlock(host.getBlockPos(), false);
+
+                    helper.assertFalse(cpu.isBusy(), "Permanent host removal should cancel its active CPU job");
+                    helper.assertFalse(host.isStorageAvailable(),
+                            "Permanent host removal should withdraw its storage capability");
+                    helper.assertTrue(host.accessGrid() == null,
+                            "Permanent host removal should clear its network lease");
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
+                })
+                .thenWaitUntil(() -> {
+                    IGrid grid = removalGrid.get();
+                    helper.assertFalse(grid.getCraftingService().getCpus().contains(cpu),
+                            "Removed host CPU must not remain published on the old grid");
+                    helper.assertTrue(grid.getCraftingService()
+                            .getCraftingFor(AEItemKey.of(Items.CRAFTING_TABLE))
+                            .stream()
+                            .noneMatch(details -> details instanceof RoutedCraftingPatternDetails routed &&
+                                    routed.route().equals(route)),
+                            "Removed host pattern route must not remain published on the old grid");
+                    KeyCounter oldGridContents = new KeyCounter();
+                    grid.getStorageService().getInventory().getAvailableStacks(oldGridContents);
+                    helper.assertValueEqual(
+                            oldGridContents.get(AEItemKey.of(Items.CRIMSON_PLANKS)),
+                            0L,
+                            "Removed host storage must no longer be mounted on the old grid");
+                    helper.assertTrue(fixture.accessHatches().stream()
+                            .allMatch(hatch -> hatch.boundCraftingRuntime() == null &&
+                                    hatch.accessGrid() == null &&
+                                    hatch.terminalPartitions().isEmpty()),
+                            "Every former access hatch should withdraw CPU, storage and terminal capabilities");
                 })
                 .thenSucceed();
     }
