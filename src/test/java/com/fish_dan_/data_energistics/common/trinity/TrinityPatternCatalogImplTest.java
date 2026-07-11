@@ -901,6 +901,11 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
+        public PatternCacheSnapshot patternCacheSnapshot() {
+            return this.delegate.patternCacheSnapshot();
+        }
+
+        @Override
         public InternalInventory patternInventory() {
             return this.delegate.patternInventory();
         }
@@ -980,8 +985,18 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
+        public List<Integer> pendingOutputSlots(UUID hostId) {
+            return this.delegate.pendingOutputSlots(hostId);
+        }
+
+        @Override
         public boolean hasWork() {
             return this.delegate.hasWork();
+        }
+
+        @Override
+        public boolean hasWork(UUID hostId) {
+            return this.delegate.hasWork(hostId);
         }
 
         @Override

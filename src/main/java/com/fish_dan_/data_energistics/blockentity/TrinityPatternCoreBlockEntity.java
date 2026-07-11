@@ -193,6 +193,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Override
+    public PatternCacheSnapshot patternCacheSnapshot() {
+        return this.core.patternCacheSnapshot();
+    }
+
+    @Override
     public InternalInventory patternInventory() {
         return this.core.patternInventory();
     }
@@ -265,8 +270,18 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Override
+    public List<Integer> pendingOutputSlots(UUID hostId) {
+        return this.core.pendingOutputSlots(hostId);
+    }
+
+    @Override
     public boolean hasWork() {
         return this.core.hasWork();
+    }
+
+    @Override
+    public boolean hasWork(UUID hostId) {
+        return this.core.hasWork(hostId);
     }
 
     @Override

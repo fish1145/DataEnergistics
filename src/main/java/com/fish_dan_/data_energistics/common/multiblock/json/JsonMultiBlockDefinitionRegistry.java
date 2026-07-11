@@ -36,4 +36,9 @@ public interface JsonMultiBlockDefinitionRegistry {
      * Returns the number of currently active definitions.
      */
     int size();
+
+    /**
+     * Returns the monotonic revision of the active definition set so loaded controllers can invalidate cached matches.
+     */
+    long revision();
 }

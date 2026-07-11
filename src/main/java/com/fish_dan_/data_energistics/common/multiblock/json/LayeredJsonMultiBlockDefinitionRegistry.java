@@ -22,6 +22,7 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
     private final Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> builtins = new LinkedHashMap<>();
     private final Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> active = new LinkedHashMap<>();
     private boolean jsonApplied;
+    private volatile long revision;
 
     @Override
     public synchronized void registerBuiltin(JsonMultiBlockDefinition definition) {
@@ -36,6 +37,7 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
         } else {
             this.active.putIfAbsent(definition.key(), definition);
         }
+        this.revision = Math.incrementExact(this.revision);
         LOGGER.info("Registered built-in JSON multiblock definition {}", definition.key());
     }
 
@@ -54,6 +56,7 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
         this.active.clear();
         this.active.putAll(next);
         this.jsonApplied = true;
+        this.revision = Math.incrementExact(this.revision);
         LOGGER.info(
                 "Applied {} JSON multiblock definitions ({} active, {} built-in fallback)",
                 jsonKeys.size(),
@@ -74,5 +77,10 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
     @Override
     public synchronized int size() {
         return this.active.size();
+    }
+
+    @Override
+    public long revision() {
+        return this.revision;
     }
 }

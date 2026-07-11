@@ -194,6 +194,21 @@ public interface TrinityPatternCatalog {
     GlobalSlot resolveGlobalSlot(long expectedRevision, int globalIndex);
 
     /**
+     * Resolves one physical core slot through the captured mount without scanning the aggregate ranges.
+     *
+     * <p>
+     * Terminal partitions use this path for every live inventory read, so lookup cost must not grow with the number
+     * of mounted cores.
+     *
+     * @param expectedRevision layout revision captured by the caller
+     * @param mount            exact mount captured from that layout
+     * @param coreSlot         physical slot inside the mounted core
+     * @return exact resolved slot, or {@code null} when the layout, mount, or slot is stale
+     */
+    @Nullable
+    GlobalSlot resolveCoreSlot(long expectedRevision, CoreMount mount, int coreSlot);
+
+    /**
      * Replaces the mounted-core snapshot after validating capacities, positions, and persistent core identities.
      *
      * @param mounts cores found in the crafting child structure
