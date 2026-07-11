@@ -285,11 +285,11 @@ public final class DataExtractorRuleTable {
         rawGoldExample.addProperty("final_carrier", "ore");
         rawGoldExample.addProperty("final_carrier_item", "data_energistics:ore_data_carrier");
         rawGoldExample.addProperty("input_item", "minecraft:raw_gold");
-        rawGoldExample.addProperty("recorded_item", "minecraft:raw_gold");
+        rawGoldExample.addProperty("recorded_item", "minecraft:gold_ore");
         rawGoldExample.addProperty("progress_per_item", 1.0F);
         rawGoldExample.addProperty("required_amount", Math.max(1.0F, DataExtractorConfig.oreRequiredAmount));
         JsonArray rawGoldOutputs = new JsonArray();
-        rawGoldOutputs.add(configuredStackJson("minecraft:raw_gold", 1));
+        rawGoldOutputs.add(configuredStackJson("minecraft:gold_ore", 1));
         rawGoldExample.add("mimetic_outputs", rawGoldOutputs);
         carrierRulesArray.add(rawGoldExample);
 
