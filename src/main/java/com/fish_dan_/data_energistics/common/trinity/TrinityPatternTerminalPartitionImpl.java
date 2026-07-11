@@ -2,8 +2,10 @@ package com.fish_dan_.data_energistics.common.trinity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.inventories.BaseInternalInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridHelper;
@@ -15,7 +17,6 @@ import appeng.api.networking.IManagedGridNode;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -39,16 +40,25 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
     /** Stable persistent identity used by a lease hatch to retain this owner while its layout remains unchanged. */
     private final PartitionKey key;
 
-    /** Interface-only reference to the physical core that owns patterns and queued work. */
-    private final TrinityPatternCore core;
+    /** Authoritative catalog consulted before every inventory access. */
+    private final TrinityPatternCatalog catalog;
 
-    /** Immutable mount position used to detect catalog reordering or a moved physical core. */
-    private final BlockPos corePosition;
+    /** Topology generation that authorized this partition and its global indexes. */
+    private final long layoutRevision;
+
+    /** Exact core object, position, and block capacity captured by the validated layout. */
+    private final TrinityPatternCatalog.CoreMount coreMount;
 
     /** First absolute physical slot exposed by terminal slot zero. */
     private final int firstCoreSlot;
 
-    /** Live bounded sub-inventory; writes immediately reach the physical core. */
+    /** First global catalog index represented by terminal slot zero. */
+    private final int firstGlobalIndex;
+
+    /** Fixed inventory size retained even after the backing layout becomes stale. */
+    private final int slotCount;
+
+    /** Revision-guarded inventory proxy that never exposes the core's raw sub-inventory. */
     private final InternalInventory terminalInventory;
 
     /** Shared immutable group value that combines every partition under one terminal heading. */
@@ -65,18 +75,23 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
     @Nullable
     private IGridNode accessNode;
 
-    private TrinityPatternTerminalPartitionImpl(PartitionKey key,
-                                                TrinityPatternCore core,
-                                                BlockPos corePosition,
+    private TrinityPatternTerminalPartitionImpl(TrinityPatternCatalog catalog,
+                                                long layoutRevision,
+                                                PartitionKey key,
+                                                TrinityPatternCatalog.CoreMount coreMount,
                                                 int firstCoreSlot,
-                                                int lastCoreSlotExclusive,
+                                                int firstGlobalIndex,
+                                                int slotCount,
                                                 PatternContainerGroup terminalGroup,
                                                 long terminalSortOrder) {
+        this.catalog = catalog;
+        this.layoutRevision = layoutRevision;
         this.key = key;
-        this.core = core;
-        this.corePosition = corePosition.immutable();
+        this.coreMount = coreMount;
         this.firstCoreSlot = firstCoreSlot;
-        this.terminalInventory = core.patternInventory().getSubInventory(firstCoreSlot, lastCoreSlotExclusive);
+        this.firstGlobalIndex = firstGlobalIndex;
+        this.slotCount = slotCount;
+        this.terminalInventory = new GuardedPatternInventory();
         this.terminalGroup = terminalGroup;
         this.terminalSortOrder = terminalSortOrder;
     }
@@ -89,53 +104,39 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
      * existing owner only when {@link #hasSameLayout(TrinityPatternTerminalPartition)} succeeds, and then attach only
      * the owners published by the current network lease.
      *
-     * @param hostId stable host UUID shared by every partition key
-     * @param mounts physical core mounts found in the crafting child structure
-     * @param group  common terminal group used by every generated partition
+     * @param catalog authoritative catalog supplying one active immutable layout
+     * @param group   common terminal group used by every generated partition
      * @return immutable partitions in core-position and physical-slot order
      */
-    static List<TrinityPatternTerminalPartition> createLayout(UUID hostId,
-                                                              List<TrinityPatternCatalog.CoreMount> mounts,
+    static List<TrinityPatternTerminalPartition> createLayout(TrinityPatternCatalog catalog,
                                                               PatternContainerGroup group) {
-        if (hostId == null) {
-            throw new IllegalArgumentException("A Trinity terminal layout requires a host UUID");
-        }
-        if (mounts == null) {
-            throw new IllegalArgumentException("A Trinity terminal layout requires mounted cores");
+        TrinityPatternCatalog.LayoutSnapshot layout = catalog.layoutSnapshot();
+        if (!layout.active()) {
+            return List.of();
         }
         PatternContainerGroup sharedGroup = copyGroup(group);
-
-        ArrayList<TrinityPatternCatalog.CoreMount> sortedMounts = new ArrayList<>(mounts.size());
-        for (TrinityPatternCatalog.CoreMount mount : mounts) {
-            if (mount == null) {
-                throw new IllegalArgumentException("A Trinity terminal layout contains a null core mount");
-            }
-            sortedMounts.add(mount);
-        }
-        sortedMounts.sort((left, right) -> left.position().compareTo(right.position()));
-
-        Set<BlockPos> positions = new HashSet<>();
-        Set<UUID> coreIds = new HashSet<>();
         ArrayList<TrinityPatternTerminalPartition> partitions = new ArrayList<>();
         int globalPartitionIndex = 0;
-        for (TrinityPatternCatalog.CoreMount mount : sortedMounts) {
-            validateMount(mount, positions, coreIds);
-            TrinityPatternCore core = mount.core();
-            int partitionCount = core.patternCapacity() / MAX_PATTERN_SLOTS;
-            if (core.patternCapacity() % MAX_PATTERN_SLOTS != 0) {
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            TrinityPatternCatalog.CoreMount mount = range.mount();
+            validateRange(range);
+            int partitionCount = mount.blockCapacity() / MAX_PATTERN_SLOTS;
+            if (mount.blockCapacity() % MAX_PATTERN_SLOTS != 0) {
                 partitionCount++;
             }
             for (int partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {
                 int firstSlot = partitionIndex * MAX_PATTERN_SLOTS;
-                int lastSlotExclusive = Math.min(firstSlot + MAX_PATTERN_SLOTS, core.patternCapacity());
+                int lastSlotExclusive = Math.min(firstSlot + MAX_PATTERN_SLOTS, mount.blockCapacity());
                 partitions.add(new TrinityPatternTerminalPartitionImpl(
-                        new PartitionKey(hostId, core.coreId(), partitionIndex),
-                        core,
-                        mount.position(),
+                        catalog,
+                        layout.revision(),
+                        new PartitionKey(catalog.hostId(), range.coreId(), partitionIndex),
+                        mount,
                         firstSlot,
-                        lastSlotExclusive,
+                        Math.addExact(range.firstGlobalIndex(), firstSlot),
+                        lastSlotExclusive - firstSlot,
                         sharedGroup,
-                        createSortOrder(hostId, globalPartitionIndex)));
+                        createSortOrder(catalog.hostId(), globalPartitionIndex)));
                 globalPartitionIndex = Math.incrementExact(globalPartitionIndex);
             }
         }
@@ -148,13 +149,18 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
     }
 
     @Override
-    public TrinityPatternCore core() {
-        return this.core;
+    public long layoutRevision() {
+        return this.layoutRevision;
     }
 
     @Override
     public BlockPos corePosition() {
-        return this.corePosition;
+        return this.coreMount.position();
+    }
+
+    @Override
+    public int coreCapacity() {
+        return this.coreMount.blockCapacity();
     }
 
     @Override
@@ -164,16 +170,29 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
 
     @Override
     public int slotCount() {
-        return this.terminalInventory.size();
+        return this.slotCount;
+    }
+
+    @Override
+    public boolean hasSameLayout(TrinityPatternTerminalPartition other) {
+        return other instanceof TrinityPatternTerminalPartitionImpl implementation &&
+                this.catalog == implementation.catalog &&
+                this.key.equals(implementation.key) &&
+                this.layoutRevision == implementation.layoutRevision &&
+                this.coreMount.core() == implementation.coreMount.core() &&
+                this.coreMount.position().equals(implementation.coreMount.position()) &&
+                this.coreMount.blockCapacity() == implementation.coreMount.blockCapacity() &&
+                this.firstCoreSlot == implementation.firstCoreSlot &&
+                this.firstGlobalIndex == implementation.firstGlobalIndex &&
+                this.slotCount == implementation.slotCount &&
+                this.terminalSortOrder == implementation.terminalSortOrder &&
+                this.terminalGroup.equals(implementation.terminalGroup);
     }
 
     @Override
     public void attach(ServerLevel level, IGridNode accessNode) {
-        if (level == null) {
-            throw new IllegalArgumentException("A Trinity terminal partition requires a server level");
-        }
-        if (accessNode == null) {
-            throw new IllegalArgumentException("A Trinity terminal partition requires an access grid node");
+        if (!isLayoutCurrent()) {
+            throw new IllegalStateException("Cannot attach stale Trinity terminal partition " + this.key);
         }
         if (accessNode.getLevel() != level) {
             throw new IllegalArgumentException("A Trinity terminal partition and its access node must share a level");
@@ -240,22 +259,21 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
     @Override
     public boolean isAttached() {
         IGridNode partitionNode = this.managedNode == null ? null : this.managedNode.getNode();
-        return partitionNode != null && this.accessNode != null && hasDirectConnection(partitionNode, this.accessNode);
+        return isLayoutCurrent() && partitionNode != null && this.accessNode != null &&
+                hasDirectConnection(partitionNode, this.accessNode);
     }
 
     @Override
     public boolean isAttachedTo(IGrid grid) {
-        if (grid == null) {
-            throw new IllegalArgumentException("A Trinity terminal partition grid is required");
-        }
         IGridNode partitionNode = this.managedNode == null ? null : this.managedNode.getNode();
-        return partitionNode != null && isAttached() && partitionNode.getGrid() == grid;
+        return isLayoutCurrent() && partitionNode != null && this.accessNode != null &&
+                hasDirectConnection(partitionNode, this.accessNode) && partitionNode.getGrid() == grid;
     }
 
     @Nullable
     @Override
     public IGrid getGrid() {
-        return this.managedNode == null ? null : this.managedNode.getGrid();
+        return !isLayoutCurrent() || this.managedNode == null ? null : this.managedNode.getGrid();
     }
 
     @Override
@@ -278,34 +296,46 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
         return this.terminalGroup;
     }
 
-    private static void validateMount(TrinityPatternCatalog.CoreMount mount,
-                                      Set<BlockPos> positions,
-                                      Set<UUID> coreIds) {
-        TrinityPatternCore core = mount.core();
-        if (!positions.add(mount.position())) {
-            throw new IllegalArgumentException("Duplicate Trinity terminal core position " + mount.position());
+    /**
+     * Resolves one terminal-local slot through the current catalog revision and verifies all captured mount metadata.
+     *
+     * @param localSlot zero-based terminal inventory slot
+     * @return current exact global slot, or {@code null} after any topology invalidation or replacement
+     */
+    @Nullable
+    private TrinityPatternCatalog.GlobalSlot resolveLocalSlot(int localSlot) {
+        if (localSlot < 0 || localSlot >= this.slotCount) {
+            throw new IllegalArgumentException("Trinity terminal partition slot out of range: " + localSlot);
         }
-        if (mount.blockCapacity() != core.patternCapacity()) {
-            throw new IllegalArgumentException("Trinity terminal core capacity mismatch at " + mount.position() +
-                    ": block declares " + mount.blockCapacity() + " slots but core owns " + core.patternCapacity());
+        if (!this.catalog.isMountCurrent(this.layoutRevision, this.coreMount)) {
+            return null;
         }
-        if (!SUPPORTED_CORE_CAPACITIES.contains(core.patternCapacity())) {
-            throw new IllegalArgumentException("Unsupported Trinity terminal core capacity " + core.patternCapacity() +
+        int globalIndex = Math.addExact(this.firstGlobalIndex, localSlot);
+        TrinityPatternCatalog.GlobalSlot resolved = this.catalog.resolveGlobalSlot(this.layoutRevision, globalIndex);
+        if (resolved == null || !resolved.range().coreId().equals(this.key.coreId()) ||
+                resolved.core() != this.coreMount.core() ||
+                resolved.coreSlot() != this.firstCoreSlot + localSlot) {
+            return null;
+        }
+        return resolved;
+    }
+
+    /**
+     * @return whether the partition's first slot still resolves through its captured authoritative layout
+     */
+    private boolean isLayoutCurrent() {
+        return resolveLocalSlot(0) != null;
+    }
+
+    private static void validateRange(TrinityPatternCatalog.CoreRange range) {
+        TrinityPatternCatalog.CoreMount mount = range.mount();
+        if (!SUPPORTED_CORE_CAPACITIES.contains(mount.blockCapacity())) {
+            throw new IllegalArgumentException("Unsupported Trinity terminal core capacity " + mount.blockCapacity() +
                     " at " + mount.position());
-        }
-        UUID coreId = core.coreId();
-        if (coreId == null) {
-            throw new IllegalArgumentException("Trinity terminal core at " + mount.position() + " has no UUID");
-        }
-        if (!coreIds.add(coreId)) {
-            throw new IllegalArgumentException("Duplicate Trinity terminal core UUID " + coreId);
         }
     }
 
     private static PatternContainerGroup copyGroup(PatternContainerGroup group) {
-        if (group == null || group.name() == null || group.tooltip() == null) {
-            throw new IllegalArgumentException("A Trinity terminal layout requires a complete terminal group");
-        }
         return new PatternContainerGroup(group.icon(), group.name(), List.copyOf(group.tooltip()));
     }
 
@@ -321,5 +351,72 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
             }
         }
         return false;
+    }
+
+    /**
+     * Fixed-size terminal inventory that rejects every operation once its catalog revision becomes stale.
+     */
+    private final class GuardedPatternInventory extends BaseInternalInventory {
+
+        /** Returns the immutable number of terminal slots represented by this partition. */
+        @Override
+        public int size() {
+            return TrinityPatternTerminalPartitionImpl.this.slotCount;
+        }
+
+        /** Returns the live core limit only while this local slot still resolves exactly. */
+        @Override
+        public int getSlotLimit(int slot) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slot);
+            return resolved == null ? 0 : resolved.core().patternInventory().getSlotLimit(resolved.coreSlot());
+        }
+
+        /** Reads a defensive pattern copy or empty after topology invalidation. */
+        @Override
+        public ItemStack getStackInSlot(int slotIndex) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slotIndex);
+            return resolved == null ? ItemStack.EMPTY : resolved.core().pattern(resolved.coreSlot());
+        }
+
+        /** Writes directly only when the captured topology still resolves to the same physical core slot. */
+        @Override
+        public void setItemDirect(int slotIndex, ItemStack stack) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slotIndex);
+            if (resolved != null) {
+                resolved.core().trySetPattern(resolved.coreSlot(), stack);
+            }
+        }
+
+        /** Delegates supported-pattern validation only to the currently resolved physical core. */
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slot);
+            return resolved != null && resolved.core().patternInventory().isItemValid(resolved.coreSlot(), stack);
+        }
+
+        /** Returns the offered stack unchanged when stale, otherwise delegates one atomic physical insertion. */
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slot);
+            return resolved == null ? stack : resolved.core().patternInventory()
+                    .insertItem(resolved.coreSlot(), stack, simulate);
+        }
+
+        /** Returns empty when stale, otherwise delegates one atomic physical extraction. */
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slot);
+            return resolved == null ? ItemStack.EMPTY : resolved.core().patternInventory()
+                    .extractItem(resolved.coreSlot(), amount, simulate);
+        }
+
+        /** Forwards AE2 change notification only while the physical slot identity remains current. */
+        @Override
+        public void sendChangeNotification(int slot) {
+            TrinityPatternCatalog.GlobalSlot resolved = resolveLocalSlot(slot);
+            if (resolved != null) {
+                resolved.core().patternInventory().sendChangeNotification(resolved.coreSlot());
+            }
+        }
     }
 }

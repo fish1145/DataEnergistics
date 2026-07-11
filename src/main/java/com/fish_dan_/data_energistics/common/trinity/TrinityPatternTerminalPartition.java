@@ -17,8 +17,8 @@ import java.util.UUID;
  *
  * <p>
  * AE2 limits one pattern-access update to 128 changed entries, so every physical core is represented by one or more
- * independently mounted partitions. Implementations retain the core's real inventory as their backing store and own a
- * virtual grid-node lifecycle that the lease-holding access hatch can attach or detach explicitly.
+ * independently mounted partitions. Implementations expose a revision-guarded inventory proxy and own a virtual
+ * grid-node lifecycle that the lease-holding access hatch can attach or detach explicitly.
  */
 public interface TrinityPatternTerminalPartition extends PatternContainer {
 
@@ -27,7 +27,7 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
      *
      * <p>
      * This field exists because AE2 19.2.8 caps the packet's non-empty slot map at 128 entries; it is the hard boundary
-     * used by {@link #createLayout(UUID, List, PatternContainerGroup)}.
+     * used by {@link #createLayout(TrinityPatternCatalog, PatternContainerGroup)}.
      */
     int MAX_PATTERN_SLOTS = 128;
 
@@ -60,14 +60,19 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
     PartitionKey key();
 
     /**
-     * @return mounted core contract that owns the live pattern inventory
+     * @return catalog topology revision captured when this partition was created
      */
-    TrinityPatternCore core();
+    long layoutRevision();
 
     /**
      * @return immutable world position used to derive deterministic catalog ordering
      */
     BlockPos corePosition();
+
+    /**
+     * @return physical core capacity captured by the validated catalog layout
+     */
+    int coreCapacity();
 
     /**
      * @return first physical core slot represented by terminal slot zero
@@ -111,21 +116,12 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
      * @param other desired partition definition
      * @return true when an existing virtual owner can be reused without leaving AE2 with a stale inventory or sort key
      */
-    default boolean hasSameLayout(TrinityPatternTerminalPartition other) {
-        return other != null &&
-                key().equals(other.key()) &&
-                core() == other.core() &&
-                corePosition().equals(other.corePosition()) &&
-                firstCoreSlot() == other.firstCoreSlot() &&
-                slotCount() == other.slotCount() &&
-                getTerminalSortOrder() == other.getTerminalSortOrder() &&
-                getTerminalGroup().equals(other.getTerminalGroup());
-    }
+    boolean hasSameLayout(TrinityPatternTerminalPartition other);
 
     /**
-     * Narrows the inherited terminal contract to the live sub-inventory owned by this partition.
+     * Narrows the inherited terminal contract to the guarded live inventory owned by this partition.
      *
-     * @return real core inventory view rather than a copied pattern list
+     * @return fixed-size proxy that rejects access after its captured catalog layout becomes stale
      */
     @Override
     InternalInventory getTerminalPatternInventory();
@@ -133,14 +129,12 @@ public interface TrinityPatternTerminalPartition extends PatternContainer {
     /**
      * Creates the immutable terminal partition layout used by a lease-holding access hatch.
      *
-     * @param hostId stable host UUID shared by every partition key
-     * @param mounts validated physical core mounts from the crafting child structure
-     * @param group  common terminal group used by every generated partition
+     * @param catalog authoritative live catalog that invalidates stale partition inventory proxies
+     * @param group   common terminal group used by every generated partition
      * @return detached partitions in stable core-position and physical-slot order
      */
-    static List<TrinityPatternTerminalPartition> createLayout(UUID hostId,
-                                                              List<TrinityPatternCatalog.CoreMount> mounts,
+    static List<TrinityPatternTerminalPartition> createLayout(TrinityPatternCatalog catalog,
                                                               PatternContainerGroup group) {
-        return TrinityPatternTerminalPartitionImpl.createLayout(hostId, mounts, group);
+        return TrinityPatternTerminalPartitionImpl.createLayout(catalog, group);
     }
 }

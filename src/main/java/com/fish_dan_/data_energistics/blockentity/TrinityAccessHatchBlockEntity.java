@@ -350,8 +350,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         IGrid grid = accessNode.getGrid();
         List<TrinityPatternTerminalPartition> desired = TrinityPatternTerminalPartition.createLayout(
-                host.getHostId(),
-                host.getPatternCatalog().mountedCores(),
+                host.getPatternCatalog(),
                 terminalGroup());
         Map<TrinityPatternTerminalPartition.PartitionKey, TrinityPatternTerminalPartition> existingByKey = new HashMap<>();
         for (TrinityPatternTerminalPartition existing : this.terminalPartitions) {

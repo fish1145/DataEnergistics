@@ -14,6 +14,7 @@ import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
@@ -43,13 +44,13 @@ public final class TrinityPatternTerminalPartitionImplTest {
         TrinityPatternCoreImpl extended = core(128, UUID.randomUUID());
         TrinityPatternCoreImpl overlimit = core(512, UUID.randomUUID());
         PatternContainerGroup group = terminalGroup();
+        TrinityPatternCatalogImpl catalog = formedCatalog(hostId, List.of(
+                new TrinityPatternCatalog.CoreMount(new BlockPos(3, 0, 0), 512, overlimit),
+                new TrinityPatternCatalog.CoreMount(new BlockPos(1, 0, 0), 64, small),
+                new TrinityPatternCatalog.CoreMount(new BlockPos(2, 0, 0), 128, extended)));
 
         List<TrinityPatternTerminalPartition> partitions = TrinityPatternTerminalPartition.createLayout(
-                hostId,
-                List.of(
-                        new TrinityPatternCatalog.CoreMount(new BlockPos(3, 0, 0), 512, overlimit),
-                        new TrinityPatternCatalog.CoreMount(new BlockPos(1, 0, 0), 64, small),
-                        new TrinityPatternCatalog.CoreMount(new BlockPos(2, 0, 0), 128, extended)),
+                catalog,
                 group);
 
         assertEquals(6, partitions.size());
@@ -80,12 +81,12 @@ public final class TrinityPatternTerminalPartitionImplTest {
             assertSame(partitions.getFirst().getTerminalGroup(), partitions.get(index).getTerminalGroup());
         }
 
+        catalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(new BlockPos(2, 0, 0), 128, extended),
+                new TrinityPatternCatalog.CoreMount(new BlockPos(1, 0, 0), 64, small),
+                new TrinityPatternCatalog.CoreMount(new BlockPos(3, 0, 0), 512, overlimit)));
         List<TrinityPatternTerminalPartition> rebuilt = TrinityPatternTerminalPartition.createLayout(
-                hostId,
-                List.of(
-                        new TrinityPatternCatalog.CoreMount(new BlockPos(2, 0, 0), 128, extended),
-                        new TrinityPatternCatalog.CoreMount(new BlockPos(1, 0, 0), 64, small),
-                        new TrinityPatternCatalog.CoreMount(new BlockPos(3, 0, 0), 512, overlimit)),
+                catalog,
                 group);
         assertEquals(partitions.stream().map(TrinityPatternTerminalPartition::key).toList(),
                 rebuilt.stream().map(TrinityPatternTerminalPartition::key).toList());
@@ -102,9 +103,11 @@ public final class TrinityPatternTerminalPartitionImplTest {
     @GameTest(template = "empty_5x5")
     public static void mapsTerminalSlotsDirectlyOntoThePhysicalCoreInventory(GameTestHelper helper) {
         TrinityPatternCoreImpl core = core(512, UUID.randomUUID());
-        List<TrinityPatternTerminalPartition> partitions = TrinityPatternTerminalPartition.createLayout(
+        TrinityPatternCatalogImpl catalog = formedCatalog(
                 UUID.randomUUID(),
-                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 512, core)),
+                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 512, core)));
+        List<TrinityPatternTerminalPartition> partitions = TrinityPatternTerminalPartition.createLayout(
+                catalog,
                 terminalGroup());
         TrinityPatternTerminalPartition second = partitions.get(1);
         InternalInventory inventory = second.getTerminalPatternInventory();
@@ -137,16 +140,18 @@ public final class TrinityPatternTerminalPartitionImplTest {
         TrinityPatternCoreImpl first = core(64, duplicateCoreId);
         TrinityPatternCoreImpl second = core(64, duplicateCoreId);
 
-        assertThrows(IllegalArgumentException.class, () -> TrinityPatternTerminalPartition.createLayout(
-                UUID.randomUUID(),
-                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 128, first)),
-                terminalGroup()));
-        assertThrows(IllegalArgumentException.class, () -> TrinityPatternTerminalPartition.createLayout(
-                UUID.randomUUID(),
-                List.of(
-                        new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
-                        new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)),
-                terminalGroup()));
+        TrinityPatternCatalogImpl capacityCatalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        TrinityPatternCatalog.RebuildResult capacityFailure = capacityCatalog.rebuild(
+                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 128, first)));
+        assertFalse(capacityFailure.valid());
+        assertTrue(TrinityPatternTerminalPartition.createLayout(capacityCatalog, terminalGroup()).isEmpty());
+
+        TrinityPatternCatalogImpl duplicateCatalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        TrinityPatternCatalog.RebuildResult duplicateFailure = duplicateCatalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
+        assertFalse(duplicateFailure.valid());
+        assertTrue(TrinityPatternTerminalPartition.createLayout(duplicateCatalog, terminalGroup()).isEmpty());
         helper.succeed();
     }
 
@@ -158,23 +163,105 @@ public final class TrinityPatternTerminalPartitionImplTest {
         UUID coreId = UUID.randomUUID();
         TrinityPatternCoreImpl original = core(64, coreId);
         TrinityPatternCoreImpl replacement = core(64, coreId);
+        TrinityPatternCatalogImpl catalog = formedCatalog(
+                hostId,
+                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, original)));
         TrinityPatternTerminalPartition first = TrinityPatternTerminalPartition.createLayout(
-                hostId,
-                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, original)),
+                catalog,
                 terminalGroup()).getFirst();
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, replacement)));
         TrinityPatternTerminalPartition replacedCore = TrinityPatternTerminalPartition.createLayout(
-                hostId,
-                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, replacement)),
+                catalog,
                 terminalGroup()).getFirst();
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, original)));
         TrinityPatternTerminalPartition movedCore = TrinityPatternTerminalPartition.createLayout(
-                hostId,
-                List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, original)),
+                catalog,
                 terminalGroup()).getFirst();
 
         assertFalse(first.hasSameLayout(replacedCore));
         assertFalse(first.hasSameLayout(movedCore));
         first.detach();
         assertFalse(first.isAttached());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_terminal_partition_stale_inventory_rejects_all_access")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void staleInventoryReferenceCannotReadOrMutateReformedLayout(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        UUID coreId = UUID.randomUUID();
+        TrinityPatternCoreImpl original = core(128, coreId);
+        TrinityPatternCoreImpl companion = core(64, UUID.randomUUID());
+        TrinityPatternCatalog.CoreMount originalMount = new TrinityPatternCatalog.CoreMount(
+                BlockPos.ZERO, 128, original);
+        TrinityPatternCatalog.CoreMount companionMount = new TrinityPatternCatalog.CoreMount(
+                BlockPos.ZERO.above(), 64, companion);
+        TrinityPatternCatalogImpl catalog = formedCatalog(hostId, List.of(originalMount, companionMount));
+        TrinityPatternTerminalPartition originalPartition = partitionForCore(catalog, coreId);
+        InternalInventory staleInventory = originalPartition.getTerminalPatternInventory();
+        InternalInventory staleSubInventory = staleInventory.getSubInventory(0, 2);
+        IItemHandler staleItemHandler = staleInventory.toItemHandler();
+        ItemStack paper = new ItemStack(Items.PAPER);
+
+        assertTrue(staleInventory.insertItem(0, paper, false).isEmpty());
+        assertTrue(original.pattern(0).is(Items.PAPER));
+        long originalRevision = originalPartition.layoutRevision();
+        assertTrue(original.trySetPattern(1, new ItemStack(Items.MAP)));
+        assertTrue(catalog.refreshChangedPatterns());
+        assertEquals(originalRevision, catalog.layoutSnapshot().revision());
+        assertTrue(staleInventory.getStackInSlot(1).is(Items.MAP));
+        assertTrue(staleSubInventory.getStackInSlot(0).is(Items.PAPER));
+        assertTrue(staleItemHandler.getStackInSlot(0).is(Items.PAPER));
+        assertIllegalArgument(() -> staleInventory.getStackInSlot(staleInventory.size()));
+
+        TrinityPatternCatalog.CoreMount movedOriginalMount = new TrinityPatternCatalog.CoreMount(
+                new BlockPos(2, 0, 0), 128, original);
+        TrinityPatternCatalog.CoreMount reorderedCompanionMount = new TrinityPatternCatalog.CoreMount(
+                BlockPos.ZERO, 64, companion);
+        catalog.rebuild(List.of(movedOriginalMount, reorderedCompanionMount));
+
+        assertEquals(128, staleInventory.size());
+        assertStaleInventory(staleInventory, paper);
+        assertTrue(staleSubInventory.getStackInSlot(0).isEmpty());
+        assertTrue(staleItemHandler.getStackInSlot(0).isEmpty());
+        assertStackMatches(paper, staleItemHandler.insertItem(0, paper, false));
+        assertTrue(staleItemHandler.extractItem(0, 1, false).isEmpty());
+        staleInventory.setItemDirect(1, new ItemStack(Items.MAP));
+        staleInventory.clear();
+        assertTrue(original.pattern(0).is(Items.PAPER));
+        assertTrue(original.pattern(1).is(Items.MAP));
+        assertFalse(originalPartition.isVisibleInTerminal());
+
+        TrinityPatternTerminalPartition movedPartition = partitionForCore(catalog, coreId);
+        InternalInventory movedInventory = movedPartition.getTerminalPatternInventory();
+        assertTrue(movedInventory.insertItem(2, paper, false).isEmpty());
+        assertTrue(original.pattern(2).is(Items.PAPER));
+
+        TrinityPatternCoreImpl replacement = core(128, coreId);
+        TrinityPatternCatalog.CoreMount replacementMount = new TrinityPatternCatalog.CoreMount(
+                movedOriginalMount.position(), 128, replacement);
+        catalog.rebuild(List.of(replacementMount, reorderedCompanionMount));
+        assertStaleInventory(movedInventory, paper);
+        movedInventory.setItemDirect(0, paper);
+        assertTrue(replacement.pattern(0).isEmpty());
+
+        TrinityPatternTerminalPartition currentPartition = partitionForCore(catalog, coreId);
+        InternalInventory currentInventory = currentPartition.getTerminalPatternInventory();
+        assertTrue(currentInventory.insertItem(0, paper, false).isEmpty());
+        assertTrue(replacement.pattern(0).is(Items.PAPER));
+        assertFalse(originalPartition.hasSameLayout(currentPartition));
+
+        catalog.invalidateLayout();
+        assertStaleInventory(currentInventory, paper);
+        catalog.rebuild(List.of(replacementMount, reorderedCompanionMount));
+        assertStaleInventory(currentInventory, paper);
+        TrinityPatternTerminalPartition rebuiltPartition = partitionForCore(catalog, coreId);
+        assertFalse(currentPartition.hasSameLayout(rebuiltPartition));
+        assertTrue(rebuiltPartition.getTerminalPatternInventory()
+                .insertItem(1, new ItemStack(Items.MAP), false)
+                .isEmpty());
+        assertTrue(replacement.pattern(1).is(Items.MAP));
         helper.succeed();
     }
 
@@ -192,6 +279,46 @@ public final class TrinityPatternTerminalPartitionImplTest {
                 AEItemKey.of(Items.CRAFTING_TABLE),
                 Component.literal("Trinity Data Core"),
                 List.of());
+    }
+
+    private static TrinityPatternCatalogImpl formedCatalog(UUID hostId,
+                                                           List<TrinityPatternCatalog.CoreMount> mounts) {
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCatalog.RebuildResult result = catalog.rebuild(mounts);
+        if (!result.valid()) {
+            throw new GameTestAssertException("Expected valid terminal catalog: " + result.failureReason());
+        }
+        return catalog;
+    }
+
+    private static TrinityPatternTerminalPartition partitionForCore(TrinityPatternCatalog catalog, UUID coreId) {
+        return TrinityPatternTerminalPartition.createLayout(catalog, terminalGroup()).stream()
+                .filter(partition -> partition.key().coreId().equals(coreId))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static void assertStaleInventory(InternalInventory inventory, ItemStack offered) {
+        assertEquals(0, inventory.getSlotLimit(0));
+        assertTrue(inventory.getStackInSlot(0).isEmpty());
+        assertFalse(inventory.isItemValid(0, offered));
+        assertStackMatches(offered, inventory.insertItem(0, offered, false));
+        assertTrue(inventory.extractItem(0, 1, false).isEmpty());
+        assertTrue(inventory.getStackInSlot(0).isEmpty());
+    }
+
+    private static void assertIllegalArgument(TestAction action) {
+        try {
+            action.run();
+        } catch (IllegalArgumentException expected) {
+            return;
+        }
+        throw new GameTestAssertException("Expected an out-of-range Trinity terminal slot to fail");
+    }
+
+    private static void assertStackMatches(ItemStack expected, ItemStack actual) {
+        assertTrue(ItemStack.isSameItemSameComponents(expected, actual));
+        assertEquals(expected.getCount(), actual.getCount());
     }
 
     private static final class TestPattern implements IMolecularAssemblerSupportedPattern {
@@ -247,6 +374,12 @@ public final class TrinityPatternTerminalPartitionImplTest {
         }
     }
 
+    @FunctionalInterface
+    private interface TestAction {
+
+        void run();
+    }
+
     private static void assertTrue(boolean value) {
         if (!value) {
             throw new GameTestAssertException("Expected condition to be true");
@@ -281,18 +414,5 @@ public final class TrinityPatternTerminalPartitionImplTest {
         if (expected != actual) {
             throw new GameTestAssertException("Expected the same object instance");
         }
-    }
-
-    private static <T extends Throwable> void assertThrows(Class<T> expectedType, Runnable action) {
-        try {
-            action.run();
-        } catch (Throwable exception) {
-            if (expectedType.isInstance(exception)) {
-                return;
-            }
-            throw new GameTestAssertException(
-                    "Expected " + expectedType.getName() + ", got " + exception.getClass().getName());
-        }
-        throw new GameTestAssertException("Expected " + expectedType.getName() + " to be thrown");
     }
 }
