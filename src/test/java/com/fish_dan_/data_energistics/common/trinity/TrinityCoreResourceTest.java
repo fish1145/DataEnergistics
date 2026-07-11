@@ -295,9 +295,9 @@ public final class TrinityCoreResourceTest {
             resources.add(new CoreResource("me_digital_storage_core_" + suffix, "storage_core"));
             resources.add(new CoreResource("me_digital_merged_storage_core_" + suffix, "merged_storage_core"));
         }
-        resources.add(new CoreResource("me_digital_pattern_processing_core", "pattern_processing_core"));
-        resources.add(new CoreResource("extended_me_digital_pattern_processing_core", "pattern_processing_core"));
-        resources.add(new CoreResource("overlimit_me_digital_pattern_processing_core", "pattern_processing_core"));
+        resources.add(new CoreResource("me_digital_pattern_processing_core", "me_digital_pattern_processing_core"));
+        resources.add(new CoreResource("extended_me_digital_pattern_processing_core", "me_digital_pattern_processing_core"));
+        resources.add(new CoreResource("overlimit_me_digital_pattern_processing_core", "me_digital_pattern_processing_core"));
         return resources;
     }
 
