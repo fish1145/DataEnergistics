@@ -1,9 +1,0 @@
-{
-	"parent": "data_energistics:block/trinity_core/trinity_access_hatch",
-	"textures": {
-		"1": "data_energistics:block/trinity_core/me_digital_pattern_processing_core",
-		"4": "data_energistics:block/trinity_core/front",
-		"6": "data_energistics:block/trinity_core/top",
-		"particle": "data_energistics:block/trinity_core/front"
-	}
-}

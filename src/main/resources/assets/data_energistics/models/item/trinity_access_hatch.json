@@ -1,3 +1,3 @@
 {
-	"parent": "data_energistics:block/trinity_core/trinity_access_hatch"
+	"parent": "data_energistics:block/trinity_core/access_hatch/trinity_access_hatch"
 }

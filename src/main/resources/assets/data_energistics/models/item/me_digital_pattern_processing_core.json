@@ -1,3 +1,3 @@
 {
-	"parent": "data_energistics:block/trinity_core/me_digital_pattern_processing_core"
+	"parent": "data_energistics:block/trinity_core/pattern_processing/me_digital_pattern_processing_core"
 }

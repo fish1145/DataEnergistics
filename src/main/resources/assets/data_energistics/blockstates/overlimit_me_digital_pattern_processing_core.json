@@ -1,7 +1,7 @@
 {
 	"variants": {
 		"": {
-			"model": "data_energistics:block/trinity_core/overlimit_me_digital_pattern_processing_core"
+			"model": "data_energistics:block/trinity_core/pattern_processing/overlimit_me_digital_pattern_processing_core"
 		}
 	}
 }
