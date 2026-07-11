@@ -85,6 +85,19 @@ public final class TrinityDataCoreResourceTest {
     }
 
     @Test
+    void trinityPatternCoreScreenUsesDedicatedGuiTexture() {
+        JsonObject root = readJson(SCREEN_ROOT + "trinity_pattern_core.json");
+        assertNoAbsolutePaths(root, "trinity_pattern_core screen");
+
+        JsonObject background = object(root, "background");
+        String backgroundTexture = string(background, "texture");
+        assertEquals("guis/me_digital_pattern_processing_core.png", backgroundTexture);
+        assertSourceRect(background, 176, 256);
+        assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Trinity pattern core GUI texture should exist");
+        assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
+    }
+
+    @Test
     void trinityDataCoreMultiblockUsesRenamedStructure() {
         JsonObject root = readJson(MULTIBLOCK_ROOT + "trinity_data_core/main.json");
         JsonObject metadata = object(root, "metadata");
