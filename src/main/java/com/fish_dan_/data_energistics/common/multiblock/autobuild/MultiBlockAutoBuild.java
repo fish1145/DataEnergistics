@@ -85,6 +85,8 @@ public interface MultiBlockAutoBuild {
         private final int repeatCount;
         /** Maps every candidate in a selected predicate category to that category's chosen block. */
         private final Map<Block, Block> selectedTierBlocks;
+        /** Maps upgradeable candidate blocks to their positive, host-defined tier rank. */
+        private final Map<Block, Integer> tierRanks;
         /** Resolves the explicit AE2 host side required by each planned part placement. */
         private final PartSideResolver partSideResolver;
 
@@ -99,12 +101,18 @@ public interface MultiBlockAutoBuild {
             this.flipped = builder.flipped;
             this.repeatCount = builder.repeatCount;
             this.selectedTierBlocks = Map.copyOf(builder.selectedTierBlocks);
+            this.tierRanks = Map.copyOf(builder.tierRanks);
             this.partSideResolver = builder.partSideResolver;
             if (this.structureName.isBlank()) {
                 throw new IllegalArgumentException("Auto-build structure name cannot be blank");
             }
             if (this.repeatCount < 1) {
                 throw new IllegalArgumentException("Auto-build repeat count must be positive: " + this.repeatCount);
+            }
+            for (int tierRank : this.tierRanks.values()) {
+                if (tierRank < 1) {
+                    throw new IllegalArgumentException("Auto-build tier ranks must be positive: " + tierRank);
+                }
             }
         }
 
@@ -163,6 +171,13 @@ public interface MultiBlockAutoBuild {
             return this.selectedTierBlocks;
         }
 
+        /**
+         * Returns host-declared tier ranks used to permit only safe upward replacement of existing tier candidates.
+         */
+        public Map<Block, Integer> tierRanks() {
+            return this.tierRanks;
+        }
+
         /** Returns the resolver used to choose an AE2 part host side before materials are committed. */
         public PartSideResolver partSideResolver() {
             return this.partSideResolver;
@@ -193,6 +208,8 @@ public interface MultiBlockAutoBuild {
             private int repeatCount = 1;
             /** Mutable accumulation of candidate-to-tier selections. */
             private final Map<Block, Block> selectedTierBlocks = new LinkedHashMap<>();
+            /** Mutable host-defined rank table for candidates that support upward replacement. */
+            private final Map<Block, Integer> tierRanks = new LinkedHashMap<>();
             /** Defaults to no side so an unresolved AE2 part is rejected during preflight. */
             private PartSideResolver partSideResolver = (position, partStack) -> null;
 
@@ -263,6 +280,20 @@ public interface MultiBlockAutoBuild {
             public Builder selectedTierBlocks(Map<Block, Block> selectedTierBlocks) {
                 this.selectedTierBlocks.clear();
                 this.selectedTierBlocks.putAll(selectedTierBlocks);
+                return this;
+            }
+
+            /**
+             * Supplies positive tier ranks for selected candidate blocks.
+             *
+             * <p>
+             * A planned selected block can replace an existing valid candidate only when its supplied rank is strictly
+             * greater than the existing block's rank. Omitting ranks preserves the default no-replacement behavior.
+             * </p>
+             */
+            public Builder tierRanks(Map<Block, Integer> tierRanks) {
+                this.tierRanks.clear();
+                this.tierRanks.putAll(tierRanks);
                 return this;
             }
 

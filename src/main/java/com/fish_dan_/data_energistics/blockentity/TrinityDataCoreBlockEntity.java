@@ -60,7 +60,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -440,7 +439,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * @param player  server player that supplies placement permissions and materials
      * @param request validated selector, repetition, and tier choices from the client
      */
-    public void autoBuildTrinityStructure(ServerPlayer player, TrinityAutoBuildRequest request) {
+    public void autoBuildTrinityStructure(Player player, TrinityAutoBuildRequest request) {
         if (!request.options().buildRequested()) {
             return;
         }
@@ -544,6 +543,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 .flipped(orientation.flipped())
                 .repeatCount(request.options().repeatCount())
                 .selectedTierBlocks(selectedTierBlocks)
+                .tierRanks(TrinityAutoBuildBlockMap.tierRanksForStructure(structureIndex))
                 .partSideResolver(partSideResolver)
                 .build();
         return AUTO_BUILD.execute(context);
@@ -554,14 +554,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 structureIndex == TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX;
     }
 
-    private void reportAutoBuildFailure(ServerPlayer player,
+    private void reportAutoBuildFailure(Player player,
                                         int structureIndex,
                                         FailureType type,
                                         String detail) {
         reportAutoBuildResult(player, structureIndex, Result.failure(0, new Failure(type, this.worldPosition, detail)));
     }
 
-    private static void reportAutoBuildResult(ServerPlayer player, int structureIndex, Result result) {
+    private static void reportAutoBuildResult(Player player, int structureIndex, Result result) {
         int missing = 0;
         int blocked = 0;
         int unloaded = 0;

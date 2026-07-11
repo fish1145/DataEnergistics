@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
@@ -16,11 +17,16 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -49,7 +55,7 @@ public final class TrinityDataCoreAutoBuildGameTest {
     public static void mainUsesRequestedStorageTier(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         TrinityDataCoreBlockEntity host = placeHost(helper, LOCAL_ORIGIN);
-        ServerPlayer player = creativePlayer(helper);
+        Player player = creativePlayer(helper);
         Block expectedStorageCore = TrinityAutoBuildBlockMap.resolveBlock(TrinityAutoBuildBlockMap.STORAGE_CORE, 2);
 
         host.autoBuildTrinityStructure(player, request(
@@ -94,7 +100,7 @@ public final class TrinityDataCoreAutoBuildGameTest {
     public static void falseRequestLeavesWorldUnchanged(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         TrinityDataCoreBlockEntity host = placeHost(helper, LOCAL_ORIGIN);
-        ServerPlayer player = creativePlayer(helper);
+        Player player = creativePlayer(helper);
         int before = nonControllerBlocks(level, host.getBlockPos());
 
         host.autoBuildTrinityStructure(player, new TrinityAutoBuildRequest(
@@ -113,7 +119,7 @@ public final class TrinityDataCoreAutoBuildGameTest {
     public static void childrenRequireFormedMain(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         TrinityDataCoreBlockEntity host = placeHost(helper, LOCAL_ORIGIN);
-        ServerPlayer player = creativePlayer(helper);
+        Player player = creativePlayer(helper);
 
         host.autoBuildTrinityStructure(player, request(
                 TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX,
@@ -137,7 +143,7 @@ public final class TrinityDataCoreAutoBuildGameTest {
     public static void childrenUseRequestedTiers(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         TrinityDataCoreBlockEntity host = placeHost(helper, LOCAL_ORIGIN);
-        ServerPlayer player = creativePlayer(helper);
+        Player player = creativePlayer(helper);
         Block expectedCpuCore = TrinityAutoBuildBlockMap.resolveBlock(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 2);
         Block expectedPatternCore = TrinityAutoBuildBlockMap.resolveBlock(
                 TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE,
@@ -177,6 +183,64 @@ public final class TrinityDataCoreAutoBuildGameTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_auto_build_upgrades_pattern_cores_without_copying_persistent_state")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void upgradesPatternCoresWithoutCopyingPersistentState(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        TrinityDataCoreBlockEntity host = placeHost(helper, LOCAL_ORIGIN);
+        Player player = creativePlayer(helper);
+        host.autoBuildTrinityStructure(player, request(
+                TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX,
+                1,
+                Map.of(TrinityAutoBuildBlockMap.STORAGE_CORE, 1)));
+        host.serverTick();
+        helper.assertTrue(host.isStructureFormed(), "Main structure must form before building crafting cores");
+        host.autoBuildTrinityStructure(player, request(
+                TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX,
+                1,
+                Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 1)));
+        host.serverTick();
+
+        BlockPos sourcePosition = coresOfKind(level, host.getBlockPos(), TrinityCoreKind.PATTERN_PROCESSING).getFirst();
+        BlockEntity sourceBlockEntity = level.getBlockEntity(sourcePosition);
+        if (!(sourceBlockEntity instanceof TrinityPatternCoreBlockEntity sourceCore)) {
+            helper.fail("Expected a Trinity P core before tier replacement", sourcePosition);
+            return;
+        }
+        PatternRoute sourceRoute = new PatternRoute(host.getHostId(), sourceCore.coreId(), 0);
+        sourceCore.appendPendingOutputs(sourceRoute, List.of(new ItemStack(Items.DIAMOND, 2)));
+        ItemStack expectedDrop = Block.getDrops(
+                sourceCore.getBlockState(),
+                level,
+                sourcePosition,
+                sourceCore).getFirst();
+
+        host.autoBuildTrinityStructure(player, request(
+                TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX,
+                1,
+                Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 3)));
+        host.serverTick();
+
+        Block expectedTier = TrinityAutoBuildBlockMap.resolveBlock(
+                TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE,
+                3);
+        helper.assertValueEqual(level.getBlockState(sourcePosition).getBlock(), expectedTier,
+                "Tier replacement must install the requested P-core tier");
+        BlockEntity replacementBlockEntity = level.getBlockEntity(sourcePosition);
+        if (!(replacementBlockEntity instanceof TrinityPatternCoreBlockEntity replacementCore)) {
+            helper.fail("Expected an entity-backed P core after tier replacement", sourcePosition);
+            return;
+        }
+        helper.assertFalse(replacementCore.coreId().equals(sourceCore.coreId()),
+                "New P core must not inherit the replaced core UUID or persistent queues");
+        helper.assertTrue(hasInventoryStack(player, expectedDrop),
+                "Replacing a P core must return its exact BLOCK_ENTITY_DATA loot to the player inventory first");
+        helper.assertFalse(hasDroppedStack(level, sourcePosition, expectedDrop),
+                "P-core loot must not drop while the player inventory can accept it");
+        helper.succeed();
+    }
+
     private static TrinityDataCoreBlockEntity placeHost(GameTestHelper helper, BlockPos localOrigin) {
         helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
                 .defaultBlockState()
@@ -190,10 +254,8 @@ public final class TrinityDataCoreAutoBuildGameTest {
         throw new IllegalStateException("Missing Trinity Data Core block entity at " + origin);
     }
 
-    private static ServerPlayer creativePlayer(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.setGameMode(GameType.CREATIVE);
-        return player;
+    private static Player creativePlayer(GameTestHelper helper) {
+        return helper.makeMockPlayer(GameType.CREATIVE);
     }
 
     private static TrinityAutoBuildRequest request(int structureIndex,
@@ -232,6 +294,24 @@ public final class TrinityDataCoreAutoBuildGameTest {
         Block cableBus = block("ae2:cable_bus");
         for (BlockPos position : searchArea(origin)) {
             if (level.getBlockState(position).getBlock() == cableBus && PartHelper.getPart(level, position, null) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasDroppedStack(ServerLevel level, BlockPos position, ItemStack expected) {
+        AABB searchArea = AABB.ofSize(Vec3.atCenterOf(position), 4.0D, 4.0D, 4.0D);
+        return level.getEntitiesOfClass(ItemEntity.class, searchArea).stream()
+                .map(ItemEntity::getItem)
+                .anyMatch(stack -> stack.getCount() == expected.getCount() &&
+                        ItemStack.isSameItemSameComponents(stack, expected));
+    }
+
+    private static boolean hasInventoryStack(Player player, ItemStack expected) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (stack.getCount() == expected.getCount() && ItemStack.isSameItemSameComponents(stack, expected)) {
                 return true;
             }
         }

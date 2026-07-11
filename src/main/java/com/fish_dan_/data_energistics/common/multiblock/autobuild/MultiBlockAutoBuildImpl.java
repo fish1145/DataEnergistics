@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -25,7 +26,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
+import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
+import appeng.api.parts.PartHelper;
 import appeng.parts.PartPlacement;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.MultiblockState;
@@ -88,9 +91,10 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                     "Player inventory changed before material reservation committed"));
         }
 
-        Failure placementFailure = placeAll(context, allocation.placements());
-        if (placementFailure == null) {
+        PlacementBatchOutcome placementOutcome = placeAll(context, allocation.placements());
+        if (placementOutcome.failure() == null) {
             inventory.complete();
+            releaseReplacementDrops(context, placementOutcome.replacementDrops());
             return Result.success(allocation.placements().size(), planOutcome.reused());
         }
 
@@ -99,10 +103,10 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         if (!worldRestored) {
             return Result.failure(planOutcome.reused(), new Failure(
                     FailureType.ROLLBACK_FAILED,
-                    placementFailure.position(),
+                    placementOutcome.failure().position(),
                     "A placement failed and at least one captured world position could not be restored"));
         }
-        return Result.failure(planOutcome.reused(), placementFailure);
+        return Result.failure(planOutcome.reused(), placementOutcome.failure());
     }
 
     private static PlanOutcome createPlan(Context context) {
@@ -195,30 +199,41 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
 
         TierSelection tierSelection = tierSelectionOutcome.selection();
         BlockState currentState = context.level().getBlockState(target);
-        if (tierSelection.rejectsExisting(currentState.getBlock())) {
+        boolean predicateMatched = predicate.test(state);
+        boolean requiresPart = requiresPartCandidate(predicate);
+        boolean missingRequiredPart = requiresPart && !hasMatchingRequiredPart(context, predicate, target);
+        boolean replacesExistingTier = tierSelection.replacesExisting(
+                currentState.getBlock(),
+                context.tierRanks());
+        if (tierSelection.rejectsExisting(currentState.getBlock()) && !replacesExistingTier) {
             return PositionOutcome.failure(failure(
                     FailureType.BLOCKED,
                     target,
                     "Required position contains a different selected predicate tier"));
         }
-        if (predicate.test(state)) {
+        if (predicateMatched && !replacesExistingTier && !missingRequiredPart) {
             return PositionOutcome.reusedPosition();
         }
-        if (!currentState.isAir() && !currentState.canBeReplaced()) {
+        if (!replacesExistingTier && !predicateMatched && !currentState.isAir() && !currentState.canBeReplaced()) {
             return PositionOutcome.failure(failure(
                     FailureType.BLOCKED,
                     target,
                     "Required position is occupied by a non-replaceable block"));
         }
 
-        List<Candidate> candidates = supportedCandidates(predicate, tierSelection);
+        List<Candidate> candidates = supportedCandidates(predicate, tierSelection, missingRequiredPart);
         if (candidates.isEmpty()) {
             return PositionOutcome.failure(failure(
                     FailureType.UNSUPPORTED_CANDIDATE,
                     target,
                     "Structure predicate has no supported block or AE2 part candidate"));
         }
-        positions.add(new PositionPlan(target.immutable(), predicate, candidates));
+        positions.add(new PositionPlan(
+                target.immutable(),
+                predicate,
+                candidates,
+                requiresPart,
+                replacesExistingTier));
         return PositionOutcome.plannedPosition();
     }
 
@@ -296,13 +311,21 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         return List.copyOf(candidates);
     }
 
-    private static List<Candidate> supportedCandidates(TraceabilityPredicate predicate, TierSelection tierSelection) {
+    private static List<Candidate> supportedCandidates(TraceabilityPredicate predicate,
+                                                       TierSelection tierSelection,
+                                                       boolean partsOnly) {
         ArrayList<Candidate> candidates = new ArrayList<>();
         for (ItemStack candidateStack : predicate.placementCandidates()) {
+            if (partsOnly && !(candidateStack.getItem() instanceof IPartItem<?>)) {
+                continue;
+            }
             Candidate candidate = placementCandidate(candidateStack, predicate, tierSelection);
             if (candidate != null) {
                 addCandidate(candidates, candidate);
             }
+        }
+        if (partsOnly) {
+            return List.copyOf(candidates);
         }
         for (BlockState state : predicate.blockStateCandidates()) {
             if (!tierSelection.allows(state.getBlock())) {
@@ -315,6 +338,38 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
             }
         }
         return List.copyOf(candidates);
+    }
+
+    private static boolean requiresPartCandidate(TraceabilityPredicate predicate) {
+        for (ItemStack candidate : predicate.placementCandidates()) {
+            if (candidate.getItem() instanceof IPartItem<?>) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasMatchingRequiredPart(Context context,
+                                                   TraceabilityPredicate predicate,
+                                                   BlockPos target) {
+        for (ItemStack candidate : predicate.placementCandidates()) {
+            if (!(candidate.getItem() instanceof IPartItem<?> partItem)) {
+                continue;
+            }
+            Direction placementSide = context.partSideResolver().resolve(target, candidate.copyWithCount(1));
+            if (placementSide == null) {
+                continue;
+            }
+            if (isPartItem(PartHelper.getPart(context.level(), target, null), partItem) ||
+                    isPartItem(PartHelper.getPart(context.level(), target, placementSide), partItem)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPartItem(@Nullable IPart part, IPartItem<?> item) {
+        return part != null && part.getPartItem() == item;
     }
 
     @Nullable
@@ -402,6 +457,8 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                     candidate.stack().copyWithCount(1),
                     candidate.desiredState(),
                     validation.partSide(),
+                    position.requiresPart(),
+                    position.replacesExistingTier(),
                     inventorySlot));
         }
         return new AllocationOutcome(List.copyOf(placements), null);
@@ -437,12 +494,6 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                         position,
                         "AE2 part placement requires an explicit host side"));
             }
-            if (!PartPlacement.canPlacePartOnBlock(context.player(), context.level(), stack, position, side)) {
-                return PlacementValidation.failed(failure(
-                        FailureType.PLACE_FAILED,
-                        position,
-                        "AE2 part cannot be placed on the selected host side"));
-            }
             return PlacementValidation.success(side);
         }
         if (!(stack.getItem() instanceof BlockItem blockItem)) {
@@ -458,22 +509,12 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                     "Candidate block is disabled by active feature flags"));
         }
 
-        ItemStack detached = stack.copyWithCount(1);
-        PlaceContext placeContext = new PlaceContext(context.level(), context.player(), detached, position);
-        BlockPlaceContext updatedContext = blockItem.updatePlacementContext(placeContext);
-        if (!placeContext.canPlace() || updatedContext == null || blockItem.getBlock().getStateForPlacement(updatedContext) == null) {
-            return PlacementValidation.failed(failure(
-                    FailureType.PLACE_FAILED,
-                    position,
-                    "Candidate block has no valid placement state"));
-        }
         BlockState desiredState = candidate.desiredState();
-        if (desiredState == null || !desiredState.canSurvive(context.level(), position) ||
-                !context.level().isUnobstructed(desiredState, position, CollisionContext.of(context.player()))) {
+        if (desiredState == null || desiredState.getBlock() != blockItem.getBlock()) {
             return PlacementValidation.failed(failure(
-                    FailureType.PLACE_FAILED,
+                    FailureType.UNSUPPORTED_CANDIDATE,
                     position,
-                    "Candidate block cannot survive or is obstructed"));
+                    "Block candidate does not declare a matching target state"));
         }
         return PlacementValidation.success(null);
     }
@@ -486,56 +527,225 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         return List.copyOf(snapshots.values());
     }
 
-    @Nullable
-    private static Failure placeAll(Context context, List<Placement> placements) {
-        for (Placement placement : placements) {
-            try {
-                if (!place(context, placement)) {
-                    return failure(FailureType.PLACE_FAILED, placement.position(),
-                            "Placement did not satisfy its original structure predicate");
+    private static PlacementBatchOutcome placeAll(Context context, List<Placement> placements) {
+        List<Placement> pending = placements;
+        ArrayList<ReplacementDrop> replacementDrops = new ArrayList<>();
+        while (!pending.isEmpty()) {
+            ArrayList<Placement> deferred = new ArrayList<>();
+            boolean madeProgress = false;
+            for (Placement placement : pending) {
+                try {
+                    PlacementReadiness readiness = placementReadiness(context, placement);
+                    if (!readiness.ready()) {
+                        deferred.add(placement);
+                        continue;
+                    }
+                    PlacementCommit placementCommit = place(context, placement);
+                    if (!placementCommit.success()) {
+                        return PlacementBatchOutcome.failure(failure(FailureType.PLACE_FAILED, placement.position(),
+                                "Placement did not satisfy its original structure predicate"));
+                    }
+                    replacementDrops.addAll(placementCommit.replacementDrops());
+                    madeProgress = true;
+                } catch (RuntimeException exception) {
+                    LOGGER.error("Atomic auto-build placement failed for {} at {}", context.structureName(),
+                            placement.position(), exception);
+                    return PlacementBatchOutcome.failure(failure(FailureType.PLACE_FAILED, placement.position(),
+                            "Placement raised an exception; captured state will be restored"));
                 }
-            } catch (RuntimeException exception) {
-                LOGGER.error("Atomic auto-build placement failed for {} at {}", context.structureName(),
-                        placement.position(), exception);
-                return failure(FailureType.PLACE_FAILED, placement.position(),
-                        "Placement raised an exception; captured state will be restored");
             }
+
+            if (deferred.isEmpty()) {
+                return PlacementBatchOutcome.success(replacementDrops);
+            }
+            if (!madeProgress) {
+                Placement firstDeferred = deferred.getFirst();
+                PlacementReadiness readiness = placementReadiness(context, firstDeferred);
+                return PlacementBatchOutcome.failure(failure(
+                        FailureType.PLACE_FAILED,
+                        firstDeferred.position(),
+                        readiness.detail() + "; no deferred placement dependency made progress"));
+            }
+            pending = deferred;
         }
-        return null;
+        return PlacementBatchOutcome.success(replacementDrops);
     }
 
-    private static boolean place(Context context, Placement placement) {
-        ItemStack detached = placement.stack().copyWithCount(1);
-        if (detached.getItem() instanceof IPartItem<?> partItem) {
+    private static PlacementReadiness placementReadiness(Context context, Placement placement) {
+        ItemStack stack = placement.stack();
+        if (stack.getItem() instanceof IPartItem<?>) {
             Direction partSide = placement.partSide();
-            if (partSide == null || PartPlacement.placePart(
-                    context.player(),
-                    context.level(),
-                    partItem,
-                    detached.getComponents(),
-                    placement.position(),
-                    partSide) == null) {
-                return false;
+            if (partSide != null && PartPlacement.canPlacePartOnBlock(
+                    context.player(), context.level(), stack, placement.position(), partSide)) {
+                return PlacementReadiness.readyPlacement();
             }
-        } else if (detached.getItem() instanceof BlockItem blockItem) {
-            InteractionResult result = blockItem.place(new PlaceContext(
-                    context.level(), context.player(), detached, placement.position()));
-            if (result == InteractionResult.FAIL) {
-                return false;
+            return PlacementReadiness.deferred("AE2 part cannot yet be placed on the selected host side");
+        }
+        if (!(stack.getItem() instanceof BlockItem blockItem)) {
+            throw new IllegalStateException("Validated placement candidate is not a block or AE2 part");
+        }
+
+        BlockState desiredState = placement.desiredState();
+        if (desiredState == null) {
+            throw new IllegalStateException("Validated block placement has no target state");
+        }
+        if (placement.replacesExistingTier()) {
+            if (!desiredState.canSurvive(context.level(), placement.position())) {
+                return PlacementReadiness.deferred(
+                        "Replacement tier block " + BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()) +
+                                " cannot survive until its support is placed");
             }
+            return PlacementReadiness.readyPlacement();
+        }
+
+        ItemStack detached = stack.copyWithCount(1);
+        PlaceContext placeContext = new PlaceContext(
+                context.level(), context.player(), detached, placement.position());
+        BlockPlaceContext updatedContext = blockItem.updatePlacementContext(placeContext);
+        if (!placeContext.canPlace() || updatedContext == null ||
+                blockItem.getBlock().getStateForPlacement(updatedContext) == null) {
+            return PlacementReadiness.deferred(
+                    "Candidate block " + BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()) +
+                            " has no valid placement state yet");
+        }
+
+        if (!desiredState.canSurvive(context.level(), placement.position())) {
+            return PlacementReadiness.deferred(
+                    "Candidate block " + BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()) +
+                            " cannot survive until its support is placed");
+        }
+        if (!context.level().isUnobstructed(
+                desiredState, placement.position(), CollisionContext.of(context.player()))) {
+            return PlacementReadiness.deferred(
+                    "Candidate block " + BuiltInRegistries.BLOCK.getKey(blockItem.getBlock()) +
+                            " is obstructed");
+        }
+        return PlacementReadiness.readyPlacement();
+    }
+
+    private static PlacementCommit place(Context context, Placement placement) {
+        List<ReplacementDrop> replacementDrops = List.of();
+        if (placement.replacesExistingTier()) {
+            ReplacementOutcome replacement = replaceExistingTier(context, placement);
+            if (!replacement.success()) {
+                return PlacementCommit.failed();
+            }
+            replacementDrops = replacement.drops();
         } else {
-            return false;
+            ItemStack detached = placement.stack().copyWithCount(1);
+            if (detached.getItem() instanceof IPartItem<?> partItem) {
+                Direction partSide = placement.partSide();
+                if (partSide == null || PartPlacement.placePart(
+                        context.player(),
+                        context.level(),
+                        partItem,
+                        detached.getComponents(),
+                        placement.position(),
+                        partSide) == null) {
+                    return PlacementCommit.failed();
+                }
+            } else if (detached.getItem() instanceof BlockItem blockItem) {
+                InteractionResult result = blockItem.place(new PlaceContext(
+                        context.level(), context.player(), detached, placement.position()));
+                if (result == InteractionResult.FAIL) {
+                    return PlacementCommit.failed();
+                }
+            } else {
+                return PlacementCommit.failed();
+            }
         }
 
         if (placement.desiredState() != null && !applyDesiredState(
                 context.level(), placement.position(), placement.desiredState())) {
-            return false;
+            return PlacementCommit.failed();
         }
         MultiblockState verification = new MultiblockState(context.world(), context.origin(), context.structureName());
         if (!verification.update(placement.position(), placement.predicate())) {
-            return false;
+            return PlacementCommit.failed();
         }
-        return placement.predicate().test(verification);
+        if (!placement.predicate().test(verification) ||
+                placement.requiresPart() && !hasMatchingRequiredPart(context, placement.predicate(), placement.position())) {
+            return PlacementCommit.failed();
+        }
+        return PlacementCommit.success(replacementDrops);
+    }
+
+    private static ReplacementOutcome replaceExistingTier(Context context, Placement placement) {
+        BlockState desiredState = placement.desiredState();
+        if (desiredState == null) {
+            return ReplacementOutcome.failed();
+        }
+        BlockState replacedState = context.level().getBlockState(placement.position());
+        BlockEntity replacedBlockEntity = context.level().getBlockEntity(placement.position());
+        List<ItemStack> drops = Block.getDrops(
+                replacedState,
+                context.level(),
+                placement.position(),
+                replacedBlockEntity).stream()
+                .filter(drop -> !drop.isEmpty())
+                .map(ItemStack::copy)
+                .toList();
+        if (!context.level().setBlock(placement.position(), desiredState, WORLD_UPDATE_FLAGS)) {
+            return ReplacementOutcome.failed();
+        }
+        if (drops.isEmpty()) {
+            return ReplacementOutcome.success(List.of());
+        }
+        return ReplacementOutcome.success(List.of(new ReplacementDrop(placement.position(), drops)));
+    }
+
+    private static void releaseReplacementDrops(Context context, List<ReplacementDrop> replacementDrops) {
+        ArrayList<ReplacementOverflow> overflows = new ArrayList<>();
+        for (ReplacementDrop replacementDrop : replacementDrops) {
+            for (ItemStack stack : replacementDrop.stacks()) {
+                ItemStack remaining = stack.copy();
+                try {
+                    context.player().addItem(remaining);
+                } catch (RuntimeException exception) {
+                    LOGGER.error("Unable to return auto-build replacement loot {} to player {}; dropping its remainder",
+                            remaining, context.player().getGameProfile().getName(), exception);
+                }
+                if (remaining.isEmpty()) {
+                    continue;
+                }
+                appendReplacementOverflow(overflows, replacementDrop.position(), remaining);
+            }
+        }
+        for (ReplacementOverflow overflow : overflows) {
+            try {
+                Block.popResource(context.level(), overflow.position(), overflow.stack().copy());
+            } catch (RuntimeException exception) {
+                LOGGER.error("Unable to drop auto-build replacement loot {} at {} after player inventory overflow",
+                        overflow.stack(), overflow.position(), exception);
+            }
+        }
+    }
+
+    private static void appendReplacementOverflow(List<ReplacementOverflow> overflows,
+                                                  BlockPos position,
+                                                  ItemStack remaining) {
+        ItemStack unmerged = remaining.copy();
+        for (ReplacementOverflow overflow : overflows) {
+            ItemStack existing = overflow.stack();
+            if (!ItemStack.isSameItemSameComponents(existing, unmerged)) {
+                continue;
+            }
+            int freeSpace = existing.getMaxStackSize() - existing.getCount();
+            if (freeSpace <= 0) {
+                continue;
+            }
+            int merged = Math.min(freeSpace, unmerged.getCount());
+            existing.grow(merged);
+            unmerged.shrink(merged);
+            if (unmerged.isEmpty()) {
+                return;
+            }
+        }
+        while (!unmerged.isEmpty()) {
+            int count = Math.min(unmerged.getCount(), unmerged.getMaxStackSize());
+            overflows.add(new ReplacementOverflow(position.immutable(), unmerged.copyWithCount(count)));
+            unmerged.shrink(count);
+        }
     }
 
     private static boolean applyDesiredState(Level level, BlockPos position, BlockState desiredState) {
@@ -605,6 +815,15 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         private boolean rejectsExisting(Block block) {
             return this.selectedBlock != null && this.candidateBlocks.contains(block) && this.selectedBlock != block;
         }
+
+        private boolean replacesExisting(Block block, Map<Block, Integer> tierRanks) {
+            if (!rejectsExisting(block)) {
+                return false;
+            }
+            Integer existingRank = tierRanks.get(block);
+            Integer selectedRank = tierRanks.get(this.selectedBlock);
+            return existingRank != null && selectedRank != null && selectedRank > existingRank;
+        }
     }
 
     private record TierSelectionOutcome(@Nullable TierSelection selection, @Nullable Failure failure) {
@@ -618,13 +837,28 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         }
     }
 
-    private record PositionPlan(BlockPos position, TraceabilityPredicate predicate, List<Candidate> candidates) {}
+    private record PositionPlan(BlockPos position,
+                                TraceabilityPredicate predicate,
+                                List<Candidate> candidates,
+                                boolean requiresPart,
+                                boolean replacesExistingTier) {}
 
     private record Candidate(ItemStack stack, @Nullable BlockState desiredState) {}
 
     private record CandidateSlot(Candidate candidate, int slot) {}
 
     private record AllocationOutcome(List<Placement> placements, @Nullable Failure failure) {}
+
+    private record PlacementBatchOutcome(@Nullable Failure failure, List<ReplacementDrop> replacementDrops) {
+
+        private static PlacementBatchOutcome success(List<ReplacementDrop> replacementDrops) {
+            return new PlacementBatchOutcome(null, List.copyOf(replacementDrops));
+        }
+
+        private static PlacementBatchOutcome failure(Failure failure) {
+            return new PlacementBatchOutcome(failure, List.of());
+        }
+    }
 
     private record PlacementValidation(@Nullable Direction partSide, @Nullable Failure failure) {
 
@@ -637,11 +871,50 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         }
     }
 
+    private record PlacementReadiness(boolean ready, String detail) {
+
+        private static PlacementReadiness readyPlacement() {
+            return new PlacementReadiness(true, "");
+        }
+
+        private static PlacementReadiness deferred(String detail) {
+            return new PlacementReadiness(false, detail);
+        }
+    }
+
+    private record PlacementCommit(boolean success, List<ReplacementDrop> replacementDrops) {
+
+        private static PlacementCommit success(List<ReplacementDrop> replacementDrops) {
+            return new PlacementCommit(true, List.copyOf(replacementDrops));
+        }
+
+        private static PlacementCommit failed() {
+            return new PlacementCommit(false, List.of());
+        }
+    }
+
+    private record ReplacementOutcome(boolean success, List<ReplacementDrop> drops) {
+
+        private static ReplacementOutcome success(List<ReplacementDrop> drops) {
+            return new ReplacementOutcome(true, List.copyOf(drops));
+        }
+
+        private static ReplacementOutcome failed() {
+            return new ReplacementOutcome(false, List.of());
+        }
+    }
+
+    private record ReplacementDrop(BlockPos position, List<ItemStack> stacks) {}
+
+    private record ReplacementOverflow(BlockPos position, ItemStack stack) {}
+
     private record Placement(BlockPos position,
                              TraceabilityPredicate predicate,
                              ItemStack stack,
                              @Nullable BlockState desiredState,
                              @Nullable Direction partSide,
+                             boolean requiresPart,
+                             boolean replacesExistingTier,
                              int inventorySlot) {}
 
     private record WorldSnapshot(BlockPos position, BlockState state, @Nullable CompoundTag blockEntityData) {

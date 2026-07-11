@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePattern;
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePropertyValue;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,6 +17,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -23,6 +27,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -217,6 +224,43 @@ public final class MultiBlockAutoBuildGameTest {
         helper.succeed();
     }
 
+    @TestHolder("multi_block_auto_build_retries_deferred_support_dependency")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void retriesDeferredSupportDependency(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Block fixture = block("ae2:quartz_fixture");
+        BlockState fixtureState = fixture.defaultBlockState()
+                .setValue(BlockStateProperties.FACING, Direction.EAST);
+        TraceabilityPredicate fixturePredicate = new TraceabilityPredicate(
+                new JsonMultiBlockPlacementPredicate(
+                        new JsonMultiBlockStatePropertiesPredicate(List.of(new StatePattern(
+                                fixture,
+                                List.of(new StatePropertyValue<>(BlockStateProperties.FACING, Direction.EAST))))),
+                        List.of(fixture.asItem().getDefaultInstance())));
+        BlockPattern pattern = twoTargetPattern(fixturePredicate, Predicates.blocks(Blocks.IRON_BLOCK));
+        BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos fixturePosition = position(pattern, origin, 0, 1);
+        BlockPos supportPosition = position(pattern, origin, 0, 2);
+
+        helper.assertValueEqual(supportPosition, fixturePosition.relative(Direction.WEST),
+                "Test structure must visit the fixture before its western support");
+        helper.assertFalse(fixtureState.canSurvive(level, fixturePosition),
+                "Fixture must initially be unplaceable without its planned support");
+
+        Result result = execute(level, creativePlayer(helper), pattern, origin, 1, Map.of());
+
+        helper.assertTrue(result.success(), "Deferred fixture should place after its later planned support");
+        helper.assertValueEqual(level.getBlockState(supportPosition).getBlock(), Blocks.IRON_BLOCK,
+                "Later support placement should be retained");
+        helper.assertValueEqual(level.getBlockState(fixturePosition).getBlock(), fixture,
+                "Deferred fixture should be retried and placed");
+        helper.assertValueEqual(level.getBlockState(fixturePosition).getValue(BlockStateProperties.FACING),
+                Direction.EAST,
+                "Retried fixture should keep its predicate-selected target state");
+        helper.succeed();
+    }
+
     @TestHolder("multi_block_auto_build_runtime_failure_rolls_back")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
@@ -274,6 +318,131 @@ public final class MultiBlockAutoBuildGameTest {
         helper.succeed();
     }
 
+    @TestHolder("multi_block_auto_build_upgrades_existing_tier_and_returns_loot")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void upgradesExistingTierAndReturnsLoot(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.getInventory().setItem(0, new ItemStack(Blocks.GOLD_BLOCK));
+        BlockPattern pattern = oneTargetPattern(Predicates.blocks(Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK));
+        BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos target = position(pattern, origin, 0, 1);
+        level.setBlock(target, Blocks.IRON_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+
+        Result result = execute(
+                level,
+                player,
+                pattern,
+                origin,
+                1,
+                Map.of(
+                        Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK,
+                        Blocks.GOLD_BLOCK, Blocks.GOLD_BLOCK),
+                Map.of(Blocks.IRON_BLOCK, 1, Blocks.GOLD_BLOCK, 2),
+                (position, partStack) -> null);
+
+        helper.assertTrue(result.success(), "A selected higher tier should replace an accepted lower tier");
+        helper.assertValueEqual(level.getBlockState(target).getBlock(), Blocks.GOLD_BLOCK,
+                "Tier upgrade should leave the requested higher tier in place");
+        helper.assertValueEqual(countItem(player, Blocks.GOLD_BLOCK.asItem()), 0,
+                "Tier upgrade should consume the requested higher-tier material");
+        helper.assertValueEqual(countItem(player, Blocks.IRON_BLOCK.asItem()), 1,
+                "Tier upgrade should return old-block loot to the player inventory first");
+        helper.assertFalse(hasDroppedItem(level, target, Blocks.IRON_BLOCK.asItem()),
+                "Tier upgrade should not drop loot while the player inventory accepts it");
+        helper.succeed();
+    }
+
+    @TestHolder("multi_block_auto_build_drops_tier_loot_after_player_inventory_overflow")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void dropsTierLootAfterPlayerInventoryOverflow(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Player player = creativePlayer(helper);
+        fillInventory(player, new ItemStack(Blocks.DIRT, 64));
+        BlockPattern pattern = twoTargetPattern(
+                Predicates.blocks(Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK),
+                Predicates.blocks(Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK));
+        BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos firstTarget = position(pattern, origin, 0, 1);
+        BlockPos secondTarget = position(pattern, origin, 0, 2);
+        level.setBlock(firstTarget, Blocks.IRON_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(secondTarget, Blocks.IRON_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+
+        Result result = execute(
+                level,
+                player,
+                pattern,
+                origin,
+                1,
+                Map.of(
+                        Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK,
+                        Blocks.GOLD_BLOCK, Blocks.GOLD_BLOCK),
+                Map.of(Blocks.IRON_BLOCK, 1, Blocks.GOLD_BLOCK, 2),
+                (position, partStack) -> null);
+
+        helper.assertTrue(result.success(), "Creative tier upgrades should commit with a full inventory");
+        helper.assertValueEqual(result.placed(), 2, "Both lower-tier positions should be replaced");
+        helper.assertValueEqual(countItem(player, Blocks.IRON_BLOCK.asItem()), 0,
+                "Full player inventory must not absorb replacement loot");
+        List<ItemStack> droppedIron = droppedItems(level, firstTarget, Blocks.IRON_BLOCK.asItem());
+        helper.assertValueEqual(droppedIron.size(), 1,
+                "Matching replacement loot should be merged into one world entity after inventory overflow");
+        helper.assertValueEqual(droppedIron.getFirst().getCount(), 2,
+                "Merged world replacement loot should preserve the aggregate item count");
+        helper.succeed();
+    }
+
+    @TestHolder("multi_block_auto_build_rolls_back_tier_replacement_without_delivering_loot")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void rollsBackTierReplacementWithoutDeliveringLoot(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.getInventory().setItem(0, new ItemStack(Blocks.GOLD_BLOCK));
+        player.getInventory().setItem(1, new ItemStack(Blocks.DIRT));
+        TraceabilityPredicate failingPredicate = new TraceabilityPredicate(new JsonMultiBlockPlacementPredicate(
+                new BlockPredicate(List.of(Blocks.GLASS)),
+                List.of(Blocks.DIRT.asItem().getDefaultInstance())));
+        BlockPattern pattern = twoTargetPattern(
+                Predicates.blocks(Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK),
+                failingPredicate);
+        BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos replacementTarget = position(pattern, origin, 0, 1);
+        BlockPos failingTarget = position(pattern, origin, 0, 2);
+        level.setBlock(replacementTarget, Blocks.IRON_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+
+        Result result = execute(
+                level,
+                player,
+                pattern,
+                origin,
+                1,
+                Map.of(
+                        Blocks.IRON_BLOCK, Blocks.GOLD_BLOCK,
+                        Blocks.GOLD_BLOCK, Blocks.GOLD_BLOCK),
+                Map.of(Blocks.IRON_BLOCK, 1, Blocks.GOLD_BLOCK, 2),
+                (position, partStack) -> null);
+
+        helper.assertFalse(result.success(), "A later commit failure must roll back an earlier tier replacement");
+        helper.assertValueEqual(result.failure().type(), FailureType.PLACE_FAILED,
+                "The invalid later predicate should fail during placement verification");
+        helper.assertValueEqual(level.getBlockState(replacementTarget).getBlock(), Blocks.IRON_BLOCK,
+                "Failed transaction must restore the original lower tier");
+        helper.assertValueEqual(level.getBlockState(failingTarget).getBlock(), Blocks.AIR,
+                "Failed transaction must restore the later target position");
+        helper.assertValueEqual(countItem(player, Blocks.GOLD_BLOCK.asItem()), 1,
+                "Failed transaction must return selected high-tier material");
+        helper.assertValueEqual(countItem(player, Blocks.DIRT.asItem()), 1,
+                "Failed transaction must return later placement material");
+        helper.assertValueEqual(countItem(player, Blocks.IRON_BLOCK.asItem()), 0,
+                "Failed transaction must not deliver old-tier loot to the player inventory");
+        helper.assertFalse(hasDroppedItem(level, replacementTarget, Blocks.IRON_BLOCK.asItem()),
+                "Failed transaction must not emit old-tier loot into the world");
+        helper.succeed();
+    }
+
     @TestHolder("multi_block_auto_build_places_ae2_part")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
@@ -296,6 +465,34 @@ public final class MultiBlockAutoBuildGameTest {
                 "AE2 part placement should create its cable bus block");
         helper.assertTrue(PartHelper.getPart(level, target, null) != null,
                 "Covered cable should occupy the cable bus center slot");
+        helper.succeed();
+    }
+
+    @TestHolder("multi_block_auto_build_repairs_existing_ae2_cable_bus_part")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void repairsExistingAe2CableBusPart(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Block cableBus = block("ae2:cable_bus");
+        Item cable = item("ae2:fluix_covered_cable");
+        TraceabilityPredicate predicate = new TraceabilityPredicate(new JsonMultiBlockPlacementPredicate(
+                new BlockPredicate(List.of(cableBus)),
+                List.of(cable.getDefaultInstance())));
+        BlockPattern pattern = oneTargetPattern(predicate);
+        BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos target = position(pattern, origin, 0, 1);
+        level.setBlock(target, cableBus.defaultBlockState(), Block.UPDATE_ALL);
+
+        Result result = execute(level, creativePlayer(helper), pattern, origin, 1, Map.of(),
+                (position, partStack) -> Direction.UP);
+
+        helper.assertTrue(result.success(), "An empty existing Cable Bus must receive its required AE2 part");
+        helper.assertValueEqual(result.placed(), 1,
+                "Repairing the missing part should count as one committed placement");
+        helper.assertValueEqual(level.getBlockState(target).getBlock(), cableBus,
+                "Repairing a Cable Bus must retain the existing host block");
+        helper.assertTrue(PartHelper.getPart(level, target, null) != null,
+                "Repairing a Cable Bus must populate the covered-cable center slot");
         helper.succeed();
     }
 
@@ -368,6 +565,17 @@ public final class MultiBlockAutoBuildGameTest {
                                   int repeatCount,
                                   Map<Block, Block> selectedTierBlocks,
                                   PartSideResolver partSideResolver) {
+        return execute(level, player, pattern, origin, repeatCount, selectedTierBlocks, Map.of(), partSideResolver);
+    }
+
+    private static Result execute(ServerLevel level,
+                                  Player player,
+                                  BlockPattern pattern,
+                                  BlockPos origin,
+                                  int repeatCount,
+                                  Map<Block, Block> selectedTierBlocks,
+                                  Map<Block, Integer> tierRanks,
+                                  PartSideResolver partSideResolver) {
         return AUTO_BUILD.execute(MultiBlockAutoBuild.Context.builder()
                 .level(level)
                 .player(player)
@@ -379,6 +587,7 @@ public final class MultiBlockAutoBuildGameTest {
                 .flipped(false)
                 .repeatCount(repeatCount)
                 .selectedTierBlocks(selectedTierBlocks)
+                .tierRanks(tierRanks)
                 .partSideResolver(partSideResolver)
                 .build());
     }
@@ -444,6 +653,25 @@ public final class MultiBlockAutoBuildGameTest {
             }
         }
         return count;
+    }
+
+    private static void fillInventory(Player player, ItemStack stack) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            player.getInventory().setItem(slot, stack.copy());
+        }
+    }
+
+    private static boolean hasDroppedItem(ServerLevel level, BlockPos position, Item item) {
+        return !droppedItems(level, position, item).isEmpty();
+    }
+
+    private static List<ItemStack> droppedItems(ServerLevel level, BlockPos position, Item item) {
+        AABB searchArea = AABB.ofSize(Vec3.atCenterOf(position), 8.0D, 4.0D, 4.0D);
+        return level.getEntitiesOfClass(ItemEntity.class, searchArea).stream()
+                .map(ItemEntity::getItem)
+                .filter(stack -> stack.is(item))
+                .map(ItemStack::copy)
+                .toList();
     }
 
     private static Block block(String id) {

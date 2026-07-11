@@ -198,6 +198,27 @@ public final class TrinityAutoBuildBlockMap {
         return Map.copyOf(selections);
     }
 
+    /**
+     * Resolves the ordered candidate ranks for one structure's exclusive core category.
+     *
+     * <p>
+     * The atomic builder uses these ranks to permit a selected higher tier to replace a legal lower tier while
+     * refusing downgrades or categories that do not explicitly declare an order.
+     * </p>
+     *
+     * @param structureIndex structure selector being built
+     * @return immutable candidate block to positive tier-rank mapping
+     */
+    public static Map<Block, Integer> tierRanksForStructure(int structureIndex) {
+        String category = categoryForStructure(structureIndex);
+        LinkedHashMap<Block, Integer> ranks = new LinkedHashMap<>();
+        List<TierDefinition> tiers = CATEGORIES.get(category);
+        for (int index = 0; index < tiers.size(); index++) {
+            ranks.put(resolveTierBlock(tiers.get(index)), index + 1);
+        }
+        return Map.copyOf(ranks);
+    }
+
     private static TierDefinition tier(String blockPath,
                                        TrinityCoreKind coreKind,
                                        Supplier<? extends Block> blockSupplier) {
