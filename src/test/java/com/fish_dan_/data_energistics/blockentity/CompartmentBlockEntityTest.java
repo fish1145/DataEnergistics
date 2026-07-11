@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -24,13 +25,16 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -41,6 +45,8 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -63,6 +69,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -263,21 +270,10 @@ public final class CompartmentBlockEntityTest {
             hatch.refreshTrinityAccess();
         }
 
-        helper.assertTrue(
-                host.accessGrid() == null,
-                "Trinity access must stay offline until the CPU and crafting child structures are also formed");
-        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
-        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
-        host.requestStructureRecheck();
-        host.serverTick();
-        helper.assertTrue(host.isCpuStructureFormed(),
-                "Auto-built Trinity CPU child structure should form: " + host.getCpuLastFailureReason());
-        helper.assertTrue(host.isCraftingStructureFormed(),
-                "Auto-built Trinity crafting child structure should form: " + host.getCraftingLastFailureReason());
-        for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
-            hatch.refreshTrinityAccess();
-        }
         AtomicReference<TestGridPower> testGridPower = new AtomicReference<>();
+        AtomicBoolean mainChecked = new AtomicBoolean();
+        AtomicBoolean cpuChecked = new AtomicBoolean();
+        AtomicBoolean catalogInvalidated = new AtomicBoolean();
         helper.succeedWhen(() -> {
             connectAccessHatches(helper, level, boundHatches, testGridPower);
             host.serverTick();
@@ -287,9 +283,37 @@ public final class CompartmentBlockEntityTest {
             assertHostUsesBoundTrinityAccessGrid(helper, host, boundHatches);
             assertSingleLeaseOwner(helper, host, boundHatches);
             IGrid grid = host.accessGrid();
-            helper.assertTrue(grid != null, "Complete Trinity structure should expose one powered AE grid");
+            helper.assertTrue(grid != null, "Formed Trinity main structure should expose one powered AE grid");
             helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.connectedGrid() == grid),
                     "Both Trinity access hatches should share one AE grid in this test");
+
+            if (!mainChecked.get()) {
+                helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.boundCraftingRuntime() == null),
+                        "Main-only Trinity structure must not publish virtual CPUs");
+                helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.terminalPartitions().isEmpty()),
+                        "Main-only Trinity structure must not publish pattern terminal partitions");
+                buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
+                host.requestStructureRecheck();
+                mainChecked.set(true);
+                return;
+            }
+
+            if (!cpuChecked.get()) {
+                helper.assertTrue(host.isCpuStructureFormed(),
+                        "Auto-built Trinity CPU child structure should form: " + host.getCpuLastFailureReason());
+                helper.assertTrue(boundHatches.stream().filter(host::isLeaseOwner)
+                        .anyMatch(hatch -> hatch.boundCraftingRuntime() == host.getCraftingRuntime()),
+                        "CPU child structure must publish the virtual CPU runtime independently");
+                helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.terminalPartitions().isEmpty()),
+                        "CPU-only child structure must not publish pattern terminal partitions");
+                buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
+                host.requestStructureRecheck();
+                cpuChecked.set(true);
+                return;
+            }
+
+            helper.assertTrue(host.isCraftingStructureFormed(),
+                    "Auto-built Trinity crafting child structure should form: " + host.getCraftingLastFailureReason());
             helper.assertTrue(boundHatches.stream()
                     .filter(host::isLeaseOwner)
                     .flatMap(hatch -> hatch.terminalPartitions().stream())
@@ -303,11 +327,45 @@ public final class CompartmentBlockEntityTest {
                             .mapToInt(hatch -> hatch.terminalPartitions().size()).sum(),
                     0,
                     "Non-owning access hatches must not mount duplicate terminal partitions");
+
+            if (!catalogInvalidated.get()) {
+                helper.assertTrue(
+                        Math.floorMod(level.getGameTime() + origin.asLong(), 100) != 0,
+                        "Waiting for a non-periodic host tick to exercise catalog self-invalidation");
+                TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
+                TrinityPatternCoreImpl restoredState = new TrinityPatternCoreImpl(
+                        mount.blockCapacity(),
+                        UUID.randomUUID(),
+                        stack -> null,
+                        () -> {});
+                CompoundTag restoredTag = new CompoundTag();
+                restoredState.writeToTag(restoredTag, level.registryAccess());
+                mount.core().readFromTag(restoredTag, level.registryAccess());
+                host.serverTick();
+                catalogInvalidated.set(true);
+            }
+
+            helper.assertTrue(!host.getPatternCatalog().layoutSnapshot().active(),
+                    "A mounted P-core identity change must invalidate the authoritative catalog layout");
+            helper.assertTrue(!host.isPatternProviderAvailable(),
+                    "Catalog self-invalidation must withdraw pattern capabilities");
+            helper.assertTrue(host.accessGrid() == grid,
+                    "Catalog self-invalidation must retain the host storage grid");
+            for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
+                if (host.isLeaseOwner(hatch)) {
+                    helper.assertTrue(hatch.accessGrid() == grid,
+                            "Catalog self-invalidation must retain hatch storage access");
+                    helper.assertTrue(hatch.boundCraftingRuntime() == host.getCraftingRuntime(),
+                            "Catalog self-invalidation must retain hatch virtual CPUs");
+                }
+                helper.assertTrue(hatch.terminalPartitions().isEmpty(),
+                        "Catalog self-invalidation must detach every terminal partition");
+            }
             testGridPower.get().destroy();
         });
     }
 
-    @TestHolder("trinity_access_hatch_withdraws_all_capabilities_on_child_failure")
+    @TestHolder("trinity_access_hatch_withdraws_only_pattern_capabilities_on_crafting_failure")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
     public static void trinityAccessHatchWithdrawsCapabilitiesButRetainsWork(GameTestHelper helper) {
@@ -337,6 +395,9 @@ public final class CompartmentBlockEntityTest {
         AtomicReference<TestGridPower> testGridPower = new AtomicReference<>();
         AtomicBoolean invalidated = new AtomicBoolean();
         AtomicReference<List<TrinityDataCoreVirtualCpu>> retainedCpuPartitions = new AtomicReference<>();
+        AtomicReference<TrinityPatternCatalog.CoreMount> retainedPatternMount = new AtomicReference<>();
+        AtomicReference<InternalInventory> staleTerminalInventory = new AtomicReference<>();
+        ItemStack encodedPattern = encodedOakPlanksPattern(helper);
         helper.succeedWhen(() -> {
             if (!invalidated.get()) {
                 connectAccessHatches(helper, level, hatches, testGridPower);
@@ -355,32 +416,67 @@ public final class CompartmentBlockEntityTest {
                         .allMatch(partition -> partition.isAttachedTo(host.accessGrid())),
                         "Terminal partitions should be mounted before capability invalidation");
                 TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
+                retainedPatternMount.set(mount);
+                TrinityAccessHatchBlockEntity leaseHatch = hatches.stream()
+                        .filter(host::isLeaseOwner)
+                        .findFirst()
+                        .orElseThrow();
+                InternalInventory partitionInventory = leaseHatch.terminalPartitions().stream()
+                        .filter(partition -> partition.key().coreId().equals(mount.core().coreId()))
+                        .findFirst()
+                        .orElseThrow()
+                        .getTerminalPatternInventory();
+                staleTerminalInventory.set(partitionInventory);
+                helper.assertTrue(partitionInventory.insertItem(0, encodedPattern, false).isEmpty(),
+                        "Current terminal partition should write through to its exact physical P-core slot");
+                helper.assertTrue(ItemStack.isSameItemSameComponents(mount.core().pattern(0), encodedPattern),
+                        "Current terminal write should install the encoded pattern in its routed core");
                 PatternRoute route = new PatternRoute(host.getHostId(), mount.core().coreId(), 0);
                 mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
 
-                BlockPos cpuCorePosition = findCpuCore(level, origin);
-                level.setBlock(cpuCorePosition, Blocks.AIR.defaultBlockState(), 3);
+                TrinityPatternCatalog.CoreMount duplicateTarget = host.getPatternCatalog().mountedCores().stream()
+                        .filter(candidate -> candidate.core() != mount.core() &&
+                                candidate.blockCapacity() == mount.blockCapacity())
+                        .findFirst()
+                        .orElseThrow();
+                CompoundTag duplicateState = new CompoundTag();
+                mount.core().writeToTag(duplicateState, level.registryAccess());
+                duplicateTarget.core().readFromTag(duplicateState, level.registryAccess());
                 host.requestStructureRecheck();
                 host.serverTick();
-                for (TrinityAccessHatchBlockEntity hatch : hatches) {
-                    hatch.refreshTrinityAccess();
-                }
                 invalidated.set(true);
             }
 
-            TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
+            TrinityPatternCatalog.CoreMount mount = retainedPatternMount.get();
             PatternRoute route = new PatternRoute(host.getHostId(), mount.core().coreId(), 0);
-            helper.assertTrue(!host.isCpuStructureFormed(), "Broken CPU child structure must invalidate capabilities");
-            helper.assertTrue(!host.canExposeTrinityCapabilities(),
-                    "A Trinity host with one invalid child structure must withdraw all capabilities");
+            helper.assertTrue(host.isCpuStructureFormed(),
+                    "Crafting catalog scan rejection must not discard the valid CPU child profile");
+            helper.assertTrue(!host.isCraftingStructureFormed(),
+                    "Duplicate P-core UUIDs must reject the crafting child structure scan");
+            helper.assertTrue(host.getCraftingLastFailureReason().contains("Duplicate Trinity pattern core UUID"),
+                    "Crafting scan rejection must preserve its duplicate P-core UUID diagnostic");
             helper.assertTrue(!host.isPatternProviderAvailable(),
-                    "Pattern provider must be unavailable while any Trinity structure is invalid");
-            helper.assertTrue(host.accessGrid() == null,
-                    "Storage access must be unavailable while any Trinity structure is invalid");
+                    "Pattern provider must be unavailable while its crafting structure is invalid");
+            helper.assertTrue(host.accessGrid() != null,
+                    "Crafting structure failure must retain storage access");
             helper.assertTrue(host.getPatternCatalog().hasWork(),
                     "Invalidation must retain route-owned work for lease locking");
+            helper.assertTrue(host.getPatternCatalog().mountedCores().isEmpty(),
+                    "Invalidation must immediately hide every public catalog mount");
             helper.assertValueEqual(mount.core().pendingOutputs(route).size(), 1,
                     "Invalidation must retain pending route outputs");
+            InternalInventory staleInventory = staleTerminalInventory.get();
+            helper.assertTrue(staleInventory.getStackInSlot(0).isEmpty(),
+                    "A captured terminal inventory must read empty immediately after layout invalidation");
+            helper.assertTrue(staleInventory.extractItem(0, 1, false).isEmpty(),
+                    "A captured terminal inventory must reject extraction after layout invalidation");
+            ItemStack rejected = staleInventory.insertItem(0, encodedPattern, false);
+            helper.assertTrue(ItemStack.isSameItemSameComponents(rejected, encodedPattern) &&
+                    rejected.getCount() == encodedPattern.getCount(),
+                    "A captured terminal inventory must return the complete offered pattern after invalidation");
+            staleInventory.setItemDirect(0, ItemStack.EMPTY);
+            helper.assertTrue(ItemStack.isSameItemSameComponents(mount.core().pattern(0), encodedPattern),
+                    "A captured terminal inventory must not clear its former physical core after invalidation");
             List<TrinityDataCoreVirtualCpu> currentCpuPartitions = host.getCraftingRuntime().partitions();
             helper.assertValueEqual(currentCpuPartitions.size(), retainedCpuPartitions.get().size(),
                     "Temporary CPU structure failure must retain every virtual CPU partition");
@@ -391,15 +487,228 @@ public final class CompartmentBlockEntityTest {
             helper.assertValueEqual(hatches.stream().filter(host::isLeaseOwner).count(), 1L,
                     "Pending work must keep the original grid lease owner");
             for (TrinityAccessHatchBlockEntity hatch : hatches) {
-                helper.assertTrue(hatch.accessGrid() == null,
-                        "Invalid Trinity structure must withdraw hatch storage access");
-                helper.assertTrue(hatch.boundCraftingRuntime() == null,
-                        "Invalid Trinity structure must withdraw virtual crafting CPUs");
+                if (host.isLeaseOwner(hatch)) {
+                    helper.assertTrue(hatch.accessGrid() == host.accessGrid(),
+                            "Crafting structure failure must retain lease-owner storage access");
+                    helper.assertTrue(hatch.boundCraftingRuntime() == host.getCraftingRuntime(),
+                            "Crafting structure failure must retain virtual crafting CPUs");
+                }
                 helper.assertTrue(hatch.terminalPartitions().isEmpty(),
-                        "Invalid Trinity structure must detach pattern terminal partitions");
+                        "Crafting structure failure must detach pattern terminal partitions");
             }
             testGridPower.get().destroy();
         });
+    }
+
+    @TestHolder("trinity_access_hatch_busy_host_nbt_rebuild_keeps_non_default_grid_lease")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void busyHostNbtRebuildKeepsNonDefaultGridLease(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos localOrigin = new BlockPos(25, 4, 25);
+        BlockPos origin = helper.absolutePos(localOrigin);
+        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+                .defaultBlockState()
+                .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
+        BlockEntity blockEntity = level.getBlockEntity(origin);
+        if (!(blockEntity instanceof TrinityDataCoreBlockEntity host)) {
+            helper.fail("Expected a placed Trinity Data Core block entity", localOrigin);
+            return;
+        }
+
+        buildMainStructure(helper, level, origin);
+        host.serverTick();
+        List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
+        helper.assertTrue(!hatches.isEmpty(), "Complete Trinity structure should bind at least one access hatch");
+        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
+        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
+        host.requestStructureRecheck();
+        host.serverTick();
+        for (TrinityAccessHatchBlockEntity hatch : hatches) {
+            hatch.refreshTrinityAccess();
+        }
+
+        helper.assertValueEqual(hatches.size(), 2, "Complete Trinity main structure must bind exactly two access hatches");
+        TrinityAccessHatchBlockEntity intendedOwner = hatches.stream()
+                .max((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
+                .orElseThrow();
+        TrinityAccessHatchBlockEntity intendedCompetitor = hatches.stream()
+                .min((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
+                .orElseThrow();
+        AtomicReference<TestGridPower> ownerPower = new AtomicReference<>();
+        AtomicReference<TestGridPower> competitorPower = new AtomicReference<>();
+        AtomicReference<TrinityDataCoreBlockEntity> currentHost = new AtomicReference<>(host);
+        AtomicReference<TrinityAccessHatchBlockEntity> originalLeaseHatch = new AtomicReference<>();
+        AtomicReference<TrinityAccessHatchBlockEntity> competingHatch = new AtomicReference<>();
+        AtomicReference<IGrid> originalLeaseGrid = new AtomicReference<>();
+        AtomicReference<IGrid> competingGrid = new AtomicReference<>();
+        AtomicBoolean leasePrepared = new AtomicBoolean();
+        AtomicBoolean restored = new AtomicBoolean();
+        AtomicBoolean ownerOffline = new AtomicBoolean();
+        AtomicBoolean ownerReconnected = new AtomicBoolean();
+        helper.succeedWhen(() -> {
+            if (!leasePrepared.get()) {
+                IGridNode ownerNode = intendedOwner.getMainNode().getNode();
+                IGridNode competitorNode = intendedCompetitor.getMainNode().getNode();
+                helper.assertTrue(ownerNode != null && competitorNode != null,
+                        "Both Trinity access nodes must finish AE initialization");
+
+                if (ownerPower.get() == null) {
+                    TestGridPower power = new TestGridPower(level);
+                    power.connect(ownerNode);
+                    ownerPower.set(power);
+                    return;
+                }
+                TrinityDataCoreBlockEntity activeHost = currentHost.get();
+                activeHost.serverTick();
+                for (TrinityAccessHatchBlockEntity hatch : hatches) {
+                    hatch.refreshTrinityAccess();
+                }
+                helper.assertTrue(activeHost.isLeaseOwner(intendedOwner),
+                        "The only online hatch must receive the initial lease");
+
+                if (competitorPower.get() == null) {
+                    TestGridPower power = new TestGridPower(level);
+                    power.connect(competitorNode);
+                    competitorPower.set(power);
+                    return;
+                }
+                activeHost.serverTick();
+                for (TrinityAccessHatchBlockEntity hatch : hatches) {
+                    hatch.refreshTrinityAccess();
+                }
+                helper.assertTrue(activeHost.isLeaseOwner(intendedOwner),
+                        "A later lower-coordinate hatch must not replace the active lease");
+                helper.assertTrue(!activeHost.isLeaseOwner(intendedCompetitor),
+                        "The later competing hatch must remain outside the active lease");
+                IGrid ownerGrid = intendedOwner.connectedGrid();
+                IGrid otherGrid = intendedCompetitor.connectedGrid();
+                helper.assertTrue(ownerGrid != null && otherGrid != null && ownerGrid != otherGrid,
+                        "Lease reconstruction test requires two independently powered AE grids");
+                helper.assertTrue(!activeHost.getPatternCatalog().mountedCores().isEmpty(),
+                        "Complete Trinity structure must publish a P-core before host reconstruction");
+                TrinityPatternCatalog.CoreMount mount = activeHost.getPatternCatalog().mountedCores().getFirst();
+                PatternRoute route = new PatternRoute(activeHost.getHostId(), mount.core().coreId(), 0);
+                mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+                helper.assertTrue(activeHost.getPatternCatalog().hasWork(),
+                        "P-core work must lock the non-default lease before host reconstruction");
+                originalLeaseHatch.set(intendedOwner);
+                competingHatch.set(intendedCompetitor);
+                originalLeaseGrid.set(ownerGrid);
+                competingGrid.set(otherGrid);
+                CompoundTag saved = new CompoundTag();
+                activeHost.saveAdditional(saved, level.registryAccess());
+                activeHost.onChunkUnloaded();
+                level.removeBlockEntity(origin);
+
+                BlockState hostState = level.getBlockState(origin);
+                TrinityDataCoreBlockEntity loadedHost = new TrinityDataCoreBlockEntity(origin, hostState);
+                loadedHost.loadTag(saved, level.registryAccess());
+                level.setBlockEntity(loadedHost);
+                loadedHost.onLoad();
+                loadedHost.serverTick();
+                currentHost.set(loadedHost);
+                leasePrepared.set(true);
+                restored.set(true);
+                return;
+            }
+
+            TrinityDataCoreBlockEntity restoredHost = currentHost.get();
+            TrinityAccessHatchBlockEntity owner = originalLeaseHatch.get();
+            TrinityAccessHatchBlockEntity competitor = competingHatch.get();
+            IGrid ownerGrid = originalLeaseGrid.get();
+            IGrid otherGrid = competingGrid.get();
+            if (!ownerOffline.get()) {
+                helper.assertTrue(restoredHost != host,
+                        "Host reconstruction must exercise a newly created block entity instance");
+                helper.assertTrue(restoredHost.getPatternCatalog().layoutSnapshot().active(),
+                        "Reconstructed host must rebuild its authoritative pattern layout");
+                helper.assertTrue(restoredHost.isStorageAvailable() && restoredHost.isCpuProviderAvailable() &&
+                        restoredHost.isPatternProviderAvailable(),
+                        "Reconstructed complete host must restore all independently gated capabilities");
+                helper.assertTrue(restoredHost.isLeaseOwner(owner),
+                        "Reconstructed busy host must restore the persisted non-default hatch identity");
+                helper.assertTrue(!restoredHost.isLeaseOwner(competitor),
+                        "Reconstructed busy host must not elect the lower-coordinate online hatch");
+                helper.assertTrue(restoredHost.accessGrid() == ownerGrid,
+                        "Reconstructed busy host must bind only to the persisted hatch's grid");
+                helper.assertTrue(restoredHost.accessGrid() != otherGrid,
+                        "Reconstructed busy host must never migrate retained work to the competing grid");
+
+                TrinityPatternCatalog.CoreMount mount = restoredHost.getPatternCatalog().mountedCores().getFirst();
+                PatternRoute route = new PatternRoute(restoredHost.getHostId(), mount.core().coreId(), 0);
+                mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.EMERALD)));
+                ownerPower.get().destroy();
+                ownerPower.set(null);
+                ownerOffline.set(true);
+                return;
+            }
+
+            if (!ownerReconnected.get()) {
+                restoredHost.serverTick();
+                helper.assertTrue(restoredHost.getPatternCatalog().hasWork(),
+                        "Offline lease owner must leave its P-core work pending");
+                helper.assertTrue(restoredHost.accessGrid() == null,
+                        "Busy host must stay offline while its persisted hatch is unavailable");
+                helper.assertTrue(!restoredHost.isLeaseOwner(owner) && !restoredHost.isLeaseOwner(competitor),
+                        "Competing online hatch must not take over an unavailable busy lease");
+                helper.assertTrue(competitor.accessGrid() == null,
+                        "Competing online hatch must expose no storage while busy work waits for the persisted hatch");
+
+                IGridNode ownerNode = owner.getMainNode().getNode();
+                helper.assertTrue(ownerNode != null, "Persisted hatch node must survive its temporary grid outage");
+                TestGridPower replacementOwnerPower = new TestGridPower(level);
+                replacementOwnerPower.connect(ownerNode);
+                ownerPower.set(replacementOwnerPower);
+                ownerReconnected.set(true);
+                return;
+            }
+
+            restoredHost.serverTick();
+            IGrid reboundGrid = owner.connectedGrid();
+            helper.assertTrue(reboundGrid != null && reboundGrid != otherGrid,
+                    "Recovered persisted hatch must bind to its own re-created runtime grid");
+            helper.assertTrue(restoredHost.isLeaseOwner(owner),
+                    "Recovered persisted hatch must regain the busy lease");
+            helper.assertTrue(!restoredHost.isLeaseOwner(competitor),
+                    "Lower-coordinate competing hatch must remain outside the recovered busy lease");
+            helper.assertTrue(restoredHost.accessGrid() == reboundGrid,
+                    "Recovered busy host must expose only the persisted hatch's new runtime grid");
+            helper.assertTrue(owner.boundCraftingRuntime() == restoredHost.getCraftingRuntime(),
+                    "Recovered persisted hatch must expose the reconstructed crafting runtime");
+            helper.assertTrue(competitor.boundCraftingRuntime() == null,
+                    "Competing hatch must not expose the reconstructed crafting runtime");
+            helper.assertTrue(!owner.terminalPartitions().isEmpty(),
+                    "Recovered persisted hatch must republish terminal partitions");
+            helper.assertTrue(owner.terminalPartitions().stream().allMatch(partition -> partition.isAttachedTo(reboundGrid)),
+                    "Recovered terminal partitions must attach only to the persisted hatch's current grid");
+            helper.assertTrue(competitor.terminalPartitions().isEmpty(),
+                    "Competing hatch must not publish duplicate terminal partitions");
+            ownerPower.get().destroy();
+            competitorPower.get().destroy();
+        });
+    }
+
+    private static ItemStack encodedOakPlanksPattern(GameTestHelper helper) {
+        RecipeHolder<?> recipe = helper.getLevel()
+                .getRecipeManager()
+                .byKey(ResourceLocation.withDefaultNamespace("oak_planks"))
+                .orElseThrow();
+        if (!(recipe.value() instanceof CraftingRecipe craftingRecipe)) {
+            throw new IllegalStateException("Expected minecraft:oak_planks to be a crafting recipe");
+        }
+        RecipeHolder<CraftingRecipe> craftingRecipeHolder = new RecipeHolder<>(recipe.id(), craftingRecipe);
+        ItemStack[] inputs = new ItemStack[9];
+        inputs[0] = new ItemStack(Items.OAK_LOG);
+        for (int slot = 1; slot < inputs.length; slot++) {
+            inputs[slot] = ItemStack.EMPTY;
+        }
+        return PatternDetailsHelper.encodeCraftingPattern(
+                craftingRecipeHolder,
+                inputs,
+                new ItemStack(Items.OAK_PLANKS, 4),
+                false,
+                false);
     }
 
     private static void assertServerTickActiveState(GameTestHelper helper,

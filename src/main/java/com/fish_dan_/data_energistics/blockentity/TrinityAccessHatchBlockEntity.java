@@ -226,7 +226,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     public @Nullable TrinityDataCoreCraftingRuntime boundCraftingRuntime() {
         TrinityDataCoreBlockEntity host = boundHost(false);
         return host == null || !isCandidateOnline() || !host.isLeaseOwner(this) ||
-                !host.canExposeTrinityCapabilities() ? null : host.getCraftingRuntime();
+                !host.isCpuProviderAvailable() ? null : host.getCraftingRuntime();
     }
 
     public @Nullable IGrid connectedGrid() {
@@ -254,7 +254,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     public boolean isAccessOnline() {
         TrinityDataCoreBlockEntity host = boundHost(false);
-        return host != null && host.isLeaseOwner(this) && host.canExposeTrinityCapabilities() &&
+        return host != null && host.isLeaseOwner(this) && host.isStorageAvailable() &&
                 isCandidateOnline();
     }
 
@@ -398,7 +398,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         public void mountInventories(IStorageMounts storageMounts) {
             TrinityDataCoreBlockEntity host = boundHost(false);
             if (host != null && host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
-                    host.canExposeTrinityCapabilities()) {
+                    host.isStorageAvailable()) {
                 storageMounts.mount(networkStorage, 0);
             }
         }
@@ -476,7 +476,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         private boolean canUseStorage(@Nullable TrinityDataCoreBlockEntity host) {
             return host != null && isCandidateOnline() &&
                     host.isLeaseOwner(TrinityAccessHatchBlockEntity.this) &&
-                    host.canExposeTrinityCapabilities();
+                    host.isStorageAvailable();
         }
     }
 }

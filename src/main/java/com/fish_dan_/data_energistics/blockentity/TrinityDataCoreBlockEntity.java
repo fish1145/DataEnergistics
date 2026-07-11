@@ -105,6 +105,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_RUNTIME_TAG = "trinity_data_core_crafting_runtime";
     private static final String STORAGE_ID_TAG = "trinity_data_core_storage_id";
     private static final String HOST_ID_TAG = "trinity_data_core_host_id";
+    private static final String ACCESS_LEASE_HATCH_POSITION_TAG = "trinity_access_lease_hatch_position";
+    private static final String ACCESS_LEASE_EPOCH_TAG = "trinity_access_lease_epoch";
     private static final String NO_FAILURE = "";
     private static final String MAIN_STRUCTURE_NOT_FORMED = "Main structure is not formed";
     private static final String CPU_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME;
@@ -117,6 +119,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private TrinityPatternCatalog patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
     private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouterImpl();
     private boolean patternCatalogValid;
+    private boolean loaded;
     private boolean formed;
     private List<BlockPos> matchedPositions = List.of();
     private TrinityDataCoreStorageProfile storageProfile = TrinityDataCoreStorageProfile.EMPTY;
@@ -137,12 +140,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Nullable
     private BlockPos craftingLastFailurePosition;
     private boolean recheckRequested = true;
+    private boolean structureRecheckInProgress;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
     private final TrinityDataCoreCraftingRuntime craftingRuntime = new TrinityDataCoreCraftingRuntime(this);
     @Nullable
     private TrinityAccessLease accessLease;
     private long accessLeaseEpoch;
+    private boolean missingBusyLeaseReported;
 
     public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -170,6 +175,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         requestStructureRecheck();
     }
 
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        this.loaded = true;
+        this.craftingRuntime.setPaused(true);
+        requestStructureRecheck();
+        notifyTrinityAccessChanged();
+    }
+
     public void serverTick() {
         if (this.level == null || this.level.isClientSide()) {
             return;
@@ -178,6 +192,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             tickServerState();
         } catch (RuntimeException exception) {
             this.craftingRuntime.setPaused(true);
+            if (withdrawPatternCatalog()) {
+                notifyTrinityAccessChanged();
+            }
             LOGGER.error("Failed to tick Trinity Data Core at {}; runtime was paused", this.worldPosition, exception);
         }
     }
@@ -188,10 +205,16 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 RECHECK_INTERVAL_TICKS) == 0;
         if (this.recheckRequested || periodicRecheck) {
             this.recheckRequested = false;
-            updateStructureMatch(this.level);
+            this.structureRecheckInProgress = true;
+            try {
+                updateStructureMatch(this.level);
+            } finally {
+                this.structureRecheckInProgress = false;
+            }
         }
         reevaluateAccessLease();
         if (this.patternCatalogValid && this.patternCatalog.refreshChangedPatterns()) {
+            this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
             notifyTrinityAccessChanged();
         }
         tickOwnedPatternCores();
@@ -287,22 +310,27 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return this.craftingLastFailurePosition;
     }
 
-    public boolean isCraftingAvailable() {
-        return this.formed && this.craftingStructureFormed && this.craftingProfile.active();
+    /**
+     * Returns whether the formed and loaded main structure may expose its UUID storage through the elected lease.
+     */
+    public boolean isStorageAvailable() {
+        return this.loaded && this.formed;
+    }
+
+    /**
+     * Returns whether the CPU child may publish its retained virtual CPU runtime through the elected lease.
+     */
+    public boolean isCpuProviderAvailable() {
+        return isStorageAvailable() && this.cpuStructureFormed;
     }
 
     /**
      * Returns whether the lease owner may publish the aggregated crafting patterns to AE2.
      */
     public boolean isPatternProviderAvailable() {
-        return canExposeTrinityCapabilities() && this.patternCatalogValid && this.craftingProfile.active();
-    }
-
-    /**
-     * Returns whether all three structures are valid, allowing the lease owner to expose storage, CPUs, and patterns.
-     */
-    public boolean canExposeTrinityCapabilities() {
-        return isTrinityRuntimeAvailable();
+        return isStorageAvailable() && this.craftingStructureFormed && this.craftingProfile.active() &&
+                this.patternCatalogValid &&
+                this.patternCatalog.layoutSnapshot().active();
     }
 
     /**
@@ -566,12 +594,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     public boolean hasActiveAccessHatch() {
         reevaluateAccessLease();
-        return canExposeTrinityCapabilities() && activeLeaseHatch() != null;
+        return isStorageAvailable() && activeLeaseHatch() != null;
     }
 
     public @Nullable IGrid accessGrid() {
         reevaluateAccessLease();
-        if (!canExposeTrinityCapabilities()) {
+        if (!isStorageAvailable()) {
             return null;
         }
         TrinityAccessHatchBlockEntity hatch = activeLeaseHatch();
@@ -580,6 +608,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     public IActionSource accessActionSource() {
         reevaluateAccessLease();
+        if (!isStorageAvailable()) {
+            throw new IllegalStateException("Trinity Data Core storage is not available");
+        }
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
             if (part instanceof TrinityAccessHatchBlockEntity hatch && isLeaseOwner(hatch)) {
                 return hatch.actionSource();
@@ -597,41 +628,76 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void reevaluateAccessLease() {
-        if (this.level == null || this.level.isClientSide()) {
+        if (this.level == null || this.level.isClientSide() || this.structureRecheckInProgress) {
             return;
         }
-        List<TrinityAccessHatchBlockEntity> candidates = compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
+        List<TrinityAccessHatchBlockEntity> candidates = isStorageAvailable() ? compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
                 .filter(TrinityAccessHatchBlockEntity.class::isInstance)
                 .map(TrinityAccessHatchBlockEntity.class::cast)
                 .filter(TrinityAccessHatchBlockEntity::isCandidateOnline)
                 .sorted((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
-                .toList();
+                .toList() : List.of();
 
         if (this.accessLease != null) {
-            boolean currentStillValid = candidates.stream().anyMatch(this::isLeaseOwner);
-            if (currentStillValid || hasPendingTrinityWork()) {
-                this.craftingRuntime.setPaused(!currentStillValid || !isTrinityRuntimeAvailable());
+            TrinityAccessHatchBlockEntity electedHatch = candidates.stream()
+                    .filter(candidate -> this.accessLease.identifies(candidate.getBlockPos()))
+                    .findFirst()
+                    .orElse(null);
+            if (electedHatch != null) {
+                IGrid electedGrid = electedHatch.connectedGrid();
+                if (this.accessLease.matches(electedHatch.getBlockPos(), electedGrid)) {
+                    this.craftingRuntime.setPaused(!isCpuProviderAvailable());
+                    return;
+                }
+                this.accessLease = this.accessLease.bind(electedGrid);
+                this.craftingRuntime.setPaused(!isCpuProviderAvailable());
+                notifyTrinityAccessChanged();
+                return;
+            }
+            if (hasPendingTrinityWork()) {
+                boolean wasBound = this.accessLease.grid() != null;
+                this.accessLease = this.accessLease.unbind();
+                this.craftingRuntime.setPaused(true);
+                if (wasBound) {
+                    notifyTrinityAccessChanged();
+                }
                 return;
             }
         }
 
-        TrinityAccessLease previous = this.accessLease;
-        this.accessLease = candidates.isEmpty() ? null : new TrinityAccessLease(
+        if (this.accessLease == null && hasPendingTrinityWork()) {
+            this.craftingRuntime.setPaused(true);
+            if (!this.missingBusyLeaseReported) {
+                this.missingBusyLeaseReported = true;
+                LOGGER.error("Trinity host {} has retained work without a persistent access lease; execution remains paused",
+                        this.worldPosition);
+            }
+            return;
+        }
+
+        BlockPos previousPosition = this.accessLease == null ? null : this.accessLease.hatchPosition();
+        IGrid previousGrid = this.accessLease == null ? null : this.accessLease.grid();
+        this.accessLease = candidates.isEmpty() ? null : TrinityAccessLease.elect(
                 candidates.getFirst().getBlockPos(),
                 candidates.getFirst().connectedGrid(),
-                ++this.accessLeaseEpoch);
-        this.craftingRuntime.setPaused(this.accessLease == null || !isTrinityRuntimeAvailable());
-        if (!Objects.equals(previous, this.accessLease)) {
+                this.accessLeaseEpoch = Math.incrementExact(this.accessLeaseEpoch));
+        this.missingBusyLeaseReported = false;
+        this.craftingRuntime.setPaused(this.accessLease == null || !isCpuProviderAvailable());
+        if (leaseChanged(previousPosition, previousGrid)) {
+            setChanged();
             notifyTrinityAccessChanged();
         }
     }
 
-    private boolean hasPendingTrinityWork() {
-        return this.craftingRuntime.hasBusyJobs() || this.patternCatalog.hasWork();
+    private boolean leaseChanged(@Nullable BlockPos previousPosition, @Nullable IGrid previousGrid) {
+        if (this.accessLease == null) {
+            return previousPosition != null;
+        }
+        return !this.accessLease.hatchPosition().equals(previousPosition) || this.accessLease.grid() != previousGrid;
     }
 
-    private boolean isTrinityRuntimeAvailable() {
-        return this.formed && this.cpuStructureFormed && this.craftingStructureFormed;
+    private boolean hasPendingTrinityWork() {
+        return this.craftingRuntime.hasBusyJobs() || this.patternCatalog.hasWork();
     }
 
     @Nullable
@@ -739,6 +805,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (this.hostId.equals(hostId)) {
             return;
         }
+        this.patternCatalog.clear();
         this.hostId = hostId;
         this.patternCatalog = new TrinityPatternCatalogImpl(hostId);
         this.patternCatalogValid = false;
@@ -784,6 +851,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             LOGGER.warn("Ignoring Trinity Data Core block entity data with missing identities at {}", this.worldPosition);
             return;
         }
+        this.patternCatalog.clear();
         this.storageId = data.getUUID(STORAGE_ID_TAG);
         this.hostId = data.getUUID(HOST_ID_TAG);
         this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
@@ -823,6 +891,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (!data.contains(CPU_STRUCTURE_FORMED_TAG)) {
             this.cpuStructureFormed = this.craftingRuntime.hasContribution(CPU_STRUCTURE_NAME);
         }
+        restoreAccessLease(data);
     }
 
     @Override
@@ -854,9 +923,37 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         CompoundTag runtimeTag = new CompoundTag();
         this.craftingRuntime.writeToTag(runtimeTag, registries);
         data.put(CRAFTING_RUNTIME_TAG, runtimeTag);
+        data.putLong(ACCESS_LEASE_EPOCH_TAG, this.accessLeaseEpoch);
+        if (this.accessLease != null) {
+            data.putLong(ACCESS_LEASE_HATCH_POSITION_TAG, this.accessLease.hatchPosition().asLong());
+        }
+    }
+
+    private void restoreAccessLease(CompoundTag data) {
+        long persistedEpoch = data.contains(ACCESS_LEASE_EPOCH_TAG, Tag.TAG_LONG) ? data.getLong(ACCESS_LEASE_EPOCH_TAG) : 0L;
+        if (persistedEpoch < 0L) {
+            this.accessLease = null;
+            this.accessLeaseEpoch = 0L;
+            LOGGER.error("Discarding negative Trinity access lease epoch {} at {}", persistedEpoch, this.worldPosition);
+            return;
+        }
+        this.accessLeaseEpoch = persistedEpoch;
+        if (data.contains(ACCESS_LEASE_HATCH_POSITION_TAG, Tag.TAG_LONG)) {
+            this.accessLease = TrinityAccessLease.restore(
+                    BlockPos.of(data.getLong(ACCESS_LEASE_HATCH_POSITION_TAG)),
+                    persistedEpoch);
+        } else {
+            this.accessLease = null;
+            if (this.craftingRuntime.hasBusyJobs()) {
+                this.missingBusyLeaseReported = true;
+                LOGGER.error("Trinity host {} restored CPU work without an access lease; a network cannot be recovered safely",
+                        this.worldPosition);
+            }
+        }
     }
 
     private void discardPersistedTrinityState() {
+        this.patternCatalog.clear();
         this.storageId = UUID.randomUUID();
         this.hostId = UUID.randomUUID();
         this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
@@ -878,6 +975,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingLastFailurePosition = null;
         this.craftingRuntime.setMainStructureFormed(false);
         this.craftingRuntime.discardPersistedState();
+        this.accessLease = null;
+        this.accessLeaseEpoch = 0L;
+        this.missingBusyLeaseReported = false;
         this.recheckRequested = true;
     }
 
@@ -1006,7 +1106,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = null;
         this.craftingRuntime.setMainStructureFormed(true);
-        this.craftingRuntime.setPaused(!isTrinityRuntimeAvailable());
         notifyTrinityAccessChanged();
         setChanged();
     }
@@ -1033,6 +1132,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyCpuFailure(PatternDiagnostic diagnostic) {
+        this.craftingRuntime.setPaused(true);
         String nextFailureReason;
         BlockPos nextFailurePosition;
         if (diagnostic == null) {
@@ -1092,11 +1192,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyCraftingFailure(String nextFailureReason, @Nullable BlockPos nextFailurePosition) {
-        this.patternCatalogValid = false;
+        boolean catalogWithdrawn = withdrawPatternCatalog();
         if (!this.craftingStructureFormed &&
                 this.craftingStructureMatchedBlockCount == 0 &&
                 Objects.equals(this.craftingLastFailureReason, nextFailureReason) &&
                 Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
+            if (catalogWithdrawn) {
+                notifyTrinityAccessChanged();
+            }
             return;
         }
         if (this.craftingStructureFormed || !Objects.equals(this.craftingLastFailureReason, nextFailureReason) ||
@@ -1263,20 +1366,48 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
+    /** Withdraws every public pattern route while retaining queued work for the current network lease. */
+    private boolean withdrawPatternCatalog() {
+        boolean changed = this.patternCatalogValid || this.patternCatalog.layoutSnapshot().active();
+        this.patternCatalog.invalidateLayout();
+        this.patternCatalogValid = false;
+        return changed;
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        this.loaded = false;
+        this.craftingRuntime.setPaused(true);
+        withdrawPatternCatalog();
+        if (this.accessLease != null) {
+            this.accessLease = this.accessLease.unbind();
+        }
+        this.recheckRequested = true;
+        notifyTrinityAccessChanged();
+        super.onChunkUnloaded();
+    }
+
     @Override
     public void setRemoved() {
+        this.loaded = false;
         this.craftingRuntime.setPaused(true);
+        withdrawPatternCatalog();
+        if (this.accessLease != null) {
+            this.accessLease = this.accessLease.unbind();
+        }
         clearCompartmentBindings(mainDefinitionKey().structureName());
-        this.accessLease = null;
         super.setRemoved();
     }
 
     /** Cancels active CPU jobs only when the host block is being permanently removed from the world. */
     public void onPermanentRemoval() {
+        this.loaded = false;
         this.craftingRuntime.cancelAllJobs();
         this.craftingRuntime.setPaused(true);
-        clearCompartmentBindings(mainDefinitionKey().structureName());
+        this.patternCatalog.clear();
+        this.patternCatalogValid = false;
         this.accessLease = null;
+        clearCompartmentBindings(mainDefinitionKey().structureName());
     }
 
     private static TrinityDataCoreStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {
@@ -1355,7 +1486,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void clearCraftingStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
-        this.patternCatalogValid = false;
+        withdrawPatternCatalog();
         this.craftingStructureFormed = false;
         this.craftingStructureMatchedBlockCount = 0;
         this.craftingLastFailureReason = failureReason;
