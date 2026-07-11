@@ -9,20 +9,20 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageImpl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
-import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
-import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
@@ -34,7 +34,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -62,13 +61,12 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
-import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -292,7 +290,7 @@ public final class CompartmentBlockEntityTest {
                         "Main-only Trinity structure must not publish virtual CPUs");
                 helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.terminalPartitions().isEmpty()),
                         "Main-only Trinity structure must not publish pattern terminal partitions");
-                buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
+                buildCpuStructure(helper, level, origin);
                 host.requestStructureRecheck();
                 mainChecked.set(true);
                 return;
@@ -306,7 +304,7 @@ public final class CompartmentBlockEntityTest {
                         "CPU child structure must publish the virtual CPU runtime independently");
                 helper.assertTrue(boundHatches.stream().allMatch(hatch -> hatch.terminalPartitions().isEmpty()),
                         "CPU-only child structure must not publish pattern terminal partitions");
-                buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
+                buildCraftingStructure(helper, level, origin);
                 host.requestStructureRecheck();
                 cpuChecked.set(true);
                 return;
@@ -385,8 +383,8 @@ public final class CompartmentBlockEntityTest {
         host.serverTick();
         List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
         helper.assertTrue(!hatches.isEmpty(), "Complete Trinity structure should bind at least one access hatch");
-        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
-        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
+        buildCpuStructure(helper, level, origin);
+        buildCraftingStructure(helper, level, origin);
         host.requestStructureRecheck();
         host.serverTick();
         for (TrinityAccessHatchBlockEntity hatch : hatches) {
@@ -520,8 +518,8 @@ public final class CompartmentBlockEntityTest {
         host.serverTick();
         List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
         helper.assertTrue(!hatches.isEmpty(), "Complete Trinity structure should bind at least one access hatch");
-        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CPU);
-        buildChildStructure(helper, level, origin, TrinityDataCoreAutoBuildTarget.CRAFTING);
+        buildCpuStructure(helper, level, origin);
+        buildCraftingStructure(helper, level, origin);
         host.requestStructureRecheck();
         host.serverTick();
         for (TrinityAccessHatchBlockEntity hatch : hatches) {
@@ -769,40 +767,52 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static void buildMainStructure(GameTestHelper helper, ServerLevel level, BlockPos origin) {
-        TrinityDataCoreAutoBuild.Stats stats = TrinityDataCoreAutoBuild.buildPattern(
+        buildStructure(
+                helper,
                 level,
-                helper.makeMockPlayer(GameType.CREATIVE),
-                world(level),
-                definition(TrinityDataCoreAutoBuildTarget.MAIN).pattern(),
                 origin,
-                TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN),
-                Direction.SOUTH,
-                false);
-        helper.assertTrue(stats.placed() > 0, "Trinity Data Core main auto-build should place structure blocks");
-        helper.assertValueEqual(stats.missing(), 0, "Trinity Data Core main auto-build should have all creative candidates");
-        helper.assertValueEqual(stats.blocked(), 0, "Trinity Data Core main auto-build should not hit blocked targets");
-        helper.assertValueEqual(stats.unloaded(), 0, "Trinity Data Core main auto-build should not target unloaded blocks");
-        helper.assertValueEqual(stats.placeFailed(), 0, "Trinity Data Core main auto-build should place every candidate");
+                TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX,
+                Map.of(TrinityAutoBuildBlockMap.STORAGE_CORE, 1),
+                "main");
     }
 
-    private static void buildChildStructure(GameTestHelper helper,
-                                            ServerLevel level,
-                                            BlockPos origin,
-                                            TrinityDataCoreAutoBuildTarget target) {
-        TrinityDataCoreAutoBuild.Stats stats = TrinityDataCoreAutoBuild.buildPattern(
+    private static void buildCpuStructure(GameTestHelper helper, ServerLevel level, BlockPos origin) {
+        buildStructure(
+                helper,
+                level,
+                origin,
+                TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX,
+                Map.of(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 1),
+                "CPU");
+    }
+
+    private static void buildCraftingStructure(GameTestHelper helper, ServerLevel level, BlockPos origin) {
+        buildStructure(
+                helper,
+                level,
+                origin,
+                TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX,
+                Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 1),
+                "crafting");
+    }
+
+    private static void buildStructure(GameTestHelper helper,
+                                       ServerLevel level,
+                                       BlockPos origin,
+                                       int structureIndex,
+                                       Map<String, Integer> tierSelections,
+                                       String structureName) {
+        Result result = TrinityDataCoreBlockEntity.executeAutoBuild(
                 level,
                 helper.makeMockPlayer(GameType.CREATIVE),
-                world(level),
-                definition(target).pattern(),
                 origin,
-                TrinityDataCoreBlockEntity.autoBuildStructureName(target),
                 Direction.SOUTH,
-                false);
-        helper.assertTrue(stats.placed() > 0, "Trinity " + target + " auto-build should place structure blocks");
-        helper.assertValueEqual(stats.missing(), 0, "Trinity " + target + " auto-build should have all creative candidates");
-        helper.assertValueEqual(stats.blocked(), 0, "Trinity " + target + " auto-build should not hit blocked targets");
-        helper.assertValueEqual(stats.unloaded(), 0, "Trinity " + target + " auto-build should not target unloaded blocks");
-        helper.assertValueEqual(stats.placeFailed(), 0, "Trinity " + target + " auto-build should place every candidate");
+                false,
+                new TrinityAutoBuildRequest(
+                        structureIndex,
+                        new TrinityAutoBuildOptions(true, 1, tierSelections)));
+        helper.assertTrue(result.success(), "Trinity " + structureName + " auto-build should commit: " + result.failure());
+        helper.assertTrue(result.placed() > 0, "Trinity " + structureName + " auto-build should place structure blocks");
     }
 
     private static BlockPos findCpuCore(ServerLevel level, BlockPos origin) {
@@ -900,41 +910,7 @@ public final class CompartmentBlockEntityTest {
     }
 
     private static String mainStructureName() {
-        return TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityDataCoreAutoBuildTarget.MAIN);
-    }
-
-    private static JsonMultiBlockDefinition definition(TrinityDataCoreAutoBuildTarget target) {
-        return ModVerticalMultiBlocks.JSON_MULTI_BLOCKS
-                .get(TrinityDataCoreBlockEntity.autoBuildDefinitionKey(target))
-                .orElseThrow(() -> new IllegalStateException("Missing Trinity auto-build test definition for " + target));
-    }
-
-    private static StructureWorldView world(Level level) {
-        return new LevelView(level);
-    }
-
-    private record LevelView(Level level) implements StructureWorldView {
-
-        @Override
-        public boolean isLoaded(BlockPos pos) {
-            return this.level.isLoaded(pos);
-        }
-
-        @Override
-        public BlockState getBlockState(BlockPos pos) {
-            return this.level.getBlockState(pos);
-        }
-
-        @Nullable
-        @Override
-        public BlockEntity getBlockEntity(BlockPos pos) {
-            return this.level.getBlockEntity(pos);
-        }
-
-        @Override
-        public HolderLookup.Provider registryAccess() {
-            return this.level.registryAccess();
-        }
+        return TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX);
     }
 
     private static final class SimpleMEStorage implements MEStorage {

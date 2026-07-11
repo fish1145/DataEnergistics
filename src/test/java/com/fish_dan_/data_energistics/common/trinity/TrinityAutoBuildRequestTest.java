@@ -16,6 +16,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class TrinityAutoBuildRequestTest {
 
     @Test
+    void storageCategoryMapsEveryTierToItsExplicitCoreId() {
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 1, "me_digital_storage_core_1m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 2, "me_digital_storage_core_4m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 3, "me_digital_storage_core_16m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 4, "me_digital_storage_core_64m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 5, "me_digital_storage_core_256m");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 6, "me_digital_storage_core_1g");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 7, "me_digital_storage_core_4g");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 8, "me_digital_storage_core_16g");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 9, "me_digital_storage_core_64g");
+        assertTier(TrinityAutoBuildBlockMap.STORAGE_CORE, 10, "me_digital_storage_core_256g");
+        assertEquals(TrinityCoreKind.STORAGE_TYPES,
+                TrinityAutoBuildBlockMap.coreKind(TrinityAutoBuildBlockMap.STORAGE_CORE));
+    }
+
+    @Test
     void parallelCpuCategoryMapsEveryTierToItsExplicitCoreId() {
         assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 1, "me_digital_merged_storage_core_1m");
         assertTier(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 2, "me_digital_merged_storage_core_4m");
@@ -82,6 +98,28 @@ public final class TrinityAutoBuildRequestTest {
     }
 
     @Test
+    void selectedTierBlockValidationRequiresTheMatchingStructureCategoryAndRepeatRange() {
+        assertThrows(IllegalArgumentException.class, () -> TrinityAutoBuildBlockMap.selectedTierBlocks(
+                TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX,
+                2,
+                Map.of(TrinityAutoBuildBlockMap.STORAGE_CORE, 1)));
+        assertThrows(IllegalArgumentException.class, () -> TrinityAutoBuildBlockMap.selectedTierBlocks(
+                TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX,
+                1,
+                Map.of(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 1)));
+        assertThrows(IllegalArgumentException.class, () -> TrinityAutoBuildBlockMap.selectedTierBlocks(
+                TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX,
+                1,
+                Map.of(
+                        TrinityAutoBuildBlockMap.STORAGE_CORE, 1,
+                        TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE, 1)));
+        assertThrows(IllegalArgumentException.class, () -> TrinityAutoBuildBlockMap.selectedTierBlocks(
+                TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX,
+                TrinityAutoBuildOptions.MAX_REPEAT_COUNT + 1,
+                Map.of(TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE, 1)));
+    }
+
+    @Test
     void requestPreservesStructureSelectorIndexesAndRejectsIndexesOutsideTheUiRange() {
         TrinityAutoBuildOptions options = new TrinityAutoBuildOptions(false, 1, Map.of());
         TrinityAutoBuildRequest main = new TrinityAutoBuildRequest(TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX, options);
@@ -101,6 +139,11 @@ public final class TrinityAutoBuildRequestTest {
     void categoryMetadataIsCopiedBeforeExposure() {
         Map<String, List<ResourceLocation>> categories = TrinityAutoBuildBlockMap.categories();
 
+        assertEquals(List.of(
+                TrinityAutoBuildBlockMap.STORAGE_CORE,
+                TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE,
+                TrinityAutoBuildBlockMap.PATTERN_PROCESSING_CORE),
+                List.copyOf(categories.keySet()));
         assertThrows(UnsupportedOperationException.class, () -> categories.put("unknown", List.of()));
         assertThrows(UnsupportedOperationException.class,
                 () -> categories.get(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE).add(ResourceLocation.parse("minecraft:air")));

@@ -13,6 +13,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpu
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockStatusProvider;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Context;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Failure;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.FailureType;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuildImpl;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
@@ -22,6 +29,8 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatte
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAccessLease;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
+import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
@@ -34,7 +43,6 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterI
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
-import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -56,6 +64,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -63,21 +72,26 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.parts.IPartItem;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.me.service.CraftingService;
+import appeng.parts.networking.CablePart;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
+import com.modularmc.mdl.api.multiblock.MultiblockState;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
+import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -116,6 +130,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_STRUCTURE_NAME = ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME;
     private static final int MAIN_STORAGE_CORE_SLOT_COUNT = 1_176;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    /** Atomic inventory-and-world transaction shared by every Trinity structure build request. */
+    private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
 
     private UUID storageId = UUID.randomUUID();
     private UUID hostId = UUID.randomUUID();
@@ -413,36 +429,220 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.recheckRequested = true;
     }
 
-    public void autoBuildTrinityStructure(ServerPlayer player, TrinityDataCoreAutoBuildTarget target) {
+    /**
+     * Executes one validated Trinity structure build requested from the open controller menu.
+     *
+     * <p>
+     * Child structures are intentionally gated on an already formed main structure. A request that only changes UI
+     * selections has {@code buildRequested=false} and returns before it can reserve inventory or mutate the world.
+     * </p>
+     *
+     * @param player  server player that supplies placement permissions and materials
+     * @param request validated selector, repetition, and tier choices from the client
+     */
+    public void autoBuildTrinityStructure(ServerPlayer player, TrinityAutoBuildRequest request) {
+        if (!request.options().buildRequested()) {
+            return;
+        }
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
 
-        JsonMultiBlockDefinition mainDefinition = requireMainJsonDefinition();
-        JsonMultiBlockDefinition targetDefinition = autoBuildDefinition(target);
-        StructureWorldView world = new LevelStructureWorldView(serverLevel);
-        AutoBuildOrientation orientation = resolveAutoBuildOrientation(mainDefinition.pattern(), world, serverLevel);
-        TrinityDataCoreAutoBuild.Stats stats = TrinityDataCoreAutoBuild.buildPattern(
-                serverLevel,
-                player,
-                world,
-                targetDefinition.pattern(),
-                this.worldPosition,
-                autoBuildStructureName(target),
-                orientation.front(),
-                orientation.flipped());
+        int structureIndex = request.structureIndex();
+        if (isChildStructure(structureIndex) && !this.formed) {
+            reportAutoBuildFailure(
+                    player,
+                    structureIndex,
+                    FailureType.BLOCKED,
+                    "Main structure must be formed before building a child structure");
+            return;
+        }
 
-        requestStructureRecheck();
+        try {
+            JsonMultiBlockDefinition mainDefinition = requireMainJsonDefinition();
+            StructureWorldView world = new LevelStructureWorldView(serverLevel);
+            AutoBuildOrientation orientation = resolveAutoBuildOrientation(mainDefinition.pattern(), world, serverLevel);
+            Result result = executeAutoBuild(
+                    serverLevel,
+                    player,
+                    this.worldPosition,
+                    orientation.front(),
+                    orientation.flipped(),
+                    request);
+            if (result.success()) {
+                requestStructureRecheck();
+            }
+            reportAutoBuildResult(player, structureIndex, result);
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Rejected Trinity auto-build request {} at {}: {}", structureIndex, this.worldPosition,
+                    exception.getMessage());
+            reportAutoBuildFailure(player, structureIndex, FailureType.INVALID_TIER_SELECTION, exception.getMessage());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Trinity auto-build execution failed for structure {} at {}", structureIndex, this.worldPosition,
+                    exception);
+            reportAutoBuildFailure(player, structureIndex, FailureType.PLACE_FAILED,
+                    "Unexpected auto-build execution failure; see server log");
+        }
+    }
+
+    /**
+     * Builds one Trinity structure through the shared atomic builder after the caller has applied host-specific
+     * prerequisites.
+     *
+     * <p>
+     * This package-visible entry point keeps GameTests on the production transaction while allowing fixture builders
+     * to prepare a main or child structure without simulating a menu packet. The controller-facing method above is
+     * solely responsible for child-structure formation gating.
+     * </p>
+     *
+     * @param serverLevel server world mutated by the transaction
+     * @param player      player supplying permissions and materials
+     * @param origin      controller origin for pattern coordinates
+     * @param front       already resolved main-structure front
+     * @param flipped     already resolved main-structure mirror state
+     * @param request     validated build request
+     * @return complete atomic build result
+     */
+    static Result executeAutoBuild(ServerLevel serverLevel,
+                                   Player player,
+                                   BlockPos origin,
+                                   Direction front,
+                                   boolean flipped,
+                                   TrinityAutoBuildRequest request) {
+        if (!request.options().buildRequested()) {
+            return Result.success(0, 0);
+        }
+
+        int structureIndex = request.structureIndex();
+        AutoBuildOrientation orientation = new AutoBuildOrientation(front, flipped);
+        JsonMultiBlockDefinition definition = autoBuildDefinition(structureIndex);
+        String structureName = autoBuildStructureName(structureIndex);
+        StructureWorldView world = new LevelStructureWorldView(serverLevel);
+        Map<Block, Block> selectedTierBlocks = TrinityAutoBuildBlockMap.selectedTierBlocks(
+                structureIndex,
+                request.options().repeatCount(),
+                request.options().tierSelections());
+        PartSideResolver partSideResolver = new AutoBuildPartResolver(
+                world,
+                origin,
+                structureName,
+                orientation.front(),
+                orientation.flipped(),
+                autoBuildPredicates(
+                        definition.pattern(),
+                        origin,
+                        orientation,
+                        request.options().repeatCount()));
+        Context context = Context.builder()
+                .level(serverLevel)
+                .player(player)
+                .world(world)
+                .pattern(definition.pattern())
+                .origin(origin)
+                .structureName(structureName)
+                .front(orientation.front())
+                .flipped(orientation.flipped())
+                .repeatCount(request.options().repeatCount())
+                .selectedTierBlocks(selectedTierBlocks)
+                .partSideResolver(partSideResolver)
+                .build();
+        return AUTO_BUILD.execute(context);
+    }
+
+    private static boolean isChildStructure(int structureIndex) {
+        return structureIndex == TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX ||
+                structureIndex == TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX;
+    }
+
+    private void reportAutoBuildFailure(ServerPlayer player,
+                                        int structureIndex,
+                                        FailureType type,
+                                        String detail) {
+        reportAutoBuildResult(player, structureIndex, Result.failure(0, new Failure(type, this.worldPosition, detail)));
+    }
+
+    private static void reportAutoBuildResult(ServerPlayer player, int structureIndex, Result result) {
+        int missing = 0;
+        int blocked = 0;
+        int unloaded = 0;
+        int placeFailed = 0;
+        Failure failure = result.failure();
+        if (failure != null) {
+            switch (failure.type()) {
+                case MISSING_MATERIAL -> missing = 1;
+                case BLOCKED -> blocked = 1;
+                case UNLOADED -> unloaded = 1;
+                default -> placeFailed = 1;
+            }
+        }
         player.displayClientMessage(
                 Component.translatable(
                         "message.data_energistics.trinity_data_core.auto_build",
-                        target.targetName(),
-                        stats.placed(),
-                        stats.missing(),
-                        stats.blocked(),
-                        stats.unloaded(),
-                        stats.placeFailed()),
+                        autoBuildTargetName(structureIndex),
+                        result.placed(),
+                        missing,
+                        blocked,
+                        unloaded,
+                        placeFailed),
                 true);
+    }
+
+    private static Component autoBuildTargetName(int structureIndex) {
+        String target = switch (structureIndex) {
+            case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> "main";
+            case TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX -> "cpu";
+            case TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX -> "crafting";
+            default -> throw new IllegalArgumentException("Unknown Trinity auto-build structure index: " + structureIndex);
+        };
+        return Component.translatable("message.data_energistics.trinity_data_core.auto_build.target." + target);
+    }
+
+    private static Map<BlockPos, TraceabilityPredicate> autoBuildPredicates(BlockPattern pattern,
+                                                                            BlockPos origin,
+                                                                            AutoBuildOrientation orientation,
+                                                                            int repeatCount) {
+        LinkedHashMap<BlockPos, TraceabilityPredicate> predicates = new LinkedHashMap<>();
+        int minX = pattern.getMinX();
+        int minY = pattern.getMinY();
+        int expandedZ = pattern.getMinZ();
+        for (int unit = 0; unit < pattern.aisleRepetitions.length; unit++) {
+            int minimum = pattern.aisleRepetitions[unit][0];
+            int maximum = pattern.aisleRepetitions[unit][1];
+            int repetitions = minimum == maximum ? minimum : repeatCount;
+            if (repetitions < minimum || repetitions > maximum) {
+                throw new IllegalArgumentException("Requested repetition " + repeatCount + " is outside [" + minimum +
+                        ", " + maximum + "] for Trinity pattern unit " + unit);
+            }
+            for (int repeat = 0; repeat < repetitions; repeat++) {
+                for (int inner = 0; inner < pattern.unitDepths[unit]; inner++) {
+                    int patternZ = pattern.unitStarts[unit] + inner;
+                    for (int y = 0; y < pattern.getThumbLength(); y++) {
+                        for (int x = 0; x < pattern.getPalmLength(); x++) {
+                            TraceabilityPredicate predicate = pattern.getPredicate(patternZ, y, x);
+                            if (predicate.isAny() || predicate.isAir()) {
+                                continue;
+                            }
+                            BlockPos target = origin.offset(pattern.getActualRelativeOffset(
+                                    minX + x,
+                                    minY + y,
+                                    expandedZ,
+                                    orientation.front(),
+                                    Direction.NORTH,
+                                    orientation.flipped()));
+                            if (!target.equals(origin)) {
+                                TraceabilityPredicate previous = predicates.putIfAbsent(target.immutable(), predicate);
+                                if (previous != null && previous != predicate) {
+                                    throw new IllegalStateException(
+                                            "Trinity auto-build pattern resolves conflicting predicates at " + target);
+                                }
+                            }
+                        }
+                    }
+                    expandedZ++;
+                }
+            }
+        }
+        return Map.copyOf(predicates);
     }
 
     /**
@@ -1330,24 +1530,26 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return requireJsonDefinition(craftingDefinitionKey());
     }
 
-    static JsonMultiBlockStructureKey autoBuildDefinitionKey(TrinityDataCoreAutoBuildTarget target) {
-        return switch (target) {
-            case MAIN -> mainDefinitionKey();
-            case CPU -> cpuDefinitionKey();
-            case CRAFTING -> craftingDefinitionKey();
+    static JsonMultiBlockStructureKey autoBuildDefinitionKey(int structureIndex) {
+        return switch (structureIndex) {
+            case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> mainDefinitionKey();
+            case TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX -> cpuDefinitionKey();
+            case TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX -> craftingDefinitionKey();
+            default -> throw new IllegalArgumentException("Unknown Trinity auto-build structure index: " + structureIndex);
         };
     }
 
-    static String autoBuildStructureName(TrinityDataCoreAutoBuildTarget target) {
-        return switch (target) {
-            case MAIN -> mainDefinitionKey().structureName();
-            case CPU -> CPU_STRUCTURE_NAME;
-            case CRAFTING -> CRAFTING_STRUCTURE_NAME;
+    static String autoBuildStructureName(int structureIndex) {
+        return switch (structureIndex) {
+            case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> mainDefinitionKey().structureName();
+            case TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX -> CPU_STRUCTURE_NAME;
+            case TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX -> CRAFTING_STRUCTURE_NAME;
+            default -> throw new IllegalArgumentException("Unknown Trinity auto-build structure index: " + structureIndex);
         };
     }
 
-    private static JsonMultiBlockDefinition autoBuildDefinition(TrinityDataCoreAutoBuildTarget target) {
-        return requireJsonDefinition(autoBuildDefinitionKey(target));
+    private static JsonMultiBlockDefinition autoBuildDefinition(int structureIndex) {
+        return requireJsonDefinition(autoBuildDefinitionKey(structureIndex));
     }
 
     private static JsonMultiBlockDefinition requireJsonDefinition(JsonMultiBlockStructureKey key) {
@@ -1533,6 +1735,71 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingStructureMatchedBlockCount = 0;
         this.craftingLastFailureReason = failureReason;
         this.craftingLastFailurePosition = failurePosition;
+    }
+
+    /**
+     * Resolves AE2 part host sides from the exact predicate selected for each expanded pattern coordinate.
+     */
+    private static final class AutoBuildPartResolver implements PartSideResolver {
+
+        /** World view used to evaluate direction suppliers against the current pattern position. */
+        private final StructureWorldView world;
+        /** Controller origin supplied to MDLib direction callbacks. */
+        private final BlockPos origin;
+        /** Stable name supplied to MDLib diagnostics and direction callbacks. */
+        private final String structureName;
+        /** Actual main-structure front selected for this build. */
+        private final Direction front;
+        /** Actual mirror state selected for this build. */
+        private final boolean flipped;
+        /** Exact expanded pattern predicate at every buildable world position. */
+        private final Map<BlockPos, TraceabilityPredicate> predicates;
+
+        private AutoBuildPartResolver(StructureWorldView world,
+                                      BlockPos origin,
+                                      String structureName,
+                                      Direction front,
+                                      boolean flipped,
+                                      Map<BlockPos, TraceabilityPredicate> predicates) {
+            this.world = world;
+            this.origin = origin;
+            this.structureName = structureName;
+            this.front = front;
+            this.flipped = flipped;
+            this.predicates = predicates;
+        }
+
+        /**
+         * Returns the predicate-declared side, or the explicit AE2 center-cable sentinel side.
+         *
+         * <p>
+         * AE2 cable parts always occupy the center slot and ignore the non-null side required by
+         * {@code PartPlacement}. {@link Direction#UP} is therefore a stable API sentinel for that documented center
+         * behavior, not a side inferred from a position. Every non-cable part without a predicate direction remains
+         * unresolved and is rejected by the atomic builder.
+         * </p>
+         */
+        @Nullable
+        @Override
+        public Direction resolve(BlockPos position, ItemStack partStack) {
+            TraceabilityPredicate predicate = this.predicates.get(position);
+            if (predicate == null) {
+                return null;
+            }
+            MultiblockState state = new MultiblockState(this.world, this.origin, this.structureName);
+            if (!state.update(position, predicate)) {
+                return null;
+            }
+            Direction declaredDirection = predicate.getDirection(state, this.front, Direction.NORTH, this.flipped);
+            if (declaredDirection != null) {
+                return declaredDirection;
+            }
+            if (partStack.getItem() instanceof IPartItem<?> partItem &&
+                    CablePart.class.isAssignableFrom(partItem.getPartClass())) {
+                return Direction.UP;
+            }
+            return null;
+        }
     }
 
     private record AutoBuildOrientation(Direction front, boolean flipped) {}
