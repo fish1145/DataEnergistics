@@ -1,0 +1,21 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "data_energistics:me_digital_storage_core_64g"
+		},
+		{
+			"item": "ae2:crafting_accelerator"
+		},
+		{
+			"item": "ae2:engineering_processor"
+		},
+		{
+			"item": "data_energistics:data_processor"
+		}
+	],
+	"result": {
+		"id": "data_energistics:me_digital_merged_storage_core_64g",
+		"count": 1
+	}
+}

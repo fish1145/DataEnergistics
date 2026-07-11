@@ -15,7 +15,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class DataEnergisticsIcon {
@@ -104,8 +103,6 @@ public final class DataEnergisticsIcon {
     }
 
     static ResourceLocation resolveTexture(String texture, ResourceLocation defaultTexture) {
-        Objects.requireNonNull(texture, "texture");
-        Objects.requireNonNull(defaultTexture, "defaultTexture");
         if (texture.contains(":")) {
             return ResourceLocation.parse(texture);
         }

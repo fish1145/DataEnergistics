@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.common.compartment;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Multiblock controller contract for structures that accept compartment parts.
@@ -29,7 +28,6 @@ public interface CompartmentHost {
      * Returns registered compartments for a named structure that match the requested role.
      */
     default Collection<CompartmentPart> compartmentHost$getCompartments(String structureName, CompartmentType type) {
-        Objects.requireNonNull(type, "type");
         return compartmentHost$getCompartments(structureName).stream()
                 .filter(part -> part.compartmentType() == type)
                 .toList();

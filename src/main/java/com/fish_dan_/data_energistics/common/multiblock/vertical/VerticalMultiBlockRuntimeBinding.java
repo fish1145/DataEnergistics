@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -22,10 +21,6 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
                                   VerticalMultiBlockDefinition<S> definition,
                                   VerticalMultiBlockPos controllerPos,
                                   PartLookup partLookup) {
-        Objects.requireNonNull(controller, "controller");
-        Objects.requireNonNull(definition, "definition");
-        Objects.requireNonNull(controllerPos, "controllerPos");
-        Objects.requireNonNull(partLookup, "partLookup");
         if (!definition.id().equals(controller.verticalMultiBlock$getDefinitionId())) {
             throw new IllegalStateException("Vertical multiblock controller expected " + controller.verticalMultiBlock$getDefinitionId() + " but received " + definition.id());
         }
@@ -51,9 +46,6 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
                            PartLookup partLookup,
                            String structureName,
                            String reason) {
-        Objects.requireNonNull(controller, "controller");
-        Objects.requireNonNull(partLookup, "partLookup");
-        Objects.requireNonNull(reason, "reason");
         VerticalMultiBlockRuntimeState state = controller.verticalMultiBlock$getRuntimeState(structureName);
         String previousStructureName = state.structureName();
         if (state.formed()) {

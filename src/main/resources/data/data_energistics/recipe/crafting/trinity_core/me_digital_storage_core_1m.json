@@ -1,0 +1,22 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "ABA"],
+	"key": {
+		"A": {
+			"tag": "c:dusts/fluix"
+		},
+		"B": {
+			"item": "data_energistics:data_processor"
+		},
+		"C": {
+			"item": "data_energistics:data_storage_component_256k"
+		},
+		"D": {
+			"item": "data_energistics:data_framework"
+		}
+	},
+	"result": {
+		"id": "data_energistics:me_digital_storage_core_1m",
+		"count": 1
+	}
+}

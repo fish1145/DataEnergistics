@@ -2,17 +2,17 @@
 	"$schema": "schema.json",
 	"includes": ["common/common.json", "common/player_inventory.json"],
 	"background": {
-		"texture": "guis/digital_construct_flower/gui.png",
-		"srcRect": [0, 0, 176, 212]
+		"texture": "guis/trinity_data_core/gui.png",
+		"srcRect": [0, 0, 256, 212]
 	},
 	"slots": {
 		"PLAYER_INVENTORY": {
-			"left": 8,
-			"bottom": 84,
+			"left": 48,
+			"bottom": 85,
 			"grid": "BREAK_AFTER_9COLS"
 		},
 		"PLAYER_HOTBAR": {
-			"left": 8,
+			"left": 48,
 			"bottom": 26,
 			"grid": "HORIZONTAL"
 		}
@@ -20,77 +20,19 @@
 	"text": {
 		"dialog_title": {
 			"position": {
-				"left": 8,
-				"top": 6
+				"left": 15,
+				"top": 7
 			},
-			"maxWidth": 160
-		},
-		"online": {
-			"position": {
-				"left": 9,
-				"top": 24
-			},
-			"maxWidth": 89,
-			"scale": 0.75
-		},
-		"formed": {
-			"position": {
-				"left": 9,
-				"top": 38
-			},
-			"maxWidth": 89,
-			"scale": 0.75
-		},
-		"matched_blocks": {
-			"position": {
-				"left": 9,
-				"top": 52
-			},
-			"maxWidth": 89,
-			"scale": 0.75
-		},
-		"pattern_buffers": {
-			"position": {
-				"left": 9,
-				"top": 66
-			},
-			"maxWidth": 89,
-			"scale": 0.75
-		},
-		"last_failure": {
-			"position": {
-				"left": 9,
-				"top": 80
-			},
-			"maxWidth": 89,
-			"scale": 0.75
-		},
-		"busy_cpus": {
-			"position": {
-				"left": 106,
-				"top": 27
-			},
-			"maxWidth": 58,
-			"scale": 0.75
+			"maxWidth": 226
 		},
 		"player_inventory_title": {
 			"text": {
 				"translate": "container.inventory"
 			},
 			"position": {
-				"left": 8,
-				"bottom": 94
+				"left": 48,
+				"bottom": 95
 			}
-		}
-	},
-	"images": {
-		"cpuIdle": {
-			"texture": "guis/digital_construct_flower/cpu_idle.png",
-			"srcRect": [0, 0, 67, 22]
-		},
-		"cpuTaskOverlay": {
-			"texture": "guis/digital_construct_flower/cpu_task_overlay.png",
-			"srcRect": [0, 0, 67, 22]
 		}
 	}
 }

@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.Objects;
-
 /**
  * Converts resource ids under {@code data/<namespace>/multiblock} into structure registry keys.
  */
@@ -12,7 +10,6 @@ public final class JsonMultiBlockResourceKeyResolver {
     private JsonMultiBlockResourceKeyResolver() {}
 
     public static JsonMultiBlockStructureKey resolve(ResourceLocation resourceId) {
-        Objects.requireNonNull(resourceId, "resourceId");
         String path = resourceId.getPath();
         if (path.isBlank()) {
             throw new IllegalArgumentException("JSON multiblock resource path must not be blank: " + resourceId);

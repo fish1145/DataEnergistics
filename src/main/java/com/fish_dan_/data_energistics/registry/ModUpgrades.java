@@ -42,7 +42,7 @@ public final class ModUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), ModBlocks.DIGITAL_STORAGE_DEPOT.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), ModBlocks.DATA_EXTRACTOR.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), ModBlocks.DATA_RIPPER_REASSEMBLER.get().asItem());
-        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY.get(), ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), ModBlocks.TRINITY_DATA_CORE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), ModBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), ModBlocks.DATA_MIMETIC_FIELD.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), ModBlocks.DATA_TELEPORT_ANCHOR.get().asItem());
@@ -54,6 +54,7 @@ public final class ModUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(), ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ME_PATTERN_BUFFER_BLOCK_ENTITY.get(), ModBlocks.ME_PATTERN_BUFFER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), ModBlocks.TRINITY_ACCESS_HATCH.get().asItem());
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");

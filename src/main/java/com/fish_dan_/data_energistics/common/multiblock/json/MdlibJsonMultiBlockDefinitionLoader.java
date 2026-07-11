@@ -9,8 +9,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SlabBlock;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -18,7 +18,12 @@ import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
+import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
+import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver;
+import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver.StringArrayDefinition;
+import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver.Unit;
+import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicate;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
@@ -30,7 +35,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -43,20 +47,23 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
     private static final String AISLES_PROPERTY = "aisles";
     private static final String SLICES_PROPERTY = "slices";
     private static final String TYPE_PROPERTY = "type";
+    private static final String PREDICATE_PROPERTY = "predicate";
     private static final String BLOCK_PROPERTY = "block";
     private static final String BLOCKS_PROPERTY = "blocks";
     private static final String BLOCK_STATES_PROPERTY = "block_states";
+    private static final String PROPERTIES_PROPERTY = "properties";
     private static final String BLOCKS_PREDICATE_TYPE = "blocks";
     private static final String BLOCK_STATES_PREDICATE_TYPE = "block_states";
     private static final String FALLBACK_BLOCK_PREDICATE_TYPE = "mdlib:blocks";
-    private static final String FALLBACK_BLOCK_ID = "minecraft:air";
-    private static final Gson GSON = new Gson();
+    private static final String ANY_PREDICATE_TYPE = "mdlib:any";
+    private static final String AIR_PREDICATE_TYPE = "air";
+    private static final String AIR_BLOCK_ID = "minecraft:air";
+    private static final char SPACE_SYMBOL = ' ';
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final FileToIdConverter FILE_TO_ID = FileToIdConverter.json(DIRECTORY);
 
     @Override
     public Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> load(ResourceManager resourceManager) {
-        Objects.requireNonNull(resourceManager, "resourceManager");
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = new LinkedHashMap<>();
         Map<JsonMultiBlockStructureKey, ResourceLocation> sources = new LinkedHashMap<>();
         for (Map.Entry<ResourceLocation, Resource> entry : FILE_TO_ID.listMatchingResources(resourceManager).entrySet()) {
@@ -78,12 +85,11 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
 
     @Override
     public Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> load(Map<ResourceLocation, String> resources) {
-        Objects.requireNonNull(resources, "resources");
         Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions = new LinkedHashMap<>();
         Map<JsonMultiBlockStructureKey, ResourceLocation> sources = new LinkedHashMap<>();
         for (Map.Entry<ResourceLocation, String> entry : resources.entrySet()) {
-            ResourceLocation resourceId = Objects.requireNonNull(entry.getKey(), "resourceId");
-            String json = Objects.requireNonNull(entry.getValue(), "json");
+            ResourceLocation resourceId = entry.getKey();
+            String json = entry.getValue();
             try (Reader reader = new StringReader(json)) {
                 putDefinition(definitions, sources, parse(resourceId, reader), resourceId);
             } catch (RuntimeException exception) {
@@ -114,13 +120,134 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
         patternRoot.remove(JsonMultiBlockMetadata.METADATA_PROPERTY);
         sanitizeBlockPredicates(resourceId, patternRoot);
         JsonMultiBlockCompartmentPredicate.registerType();
+        JsonMultiBlockReplaceableCompartmentPredicate.registerType();
+        JsonMultiBlockStatePropertiesPredicate.registerType();
+        JsonMultiBlockPlacementPredicate.registerType();
+        applySlabBlockPredicates(patternRoot);
+        applyPartialBlockStatePredicates(patternRoot);
         applyCompartmentPredicates(resourceId, patternRoot, metadata.compartmentTypes());
-        BlockPattern pattern = StructurePatternResolver.parsePattern(new StringReader(GSON.toJson(patternRoot)));
+        applyReplaceableCompartmentPredicates(resourceId, patternRoot, metadata.replaceableCompartmentTypes());
+        StringArrayDefinition definition = StructurePatternResolver.parseDefinition(patternRoot);
+        BlockPattern pattern = buildPattern(definition, metadata);
         return new ResolvedJsonMultiBlockDefinition(
                 key,
                 pattern,
                 metadata.displayNameTranslationKey(),
-                metadata.compartmentTypes());
+                metadata.compartmentTypes(),
+                metadata.replaceableCompartmentTypes());
+    }
+
+    private static BlockPattern buildPattern(StringArrayDefinition definition, JsonMultiBlockMetadata metadata) {
+        FactoryBlockPattern builder = FactoryBlockPattern.start(
+                metadata.structureDir().charDir(),
+                metadata.structureDir().stringDir(),
+                metadata.structureDir().aisleDir());
+        for (Unit unit : definition.units()) {
+            if (unit.minRepeat() != 1 || unit.maxRepeat() != 1 || unit.slices().size() > 1) {
+                builder.beginRepeatable();
+                unit.slices().forEach(builder::aisle);
+                builder.endRepeatable(unit.minRepeat(), unit.maxRepeat());
+            } else {
+                builder.aisle(unit.slices().getFirst());
+            }
+        }
+        for (Map.Entry<Character, StructurePredicate> entry : definition.predicates().entrySet()) {
+            if (entry.getKey() == SPACE_SYMBOL) {
+                continue;
+            }
+            builder.where(entry.getKey(), new TraceabilityPredicate(entry.getValue()));
+        }
+        return builder.build();
+    }
+
+    private static void applySlabBlockPredicates(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            if (isSlabBlockStatePredicate(object)) {
+                replaceWithBlockPredicate(object);
+            }
+            for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+                applySlabBlockPredicates(entry.getValue());
+            }
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                applySlabBlockPredicates(child);
+            }
+        }
+    }
+
+    private static boolean isSlabBlockStatePredicate(JsonObject object) {
+        if (!isBlockStatePredicate(object)) {
+            return false;
+        }
+        List<String> blockIds = blockIds(object);
+        if (blockIds.isEmpty()) {
+            return false;
+        }
+        for (String blockId : blockIds) {
+            ResourceLocation id = ResourceLocation.tryParse(blockId);
+            if (id == null) {
+                return false;
+            }
+            Block block = BuiltInRegistries.BLOCK.get(id);
+            if (!id.equals(BuiltInRegistries.BLOCK.getKey(block)) || !(block instanceof SlabBlock)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void replaceWithBlockPredicate(JsonObject predicate) {
+        List<String> blockIds = blockIds(predicate).stream().distinct().toList();
+        predicate.addProperty(TYPE_PROPERTY, FALLBACK_BLOCK_PREDICATE_TYPE);
+        predicate.remove(BLOCK_STATES_PROPERTY);
+        predicate.remove(PROPERTIES_PROPERTY);
+        predicate.remove(BLOCK_PROPERTY);
+        predicate.remove(BLOCKS_PROPERTY);
+        if (blockIds.size() == 1) {
+            predicate.addProperty(BLOCK_PROPERTY, blockIds.getFirst());
+            return;
+        }
+        JsonArray blocks = new JsonArray();
+        for (String blockId : blockIds) {
+            blocks.add(blockId);
+        }
+        predicate.add(BLOCKS_PROPERTY, blocks);
+    }
+
+    private static void applyPartialBlockStatePredicates(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            if (isBlockStatePredicate(object)) {
+                object.addProperty(TYPE_PROPERTY, JsonMultiBlockStatePropertiesPredicate.TYPE.toString());
+            }
+            for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+                applyPartialBlockStatePredicates(entry.getValue());
+            }
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                applyPartialBlockStatePredicates(child);
+            }
+        }
+    }
+
+    private static boolean isBlockStatePredicate(JsonObject object) {
+        JsonElement typeElement = object.get(TYPE_PROPERTY);
+        if (typeElement == null || !typeElement.isJsonPrimitive() || !typeElement.getAsJsonPrimitive().isString()) {
+            return false;
+        }
+        ResourceLocation type = ResourceLocation.tryParse(typeElement.getAsString());
+        return type != null && BLOCK_STATES_PREDICATE_TYPE.equals(type.getPath());
     }
 
     private static void applyCompartmentPredicates(ResourceLocation resourceId,
@@ -148,6 +275,37 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
                 compartmentPredicate.add("predicate", existingPredicate.deepCopy());
             }
             predicates.add(symbol, compartmentPredicate);
+        }
+    }
+
+    private static void applyReplaceableCompartmentPredicates(ResourceLocation resourceId,
+                                                              JsonObject root,
+                                                              Map<String, Set<CompartmentType>> replaceableCompartmentTypes) {
+        if (replaceableCompartmentTypes.isEmpty()) {
+            return;
+        }
+        JsonObject predicates = getOrCreatePredicates(root, resourceId);
+        for (Map.Entry<String, Set<CompartmentType>> entry : replaceableCompartmentTypes.entrySet()) {
+            String symbol = entry.getKey();
+            if (!patternUsesSymbol(root, symbol)) {
+                throw new IllegalArgumentException("JSON multiblock replaceable compartment symbol '" + symbol +
+                        "' is not used by pattern: " + resourceId);
+            }
+            JsonElement existingPredicate = predicates.get(symbol);
+            if (existingPredicate == null || existingPredicate.isJsonNull() || !existingPredicate.isJsonObject()) {
+                throw new IllegalArgumentException("JSON multiblock replaceable compartment symbol '" + symbol +
+                        "' requires an existing object predicate: " + resourceId);
+            }
+
+            JsonObject replaceablePredicate = new JsonObject();
+            replaceablePredicate.addProperty(TYPE_PROPERTY, JsonMultiBlockReplaceableCompartmentPredicate.TYPE.toString());
+            JsonArray compartments = new JsonArray();
+            for (CompartmentType type : entry.getValue()) {
+                compartments.add(type.id());
+            }
+            replaceablePredicate.add("compartments", compartments);
+            replaceablePredicate.add(PREDICATE_PROPERTY, existingPredicate.deepCopy());
+            predicates.add(symbol, replaceablePredicate);
         }
     }
 
@@ -205,7 +363,6 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
     }
 
     private static String readSource(Reader reader, ResourceLocation resourceId) {
-        Objects.requireNonNull(reader, "reader");
         try {
             StringWriter writer = new StringWriter();
             reader.transferTo(writer);
@@ -269,30 +426,73 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
         List<String> predicateKeys = List.copyOf(predicates.keySet());
         for (String predicateKey : predicateKeys) {
             JsonElement predicateElement = predicates.get(predicateKey);
-            if (!predicateElement.isJsonObject()) {
-                continue;
+            sanitizePredicate(resourceId, predicateKey, predicateElement);
+        }
+    }
+
+    private static void sanitizePredicate(ResourceLocation resourceId, String predicateKey, JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonObject()) {
+            JsonObject predicate = element.getAsJsonObject();
+            if (isAirPredicate(predicate)) {
+                replaceWithAnyPredicate(predicate);
+                return;
             }
-            JsonObject predicate = predicateElement.getAsJsonObject();
-            if (!isBlockBackedPredicate(predicate)) {
-                continue;
+            if (isBlockBackedPredicate(predicate)) {
+                sanitizeBlockBackedPredicate(resourceId, predicateKey, predicate);
+                return;
             }
-            List<String> missingBlockIds = missingBlockIds(predicate);
-            if (missingBlockIds.isEmpty()) {
-                continue;
+            for (Map.Entry<String, JsonElement> entry : predicate.entrySet()) {
+                sanitizePredicate(resourceId, predicateKey, entry.getValue());
             }
-            JsonObject airPredicate = new JsonObject();
-            airPredicate.addProperty(TYPE_PROPERTY, FALLBACK_BLOCK_PREDICATE_TYPE);
-            airPredicate.addProperty(BLOCK_PROPERTY, FALLBACK_BLOCK_ID);
-            predicates.add(predicateKey, airPredicate);
-            for (String missingBlockId : missingBlockIds) {
-                LOGGER.warn(
-                        "JSON multiblock resource {} predicate '{}' references missing block id {}; replacing predicate with {}",
-                        resourceId,
-                        predicateKey,
-                        missingBlockId,
-                        FALLBACK_BLOCK_ID);
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                sanitizePredicate(resourceId, predicateKey, child);
             }
         }
+    }
+
+    private static void sanitizeBlockBackedPredicate(ResourceLocation resourceId,
+                                                     String predicateKey,
+                                                     JsonObject predicate) {
+        if (usesAirBlock(predicate)) {
+            replaceWithAnyPredicate(predicate);
+            return;
+        }
+        List<String> missingBlockIds = missingBlockIds(predicate);
+        if (missingBlockIds.isEmpty()) {
+            return;
+        }
+        replaceWithAnyPredicate(predicate);
+        for (String missingBlockId : missingBlockIds) {
+            LOGGER.warn(
+                    "JSON multiblock resource {} predicate '{}' references missing block id {}; replacing predicate with {}",
+                    resourceId,
+                    predicateKey,
+                    missingBlockId,
+                    ANY_PREDICATE_TYPE);
+        }
+    }
+
+    private static void replaceWithAnyPredicate(JsonObject predicate) {
+        predicate.addProperty(TYPE_PROPERTY, ANY_PREDICATE_TYPE);
+        predicate.remove(BLOCK_STATES_PROPERTY);
+        predicate.remove(PROPERTIES_PROPERTY);
+        predicate.remove(BLOCK_PROPERTY);
+        predicate.remove(BLOCKS_PROPERTY);
+    }
+
+    private static boolean isAirPredicate(JsonObject predicate) {
+        JsonElement typeElement = predicate.get(TYPE_PROPERTY);
+        if (typeElement == null || !typeElement.isJsonPrimitive() || !typeElement.getAsJsonPrimitive().isString()) {
+            return false;
+        }
+        ResourceLocation type = ResourceLocation.tryParse(typeElement.getAsString());
+        return type != null && AIR_PREDICATE_TYPE.equals(type.getPath());
     }
 
     private static boolean isBlockBackedPredicate(JsonObject predicate) {
@@ -303,6 +503,10 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
         ResourceLocation type = ResourceLocation.tryParse(typeElement.getAsString());
         return type != null &&
                 (BLOCKS_PREDICATE_TYPE.equals(type.getPath()) || BLOCK_STATES_PREDICATE_TYPE.equals(type.getPath()));
+    }
+
+    private static boolean usesAirBlock(JsonObject predicate) {
+        return blockIds(predicate).stream().anyMatch(AIR_BLOCK_ID::equals);
     }
 
     private static List<String> missingBlockIds(JsonObject predicate) {

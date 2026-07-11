@@ -1,6 +1,13 @@
 {
 	"ctm": {
 		"ctm_version": 1,
-		"type": "ctm:optifine_full"
+		"type": "ctm:optifine_full",
+		"extra": {
+			"connect_to": [
+				{
+					"block": "data_energistics:data_crystal_block"
+				}
+			]
+		}
 	}
 }

@@ -6,7 +6,6 @@ import mekanism.api.chemical.ChemicalStack;
 import mekanism.api.chemical.IChemicalHandler;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 
 public class AdaptivePatternProviderReturnChemicalHandler implements IChemicalHandler {
@@ -14,7 +13,7 @@ public class AdaptivePatternProviderReturnChemicalHandler implements IChemicalHa
     private final Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier;
 
     public AdaptivePatternProviderReturnChemicalHandler(Supplier<@Nullable AdaptivePatternProviderLogic> logicSupplier) {
-        this.logicSupplier = Objects.requireNonNull(logicSupplier, "logicSupplier");
+        this.logicSupplier = logicSupplier;
     }
 
     @Override

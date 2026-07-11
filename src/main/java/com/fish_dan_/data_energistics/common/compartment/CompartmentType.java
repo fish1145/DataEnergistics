@@ -15,7 +15,8 @@ public enum CompartmentType {
     OUTPUT("output", false),
     ME_INPUT("me_input", true),
     ME_OUTPUT("me_output", true),
-    PATTERN_BUFFER("pattern_buffer", false);
+    PATTERN_BUFFER("pattern_buffer", false),
+    TRINITY_ACCESS("trinity_access", true);
 
     private final String id;
     private final boolean aeCapable;
@@ -43,9 +44,6 @@ public enum CompartmentType {
      * Resolves a JSON metadata id into a compartment type.
      */
     public static Optional<CompartmentType> byId(String id) {
-        if (id == null) {
-            return Optional.empty();
-        }
         String normalized = id.trim().toLowerCase(Locale.ROOT);
         for (CompartmentType type : values()) {
             if (type.id.equals(normalized)) {

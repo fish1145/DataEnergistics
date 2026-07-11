@@ -1,0 +1,276 @@
+{
+	"metadata": {
+		"structure_dir": {
+			"char": "right",
+			"string": "front",
+			"aisle": "up"
+		},
+		"cpu_core": {
+			"core_slot_start_y": 0,
+			"core_slot_end_y": 16,
+			"repeat_start_y": 3,
+			"repeat_end_y": 15,
+			"max_repeat_count": 13,
+			"max_threads": 256
+		}
+	},
+	"aisles": [
+		{
+			"slices": [
+				[
+					"         ",
+					"    AAAA ",
+					"    AAAA ",
+					"    AAAA ",
+					"    AAAA ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   A    A",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   A    A",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"~        "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   A    A",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   A    A",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   AEEEEA",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			]
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   BCCCCB",
+					"   ABBBBA",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			],
+			"repeat": {
+				"min": 1,
+				"max": 12
+			}
+		},
+		{
+			"slices": [
+				[
+					"   ABBBBA",
+					"   BAAAAB",
+					"   BAAAAB",
+					"   BAAAAB",
+					"   BAAAAB",
+					"   ABBBBA",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         ",
+					"         "
+				]
+			]
+		}
+	],
+	"predicates": {
+		"A": {
+			"type": "mdlib:blocks",
+			"block": "data_energistics:data_framework"
+		},
+		"B": {
+			"type": "mdlib:blocks",
+			"block": "ae2:quartz_glass"
+		},
+		"C": {
+			"type": "mdlib:blocks",
+			"blocks": [
+				"data_energistics:me_digital_merged_storage_core_1m",
+				"data_energistics:me_digital_merged_storage_core_4m",
+				"data_energistics:me_digital_merged_storage_core_16m",
+				"data_energistics:me_digital_merged_storage_core_64m",
+				"data_energistics:me_digital_merged_storage_core_256m",
+				"data_energistics:me_digital_merged_storage_core_1g",
+				"data_energistics:me_digital_merged_storage_core_4g",
+				"data_energistics:me_digital_merged_storage_core_16g",
+				"data_energistics:me_digital_merged_storage_core_64g",
+				"data_energistics:me_digital_merged_storage_core_256g"
+			]
+		},
+		"E": {
+			"type": "mdlib:blocks",
+			"block": "ae2:smooth_sky_stone_slab"
+		}
+	}
+}

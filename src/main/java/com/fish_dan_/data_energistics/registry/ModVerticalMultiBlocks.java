@@ -22,7 +22,11 @@ import java.nio.charset.StandardCharsets;
 public final class ModVerticalMultiBlocks {
 
     public static final String TRINITY_DATA_CORE_ID = Data_Energistics.id("trinity_data_core").toString();
-    private static final String TRINITY_DATA_CORE_PATH = "/data/data_energistics/multiblock/trinity_data_core.json";
+    public static final String TRINITY_DATA_CORE_CPU_STRUCTURE_NAME = "cpu";
+    public static final String TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME = "crafting";
+    private static final String TRINITY_DATA_CORE_PATH = "/data/data_energistics/multiblock/trinity_data_core/main.json";
+    private static final String TRINITY_DATA_CORE_CPU_PATH = "/data/data_energistics/multiblock/trinity_data_core/cpu.json";
+    private static final String TRINITY_DATA_CORE_CRAFTING_PATH = "/data/data_energistics/multiblock/trinity_data_core/crafting.json";
 
     public static final JsonMultiBlockDefinitionRegistry JSON_MULTI_BLOCKS = new LayeredJsonMultiBlockDefinitionRegistry();
 
@@ -32,6 +36,12 @@ public final class ModVerticalMultiBlocks {
         JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
                 JsonMultiBlockStructureKey.main(trinityDataCoreId()),
                 ModVerticalMultiBlocks::trinityDataCoreDefinition));
+        JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
+                trinityDataCoreCpuKey(),
+                ModVerticalMultiBlocks::trinityDataCoreCpuDefinition));
+        JSON_MULTI_BLOCKS.registerBuiltin(LazyJsonMultiBlockDefinition.fromDefinition(
+                trinityDataCoreCraftingKey(),
+                ModVerticalMultiBlocks::trinityDataCoreCraftingDefinition));
         NeoForge.EVENT_BUS.register(jsonReloadEventHandler());
     }
 
@@ -44,7 +54,29 @@ public final class ModVerticalMultiBlocks {
     }
 
     private static JsonMultiBlockDefinition trinityDataCoreDefinition() {
-        return loadBundledJsonDefinition(TRINITY_DATA_CORE_PATH, trinityDataCoreId());
+        return loadBundledJsonDefinition(
+                TRINITY_DATA_CORE_PATH,
+                Data_Energistics.id("trinity_data_core/" + JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME));
+    }
+
+    private static JsonMultiBlockStructureKey trinityDataCoreCpuKey() {
+        return new JsonMultiBlockStructureKey(trinityDataCoreId(), TRINITY_DATA_CORE_CPU_STRUCTURE_NAME);
+    }
+
+    private static JsonMultiBlockStructureKey trinityDataCoreCraftingKey() {
+        return new JsonMultiBlockStructureKey(trinityDataCoreId(), TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME);
+    }
+
+    private static JsonMultiBlockDefinition trinityDataCoreCpuDefinition() {
+        return loadBundledJsonDefinition(
+                TRINITY_DATA_CORE_CPU_PATH,
+                Data_Energistics.id("trinity_data_core/" + TRINITY_DATA_CORE_CPU_STRUCTURE_NAME));
+    }
+
+    private static JsonMultiBlockDefinition trinityDataCoreCraftingDefinition() {
+        return loadBundledJsonDefinition(
+                TRINITY_DATA_CORE_CRAFTING_PATH,
+                Data_Energistics.id("trinity_data_core/" + TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME));
     }
 
     private static JsonMultiBlockDefinition loadBundledJsonDefinition(String path, ResourceLocation resourceId) {

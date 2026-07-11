@@ -945,9 +945,15 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private void recordConfiguredOreSample(ItemStack carrier, ItemStack oreStack, DataExtractorRuleTable.ItemRule rule) {
+        ResourceLocation recordedItemId = resolveConfiguredRecordedOreId(oreStack, rule);
+        Item recordedItem = BuiltInRegistries.ITEM.getOptional(recordedItemId).orElse(null);
+        if (recordedItem == null) {
+            return;
+        }
+
         boolean updated = false;
         if (!OreDataCarrierData.hasRecordedOre(carrier)) {
-            updated = OreDataCarrierData.recordFirstOre(carrier, new ItemStack(BuiltInRegistries.ITEM.get(rule.recordedItemId())));
+            updated = OreDataCarrierData.recordFirstOre(carrier, new ItemStack(recordedItem));
             if (!updated) {
                 return;
             }
@@ -955,7 +961,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         ResourceLocation recordedOreId = OreDataCarrierData.getOreItemId(carrier);
-        if (recordedOreId == null || !recordedOreId.equals(rule.recordedItemId())) {
+        if (recordedOreId == null || !recordedOreId.equals(recordedItemId)) {
             if (updated) {
                 this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
             }
@@ -975,6 +981,17 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         if (updated) {
             this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
         }
+    }
+
+    private ResourceLocation resolveConfiguredRecordedOreId(ItemStack oreStack, DataExtractorRuleTable.ItemRule rule) {
+        ItemStack normalized = resolveRecordedOreStack(oreStack);
+        if (!normalized.isEmpty() && resolveBaseOreItem(oreStack) != null) {
+            ResourceLocation normalizedId = BuiltInRegistries.ITEM.getKey(normalized.getItem());
+            if (normalizedId != null) {
+                return normalizedId;
+            }
+        }
+        return rule.recordedItemId();
     }
 
     private void recordConfiguredCropSample(ItemStack carrier, ItemStack cropStack, DataExtractorRuleTable.ItemRule rule) {
@@ -1050,7 +1067,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         String path = oreItemId.getPath();
-        if (oreStack.is(C_RAW_MATERIALS_TAG)) {
+        if (oreStack.is(C_RAW_MATERIALS_TAG) || path.startsWith("raw_")) {
             if (!path.startsWith("raw_")) {
                 return null;
             }

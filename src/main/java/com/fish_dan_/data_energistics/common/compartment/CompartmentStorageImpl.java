@@ -9,8 +9,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
-import java.util.Objects;
-
 /**
  * Map-backed compartment storage.
  */
@@ -23,12 +21,12 @@ public class CompartmentStorageImpl implements CompartmentStorage {
     private final Runnable listener;
 
     public CompartmentStorageImpl(Runnable listener) {
-        this.listener = Objects.requireNonNull(listener, "listener");
+        this.listener = listener;
     }
 
     @Override
     public long insert(AEKey key, long amount, boolean simulate) {
-        if (key == null || amount <= 0) {
+        if (amount <= 0) {
             return 0L;
         }
         long current = this.contents.getLong(key);
@@ -45,7 +43,7 @@ public class CompartmentStorageImpl implements CompartmentStorage {
 
     @Override
     public long extract(AEKey key, long amount, boolean simulate) {
-        if (key == null || amount <= 0) {
+        if (amount <= 0) {
             return 0L;
         }
         long current = this.contents.getLong(key);
@@ -67,7 +65,7 @@ public class CompartmentStorageImpl implements CompartmentStorage {
 
     @Override
     public long amount(AEKey key) {
-        return key == null ? 0L : this.contents.getLong(key);
+        return this.contents.getLong(key);
     }
 
     @Override

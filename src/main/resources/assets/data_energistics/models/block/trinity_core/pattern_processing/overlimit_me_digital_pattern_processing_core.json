@@ -1,0 +1,9 @@
+{
+	"parent": "data_energistics:block/trinity_core/common/tiered_core",
+	"render_type": "cutout",
+	"textures": {
+		"0": "data_energistics:block/trinity_core/pattern_processing/me_digital_pattern_processing_core",
+		"1": "data_energistics:block/trinity_core/pattern_processing/me_digital_pattern_processing_core_3",
+		"particle": "data_energistics:block/trinity_core/pattern_processing/me_digital_pattern_processing_core"
+	}
+}

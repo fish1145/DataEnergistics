@@ -254,7 +254,7 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         }
 
         if (slot.isActive() && slot.getItem().isEmpty() && semantic == AdaptivePatternProviderMenu.PAGE_PATTERN) {
-            Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
+            Icon.BACKGROUND_BLANK_PATTERN.getBlitter()
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
         } else if (slot.isActive() && (semantic == AdaptivePatternProviderMenu.PROVIDER_INPUT && slot.getItem().isEmpty() || semantic == AdaptivePatternProviderMenu.AE2LTPP_ADAPTER)) {

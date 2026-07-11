@@ -8,7 +8,9 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 
 import com.google.gson.JsonObject;
 import com.modularmc.mdl.api.multiblock.MultiblockState;
@@ -23,7 +25,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * MDLib predicate wrapper that requires a JSON symbol to be a declared compartment role.
@@ -40,10 +41,6 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     private static final String PREDICATE_PROPERTY = "predicate";
     private static boolean registered;
 
-    public JsonMultiBlockCompartmentPredicate {
-        Objects.requireNonNull(compartmentType, "compartmentType");
-    }
-
     public static synchronized void registerType() {
         if (registered) {
             return;
@@ -53,9 +50,6 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
     }
 
     public static JsonMultiBlockCompartmentPredicate fromJson(JsonObject object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Compartment predicate JSON cannot be null");
-        }
         CompartmentType compartmentType = CompartmentType.byId(readRequiredString(object, COMPARTMENT_PROPERTY))
                 .orElseThrow(() -> new IllegalArgumentException("Unknown compartment predicate type: " +
                         object.get(COMPARTMENT_PROPERTY)));
@@ -101,12 +95,21 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
         return List.of(blockFor(this.compartmentType));
     }
 
+    @Override
+    public List<BlockState> blockStateCandidates() {
+        return List.of(blockFor(this.compartmentType).defaultBlockState());
+    }
+
+    @Override
+    public List<ItemStack> placementCandidates() {
+        return List.of(blockFor(this.compartmentType).asItem().getDefaultInstance());
+    }
+
     private List<String> expected() {
         return List.of(BuiltInRegistries.BLOCK.getKey(blockFor(this.compartmentType)).toString());
     }
 
     public static Map<BlockPos, CompartmentType> declaredCompartments(PatternMatchContext context) {
-        Objects.requireNonNull(context, "context");
         Long2ObjectMap<CompartmentType> matchedCompartments = context.get(
                 MATCHED_COMPARTMENTS_CONTEXT_KEY,
                 Long2ObjectMap.class);
@@ -127,13 +130,18 @@ public record JsonMultiBlockCompartmentPredicate(CompartmentType compartmentType
                 Long2ObjectOpenHashMap::new);
     }
 
-    private static Block blockFor(CompartmentType type) {
+    public static void recordMatchedCompartment(PatternMatchContext context, BlockPos pos, CompartmentType type) {
+        matchedCompartments(context).put(pos.asLong(), type);
+    }
+
+    public static Block blockFor(CompartmentType type) {
         return switch (type) {
             case INPUT -> ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get();
             case OUTPUT -> ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get();
             case ME_INPUT -> ModBlocks.ME_COMPOSITE_INPUT_WAREHOUSE.get();
             case ME_OUTPUT -> ModBlocks.ME_COMPOSITE_OUTPUT_WAREHOUSE.get();
             case PATTERN_BUFFER -> ModBlocks.ME_PATTERN_BUFFER.get();
+            case TRINITY_ACCESS -> ModBlocks.TRINITY_ACCESS_HATCH.get();
         };
     }
 

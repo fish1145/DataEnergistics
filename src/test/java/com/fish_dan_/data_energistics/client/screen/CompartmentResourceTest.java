@@ -235,6 +235,29 @@ public final class CompartmentResourceTest {
     }
 
     @Test
+    void meInputWarehouseScreenCoordinatesMatchTextureAnchors() {
+        JsonObject root = readJson(SCREEN_ROOT + "me_composite_input_warehouse.json");
+        JsonObject slots = object(root, "slots");
+        JsonObject text = object(root, "text");
+        BufferedImage image = readImage(GUI_ROOT + "me_composite_input_warehouse.png");
+        int screenHeight = screenHeight(root);
+
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_CONFIG_ROW_1", 8, 21);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_CONFIG_ROW_2", 8, 39);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_CONFIG_ROW_3", 8, 57);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_CONFIG_ROW_4", 8, 75);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_CONFIG_ROW_5", 8, 93);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_BUFFER_ROW_1", 112, 21);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_BUFFER_ROW_2", 112, 39);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_BUFFER_ROW_3", 112, 57);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_BUFFER_ROW_4", 112, 75);
+        assertMeInputWarehouseRow(slots, image, "COMPARTMENT_BUFFER_ROW_5", 112, 93);
+        assertBottomSlotAnchor(slots, image, screenHeight, "PLAYER_INVENTORY", 24, 84);
+        assertBottomSlotAnchor(slots, image, screenHeight, "PLAYER_HOTBAR", 24, 26);
+        assertTextBottom(text, "player_inventory_title", 94);
+    }
+
+    @Test
     void mePatternBufferScreenCoordinatesMatchTextureAnchors() {
         JsonObject root = readJson(SCREEN_ROOT + "me_pattern_buffer.json");
         JsonObject slots = object(root, "slots");
@@ -362,6 +385,22 @@ public final class CompartmentResourceTest {
     private static void assertSlotGrid(JsonObject slots, String semantic, String expectedGrid) {
         JsonObject slot = object(slots, semantic);
         assertEquals(expectedGrid, string(slot, "grid"), semantic + " grid should match the texture layout");
+    }
+
+    private static void assertMeInputWarehouseRow(JsonObject slots,
+                                                  BufferedImage image,
+                                                  String semantic,
+                                                  int expectedLeft,
+                                                  int expectedTop) {
+        assertSlotAnchor(slots, image, semantic, expectedLeft, expectedTop);
+        assertSlotGrid(slots, semantic, "HORIZONTAL");
+        for (int column = 1; column < CompartmentMenu.ME_COMPOSITE_INPUT_ROW_SLOT_COUNT; column++) {
+            int left = expectedLeft + 18 * column;
+            assertEquals(
+                    SLOT_ANCHOR_COLOR,
+                    image.getRGB(left, expectedTop),
+                    semantic + " slot " + column + " should point at a texture slot anchor");
+        }
     }
 
     private static void assertBottomSlotAnchor(JsonObject slots,

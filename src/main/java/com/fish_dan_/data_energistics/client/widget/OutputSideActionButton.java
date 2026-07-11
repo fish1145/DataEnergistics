@@ -14,8 +14,9 @@ import java.util.List;
 
 public class OutputSideActionButton extends IconButton {
 
-    private String messageKey;
     private String iconName = "PLACEMENT_TOOLBOX";
+    /** Ordered localized lines shown while the button is hovered. */
+    private List<Component> tooltipMessage;
 
     public OutputSideActionButton(Button.OnPress onPress) {
         this(onPress, "gui.data_energistics.set_output_sides.open");
@@ -26,9 +27,20 @@ public class OutputSideActionButton extends IconButton {
         setMessageKey(messageKey);
     }
 
+    /** Creates an action button with a title and a second explanatory tooltip line. */
+    public OutputSideActionButton(Button.OnPress onPress, String messageKey, String hintKey) {
+        this(onPress, messageKey);
+        setHintKey(hintKey);
+    }
+
     public void setMessageKey(String messageKey) {
-        this.messageKey = messageKey;
         this.setMessage(Component.translatable(messageKey));
+        this.tooltipMessage = List.of(this.getMessage());
+    }
+
+    /** Replaces the single-line tooltip with the current title followed by the supplied hint. */
+    public void setHintKey(String hintKey) {
+        this.tooltipMessage = List.of(this.getMessage(), Component.translatable(hintKey));
     }
 
     public void setIconName(String iconName) {
@@ -53,7 +65,7 @@ public class OutputSideActionButton extends IconButton {
 
     @Override
     public List<Component> getTooltipMessage() {
-        return List.of(Component.translatable(this.messageKey));
+        return this.tooltipMessage;
     }
 
     private Blitter getBlitterIcon() {

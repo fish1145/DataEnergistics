@@ -15,8 +15,6 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.me.helpers.MachineSource;
 
-import java.util.Objects;
-
 /**
  * Persistent state and AE pull logic for ME input compartments.
  */
@@ -24,7 +22,7 @@ public class MeCompositeInputWarehouseBlockEntity extends AeCompartmentBlockEnti
 
     private static final String MARKER_TAG = "markers";
     private static final String ME_INPUT_BUFFER_TAG = "me_input_buffer";
-    private static final int ME_INPUT_CONFIGURABLE_SLOTS = 27;
+    private static final int ME_INPUT_CONFIGURABLE_SLOTS = 25;
     private static final int ME_INPUT_TRANSFER_PER_TICK = 4000;
 
     private final CompartmentInventory markerInventory = CompartmentInventory.config(
@@ -90,7 +88,6 @@ public class MeCompositeInputWarehouseBlockEntity extends AeCompartmentBlockEnti
     }
 
     void pullMarkedKeysFromNetwork(MEStorage networkStorage) {
-        Objects.requireNonNull(networkStorage, "networkStorage");
         boolean changed = false;
         for (int slot = 0; slot < Math.min(this.markerInventory.size(), unlockedSlotCount()); slot++) {
             AEKey marker = CompartmentKeyNormalizer.normalize(this.markerInventory.getKey(slot));

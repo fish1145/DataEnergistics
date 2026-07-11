@@ -22,6 +22,11 @@ public interface PatternBufferCompartmentPart extends CompartmentPart {
     CompartmentStorage patternBufferStorage(int slot);
 
     /**
+     * Returns how many pattern slots this buffer exposes for structure-side recognition.
+     */
+    int patternBufferSlotCount();
+
+    /**
      * Returns an aggregate structure-facing view over all visible pattern buffer slot storages.
      */
     CompartmentStorage patternAggregateStorage();

@@ -6,7 +6,6 @@ import net.minecraft.nbt.ListTag;
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
-import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -27,9 +26,9 @@ public final class AvailabilityCheckedCompartmentStorage implements CompartmentS
     public AvailabilityCheckedCompartmentStorage(BooleanSupplier available,
                                                  Supplier<CompartmentStorage> backing,
                                                  Runnable beforeAccess) {
-        this.available = Objects.requireNonNull(available, "available");
-        this.backing = Objects.requireNonNull(backing, "backing");
-        this.beforeAccess = Objects.requireNonNull(beforeAccess, "beforeAccess");
+        this.available = available;
+        this.backing = backing;
+        this.beforeAccess = beforeAccess;
     }
 
     @Override

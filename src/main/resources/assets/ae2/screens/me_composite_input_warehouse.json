@@ -7,46 +7,66 @@
 	],
 	"background": {
 		"texture": "guis/me_composite_input_warehouse.png",
-		"srcRect": [0, 0, 176, 256]
+		"srcRect": [0, 0, 208, 208]
 	},
 	"slots": {
 		"COMPARTMENT_CONFIG_ROW_1": {
 			"left": 8,
-			"top": 20,
+			"top": 21,
 			"grid": "HORIZONTAL"
 		},
 		"COMPARTMENT_BUFFER_ROW_1": {
-			"left": 8,
-			"top": 38,
+			"left": 112,
+			"top": 21,
 			"grid": "HORIZONTAL"
 		},
 		"COMPARTMENT_CONFIG_ROW_2": {
 			"left": 8,
-			"top": 74,
+			"top": 39,
 			"grid": "HORIZONTAL"
 		},
 		"COMPARTMENT_BUFFER_ROW_2": {
-			"left": 8,
-			"top": 92,
+			"left": 112,
+			"top": 39,
 			"grid": "HORIZONTAL"
 		},
 		"COMPARTMENT_CONFIG_ROW_3": {
 			"left": 8,
-			"top": 128,
+			"top": 57,
 			"grid": "HORIZONTAL"
 		},
 		"COMPARTMENT_BUFFER_ROW_3": {
+			"left": 112,
+			"top": 57,
+			"grid": "HORIZONTAL"
+		},
+		"COMPARTMENT_CONFIG_ROW_4": {
 			"left": 8,
-			"top": 146,
+			"top": 75,
+			"grid": "HORIZONTAL"
+		},
+		"COMPARTMENT_BUFFER_ROW_4": {
+			"left": 112,
+			"top": 75,
+			"grid": "HORIZONTAL"
+		},
+		"COMPARTMENT_CONFIG_ROW_5": {
+			"left": 8,
+			"top": 93,
+			"grid": "HORIZONTAL"
+		},
+		"COMPARTMENT_BUFFER_ROW_5": {
+			"left": 112,
+			"top": 93,
 			"grid": "HORIZONTAL"
 		},
 		"PLAYER_INVENTORY": {
-			"left": 8,
+			"left": 24,
 			"bottom": 84,
 			"grid": "BREAK_AFTER_9COLS"
 		},
 		"PLAYER_HOTBAR": {
-			"left": 8,
+			"left": 24,
 			"bottom": 26,
 			"grid": "HORIZONTAL"
 		}
@@ -66,7 +86,7 @@
 				"translate": "container.inventory"
 			},
 			"position": {
-				"left": 8,
+				"left": 24,
 				"bottom": 94
 			}
 		}

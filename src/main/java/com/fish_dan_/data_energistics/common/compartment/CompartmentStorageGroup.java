@@ -10,7 +10,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
 import java.util.Collection;
-import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -28,12 +27,12 @@ public final class CompartmentStorageGroup implements CompartmentStorage {
     private final Supplier<Collection<CompartmentStorage>> storages;
 
     public CompartmentStorageGroup(Supplier<Collection<CompartmentStorage>> storages) {
-        this.storages = Objects.requireNonNull(storages, "storages");
+        this.storages = storages;
     }
 
     @Override
     public long insert(AEKey key, long amount, boolean simulate) {
-        if (key == null || amount <= 0L) {
+        if (amount <= 0L) {
             return 0L;
         }
         long remaining = amount;
@@ -50,7 +49,7 @@ public final class CompartmentStorageGroup implements CompartmentStorage {
 
     @Override
     public long extract(AEKey key, long amount, boolean simulate) {
-        if (key == null || amount <= 0L) {
+        if (amount <= 0L) {
             return 0L;
         }
         long remaining = amount;
@@ -67,9 +66,6 @@ public final class CompartmentStorageGroup implements CompartmentStorage {
 
     @Override
     public long amount(AEKey key) {
-        if (key == null) {
-            return 0L;
-        }
         long total = 0L;
         for (CompartmentStorage storage : currentStorages()) {
             long amount = storage.amount(key);
@@ -98,8 +94,8 @@ public final class CompartmentStorageGroup implements CompartmentStorage {
             for (Object2LongMap.Entry<AEKey> entry : storage.entries().object2LongEntrySet()) {
                 AEKey key = entry.getKey();
                 long amount = entry.getLongValue();
-                if (key == null || amount <= 0L) {
-                    throw new IllegalStateException("Backing compartment storage exposed invalid entry: " + key + "=" + amount);
+                if (amount <= 0L) {
+                    throw new IllegalStateException("Backing compartment storage exposed invalid amount: " + amount);
                 }
                 aggregate.put(key, saturatingAdd(aggregate.getLong(key), amount));
             }
@@ -132,13 +128,7 @@ public final class CompartmentStorageGroup implements CompartmentStorage {
     }
 
     private Collection<CompartmentStorage> currentStorages() {
-        Collection<CompartmentStorage> current = Objects.requireNonNull(this.storages.get(), "storages.get()");
-        for (CompartmentStorage storage : current) {
-            if (storage == null) {
-                throw new IllegalStateException("Compartment storage group cannot contain null backing storage");
-            }
-        }
-        return current;
+        return this.storages.get();
     }
 
     private static void validateTransfer(String operation, long transferred, long requested) {

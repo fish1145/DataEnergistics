@@ -5,10 +5,10 @@ import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.blockentity.CompartmentBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.CompositeWarehouseBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
 import com.fish_dan_.data_energistics.menu.CompartmentSlotLabel;
@@ -25,6 +25,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -51,10 +52,12 @@ import appeng.core.definitions.AEItems;
 import appeng.me.helpers.IGridConnectedBlockEntity;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
+import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.IOptionalSlot;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -286,22 +289,22 @@ public final class CompartmentInventoryTest {
                 "Right composite column must not become a plain output slot");
 
         MeCompositeInputWarehouseBlockEntity meInput = meInputWarehouse();
-        helper.assertValueEqual(meInput.configurableSlotLimit(), 27, "ME input warehouse should expose 27 marker groups");
-        helper.assertValueEqual(meInput.unlockedSlotCount(), 27, "Capacity cards should not unlock hidden ME input groups");
+        helper.assertValueEqual(meInput.configurableSlotLimit(), 25, "ME input warehouse should expose 25 marker groups");
+        helper.assertValueEqual(meInput.unlockedSlotCount(), 25, "Capacity cards should not unlock hidden ME input groups");
         helper.assertValueEqual(
-                meInput.markerInventory().insert(26, iron, 1L, Actionable.MODULATE),
+                meInput.markerInventory().insert(24, iron, 1L, Actionable.MODULATE),
                 1L,
                 "Last visible ME input marker slot should accept inserts");
         helper.assertValueEqual(
-                meInput.markerInventory().insert(27, iron, 1L, Actionable.MODULATE),
+                meInput.markerInventory().insert(25, iron, 1L, Actionable.MODULATE),
                 0L,
                 "Hidden ME input marker slot should reject inserts");
         helper.assertValueEqual(
-                meInput.meInputBuffer().insert(26, iron, 2L, Actionable.MODULATE),
+                meInput.meInputBuffer().insert(24, iron, 2L, Actionable.MODULATE),
                 2L,
                 "Last visible ME input buffer slot should accept pulled contents");
         helper.assertValueEqual(
-                meInput.meInputBuffer().insert(27, iron, 2L, Actionable.MODULATE),
+                meInput.meInputBuffer().insert(25, iron, 2L, Actionable.MODULATE),
                 0L,
                 "Hidden ME input buffer slot should reject pulled contents");
         helper.assertValueEqual(meInput.storage().amount(iron), 2L, "Only visible ME input buffer contents should aggregate");
@@ -587,6 +590,12 @@ public final class CompartmentInventoryTest {
                         playerInventory,
                         meInputWarehouse()),
                 "ME input warehouse menu");
+        assertMeInputWarehouseMainSlots(
+                helper,
+                new MeCompositeInputWarehouseMenu(
+                        5,
+                        playerInventory,
+                        meInputWarehouse()));
         assertPlayerInventorySlots(
                 helper,
                 new MeCompositeOutputWarehouseMenu(
@@ -1085,155 +1094,78 @@ public final class CompartmentInventoryTest {
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_hides_compartment_views_until_formed")
+    @TestHolder("trinity_data_core_hides_compartment_views_until_formed")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void digitalConstructFlowerHidesCompartmentViewsUntilFormed(GameTestHelper helper) {
-        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
+    public static void trinityDataCoreHidesCompartmentViewsUntilFormed(GameTestHelper helper) {
+        TrinityDataCoreBlockEntity host = trinityDataCore();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
                 ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
-        MePatternBufferBlockEntity patternBuffer = patternBuffer();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
 
         input.storage().insert(iron, 4L, false);
-        input.compartment$bindToHost("main", flower);
-        output.compartment$bindToHost("main", flower);
-        patternBuffer.compartment$bindToHost("main", flower);
-        patternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
+        input.compartment$bindToHost("main", host);
+        output.compartment$bindToHost("main", host);
 
-        helper.assertFalse(flower.isStructureFormed(), "Flower should start unformed for this stale binding test");
+        helper.assertFalse(host.isStructureFormed(), "Trinity Data Core should start unformed for this stale binding test");
         helper.assertValueEqual(
-                flower.compartmentInputStorage().amount(iron),
+                host.compartmentInputStorage().amount(iron),
                 0L,
-                "Unformed flower input accessor should hide stale input bindings");
+                "Unformed host input accessor should hide stale input bindings");
         helper.assertTrue(
-                flower.compartmentInputStorage().entries().isEmpty(),
-                "Unformed flower input entries should be empty");
+                host.compartmentInputStorage().entries().isEmpty(),
+                "Unformed host input entries should be empty");
         helper.assertValueEqual(
-                flower.compartmentInputStorage().extract(iron, 1L, false),
+                host.compartmentInputStorage().extract(iron, 1L, false),
                 0L,
-                "Unformed flower input accessor should not extract from stale bindings");
+                "Unformed host input accessor should not extract from stale bindings");
         helper.assertValueEqual(
                 input.storage().amount(iron),
                 4L,
-                "Unformed flower input accessor should not modify stale input backing storage");
+                "Unformed host input accessor should not modify stale input backing storage");
         helper.assertValueEqual(
-                flower.compartmentOutputStorage().insert(gold, 2L, false),
+                host.compartmentOutputStorage().insert(gold, 2L, false),
                 0L,
-                "Unformed flower output accessor should reject writes through stale output bindings");
+                "Unformed host output accessor should reject writes through stale output bindings");
         helper.assertValueEqual(
                 output.storage().amount(gold),
                 0L,
-                "Unformed flower output accessor should not modify stale output backing storage");
-        helper.assertValueEqual(
-                flower.patternBuffers(),
-                List.of(),
-                "Unformed flower pattern buffer accessor should hide stale pattern buffer bindings");
-        helper.assertValueEqual(
-                flower.patternBufferStorage().amount(diamond),
-                0L,
-                "Unformed flower pattern buffer storage should hide stale pattern buffer contents");
-        helper.assertTrue(
-                flower.patternBufferStorage().entries().isEmpty(),
-                "Unformed flower pattern buffer entries should be empty");
-        helper.assertValueEqual(
-                flower.patternBufferStorage().extract(diamond, 1L, false),
-                0L,
-                "Unformed flower pattern buffer storage should not extract from stale pattern buffers");
-        helper.assertValueEqual(
-                flower.patternBufferStorage().insert(gold, 3L, false),
-                0L,
-                "Unformed flower pattern buffer storage should reject writes through stale pattern buffers");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(diamond),
-                5L,
-                "Unformed flower pattern buffer storage should not drain stale backing storage");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(gold),
-                0L,
-                "Unformed flower pattern buffer storage should not write stale backing storage");
+                "Unformed host output accessor should not modify stale output backing storage");
         helper.succeed();
     }
 
-    @TestHolder("digital_construct_flower_exposes_main_compartment_views")
+    @TestHolder("trinity_data_core_exposes_main_compartment_views")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void digitalConstructFlowerExposesMainCompartmentViews(GameTestHelper helper) {
-        DigitalConstructFlowerBlockEntity flower = formedDigitalConstructFlower();
+    public static void trinityDataCoreExposesMainCompartmentViews(GameTestHelper helper) {
+        TrinityDataCoreBlockEntity host = formedTrinityDataCore();
         CompositeWarehouseBlockEntity input = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity output = compositeWarehouse(
                 ModBlocks.COMPOSITE_OUTPUT_WAREHOUSE.get().defaultBlockState());
         CompositeWarehouseBlockEntity alternateInput = compositeWarehouse(
                 ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState());
-        MePatternBufferBlockEntity patternBuffer = patternBuffer();
-        MePatternBufferBlockEntity secondPatternBuffer = patternBuffer();
-        MePatternBufferBlockEntity alternatePatternBuffer = patternBuffer();
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
 
         input.storage().insert(iron, 4L, false);
         alternateInput.storage().insert(iron, 10L, false);
-        input.compartment$bindToHost("main", flower);
-        output.compartment$bindToHost("main", flower);
-        patternBuffer.compartment$bindToHost("main", flower);
-        secondPatternBuffer.compartment$bindToHost("main", flower);
-        alternateInput.compartment$bindToHost("alternate", flower);
-        alternatePatternBuffer.compartment$bindToHost("alternate", flower);
-        patternBuffer.patternBufferStorage(0).insert(diamond, 4L, false);
-        secondPatternBuffer.patternBufferStorage(0).insert(diamond, 5L, false);
-        alternatePatternBuffer.patternBufferStorage(0).insert(diamond, 13L, false);
+        input.compartment$bindToHost("main", host);
+        output.compartment$bindToHost("main", host);
+        alternateInput.compartment$bindToHost("alternate", host);
 
         helper.assertValueEqual(
-                flower.compartmentInputStorage().amount(iron),
+                host.compartmentInputStorage().amount(iron),
                 4L,
-                "Flower input accessor should use the main structure compartments");
+                "Trinity Data Core input accessor should use the main structure compartments");
         helper.assertValueEqual(
-                flower.compartmentOutputStorage().insert(gold, 2L, false),
+                host.compartmentOutputStorage().insert(gold, 2L, false),
                 2L,
-                "Flower output accessor should write through the main output view");
-        helper.assertValueEqual(output.storage().amount(gold), 2L, "Flower output write should reach output backing storage");
-        helper.assertValueEqual(
-                flower.patternBuffers(),
-                List.of(patternBuffer, secondPatternBuffer),
-                "Flower pattern buffer accessor should expose main structure pattern buffers");
-        helper.assertValueEqual(
-                flower.patternBufferStorage().amount(diamond),
-                9L,
-                "Flower pattern buffer storage should aggregate main pattern buffers only");
-        helper.assertValueEqual(
-                flower.patternBufferStorage().extract(diamond, 6L, false),
-                6L,
-                "Flower pattern buffer storage should extract across main pattern buffers");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(diamond),
-                0L,
-                "Flower pattern buffer extract should drain the first main pattern buffer first");
-        helper.assertValueEqual(
-                secondPatternBuffer.patternBufferStorage(0).amount(diamond),
-                3L,
-                "Flower pattern buffer extract should continue into the second main pattern buffer");
-        helper.assertValueEqual(
-                alternatePatternBuffer.patternBufferStorage(0).amount(diamond),
-                13L,
-                "Flower pattern buffer storage should not include alternate structure buffers");
-        helper.assertValueEqual(
-                flower.patternBufferStorage().insert(gold, 3L, false),
-                3L,
-                "Flower pattern buffer storage should write to a main pattern buffer");
-        helper.assertValueEqual(
-                patternBuffer.patternBufferStorage(0).amount(gold),
-                3L,
-                "Flower pattern buffer write should reach a main pattern buffer backing storage");
-        helper.assertValueEqual(
-                alternatePatternBuffer.patternBufferStorage(0).amount(gold),
-                0L,
-                "Flower pattern buffer write should not reach alternate structure buffers");
+                "Trinity Data Core output accessor should write through the main output view");
+        helper.assertValueEqual(output.storage().amount(gold), 2L, "Trinity Data Core output write should reach output backing storage");
         helper.succeed();
     }
 
@@ -1403,6 +1335,7 @@ public final class CompartmentInventoryTest {
             case ME_INPUT -> new MeCompositeInputWarehouseBlockEntity(BlockPos.ZERO, state);
             case ME_OUTPUT -> new MeCompositeOutputWarehouseBlockEntity(BlockPos.ZERO, state);
             case PATTERN_BUFFER -> new MePatternBufferBlockEntity(BlockPos.ZERO, state);
+            case TRINITY_ACCESS -> throw new IllegalArgumentException("Trinity access hatch is not a CompartmentBlockEntity");
         };
     }
 
@@ -1439,18 +1372,31 @@ public final class CompartmentInventoryTest {
                 List.of(new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1L)));
     }
 
-    private static DigitalConstructFlowerBlockEntity digitalConstructFlower() {
-        return new DigitalConstructFlowerBlockEntity(
+    private static TrinityDataCoreBlockEntity trinityDataCore() {
+        return new TrinityDataCoreBlockEntity(
                 BlockPos.ZERO,
-                ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get().defaultBlockState());
+                ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
     }
 
-    private static DigitalConstructFlowerBlockEntity formedDigitalConstructFlower() {
-        DigitalConstructFlowerBlockEntity flower = digitalConstructFlower();
-        CompoundTag tag = new CompoundTag();
+    private static TrinityDataCoreBlockEntity formedTrinityDataCore() {
+        TrinityDataCoreBlockEntity host = trinityDataCore();
+        CompoundTag tag = currentTrinityHostTag();
         tag.putBoolean("formed", true);
-        flower.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
-        return flower;
+        host.loadTag(tag, HolderLookup.Provider.create(Stream.empty()));
+        return host;
+    }
+
+    private static CompoundTag currentTrinityHostTag() {
+        CompoundTag tag = new CompoundTag();
+        tag.putInt("schema_version", 1);
+        tag.putUUID("trinity_data_core_storage_id", UUID.randomUUID());
+        tag.putUUID("trinity_data_core_host_id", UUID.randomUUID());
+        CompoundTag runtimeTag = new CompoundTag();
+        runtimeTag.putInt("schema_version", 1);
+        runtimeTag.put("contributions", new ListTag());
+        runtimeTag.put("partitions", new ListTag());
+        tag.put("trinity_data_core_crafting_runtime", runtimeTag);
+        return tag;
     }
 
     private static void installCapacityCards(CompositeWarehouseBlockEntity compartment) {
@@ -1516,6 +1462,53 @@ public final class CompartmentInventoryTest {
         for (int row = CompositeWarehouseBlockEntity.BASE_COMPOSITE_WAREHOUSE_ROWS; row < CompositeWarehouseBlockEntity.COMPOSITE_WAREHOUSE_ROWS; row++) {
             assertSlotTextureColumn(helper, menu, CompartmentMenu.COMPARTMENT_FLUID, row, 0);
             assertSlotTextureColumn(helper, menu, CompartmentMenu.COMPARTMENT_KEY, row, 1);
+        }
+    }
+
+    private static void assertMeInputWarehouseMainSlots(GameTestHelper helper, CompartmentMenu menu) {
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_1);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_2);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_3);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_4);
+        assertMeInputWarehouseMarkerRow(helper, menu, CompartmentMenu.COMPARTMENT_CONFIG_ROW_5);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_1);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_2);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_3);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_4);
+        assertMeInputWarehouseBufferRow(helper, menu, CompartmentMenu.COMPARTMENT_BUFFER_ROW_5);
+    }
+
+    private static void assertMeInputWarehouseMarkerRow(GameTestHelper helper,
+                                                        CompartmentMenu menu,
+                                                        SlotSemantic semantic) {
+        var slots = menu.getSlots(semantic);
+        helper.assertValueEqual(
+                slots.size(),
+                CompartmentMenu.ME_COMPOSITE_INPUT_ROW_SLOT_COUNT,
+                semantic.id() + " should expose one five-slot marker row");
+        for (var slot : slots) {
+            if (!(slot instanceof AppEngSlot appEngSlot)) {
+                helper.fail(semantic.id() + " should use AppEng slots");
+                return;
+            }
+            helper.assertTrue(appEngSlot.isHideAmount(), semantic.id() + " marker slots should hide stack amounts");
+        }
+    }
+
+    private static void assertMeInputWarehouseBufferRow(GameTestHelper helper,
+                                                        CompartmentMenu menu,
+                                                        SlotSemantic semantic) {
+        var slots = menu.getSlots(semantic);
+        helper.assertValueEqual(
+                slots.size(),
+                CompartmentMenu.ME_COMPOSITE_INPUT_ROW_SLOT_COUNT,
+                semantic.id() + " should expose one five-slot buffer row");
+        for (var slot : slots) {
+            if (!(slot instanceof AppEngSlot appEngSlot)) {
+                helper.fail(semantic.id() + " should use AppEng slots");
+                return;
+            }
+            helper.assertFalse(appEngSlot.isHideAmount(), semantic.id() + " buffer slots should keep pulled amounts visible");
         }
     }
 
@@ -1658,6 +1651,11 @@ public final class CompartmentInventoryTest {
                 throw new IllegalArgumentException("Test pattern buffer slot out of range: " + slot);
             }
             return this.patternBufferStorage;
+        }
+
+        @Override
+        public int patternBufferSlotCount() {
+            return 1;
         }
 
         @Override

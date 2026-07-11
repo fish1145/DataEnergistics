@@ -13,11 +13,13 @@ import com.fish_dan_.data_energistics.blockentity.DataSanctumInterfaceBlockEntit
 import com.fish_dan_.data_energistics.blockentity.DataSanctumReturnPortalBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DigitalConstructFlowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -45,9 +47,9 @@ public final class ModBlockEntities {
             "data_reassembler",
             () -> BlockEntityType.Builder.of(DataRipperReassemblerBlockEntity::new, ModBlocks.DATA_RIPPER_REASSEMBLER.get()).build(null));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalConstructFlowerBlockEntity>> DIGITAL_CONSTRUCT_FLOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityDataCoreBlockEntity>> TRINITY_DATA_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "trinity_data_core",
-            () -> BlockEntityType.Builder.of(DigitalConstructFlowerBlockEntity::new, ModBlocks.DIGITAL_CONSTRUCT_FLOWER.get()).build(null));
+            () -> BlockEntityType.Builder.of(TrinityDataCoreBlockEntity::new, ModBlocks.TRINITY_DATA_CORE.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_distribution_tower",
@@ -105,6 +107,18 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(
                     MePatternBufferBlockEntity::new,
                     ModBlocks.ME_PATTERN_BUFFER.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityAccessHatchBlockEntity>> TRINITY_ACCESS_HATCH_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "trinity_access_hatch",
+            () -> BlockEntityType.Builder.of(
+                    TrinityAccessHatchBlockEntity::new,
+                    ModBlocks.TRINITY_ACCESS_HATCH.get()).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityPatternCoreBlockEntity>> TRINITY_PATTERN_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "trinity_pattern_core",
+            () -> BlockEntityType.Builder.of(
+                    TrinityPatternCoreBlockEntity::new,
+                    ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
+                    ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
+                    ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()).build(null));
 
     private ModBlockEntities() {}
 
@@ -112,7 +126,8 @@ public final class ModBlockEntities {
         return type == COMPOSITE_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_COMPOSITE_INPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
                 type == ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get() ||
-                type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get();
+                type == ME_PATTERN_BUFFER_BLOCK_ENTITY.get() ||
+                type == TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get();
     }
 
     public static void register(IEventBus modEventBus) {

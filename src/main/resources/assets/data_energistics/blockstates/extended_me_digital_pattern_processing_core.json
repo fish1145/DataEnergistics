@@ -1,0 +1,7 @@
+{
+	"variants": {
+		"": {
+			"model": "data_energistics:block/trinity_core/pattern_processing/extended_me_digital_pattern_processing_core"
+		}
+	}
+}

@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Reusable runtime state for multiblock controllers that accept compartment parts.
@@ -15,8 +14,6 @@ public final class CompartmentHostState {
     private final Map<String, List<CompartmentPart>> compartments = new LinkedHashMap<>();
 
     public void addCompartment(String structureName, CompartmentPart part) {
-        Objects.requireNonNull(structureName, "structureName");
-        Objects.requireNonNull(part, "part");
         List<CompartmentPart> parts = this.compartments.computeIfAbsent(structureName, ignored -> new ArrayList<>());
         if (!parts.contains(part)) {
             parts.add(part);
@@ -24,8 +21,6 @@ public final class CompartmentHostState {
     }
 
     public void removeCompartment(String structureName, CompartmentPart part) {
-        Objects.requireNonNull(structureName, "structureName");
-        Objects.requireNonNull(part, "part");
         List<CompartmentPart> parts = this.compartments.get(structureName);
         if (parts == null) {
             return;

@@ -80,11 +80,7 @@ public interface CompartmentPart extends VerticalMultiBlockPart {
     @Override
     default void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
         if (controller instanceof CompartmentHost host) {
-            String structureName = compartmentStructureName();
-            if (structureName == null) {
-                throw new IllegalStateException("Cannot unbind compartment without a bound structure name");
-            }
-            compartment$unbindFromHost(structureName, host);
+            compartment$unbindFromHost(compartmentStructureName(), host);
         }
     }
 

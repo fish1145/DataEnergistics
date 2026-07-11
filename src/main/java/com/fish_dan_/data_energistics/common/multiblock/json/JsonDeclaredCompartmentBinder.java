@@ -18,7 +18,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Default reusable binder for JSON-declared multiblock compartments.
@@ -32,10 +31,6 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
     public PatternDiagnostic validate(StructureWorldView world,
                                       StructureMatchResult result,
                                       Map<BlockPos, CompartmentType> declaredCompartments) {
-        Objects.requireNonNull(world, "world");
-        Objects.requireNonNull(result, "result");
-        Objects.requireNonNull(declaredCompartments, "declaredCompartments");
-
         for (Map.Entry<BlockPos, CompartmentType> entry : declaredCompartments.entrySet()) {
             PatternDiagnostic diagnostic = validateDeclaredPart(world, entry.getKey(), entry.getValue());
             if (diagnostic != null) {
@@ -62,11 +57,6 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
                      String structureName,
                      CompartmentHost host,
                      Map<BlockPos, CompartmentType> declaredCompartments) {
-        Objects.requireNonNull(world, "world");
-        Objects.requireNonNull(structureName, "structureName");
-        Objects.requireNonNull(host, "host");
-        Objects.requireNonNull(declaredCompartments, "declaredCompartments");
-
         for (Map.Entry<BlockPos, CompartmentType> entry : declaredCompartments.entrySet()) {
             bindDeclaredPart(world, structureName, host, entry.getKey(), entry.getValue());
         }
@@ -77,11 +67,6 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
                             String structureName,
                             CompartmentHost host,
                             Map<BlockPos, CompartmentType> declaredCompartments) {
-        Objects.requireNonNull(world, "world");
-        Objects.requireNonNull(structureName, "structureName");
-        Objects.requireNonNull(host, "host");
-        Objects.requireNonNull(declaredCompartments, "declaredCompartments");
-
         Map<BlockPos, CompartmentPart> currentDeclaredParts = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, CompartmentType> entry : declaredCompartments.entrySet()) {
             currentDeclaredParts.put(entry.getKey(), requireDeclaredPart(world, entry.getKey(), entry.getValue()));
@@ -105,9 +90,6 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
 
     @Override
     public void unbind(String structureName, CompartmentHost host) {
-        Objects.requireNonNull(structureName, "structureName");
-        Objects.requireNonNull(host, "host");
-
         for (CompartmentPart part : List.copyOf(host.compartmentHost$getCompartments(structureName))) {
             part.compartment$unbindFromHost(structureName, host);
         }
