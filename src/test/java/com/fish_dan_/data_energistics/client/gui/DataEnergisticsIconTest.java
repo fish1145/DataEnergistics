@@ -30,6 +30,19 @@ public final class DataEnergisticsIconTest {
     }
 
     @Test
+    void trinityRefundIconUsesTheNewAtlasCell() {
+        JsonObject icon = readJson("assets/data_energistics/textures/guis/states.json")
+                .getAsJsonObject("icons")
+                .getAsJsonObject("TRINITY_REFUND");
+
+        assertNotNull(icon);
+        assertEquals(112, icon.get("x").getAsInt());
+        assertEquals(80, icon.get("y").getAsInt());
+        assertEquals(16, icon.get("width").getAsInt());
+        assertEquals(16, icon.get("height").getAsInt());
+    }
+
+    @Test
     void relativeTextureReferenceUsesTheDefaultTextureNamespace() {
         assertEquals(AE2_STATES_TEXTURE, DataEnergisticsIcon.resolveTexture("guis/states.png", AE2_STATES_TEXTURE));
     }

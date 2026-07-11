@@ -135,6 +135,12 @@
 			"width": 16,
 			"height": 16
 		},
+		"TRINITY_REFUND": {
+			"x": 112,
+			"y": 80,
+			"width": 16,
+			"height": 16
+		},
 		"POWER_UNIT_SCOPE": {
 			"x": 80,
 			"y": 48,

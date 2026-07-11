@@ -209,7 +209,6 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
         private PagedPatternSlot(int slotOnPage) {
             super(PlacableItemType.PROVIDER_PATTERN, new PagedPatternInventory(slotOnPage), 0);
             this.slotOnPage = slotOnPage;
-            setIcon(null);
         }
 
         private int backingIndex() {

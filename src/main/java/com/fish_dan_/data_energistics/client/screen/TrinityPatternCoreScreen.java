@@ -1,11 +1,10 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
 
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
@@ -17,7 +16,7 @@ public final class TrinityPatternCoreScreen extends AEBaseScreen<TrinityPatternC
 
     private final ToggleButton previousPageButton;
     private final ToggleButton nextPageButton;
-    private final ToggleButton refundAllButton;
+    private final OutputSideActionButton refundAllButton;
 
     /** Creates pagination and atomic-refund controls around the current 64-slot page. */
     public TrinityPatternCoreScreen(TrinityPatternCoreMenu menu, Inventory playerInventory, Component title,
@@ -35,12 +34,11 @@ public final class TrinityPatternCoreScreen extends AEBaseScreen<TrinityPatternC
                 Component.translatable("screen.data_energistics.page.next"),
                 Component.translatable("screen.data_energistics.page.next"),
                 ignored -> this.menu.sendSetPage(this.menu.pageIndex + 1));
-        this.refundAllButton = new ToggleButton(
-                Icon.CLEAR,
-                Icon.CLEAR,
-                Component.translatable("button.data_energistics.trinity_pattern_core.refund"),
-                Component.translatable("button.data_energistics.trinity_pattern_core.refund.hint"),
-                ignored -> this.menu.sendRefundAll());
+        this.refundAllButton = new OutputSideActionButton(
+                ignored -> this.menu.sendRefundAll(),
+                "button.data_energistics.trinity_pattern_core.refund",
+                "button.data_energistics.trinity_pattern_core.refund.hint");
+        this.refundAllButton.setIconName("TRINITY_REFUND");
         addToLeftToolbar(this.previousPageButton);
         addToLeftToolbar(this.nextPageButton);
         addToLeftToolbar(this.refundAllButton);
@@ -60,14 +58,5 @@ public final class TrinityPatternCoreScreen extends AEBaseScreen<TrinityPatternC
                 "screen.data_energistics.page",
                 this.menu.pageIndex + 1,
                 this.menu.totalPages));
-    }
-
-    @Override
-    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (slot.isActive() && slot.getItem().isEmpty() &&
-                this.menu.isPagePatternSlot(slot)) {
-            Icon.BACKGROUND_ENCODED_PATTERN.getBlitter().dest(slot.x, slot.y).blit(guiGraphics);
-        }
-        super.renderSlot(guiGraphics, slot);
     }
 }
