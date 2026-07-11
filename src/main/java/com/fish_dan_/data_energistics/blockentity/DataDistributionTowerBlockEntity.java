@@ -20,12 +20,14 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolv
 import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
+import com.fish_dan_.data_energistics.item.DataDistributionConnectorSelector;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
@@ -95,6 +97,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
@@ -104,6 +107,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final DirectEnergyAccess DIRECT_ENERGY_ACCESS = new DirectEnergyAccessImpl();
+    /** Selects the connector source captured when a player places a potentially compatible target. */
+    private static final DataDistributionConnectorSelector CONNECTOR_SELECTOR = DataDistributionConnectorSelector.create();
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
@@ -708,21 +713,27 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             Level level = serverLevelAccessor.getLevel();
             invalidateNearbyCaches(level, event.getPos());
             onPotentialNodeAdded(level, event.getPos());
-            autoConnectPlacedBlockWithOffhandConnector(level, event);
+            autoConnectPlacedBlockWithConnector(level, event);
         }
     }
 
-    private static void autoConnectPlacedBlockWithOffhandConnector(Level level, BlockEvent.EntityPlaceEvent event) {
+    /**
+     * Captures the selected connector at placement time so next-tick validation cannot observe a later inventory swap.
+     */
+    private static void autoConnectPlacedBlockWithConnector(Level level, BlockEvent.EntityPlaceEvent event) {
         if (!(event.getEntity() instanceof Player player) || event.getPlacedBlock().isAir()) {
             return;
         }
 
-        ItemStack offhandStack = player.getOffhandItem();
-        if (offhandStack.getItem() instanceof DataDistributionConnectorItem connectorItem) {
+        Optional<ItemStack> selectedConnector = CONNECTOR_SELECTOR.select(
+                player.getOffhandItem(),
+                () -> findEquippedConnector(player));
+        if (selectedConnector.isPresent()) {
+            ItemStack connectorStack = selectedConnector.get().copy();
+            DataDistributionConnectorItem connectorItem = (DataDistributionConnectorItem) connectorStack.getItem();
             MinecraftServer server = level.getServer();
             BlockPos placedPos = event.getPos().immutable();
             BlockState placedState = event.getPlacedBlock();
-            ItemStack connectorStack = offhandStack.copy();
             ServerTickDelayQueue.runNextServerTick(server, () -> {
                 if (!level.isLoaded(placedPos) || !level.getBlockState(placedPos).equals(placedState)) {
                     return;
@@ -731,6 +742,19 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 connectorItem.autoConnectPlacedBlock(connectorStack, player, level, placedPos);
             });
         }
+    }
+
+    /**
+     * Reads the dedicated optional equipment slot only after Curios presence has been confirmed.
+     *
+     * @param player player who placed the candidate target
+     * @return the original equipped connector stack, or an empty optional when Curios is absent or the slot is empty
+     */
+    private static Optional<ItemStack> findEquippedConnector(Player player) {
+        if (!ModFlags.isCuriosLoaded()) {
+            return Optional.empty();
+        }
+        return CuriosDataDistributionConnectorAccess.find(player);
     }
 
     @SubscribeEvent

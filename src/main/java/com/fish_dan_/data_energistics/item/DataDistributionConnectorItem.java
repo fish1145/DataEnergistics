@@ -43,9 +43,6 @@ public class DataDistributionConnectorItem extends Item {
         ItemStack stack = context.getItemInHand();
 
         if (clickedState.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get()) && player.isShiftKeyDown()) {
-            if (level.isClientSide()) {
-                return InteractionResult.SUCCESS;
-            }
             return bindTower(stack, player, level, clickedPos, clickedState);
         }
 
@@ -76,8 +73,26 @@ public class DataDistributionConnectorItem extends Item {
                 pos.getZ()));
     }
 
-    private InteractionResult bindTower(ItemStack stack, Player player, Level level, BlockPos clickedPos,
-                                        BlockState clickedState) {
+    /**
+     * Binds the supplied connector stack to the clicked distribution tower for both held and equipped workflows.
+     * Client calls consume the interaction immediately, while the server validates point mode and persists the
+     * selected tower into the original mutable stack.
+     *
+     * @param stack        original connector stack that receives the tower selection component
+     * @param player       player selecting the tower and receiving success or failure feedback
+     * @param level        level containing the clicked tower
+     * @param clickedPos   position of any clicked tower part
+     * @param clickedState state of the clicked tower part used to resolve its base position
+     * @return {@link InteractionResult#SUCCESS} when the selection is accepted, {@link InteractionResult#FAIL} for a
+     *         tower outside point-to-point mode, or {@link InteractionResult#PASS} when the base block entity is
+     *         unavailable
+     */
+    public InteractionResult bindTower(ItemStack stack, Player player, Level level, BlockPos clickedPos,
+                                       BlockState clickedState) {
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+
         BlockPos basePos = DataDistributionTowerBlock.getBasePos(clickedPos, clickedState);
         BlockEntity blockEntity = level.getBlockEntity(basePos);
         if (!(blockEntity instanceof DataDistributionTowerBlockEntity tower)) {
