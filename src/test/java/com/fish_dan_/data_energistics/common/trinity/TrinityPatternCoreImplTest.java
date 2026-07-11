@@ -189,6 +189,28 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_core_cache_refresh_is_transient")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cacheRefreshDoesNotMarkPersistentBlockStateChanged(GameTestHelper helper) {
+        AtomicInteger persistentChanges = new AtomicInteger();
+        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+                64,
+                UUID.randomUUID(),
+                stack -> stack.is(Items.PAPER) ? new TestSupportedPattern(stack) : null,
+                persistentChanges::incrementAndGet);
+
+        assertTrue(core.trySetPattern(0, pattern(Items.PAPER)));
+        assertEquals(1, persistentChanges.get());
+
+        core.refreshPatternCache(0);
+        core.refreshAllPatternCaches();
+
+        assertEquals(3L, core.revision());
+        assertEquals(1, persistentChanges.get());
+        helper.succeed();
+    }
+
     @TestHolder("trinity_pattern_core_nbt_preserves_routes_fifo_and_outputs")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")

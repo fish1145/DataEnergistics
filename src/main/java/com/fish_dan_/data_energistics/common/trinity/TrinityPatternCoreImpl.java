@@ -135,7 +135,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         if (ItemStack.matches(current, normalized)) {
             if (!normalized.isEmpty() && this.decodedPatterns.get(slot) == null) {
                 this.decodedPatterns.set(slot, decoded);
-                markPatternCatalogChanged();
+                markPatternCacheChanged();
             }
             return true;
         }
@@ -158,7 +158,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         checkSlot(slot);
         ItemStack pattern = this.patterns.get(slot);
         this.decodedPatterns.set(slot, pattern.isEmpty() ? null : this.decoder.decode(pattern));
-        markPatternCatalogChanged();
+        markPatternCacheChanged();
     }
 
     @Override
@@ -168,7 +168,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             ItemStack pattern = this.patterns.get(slot);
             this.decodedPatterns.set(slot, pattern.isEmpty() ? null : this.decoder.decode(pattern));
         }
-        markPatternCatalogChanged();
+        markPatternCacheChanged();
     }
 
     @Override
@@ -805,8 +805,12 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private void markPatternCatalogChanged() {
-        this.revision = Math.incrementExact(this.revision);
+        markPatternCacheChanged();
         markPersistentStateChanged();
+    }
+
+    private void markPatternCacheChanged() {
+        this.revision = Math.incrementExact(this.revision);
     }
 
     private void markPersistentStateChanged() {
