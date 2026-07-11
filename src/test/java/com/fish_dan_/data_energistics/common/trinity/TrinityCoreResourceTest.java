@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -29,7 +30,11 @@ public final class TrinityCoreResourceTest {
     private static final String RECIPE_ROOT = "data/data_energistics/recipe/crafting/trinity_core/";
     private static final String DATA_ROOT = "data/";
     private static final String LANG_ROOT = "assets/data_energistics/lang/";
-    private static final String MODEL_PARENT = "data_energistics:block/trinity_core/trinity_access_hatch";
+    private static final String ACCESS_HATCH_MODEL = "data_energistics:block/trinity_core/access_hatch/trinity_access_hatch";
+    private static final String TIERED_CORE_MODEL = "data_energistics:block/trinity_core/common/tiered_core";
+    private static final String STORAGE_DIRECTORY = "storage";
+    private static final String MERGED_STORAGE_DIRECTORY = "merged_storage";
+    private static final String PATTERN_PROCESSING_DIRECTORY = "pattern_processing";
     private static final List<String> TIER_SUFFIXES = List.of(
             "1m", "4m", "16m", "64m", "256m", "1g", "4g", "16g", "64g", "256g");
     private static final List<CoreResource> CORE_RESOURCES = createCoreResources();
@@ -57,16 +62,47 @@ public final class TrinityCoreResourceTest {
     }
 
     @Test
-    void baseModelUsesOnlyTrinityCoreTextureReferences() {
-        JsonObject root = readJson(BLOCK_MODEL_ROOT + "trinity_access_hatch.json");
+    void accessHatchUsesItsDedicatedModelDirectoryAndLocalTextures() {
+        JsonObject blockstate = readJson(BLOCKSTATE_ROOT + "trinity_access_hatch.json");
+        JsonObject variants = object(blockstate, "variants");
+        assertEquals(8, variants.size(), "The access hatch should define every facing and active state");
+        for (Map.Entry<String, Integer> facing : Map.of(
+                "north", 0,
+                "east", 90,
+                "south", 180,
+                "west", 270).entrySet()) {
+            for (boolean active : List.of(false, true)) {
+                JsonObject variant = object(variants, "facing=" + facing.getKey() + ",active=" + active);
+                assertEquals(ACCESS_HATCH_MODEL, string(variant, "model"));
+                if (facing.getValue() == 0) {
+                    assertFalse(variant.has("y"), "North-facing access hatch variants should not rotate the model");
+                } else {
+                    assertEquals(facing.getValue(), variant.get("y").getAsInt());
+                }
+            }
+        }
+
+        JsonObject root = readJson(BLOCK_MODEL_ROOT + "access_hatch/trinity_access_hatch.json");
         assertEquals("cutout", string(root, "render_type"));
         assertModelHasNoTemporaryReferences(root, "trinity_access_hatch");
 
         JsonObject textures = object(root, "textures");
-        for (Map.Entry<String, JsonElement> entry : textures.entrySet()) {
-            String textureId = entry.getValue().getAsString();
-            assertTextureReference(textureId, "trinity_access_hatch texture " + entry.getKey());
-        }
+        assertLocalTextureReference(string(textures, "1"), "trinity_access_hatch core texture");
+        assertLocalTextureReference(string(textures, "4"), "trinity_access_hatch front texture");
+        assertLocalTextureReference(string(textures, "6"), "trinity_access_hatch top texture");
+
+        JsonObject item = readJson(ITEM_MODEL_ROOT + "trinity_access_hatch.json");
+        assertEquals(ACCESS_HATCH_MODEL, string(item, "parent"));
+    }
+
+    @Test
+    void tieredCoreModelUsesTwoCutoutLayersAcrossAllFaces() {
+        JsonObject root = readJson(BLOCK_MODEL_ROOT + "common/tiered_core.json");
+        assertEquals("cutout", string(root, "render_type"));
+        JsonArray elements = array(root, "elements");
+        assertEquals(2, elements.size(), "The tiered core should contain a base and overlay layer");
+        assertCubeLayer(elements.get(0).getAsJsonObject(), "#0", "base");
+        assertCubeLayer(elements.get(1).getAsJsonObject(), "#1", "overlay");
     }
 
     @Test
@@ -117,23 +153,25 @@ public final class TrinityCoreResourceTest {
     private static void assertBlockstate(CoreResource core) {
         JsonObject root = readJson(BLOCKSTATE_ROOT + core.id() + ".json");
         JsonObject variant = object(object(root, "variants"), "");
-        assertEquals("data_energistics:block/trinity_core/" + core.id(), string(variant, "model"));
+        assertEquals(core.modelId(), string(variant, "model"));
     }
 
     private static void assertBlockModel(CoreResource core) {
-        JsonObject root = readJson(BLOCK_MODEL_ROOT + core.id() + ".json");
-        assertEquals(MODEL_PARENT, string(root, "parent"));
+        JsonObject root = readJson(core.blockModelPath());
+        assertEquals(TIERED_CORE_MODEL, string(root, "parent"));
+        assertEquals("cutout", string(root, "render_type"));
         assertModelHasNoTemporaryReferences(root, core.id());
         JsonObject textures = object(root, "textures");
-        assertEquals("data_energistics:block/trinity_core/" + core.texture(), string(textures, "1"));
-        assertTextureReference(string(textures, "1"), core.id() + " core texture");
-        assertTextureReference(string(textures, "4"), core.id() + " front texture");
-        assertTextureReference(string(textures, "6"), core.id() + " top texture");
+        assertEquals(core.baseTexture(), string(textures, "0"));
+        assertEquals(core.tierTexture(), string(textures, "1"));
+        assertEquals(core.baseTexture(), string(textures, "particle"));
+        assertLocalTextureReference(core.baseTexture(), core.id() + " base texture");
+        assertTierTextureReference(core.tierTexture(), core.id() + " tier texture");
     }
 
     private static void assertItemModel(CoreResource core) {
         JsonObject root = readJson(ITEM_MODEL_ROOT + core.id() + ".json");
-        assertEquals("data_energistics:block/trinity_core/" + core.id(), string(root, "parent"));
+        assertEquals(core.modelId(), string(root, "parent"));
     }
 
     private static void assertLootTable(CoreResource core, String blockId) {
@@ -157,9 +195,35 @@ public final class TrinityCoreResourceTest {
         return "block.data_energistics." + core.id();
     }
 
-    private static void assertTextureReference(String textureId, String message) {
+    private static void assertLocalTextureReference(String textureId, String message) {
         assertTrue(textureId.startsWith("data_energistics:block/trinity_core/"), message);
         assertResourceExists(textureResourcePath(textureId), message + " should exist");
+    }
+
+    private static void assertTierTextureReference(String textureId, String message) {
+        if (textureId.startsWith("data_energistics:")) {
+            assertLocalTextureReference(textureId, message);
+            return;
+        }
+        assertTrue(textureId.startsWith("ae2:block/crafting/"), message + " should be a known AE2 crafting light");
+    }
+
+    private static void assertCubeLayer(JsonObject layer, String textureReference, String layerName) {
+        assertCoordinates(layer, "from", 0, 0, 0);
+        assertCoordinates(layer, "to", 16, 16, 16);
+        JsonObject faces = object(layer, "faces");
+        assertEquals(6, faces.size(), "The " + layerName + " tiered-core layer should cover every face");
+        for (String face : List.of("north", "east", "south", "west", "up", "down")) {
+            assertEquals(textureReference, string(object(faces, face), "texture"));
+        }
+    }
+
+    private static void assertCoordinates(JsonObject root, String property, int x, int y, int z) {
+        JsonArray coordinates = array(root, property);
+        assertEquals(3, coordinates.size(), property + " should contain three coordinates");
+        assertEquals(x, coordinates.get(0).getAsInt());
+        assertEquals(y, coordinates.get(1).getAsInt());
+        assertEquals(z, coordinates.get(2).getAsInt());
     }
 
     private static void assertModelHasNoTemporaryReferences(JsonObject root, String model) {
@@ -192,6 +256,13 @@ public final class TrinityCoreResourceTest {
         assertNotNull(element, "Missing JSON object property " + property);
         assertTrue(element.isJsonObject(), property + " should be a JSON object");
         return element.getAsJsonObject();
+    }
+
+    private static JsonArray array(JsonObject root, String property) {
+        JsonElement element = root.get(property);
+        assertNotNull(element, "Missing JSON array property " + property);
+        assertTrue(element.isJsonArray(), property + " should be a JSON array");
+        return element.getAsJsonArray();
     }
 
     private static String string(JsonObject root, String property) {
@@ -292,14 +363,62 @@ public final class TrinityCoreResourceTest {
     private static List<CoreResource> createCoreResources() {
         List<CoreResource> resources = new ArrayList<>();
         for (String suffix : TIER_SUFFIXES) {
-            resources.add(new CoreResource("me_digital_storage_core_" + suffix, "storage_core"));
-            resources.add(new CoreResource("me_digital_merged_storage_core_" + suffix, "merged_storage_core"));
+            String storageId = "me_digital_storage_core_" + suffix;
+            resources.add(new CoreResource(
+                    storageId,
+                    STORAGE_DIRECTORY,
+                    localTexture(STORAGE_DIRECTORY, "me_digital_storage_core"),
+                    localTexture(STORAGE_DIRECTORY, storageId)));
+
+            String mergedStorageId = "me_digital_merged_storage_core_" + suffix;
+            resources.add(new CoreResource(
+                    mergedStorageId,
+                    MERGED_STORAGE_DIRECTORY,
+                    localTexture(MERGED_STORAGE_DIRECTORY, "me_digital_merged_storage_core"),
+                    mergedTierTexture(suffix)));
         }
-        resources.add(new CoreResource("me_digital_pattern_processing_core", "me_digital_pattern_processing_core"));
-        resources.add(new CoreResource("extended_me_digital_pattern_processing_core", "me_digital_pattern_processing_core"));
-        resources.add(new CoreResource("overlimit_me_digital_pattern_processing_core", "me_digital_pattern_processing_core"));
+        String patternBaseTexture = localTexture(PATTERN_PROCESSING_DIRECTORY, "me_digital_pattern_processing_core");
+        resources.add(new CoreResource(
+                "me_digital_pattern_processing_core",
+                PATTERN_PROCESSING_DIRECTORY,
+                patternBaseTexture,
+                localTexture(PATTERN_PROCESSING_DIRECTORY, "me_digital_pattern_processing_core_1")));
+        resources.add(new CoreResource(
+                "extended_me_digital_pattern_processing_core",
+                PATTERN_PROCESSING_DIRECTORY,
+                patternBaseTexture,
+                localTexture(PATTERN_PROCESSING_DIRECTORY, "me_digital_pattern_processing_core_2")));
+        resources.add(new CoreResource(
+                "overlimit_me_digital_pattern_processing_core",
+                PATTERN_PROCESSING_DIRECTORY,
+                patternBaseTexture,
+                localTexture(PATTERN_PROCESSING_DIRECTORY, "me_digital_pattern_processing_core_3")));
         return resources;
     }
 
-    private record CoreResource(String id, String texture) {}
+    private static String localTexture(String directory, String textureName) {
+        return "data_energistics:block/trinity_core/" + directory + "/" + textureName;
+    }
+
+    private static String mergedTierTexture(String suffix) {
+        return switch (suffix) {
+            case "1m" -> "ae2:block/crafting/1k_storage_light";
+            case "4m" -> "ae2:block/crafting/4k_storage_light";
+            case "16m" -> "ae2:block/crafting/16k_storage_light";
+            case "64m" -> "ae2:block/crafting/64k_storage_light";
+            case "256m" -> "ae2:block/crafting/256k_storage_light";
+            default -> localTexture(MERGED_STORAGE_DIRECTORY, "me_digital_merged_storage_core_" + suffix);
+        };
+    }
+
+    private record CoreResource(String id, String directory, String baseTexture, String tierTexture) {
+
+        private String modelId() {
+            return "data_energistics:block/trinity_core/" + this.directory + "/" + this.id;
+        }
+
+        private String blockModelPath() {
+            return BLOCK_MODEL_ROOT + this.directory + "/" + this.id + ".json";
+        }
+    }
 }
