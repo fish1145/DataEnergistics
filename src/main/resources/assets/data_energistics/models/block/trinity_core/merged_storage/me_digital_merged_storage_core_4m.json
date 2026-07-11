@@ -1,9 +1,9 @@
 {
-  "parent": "data_energistics:block/trinity_core/common/tiered_core",
-  "render_type": "cutout",
-  "textures": {
-    "0": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core",
-    "1": "ae2:block/crafting/4k_storage_light",
-    "particle": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core"
-  }
+	"parent": "data_energistics:block/trinity_core/common/tiered_core",
+	"render_type": "cutout",
+	"textures": {
+		"0": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core",
+		"1": "ae2:block/crafting/4k_storage_light",
+		"particle": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core"
+	}
 }

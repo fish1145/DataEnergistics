@@ -29,13 +29,13 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Instrument;
 import net.minecraft.world.item.Instruments;
@@ -58,6 +58,7 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
@@ -107,10 +108,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     public static final long KEY_INPUT_CAPACITY = 64_000L;
     private static final int HIDDEN_BUFFER_SLOTS = 64;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
-    private static final long DATA_FLOW_PER_WORK_CYCLE = 150L;
+    private static final long DATA_FLOW_PER_WORK_CYCLE = 320L;
     private static final int BASE_WORK_INTERVAL_TICKS = 200;
-    private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 48;
-    private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 48;
+    private static final int OUTPUT_MULTIPLIER = 10;
+    private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 64;
+    private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 64;
+    private static final int OUTPUT_PER_SPEED_CARD = 800;
     private static final int HIDDEN_BUFFER_FLUSH_INTERVAL_TICKS = 5;
     private static final int UPGRADE_SLOTS = 6;
     private static final long DATA_FLOW_PER_CONVERTED_ITEM = 1L;
@@ -126,6 +129,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final ResourceLocation GOAT_ENTITY_ID = ResourceLocation.parse("minecraft:goat");
     private static final ResourceLocation ARMADILLO_ENTITY_ID = ResourceLocation.parse("minecraft:armadillo");
     private static final ResourceLocation TURTLE_ENTITY_ID = ResourceLocation.parse("minecraft:turtle");
+    private static final ThreadLocal<SimulatedDeathDrops> SIMULATED_DEATH_DROPS = new ThreadLocal<>();
     private static final List<ResourceKey<Instrument>> GOAT_HORN_INSTRUMENTS = List.of(
             Instruments.PONDER_GOAT_HORN,
             Instruments.SING_GOAT_HORN,
@@ -829,28 +833,12 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             fixedOutputs = getBuiltInBiologyMimeticOutputs(serverLevel, entityId);
         }
         if (!fixedOutputs.isEmpty() && !hasOverflowDestructionCard()) {
-            return new GeneratedLoot(copyStacks(fixedOutputs), 0);
+            return new GeneratedLoot(repeatStacks(fixedOutputs, getBiologyLootRollsPerCycle()), 0);
         }
 
         EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
         if (entityType == null) {
-            return new GeneratedLoot(copyStacks(fixedOutputs), 0);
-        }
-
-        Entity entity = entityType.create(serverLevel);
-        if (!(entity instanceof LivingEntity livingEntity)) {
-            return new GeneratedLoot(copyStacks(fixedOutputs), 0);
-        }
-
-        livingEntity.setPos(Vec3.atCenterOf(this.worldPosition));
-        livingEntity.setSilent(true);
-        if (livingEntity instanceof Mob mob) {
-            mob.finalizeSpawn(
-                    serverLevel,
-                    serverLevel.getCurrentDifficultyAt(this.worldPosition),
-                    MobSpawnType.COMMAND,
-                    null);
-            mob.setNoAi(true);
+            return new GeneratedLoot(repeatStacks(fixedOutputs, getBiologyLootRollsPerCycle()), 0);
         }
 
         Player fakePlayer = getFakePlayer(serverLevel);
@@ -861,10 +849,26 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 fakePlayer.getYRot(),
                 fakePlayer.getXRot());
 
-        List<LivingEntity> simulatedEntities = collectSimulatedLivingEntities(livingEntity);
         ArrayList<ItemStack> drops = new ArrayList<>();
         long experience = 0L;
         for (int roll = 0; roll < getBiologyLootRollsPerCycle(); roll++) {
+            Entity entity = entityType.create(serverLevel);
+            if (!(entity instanceof LivingEntity livingEntity)) {
+                continue;
+            }
+
+            livingEntity.setPos(Vec3.atCenterOf(this.worldPosition));
+            livingEntity.setSilent(true);
+            if (livingEntity instanceof Mob mob) {
+                mob.finalizeSpawn(
+                        serverLevel,
+                        serverLevel.getCurrentDifficultyAt(this.worldPosition),
+                        MobSpawnType.COMMAND,
+                        null);
+                mob.setNoAi(true);
+            }
+
+            List<LivingEntity> simulatedEntities = collectSimulatedLivingEntities(livingEntity);
             if (fixedOutputs.isEmpty()) {
                 for (LivingEntity simulatedEntity : simulatedEntities) {
                     GeneratedLoot generatedLoot = simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer);
@@ -878,9 +882,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                     experience = saturatedAdd(experience, generatedLoot.experience());
                 }
             }
-        }
-        for (LivingEntity simulatedEntity : simulatedEntities) {
-            simulatedEntity.discard();
+            for (LivingEntity simulatedEntity : simulatedEntities) {
+                simulatedEntity.discard();
+            }
         }
         return new GeneratedLoot(drops, experience);
     }
@@ -909,13 +913,15 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         return List.copyOf(outputs);
     }
 
-    private static List<ItemStack> copyStacks(List<ItemStack> stacks) {
-        if (stacks.isEmpty()) {
+    private static List<ItemStack> repeatStacks(List<ItemStack> stacks, int repetitions) {
+        if (stacks.isEmpty() || repetitions <= 0) {
             return List.of();
         }
 
-        List<ItemStack> copies = new ArrayList<>(stacks.size());
-        addCopies(copies, stacks);
+        List<ItemStack> copies = new ArrayList<>(stacks.size() * repetitions);
+        for (int i = 0; i < repetitions; i++) {
+            addCopies(copies, stacks);
+        }
         return List.copyOf(copies);
     }
 
@@ -953,49 +959,41 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     private GeneratedLoot simulateEntityDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
         var damageSource = serverLevel.damageSources().playerAttack(fakePlayer);
-        ArrayList<ItemStack> drops = new ArrayList<>(generateEntityLootTableDrops(serverLevel, livingEntity, fakePlayer, damageSource));
-        collectEquipmentDrops(livingEntity, drops);
         int experience = Math.max(0, livingEntity.getExperienceReward(serverLevel, fakePlayer));
-        return new GeneratedLoot(drops, experience);
+        SimulatedDeathDrops captured = new SimulatedDeathDrops(livingEntity);
+        SIMULATED_DEATH_DROPS.set(captured);
+        try {
+            // Match a player-caused death so loot tables using killed_by_player can roll.
+            livingEntity.tickCount = 100;
+            livingEntity.setLastHurtByPlayer(fakePlayer);
+            livingEntity.skipDropExperience();
+            livingEntity.die(damageSource);
+        } finally {
+            SIMULATED_DEATH_DROPS.remove();
+        }
+        if (livingEntity instanceof Witch) {
+            captured.stacks().add(new ItemStack(Items.GLOWSTONE_DUST));
+        }
+        return new GeneratedLoot(List.copyOf(captured.stacks()), experience);
+    }
+
+    public static void captureSimulatedDeathDrops(LivingDropsEvent event) {
+        SimulatedDeathDrops captured = SIMULATED_DEATH_DROPS.get();
+        if (captured == null || captured.entity() != event.getEntity()) {
+            return;
+        }
+
+        for (ItemEntity drop : event.getDrops()) {
+            if (!drop.getItem().isEmpty()) {
+                captured.stacks().add(drop.getItem().copy());
+            }
+        }
+        event.setCanceled(true);
     }
 
     private GeneratedLoot simulateEntityExperience(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
         int experience = Math.max(0, livingEntity.getExperienceReward(serverLevel, fakePlayer));
         return new GeneratedLoot(List.of(), experience);
-    }
-
-    private List<ItemStack> generateEntityLootTableDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer,
-                                                         DamageSource damageSource) {
-        LootParams.Builder builder = new LootParams.Builder(serverLevel)
-                .withParameter(LootContextParams.THIS_ENTITY, livingEntity)
-                .withParameter(LootContextParams.ORIGIN, livingEntity.position())
-                .withParameter(LootContextParams.DAMAGE_SOURCE, damageSource)
-                .withOptionalParameter(LootContextParams.ATTACKING_ENTITY, fakePlayer)
-                .withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, fakePlayer)
-                .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, fakePlayer);
-
-        return serverLevel.getServer()
-                .reloadableRegistries()
-                .getLootTable(livingEntity.getLootTable())
-                .getRandomItems(builder.create(LootContextParamSets.ENTITY), livingEntity.getLootTableSeed());
-    }
-
-    private void collectEquipmentDrops(LivingEntity livingEntity, List<ItemStack> drops) {
-        if (!(livingEntity instanceof Mob mob)) {
-            return;
-        }
-
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemStack stack = mob.getItemBySlot(slot);
-            if (stack.isEmpty()) {
-                continue;
-            }
-
-            ItemStack copy = stack.copy();
-            if (!copy.isEmpty()) {
-                drops.add(copy);
-            }
-        }
     }
 
     private List<ItemStack> generateOreLoot(ServerLevel serverLevel, ItemStack carrier) {
@@ -1023,6 +1021,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.CROP, cropItemId);
             if (!configuredOutputs.isEmpty()) {
                 return configuredOutputs;
+            }
+
+            if (cropItemId.equals(BuiltInRegistries.ITEM.getKey(Items.CHORUS_FLOWER))) {
+                return List.of(new ItemStack(Items.CHORUS_FLOWER), new ItemStack(Items.CHORUS_FRUIT));
             }
         }
 
@@ -1437,11 +1439,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public int getBiologyLootRollsPerCycle() {
-        return BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 16;
+        return OUTPUT_PER_SPEED_CARD * (getInstalledSpeedCardCount() + 1);
     }
 
     public int getOreOutputRollsPerCycle() {
-        return BASE_ORE_OUTPUT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 16;
+        return OUTPUT_PER_SPEED_CARD * (getInstalledSpeedCardCount() + 1);
     }
 
     private int computeWorkIntervalTicks() {
@@ -1798,6 +1800,24 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             mergedStacks.addAll(this.stacks);
             mergedStacks.addAll(other.stacks);
             return new GeneratedLoot(mergedStacks, saturatedAdd(this.experience, other.experience));
+        }
+    }
+
+    private static final class SimulatedDeathDrops {
+
+        private final LivingEntity entity;
+        private final List<ItemStack> stacks = new ArrayList<>();
+
+        private SimulatedDeathDrops(LivingEntity entity) {
+            this.entity = entity;
+        }
+
+        private LivingEntity entity() {
+            return this.entity;
+        }
+
+        private List<ItemStack> stacks() {
+            return this.stacks;
         }
     }
 }
