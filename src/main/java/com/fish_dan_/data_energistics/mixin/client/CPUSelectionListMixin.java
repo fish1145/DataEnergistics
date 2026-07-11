@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
+import com.fish_dan_.data_energistics.client.util.Ae2AmountFormatter;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
@@ -20,7 +22,9 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
@@ -62,6 +66,10 @@ public abstract class CPUSelectionListMixin {
     private GuiGraphics dataEnergistics$guiGraphics;
 
     @Unique
+    @Nullable
+    private CraftingStatusMenu.CraftingCpuListEntry dataEnergistics$currentCpu;
+
+    @Unique
     private int dataEnergistics$screenX;
 
     @Unique
@@ -77,6 +85,7 @@ public abstract class CPUSelectionListMixin {
         this.dataEnergistics$screenX = bounds.getX();
         this.dataEnergistics$screenY = bounds.getY();
         this.dataEnergistics$renderRow = 0;
+        this.dataEnergistics$currentCpu = null;
     }
 
     @ModifyArg(
@@ -86,6 +95,7 @@ public abstract class CPUSelectionListMixin {
                         target = "Lappeng/client/gui/widgets/CPUSelectionList;getCpuName(Lappeng/menu/me/crafting/CraftingStatusMenu$CraftingCpuListEntry;)Lnet/minecraft/network/chat/Component;"))
     private CraftingStatusMenu.CraftingCpuListEntry dataEnergistics$drawTrinityCpuBackground(
                                                                                              CraftingStatusMenu.CraftingCpuListEntry cpu) {
+        this.dataEnergistics$currentCpu = cpu;
         if (this.dataEnergistics$guiGraphics != null && dataEnergistics$isTrinityCpu(cpu)) {
             DATA_ENERGISTICS_CPU_IDLE.copy()
                     .dest(
@@ -97,6 +107,24 @@ public abstract class CPUSelectionListMixin {
         }
         this.dataEnergistics$renderRow++;
         return cpu;
+    }
+
+    @Inject(method = "formatStorage", at = @At("HEAD"), cancellable = true)
+    private void dataEnergistics$formatTrinityCpuStorage(CraftingStatusMenu.CraftingCpuListEntry cpu,
+                                                         CallbackInfoReturnable<String> cir) {
+        if (dataEnergistics$isTrinityCpu(cpu)) {
+            cir.setReturnValue(Ae2AmountFormatter.formatByteAmount(cpu.storage()).text());
+        }
+    }
+
+    @Redirect(
+              method = "drawBackgroundLayer",
+              at = @At(value = "INVOKE", target = "Ljava/lang/String;valueOf(I)Ljava/lang/String;"))
+    private String dataEnergistics$formatTrinityCpuCoProcessors(int amount) {
+        if (this.dataEnergistics$currentCpu != null && dataEnergistics$isTrinityCpu(this.dataEnergistics$currentCpu)) {
+            return Ae2AmountFormatter.formatAmount(amount).text();
+        }
+        return String.valueOf(amount);
     }
 
     @Inject(method = "drawBackgroundLayer", at = @At("TAIL"))
@@ -118,6 +146,7 @@ public abstract class CPUSelectionListMixin {
             y += this.buttonBg.getSrcHeight() + 1;
         }
         this.dataEnergistics$guiGraphics = null;
+        this.dataEnergistics$currentCpu = null;
     }
 
     @Unique

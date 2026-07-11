@@ -60,6 +60,7 @@
 		"client.CompartmentOptionalSlotLabelMixin",
 		"client.CPUSelectionListMixin",
 		"client.TerminalSettingsScreenMixin",
+		"client.TooltipsMixin",
 		"core.CondenserScreenMixin",
 		"core.PatternProviderScreenMixin",
 		"core.WidgetContainerAccessor",
