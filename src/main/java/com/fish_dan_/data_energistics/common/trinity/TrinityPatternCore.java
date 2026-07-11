@@ -10,7 +10,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 /**
  * Public contract for one independently persistent Trinity pattern processing core.
@@ -224,13 +223,76 @@ public interface TrinityPatternCore {
     boolean hasWork();
 
     /**
-     * Offers every installed pattern, queued input, and pending output to an all-or-nothing recipient. Batch pattern
-     * snapshots are definitions and are intentionally not refunded as extra items.
+     * Reversible prepared refund for one physical P core.
      *
-     * @param recipient returns true only after it can accept every supplied stack atomically
-     * @return true when all refundable state was transferred and cleared
+     * <p>
+     * A host uses this contract to combine several cores into one transaction. Preparation must not mutate the
+     * core. A successful {@link #commit()} clears only the exact queued inputs and pending outputs captured at
+     * preparation time; installed patterns and their caches remain untouched. {@link #rollback()} restores a
+     * previously committed capture when another participant fails.
+     * </p>
      */
-    boolean tryRefundAll(Predicate<List<ItemStack>> recipient);
+    interface RefundTransaction {
+
+        /**
+         * @return defensive copies of every queued input and pending output in the capture
+         */
+        List<ItemStack> refundableStacks();
+
+        /**
+         * Clears the captured core state when it is still current.
+         *
+         * @return false when the core changed after preparation or this transaction is no longer usable
+         */
+        boolean commit();
+
+        /**
+         * Finalizes a committed capture after external delivery begins and releases its short-lived core lock.
+         *
+         * <p>
+         * A caller must use this instead of {@link #rollback()} once any external destination might have received an
+         * item, because restoring the captured queue could duplicate that item.
+         * </p>
+         */
+        void complete();
+
+        /** Restores the captured state after a successful commit, or abandons an uncommitted capture. */
+        void rollback();
+    }
+
+    /**
+     * Captures a reversible refund of this core without changing persistent state.
+     *
+     * <p>
+     * Callers that coordinate more than one core must prepare delivery before committing every capture, then roll
+     * back every capture when any participant fails before external delivery begins.
+     * </p>
+     *
+     * @return a prepared refund transaction for this core's current queued inputs and pending outputs
+     */
+    RefundTransaction prepareRefund();
+
+    /**
+     * Captures a reversible refund containing only queue batches and pending outputs owned by one host route.
+     *
+     * <p>
+     * This isolates a host aggregate from sleeping work that belongs to another host after a movable core is
+     * re-mounted elsewhere. Installed encoded patterns remain outside both refund scopes.
+     * </p>
+     *
+     * @param hostId stable host identity that must own every returned route
+     * @return a prepared refund transaction limited to the supplied host routes
+     */
+    RefundTransaction prepareRefund(UUID hostId);
+
+    /**
+     * Returns queued inputs and pending outputs through a prepared two-phase delivery after atomically clearing them.
+     * Installed encoded patterns, recipe caches, and pattern publication remain unchanged.
+     *
+     * @param delivery external two-phase destination for the refundable state
+     * @return true when the delivery prepared successfully and queued state was cleared
+     */
+    boolean tryRefundAll(TrinityRefundDelivery delivery);
 
     /**
      * Writes the complete movable core state into a block entity tag.

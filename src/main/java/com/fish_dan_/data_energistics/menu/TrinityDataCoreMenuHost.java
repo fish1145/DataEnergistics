@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -67,6 +68,19 @@ public interface TrinityDataCoreMenuHost {
      * Returns the total recognizable pattern capacity contributed by the crafting child structure.
      */
     int getCraftingPatternCapacity();
+
+    /**
+     * Reports whether the current valid crafting-core aggregate has any state eligible for an atomic refund.
+     */
+    boolean hasRefundablePatternState();
+
+    /**
+     * Atomically returns queued inputs and pending outputs from the current valid crafting-core aggregate.
+     *
+     * @param player player who receives AE-network, inventory, and final world-drop refund delivery
+     * @return true only when every participating queued state was cleared and delivery was invoked
+     */
+    boolean tryRefundAll(Player player);
 
     /**
      * Returns the last crafting child structure validation error, or an empty string when no error is active.

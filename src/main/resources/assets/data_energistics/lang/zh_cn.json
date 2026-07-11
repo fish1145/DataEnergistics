@@ -514,8 +514,12 @@
 	"message.data_energistics.trinity_data_core.auto_build.target.cpu": "CPU",
 	"message.data_energistics.trinity_data_core.auto_build.target.crafting": "合成",
 	"screen.data_energistics.trinity_data_core.main_structure_label": "主体：",
-	"button.data_energistics.trinity_pattern_core.refund": "退还核心内容",
-	"button.data_energistics.trinity_pattern_core.refund.hint": "仅在背包能完整容纳时退还样板、排队输入和待输出物品",
-	"message.data_energistics.trinity_pattern_core.refund.success": "已退还全部样板核心内容",
-	"message.data_energistics.trinity_pattern_core.refund.failure": "背包空间不足，无法退还全部样板核心内容"
+	"button.data_energistics.trinity_pattern_core.refund": "退还排队核心内容",
+	"button.data_energistics.trinity_pattern_core.refund.hint": "退还排队输入和待输出物品，优先放入背包，余量掉落地面；已安装样板保持不变",
+	"message.data_energistics.trinity_pattern_core.refund.success": "已退还排队样板核心内容",
+	"message.data_energistics.trinity_pattern_core.refund.failure": "没有可退还的排队输入或待输出物品",
+	"button.data_energistics.trinity_data_core.refund": "退还排队合成内容",
+	"button.data_energistics.trinity_data_core.refund.hint": "退还排队输入和待输出物品，依次写入 AE 存储、背包和地面；已安装样板保持不变",
+	"message.data_energistics.trinity_data_core.refund.success": "已退还三位一体数位化核心的排队合成内容",
+	"message.data_energistics.trinity_data_core.refund.failure": "没有可退还的排队输入或待输出物品"
 }

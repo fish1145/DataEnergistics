@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDelivery;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
@@ -33,7 +34,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 /**
  * Persistent block entity for one independently movable Trinity P core.
@@ -202,8 +202,18 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Override
-    public boolean tryRefundAll(Predicate<List<ItemStack>> recipient) {
-        return this.core.tryRefundAll(recipient);
+    public RefundTransaction prepareRefund() {
+        return this.core.prepareRefund();
+    }
+
+    @Override
+    public RefundTransaction prepareRefund(UUID hostId) {
+        return this.core.prepareRefund(hostId);
+    }
+
+    @Override
+    public boolean tryRefundAll(TrinityRefundDelivery delivery) {
+        return this.core.tryRefundAll(delivery);
     }
 
     @Override

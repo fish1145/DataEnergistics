@@ -17,7 +17,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ToggleButton;
 import appeng.core.localization.Tooltips;
 
 import java.math.BigInteger;
@@ -57,6 +59,7 @@ public class TrinityDataCoreScreen extends AEBaseScreen<TrinityDataCoreMenu> {
 
     private final OutputSideActionButton autoBuildTargetButton;
     private final OutputSideActionButton autoBuildButton;
+    private final ToggleButton refundAllButton;
     private TrinityDataCoreAutoBuildTarget autoBuildTarget = TrinityDataCoreAutoBuildTarget.MAIN;
 
     public TrinityDataCoreScreen(TrinityDataCoreMenu menu, Inventory playerInventory, Component title,
@@ -68,8 +71,15 @@ public class TrinityDataCoreScreen extends AEBaseScreen<TrinityDataCoreMenu> {
         this.autoBuildButton = new OutputSideActionButton(
                 button -> PacketDistributor.sendToServer(new TrinityDataCoreAutoBuildPayload(this.autoBuildTarget)),
                 "button.data_energistics.trinity_data_core.auto_build");
+        this.refundAllButton = new ToggleButton(
+                Icon.CLEAR,
+                Icon.CLEAR,
+                Component.translatable("button.data_energistics.trinity_data_core.refund"),
+                Component.translatable("button.data_energistics.trinity_data_core.refund.hint"),
+                ignored -> this.menu.sendRefundAll());
         this.addToLeftToolbar(this.autoBuildTargetButton);
         this.addToLeftToolbar(this.autoBuildButton);
+        this.addToLeftToolbar(this.refundAllButton);
     }
 
     @Override
@@ -91,6 +101,7 @@ public class TrinityDataCoreScreen extends AEBaseScreen<TrinityDataCoreMenu> {
         setTextContent("busy_cpus", Component.translatable(
                 "screen.data_energistics.trinity_data_core.busy_cpus",
                 this.menu.busyCraftingCpuCount));
+        this.refundAllButton.active = this.menu.hasRefundablePatternState;
     }
 
     @Override

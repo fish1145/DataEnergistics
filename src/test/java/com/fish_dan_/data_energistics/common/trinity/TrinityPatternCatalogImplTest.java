@@ -25,10 +25,10 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -414,6 +414,230 @@ public final class TrinityPatternCatalogImplTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_catalog_refund_prepare_rejection_is_atomic")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateLeavesEveryCoreUntouchedWhenDeliveryPreparationRejects(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        ItemStack firstPattern = new ItemStack(Items.PAPER);
+        ItemStack secondPattern = new ItemStack(Items.MAP);
+        PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
+        first.trySetPattern(0, firstPattern);
+        second.trySetPattern(0, secondPattern);
+        first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
+        first.appendPendingOutputs(firstRoute, List.of(new ItemStack(Items.DIAMOND, 3)));
+        catalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
+
+        assertTrue(catalog.hasRefundableState());
+        RecordingRefundDelivery rejected = new RecordingRefundDelivery(false, false);
+        assertFalse(catalog.tryRefundAll(rejected));
+
+        assertEquals(1, rejected.prepareCalls);
+        assertEquals(0, rejected.deliveryCalls);
+        assertTrue(first.pattern(0).is(Items.PAPER));
+        assertTrue(second.pattern(0).is(Items.MAP));
+        assertEquals(1, first.queuedBatchCount(0));
+        assertEquals(3, first.pendingOutputs(firstRoute).getFirst().getCount());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_refund_ignores_installed_patterns")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateDoesNothingWhenOnlyPatternsAreInstalled(GameTestHelper helper) {
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
+        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        core.trySetPattern(0, new ItemStack(Items.PAPER));
+        long patternRevision = core.revision();
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+
+        RecordingRefundDelivery delivery = new RecordingRefundDelivery(true, false);
+        assertFalse(catalog.hasRefundableState());
+        assertFalse(catalog.tryRefundAll(delivery));
+
+        assertEquals(0, delivery.prepareCalls);
+        assertEquals(0, delivery.deliveryCalls);
+        assertTrue(core.pattern(0).is(Items.PAPER));
+        assertEquals(patternRevision, core.revision());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_refund_keeps_foreign_host_work")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateDoesNotClearAnotherHostRoutes(GameTestHelper helper) {
+        UUID firstHostId = UUID.randomUUID();
+        UUID secondHostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl firstCatalog = new TrinityPatternCatalogImpl(firstHostId);
+        TrinityPatternCatalogImpl secondCatalog = new TrinityPatternCatalogImpl(secondHostId);
+        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        ItemStack pattern = new ItemStack(Items.PAPER);
+        PatternRoute firstRoute = new PatternRoute(firstHostId, core.coreId(), 0);
+        PatternRoute secondRoute = new PatternRoute(secondHostId, core.coreId(), 0);
+        core.trySetPattern(0, pattern);
+        core.enqueueBatch(firstRoute, pattern, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
+        core.appendPendingOutputs(firstRoute, List.of(new ItemStack(Items.DIAMOND, 3)));
+        core.enqueueBatch(secondRoute, pattern, craftingInputs(new ItemStack(Items.GOLD_INGOT, 4)), 1L);
+        core.appendPendingOutputs(secondRoute, List.of(new ItemStack(Items.EMERALD, 5)));
+        TrinityPatternCatalog.CoreMount mount = new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core);
+        firstCatalog.rebuild(List.of(mount));
+        secondCatalog.rebuild(List.of(mount));
+
+        RecordingRefundDelivery delivery = new RecordingRefundDelivery(true, false);
+        assertTrue(firstCatalog.hasRefundableState());
+        assertTrue(secondCatalog.hasRefundableState());
+        assertTrue(firstCatalog.tryRefundAll(delivery));
+
+        assertEquals(2, delivery.deliveredStacks.size());
+        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
+        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.DIAMOND) && stack.getCount() == 3));
+        assertEquals(1, core.queuedBatchCount(0));
+        assertEquals(1, core.pendingOutputs(secondRoute).size());
+        assertTrue(core.queuedBatches(0).getFirst().route().hostId().equals(secondHostId));
+        assertTrue(core.pendingOutputs(secondRoute).getFirst().is(Items.EMERALD));
+        assertFalse(firstCatalog.hasRefundableState());
+        assertTrue(secondCatalog.hasRefundableState());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_refund_aggregate_delivers_once")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateDeliversOnlyQueuedStateWithoutMutatingPatterns(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        ItemStack firstPattern = new ItemStack(Items.PAPER);
+        ItemStack secondPattern = new ItemStack(Items.MAP);
+        PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
+        PatternRoute secondRoute = new PatternRoute(hostId, second.coreId(), 0);
+        first.trySetPattern(0, firstPattern);
+        second.trySetPattern(0, secondPattern);
+        first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
+        first.appendPendingOutputs(firstRoute, List.of(new ItemStack(Items.DIAMOND, 3)));
+        second.enqueueBatch(secondRoute, secondPattern, craftingInputs(new ItemStack(Items.GOLD_INGOT, 4)), 1L);
+        long firstRevision = first.revision();
+        long secondRevision = second.revision();
+        catalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
+
+        RecordingRefundDelivery delivery = new RecordingRefundDelivery(true, false);
+        assertTrue(catalog.tryRefundAll(delivery));
+
+        assertEquals(1, delivery.prepareCalls);
+        assertEquals(1, delivery.deliveryCalls);
+        assertEquals(3, delivery.deliveredStacks.size());
+        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
+        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.DIAMOND) && stack.getCount() == 3));
+        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.GOLD_INGOT) && stack.getCount() == 4));
+        assertEquals(0L, delivery.deliveredStacks.stream().filter(stack -> stack.is(Items.PAPER)).count());
+        assertEquals(0L, delivery.deliveredStacks.stream().filter(stack -> stack.is(Items.MAP)).count());
+        assertTrue(first.pattern(0).is(Items.PAPER));
+        assertTrue(second.pattern(0).is(Items.MAP));
+        assertFalse(first.hasWork());
+        assertFalse(second.hasWork());
+        assertEquals(firstRevision, first.revision());
+        assertEquals(secondRevision, second.revision());
+        assertFalse(catalog.hasRefundableState());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_refund_prepare_exception_rolls_back")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateRestoresEveryCoreWhenDeliveryPreparationThrows(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        TrinityPatternCoreImpl second = core(UUID.randomUUID());
+        ItemStack firstPattern = new ItemStack(Items.PAPER);
+        ItemStack secondPattern = new ItemStack(Items.MAP);
+        PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
+        PatternRoute secondRoute = new PatternRoute(hostId, second.coreId(), 0);
+        first.trySetPattern(0, firstPattern);
+        second.trySetPattern(0, secondPattern);
+        first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT)), 1L);
+        second.appendPendingOutputs(secondRoute, List.of(new ItemStack(Items.DIAMOND)));
+        catalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
+
+        RecordingRefundDelivery throwing = new RecordingRefundDelivery(true, true);
+        assertFalse(catalog.tryRefundAll(throwing));
+
+        assertEquals(1, throwing.prepareCalls);
+        assertEquals(0, throwing.deliveryCalls);
+        assertTrue(first.pattern(0).is(Items.PAPER));
+        assertTrue(second.pattern(0).is(Items.MAP));
+        assertEquals(1, first.queuedBatchCount(0));
+        assertEquals(1, second.pendingOutputs(secondRoute).size());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_refund_core_failure_does_not_deliver")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateDoesNotDeliverAfterLaterCoreCommitFails(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        TopologyCapacityCore failingSecond = new TopologyCapacityCore(64, true);
+        ItemStack firstPattern = new ItemStack(Items.PAPER);
+        first.trySetPattern(0, firstPattern);
+        failingSecond.trySetPattern(0, new ItemStack(Items.MAP));
+        PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
+        PatternRoute secondRoute = new PatternRoute(hostId, failingSecond.coreId(), 0);
+        first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT)), 1L);
+        failingSecond.appendPendingOutputs(secondRoute, List.of(new ItemStack(Items.DIAMOND)));
+        catalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, failingSecond)));
+
+        RecordingRefundDelivery delivery = new RecordingRefundDelivery(true, false);
+        assertFalse(catalog.tryRefundAll(delivery));
+
+        assertEquals(1, delivery.prepareCalls);
+        assertEquals(0, delivery.deliveryCalls);
+        assertTrue(first.pattern(0).is(Items.PAPER));
+        assertTrue(failingSecond.pattern(0).is(Items.MAP));
+        assertEquals(1, first.queuedBatchCount(0));
+        assertEquals(1, failingSecond.pendingOutputs(secondRoute).size());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_refund_delivery_error_reports_committed_state")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundAggregateReportsCompletionAfterDeliveryThrows(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl core = core(UUID.randomUUID());
+        ItemStack pattern = new ItemStack(Items.PAPER);
+        PatternRoute route = new PatternRoute(hostId, core.coreId(), 0);
+        core.trySetPattern(0, pattern);
+        core.enqueueBatch(route, pattern, craftingInputs(new ItemStack(Items.IRON_INGOT)), 1L);
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+
+        RecordingRefundDelivery throwing = new RecordingRefundDelivery(true, false, true);
+        assertTrue(catalog.tryRefundAll(throwing));
+
+        assertEquals(1, throwing.prepareCalls);
+        assertEquals(1, throwing.deliveryCalls);
+        assertTrue(core.pattern(0).is(Items.PAPER));
+        assertFalse(core.hasWork());
+        assertFalse(catalog.hasRefundableState());
+        core.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+        assertEquals(1, core.pendingOutputs(route).size());
+        helper.succeed();
+    }
+
     private static void assertTrue(boolean value) {
         if (!value) {
             throw new GameTestAssertException("Expected condition to be true");
@@ -507,10 +731,60 @@ public final class TrinityPatternCatalogImplTest {
         return new KeyCounter[] { counter };
     }
 
+    private static List<ItemStack> craftingInputs(ItemStack first) {
+        ArrayList<ItemStack> inputs = new ArrayList<>(TrinityCraftingBatch.INPUT_SLOT_COUNT);
+        inputs.add(first.copy());
+        for (int slot = 1; slot < TrinityCraftingBatch.INPUT_SLOT_COUNT; slot++) {
+            inputs.add(ItemStack.EMPTY);
+        }
+        return inputs;
+    }
+
     @FunctionalInterface
     private interface ThrowingAction {
 
         void run();
+    }
+
+    /** Captures catalog delivery calls while keeping aggregate atomicity tests independent from world destinations. */
+    private static final class RecordingRefundDelivery implements TrinityRefundDelivery {
+
+        private final boolean prepareResult;
+        private final boolean throwDuringPrepare;
+        private final boolean throwDuringDelivery;
+        private int prepareCalls;
+        private int deliveryCalls;
+        private List<ItemStack> deliveredStacks = List.of();
+
+        private RecordingRefundDelivery(boolean prepareResult, boolean throwDuringPrepare) {
+            this(prepareResult, throwDuringPrepare, false);
+        }
+
+        private RecordingRefundDelivery(boolean prepareResult,
+                                        boolean throwDuringPrepare,
+                                        boolean throwDuringDelivery) {
+            this.prepareResult = prepareResult;
+            this.throwDuringPrepare = throwDuringPrepare;
+            this.throwDuringDelivery = throwDuringDelivery;
+        }
+
+        @Override
+        public boolean prepare(List<ItemStack> stacks) {
+            this.prepareCalls++;
+            if (this.throwDuringPrepare) {
+                throw new IllegalStateException("delivery preparation failure");
+            }
+            return this.prepareResult;
+        }
+
+        @Override
+        public void deliver(List<ItemStack> stacks) {
+            this.deliveryCalls++;
+            this.deliveredStacks = stacks.stream().map(ItemStack::copy).toList();
+            if (this.throwDuringDelivery) {
+                throw new IllegalStateException("delivery failure after committed refund");
+            }
+        }
     }
 
     /** Delegates state operations while exposing an extreme capacity solely to exercise topology overflow. */
@@ -518,9 +792,15 @@ public final class TrinityPatternCatalogImplTest {
 
         private final int topologyCapacity;
         private final TrinityPatternCore delegate = core(UUID.randomUUID());
+        private final boolean rejectRefundCommit;
 
         private TopologyCapacityCore(int topologyCapacity) {
+            this(topologyCapacity, false);
+        }
+
+        private TopologyCapacityCore(int topologyCapacity, boolean rejectRefundCommit) {
             this.topologyCapacity = topologyCapacity;
+            this.rejectRefundCommit = rejectRefundCommit;
         }
 
         @Override
@@ -617,8 +897,46 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
-        public boolean tryRefundAll(Predicate<List<ItemStack>> recipient) {
-            return this.delegate.tryRefundAll(recipient);
+        public RefundTransaction prepareRefund() {
+            return wrapRefundTransaction(this.delegate.prepareRefund());
+        }
+
+        @Override
+        public RefundTransaction prepareRefund(UUID hostId) {
+            return wrapRefundTransaction(this.delegate.prepareRefund(hostId));
+        }
+
+        private RefundTransaction wrapRefundTransaction(RefundTransaction transaction) {
+            if (!this.rejectRefundCommit) {
+                return transaction;
+            }
+            return new RefundTransaction() {
+
+                @Override
+                public List<ItemStack> refundableStacks() {
+                    return transaction.refundableStacks();
+                }
+
+                @Override
+                public boolean commit() {
+                    return false;
+                }
+
+                @Override
+                public void complete() {
+                    transaction.complete();
+                }
+
+                @Override
+                public void rollback() {
+                    transaction.rollback();
+                }
+            };
+        }
+
+        @Override
+        public boolean tryRefundAll(TrinityRefundDelivery delivery) {
+            return this.delegate.tryRefundAll(delivery);
         }
 
         @Override

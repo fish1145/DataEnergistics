@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 import appeng.api.stacks.GenericStack;
@@ -15,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 public class TrinityDataCoreMenu extends AEBaseMenu {
 
     private static final String NO_FAILURE = "";
+    private static final String ACTION_REFUND_ALL = "refund_all";
 
     @Nullable
     private final TrinityDataCoreMenuHost host;
@@ -69,10 +71,13 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
     public String craftingLastFailureReason = NO_FAILURE;
     @GuiSync(955)
     public String craftingLastFailurePosition = NO_FAILURE;
+    @GuiSync(956)
+    public boolean hasRefundablePatternState;
 
     public TrinityDataCoreMenu(int id, Inventory playerInventory, @Nullable TrinityDataCoreMenuHost host) {
         super(ModMenus.TRINITY_DATA_CORE.get(), id, playerInventory, host);
         this.host = host;
+        registerClientAction(ACTION_REFUND_ALL, this::refundAll);
         createPlayerInventorySlots(playerInventory);
     }
 
@@ -92,6 +97,7 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
             this.craftingStructureMatchedBlockCount = this.host.getCraftingStructureMatchedBlockCount();
             this.craftingPatternCoreCount = this.host.getCraftingPatternCoreCount();
             this.craftingPatternCapacity = this.host.getCraftingPatternCapacity();
+            this.hasRefundablePatternState = this.host.hasRefundablePatternState();
             this.craftingLastFailureReason = this.host.getCraftingLastFailureReason();
             this.craftingLastFailurePosition = formatFailurePosition(this.host.getCraftingLastFailurePosition());
             this.lastFailureReason = this.host.getLastFailureReason();
@@ -125,6 +131,20 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
         return this.craftingTarget.hasTarget();
     }
 
+    /** Requests one atomic refund of every P core in the current host aggregate. */
+    public void sendRefundAll() {
+        sendClientAction(ACTION_REFUND_ALL);
+    }
+
+    void refundAll() {
+        boolean refunded = this.host != null && this.host.tryRefundAll(getPlayer());
+        getPlayer().displayClientMessage(Component.translatable(
+                refunded ? "message.data_energistics.trinity_data_core.refund.success" :
+                        "message.data_energistics.trinity_data_core.refund.failure"),
+                true);
+        broadcastChanges();
+    }
+
     private void clearState() {
         this.online = false;
         this.structureFormed = false;
@@ -137,6 +157,7 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
         this.craftingStructureMatchedBlockCount = 0;
         this.craftingPatternCoreCount = 0;
         this.craftingPatternCapacity = 0;
+        this.hasRefundablePatternState = false;
         this.craftingLastFailureReason = NO_FAILURE;
         this.craftingLastFailurePosition = NO_FAILURE;
         this.lastFailureReason = NO_FAILURE;

@@ -509,8 +509,12 @@
 	"message.data_energistics.trinity_data_core.auto_build.target.crafting": "Crafting",
 	"message.data_energistics.trinity_data_core.auto_build": "Auto-build %s: placed %s, missing %s, blocked %s, unloaded %s, failed %s",
 	"screen.data_energistics.trinity_data_core.main_structure_label": "Main: ",
-	"button.data_energistics.trinity_pattern_core.refund": "Return Core Contents",
-	"button.data_energistics.trinity_pattern_core.refund.hint": "Returns patterns, queued inputs, and pending outputs only when the inventory can hold all of them",
-	"message.data_energistics.trinity_pattern_core.refund.success": "Returned all pattern core contents",
-	"message.data_energistics.trinity_pattern_core.refund.failure": "Not enough inventory space to return all pattern core contents"
+	"button.data_energistics.trinity_pattern_core.refund": "Return Queued Core Contents",
+	"button.data_energistics.trinity_pattern_core.refund.hint": "Returns queued inputs and pending outputs to the inventory, then the world; installed patterns remain in place",
+	"message.data_energistics.trinity_pattern_core.refund.success": "Returned queued pattern core contents",
+	"message.data_energistics.trinity_pattern_core.refund.failure": "No queued inputs or pending outputs can be returned",
+	"button.data_energistics.trinity_data_core.refund": "Return Queued Crafting Contents",
+	"button.data_energistics.trinity_data_core.refund.hint": "Returns queued inputs and pending outputs to AE storage, then the inventory, then the world; installed patterns remain in place",
+	"message.data_energistics.trinity_data_core.refund.success": "Returned queued Trinity crafting contents",
+	"message.data_energistics.trinity_data_core.refund.failure": "No queued inputs or pending outputs can be returned"
 }

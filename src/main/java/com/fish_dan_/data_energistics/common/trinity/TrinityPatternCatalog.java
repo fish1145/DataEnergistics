@@ -233,6 +233,24 @@ public interface TrinityPatternCatalog {
      */
     boolean hasWork();
 
+    /**
+     * @return whether the active aggregate contains queued input or pending output eligible for return
+     */
+    boolean hasRefundableState();
+
+    /**
+     * Atomically returns every queued input and pending output from every core in the current active aggregate.
+     *
+     * <p>
+     * Delivery preparation runs before any core mutation. Delivery itself runs exactly once after every reversible
+     * core transaction committed, so a core failure cannot cause an external partial delivery.
+     * </p>
+     *
+     * @param delivery two-phase external destination for the complete aggregate
+     * @return true when all currently mounted queued state was cleared and delivery was invoked
+     */
+    boolean tryRefundAll(TrinityRefundDelivery delivery);
+
     /** Invalidates every public mount and slot reference while retaining cores solely for pending-work detection. */
     void invalidateLayout();
 

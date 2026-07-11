@@ -254,6 +254,87 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     }
 
     @Override
+    public boolean hasRefundableState() {
+        LayoutSnapshot currentLayout = this.layout;
+        if (!currentLayout.active()) {
+            return false;
+        }
+        for (CoreRange range : currentLayout.ranges()) {
+            CoreMount mount = range.mount();
+            if (!matchesMount(range, mount)) {
+                return false;
+            }
+            TrinityPatternCore core = mount.core();
+            if (hasRefundableStateForHost(core)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean tryRefundAll(TrinityRefundDelivery delivery) {
+        LayoutSnapshot capturedLayout = this.layout;
+        if (!capturedLayout.active() || capturedLayout.mounts().isEmpty()) {
+            return false;
+        }
+
+        ArrayList<TrinityPatternCore.RefundTransaction> transactions = new ArrayList<>(capturedLayout.mounts().size());
+        ArrayList<ItemStack> refundable = new ArrayList<>();
+        boolean committed = false;
+        try {
+            for (CoreRange range : capturedLayout.ranges()) {
+                CoreMount mount = range.mount();
+                if (!matchesMount(range, mount)) {
+                    return false;
+                }
+                TrinityPatternCore.RefundTransaction transaction = mount.core().prepareRefund(this.hostId);
+                transactions.add(transaction);
+                for (ItemStack stack : transaction.refundableStacks()) {
+                    if (stack.isEmpty()) {
+                        throw new IllegalStateException("Trinity pattern core " + mount.core().coreId() +
+                                " exposed an empty refund stack");
+                    }
+                    refundable.add(stack.copy());
+                }
+            }
+            List<ItemStack> offered = List.copyOf(refundable);
+            if (offered.isEmpty() || this.layout != capturedLayout || !delivery.prepare(offered)) {
+                return false;
+            }
+            for (TrinityPatternCore.RefundTransaction transaction : transactions) {
+                if (!transaction.commit()) {
+                    return false;
+                }
+            }
+            if (this.layout != capturedLayout) {
+                return false;
+            }
+            committed = true;
+            try {
+                delivery.deliver(offered);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Trinity refund delivery failed after catalog {} committed queued state",
+                        this.hostId,
+                        exception);
+                // Every core transaction already committed, so callers must refresh rather than advertise a retry.
+                return true;
+            }
+            return true;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Failed to atomically refund Trinity pattern catalog {}", this.hostId, exception);
+            return false;
+        } finally {
+            if (committed) {
+                completeRefundTransactions(transactions);
+            } else {
+                rollbackRefundTransactions(transactions);
+            }
+        }
+    }
+
+    @Override
     public void invalidateLayout() {
         if (this.layout.active()) {
             LayoutSnapshot currentLayout = this.layout;
@@ -281,6 +362,47 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         boolean changed = this.layout.active();
         invalidateLayout();
         return new RebuildResult(false, changed, position, reason);
+    }
+
+    private void rollbackRefundTransactions(List<TrinityPatternCore.RefundTransaction> transactions) {
+        for (int index = transactions.size() - 1; index >= 0; index--) {
+            try {
+                transactions.get(index).rollback();
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to roll back Trinity pattern refund transaction in catalog {}",
+                        this.hostId,
+                        exception);
+            }
+        }
+    }
+
+    private void completeRefundTransactions(List<TrinityPatternCore.RefundTransaction> transactions) {
+        for (TrinityPatternCore.RefundTransaction transaction : transactions) {
+            try {
+                transaction.complete();
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to finalize Trinity pattern refund transaction in catalog {}",
+                        this.hostId,
+                        exception);
+            }
+        }
+    }
+
+    private boolean hasRefundableStateForHost(TrinityPatternCore core) {
+        for (int slot = 0; slot < core.patternCapacity(); slot++) {
+            PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
+            if (!core.pendingOutputs(route).isEmpty()) {
+                return true;
+            }
+            for (TrinityCraftingBatch batch : core.queuedBatches(slot)) {
+                if (this.hostId.equals(batch.route().hostId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private List<CoreRange> createRanges(List<CoreMount> mounts) {

@@ -31,6 +31,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
 import com.fish_dan_.data_energistics.network.TrinityDataCoreAutoBuildTarget;
@@ -52,6 +53,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -62,6 +64,7 @@ import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.GenericStack;
+import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.me.service.CraftingService;
@@ -298,6 +301,41 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public int getCraftingPatternCapacity() {
         return this.craftingProfile.patternCapacity();
+    }
+
+    @Override
+    public boolean hasRefundablePatternState() {
+        return this.patternCatalogValid && this.patternCatalog.hasRefundableState();
+    }
+
+    @Override
+    public boolean tryRefundAll(Player player) {
+        if (!this.patternCatalogValid) {
+            return false;
+        }
+        MEStorage networkStorage = null;
+        IActionSource actionSource = null;
+        IGrid grid = accessGrid();
+        if (grid != null) {
+            try {
+                networkStorage = grid.getStorageService().getInventory();
+                actionSource = accessActionSource();
+            } catch (RuntimeException exception) {
+                LOGGER.warn(
+                        "Trinity host {} could not prepare AE refund delivery; using player and world fallbacks",
+                        this.worldPosition,
+                        exception);
+            }
+        }
+        boolean refunded = this.patternCatalog.tryRefundAll(new TrinityRefundDeliveryImpl(
+                player,
+                networkStorage,
+                actionSource));
+        if (refunded) {
+            notifyTrinityAccessChanged();
+            setChanged();
+        }
+        return refunded;
     }
 
     @Override

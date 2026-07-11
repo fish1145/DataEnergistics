@@ -289,10 +289,10 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_pattern_core_refund_is_atomic_without_pattern_duplication")
+    @TestHolder("trinity_pattern_core_refund_is_atomic_without_pattern_mutation")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void refundIsAtomicAndDoesNotDuplicateBatchPatternDefinitions(GameTestHelper helper) {
+    public static void refundIsAtomicAndDoesNotMutateInstalledPatternState(GameTestHelper helper) {
         TrinityPatternCoreImpl core = core(64);
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 0);
@@ -302,25 +302,52 @@ public final class TrinityPatternCoreImplTest {
         core.appendPendingOutputs(route, List.of(new ItemStack(Items.GOLD_INGOT, 3)));
         assertEquals(catalogRevision, core.revision());
 
-        assertFalse(core.tryRefundAll(stacks -> false));
+        RecordingRefundDelivery rejected = new RecordingRefundDelivery(false);
+        assertFalse(core.tryRefundAll(rejected));
+        assertTrue(rejected.prepared);
+        assertFalse(rejected.delivered);
         assertTrue(core.pattern(0).is(Items.PAPER));
         assertEquals(1, core.queuedBatchCount(0));
         assertEquals(1, core.pendingOutputs(route).size());
         assertEquals(catalogRevision, core.revision());
 
-        List<ItemStack> accepted = new ArrayList<>();
-        assertTrue(core.tryRefundAll(stacks -> {
-            accepted.addAll(stacks.stream().map(ItemStack::copy).toList());
-            return true;
-        }));
+        RecordingRefundDelivery accepted = new RecordingRefundDelivery(true);
+        assertTrue(core.tryRefundAll(accepted));
 
-        assertEquals(3, accepted.size());
-        assertEquals(1, accepted.stream().filter(stack -> stack.is(Items.PAPER)).count());
-        assertTrue(accepted.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
-        assertTrue(accepted.stream().anyMatch(stack -> stack.is(Items.GOLD_INGOT) && stack.getCount() == 3));
-        assertTrue(core.pattern(0).isEmpty());
+        assertTrue(accepted.delivered);
+        assertEquals(2, accepted.deliveredStacks.size());
+        assertTrue(accepted.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
+        assertTrue(accepted.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.GOLD_INGOT) && stack.getCount() == 3));
+        assertEquals(0L, accepted.deliveredStacks.stream().filter(stack -> stack.is(Items.PAPER)).count());
+        assertTrue(core.pattern(0).is(Items.PAPER));
         assertFalse(core.hasWork());
-        assertEquals(catalogRevision + 1L, core.revision());
+        assertEquals(catalogRevision, core.revision());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_refund_transaction_locks_mutation_until_rollback")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundTransactionRejectsMutationAndRestoresBeforeDelivery(GameTestHelper helper) {
+        TrinityPatternCoreImpl core = core(64);
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = route(core, 0);
+        core.trySetPattern(0, pattern);
+        core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L);
+
+        assertThrows(IllegalArgumentException.class, () -> core.prepareRefund((UUID) null));
+        TrinityPatternCore.RefundTransaction transaction = core.prepareRefund(HOST_ID);
+        assertThrows(IllegalStateException.class,
+                () -> core.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND))));
+        assertTrue(transaction.commit());
+        assertThrows(IllegalStateException.class,
+                () -> core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 2L));
+
+        transaction.rollback();
+
+        assertEquals(1, core.queuedBatchCount(0));
+        core.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+        assertEquals(1, core.pendingOutputs(route).size());
         helper.succeed();
     }
 
@@ -396,6 +423,31 @@ public final class TrinityPatternCoreImplTest {
                     "Expected " + expectedType.getName() + ", got " + exception.getClass().getName());
         }
         throw new GameTestAssertException("Expected " + expectedType.getName() + " to be thrown");
+    }
+
+    /** Captures direct core delivery calls without introducing an external destination into this logic test. */
+    private static final class RecordingRefundDelivery implements TrinityRefundDelivery {
+
+        private final boolean prepareResult;
+        private boolean prepared;
+        private boolean delivered;
+        private List<ItemStack> deliveredStacks = List.of();
+
+        private RecordingRefundDelivery(boolean prepareResult) {
+            this.prepareResult = prepareResult;
+        }
+
+        @Override
+        public boolean prepare(List<ItemStack> stacks) {
+            this.prepared = true;
+            return this.prepareResult;
+        }
+
+        @Override
+        public void deliver(List<ItemStack> stacks) {
+            this.delivered = true;
+            this.deliveredStacks = stacks.stream().map(ItemStack::copy).toList();
+        }
     }
 
     private static final class TestSupportedPattern implements IMolecularAssemblerSupportedPattern {

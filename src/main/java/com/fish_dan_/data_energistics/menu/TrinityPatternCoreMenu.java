@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
+import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.chat.Component;
@@ -175,72 +176,17 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
     }
 
     void refundAll() {
-        boolean refunded = this.host.tryRefundAll(this::tryCommitPlayerInventory);
+        boolean refunded = this.host.tryRefundAll(new TrinityRefundDeliveryImpl(getPlayer(), null, null));
         getPlayer().displayClientMessage(Component.translatable(
                 refunded ? "message.data_energistics.trinity_pattern_core.refund.success" : "message.data_energistics.trinity_pattern_core.refund.failure"), true);
         refreshState();
         broadcastChanges();
     }
 
-    private boolean tryCommitPlayerInventory(List<ItemStack> stacks) {
-        Inventory inventory = getPlayerInventory();
-        ArrayList<ItemStack> simulated = new ArrayList<>(inventory.items.size());
-        for (ItemStack existing : inventory.items) {
-            simulated.add(existing.copy());
-        }
-        for (ItemStack offered : stacks) {
-            if (!simulateInsert(simulated, offered, inventory.getMaxStackSize())) {
-                return false;
-            }
-        }
-        for (int slot = 0; slot < simulated.size(); slot++) {
-            inventory.items.set(slot, simulated.get(slot));
-        }
-        inventory.setChanged();
-        return true;
-    }
-
-    private static boolean simulateInsert(List<ItemStack> simulated, ItemStack offered, int inventoryLimit) {
-        ItemStack remaining = offered.copy();
-        for (ItemStack existing : simulated) {
-            if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, remaining)) {
-                int limit = Math.min(inventoryLimit, existing.getMaxStackSize());
-                int moved = Math.min(remaining.getCount(), limit - existing.getCount());
-                if (moved > 0) {
-                    existing.grow(moved);
-                    remaining.shrink(moved);
-                }
-                if (remaining.isEmpty()) {
-                    return true;
-                }
-            }
-        }
-        for (int slot = 0; slot < simulated.size(); slot++) {
-            if (!simulated.get(slot).isEmpty()) {
-                continue;
-            }
-            int moved = Math.min(remaining.getCount(), Math.min(inventoryLimit, remaining.getMaxStackSize()));
-            simulated.set(slot, remaining.copyWithCount(moved));
-            remaining.shrink(moved);
-            if (remaining.isEmpty()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void refreshState() {
         this.totalPages = Math.max(1, (this.host.patternCapacity() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
         this.pageIndex = clampPage(this.pageIndex);
         this.hasRefundableState = this.host.hasWork();
-        if (!this.hasRefundableState) {
-            for (int slot = 0; slot < this.host.patternCapacity(); slot++) {
-                if (!this.host.pattern(slot).isEmpty()) {
-                    this.hasRefundableState = true;
-                    break;
-                }
-            }
-        }
     }
 
     private void updatePatternSlotVisibility() {
