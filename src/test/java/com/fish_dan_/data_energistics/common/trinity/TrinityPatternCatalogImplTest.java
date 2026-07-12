@@ -132,30 +132,68 @@ public final class TrinityPatternCatalogImplTest {
     @TestHolder("trinity_pattern_catalog_refreshes_only_changed_core")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void refreshesOnlyTheCoreWhoseRevisionChanged(GameTestHelper helper) {
+    public static void refreshesOnlyTheChangedSlotWithinCore(GameTestHelper helper) {
         TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        TrinityPatternCoreImpl firstDelegate = core(UUID.randomUUID());
+        TopologyCapacityCore first = new TopologyCapacityCore(firstDelegate, () -> {});
         TrinityPatternCoreImpl second = core(UUID.randomUUID());
         first.trySetPattern(0, new ItemStack(Items.PAPER));
+        first.trySetPattern(1, new ItemStack(Items.MAP));
         second.trySetPattern(0, new ItemStack(Items.MAP));
         catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
-        IPatternDetails firstBefore = catalog.getAvailablePatterns().get(0);
-        IPatternDetails secondBefore = catalog.getAvailablePatterns().get(1);
+        IPatternDetails unchangedBefore = catalog.getAvailablePatterns().get(0);
+        IPatternDetails changedBefore = catalog.getAvailablePatterns().get(1);
+        IPatternDetails secondBefore = catalog.getAvailablePatterns().get(2);
         List<IPatternDetails> aggregateBefore = catalog.getAvailablePatterns();
 
-        first.trySetPattern(1, new ItemStack(Items.MAP));
+        first.trySetPattern(1, new ItemStack(Items.PAPER));
         assertSame(aggregateBefore, catalog.getAvailablePatterns());
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
         catalog.onCoreChanged(
                 first,
                 new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
 
         assertTrue(catalog.refreshChangedPatterns());
         List<IPatternDetails> refreshed = catalog.getAvailablePatterns();
-        assertNotSame(firstBefore, refreshed.get(0));
+        assertSame(unchangedBefore, refreshed.get(0));
+        assertNotSame(changedBefore, refreshed.get(1));
         assertSame(secondBefore, refreshed.get(2));
+        assertEquals(2, first.patternCacheSnapshotCalls);
         assertFalse(catalog.refreshChangedPatterns());
+        assertEquals(2, first.patternCacheSnapshotCalls);
+
+        assertTrue(first.trySetPattern(1, ItemStack.EMPTY));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        List<IPatternDetails> removed = catalog.getAvailablePatterns();
+        assertEquals(2, removed.size());
+        assertSame(unchangedBefore, removed.get(0));
+        assertSame(secondBefore, removed.get(1));
+        assertEquals(3, first.patternCacheSnapshotCalls);
+
+        assertTrue(first.trySetPattern(1, new ItemStack(Items.MAP)));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        List<IPatternDetails> republished = catalog.getAvailablePatterns();
+        assertEquals(3, republished.size());
+        assertSame(unchangedBefore, republished.get(0));
+        assertNotSame(changedBefore, republished.get(1));
+        assertSame(secondBefore, republished.get(2));
+        assertEquals(4, first.patternCacheSnapshotCalls);
         helper.succeed();
     }
 
@@ -205,7 +243,7 @@ public final class TrinityPatternCatalogImplTest {
         TrinityPatternCoreImpl delegate = new TrinityPatternCoreImpl(
                 64,
                 UUID.randomUUID(),
-                stack -> decodable.get() && stack.is(Items.PAPER) ? new FillingPattern(stack) : null,
+                stack -> decodable.get() && (stack.is(Items.PAPER) || stack.is(Items.MAP)) ? new FillingPattern(stack) : null,
                 TrinityPatternTestResolvers.create(),
                 change -> {});
         TopologyCapacityCore core = new TopologyCapacityCore(delegate, () -> {
@@ -214,8 +252,10 @@ public final class TrinityPatternCatalogImplTest {
             }
         });
         assertTrue(core.trySetPattern(0, new ItemStack(Items.PAPER)));
+        assertTrue(core.trySetPattern(1, new ItemStack(Items.MAP)));
         TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+        assertEquals(2, catalog.getAvailablePatterns().size());
         RoutedCraftingPatternDetails staleRoute = (RoutedCraftingPatternDetails) catalog
                 .getAvailablePatterns()
                 .getFirst();
@@ -225,15 +265,20 @@ public final class TrinityPatternCatalogImplTest {
 
         assertSame(staleRoute, catalog.getAvailablePatterns().getFirst());
         assertTrue(reloadPending.get());
-        core.ensurePatternCachesCurrent();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        KeyCounter[] inputs = counters(iron, 1L);
+        assertFalse(catalog.pushPattern(staleRoute, inputs, 1L));
+        assertEquals(1L, inputs[0].get(iron));
+        assertEquals(0, core.queuedBatchCount());
+        assertFalse(reloadPending.get());
+        assertSame(staleRoute, catalog.getAvailablePatterns().getFirst());
+        assertEquals(2, catalog.getAvailablePatterns().size());
+
         catalog.onCoreChanged(
                 core,
                 new TrinityPatternSlot.Change(0, TrinityPatternSlot.ChangeKind.CATALOG));
         assertTrue(catalog.refreshChangedPatterns());
         assertTrue(catalog.getAvailablePatterns().isEmpty());
-        assertFalse(reloadPending.get());
-        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        KeyCounter[] inputs = counters(iron, 1L);
         assertFalse(catalog.pushPattern(staleRoute, inputs, 1L));
         assertEquals(1L, inputs[0].get(iron));
         assertEquals(0, core.queuedBatchCount());

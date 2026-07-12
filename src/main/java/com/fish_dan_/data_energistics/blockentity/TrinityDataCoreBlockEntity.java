@@ -40,6 +40,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
@@ -171,6 +172,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private long lastCpuStructureRecheckTick = Long.MIN_VALUE;
     private long lastCraftingStructureRecheckTick = Long.MIN_VALUE;
     private long lastPatternCoreHealthCheckTick = Long.MIN_VALUE;
+    private long observedPatternReloadEpoch = TrinityPatternCoreReloadEpoch.current();
     private long observedMultiBlockDefinitionRevision = -1L;
     @Nullable
     private Direction mainStructureFrontFacing;
@@ -239,6 +241,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private void tickServerState() {
         observeMultiBlockDefinitionRevision();
+        synchronizePatternReloadEpoch();
         long gameTime = this.level.getGameTime();
         if (this.patternCatalogValid && this.patternCatalog.layoutSnapshot().active() &&
                 this.lastPatternCoreHealthCheckTick != gameTime &&
@@ -1372,6 +1375,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (this.observedMultiBlockDefinitionRevision != currentRevision) {
             this.observedMultiBlockDefinitionRevision = currentRevision;
             requestStructureRecheck();
+        }
+    }
+
+    private void synchronizePatternReloadEpoch() {
+        long currentEpoch = TrinityPatternCoreReloadEpoch.current();
+        if (this.observedPatternReloadEpoch == currentEpoch) {
+            return;
+        }
+        this.observedPatternReloadEpoch = currentEpoch;
+        if (!this.patternCatalogValid) {
+            return;
+        }
+        for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
+            mount.core().ensurePatternCachesCurrent();
         }
     }
 
