@@ -131,7 +131,8 @@ public final class TrinityPatternCoreImplTest {
 
         assertEquals(List.of("iron", "gold"), executed);
         assertEquals(0, core.queuedBatchCount(4));
-        assertEquals(2, core.pendingOutputs(route).size());
+        assertEquals(1, core.pendingOutputs(route).size());
+        assertAmount(Items.DIAMOND, 2L, core.pendingOutputs(route).getFirst());
         assertTrue(core.pendingOutputs(new PatternRoute(UUID.randomUUID(), core.coreId(), 4)).isEmpty());
         assertEquals(catalogRevision, core.revision());
         helper.succeed();
