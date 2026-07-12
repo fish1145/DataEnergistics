@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
@@ -223,6 +224,9 @@ public final class TrinityPatternCoreMenuTest {
             }
             return core.tryRefundAll(new TrinityRefundDeliveryImpl(player, this.storage, IActionSource.empty()));
         }
+
+        @Override
+        public void onPatternCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change) {}
 
         @Override
         public void onPatternCoreUnavailable(TrinityPatternCore core) {

@@ -227,31 +227,22 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     @Override
     public int executeReadyBatches(long currentTick, BatchExecutor executor) {
         ensureNoActiveRefundTransaction();
-        if (currentTick < 0L) {
-            throw new IllegalArgumentException("Current tick must not be negative: " + currentTick);
-        }
+        validateCurrentTick(currentTick);
         int completedGroups = 0;
         for (int slotIndex : List.copyOf(this.queuedSlots)) {
-            TrinityPatternSlotImpl slot = this.slots.get(slotIndex);
-            while (slot.hasQueuedWork()) {
-                TrinityCraftingBatch batch = slot.readyHead(currentTick);
-                if (batch == null) {
-                    break;
-                }
-                BatchExecutionResult result = executor.execute(slotIndex, batch);
-                if (!result.completed()) {
-                    break;
-                }
-                ArrayList<TrinityItemAmount> countedOutputs = new ArrayList<>();
-                for (ItemStack output : result.outputs()) {
-                    countedOutputs.addAll(TrinityItemAmount.multiply(output, batch.count()));
-                }
-                slot.appendPendingOutputs(batch.route(), countedOutputs);
-                slot.removeCompletedHead(batch);
-                completedGroups = Math.incrementExact(completedGroups);
-            }
+            completedGroups = Math.addExact(
+                    completedGroups,
+                    executeReadyBatchesInSlot(slotIndex, currentTick, executor));
         }
         return completedGroups;
+    }
+
+    @Override
+    public int executeReadyBatches(int slot, long currentTick, BatchExecutor executor) {
+        ensureNoActiveRefundTransaction();
+        checkSlot(slot);
+        validateCurrentTick(currentTick);
+        return executeReadyBatchesInSlot(slot, currentTick, executor);
     }
 
     @Override
@@ -284,6 +275,13 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     public List<Integer> workingSlots(UUID hostId) {
         TreeSet<Integer> slots = this.workingSlotsByHost.get(hostId);
         return slots == null ? List.of() : List.copyOf(slots);
+    }
+
+    @Override
+    public boolean isSlotWorking(UUID hostId, int slot) {
+        checkSlot(slot);
+        TreeSet<Integer> slots = this.workingSlotsByHost.get(hostId);
+        return slots != null && slots.contains(slot);
     }
 
     @Override
@@ -684,6 +682,35 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             throw new IllegalArgumentException(
                     "Trinity pattern core slot out of range: " + slot + " for capacity " + this.patternCapacity);
         }
+    }
+
+    private static void validateCurrentTick(long currentTick) {
+        if (currentTick < 0L) {
+            throw new IllegalArgumentException("Current tick must not be negative: " + currentTick);
+        }
+    }
+
+    private int executeReadyBatchesInSlot(int slotIndex, long currentTick, BatchExecutor executor) {
+        TrinityPatternSlotImpl slot = this.slots.get(slotIndex);
+        int completedGroups = 0;
+        while (slot.hasQueuedWork()) {
+            TrinityCraftingBatch batch = slot.readyHead(currentTick);
+            if (batch == null) {
+                break;
+            }
+            BatchExecutionResult result = executor.execute(slotIndex, batch);
+            if (!result.completed()) {
+                break;
+            }
+            ArrayList<TrinityItemAmount> countedOutputs = new ArrayList<>();
+            for (ItemStack output : result.outputs()) {
+                countedOutputs.addAll(TrinityItemAmount.multiply(output, batch.count()));
+            }
+            slot.appendPendingOutputs(batch.route(), countedOutputs);
+            slot.removeCompletedHead(batch);
+            completedGroups = Math.incrementExact(completedGroups);
+        }
+        return completedGroups;
     }
 
     private TrinityPatternSlotImpl newSlot(int slot) {

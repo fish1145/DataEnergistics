@@ -43,6 +43,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
@@ -109,6 +110,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final int UNFORMED_CHILD_RECHECK_INTERVAL_TICKS = 100;
     private static final int FORMED_CHILD_RECHECK_INTERVAL_TICKS = 1_200;
     private static final int CRAFTING_RECHECK_PHASE_OFFSET_TICKS = 50;
+    private static final int PATTERN_CORE_HEALTH_CHECK_INTERVAL_TICKS = 100;
     private static final String FORMED_TAG = "formed";
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
@@ -168,6 +170,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean craftingStructureRecheckRequested = true;
     private long lastCpuStructureRecheckTick = Long.MIN_VALUE;
     private long lastCraftingStructureRecheckTick = Long.MIN_VALUE;
+    private long lastPatternCoreHealthCheckTick = Long.MIN_VALUE;
     private long observedMultiBlockDefinitionRevision = -1L;
     @Nullable
     private Direction mainStructureFrontFacing;
@@ -228,7 +231,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.cpuStructureRecheckRequested = true;
             this.craftingStructureRecheckRequested = true;
             if (withdrawPatternCatalog()) {
-                notifyTrinityPatternChanged();
+                notifyTrinityPatternLayoutChanged();
             }
             LOGGER.error("Failed to tick Trinity Data Core at {}; runtime was paused", this.worldPosition, exception);
         }
@@ -236,11 +239,34 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private void tickServerState() {
         observeMultiBlockDefinitionRevision();
+        long gameTime = this.level.getGameTime();
+        if (this.patternCatalogValid && this.patternCatalog.layoutSnapshot().active() &&
+                this.lastPatternCoreHealthCheckTick != gameTime &&
+                isPatternCoreHealthCheckDue(gameTime, this.hostId)) {
+            this.lastPatternCoreHealthCheckTick = gameTime;
+            if (!hasHealthyPatternCoreIdentities()) {
+                boolean changed = withdrawPatternCatalog();
+                requestStructureRecheck();
+                if (changed) {
+                    notifyTrinityPatternLayoutChanged();
+                }
+                return;
+            }
+        }
         updateScheduledStructureMatches();
         reevaluateAccessLease();
-        if (this.patternCatalogValid && this.patternCatalog.refreshChangedPatterns()) {
-            this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
-            notifyTrinityPatternChanged();
+        if (this.patternCatalogValid) {
+            List<TrinityPatternCatalog.CoreMount> mountedBeforeFlush = this.patternCatalog.mountedCores();
+            if (this.patternCatalog.refreshChangedPatterns()) {
+                this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
+                if (this.patternCatalogValid) {
+                    notifyTrinityPatternPublicationChanged();
+                } else {
+                    releasePatternCoreBindings(mountedBeforeFlush);
+                    requestStructureRecheck();
+                    notifyTrinityPatternLayoutChanged();
+                }
+            }
         }
         tickOwnedPatternCores();
     }
@@ -344,15 +370,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public boolean isPatternCoreMounted(TrinityPatternCore core) {
-        if (!this.patternCatalogValid) {
-            return false;
-        }
-        for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
-            if (mount.core() == core) {
-                return true;
-            }
-        }
-        return false;
+        return this.patternCatalogValid && this.patternCatalog.isCoreMounted(core);
     }
 
     @Override
@@ -368,6 +386,13 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
+    public void onPatternCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change) {
+        if (this.patternCatalogValid) {
+            this.patternCatalog.onCoreChanged(core, change);
+        }
+    }
+
+    @Override
     public void onPatternCoreUnavailable(TrinityPatternCore core) {
         if (!isPatternCoreMounted(core)) {
             return;
@@ -375,7 +400,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         boolean changed = withdrawPatternCatalog();
         requestStructureRecheck();
         if (changed) {
-            notifyTrinityPatternChanged();
+            notifyTrinityPatternLayoutChanged();
         }
         setChanged();
     }
@@ -1029,24 +1054,27 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
         TrinityDataCoreStorageSavedData storage = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
         boolean routedAnyOutput = false;
-        for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
-            if (!(mount.core() instanceof TrinityPatternCoreBlockEntity patternCore)) {
+        long gameTime = this.level.getGameTime();
+        for (TrinityPatternCatalog.ActiveSlot activeSlot : this.patternCatalog.activeSlots()) {
+            if (!(activeSlot.core() instanceof TrinityPatternCoreBlockEntity patternCore)) {
                 LOGGER.error("Trinity host {} catalog contains a non-block pattern core at {}",
                         this.worldPosition,
-                        mount.position());
-                continue;
-            }
-            if (!patternCore.hasWork(this.hostId)) {
-                continue;
+                        activeSlot.mount().position());
+                throw new IllegalStateException("A formed Trinity catalog must contain block-backed pattern cores");
             }
             try {
-                patternCore.executeOwnedBatches(this.hostId, this.level.getGameTime());
-                routedAnyOutput |= routePendingOutputs(patternCore, craftingService, storage);
+                patternCore.executeOwnedSlot(this.hostId, activeSlot.coreSlot(), gameTime);
+                routedAnyOutput |= routePendingOutputs(
+                        patternCore,
+                        activeSlot.route(),
+                        craftingService,
+                        storage);
             } catch (RuntimeException exception) {
                 LOGGER.error(
-                        "Failed to execute or route Trinity pattern core {} at {} for host {}",
+                        "Failed to execute or route Trinity pattern core {} slot {} at {} for host {}",
                         patternCore.coreId(),
-                        mount.position(),
+                        activeSlot.coreSlot(),
+                        activeSlot.mount().position(),
                         this.worldPosition,
                         exception);
             }
@@ -1057,32 +1085,29 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private boolean routePendingOutputs(TrinityPatternCoreBlockEntity core,
+                                        PatternRoute route,
                                         CraftingService craftingService,
                                         TrinityDataCoreStorageSavedData storage) {
-        boolean changed = false;
-        for (int slot : core.pendingOutputSlots(this.hostId)) {
-            PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
-            try (PendingOutputCursor pending = core.openPendingOutputCursor(route)) {
-                changed |= this.patternOutputRouter.route(
-                        pending,
-                        craftingService::getRequestedAmount,
-                        craftingService::insertIntoCpus,
-                        (key, amount, mode) -> storage.insert(
-                                this.storageId,
-                                key,
-                                amount,
-                                mode,
-                                this.storageProfile));
-            } catch (RuntimeException exception) {
-                LOGGER.error(
-                        "Failed to route Trinity pattern core {} slot {} outputs for host {}",
-                        core.coreId(),
-                        slot,
-                        this.worldPosition,
-                        exception);
-            }
+        try (PendingOutputCursor pending = core.openPendingOutputCursor(route)) {
+            return this.patternOutputRouter.route(
+                    pending,
+                    craftingService::getRequestedAmount,
+                    craftingService::insertIntoCpus,
+                    (key, amount, mode) -> storage.insert(
+                            this.storageId,
+                            key,
+                            amount,
+                            mode,
+                            this.storageProfile));
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Failed to route Trinity pattern core {} slot {} outputs for host {}",
+                    core.coreId(),
+                    route.slot(),
+                    this.worldPosition,
+                    exception);
+            return false;
         }
-        return changed;
     }
 
     private void setIdentity(UUID storageId, UUID hostId) {
@@ -1099,6 +1124,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.hostId = hostId;
             this.patternCatalog = new TrinityPatternCatalogImpl(hostId);
             this.patternCatalogValid = false;
+            this.lastPatternCoreHealthCheckTick = Long.MIN_VALUE;
         }
         requestStructureRecheck();
         setChanged();
@@ -1269,6 +1295,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingStructureRecheckRequested = true;
         this.lastCpuStructureRecheckTick = Long.MIN_VALUE;
         this.lastCraftingStructureRecheckTick = Long.MIN_VALUE;
+        this.lastPatternCoreHealthCheckTick = Long.MIN_VALUE;
         this.mainStructureFrontFacing = null;
         this.mainStructureFlipped = false;
     }
@@ -1383,6 +1410,36 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private boolean isPeriodicRecheckDue(long gameTime, int interval, int phaseOffset) {
         return Math.floorMod(gameTime + this.worldPosition.asLong() + phaseOffset, interval) == 0;
+    }
+
+    static int patternCoreHealthCheckPhase(UUID hostId) {
+        return Math.floorMod(hostId.hashCode(), PATTERN_CORE_HEALTH_CHECK_INTERVAL_TICKS);
+    }
+
+    static boolean isPatternCoreHealthCheckDue(long gameTime, UUID hostId) {
+        return Math.floorMod(gameTime, (long) PATTERN_CORE_HEALTH_CHECK_INTERVAL_TICKS) ==
+                patternCoreHealthCheckPhase(hostId);
+    }
+
+    private boolean hasHealthyPatternCoreIdentities() {
+        long layoutRevision = this.patternCatalog.layoutSnapshot().revision();
+        for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
+            BlockEntity blockEntity = this.level.getBlockEntity(mount.position());
+            BlockState state = this.level.getBlockState(mount.position());
+            if (blockEntity != mount.core() ||
+                    !(state.getBlock() instanceof TrinityCoreComponent component) ||
+                    component.kind() != TrinityCoreKind.PATTERN_PROCESSING ||
+                    component.patternCapacity() != mount.blockCapacity() ||
+                    mount.core().patternCapacity() != mount.blockCapacity() ||
+                    !this.patternCatalog.isMountCurrent(layoutRevision, mount)) {
+                LOGGER.warn(
+                        "Invalidating Trinity host {} pattern catalog after core identity health check failed at {}",
+                        this.worldPosition,
+                        mount.position());
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean updateMainStructureMatch(Level level) {
@@ -1626,7 +1683,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingLastFailureReason = NO_FAILURE;
         this.craftingLastFailurePosition = null;
         if (statusChanged) {
-            notifyTrinityPatternChanged();
+            notifyTrinityPatternLayoutChanged();
             setChanged();
         }
     }
@@ -1646,7 +1703,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 Objects.equals(this.craftingLastFailureReason, nextFailureReason) &&
                 Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
             if (catalogWithdrawn) {
-                notifyTrinityPatternChanged();
+                notifyTrinityPatternLayoutChanged();
             }
             return;
         }
@@ -1662,7 +1719,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingStructureMatchedBlockCount = 0;
         this.craftingLastFailureReason = nextFailureReason;
         this.craftingLastFailurePosition = nextFailurePosition;
-        notifyTrinityPatternChanged();
+        notifyTrinityPatternLayoutChanged();
         setChanged();
     }
 
@@ -1801,7 +1858,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityCpuAccess);
     }
 
-    private void notifyTrinityPatternChanged() {
+    private void notifyTrinityPatternPublicationChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternAccess);
+    }
+
+    private void notifyTrinityPatternLayoutChanged() {
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternAccess);
     }
 

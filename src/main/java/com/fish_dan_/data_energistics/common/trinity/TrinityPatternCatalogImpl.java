@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore.CachedPattern;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore.PatternCacheSnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
@@ -13,28 +15,33 @@ import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
-/** Default validated and revision-aware implementation of {@link TrinityPatternCatalog}. */
+/** Default event-driven implementation of {@link TrinityPatternCatalog}. */
 public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
     private static final int CRAFTING_GRID_SLOT_COUNT = 9;
-
-    /** Initial inactive topology supplied before the first successful structure scan. */
     private static final LayoutSnapshot EMPTY_LAYOUT = new LayoutSnapshot(0L, false, 0, List.of(), List.of());
 
     private final UUID hostId;
-    private final Map<UUID, CorePatternCache> coreCaches = new HashMap<>();
+    private final Map<TrinityPatternCore, CoreRuntime> runtimesByCore = new IdentityHashMap<>();
+    private final Map<PatternRoute, SlotBinding> routeBindings = new HashMap<>();
+    private final Set<TrinityPatternCore> dirtyCores = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final TreeMap<Integer, ActiveSlot> activeSlotsByGlobalIndex = new TreeMap<>();
+
     private LayoutSnapshot layout = EMPTY_LAYOUT;
-    private List<CoreMount> retainedWorkCores = List.of();
-    private Map<UUID, CoreMount> coresById = Map.of();
-    private Map<UUID, CoreRange> rangesByCoreId = Map.of();
+    private List<CoreRuntime> orderedRuntimes = List.of();
     private List<IPatternDetails> availablePatterns = List.of();
+    private List<ActiveSlot> activeSlots = List.of();
+    private boolean retainedWork;
 
     /**
      * Creates a catalog whose published routes remain independent from the host's storage identity.
@@ -57,12 +64,11 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
     @Override
     public boolean isMountCurrent(long expectedRevision, CoreMount mount) {
-        LayoutSnapshot currentLayout = this.layout;
-        if (!currentLayout.active() || currentLayout.revision() != expectedRevision) {
+        if (!this.layout.active() || this.layout.revision() != expectedRevision) {
             return false;
         }
-        CoreRange range = this.rangesByCoreId.get(mount.core().coreId());
-        return range != null && matchesMount(range, mount);
+        CoreRuntime runtime = this.runtimesByCore.get(mount.core());
+        return runtime != null && runtime.matches(mount);
     }
 
     @Nullable
@@ -80,18 +86,19 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             CoreRange range = currentLayout.ranges().get(middle);
             if (globalIndex < range.firstGlobalIndex()) {
                 high = middle - 1;
-                continue;
-            }
-            if (globalIndex >= range.lastGlobalIndexExclusive()) {
+            } else if (globalIndex >= range.lastGlobalIndexExclusive()) {
                 low = middle + 1;
-                continue;
+            } else {
+                CoreRuntime runtime = this.runtimesByCore.get(range.mount().core());
+                if (runtime == null || runtime.range != range || !runtime.matches(range.mount())) {
+                    return null;
+                }
+                return new GlobalSlot(
+                        expectedRevision,
+                        globalIndex,
+                        range,
+                        globalIndex - range.firstGlobalIndex());
             }
-            CoreMount mount = range.mount();
-            if (!matchesMount(range, mount)) {
-                return null;
-            }
-            return new GlobalSlot(expectedRevision, globalIndex, range,
-                    globalIndex - range.firstGlobalIndex());
         }
         throw new IllegalStateException("Active Trinity pattern layout did not resolve global slot " + globalIndex);
     }
@@ -99,17 +106,21 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     @Nullable
     @Override
     public GlobalSlot resolveCoreSlot(long expectedRevision, CoreMount mount, int coreSlot) {
-        LayoutSnapshot currentLayout = this.layout;
-        if (!currentLayout.active() || currentLayout.revision() != expectedRevision ||
+        if (!this.layout.active() || this.layout.revision() != expectedRevision ||
                 coreSlot < 0 || coreSlot >= mount.blockCapacity()) {
             return null;
         }
-        CoreRange range = this.rangesByCoreId.get(mount.core().coreId());
-        if (range == null || !matchesMount(range, mount)) {
+        CoreRuntime runtime = this.runtimesByCore.get(mount.core());
+        if (runtime == null || !runtime.matches(mount)) {
             return null;
         }
-        int globalIndex = Math.addExact(range.firstGlobalIndex(), coreSlot);
-        return new GlobalSlot(expectedRevision, globalIndex, range, coreSlot);
+        int globalIndex = Math.addExact(runtime.range.firstGlobalIndex(), coreSlot);
+        return new GlobalSlot(expectedRevision, globalIndex, runtime.range, coreSlot);
+    }
+
+    @Override
+    public boolean isCoreMounted(TrinityPatternCore core) {
+        return this.layout.active() && this.runtimesByCore.containsKey(core);
     }
 
     @Override
@@ -118,7 +129,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         sorted.sort((left, right) -> left.position().compareTo(right.position()));
 
         Set<BlockPos> positions = new HashSet<>();
-        Map<UUID, CoreMount> scannedById = new HashMap<>();
+        Map<UUID, CoreMount> mountsByCoreId = new HashMap<>();
         for (CoreMount mount : sorted) {
             if (!positions.add(mount.position())) {
                 return rejectScan(mount.position(), "Duplicate Trinity pattern core position " + mount.position());
@@ -130,7 +141,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                                 mount.blockCapacity() + " slots but block entity owns " +
                                 mount.core().patternCapacity());
             }
-            CoreMount previous = scannedById.putIfAbsent(mount.core().coreId(), mount);
+            CoreMount previous = mountsByCoreId.putIfAbsent(mount.core().coreId(), mount);
             if (previous != null) {
                 return rejectScan(
                         mount.position(),
@@ -141,71 +152,144 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
         List<CoreMount> nextMounts = List.copyOf(sorted);
         List<CoreRange> nextRanges = createRanges(nextMounts);
-        boolean layoutChanged = !hasSameActiveLayout(nextMounts, nextRanges);
-        long nextRevision = layoutChanged ? Math.incrementExact(this.layout.revision()) : this.layout.revision();
+        if (hasSameActiveLayout(nextRanges)) {
+            return new RebuildResult(true, false, null, "");
+        }
+
+        Map<TrinityPatternCore, CoreRuntime> nextRuntimesByCore = new IdentityHashMap<>();
+        HashMap<PatternRoute, SlotBinding> nextRouteBindings = new HashMap<>();
+        TreeMap<Integer, ActiveSlot> nextActiveSlots = new TreeMap<>();
+        ArrayList<CoreRuntime> nextRuntimes = new ArrayList<>(nextRanges.size());
+        ArrayList<IPatternDetails> nextPatterns = new ArrayList<>();
+
+        for (CoreRange range : nextRanges) {
+            CoreRuntime runtime = new CoreRuntime(range);
+            PatternCacheSnapshot snapshot = range.mount().core().patternCacheSnapshot();
+            PreparedPublication publication = runtime.preparePublication(snapshot);
+            runtime.applyPublication(publication);
+            for (SlotBinding binding : publication.bindings()) {
+                if (nextRouteBindings.put(binding.route, binding) != null) {
+                    throw new IllegalStateException("Duplicate Trinity route while rebuilding catalog: " + binding.route);
+                }
+            }
+            nextPatterns.addAll(publication.patterns());
+
+            List<Integer> workingSlots = range.mount().core().workingSlots(this.hostId);
+            int previousSlot = -1;
+            for (int coreSlot : workingSlots) {
+                if (coreSlot <= previousSlot || coreSlot >= range.mount().blockCapacity()) {
+                    throw new IllegalStateException(
+                            "Trinity core " + range.coreId() + " returned invalid working slot " + coreSlot);
+                }
+                previousSlot = coreSlot;
+                SlotBinding binding = runtime.binding(coreSlot);
+                nextActiveSlots.put(binding.globalIndex, binding.activeSlot);
+            }
+
+            nextRuntimes.add(runtime);
+            nextRuntimesByCore.put(range.mount().core(), runtime);
+        }
+
+        long nextRevision = Math.incrementExact(this.layout.revision());
         int slotCount = nextRanges.isEmpty() ? 0 : nextRanges.getLast().lastGlobalIndexExclusive();
         this.layout = new LayoutSnapshot(nextRevision, true, slotCount, nextMounts, nextRanges);
-        this.retainedWorkCores = nextMounts;
-        this.coresById = Map.copyOf(scannedById);
-        HashMap<UUID, CoreRange> nextRangesByCoreId = new HashMap<>();
-        for (CoreRange range : nextRanges) {
-            nextRangesByCoreId.put(range.coreId(), range);
-        }
-        this.rangesByCoreId = Map.copyOf(nextRangesByCoreId);
-        this.coreCaches.keySet().retainAll(scannedById.keySet());
-        boolean patternChanged = refreshChangedPatterns();
-        if (layoutChanged && !patternChanged) {
-            rebuildAvailablePatterns();
-        }
-        return new RebuildResult(true, layoutChanged || patternChanged, null, "");
+        this.runtimesByCore.clear();
+        this.runtimesByCore.putAll(nextRuntimesByCore);
+        this.routeBindings.clear();
+        this.routeBindings.putAll(nextRouteBindings);
+        this.activeSlotsByGlobalIndex.clear();
+        this.activeSlotsByGlobalIndex.putAll(nextActiveSlots);
+        this.orderedRuntimes = List.copyOf(nextRuntimes);
+        this.availablePatterns = List.copyOf(nextPatterns);
+        rebuildActiveSlotSnapshot();
+        this.dirtyCores.clear();
+        this.retainedWork = false;
+        return new RebuildResult(true, true, null, "");
     }
 
     @Override
     public boolean refreshChangedPatterns() {
-        LayoutSnapshot currentLayout = this.layout;
-        if (!currentLayout.active()) {
+        if (!this.layout.active() || this.dirtyCores.isEmpty()) {
             return false;
         }
-        for (int index = 0; index < currentLayout.ranges().size(); index++) {
-            CoreRange range = currentLayout.ranges().get(index);
-            CoreMount mount = currentLayout.mounts().get(index);
-            mount.core().ensurePatternCachesCurrent();
-            if (!matchesMount(range, mount)) {
-                TrinityPatternCore core = mount.core();
+
+        ArrayList<CoreRuntime> changedRuntimes = new ArrayList<>();
+        for (CoreRuntime runtime : this.orderedRuntimes) {
+            if (this.dirtyCores.contains(runtime.core())) {
+                changedRuntimes.add(runtime);
+            }
+        }
+        this.dirtyCores.clear();
+
+        boolean publicationChanged = false;
+        for (CoreRuntime runtime : changedRuntimes) {
+            if (!runtime.matches(runtime.range.mount())) {
                 Data_Energistics.LOGGER.warn(
-                        "Invalidating Trinity pattern catalog {} after mounted core identity changed at {}: " +
-                                "captured UUID {}, current UUID {}, block capacity {}, core capacity {}",
+                        "Invalidating Trinity catalog {} because mounted core identity changed at {}",
                         this.hostId,
-                        mount.position(),
-                        range.coreId(),
-                        core.coreId(),
-                        mount.blockCapacity(),
-                        core.patternCapacity());
+                        runtime.range.mount().position());
                 invalidateLayout();
                 return true;
             }
-        }
-
-        boolean changed = false;
-        for (CoreMount mount : currentLayout.mounts()) {
-            TrinityPatternCore core = mount.core();
-            TrinityPatternCore.PatternCacheSnapshot snapshot = core.patternCacheSnapshot();
-            CorePatternCache cache = this.coreCaches.get(core.coreId());
-            if (cache == null || cache.core() != core || cache.revision() != snapshot.revision()) {
-                this.coreCaches.put(core.coreId(), createCoreCache(core, snapshot));
-                changed = true;
+            PatternCacheSnapshot snapshot = runtime.core().patternCacheSnapshot();
+            if (snapshot.revision() == runtime.patternRevision) {
+                continue;
             }
+
+            PreparedPublication publication = runtime.preparePublication(snapshot);
+            for (SlotBinding binding : publication.bindings()) {
+                SlotBinding existing = this.routeBindings.get(binding.route);
+                if (existing != null && existing.runtime != runtime) {
+                    throw new IllegalStateException("Duplicate Trinity route while refreshing catalog: " + binding.route);
+                }
+            }
+            for (SlotBinding binding : runtime.publishedBindings) {
+                if (!this.routeBindings.remove(binding.route, binding)) {
+                    throw new IllegalStateException("Missing published Trinity route during refresh: " + binding.route);
+                }
+                binding.routedDetails = null;
+            }
+            runtime.applyPublication(publication);
+            for (SlotBinding binding : publication.bindings()) {
+                this.routeBindings.put(binding.route, binding);
+            }
+            publicationChanged = true;
         }
-        if (changed) {
+        if (publicationChanged) {
             rebuildAvailablePatterns();
         }
-        return changed;
+        return publicationChanged;
+    }
+
+    @Override
+    public void onCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change) {
+        if (!this.layout.active()) {
+            return;
+        }
+        CoreRuntime runtime = this.runtimesByCore.get(core);
+        if (runtime == null) {
+            return;
+        }
+        if (change.slot() >= runtime.range.mount().blockCapacity()) {
+            throw new IllegalArgumentException(
+                    "Mounted Trinity core " + runtime.range.coreId() + " reported out-of-range slot " + change.slot());
+        }
+        switch (change.kind()) {
+            case CATALOG -> this.dirtyCores.add(core);
+            case WORK -> updateActiveSlot(runtime, change.slot());
+            case PERSISTENT -> throw new IllegalArgumentException(
+                    "Persistent-only Trinity slot changes must not reach the host catalog");
+        }
     }
 
     @Override
     public List<IPatternDetails> getAvailablePatterns() {
-        refreshChangedPatterns();
-        return this.layout.active() ? this.availablePatterns : List.of();
+        return this.availablePatterns;
+    }
+
+    @Override
+    public List<ActiveSlot> activeSlots() {
+        return this.activeSlots;
     }
 
     @Override
@@ -213,31 +297,24 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (!this.layout.active() || !(patternDetails instanceof RoutedCraftingPatternDetails routed) || queuedTick < 0L) {
             return false;
         }
-        PatternRoute route = routed.route();
-        if (!this.hostId.equals(route.hostId())) {
+        SlotBinding binding = this.routeBindings.get(routed.route());
+        if (binding == null || binding.routedDetails == null || !binding.routedDetails.equals(routed) ||
+                !(routed.delegate() instanceof IMolecularAssemblerSupportedPattern routedPattern)) {
             return false;
         }
 
-        CoreMount mount = this.coresById.get(route.coreId());
-        if (mount == null || route.slot() < 0 || route.slot() >= mount.core().patternCapacity()) {
+        IMolecularAssemblerSupportedPattern currentPattern = binding.slot.decodedPattern();
+        if (currentPattern == null) {
             return false;
         }
-        TrinityPatternCore core = mount.core();
-        core.ensurePatternCachesCurrent();
-        IMolecularAssemblerSupportedPattern currentPattern = core.decodedPattern(route.slot());
-        if (currentPattern == null || !(routed.delegate() instanceof IMolecularAssemblerSupportedPattern supported)) {
-            return false;
-        }
-
         AEItemKey routedDefinition = routed.getDefinition();
-        AEItemKey currentDefinition = currentPattern.getDefinition();
-        if (!routedDefinition.equals(currentDefinition) ||
-                !routedDefinition.equals(supported.getDefinition())) {
+        if (!routedDefinition.equals(routedPattern.getDefinition()) ||
+                !routedDefinition.equals(currentPattern.getDefinition())) {
             return false;
         }
-        ItemStack patternSnapshot = core.pattern(route.slot());
+        ItemStack patternSnapshot = binding.slot.pattern();
         if (patternSnapshot.isEmpty() ||
-                !ItemStack.isSameItemSameComponents(patternSnapshot, currentDefinition.toStack())) {
+                !ItemStack.isSameItemSameComponents(patternSnapshot, routedDefinition.toStack())) {
             return false;
         }
 
@@ -246,12 +323,12 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             return false;
         }
         List<ItemStack> craftingGrid = createCraftingGridSnapshot(currentPattern, workingInputs);
-        if (craftingGrid == null || !allInputsConsumed(workingInputs)) {
+        if (craftingGrid == null || !allInputsConsumed(workingInputs) ||
+                !binding.slot.enqueue(binding.route, patternSnapshot, craftingGrid, queuedTick)) {
             return false;
         }
-
-        if (!core.enqueueBatch(route, patternSnapshot, craftingGrid, queuedTick)) {
-            return false;
+        if (!this.activeSlotsByGlobalIndex.containsKey(binding.globalIndex)) {
+            updateActiveSlot(binding.runtime, binding.route.slot());
         }
         for (KeyCounter counter : inputHolder) {
             counter.clear();
@@ -266,31 +343,12 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
     @Override
     public boolean hasWork() {
-        for (CoreMount mount : this.retainedWorkCores) {
-            if (mount.core().hasWork(this.hostId)) {
-                return true;
-            }
-        }
-        return false;
+        return this.retainedWork || !this.activeSlotsByGlobalIndex.isEmpty();
     }
 
     @Override
     public boolean hasRefundableState() {
-        LayoutSnapshot currentLayout = this.layout;
-        if (!currentLayout.active()) {
-            return false;
-        }
-        for (CoreRange range : currentLayout.ranges()) {
-            CoreMount mount = range.mount();
-            if (!matchesMount(range, mount)) {
-                return false;
-            }
-            TrinityPatternCore core = mount.core();
-            if (hasRefundableStateForHost(core)) {
-                return true;
-            }
-        }
-        return false;
+        return this.layout.active() && !this.activeSlotsByGlobalIndex.isEmpty();
     }
 
     @Override
@@ -333,7 +391,6 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                         "Trinity refund delivery failed after catalog {} committed queued state",
                         this.hostId,
                         exception);
-                // Every core transaction already committed, so callers must refresh rather than advertise a retry.
                 return true;
             }
             return true;
@@ -343,6 +400,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         } finally {
             if (committed) {
                 completeRefundTransactions(transactions);
+                rebuildActiveSlotsFromMountedWork();
             } else {
                 rollbackRefundTransactions(transactions);
             }
@@ -352,26 +410,69 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     @Override
     public void invalidateLayout() {
         if (this.layout.active()) {
-            LayoutSnapshot currentLayout = this.layout;
-            LayoutSnapshot invalidLayout = new LayoutSnapshot(
-                    Math.incrementExact(currentLayout.revision()),
+            this.retainedWork |= !this.activeSlotsByGlobalIndex.isEmpty();
+            this.layout = new LayoutSnapshot(
+                    Math.incrementExact(this.layout.revision()),
                     false,
                     0,
                     List.of(),
                     List.of());
-            this.retainedWorkCores = currentLayout.mounts();
-            this.layout = invalidLayout;
         }
-        this.coresById = Map.of();
-        this.rangesByCoreId = Map.of();
-        this.coreCaches.clear();
-        this.availablePatterns = List.of();
+        clearRuntimeIndexes();
     }
 
     @Override
     public void clear() {
         invalidateLayout();
-        this.retainedWorkCores = List.of();
+        this.retainedWork = false;
+    }
+
+    private void updateActiveSlot(CoreRuntime runtime, int coreSlot) {
+        boolean working = runtime.core().isSlotWorking(this.hostId, coreSlot);
+        SlotBinding binding = runtime.bindings.get(coreSlot);
+        if (working) {
+            if (binding == null) {
+                binding = runtime.binding(coreSlot);
+            }
+            if (this.activeSlotsByGlobalIndex.put(binding.globalIndex, binding.activeSlot) == null) {
+                rebuildActiveSlotSnapshot();
+            }
+        } else if (binding != null && this.activeSlotsByGlobalIndex.remove(binding.globalIndex) != null) {
+            rebuildActiveSlotSnapshot();
+        }
+    }
+
+    private void rebuildActiveSlotSnapshot() {
+        this.activeSlots = List.copyOf(this.activeSlotsByGlobalIndex.values());
+    }
+
+    private void rebuildActiveSlotsFromMountedWork() {
+        this.activeSlotsByGlobalIndex.clear();
+        for (CoreRuntime runtime : this.orderedRuntimes) {
+            for (int coreSlot : runtime.core().workingSlots(this.hostId)) {
+                SlotBinding binding = runtime.binding(coreSlot);
+                this.activeSlotsByGlobalIndex.put(binding.globalIndex, binding.activeSlot);
+            }
+        }
+        rebuildActiveSlotSnapshot();
+    }
+
+    private void rebuildAvailablePatterns() {
+        ArrayList<IPatternDetails> patterns = new ArrayList<>();
+        for (CoreRuntime runtime : this.orderedRuntimes) {
+            patterns.addAll(runtime.patterns);
+        }
+        this.availablePatterns = List.copyOf(patterns);
+    }
+
+    private void clearRuntimeIndexes() {
+        this.runtimesByCore.clear();
+        this.routeBindings.clear();
+        this.dirtyCores.clear();
+        this.activeSlotsByGlobalIndex.clear();
+        this.orderedRuntimes = List.of();
+        this.availablePatterns = List.of();
+        this.activeSlots = List.of();
     }
 
     private RebuildResult rejectScan(BlockPos position, String reason) {
@@ -406,11 +507,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         }
     }
 
-    private boolean hasRefundableStateForHost(TrinityPatternCore core) {
-        return core.hasWork(this.hostId);
-    }
-
-    private List<CoreRange> createRanges(List<CoreMount> mounts) {
+    private static List<CoreRange> createRanges(List<CoreMount> mounts) {
         ArrayList<CoreRange> ranges = new ArrayList<>(mounts.size());
         int firstGlobalIndex = 0;
         for (CoreMount mount : mounts) {
@@ -425,19 +522,17 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         return List.copyOf(ranges);
     }
 
-    private boolean hasSameActiveLayout(List<CoreMount> nextMounts, List<CoreRange> nextRanges) {
+    private boolean hasSameActiveLayout(List<CoreRange> nextRanges) {
         if (!this.layout.active() || this.layout.ranges().size() != nextRanges.size()) {
             return false;
         }
         for (int index = 0; index < nextRanges.size(); index++) {
             CoreRange current = this.layout.ranges().get(index);
             CoreRange next = nextRanges.get(index);
-            CoreMount currentMount = current.mount();
-            CoreMount nextMount = nextMounts.get(index);
-            if (currentMount.core() != nextMount.core() ||
+            if (current.mount().core() != next.mount().core() ||
                     !current.coreId().equals(next.coreId()) ||
-                    !currentMount.position().equals(nextMount.position()) ||
-                    currentMount.blockCapacity() != nextMount.blockCapacity() ||
+                    !current.mount().position().equals(next.mount().position()) ||
+                    current.mount().blockCapacity() != next.mount().blockCapacity() ||
                     current.firstGlobalIndex() != next.firstGlobalIndex() ||
                     current.lastGlobalIndexExclusive() != next.lastGlobalIndexExclusive()) {
                 return false;
@@ -446,44 +541,16 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         return true;
     }
 
-    private boolean matchesMount(CoreRange range, CoreMount mount) {
-        CoreMount capturedMount = range.mount();
+    private static boolean matchesMount(CoreRange range, CoreMount mount) {
         TrinityPatternCore core = mount.core();
-        return capturedMount.core() == core &&
+        return range.mount().core() == core &&
                 range.coreId().equals(core.coreId()) &&
-                capturedMount.position().equals(mount.position()) &&
-                capturedMount.blockCapacity() == mount.blockCapacity() &&
-                capturedMount.blockCapacity() == core.patternCapacity();
+                range.mount().position().equals(mount.position()) &&
+                range.mount().blockCapacity() == mount.blockCapacity() &&
+                mount.blockCapacity() == core.patternCapacity();
     }
 
-    private CorePatternCache createCoreCache(TrinityPatternCore core,
-                                             TrinityPatternCore.PatternCacheSnapshot snapshot) {
-        ArrayList<IPatternDetails> patterns = new ArrayList<>(snapshot.patterns().size());
-        for (TrinityPatternCore.CachedPattern cachedPattern : snapshot.patterns()) {
-            if (cachedPattern.slot() >= core.patternCapacity()) {
-                throw new IllegalStateException(
-                        "Trinity pattern core " + core.coreId() + " cached out-of-range slot " +
-                                cachedPattern.slot());
-            }
-            patterns.add(new RoutedCraftingPatternDetails(
-                    new PatternRoute(this.hostId, core.coreId(), cachedPattern.slot()),
-                    cachedPattern.details()));
-        }
-        return new CorePatternCache(core, snapshot.revision(), List.copyOf(patterns));
-    }
-
-    private void rebuildAvailablePatterns() {
-        ArrayList<IPatternDetails> patterns = new ArrayList<>();
-        for (CoreMount mount : this.layout.mounts()) {
-            CorePatternCache cache = this.coreCaches.get(mount.core().coreId());
-            if (cache == null) {
-                throw new IllegalStateException("Missing pattern cache for mounted Trinity core " + mount.core().coreId());
-            }
-            patterns.addAll(cache.patterns());
-        }
-        this.availablePatterns = List.copyOf(patterns);
-    }
-
+    @Nullable
     private static KeyCounter[] copyInputCounters(KeyCounter[] inputHolder) {
         KeyCounter[] copies = new KeyCounter[inputHolder.length];
         for (int index = 0; index < inputHolder.length; index++) {
@@ -502,6 +569,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         return copies;
     }
 
+    @Nullable
     private static List<ItemStack> createCraftingGridSnapshot(IMolecularAssemblerSupportedPattern pattern,
                                                               KeyCounter[] workingInputs) {
         ArrayList<ItemStack> craftingGrid = new ArrayList<>(CRAFTING_GRID_SLOT_COUNT);
@@ -518,7 +586,8 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                     throw new IllegalArgumentException("Crafting pattern wrote grid slot " + slot + " more than once");
                 }
                 if (!stack.isEmpty() && (stack.getCount() <= 0 || stack.getCount() > stack.getMaxStackSize())) {
-                    throw new IllegalArgumentException("Crafting pattern wrote an invalid stack count to grid slot " + slot);
+                    throw new IllegalArgumentException(
+                            "Crafting pattern wrote an invalid stack count to grid slot " + slot);
                 }
                 populated[slot] = true;
                 craftingGrid.set(slot, stack.copy());
@@ -543,5 +612,108 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         return true;
     }
 
-    private record CorePatternCache(TrinityPatternCore core, long revision, List<IPatternDetails> patterns) {}
+    private final class CoreRuntime {
+
+        private final CoreRange range;
+        private final Map<Integer, SlotBinding> bindings = new HashMap<>();
+        private long patternRevision;
+        private List<SlotBinding> publishedBindings = List.of();
+        private List<IPatternDetails> patterns = List.of();
+
+        private CoreRuntime(CoreRange range) {
+            this.range = range;
+        }
+
+        private TrinityPatternCore core() {
+            return this.range.mount().core();
+        }
+
+        private boolean matches(CoreMount mount) {
+            return matchesMount(this.range, mount);
+        }
+
+        private SlotBinding binding(int coreSlot) {
+            if (coreSlot < 0 || coreSlot >= this.range.mount().blockCapacity()) {
+                throw new IllegalArgumentException(
+                        "Trinity pattern slot out of range for mounted core " + this.range.coreId() + ": " + coreSlot);
+            }
+            SlotBinding existing = this.bindings.get(coreSlot);
+            if (existing != null) {
+                return existing;
+            }
+            TrinityPatternSlot slot = core().patternSlot(coreSlot);
+            if (slot.index() != coreSlot) {
+                throw new IllegalStateException(
+                        "Trinity core " + this.range.coreId() + " returned mismatched stable slot " + slot.index());
+            }
+            int globalIndex = Math.addExact(this.range.firstGlobalIndex(), coreSlot);
+            SlotBinding created = new SlotBinding(
+                    this,
+                    globalIndex,
+                    new PatternRoute(hostId, this.range.coreId(), coreSlot),
+                    slot);
+            this.bindings.put(coreSlot, created);
+            return created;
+        }
+
+        private PreparedPublication preparePublication(PatternCacheSnapshot snapshot) {
+            ArrayList<SlotBinding> nextBindings = new ArrayList<>(snapshot.patterns().size());
+            ArrayList<IPatternDetails> nextPatterns = new ArrayList<>(snapshot.patterns().size());
+            for (CachedPattern cachedPattern : snapshot.patterns()) {
+                SlotBinding binding = binding(cachedPattern.slot());
+                RoutedCraftingPatternDetails routed = new RoutedCraftingPatternDetails(
+                        binding.route,
+                        cachedPattern.details());
+                binding.nextRoutedDetails = routed;
+                nextBindings.add(binding);
+                nextPatterns.add(routed);
+            }
+            return new PreparedPublication(
+                    snapshot.revision(),
+                    List.copyOf(nextBindings),
+                    List.copyOf(nextPatterns));
+        }
+
+        private void applyPublication(PreparedPublication publication) {
+            Set<SlotBinding> nextBindings = Collections.newSetFromMap(new IdentityHashMap<>());
+            nextBindings.addAll(publication.bindings());
+            for (SlotBinding binding : this.publishedBindings) {
+                if (!nextBindings.contains(binding)) {
+                    binding.routedDetails = null;
+                }
+            }
+            for (SlotBinding binding : publication.bindings()) {
+                binding.routedDetails = binding.nextRoutedDetails;
+                binding.nextRoutedDetails = null;
+            }
+            this.patternRevision = publication.revision();
+            this.publishedBindings = publication.bindings();
+            this.patterns = publication.patterns();
+        }
+    }
+
+    private static final class SlotBinding {
+
+        private final CoreRuntime runtime;
+        private final int globalIndex;
+        private final PatternRoute route;
+        private final TrinityPatternSlot slot;
+        private final ActiveSlot activeSlot;
+        @Nullable
+        private RoutedCraftingPatternDetails routedDetails;
+        @Nullable
+        private RoutedCraftingPatternDetails nextRoutedDetails;
+
+        private SlotBinding(CoreRuntime runtime, int globalIndex, PatternRoute route, TrinityPatternSlot slot) {
+            this.runtime = runtime;
+            this.globalIndex = globalIndex;
+            this.route = route;
+            this.slot = slot;
+            this.activeSlot = new ActiveSlot(globalIndex, runtime.range.mount(), route, slot);
+        }
+    }
+
+    private record PreparedPublication(long revision,
+                                       List<SlotBinding> bindings,
+                                       List<IPatternDetails> patterns) {}
 }

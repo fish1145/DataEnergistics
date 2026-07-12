@@ -149,7 +149,28 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             return 0;
         }
         ensurePatternCachesCurrent();
-        return this.core.executeReadyBatches(currentTick, (slot, batch) -> hostId.equals(batch.route().hostId()) ? executeBatch(slot, batch) : BatchExecutionResult.paused());
+        return this.core.executeReadyBatches(
+                currentTick,
+                (slot, batch) -> hostId.equals(batch.route().hostId()) ? executeBatch(slot, batch) : BatchExecutionResult.paused());
+    }
+
+    /**
+     * Executes eligible groups in one host-owned physical slot without scanning this core's other work indexes.
+     *
+     * @param hostId      stable identity of the host currently authorized to execute this core
+     * @param slot        exact physical slot selected by the host runtime cache
+     * @param currentTick current server tick
+     * @return number of completed queue groups
+     */
+    public int executeOwnedSlot(UUID hostId, int slot, long currentTick) {
+        if (!isCoreStateReady()) {
+            return 0;
+        }
+        ensurePatternCachesCurrent();
+        return this.core.executeReadyBatches(
+                slot,
+                currentTick,
+                (physicalSlot, batch) -> hostId.equals(batch.route().hostId()) ? executeBatch(physicalSlot, batch) : BatchExecutionResult.paused());
     }
 
     /**
@@ -327,6 +348,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Override
+    public int executeReadyBatches(int slot, long currentTick, BatchExecutor executor) {
+        return readyCore().executeReadyBatches(slot, currentTick, executor);
+    }
+
+    @Override
     public List<TrinityItemAmount> pendingOutputs(PatternRoute route) {
         return readyCore().pendingOutputs(route);
     }
@@ -349,6 +375,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Override
     public List<Integer> workingSlots(UUID hostId) {
         return readyCore().workingSlots(hostId);
+    }
+
+    @Override
+    public boolean isSlotWorking(UUID hostId, int slot) {
+        return readyCore().isSlotWorking(hostId, slot);
     }
 
     @Override
@@ -518,10 +549,16 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     private void onCoreChanged(TrinityPatternSlot.Change change) {
         if (change.kind() == TrinityPatternSlot.ChangeKind.PERSISTENT) {
             setChanged();
-        } else if (change.kind() == TrinityPatternSlot.ChangeKind.CATALOG &&
+            return;
+        }
+        if (change.kind() == TrinityPatternSlot.ChangeKind.CATALOG &&
                 this.level != null && !this.level.isClientSide()) {
-                    markForClientUpdate();
-                }
+            markForClientUpdate();
+        }
+        TrinityPatternCoreHost host = currentPatternHost();
+        if (host != null) {
+            host.onPatternCoreChanged(this, change);
+        }
     }
 
     @Nullable

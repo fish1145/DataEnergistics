@@ -263,6 +263,17 @@ public interface TrinityPatternCore {
     int executeReadyBatches(long currentTick, BatchExecutor executor);
 
     /**
+     * Executes every FIFO group eligible in one exact physical slot. A definition mismatch or paused executor leaves
+     * the current head asleep without touching other slots.
+     *
+     * @param slot        exact physical slot to execute
+     * @param currentTick current server tick
+     * @param executor    crafting callback
+     * @return number of completed queue groups
+     */
+    int executeReadyBatches(int slot, long currentTick, BatchExecutor executor);
+
+    /**
      * @param route exact owner route to query
      * @return immutable defensive snapshot of counted outputs still awaiting host routing
      */
@@ -299,6 +310,15 @@ public interface TrinityPatternCore {
      * @return immutable ascending physical slot indexes
      */
     List<Integer> workingSlots(UUID hostId);
+
+    /**
+     * Tests one exact physical slot against the core's host work index without copying the full sparse slot set.
+     *
+     * @param hostId stable host identity whose work is requested
+     * @param slot   exact physical slot to inspect
+     * @return whether queued input or pending output in that slot belongs to the host
+     */
+    boolean isSlotWorking(UUID hostId, int slot);
 
     /**
      * @return whether queued inputs or pending outputs lock this core to its current host/grid

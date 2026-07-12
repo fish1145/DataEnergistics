@@ -88,6 +88,30 @@ public final class CompartmentBlockEntityTest {
 
     private CompartmentBlockEntityTest() {}
 
+    @TestHolder("trinity_pattern_core_health_check_phase_is_overflow_safe")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void patternCoreHealthCheckPhaseIsStableAndOverflowSafe(GameTestHelper helper) {
+        UUID hostId = new UUID(Long.MIN_VALUE, Long.MAX_VALUE);
+        int phase = TrinityDataCoreBlockEntity.patternCoreHealthCheckPhase(hostId);
+
+        helper.assertTrue(phase >= 0 && phase < 100, "Health-check phase must stay inside its interval");
+        helper.assertTrue(
+                TrinityDataCoreBlockEntity.isPatternCoreHealthCheckDue(phase, hostId),
+                "Host must run at its selected phase");
+        helper.assertTrue(
+                TrinityDataCoreBlockEntity.isPatternCoreHealthCheckDue(phase - 100L, hostId),
+                "Negative ticks must preserve the selected phase");
+        helper.assertTrue(
+                !TrinityDataCoreBlockEntity.isPatternCoreHealthCheckDue(phase + 1L, hostId),
+                "Adjacent ticks must not run the same host check");
+        helper.assertTrue(
+                TrinityDataCoreBlockEntity.isPatternCoreHealthCheckDue(Long.MAX_VALUE, hostId) ==
+                        (Math.floorMod(Long.MAX_VALUE, 100L) == phase),
+                "Long.MAX_VALUE must be evaluated without overflowing an offset addition");
+        helper.succeed();
+    }
+
     @TestHolder("compartment_block_entity_me_input_pulls_marked_keys_from_storage")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
