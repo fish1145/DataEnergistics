@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
@@ -26,6 +27,7 @@ import appeng.api.AECapabilities;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.util.AECableType;
+import appeng.util.SettingsFrom;
 
 import java.util.List;
 
@@ -150,6 +152,31 @@ public final class DataDistributionTowerDiscoveryGameTest {
                 tower.bufferedTransferEnergy(),
                 BUFFERED_TRANSFER_ENERGY,
                 "The transfer buffer must survive an NBT round trip");
+        helper.succeed();
+    }
+
+    @TestHolder("data_distribution_tower_preserves_buffered_energy_in_dismantle_item")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 100)
+    public static void preservesBufferedEnergyInDismantleItem(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, REGULAR_CHARGER_POS);
+
+        tower.setBufferedTransferEnergy(BUFFERED_TRANSFER_ENERGY);
+        DataComponentMap dismantleComponents = tower.exportSettings(SettingsFrom.DISMANTLE_ITEM, null);
+        tower.setBufferedTransferEnergy(0L);
+        tower.importSettings(SettingsFrom.DISMANTLE_ITEM, dismantleComponents, null);
+        helper.assertValueEqual(
+                tower.bufferedTransferEnergy(),
+                BUFFERED_TRANSFER_ENERGY,
+                "The dismantled tower item must retain its transfer buffer");
+
+        DataComponentMap memoryCardComponents = tower.exportSettings(SettingsFrom.MEMORY_CARD, null);
+        tower.setBufferedTransferEnergy(0L);
+        tower.importSettings(SettingsFrom.MEMORY_CARD, memoryCardComponents, null);
+        helper.assertValueEqual(
+                tower.bufferedTransferEnergy(),
+                0L,
+                "Memory card settings must not duplicate buffered transfer energy");
         helper.succeed();
     }
 

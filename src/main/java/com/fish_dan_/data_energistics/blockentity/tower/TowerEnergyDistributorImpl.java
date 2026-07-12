@@ -454,7 +454,15 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
         while (remaining > 0) {
             int request = clampEnergyRequest(remaining);
-            int inserted = storage.receiveEnergy(request, simulate);
+            int inserted;
+            try {
+                inserted = storage.receiveEnergy(request, simulate);
+            } catch (RuntimeException | LinkageError exception) {
+                Data_Energistics.LOGGER.error(
+                        "Energy receiver at {} side {} failed after accepting {} FE through its capability",
+                        endpoint.pos(), endpoint.side(), insertedTotal, exception);
+                return new EndpointTransferResult(insertedTotal, true);
+            }
             if (inserted < 0 || inserted > request) {
                 Data_Energistics.LOGGER.error("Energy receiver at {} side {} returned {} for request {}",
                         endpoint.pos(), endpoint.side(), inserted, request);
@@ -531,7 +539,15 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
         while (remaining > 0) {
             int request = clampEnergyRequest(remaining);
-            int extracted = storage.extractEnergy(request, simulate);
+            int extracted;
+            try {
+                extracted = storage.extractEnergy(request, simulate);
+            } catch (RuntimeException | LinkageError exception) {
+                Data_Energistics.LOGGER.error(
+                        "Energy source at {} side {} failed after providing {} FE through its capability",
+                        endpoint.pos(), endpoint.side(), extractedTotal, exception);
+                return new EndpointTransferResult(extractedTotal, true);
+            }
             if (extracted < 0 || extracted > request) {
                 Data_Energistics.LOGGER.error("Energy source at {} side {} returned {} for request {}",
                         endpoint.pos(), endpoint.side(), extracted, request);
@@ -683,7 +699,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             totalStored = saturatingAdd(totalStored, aeExtractable);
         }
 
-        EnergyQuerySummary summary = new EnergyQuerySummary(gameTime, totalStored, totalCapacity, !endpoints.isEmpty() || aeExtractable > 0);
+        EnergyQuerySummary summary = new EnergyQuerySummary(
+                gameTime, totalStored, totalCapacity, bufferedEnergy > 0 || !endpoints.isEmpty() || aeExtractable > 0);
         this.cachedExtractQuerySummaries.put(normalizedExcludedPos, summary);
         return summary;
     }

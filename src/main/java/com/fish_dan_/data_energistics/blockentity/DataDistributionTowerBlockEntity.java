@@ -276,6 +276,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
         super.exportSettings(mode, builder, player);
+        if (mode == SettingsFrom.DISMANTLE_ITEM) {
+            if (this.bufferedTransferEnergy > 0) {
+                CompoundTag settings = new CompoundTag();
+                settings.putLong(BUFFERED_TRANSFER_ENERGY_TAG, this.bufferedTransferEnergy);
+                builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+            }
+            return;
+        }
         if (mode != SettingsFrom.MEMORY_CARD) {
             return;
         }
@@ -291,11 +299,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         super.importSettings(mode, input, player);
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (mode == SettingsFrom.DISMANTLE_ITEM) {
+            if (settings != null) {
+                setBufferedTransferEnergy(readBufferedTransferEnergy(settings));
+            }
+            return;
+        }
         if (mode != SettingsFrom.MEMORY_CARD) {
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
