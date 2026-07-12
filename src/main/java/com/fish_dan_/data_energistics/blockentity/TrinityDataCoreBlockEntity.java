@@ -103,11 +103,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                         implements MultiBlockStatusProvider, CompartmentHost, TrinityDataCoreMenuHost,
                                         TrinityPatternCoreHost {
 
-    private static final int RECHECK_RADIUS = 24;
-    private static final int MAIN_RECHECK_INTERVAL_TICKS = 100;
+    private static final int UNFORMED_MAIN_RECHECK_INTERVAL_TICKS = 100;
+    private static final int FORMED_MAIN_RECHECK_INTERVAL_TICKS = 1_200;
     private static final int UNFORMED_CHILD_RECHECK_INTERVAL_TICKS = 100;
     private static final int FORMED_CHILD_RECHECK_INTERVAL_TICKS = 1_200;
-    private static final int CRAFTING_RECHECK_PHASE_OFFSET_TICKS = 600;
+    private static final int CRAFTING_RECHECK_PHASE_OFFSET_TICKS = 50;
     private static final String FORMED_TAG = "formed";
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
@@ -1122,18 +1122,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
-    public static void requestRecheckAround(Level level, BlockPos origin) {
-        if (!(level instanceof ServerLevel) || level.isClientSide()) {
+    public static void requestRecheckAt(Level level, BlockPos origin) {
+        if (!(level instanceof ServerLevel)) {
             return;
         }
 
-        BlockPos min = origin.offset(-RECHECK_RADIUS, -RECHECK_RADIUS, -RECHECK_RADIUS);
-        BlockPos max = origin.offset(RECHECK_RADIUS, RECHECK_RADIUS, RECHECK_RADIUS);
-        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-            BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
-                host.requestStructureRecheck();
-            }
+        BlockEntity blockEntity = level.getBlockEntity(origin);
+        if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
+            host.requestStructureRecheck();
         }
     }
 
@@ -1305,10 +1301,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private void updateScheduledStructureMatches() {
         long gameTime = this.level.getGameTime();
-        boolean mainRecheckDue = this.recheckRequested || isPeriodicRecheckDue(
-                gameTime,
-                MAIN_RECHECK_INTERVAL_TICKS,
-                0);
+        int mainRecheckInterval = this.formed ? FORMED_MAIN_RECHECK_INTERVAL_TICKS : UNFORMED_MAIN_RECHECK_INTERVAL_TICKS;
+        boolean mainRecheckDue = this.recheckRequested || isPeriodicRecheckDue(gameTime, mainRecheckInterval, 0);
         boolean cpuRecheckDue = this.cpuStructureRecheckRequested || isChildPeriodicRecheckDue(
                 gameTime,
                 this.cpuStructureFormed,
@@ -1413,12 +1407,31 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         JsonMultiBlockDefinition definition = requireMainJsonDefinition();
         Direction preferredFrontFacing = getStructureFrontFacing(level);
         StructureWorldView world = new LevelStructureWorldView(level);
-        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
-                definition.pattern(),
-                world,
-                this.worldPosition,
-                preferredFrontFacing,
-                mainDefinitionKey().structureName());
+        StructureMatchResult result;
+        if (this.formed && this.mainStructureFrontFacing != null) {
+            result = JsonMultiBlockPatternMatcher.matchExact(
+                    definition.pattern(),
+                    world,
+                    this.worldPosition,
+                    this.mainStructureFrontFacing,
+                    this.mainStructureFlipped,
+                    mainDefinitionKey().structureName());
+            if (!result.matched()) {
+                result = JsonMultiBlockPatternMatcher.match(
+                        definition.pattern(),
+                        world,
+                        this.worldPosition,
+                        preferredFrontFacing,
+                        mainDefinitionKey().structureName());
+            }
+        } else {
+            result = JsonMultiBlockPatternMatcher.match(
+                    definition.pattern(),
+                    world,
+                    this.worldPosition,
+                    preferredFrontFacing,
+                    mainDefinitionKey().structureName());
+        }
 
         if (result.matched()) {
             Map<BlockPos, CompartmentType> declaredCompartments = JsonMultiBlockCompartmentPredicate.declaredCompartments(
