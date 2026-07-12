@@ -75,8 +75,7 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
             throw new IllegalStateException("A different Trinity crafting runtime is already published for this node");
         }
 
-        Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements =
-                new IdentityHashMap<>(this.registrations);
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements = new IdentityHashMap<>(this.registrations);
         replacements.put(node, runtime);
         commitRegistrations(replacements);
         return true;
@@ -87,8 +86,7 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
         if (!this.registrations.containsKey(node)) {
             return false;
         }
-        Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements =
-                new IdentityHashMap<>(this.registrations);
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements = new IdentityHashMap<>(this.registrations);
         replacements.remove(node);
         commitRegistrations(replacements);
         return true;
@@ -109,7 +107,7 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
 
     /** Builds the complete immutable view before changing live identity registrations. */
     private List<TrinityDataCoreCraftingRuntime> commitRegistrations(
-            Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements) {
+                                                                     Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements) {
         List<TrinityDataCoreCraftingRuntime> replacementSnapshot = createSnapshot(replacements.values());
         this.registrations.clear();
         this.registrations.putAll(replacements);
