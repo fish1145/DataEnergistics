@@ -162,7 +162,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
                     activeWorker.set(worker);
                     long dispatchTick = level.getGameTime();
-                    assertOnlyRouteQueued(helper, host, tableRoute, 2);
+                    assertOnlyRouteQueued(helper, host, tableRoute, 1);
                     assertSubstitutedTableBatches(helper, core.queuedBatches(TABLE_PATTERN_SLOT), tableRoute, dispatchTick);
                     helper.assertValueEqual(
                             worker.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
@@ -170,7 +170,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Trinity CPU should wait for both routed table outputs");
 
                     host.serverTick();
-                    assertOnlyRouteQueued(helper, host, tableRoute, 2);
+                    assertOnlyRouteQueued(helper, host, tableRoute, 1);
                 })
                 .thenIdle(1)
                 .thenExecute(() -> {
@@ -548,43 +548,50 @@ public final class TrinityDataCoreAe2CraftingGameTest {
     private static void assertOnlyRouteQueued(GameTestHelper helper,
                                               TrinityDataCoreBlockEntity host,
                                               PatternRoute expectedRoute,
-                                              int expectedCount) {
-        int aggregateCount = 0;
+                                              int expectedGroupCount) {
+        int aggregateGroupCount = 0;
         for (TrinityPatternCatalog.CoreMount mount : host.getPatternCatalog().mountedCores()) {
             TrinityPatternCore mountedCore = mount.core();
-            aggregateCount += mountedCore.queuedBatchCount();
+            aggregateGroupCount += mountedCore.queuedBatchCount();
             if (mountedCore.coreId().equals(expectedRoute.coreId())) {
                 helper.assertValueEqual(
                         mountedCore.queuedBatchCount(expectedRoute.slot()),
-                        expectedCount,
-                        "Selected physical P-core slot should own every dispatched batch");
+                        expectedGroupCount,
+                        "Selected physical P-core slot should own every dispatched queue group");
             }
         }
-        helper.assertValueEqual(aggregateCount, expectedCount, "No other P-core slot should receive this route");
+        helper.assertValueEqual(
+                aggregateGroupCount,
+                expectedGroupCount,
+                "No other P-core slot should receive this route's queue groups");
     }
 
     private static void assertSubstitutedTableBatches(GameTestHelper helper,
                                                       List<TrinityCraftingBatch> batches,
                                                       PatternRoute expectedRoute,
                                                       long dispatchTick) {
-        helper.assertValueEqual(batches.size(), 2, "One CPU tick should enqueue both table batches");
-        for (TrinityCraftingBatch batch : batches) {
-            helper.assertValueEqual(batch.route(), expectedRoute, "Queued table batch should retain its exact route");
-            helper.assertValueEqual(batch.queuedTick(), dispatchTick, "Both table batches should share one enqueue tick");
-            long substitutedAmount = 0L;
-            int nonEmptySlots = 0;
-            for (ItemStack input : batch.inputs()) {
-                if (input.isEmpty()) {
-                    continue;
-                }
-                helper.assertTrue(input.is(Items.CRIMSON_PLANKS),
-                        "Queued crafting grid should contain the actual substituted material");
-                substitutedAmount += input.getCount();
-                nonEmptySlots++;
+        helper.assertValueEqual(batches.size(), 1, "Identical same-tick dispatches should tail-merge into one group");
+        TrinityCraftingBatch batch = batches.getFirst();
+        helper.assertValueEqual(batch.count(), 2L, "Merged table group should represent both logical crafts");
+        helper.assertValueEqual(batch.route(), expectedRoute, "Queued table group should retain its exact route");
+        helper.assertValueEqual(batch.queuedTick(), dispatchTick, "Merged table group should retain its enqueue tick");
+        long substitutedAmount = 0L;
+        int nonEmptySlots = 0;
+        for (ItemStack input : batch.inputs()) {
+            if (input.isEmpty()) {
+                continue;
             }
-            helper.assertValueEqual(nonEmptySlots, 4, "Crafting table snapshot should populate four grid slots");
-            helper.assertValueEqual(substitutedAmount, 4L, "Each table batch should consume four substituted planks");
+            helper.assertTrue(input.is(Items.CRIMSON_PLANKS),
+                    "Queued crafting grid should contain the actual substituted material");
+            substitutedAmount += input.getCount();
+            nonEmptySlots++;
         }
+        helper.assertValueEqual(nonEmptySlots, 4, "Crafting table snapshot should populate four grid slots");
+        helper.assertValueEqual(substitutedAmount, 4L, "Merged table group should retain one input-grid prototype");
+        helper.assertValueEqual(
+                Math.multiplyExact(substitutedAmount, batch.count()),
+                8L,
+                "Merged table group should account for both crafts' substituted inputs");
     }
 
     private static void insertIntoNetwork(GameTestHelper helper,
