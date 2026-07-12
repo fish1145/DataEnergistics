@@ -1,13 +1,17 @@
 package com.fish_dan_.data_energistics.integration.energy;
 
 import com.fish_dan_.data_energistics.mixin.core.NeoForgeEnergyStorageAccessor;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -204,6 +208,64 @@ class UnlimitedEnergyAccessImplTest {
         assertEquals(UnlimitedEnergyAccess.UNAVAILABLE, this.access.rollbackExtraction(storage, 10L));
     }
 
+    @Test
+    void isolatesNonFatalErrorsAndSneakyCheckedCapabilityFailures() {
+        NonFatalThrowingCapabilityStorage storage = new NonFatalThrowingCapabilityStorage();
+
+        assertEquals(0L, this.access.stored(storage));
+        assertEquals(0L, this.access.capacity(storage));
+        assertFalse(this.access.canReceive(storage));
+        assertFalse(this.access.canExtract(storage));
+    }
+
+    @Test
+    void rollsBackTypedWritesThatThrowNonFatalFailuresAfterMutation() {
+        assertTypedWriteFailureRollsBack(new AssertionError("Deliberate typed write assertion"));
+        assertTypedWriteFailureRollsBack(new IOException("Deliberate typed write checked failure"));
+    }
+
+    @Test
+    void rethrowsFatalMethodHandleReaderFailuresWithoutChangingIdentity() {
+        VirtualMachineError virtualMachineError = new VirtualMachineError("Deliberate fatal VM failure") {};
+        FatalReaderStorage virtualMachineStorage = new FatalReaderStorage(virtualMachineError);
+
+        VirtualMachineError propagatedVirtualMachineError = assertThrows(
+                VirtualMachineError.class, () -> this.access.stored(virtualMachineStorage));
+        assertSame(virtualMachineError, propagatedVirtualMachineError);
+
+        ThreadDeath threadDeath = new ThreadDeath();
+        FatalReaderStorage threadDeathStorage = new FatalReaderStorage(threadDeath);
+
+        ThreadDeath propagatedThreadDeath = assertThrows(
+                ThreadDeath.class, () -> this.access.stored(threadDeathStorage));
+        assertSame(threadDeath, propagatedThreadDeath);
+    }
+
+    @Test
+    void restoresInterruptStatusForRecoverableInterruptedFailures() {
+        Thread.interrupted();
+        InterruptedException interruptedException = new InterruptedException("Deliberate integration interruption");
+        try {
+            assertSame(interruptedException, ThrowableIsolation.rethrowIfFatal(interruptedException));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    private void assertTypedWriteFailureRollsBack(Throwable failure) {
+        TypedUnlimitedStorage storage = new TypedUnlimitedStorage(20L, 200L, failure);
+
+        UnlimitedEnergyAccessException exception = assertThrows(
+                UnlimitedEnergyAccessException.class, () -> this.access.insert(storage, 80L, false));
+
+        assertEquals(20L, storage.actualStored());
+        assertEquals(2, storage.writeAttempts());
+        assertTrue(exception.isMutationAmountKnown());
+        assertEquals(0L, exception.mutationAmount());
+        assertSame(failure, exception.getCause().getCause());
+    }
+
     private abstract static class TestStorage implements IEnergyStorage {
 
         private final boolean receiveAllowed;
@@ -270,11 +332,18 @@ class UnlimitedEnergyAccessImplTest {
         private long value;
         private final long limit;
         private int notifications;
+        private int writeAttempts;
+        private Throwable writeFailure;
 
         private TypedUnlimitedStorage(long value, long limit) {
+            this(value, limit, null);
+        }
+
+        private TypedUnlimitedStorage(long value, long limit, Throwable writeFailure) {
             super(true, true);
             this.value = value;
             this.limit = limit;
+            this.writeFailure = writeFailure;
         }
 
         @Override
@@ -305,6 +374,12 @@ class UnlimitedEnergyAccessImplTest {
         @Override
         public void setStoredEnergyLong(long amount) {
             this.value = amount;
+            this.writeAttempts++;
+            Throwable failure = this.writeFailure;
+            this.writeFailure = null;
+            if (failure != null) {
+                throwUnchecked(failure);
+            }
         }
 
         @Override
@@ -314,6 +389,10 @@ class UnlimitedEnergyAccessImplTest {
 
         private int notifications() {
             return this.notifications;
+        }
+
+        private int writeAttempts() {
+            return this.writeAttempts;
         }
     }
 
@@ -347,6 +426,81 @@ class UnlimitedEnergyAccessImplTest {
         @Override
         public boolean canReceive() {
             throw new IllegalStateException("Deliberate receive-permission failure");
+        }
+    }
+
+    private static final class NonFatalThrowingCapabilityStorage implements IEnergyStorage {
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            throw new AssertionError("Deliberate stored-energy assertion");
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            throwUnchecked(new IOException("Deliberate capacity checked failure"));
+            return 0;
+        }
+
+        @Override
+        public boolean canExtract() {
+            throw new AssertionError("Deliberate extract-permission assertion");
+        }
+
+        @Override
+        public boolean canReceive() {
+            throwUnchecked(new IOException("Deliberate receive-permission checked failure"));
+            return false;
+        }
+    }
+
+    private static final class FatalReaderStorage extends TestStorage {
+
+        private long amount = 10L;
+        private final long capacity = 100L;
+        private final Throwable readFailure;
+
+        private FatalReaderStorage(Throwable readFailure) {
+            super(true, true);
+            this.readFailure = readFailure;
+        }
+
+        private long getAmount() {
+            throwUnchecked(this.readFailure);
+            return this.amount;
+        }
+
+        private long getCapacity() {
+            return this.capacity;
+        }
+
+        private void setAmount(long amount) {
+            this.amount = amount;
+        }
+
+        @Override
+        protected long actualStored() {
+            return this.amount;
+        }
+
+        @Override
+        protected long actualCapacity() {
+            return this.capacity;
+        }
+
+        @Override
+        protected void setActualStored(long amount) {
+            this.amount = amount;
         }
     }
 
@@ -780,5 +934,10 @@ class UnlimitedEnergyAccessImplTest {
 
     private static int clampToInt(long value) {
         return (int) Math.min(value, Integer.MAX_VALUE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void throwUnchecked(Throwable throwable) throws T {
+        throw (T) throwable;
     }
 }

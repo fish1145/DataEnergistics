@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.integration.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.mixin.core.NeoForgeEnergyStorageAccessor;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
@@ -53,7 +54,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             }
             try {
                 ((UnlimitedEnergyStorage) target).setStoredEnergyLong(amount);
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 throw directFailure("Could not write typed unlimited energy storage", target, exception);
             }
         }
@@ -79,7 +81,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             }
             try {
                 ((NeoForgeEnergyStorageAccessor) target).dataEnergistics$setEnergy((int) amount);
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 throw directFailure("Could not write NeoForge unlimited energy storage", target, exception);
             }
         }
@@ -181,7 +184,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         }
         try {
             target.access().state().writer().write(target.target(), restoredAmount);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             throw mutationFailure(storage, target, before, amount, true,
                     "Unlimited extraction compensation write failed", exception);
         }
@@ -242,7 +246,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         long changed;
         try {
             changed = operation.invoke(target.target(), invocationAmount, simulate);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             throw mutationFailure(storage, target, before, invocationAmount, inserting,
                     "Unlimited energy operation invocation failed", exception);
         }
@@ -278,7 +283,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
         try {
             target.access().state().writer().write(target.target(), targetAmount);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             throw mutationFailure(storage, target, before, requested, inserting,
                     "Unlimited direct write invocation failed", exception);
         }
@@ -317,7 +323,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         UnlimitedEnergyAccessException failure = null;
         try {
             target.access().state().writer().write(target.target(), before.stored());
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             failure = directFailure("Could not invoke unlimited energy rollback", target.target(), exception);
         }
         Snapshot afterRollback = readVerifiedSnapshot(storage, target);
@@ -446,7 +453,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                     return Optional.of(new NumericField(access, access));
                 } catch (NoSuchFieldException exception) {
                     type = type.getSuperclass();
-                } catch (IllegalAccessException | RuntimeException | LinkageError exception) {
+                } catch (Throwable exception) {
+                    ThrowableIsolation.rethrowIfFatal(exception);
                     Data_Energistics.LOGGER.debug("Could not resolve unlimited energy field {}#{}", type.getName(), name,
                             exception);
                     break;
@@ -473,7 +481,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                     break;
                 } catch (NoSuchFieldException exception) {
                     type = type.getSuperclass();
-                } catch (IllegalAccessException | RuntimeException | LinkageError exception) {
+                } catch (Throwable exception) {
+                    ThrowableIsolation.rethrowIfFatal(exception);
                     Data_Energistics.LOGGER.debug("Could not resolve unlimited energy wrapper field {}#{}", type.getName(),
                             name, exception);
                     break;
@@ -524,7 +533,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                         return method;
                     }
                 }
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 Data_Energistics.LOGGER.debug("Could not inspect unlimited energy method {}#{}", type.getName(), name,
                         exception);
                 return null;
@@ -541,7 +551,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private static Optional<MethodHandle> createMethodHandle(Method method) {
         try {
             return Optional.of(MethodHandles.privateLookupIn(method.getDeclaringClass(), LOOKUP).unreflect(method));
-        } catch (IllegalAccessException | RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.debug("Could not resolve unlimited energy method {}", describe(method), exception);
             return Optional.empty();
         }
@@ -560,7 +571,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private static Long readTypedStored(Object target) {
         try {
             return ((UnlimitedEnergyStorage) target).getStoredEnergyLong();
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error("Could not read typed unlimited stored energy from {}",
                     target.getClass().getName(), exception);
             return null;
@@ -571,7 +583,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private static Long readTypedCapacity(Object target) {
         try {
             return ((UnlimitedEnergyStorage) target).getEnergyCapacityLong();
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error("Could not read typed unlimited energy capacity from {}",
                     target.getClass().getName(), exception);
             return null;
@@ -584,7 +597,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         }
         try {
             storage.onUnlimitedEnergyChanged();
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             throw directFailure("Could not notify typed unlimited energy storage", storage, exception);
         }
     }
@@ -603,7 +617,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             }
             Data_Energistics.LOGGER.error("Energy capability {} reported negative {}: {}",
                     storage.getClass().getName(), description, value);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error("Energy capability {} failed to report {}",
                     storage.getClass().getName(), description, exception);
         }
@@ -614,7 +629,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         String description = receive ? "receive" : "extract";
         try {
             return receive ? storage.canReceive() : storage.canExtract();
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error("Energy capability {} failed to report {} permission",
                     storage.getClass().getName(), description, exception);
             return false;
@@ -725,7 +741,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             try {
                 Object value = this.handle.get(target);
                 return value instanceof Number number ? number.longValue() : null;
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 Data_Energistics.LOGGER.error("Could not read unlimited energy field {}", this.description, exception);
                 return null;
             }
@@ -743,7 +760,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                 } else {
                     this.handle.set(target, amount);
                 }
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 throw directFailure("Could not write unlimited energy field " + this.description, target, exception);
             }
         }
@@ -761,7 +779,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         public Object read(Object target) {
             try {
                 return this.handle.get(target);
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 Data_Energistics.LOGGER.error("Could not read unlimited energy wrapper field {}", this.description,
                         exception);
                 return null;
@@ -778,6 +797,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                 Object result = this.handle.invokeWithArguments(target);
                 return result instanceof Number number ? number.longValue() : null;
             } catch (Throwable throwable) {
+                ThrowableIsolation.rethrowIfFatal(throwable);
                 Data_Energistics.LOGGER.error("Could not invoke unlimited energy reader {}", this.description, throwable);
                 return null;
             }
@@ -801,6 +821,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                 }
                 this.handle.invokeWithArguments(target, argument);
             } catch (Throwable throwable) {
+                ThrowableIsolation.rethrowIfFatal(throwable);
                 throw directFailure("Could not invoke unlimited energy writer " + this.description, target, throwable);
             }
         }
@@ -826,6 +847,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                 throw new UnlimitedEnergyAccessException(
                         "Unlimited energy operation " + this.description + " returned a non-numeric result");
             } catch (Throwable throwable) {
+                ThrowableIsolation.rethrowIfFatal(throwable);
                 if (throwable instanceof UnlimitedEnergyAccessException exception) {
                     throw exception;
                 }
@@ -842,6 +864,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             try {
                 this.handle.invokeWithArguments(target);
             } catch (Throwable throwable) {
+                ThrowableIsolation.rethrowIfFatal(throwable);
                 throw directFailure("Could not invoke unlimited energy notification " + this.description, target,
                         throwable);
             }

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -110,7 +111,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 try {
                     long inserted = transferSourceOnce(source, receiveEndpoints, stalledReceiveStorages);
                     madeProgress |= inserted > 0;
-                } catch (RuntimeException | LinkageError exception) {
+                } catch (Throwable exception) {
+                    ThrowableIsolation.rethrowIfFatal(exception);
                     source.stalled = true;
                     Data_Energistics.LOGGER.error("Unlimited tower transfer failed for source {}", source.description(), exception);
                 }
@@ -154,7 +156,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 if (quota > 0) {
                     sources.add(new TransferSource(endpoint, quota));
                 }
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 Data_Energistics.LOGGER.error("Failed to freeze unlimited tower source quota at {} side {} storage {}",
                         endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(), exception);
             }
@@ -174,7 +177,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long extracted;
         try {
             extracted = this.gridEnergyAccess.extract(host, requested, simulate);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error(
                     "AppFlux grid extraction failed for {} at {}; request={} FE, simulate={}",
                     purpose, describeGridEnergyHost(host), requested, simulate, exception);
@@ -293,7 +297,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                     "Unlimited tower compensation failed for source {} with unreadable final state; quarantined {} FE",
                     source.description(), amount, exception);
             return amount;
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error(
                     "Unlimited tower could not compensate {} FE on source {}", amount, source.description(), exception);
             return 0L;
@@ -441,7 +446,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                     continue;
                 }
                 result = insertEnergyIntoEndpoint(endpoint, remaining, simulate);
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 stalledReceiveStorages.add(storage);
                 Data_Energistics.LOGGER.error("Unlimited tower receiver failed at {} side {} storage {}",
                         endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
@@ -533,7 +539,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             int inserted;
             try {
                 inserted = storage.receiveEnergy(request, simulate);
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 Data_Energistics.LOGGER.error(
                         "Energy receiver at {} side {} failed after accepting {} FE through its capability",
                         endpoint.pos(), endpoint.side(), insertedTotal, exception);
@@ -565,7 +572,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 return 0;
             }
             return (long) capacity - stored;
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error("Energy receiver state query failed at {} side {} storage {}",
                     endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
             return 0;
@@ -607,7 +615,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                     "Unlimited energy source mutation failed at {} side {} storage {} with unreadable final state; quarantined {} FE",
                     endpoint.pos(), endpoint.side(), storage.getClass().getName(), amount, exception);
             return EndpointTransferResult.STALLED;
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error(
                     "Unlimited energy source mutation failed at {} side {} storage {}",
                     endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
@@ -636,7 +645,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             int extracted;
             try {
                 extracted = storage.extractEnergy(request, simulate);
-            } catch (RuntimeException | LinkageError exception) {
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
                 Data_Energistics.LOGGER.error(
                         "Energy source at {} side {} failed after providing {} FE through its capability",
                         endpoint.pos(), endpoint.side(), extractedTotal, exception);
@@ -666,7 +676,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 return 0;
             }
             return stored;
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error("Energy source state query failed at {} side {} storage {}",
                     endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
             return 0;
@@ -884,14 +895,16 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     private void publishMutation(TowerEnergyEndpoint endpoint, IEnergyStorage storage, String operation) {
         try {
             this.unlimitedEnergyAccess.notifyStorageChanged(storage);
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error(
                     "Failed to notify unlimited tower {} at {} side {} storage {}",
                     operation, endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
         }
         try {
             this.context.markEndpointChanged(endpoint.pos());
-        } catch (RuntimeException | LinkageError exception) {
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
             Data_Energistics.LOGGER.error(
                     "Failed to mark unlimited tower {} endpoint changed at {} side {} storage {}",
                     operation, endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);

@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.integration.oritech;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyStorage;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -66,7 +68,7 @@ public final class OritechEnergyIntegration {
             if (maxReceive <= 0 || !canReceive()) {
                 return 0;
             }
-            long inserted = this.storage.insert(maxReceive, simulate);
+            long inserted = mutateLong(() -> this.storage.insert(maxReceive, simulate), "insert energy");
             if (!simulate && inserted > 0) {
                 onUnlimitedEnergyChanged();
             }
@@ -78,7 +80,7 @@ public final class OritechEnergyIntegration {
             if (maxExtract <= 0 || !canExtract()) {
                 return 0;
             }
-            long extracted = this.storage.extract(maxExtract, simulate);
+            long extracted = mutateLong(() -> this.storage.extract(maxExtract, simulate), "extract energy");
             if (!simulate && extracted > 0) {
                 onUnlimitedEnergyChanged();
             }
@@ -87,42 +89,92 @@ public final class OritechEnergyIntegration {
 
         @Override
         public int getEnergyStored() {
-            return clampToInt(getStoredEnergyLong());
+            return clampToInt(readStandardLong(this.storage::getAmount, "read stored energy"));
         }
 
         @Override
         public int getMaxEnergyStored() {
-            return clampToInt(getEnergyCapacityLong());
+            return clampToInt(readStandardLong(this.storage::getCapacity, "read energy capacity"));
         }
 
         @Override
         public boolean canExtract() {
-            return this.storage.supportsExtraction();
+            return readPermission(this.storage::supportsExtraction, "read extraction permission");
         }
 
         @Override
         public boolean canReceive() {
-            return this.storage.supportsInsertion();
+            return readPermission(this.storage::supportsInsertion, "read insertion permission");
         }
 
         @Override
         public long getStoredEnergyLong() {
-            return this.storage.getAmount();
+            return readExactLong(this.storage::getAmount, "read exact stored energy");
         }
 
         @Override
         public long getEnergyCapacityLong() {
-            return this.storage.getCapacity();
+            return readExactLong(this.storage::getCapacity, "read exact energy capacity");
         }
 
         @Override
         public void setStoredEnergyLong(long amount) {
-            this.storage.setAmount(amount);
+            mutate(() -> this.storage.setAmount(amount), "set stored energy");
         }
 
         @Override
         public void onUnlimitedEnergyChanged() {
-            this.storage.update();
+            mutate(this.storage::update, "publish energy change");
+        }
+
+        private static long readStandardLong(LongOperation operation, String description) {
+            try {
+                return operation.execute();
+            } catch (Throwable throwable) {
+                ThrowableIsolation.rethrowIfFatal(throwable);
+                Data_Energistics.LOGGER.error("Failed to {} through Oritech energy API", description, throwable);
+                return 0L;
+            }
+        }
+
+        private static boolean readPermission(BooleanOperation operation, String description) {
+            try {
+                return operation.execute();
+            } catch (Throwable throwable) {
+                ThrowableIsolation.rethrowIfFatal(throwable);
+                Data_Energistics.LOGGER.error("Failed to {} through Oritech energy API", description, throwable);
+                return false;
+            }
+        }
+
+        private static long readExactLong(LongOperation operation, String description) {
+            try {
+                return operation.execute();
+            } catch (Throwable throwable) {
+                throw operationFailure(description, throwable);
+            }
+        }
+
+        private static long mutateLong(LongOperation operation, String description) {
+            try {
+                return operation.execute();
+            } catch (Throwable throwable) {
+                throw operationFailure(description, throwable);
+            }
+        }
+
+        private static void mutate(VoidOperation operation, String description) {
+            try {
+                operation.execute();
+            } catch (Throwable throwable) {
+                throw operationFailure(description, throwable);
+            }
+        }
+
+        private static IllegalStateException operationFailure(String description, Throwable throwable) {
+            ThrowableIsolation.rethrowIfFatal(throwable);
+            Data_Energistics.LOGGER.error("Failed to {} through Oritech energy API", description, throwable);
+            return new IllegalStateException("Failed to " + description + " through Oritech energy API", throwable);
         }
 
         private static int clampToInt(long amount) {
@@ -130,6 +182,38 @@ public final class OritechEnergyIntegration {
                 return 0;
             }
             return (int) Math.min(amount, Integer.MAX_VALUE);
+        }
+
+        /** Supplies one exact or standard-width Oritech energy value. */
+        @FunctionalInterface
+        private interface LongOperation {
+
+            /**
+             * Reads or mutates one long-width energy value.
+             *
+             * @return operation result
+             */
+            long execute();
+        }
+
+        /** Supplies one Oritech storage permission. */
+        @FunctionalInterface
+        private interface BooleanOperation {
+
+            /**
+             * Reads the third-party permission.
+             *
+             * @return permission state
+             */
+            boolean execute();
+        }
+
+        /** Executes one Oritech mutation that has no return value. */
+        @FunctionalInterface
+        private interface VoidOperation {
+
+            /** Executes the third-party mutation. */
+            void execute();
         }
     }
 }

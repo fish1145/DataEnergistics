@@ -20,6 +20,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TowerEnergyDistributorImplTest {
@@ -325,6 +327,62 @@ class TowerEnergyDistributorImplTest {
     }
 
     @Test
+    void isolatesAppFluxAssertionErrorAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(new AssertionError("Deliberate AppFlux assertion failure"));
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void isolatesSneakyCheckedAppFluxFailureAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(new Exception("Deliberate AppFlux checked failure"));
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void rethrowsVirtualMachineErrorFromAppFluxUnchanged() {
+        TestVirtualMachineError failure = new TestVirtualMachineError("Deliberate fatal AppFlux failure");
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(failure);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+
+        TestVirtualMachineError thrown = assertThrows(TestVirtualMachineError.class,
+                () -> distributor.extractGridEnergy(1L, false, "fatal throwable test"));
+
+        assertSame(failure, thrown);
+    }
+
+    @Test
+    void rethrowsThreadDeathFromAppFluxUnchanged() {
+        ThreadDeath failure = new ThreadDeath();
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(failure);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+
+        ThreadDeath thrown = assertThrows(ThreadDeath.class,
+                () -> distributor.extractGridEnergy(1L, false, "thread termination test"));
+
+        assertSame(failure, thrown);
+    }
+
+    @Test
     void rejectsNegativeAppFluxResultAndContinuesRangeExtractionFromFe() {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.returnExtractionResult(-1L);
@@ -604,6 +662,25 @@ class TowerEnergyDistributorImplTest {
         assertEquals(1, zeroProgressReceiver.insertAttempts());
     }
 
+    @Test
+    void isolatesNonFatalCapabilityThrowableAndContinuesWithHealthyEndpoint() {
+        TestEnergyStorage source = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TestEnergyStorage throwingReceiver = TestEnergyStorage.receiver(7L, Long.MAX_VALUE);
+        throwingReceiver.failInsertion(new AssertionError("Deliberate capability assertion failure"));
+        TestEnergyStorage healthyReceiver = TestEnergyStorage.receiver(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(SECOND_POS, throwingReceiver), endpoint(RECEIVER_POS, healthyReceiver)),
+                new FallbackUnlimitedEnergyAccess());
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(0L, source.stored());
+        assertEquals(0L, throwingReceiver.stored());
+        assertEquals(7L, healthyReceiver.stored());
+        assertEquals(1, throwingReceiver.insertAttempts());
+    }
+
     private static TowerEnergyDistributorImpl createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
                                                                 List<TowerEnergyEndpoint> receiveEndpoints) {
         return createDistributor(extractEndpoints, receiveEndpoints, new TestUnlimitedEnergyAccess());
@@ -803,7 +880,7 @@ class TowerEnergyDistributorImplTest {
         private int realExtractCalls;
         private int restoreCalls;
         @Nullable
-        private RuntimeException extractionFailure;
+        private Throwable extractionFailure;
         @Nullable
         private Long forcedExtractionResult;
 
@@ -819,7 +896,7 @@ class TowerEnergyDistributorImplTest {
                 this.realExtractCalls++;
             }
             if (this.extractionFailure != null) {
-                throw this.extractionFailure;
+                throwUnchecked(this.extractionFailure);
             }
             if (this.forcedExtractionResult != null) {
                 return this.forcedExtractionResult;
@@ -867,6 +944,10 @@ class TowerEnergyDistributorImplTest {
 
         private void failExtraction() {
             this.extractionFailure = new IllegalStateException("Deliberate AppFlux extraction failure");
+        }
+
+        private void failExtraction(Throwable failure) {
+            this.extractionFailure = failure;
         }
 
         private void returnExtractionResult(long result) {
@@ -1358,7 +1439,8 @@ class TowerEnergyDistributorImplTest {
         private final boolean extractAllowed;
         private long maxInsert;
         private final long maxExtract;
-        private boolean failInsertion;
+        @Nullable
+        private Throwable insertionFailure;
         private boolean invalidInsertion;
         private boolean failExtraction;
         private boolean fullInsertionDuringSimulation;
@@ -1452,7 +1534,11 @@ class TowerEnergyDistributorImplTest {
         }
 
         private void failInsertion() {
-            this.failInsertion = true;
+            failInsertion(new IllegalStateException("Deliberate receiver failure"));
+        }
+
+        private void failInsertion(Throwable failure) {
+            this.insertionFailure = failure;
         }
 
         private void returnInvalidInsertion() {
@@ -1491,8 +1577,8 @@ class TowerEnergyDistributorImplTest {
                     throw new IllegalStateException("Deliberate segmented receiver failure");
                 }
             }
-            if (this.failInsertion) {
-                throw new IllegalStateException("Deliberate receiver failure");
+            if (this.insertionFailure != null) {
+                throwUnchecked(this.insertionFailure);
             }
             if (this.invalidInsertion) {
                 return amount + 1;
@@ -1582,6 +1668,18 @@ class TowerEnergyDistributorImplTest {
         @Override
         public boolean canReceive() {
             return this.receiveAllowed;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void throwUnchecked(Throwable throwable) throws T {
+        throw (T) throwable;
+    }
+
+    private static final class TestVirtualMachineError extends VirtualMachineError {
+
+        private TestVirtualMachineError(String message) {
+            super(message);
         }
     }
 }
