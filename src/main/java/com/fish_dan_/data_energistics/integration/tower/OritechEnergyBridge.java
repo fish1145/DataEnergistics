@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.integration.tower;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.oritech.OritechEnergyIntegration;
+import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,11 +30,31 @@ public final class OritechEnergyBridge {
      */
     @Nullable
     public IEnergyStorage findEnergyStorage(Level level, BlockPos pos, @Nullable Direction side) {
+        return isolateEnergyStorageLookup(() -> OritechEnergyIntegration.findEnergyStorage(level, pos, side), pos, side);
+    }
+
+    @Nullable
+    static IEnergyStorage isolateEnergyStorageLookup(EnergyStorageLookup lookup, BlockPos pos,
+                                                     @Nullable Direction side) {
         try {
-            return OritechEnergyIntegration.findEnergyStorage(level, pos, side);
-        } catch (RuntimeException | LinkageError exception) {
-            Data_Energistics.LOGGER.error("Failed to resolve Oritech energy storage at {} side {}", pos, side, exception);
+            return lookup.find();
+        } catch (Throwable throwable) {
+            ThrowableIsolation.rethrowIfFatal(throwable);
+            Data_Energistics.LOGGER.error("Failed to resolve Oritech energy storage at {} side {}", pos, side, throwable);
             return null;
         }
+    }
+
+    /** Executes one optional Oritech storage lookup behind the shared fatal-failure boundary. */
+    @FunctionalInterface
+    interface EnergyStorageLookup {
+
+        /**
+         * Resolves the third-party storage.
+         *
+         * @return resolved storage, or null
+         */
+        @Nullable
+        IEnergyStorage find();
     }
 }
