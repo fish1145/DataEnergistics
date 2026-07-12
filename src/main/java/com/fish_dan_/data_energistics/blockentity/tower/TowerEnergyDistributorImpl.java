@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -74,12 +75,12 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
     @Override
     public void performActiveRangeTransfer() {
-        if (!this.context.isTowerActive()) {
+        if (!this.context.isTowerActive() || this.context.quarantinedTransferEnergy() > 0) {
             return;
         }
 
         flushBufferedEnergy();
-        if (this.context.bufferedTransferEnergy() > 0) {
+        if (this.context.bufferedTransferEnergy() > 0 || this.context.quarantinedTransferEnergy() > 0) {
             return;
         }
 
@@ -112,7 +113,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                     source.stalled = true;
                     Data_Energistics.LOGGER.error("Unlimited tower transfer failed for source {}", source.description(), exception);
                 }
-                if (this.context.bufferedTransferEnergy() > 0) {
+                if (this.context.bufferedTransferEnergy() > 0 || this.context.quarantinedTransferEnergy() > 0) {
                     this.activeSourceCursor = (startIndex + offset + 1) % sourceCount;
                     return;
                 }
@@ -125,7 +126,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     @Override
     public void flushBufferedEnergy() {
         long bufferedEnergy = this.context.bufferedTransferEnergy();
-        if (!this.context.isTowerActive() || bufferedEnergy <= 0) {
+        if (!this.context.isTowerActive() || bufferedEnergy <= 0 || this.context.quarantinedTransferEnergy() > 0) {
             return;
         }
 
@@ -234,10 +235,36 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         invalidateEnergyQueryCache();
     }
 
+    private void addQuarantinedEnergy(long amount) {
+        if (amount <= 0) {
+            return;
+        }
+        this.context.setQuarantinedTransferEnergy(
+                Math.addExact(this.context.quarantinedTransferEnergy(), amount));
+        invalidateEnergyQueryCache();
+    }
+
     private long rollbackUndeliveredEnergy(TransferSource source, long amount) {
         long restored;
         try {
             restored = source.rollbackExtraction(amount);
+        } catch (UnlimitedEnergyAccessException exception) {
+            if (exception.isMutationAmountKnown()) {
+                long confirmedRestored = confirmedMutationAmount(exception, amount);
+                if (confirmedRestored > 0) {
+                    source.publishFailedMutation("compensation");
+                }
+                Data_Energistics.LOGGER.error(
+                        "Unlimited tower compensation failed for source {}; confirmed {} of {} FE restored",
+                        source.description(), confirmedRestored, amount, exception);
+                return confirmedRestored;
+            }
+            addQuarantinedEnergy(amount);
+            source.publishFailedMutation("uncertain compensation");
+            Data_Energistics.LOGGER.error(
+                    "Unlimited tower compensation failed for source {} with unreadable final state; quarantined {} FE",
+                    source.description(), amount, exception);
+            return amount;
         } catch (RuntimeException | LinkageError exception) {
             Data_Energistics.LOGGER.error(
                     "Unlimited tower could not compensate {} FE on source {}", amount, source.description(), exception);
@@ -408,6 +435,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 remaining -= inserted;
                 lastSuccessfulIndex = endpointIndex;
             }
+            if (result.terminal()) {
+                break;
+            }
         }
 
         if (!simulate && lastSuccessfulIndex >= 0) {
@@ -426,21 +456,39 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
 
         IEnergyStorage storage = endpoint.storage();
-        long directInserted = this.unlimitedEnergyAccess.insert(storage, amount, simulate);
-        if (directInserted != UnlimitedEnergyAccess.UNAVAILABLE) {
-            boolean stalled = directInserted == 0;
-            if (!simulate && directInserted > 0) {
-                try {
-                    this.unlimitedEnergyAccess.notifyStorageChanged(storage);
-                    this.context.markEndpointChanged(endpoint.pos());
-                } catch (RuntimeException | LinkageError exception) {
-                    stalled = true;
-                    Data_Energistics.LOGGER.error(
-                            "Failed to publish unlimited tower receiver mutation at {} side {} storage {}",
-                            endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+        long directInserted;
+        try {
+            directInserted = this.unlimitedEnergyAccess.insert(storage, amount, simulate);
+        } catch (UnlimitedEnergyAccessException exception) {
+            boolean mutationKnown = exception.isMutationAmountKnown();
+            long confirmedInsertion = mutationKnown ? confirmedMutationAmount(exception, amount) : 0L;
+            long failedInsertion = simulate ? 0L : mutationKnown ? confirmedInsertion : amount;
+            if (!simulate && (confirmedInsertion > 0 || !mutationKnown)) {
+                if (!mutationKnown) {
+                    addQuarantinedEnergy(amount);
                 }
+                publishFailedMutation(endpoint, storage, "receiver mutation");
             }
-            return new EndpointTransferResult(directInserted, stalled);
+            if (mutationKnown) {
+                Data_Energistics.LOGGER.error(
+                        "Unlimited energy receiver mutation failed at {} side {} storage {}; confirmed {} of {} FE inserted",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), confirmedInsertion, amount, exception);
+            } else if (simulate) {
+                Data_Energistics.LOGGER.error(
+                        "Unlimited energy receiver simulation failed at {} side {} storage {} with unreadable final state; stopping without reporting simulated progress",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            } else {
+                Data_Energistics.LOGGER.error(
+                        "Unlimited energy receiver mutation failed at {} side {} storage {} with unreadable final state; quarantined {} FE",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), amount, exception);
+            }
+            return new EndpointTransferResult(failedInsertion, true, true);
+        }
+        if (directInserted != UnlimitedEnergyAccess.UNAVAILABLE) {
+            if (!simulate && directInserted > 0) {
+                publishMutation(endpoint, storage, "receiver mutation");
+            }
+            return new EndpointTransferResult(directInserted, directInserted == 0);
         }
         return insertThroughCapability(endpoint, amount, simulate);
     }
@@ -512,6 +560,25 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long directExtracted;
         try {
             directExtracted = this.unlimitedEnergyAccess.extract(storage, amount, simulate);
+        } catch (UnlimitedEnergyAccessException exception) {
+            if (exception.isMutationAmountKnown()) {
+                long confirmedExtracted = confirmedMutationAmount(exception, amount);
+                if (!simulate && confirmedExtracted > 0) {
+                    publishFailedMutation(endpoint, storage, "source mutation");
+                }
+                Data_Energistics.LOGGER.error(
+                        "Unlimited energy source mutation failed at {} side {} storage {}; confirmed {} of {} FE extracted",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), confirmedExtracted, amount, exception);
+                return new EndpointTransferResult(confirmedExtracted, true);
+            }
+            if (!simulate) {
+                addQuarantinedEnergy(amount);
+                publishFailedMutation(endpoint, storage, "uncertain source mutation");
+            }
+            Data_Energistics.LOGGER.error(
+                    "Unlimited energy source mutation failed at {} side {} storage {} with unreadable final state; quarantined {} FE",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), amount, exception);
+            return EndpointTransferResult.STALLED;
         } catch (RuntimeException | LinkageError exception) {
             Data_Energistics.LOGGER.error(
                     "Unlimited energy source mutation failed at {} side {} storage {}",
@@ -525,19 +592,10 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                         endpoint.pos(), endpoint.side(), storage.getClass().getName(), directExtracted, amount);
                 return EndpointTransferResult.STALLED;
             }
-            boolean stalled = directExtracted == 0;
             if (!simulate && directExtracted > 0) {
-                try {
-                    this.unlimitedEnergyAccess.notifyStorageChanged(storage);
-                    this.context.markEndpointChanged(endpoint.pos());
-                } catch (RuntimeException | LinkageError exception) {
-                    stalled = true;
-                    Data_Energistics.LOGGER.error(
-                            "Failed to publish unlimited tower source mutation at {} side {} storage {}",
-                            endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
-                }
+                publishMutation(endpoint, storage, "source mutation");
             }
-            return new EndpointTransferResult(directExtracted, stalled);
+            return new EndpointTransferResult(directExtracted, directExtracted == 0);
         }
 
         long extractedTotal = 0;
@@ -783,11 +841,44 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return current + delta;
     }
 
+    private static long confirmedMutationAmount(UnlimitedEnergyAccessException exception, long requested) {
+        if (!exception.isMutationAmountKnown()) {
+            return 0L;
+        }
+        long confirmed = exception.mutationAmount();
+        return confirmed <= requested ? confirmed : 0L;
+    }
+
+    private void publishFailedMutation(TowerEnergyEndpoint endpoint, IEnergyStorage storage, String operation) {
+        publishMutation(endpoint, storage, operation);
+    }
+
+    private void publishMutation(TowerEnergyEndpoint endpoint, IEnergyStorage storage, String operation) {
+        try {
+            this.unlimitedEnergyAccess.notifyStorageChanged(storage);
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to notify unlimited tower {} at {} side {} storage {}",
+                    operation, endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+        }
+        try {
+            this.context.markEndpointChanged(endpoint.pos());
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to mark unlimited tower {} endpoint changed at {} side {} storage {}",
+                    operation, endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+        }
+    }
+
     private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
 
-    private record EndpointTransferResult(long amount, boolean stalled) {
+    private record EndpointTransferResult(long amount, boolean stalled, boolean terminal) {
 
-        private static final EndpointTransferResult STALLED = new EndpointTransferResult(0L, true);
+        private EndpointTransferResult(long amount, boolean stalled) {
+            this(amount, stalled, false);
+        }
+
+        private static final EndpointTransferResult STALLED = new EndpointTransferResult(0L, true, false);
     }
 
     private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
@@ -832,16 +923,16 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             IEnergyStorage storage = this.endpoint.storage();
             long restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
             if (restored > 0) {
-                try {
-                    TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.notifyStorageChanged(storage);
-                    TowerEnergyDistributorImpl.this.context.markEndpointChanged(this.endpoint.pos());
-                } catch (RuntimeException | LinkageError exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Failed to publish unlimited tower source compensation at {} side {} storage {}",
-                            this.endpoint.pos(), this.endpoint.side(), storage.getClass().getName(), exception);
-                }
+                TowerEnergyDistributorImpl.this.publishMutation(this.endpoint, storage, "source compensation");
             }
             return restored;
+        }
+
+        private void publishFailedMutation(String operation) {
+            if (this.endpoint != null) {
+                TowerEnergyDistributorImpl.this.publishFailedMutation(
+                        this.endpoint, this.endpoint.storage(), operation);
+            }
         }
 
         @Nullable

@@ -182,12 +182,13 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         try {
             target.access().state().writer().write(target.target(), restoredAmount);
         } catch (RuntimeException | LinkageError exception) {
-            throw mutationFailure(storage, target, before, "Unlimited extraction compensation write failed", exception);
+            throw mutationFailure(storage, target, before, amount, true,
+                    "Unlimited extraction compensation write failed", exception);
         }
 
         Snapshot after = readVerifiedSnapshot(storage, target);
         if (after == null || after.stored() != restoredAmount || after.capacity() != before.capacity()) {
-            throw mutationFailure(storage, target, before,
+            throw mutationFailure(storage, target, before, amount, true,
                     "Unlimited extraction compensation failed read-back verification", null);
         }
         return amount;
@@ -225,6 +226,9 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         }
 
         long requested = Math.min(amount, available);
+        if (simulate) {
+            return requested;
+        }
         AmountOperation operation = inserting ? target.access().insertOperation() : target.access().extractOperation();
         if (operation != null) {
             return invokeOperation(storage, target, before, requested, simulate, inserting, operation);
@@ -239,23 +243,24 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         try {
             changed = operation.invoke(target.target(), invocationAmount, simulate);
         } catch (RuntimeException | LinkageError exception) {
-            throw mutationFailure(storage, target, before, "Unlimited energy operation invocation failed", exception);
+            throw mutationFailure(storage, target, before, invocationAmount, inserting,
+                    "Unlimited energy operation invocation failed", exception);
         }
         if (changed < 0L || changed > invocationAmount || changed > requested) {
-            throw mutationFailure(storage, target, before,
+            throw mutationFailure(storage, target, before, invocationAmount, inserting,
                     "Unlimited energy operation returned " + changed + " for request " + invocationAmount, null);
         }
 
         long expectedStored = inserting ? safeAdd(before.stored(), changed) : before.stored() - changed;
         if (expectedStored < 0L || expectedStored > before.capacity()) {
-            throw mutationFailure(storage, target, before,
+            throw mutationFailure(storage, target, before, invocationAmount, inserting,
                     "Unlimited energy operation produced out-of-range state " + expectedStored, null);
         }
 
         Snapshot after = readVerifiedSnapshot(storage, target);
         long requiredStored = simulate ? before.stored() : expectedStored;
         if (after == null || after.stored() != requiredStored || after.capacity() != before.capacity()) {
-            throw mutationFailure(storage, target, before,
+            throw mutationFailure(storage, target, before, invocationAmount, inserting,
                     "Unlimited energy operation did not produce its reported state", null);
         }
         return changed;
@@ -274,40 +279,57 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         try {
             target.access().state().writer().write(target.target(), targetAmount);
         } catch (RuntimeException | LinkageError exception) {
-            throw mutationFailure(storage, target, before, "Unlimited direct write invocation failed", exception);
+            throw mutationFailure(storage, target, before, requested, inserting,
+                    "Unlimited direct write invocation failed", exception);
         }
 
         Snapshot after = readVerifiedSnapshot(storage, target);
         if (after == null || after.stored() != targetAmount || after.capacity() != before.capacity()) {
-            throw mutationFailure(storage, target, before,
+            throw mutationFailure(storage, target, before, requested, inserting,
                     "Unlimited direct write failed read-back verification", null);
         }
         return requested;
     }
 
     private static UnlimitedEnergyAccessException mutationFailure(IEnergyStorage storage, DirectTarget target,
-                                                                  Snapshot before, String message,
+                                                                  Snapshot before, long requested, boolean inserting,
+                                                                  String message,
                                                                   @Nullable Throwable cause) {
-        UnlimitedEnergyAccessException failure = directFailure(message, target.target(), cause);
-        UnlimitedEnergyAccessException rollbackFailure = rollback(storage, target, before);
-        if (rollbackFailure != null) {
-            failure.addSuppressed(rollbackFailure);
+        RollbackResult rollback = rollback(storage, target, before);
+        long mutationAmount = 0L;
+        boolean mutationAmountKnown = false;
+        if (rollback.snapshot() != null) {
+            long changed = inserting ? rollback.snapshot().stored() - before.stored() : before.stored() - rollback.snapshot().stored();
+            if (changed >= 0L && changed <= requested) {
+                mutationAmount = changed;
+                mutationAmountKnown = true;
+            }
+        }
+        UnlimitedEnergyAccessException failure = directFailure(
+                message, target.target(), cause, mutationAmountKnown, mutationAmount);
+        if (rollback.failure() != null) {
+            failure.addSuppressed(rollback.failure());
         }
         return failure;
     }
 
-    @Nullable
-    private static UnlimitedEnergyAccessException rollback(IEnergyStorage storage, DirectTarget target, Snapshot before) {
+    private static RollbackResult rollback(IEnergyStorage storage, DirectTarget target, Snapshot before) {
+        UnlimitedEnergyAccessException failure = null;
         try {
             target.access().state().writer().write(target.target(), before.stored());
         } catch (RuntimeException | LinkageError exception) {
-            return directFailure("Could not invoke unlimited energy rollback", target.target(), exception);
+            failure = directFailure("Could not invoke unlimited energy rollback", target.target(), exception);
         }
         Snapshot afterRollback = readVerifiedSnapshot(storage, target);
         if (afterRollback == null || afterRollback.stored() != before.stored() || afterRollback.capacity() != before.capacity()) {
-            return directFailure("Could not verify unlimited energy rollback", target.target());
+            UnlimitedEnergyAccessException verificationFailure = directFailure("Could not verify unlimited energy rollback", target.target());
+            if (failure == null) {
+                failure = verificationFailure;
+            } else {
+                failure.addSuppressed(verificationFailure);
+            }
         }
-        return null;
+        return new RollbackResult(afterRollback, failure);
     }
 
     private static long insertionSpace(Snapshot snapshot, StateAccess state) {
@@ -609,8 +631,15 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     private static UnlimitedEnergyAccessException directFailure(String message, Object target,
                                                                 @Nullable Throwable cause) {
+        return directFailure(message, target, cause, true, 0L);
+    }
+
+    private static UnlimitedEnergyAccessException directFailure(String message, Object target,
+                                                                @Nullable Throwable cause,
+                                                                boolean mutationAmountKnown, long mutationAmount) {
         String contextualMessage = message + " on " + target.getClass().getName();
-        return cause == null ? new UnlimitedEnergyAccessException(contextualMessage) : new UnlimitedEnergyAccessException(contextualMessage, cause);
+        return new UnlimitedEnergyAccessException(
+                contextualMessage, cause, mutationAmountKnown, mutationAmount);
     }
 
     private static void validateRequestedAmount(long amount) {
@@ -680,6 +709,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private record DirectTarget(Object target, DirectAccess access) {}
 
     private record Snapshot(long stored, long capacity) {}
+
+    private record RollbackResult(@Nullable Snapshot snapshot, @Nullable UnlimitedEnergyAccessException failure) {}
 
     private record ReflectionPlan(List<ObjectReader> wrappers, Optional<DirectAccess> directAccess,
                                   List<VoidOperation> notifications) {}

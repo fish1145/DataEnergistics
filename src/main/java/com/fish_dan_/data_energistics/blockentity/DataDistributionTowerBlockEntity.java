@@ -112,6 +112,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String CONNECTION_MODE_TAG = "connection_mode";
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
     private static final String BUFFERED_TRANSFER_ENERGY_TAG = "buffered_transfer_energy";
+    private static final String QUARANTINED_TRANSFER_ENERGY_TAG = "quarantined_transfer_energy";
     private static final int PERSISTED_LINK_RETRY_DELAY = 10;
     private static final int PERSISTED_LINK_REQUEUE_TICKS = 40;
     private static final String RANGE_ADJUSTMENT_MODE_TAG = "range_adjustment_mode";
@@ -138,6 +139,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private long bufferedTransferEnergy;
+    private long quarantinedTransferEnergy;
     private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private List<BlockPos> cachedAeDisplayTargets = List.of();
@@ -219,6 +221,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.connectionMode = ConnectionMode.fromSerializedName(data.getString(CONNECTION_MODE_TAG));
         this.rangeAdjustmentMode = RangeAdjustmentMode.fromSerializedName(data.getString(RANGE_ADJUSTMENT_MODE_TAG));
         this.bufferedTransferEnergy = readBufferedTransferEnergy(data);
+        this.quarantinedTransferEnergy = readQuarantinedTransferEnergy(data);
         this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
         this.syncedChunkRadius = computeChunkRadius();
         updateIdlePowerUsage();
@@ -256,6 +259,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         data.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
         data.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
         data.putLong(BUFFERED_TRANSFER_ENERGY_TAG, this.bufferedTransferEnergy);
+        data.putLong(QUARANTINED_TRANSFER_ENERGY_TAG, this.quarantinedTransferEnergy);
         this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
         data.put(LINKED_POSITIONS_TAG, createLinkedPositionsTag());
@@ -277,9 +281,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
         super.exportSettings(mode, builder, player);
         if (mode == SettingsFrom.DISMANTLE_ITEM) {
-            if (this.bufferedTransferEnergy > 0) {
+            if (this.bufferedTransferEnergy > 0 || this.quarantinedTransferEnergy > 0) {
                 CompoundTag settings = new CompoundTag();
-                settings.putLong(BUFFERED_TRANSFER_ENERGY_TAG, this.bufferedTransferEnergy);
+                if (this.bufferedTransferEnergy > 0) {
+                    settings.putLong(BUFFERED_TRANSFER_ENERGY_TAG, this.bufferedTransferEnergy);
+                }
+                if (this.quarantinedTransferEnergy > 0) {
+                    settings.putLong(QUARANTINED_TRANSFER_ENERGY_TAG, this.quarantinedTransferEnergy);
+                }
                 builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
             }
             return;
@@ -303,6 +312,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (mode == SettingsFrom.DISMANTLE_ITEM) {
             if (settings != null) {
                 setBufferedTransferEnergy(readBufferedTransferEnergy(settings));
+                setQuarantinedTransferEnergy(readQuarantinedTransferEnergy(settings));
             }
             return;
         }
@@ -1081,6 +1091,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
+    public long quarantinedTransferEnergy() {
+        return this.quarantinedTransferEnergy;
+    }
+
+    @Override
+    public void setQuarantinedTransferEnergy(long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("Quarantined tower transfer energy must be non-negative: " + amount);
+        }
+        if (amount == this.quarantinedTransferEnergy) {
+            return;
+        }
+
+        this.quarantinedTransferEnergy = amount;
+        this.setChanged();
+    }
+
+    @Override
     public void markEndpointChanged(BlockPos pos) {
         if (this.level == null) {
             return;
@@ -1539,6 +1567,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         long amount = data.getLong(BUFFERED_TRANSFER_ENERGY_TAG);
         if (amount < 0) {
             LOGGER.error("Data Distribution Tower at {} has negative buffered transfer energy: {}",
+                    this.worldPosition, amount);
+            return 0L;
+        }
+        return amount;
+    }
+
+    private long readQuarantinedTransferEnergy(CompoundTag data) {
+        if (!data.contains(QUARANTINED_TRANSFER_ENERGY_TAG)) {
+            return 0L;
+        }
+        if (!data.contains(QUARANTINED_TRANSFER_ENERGY_TAG, Tag.TAG_LONG)) {
+            LOGGER.error("Data Distribution Tower at {} has a non-long quarantined transfer tag", this.worldPosition);
+            return 0L;
+        }
+
+        long amount = data.getLong(QUARANTINED_TRANSFER_ENERGY_TAG);
+        if (amount < 0) {
+            LOGGER.error("Data Distribution Tower at {} has negative quarantined transfer energy: {}",
                     this.worldPosition, amount);
             return 0L;
         }

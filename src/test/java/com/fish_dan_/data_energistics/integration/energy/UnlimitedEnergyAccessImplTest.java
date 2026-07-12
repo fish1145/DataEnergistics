@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UnlimitedEnergyAccessImplTest {
 
@@ -75,14 +76,16 @@ class UnlimitedEnergyAccessImplTest {
 
         assertEquals(200L, this.access.insert(storage, 200L, true));
         assertEquals(40L, this.access.stored(storage));
-        assertEquals(1, storage.insertCalls());
+        assertEquals(0, storage.insertCalls());
         assertEquals(200L, this.access.insert(storage, 200L, false));
         assertEquals(240L, this.access.stored(storage));
+        assertEquals(1, storage.insertCalls());
         assertEquals(100L, this.access.extract(storage, 100L, true));
         assertEquals(240L, this.access.stored(storage));
+        assertEquals(0, storage.extractCalls());
         assertEquals(100L, this.access.extract(storage, 100L, false));
         assertEquals(140L, this.access.stored(storage));
-        assertEquals(2, storage.extractCalls());
+        assertEquals(1, storage.extractCalls());
     }
 
     @Test
@@ -127,11 +130,12 @@ class UnlimitedEnergyAccessImplTest {
     }
 
     @Test
-    void rollsBackAnOperationThatMutatesDuringSimulation() {
+    void doesNotInvokeThirdPartyOperationsDuringSimulation() {
         SimulationMutatingStorage storage = new SimulationMutatingStorage(30L, 300L);
 
-        assertThrows(UnlimitedEnergyAccessException.class, () -> this.access.insert(storage, 90L, true));
+        assertEquals(90L, this.access.insert(storage, 90L, true));
         assertEquals(30L, this.access.stored(storage));
+        assertEquals(0, storage.insertCalls());
     }
 
     @Test
@@ -150,6 +154,8 @@ class UnlimitedEnergyAccessImplTest {
                 UnlimitedEnergyAccessException.class,
                 () -> this.access.insert(storage, 40L, false));
 
+        assertTrue(exception.isMutationAmountKnown());
+        assertEquals(40L, exception.mutationAmount());
         assertEquals(1, exception.getSuppressed().length);
         assertEquals(40L, storage.actualStored());
         assertEquals(1, storage.rollbackAttempts());
@@ -572,13 +578,20 @@ class UnlimitedEnergyAccessImplTest {
 
     private static final class SimulationMutatingStorage extends MethodStorage {
 
+        private int insertCalls;
+
         private SimulationMutatingStorage(long amount, long capacity) {
             super(amount, capacity);
         }
 
         private long insertIgnoringLimit(long amount, boolean simulate) {
+            this.insertCalls++;
             setActualStored(actualStored() + amount);
             return amount;
+        }
+
+        private int insertCalls() {
+            return this.insertCalls;
         }
     }
 
