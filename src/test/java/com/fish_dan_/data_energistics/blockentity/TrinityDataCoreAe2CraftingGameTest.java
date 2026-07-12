@@ -63,6 +63,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
     private static final int CAKE_PATTERN_SLOT = 38;
     private static final int REMOVAL_PATTERN_SLOT = 39;
     private static final int STRUCTURE_PAUSE_PATTERN_SLOT = 40;
+    private static final int SAME_TICK_STORAGE_PATTERN_SLOT = 41;
 
     private TrinityDataCoreAe2CraftingGameTest() {}
 
@@ -103,6 +104,148 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Trinity lease must move away from the removed node");
                     helper.assertTrue(grid.getCraftingService().getCpus().contains(reservedCpu),
                             "Replacement hatch must publish its CPU in the same lease-change tick");
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("trinity_data_core_same_tick_storage_io_preserves_single_crafting_publication")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void sameTickStorageIoPreservesSingleCraftingPublication(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        ServerLevel level = helper.getLevel();
+        TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
+        helper.assertTrue(
+                core.patternCapacity() > SAME_TICK_STORAGE_PATTERN_SLOT,
+                "Selected P core should expose the same-tick test slot");
+
+        PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), SAME_TICK_STORAGE_PATTERN_SLOT);
+        PendingCraftingPlan plan = new PendingCraftingPlan(level, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            core.trySetPattern(SAME_TICK_STORAGE_PATTERN_SLOT, craftingTablePattern(level)),
+                            "Same-tick test pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                    assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CRAFTING_TABLE), route);
+                })
+                .thenExecute(() -> {
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 4L);
+                    plan.start(fixture.grid(), host.accessActionSource());
+                })
+                .thenWaitUntil(plan::await)
+                .thenExecute(() -> {
+                    ICraftingPlan executablePlan = plan.plan();
+                    assertPlan(helper, executablePlan, route, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
+
+                    IGrid grid = fixture.grid();
+                    ICraftingService craftingService = grid.getCraftingService();
+                    if (!(craftingService instanceof CraftingService concreteService)) {
+                        throw new IllegalStateException("Same-tick Trinity test requires AE2 CraftingService");
+                    }
+                    TrinityDataCoreVirtualCpu reservedCpu = reservedCpu(host);
+                    helper.assertValueEqual(
+                            fixture.accessHatches().stream().filter(host::isLeaseOwner).count(),
+                            1L,
+                            "Same-grid Trinity access must retain exactly one lease owner");
+                    assertCpuPublishedOnce(helper, craftingService, reservedCpu);
+                    RoutedCraftingPatternDetails publishedBeforeStorage = requireSinglePublishedRoute(
+                            helper,
+                            grid,
+                            AEItemKey.of(Items.CRAFTING_TABLE),
+                            route);
+                    helper.assertValueEqual(
+                            providerCount(concreteService, publishedBeforeStorage),
+                            1,
+                            "The routed pattern must have exactly one Trinity provider before storage I/O");
+
+                    long sameTick = level.getGameTime();
+                    AEItemKey storageProbe = AEItemKey.of(Items.AMETHYST_SHARD);
+                    var networkStorage = grid.getStorageService().getInventory();
+                    helper.assertValueEqual(
+                            networkStorage.insert(
+                                    storageProbe,
+                                    3L,
+                                    Actionable.MODULATE,
+                                    host.accessActionSource()),
+                            3L,
+                            "Same-tick storage probe must enter Trinity storage through the real AE grid");
+                    KeyCounter availableAfterInsert = new KeyCounter();
+                    networkStorage.getAvailableStacks(availableAfterInsert);
+                    helper.assertValueEqual(
+                            availableAfterInsert.get(storageProbe),
+                            3L,
+                            "Two same-grid hatches must expose the inserted storage probe exactly once");
+                    helper.assertValueEqual(
+                            networkStorage.extract(
+                                    storageProbe,
+                                    3L,
+                                    Actionable.MODULATE,
+                                    host.accessActionSource()),
+                            3L,
+                            "Same-tick storage probe must leave Trinity storage through the real AE grid");
+                    KeyCounter availableAfterExtract = new KeyCounter();
+                    networkStorage.getAvailableStacks(availableAfterExtract);
+                    helper.assertValueEqual(
+                            availableAfterExtract.get(storageProbe),
+                            0L,
+                            "Extracted storage probe must be absent from the single Trinity mount");
+                    assertHostStorage(helper, fixture, storageProbe, 0L);
+
+                    helper.assertValueEqual(
+                            level.getGameTime(),
+                            sameTick,
+                            "Storage write and read must not advance the same-tick submit window");
+                    assertCpuPublishedOnce(helper, craftingService, reservedCpu);
+                    RoutedCraftingPatternDetails publishedAfterStorage = requireSinglePublishedRoute(
+                            helper,
+                            grid,
+                            AEItemKey.of(Items.CRAFTING_TABLE),
+                            route);
+                    helper.assertValueEqual(
+                            providerCount(concreteService, publishedAfterStorage),
+                            1,
+                            "Storage I/O must retain exactly one Trinity provider for the routed pattern");
+
+                    TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, executablePlan);
+                    helper.assertValueEqual(
+                            core.queuedBatchCount(SAME_TICK_STORAGE_PATTERN_SLOT),
+                            1,
+                            "The same-tick CPU dispatch must reach the exact routed P-core slot");
+                    TrinityCraftingBatch queued = core.queuedBatches(SAME_TICK_STORAGE_PATTERN_SLOT).getFirst();
+                    helper.assertValueEqual(queued.route(), route, "The same-tick queued group must retain its route");
+                    helper.assertValueEqual(
+                            queued.queuedTick(),
+                            sameTick,
+                            "The provider must accept the CPU dispatch in the storage interaction tick");
+                    helper.assertValueEqual(
+                            worker.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
+                            1L,
+                            "The allocated Trinity worker must wait for the routed output");
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
+                    assertCpuPublishedOnce(helper, craftingService, reservedCpu);
+                    helper.assertValueEqual(
+                            providerCount(
+                                    concreteService,
+                                    requireSinglePublishedRoute(
+                                            helper,
+                                            grid,
+                                            AEItemKey.of(Items.CRAFTING_TABLE),
+                                            route)),
+                            1,
+                            "The real submit must retain exactly one routed Trinity provider");
+                    helper.assertValueEqual(
+                            level.getGameTime(),
+                            sameTick,
+                            "Storage I/O, CPU submit and provider dispatch must share one server tick");
                 })
                 .thenSucceed();
     }
@@ -470,6 +613,39 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .map(RoutedCraftingPatternDetails.class::cast)
                 .anyMatch(pattern -> pattern.route().equals(expectedRoute));
         helper.assertTrue(published, "AE2 crafting service should publish route " + expectedRoute);
+    }
+
+    private static RoutedCraftingPatternDetails requireSinglePublishedRoute(GameTestHelper helper,
+                                                                            IGrid grid,
+                                                                            AEKey output,
+                                                                            PatternRoute expectedRoute) {
+        List<RoutedCraftingPatternDetails> published = grid.getCraftingService().getCraftingFor(output).stream()
+                .filter(RoutedCraftingPatternDetails.class::isInstance)
+                .map(RoutedCraftingPatternDetails.class::cast)
+                .filter(pattern -> pattern.route().equals(expectedRoute))
+                .toList();
+        helper.assertValueEqual(
+                published.size(),
+                1,
+                "AE2 crafting service must publish the exact Trinity route once: " + expectedRoute);
+        return published.getFirst();
+    }
+
+    private static void assertCpuPublishedOnce(GameTestHelper helper,
+                                               ICraftingService craftingService,
+                                               TrinityDataCoreVirtualCpu reservedCpu) {
+        helper.assertValueEqual(
+                craftingService.getCpus().stream().filter(cpu -> cpu == reservedCpu).count(),
+                1L,
+                "AE2 crafting service must publish Trinity CPU 0 exactly once");
+    }
+
+    private static int providerCount(CraftingService craftingService, IPatternDetails pattern) {
+        int count = 0;
+        for (var ignored : craftingService.getProviders(pattern)) {
+            count = Math.incrementExact(count);
+        }
+        return count;
     }
 
     private static void assertPlan(GameTestHelper helper,
