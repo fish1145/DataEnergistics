@@ -23,7 +23,9 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Status;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
@@ -40,6 +42,8 @@ import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
 import net.minecraft.gametest.framework.GameTestRunner;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -50,6 +54,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -67,6 +72,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.crafting.ICraftingSubmitResult;
 import appeng.api.networking.energy.IAEPowerStorage;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
@@ -77,15 +83,20 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
+import appeng.crafting.CraftingPlan;
 import appeng.helpers.patternprovider.PatternContainer;
+import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -661,6 +672,87 @@ public final class CompartmentBlockEntityTest {
                 .thenSucceed();
     }
 
+    @TestHolder("trinity_structure_validation_rechecks_only_resumed_domain_once")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void trinityStructureValidationRechecksOnlyResumedDomainOnce(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos localOrigin = validationTestLocalOrigin(helper);
+        BlockPos origin = helper.absolutePos(localOrigin);
+        helper.setBlock(localOrigin, ModBlocks.TRINITY_DATA_CORE.get()
+                .defaultBlockState()
+                .setValue(DataRipperReassemblerBlock.FACING, Direction.SOUTH));
+
+        BlockState hostState = level.getBlockState(origin);
+        level.removeBlockEntity(origin);
+        CountingStructureWorldViewFactory worldViews = new CountingStructureWorldViewFactory();
+        CountingStructureValidation validation = new CountingStructureValidation();
+        TrinityDataCoreBlockEntity host = new TrinityDataCoreBlockEntity(
+                origin,
+                hostState,
+                validation,
+                worldViews);
+        level.setBlockEntity(host);
+        host.onLoad();
+
+        buildMainStructure(helper, level, origin);
+        buildCpuStructure(helper, level, origin);
+        buildCraftingStructure(helper, level, origin);
+        host.serverTick();
+
+        helper.assertValueEqual(worldViews.scanCount(), 3,
+                "Initial lifecycle validation must scan each Trinity structure exactly once");
+        assertAllStructureDomainsAvailable(helper, host,
+                "Complete Trinity structures must expose all three capability domains");
+
+        for (Structure structure : Structure.values()) {
+            BlockPos waitingPosition = requireUnloadedWaitingPosition(level, origin, structure.ordinal());
+            assertDeferredStructureDomain(helper, level, host, worldViews, structure, waitingPosition);
+            assertInvalidStructureDomain(helper, host, worldViews, structure);
+        }
+
+        BlockPos timedWaitingPosition = requireUnloadedWaitingPosition(level, origin, Structure.values().length + 1);
+        AtomicInteger craftingValidationsWhileWaiting = new AtomicInteger();
+        helper.startSequence()
+                .thenIdle(1)
+                .thenExecute(() -> {
+                    host.serverTick();
+                    assertAllStructureDomainsAvailable(helper, host,
+                            "Delayed block-entity initialization must leave all structure domains valid");
+                    beginDeferredStructureDomain(
+                            helper,
+                            host,
+                            worldViews,
+                            Structure.CRAFTING,
+                            timedWaitingPosition);
+                    craftingValidationsWhileWaiting.set(validation.validationCount(Structure.CRAFTING));
+                })
+                .thenIdle(200)
+                .thenExecute(() -> {
+                    helper.assertFalse(level.isLoaded(timedWaitingPosition),
+                            "Deferred CRAFTING waiting chunk must remain unloaded throughout the 200-tick window");
+                    helper.assertValueEqual(
+                            validation.validationCount(Structure.CRAFTING),
+                            craftingValidationsWhileWaiting.get(),
+                            "Deferred CRAFTING validation must not repeat during 200 real server ticks");
+                    loadWaitingPosition(helper, level, timedWaitingPosition);
+                })
+                .thenIdle(1)
+                .thenExecute(() -> {
+                    helper.assertValueEqual(
+                            host.structureValidationStatus(Structure.CRAFTING).state(),
+                            State.VALID,
+                            "CRAFTING validation must recover on the first tick after its waiting position loads");
+                    helper.assertValueEqual(
+                            validation.validationCount(Structure.CRAFTING),
+                            craftingValidationsWhileWaiting.get() + 1,
+                            "Resumed CRAFTING validation must complete exactly once");
+                    assertAllStructureDomainsAvailable(helper, host,
+                            "CRAFTING recovery must restore all three capability domains");
+                })
+                .thenSucceed();
+    }
+
     @TestHolder("trinity_access_hatch_partitions_512_core_on_real_grid")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
@@ -1129,6 +1221,8 @@ public final class CompartmentBlockEntityTest {
         PatternRoute persistentRoute = new PatternRoute(host.getHostId(), persistentMount.core().coreId(), 0);
         AEItemKey patternOutput = AEItemKey.of(Items.OAK_PLANKS);
         AEItemKey storageProbe = AEItemKey.of(Items.REDSTONE);
+        AEItemKey jobOutput = AEItemKey.of(Items.DIAMOND);
+        long jobOutputAmount = 3L;
 
         helper.assertValueEqual(hatches.size(), 2, "Complete Trinity main structure must bind exactly two access hatches");
         TrinityAccessHatchBlockEntity intendedOwner = hatches.stream()
@@ -1145,6 +1239,7 @@ public final class CompartmentBlockEntityTest {
         AtomicReference<IGrid> competingGrid = new AtomicReference<>();
         AtomicReference<List<TrinityDataCoreVirtualCpu>> originalCpuPartitions = new AtomicReference<>();
         AtomicReference<IGrid> reboundGrid = new AtomicReference<>();
+        AtomicReference<Integer> jobCpuNumber = new AtomicReference<>();
         helper.startSequence()
                 .thenWaitUntil(() -> {
                     IGridNode ownerNode = intendedOwner.getMainNode().getNode();
@@ -1202,6 +1297,17 @@ public final class CompartmentBlockEntityTest {
                             "Cleared suspended slot must retain exactly one dormant queue group");
                     helper.assertTrue(host.getPatternCatalog().hasWork(),
                             "The dormant queue must make the already leased host busy");
+                    ICraftingSubmitResult result = host.getCpuPartitions().getFirst().submitJob(
+                            originalLeaseGrid.get(),
+                            waitingOutputPlan(jobOutput, jobOutputAmount),
+                            host.accessActionSource(),
+                            null);
+                    helper.assertTrue(result.successful(),
+                            "Busy reconstruction test must submit one persistent CPU job");
+                    TrinityDataCoreVirtualCpu worker = requireSingleBusyCpu(helper, host);
+                    jobCpuNumber.set(worker.number());
+                    helper.assertValueEqual(worker.getWaitingFor(jobOutput), jobOutputAmount,
+                            "Submitted CPU job must wait for its complete final output");
                 })
                 .thenExecute(() -> {
                     MEStorage storage = originalLeaseGrid.get().getStorageService().getInventory();
@@ -1290,6 +1396,11 @@ public final class CompartmentBlockEntityTest {
                             persistentMount.core().queuedBatchCount(suspendedSlot),
                             1,
                             "Deferred reconstruction must retain the suspended P-core queue");
+                    assertRetainedBusyCpuPersisted(
+                            helper,
+                            loadedHost,
+                            jobCpuNumber.get(),
+                            jobOutputAmount);
                     currentHost.set(loadedHost);
                 })
                 .thenWaitUntil(() -> {
@@ -1303,6 +1414,11 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(restoredHost.isStorageAvailable() && restoredHost.isCpuProviderAvailable() &&
                             restoredHost.isPatternProviderAvailable(),
                             "Reconstructed complete host must restore all independently gated capabilities");
+                    TrinityDataCoreVirtualCpu restoredWorker = requireSingleBusyCpu(helper, restoredHost);
+                    helper.assertValueEqual(restoredWorker.number(), jobCpuNumber.get(),
+                            "Reconstructed host must restore the original CPU worker");
+                    helper.assertValueEqual(restoredWorker.getWaitingFor(jobOutput), jobOutputAmount,
+                            "Reconstructed host must retain the original CPU job until output arrives");
                     helper.assertTrue(restoredHost.isLeaseOwner(intendedOwner) &&
                             !restoredHost.isLeaseOwner(intendedCompetitor),
                             "Reconstructed busy host must restore only the persisted hatch identity");
@@ -1453,6 +1569,15 @@ public final class CompartmentBlockEntityTest {
                 .thenExecute(() -> {
                     TrinityDataCoreBlockEntity restoredHost = currentHost.get();
                     MEStorage storage = reboundGrid.get().getStorageService().getInventory();
+                    TrinityDataCoreVirtualCpu restoredWorker = requireSingleBusyCpu(helper, restoredHost);
+                    helper.assertValueEqual(
+                            restoredWorker.insert(jobOutput, jobOutputAmount, Actionable.MODULATE),
+                            jobOutputAmount,
+                            "Recovered CPU worker must accept the original job output");
+                    helper.assertFalse(restoredWorker.isBusy(),
+                            "Recovered CPU worker must complete the original job");
+                    helper.assertValueEqual(availableAmount(reboundGrid.get(), jobOutput), jobOutputAmount,
+                            "Completed original job output must enter recovered Trinity storage once");
                     long extracted = storage.extract(
                             storageProbe, 2L, Actionable.MODULATE, restoredHost.accessActionSource());
                     helper.assertValueEqual(extracted, 2L,
@@ -1497,6 +1622,49 @@ public final class CompartmentBlockEntityTest {
                     destroyGridPower(competitorPower);
                 })
                 .thenSucceed();
+    }
+
+    private static CraftingPlan waitingOutputPlan(AEKey output, long amount) {
+        KeyCounter emittedItems = new KeyCounter();
+        emittedItems.add(output, amount);
+        return new CraftingPlan(
+                new GenericStack(output, amount),
+                1L,
+                false,
+                false,
+                new KeyCounter(),
+                emittedItems,
+                new KeyCounter(),
+                Map.of());
+    }
+
+    private static TrinityDataCoreVirtualCpu requireSingleBusyCpu(GameTestHelper helper,
+                                                                  TrinityDataCoreBlockEntity host) {
+        List<TrinityDataCoreVirtualCpu> busyCpus = host.getCraftingRuntime().publishedCpus().stream()
+                .filter(TrinityDataCoreVirtualCpu::isBusy)
+                .toList();
+        helper.assertValueEqual(busyCpus.size(), 1,
+                "Busy reconstruction test must retain exactly one active CPU job");
+        return busyCpus.getFirst();
+    }
+
+    private static void assertRetainedBusyCpuPersisted(GameTestHelper helper,
+                                                       TrinityDataCoreBlockEntity host,
+                                                       int expectedWorkerNumber,
+                                                       long expectedRemainingOutput) {
+        helper.assertTrue(host.getCraftingRuntime().hasBusyJobs(),
+                "Deferred reconstruction must retain its active CPU job while publication is paused");
+        CompoundTag runtimeTag = new CompoundTag();
+        host.getCraftingRuntime().writeToTag(runtimeTag, host.getLevel().registryAccess());
+        ListTag partitions = runtimeTag.getList("partitions", Tag.TAG_COMPOUND);
+        helper.assertValueEqual(partitions.size(), 1,
+                "Deferred reconstruction must persist exactly one retained CPU worker");
+        CompoundTag partition = partitions.getCompound(0);
+        helper.assertValueEqual(partition.getInt("index"), expectedWorkerNumber,
+                "Deferred reconstruction must retain the original CPU worker number");
+        CompoundTag job = partition.getCompound("logic").getCompound("job");
+        helper.assertValueEqual(job.getLong("remaining_amount"), expectedRemainingOutput,
+                "Deferred reconstruction must retain the original CPU job output request");
     }
 
     private static ItemStack encodedOakPlanksPattern(GameTestHelper helper) {
@@ -1576,6 +1744,185 @@ public final class CompartmentBlockEntityTest {
     private static void assertActiveState(GameTestHelper helper, BlockPos levelPos, boolean expected, String message) {
         boolean active = helper.getLevel().getBlockState(levelPos).getValue(CompartmentBlock.ACTIVE);
         helper.assertValueEqual(active, expected, message);
+    }
+
+    private static BlockPos validationTestLocalOrigin(GameTestHelper helper) {
+        for (int x = 23; x <= 27; x++) {
+            BlockPos candidate = new BlockPos(x, 4, 25);
+            BlockPos absoluteCandidate = helper.absolutePos(candidate);
+            long phase = Math.floorMod(
+                    helper.getLevel().getGameTime() + absoluteCandidate.asLong(),
+                    1_200L);
+            long ticksUntilPeriodicMainRecheck = Math.floorMod(-phase, 1_200L);
+            if (ticksUntilPeriodicMainRecheck > 450L) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not select a Trinity validation origin outside the 400-tick test window");
+    }
+
+    private static BlockPos requireUnloadedWaitingPosition(ServerLevel level, BlockPos origin, int domainIndex) {
+        int baseChunkX = origin.getX() >> 4;
+        int baseChunkZ = origin.getZ() >> 4;
+        int firstOffset = 32 + domainIndex * 32;
+        for (int offset = firstOffset; offset < firstOffset + 16; offset++) {
+            BlockPos candidate = new BlockPos(
+                    ((baseChunkX + offset) << 4) + 8,
+                    origin.getY(),
+                    ((baseChunkZ + offset) << 4) + 8);
+            if (!level.isLoaded(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not find an unloaded chunk for Trinity deferred validation");
+    }
+
+    private static int beginDeferredStructureDomain(GameTestHelper helper,
+                                                    TrinityDataCoreBlockEntity host,
+                                                    CountingStructureWorldViewFactory worldViews,
+                                                    Structure structure,
+                                                    BlockPos waitingPosition) {
+        int scansBeforeDeferral = worldViews.scanCount();
+        worldViews.deferNextScan(waitingPosition);
+        requestStructureRecheck(host, structure);
+        host.serverTick();
+
+        helper.assertValueEqual(
+                host.structureValidationStatus(structure).state(),
+                State.DEFERRED,
+                structure + " validation must defer at its tracked unloaded position");
+        helper.assertValueEqual(
+                host.structureValidationStatus(structure).waitingPosition(),
+                waitingPosition,
+                structure + " validation must retain the tracking view's unloaded position");
+        helper.assertValueEqual(worldViews.scanCount(), scansBeforeDeferral + 1,
+                structure + " deferral must consume exactly one full validation scan");
+        assertOtherStructureStatuses(helper, host, structure, State.VALID);
+        assertOnlyStructureDomainUnavailable(helper, host, structure, "Deferred");
+        return worldViews.scanCount();
+    }
+
+    private static void assertDeferredStructureDomain(GameTestHelper helper,
+                                                      ServerLevel level,
+                                                      TrinityDataCoreBlockEntity host,
+                                                      CountingStructureWorldViewFactory worldViews,
+                                                      Structure structure,
+                                                      BlockPos waitingPosition) {
+        int scansWhileWaiting = beginDeferredStructureDomain(
+                helper,
+                host,
+                worldViews,
+                structure,
+                waitingPosition);
+        loadWaitingPosition(helper, level, waitingPosition);
+        host.serverTick();
+        helper.assertValueEqual(
+                host.structureValidationStatus(structure).state(),
+                State.VALID,
+                structure + " validation must recover after its waiting position loads");
+        helper.assertValueEqual(worldViews.scanCount(), scansWhileWaiting + 1,
+                structure + " must run exactly one full validation scan after resuming");
+        assertAllStructureDomainsAvailable(helper, host,
+                structure + " recovery must restore all three capability domains");
+    }
+
+    private static void loadWaitingPosition(GameTestHelper helper,
+                                            ServerLevel level,
+                                            BlockPos waitingPosition) {
+        level.getChunk(waitingPosition.getX() >> 4, waitingPosition.getZ() >> 4);
+        helper.assertTrue(level.isLoaded(waitingPosition),
+                "Deferred validation waiting chunk must be loaded before the resume tick");
+    }
+
+    private static void assertInvalidStructureDomain(GameTestHelper helper,
+                                                     TrinityDataCoreBlockEntity host,
+                                                     CountingStructureWorldViewFactory worldViews,
+                                                     Structure structure) {
+        int scansBeforeInvalidation = worldViews.scanCount();
+        worldViews.invalidateNextScan();
+        requestStructureRecheck(host, structure);
+        host.serverTick();
+
+        helper.assertValueEqual(
+                host.structureValidationStatus(structure).state(),
+                State.INVALID,
+                structure + " validation must reject a loaded structural mismatch");
+        helper.assertValueEqual(worldViews.scanCount(), scansBeforeInvalidation + 1,
+                structure + " invalidation must consume exactly one full validation scan");
+        if (structure == Structure.MAIN) {
+            helper.assertValueEqual(host.structureValidationStatus(Structure.CPU).state(), State.PENDING,
+                    "Invalid main structure must leave CPU validation pending behind its prerequisite");
+            helper.assertValueEqual(host.structureValidationStatus(Structure.CRAFTING).state(), State.PENDING,
+                    "Invalid main structure must leave crafting validation pending behind its prerequisite");
+        } else {
+            assertOtherStructureStatuses(helper, host, structure, State.VALID);
+        }
+        assertOnlyStructureDomainUnavailable(helper, host, structure, "Invalid");
+
+        int scansBeforeRecovery = worldViews.scanCount();
+        requestStructureRecheck(host, structure);
+        host.serverTick();
+        int expectedRecoveryScans = structure == Structure.MAIN ? 3 : 1;
+        helper.assertValueEqual(worldViews.scanCount(), scansBeforeRecovery + expectedRecoveryScans,
+                structure + " recovery must scan only itself and prerequisite-invalidated children");
+        assertAllStructureDomainsAvailable(helper, host,
+                structure + " recovery must restore all three capability domains");
+    }
+
+    private static void requestStructureRecheck(TrinityDataCoreBlockEntity host, Structure structure) {
+        switch (structure) {
+            case MAIN -> host.requestMainStructureRecheck();
+            case CPU -> host.requestCpuStructureRecheck();
+            case CRAFTING -> host.requestCraftingStructureRecheck();
+        }
+    }
+
+    private static void assertOtherStructureStatuses(GameTestHelper helper,
+                                                     TrinityDataCoreBlockEntity host,
+                                                     Structure selected,
+                                                     State expected) {
+        for (Structure structure : Structure.values()) {
+            if (structure != selected) {
+                helper.assertValueEqual(
+                        host.structureValidationStatus(structure).state(),
+                        expected,
+                        selected + " validation must not alter the " + structure + " validation state");
+            }
+        }
+    }
+
+    private static void assertOnlyStructureDomainUnavailable(GameTestHelper helper,
+                                                             TrinityDataCoreBlockEntity host,
+                                                             Structure structure,
+                                                             String transition) {
+        switch (structure) {
+            case MAIN -> helper.assertTrue(
+                    !host.isStorageAvailable() && !host.isCpuProviderAvailable() &&
+                            !host.isPatternProviderAvailable(),
+                    transition + " main prerequisite must withdraw storage and both dependent providers");
+            case CPU -> helper.assertTrue(
+                    host.isStorageAvailable() && !host.isCpuProviderAvailable() &&
+                            host.isPatternProviderAvailable(),
+                    transition + " CPU validation must withdraw only the CPU provider");
+            case CRAFTING -> helper.assertTrue(
+                    host.isStorageAvailable() && host.isCpuProviderAvailable() &&
+                            !host.isPatternProviderAvailable(),
+                    transition + " crafting validation must withdraw only the pattern provider");
+        }
+    }
+
+    private static void assertAllStructureDomainsAvailable(GameTestHelper helper,
+                                                           TrinityDataCoreBlockEntity host,
+                                                           String message) {
+        for (Structure structure : Structure.values()) {
+            helper.assertValueEqual(
+                    host.structureValidationStatus(structure).state(),
+                    State.VALID,
+                    message + ": " + structure + " validation must be valid");
+        }
+        helper.assertTrue(
+                host.isStorageAvailable() && host.isCpuProviderAvailable() && host.isPatternProviderAvailable(),
+                message);
     }
 
     private static void buildMainStructure(GameTestHelper helper, ServerLevel level, BlockPos origin) {
@@ -1788,6 +2135,157 @@ public final class CompartmentBlockEntityTest {
 
     private static String mainStructureName() {
         return TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX);
+    }
+
+    private enum StructureScanFault {
+        NONE,
+        DEFERRED,
+        INVALID
+    }
+
+    private static final class CountingStructureValidation implements TrinityStructureValidation {
+
+        private final TrinityStructureValidation delegate = new TrinityStructureValidationImpl();
+        private final EnumMap<Structure, Integer> validationCounts = new EnumMap<>(Structure.class);
+
+        private CountingStructureValidation() {
+            for (Structure structure : Structure.values()) {
+                this.validationCounts.put(structure, 0);
+            }
+        }
+
+        private int validationCount(Structure structure) {
+            return this.validationCounts.get(structure);
+        }
+
+        private void recordValidation(Structure structure) {
+            this.validationCounts.compute(structure, (ignored, count) -> count + 1);
+        }
+
+        @Override
+        public Status status(Structure structure) {
+            return this.delegate.status(structure);
+        }
+
+        @Override
+        public boolean isValid(Structure structure) {
+            return this.delegate.isValid(structure);
+        }
+
+        @Override
+        public void markPending(Structure structure) {
+            this.delegate.markPending(structure);
+        }
+
+        @Override
+        public void markValid(Structure structure) {
+            this.delegate.markValid(structure);
+            recordValidation(structure);
+        }
+
+        @Override
+        public void markInvalid(Structure structure) {
+            this.delegate.markInvalid(structure);
+            recordValidation(structure);
+        }
+
+        @Override
+        public boolean deferIfUnloaded(Structure structure,
+                                       @Nullable PatternDiagnostic diagnostic,
+                                       @Nullable BlockPos observedUnloadedPosition) {
+            boolean deferred = this.delegate.deferIfUnloaded(structure, diagnostic, observedUnloadedPosition);
+            if (deferred) {
+                recordValidation(structure);
+            }
+            return deferred;
+        }
+
+        @Override
+        public boolean resumeIfLoaded(Structure structure, Predicate<BlockPos> isLoaded) {
+            return this.delegate.resumeIfLoaded(structure, isLoaded);
+        }
+
+        @Override
+        public void reset() {
+            this.delegate.reset();
+        }
+    }
+
+    private static final class CountingStructureWorldViewFactory implements TrinityStructureWorldViewFactory {
+
+        private final AtomicInteger scanCount = new AtomicInteger();
+        private StructureScanFault nextFault = StructureScanFault.NONE;
+        private BlockPos nextWaitingPosition;
+
+        private int scanCount() {
+            return this.scanCount.get();
+        }
+
+        private void deferNextScan(BlockPos waitingPosition) {
+            prepareNextScan(StructureScanFault.DEFERRED, waitingPosition);
+        }
+
+        private void invalidateNextScan() {
+            prepareNextScan(StructureScanFault.INVALID, null);
+        }
+
+        private void prepareNextScan(StructureScanFault fault, BlockPos waitingPosition) {
+            if (this.nextFault != StructureScanFault.NONE) {
+                throw new IllegalStateException("A Trinity validation scan fault is already pending");
+            }
+            this.nextFault = fault;
+            this.nextWaitingPosition = waitingPosition == null ? null : waitingPosition.immutable();
+        }
+
+        @Override
+        public View create(Level level) {
+            this.scanCount.incrementAndGet();
+            StructureScanFault fault = this.nextFault;
+            BlockPos waitingPosition = this.nextWaitingPosition;
+            this.nextFault = StructureScanFault.NONE;
+            this.nextWaitingPosition = null;
+            return new CountingStructureWorldView(level, fault, waitingPosition);
+        }
+    }
+
+    private static final class CountingStructureWorldView implements TrinityStructureWorldViewFactory.View {
+
+        private final Level level;
+        private final StructureScanFault fault;
+        private final BlockPos waitingPosition;
+
+        private CountingStructureWorldView(Level level,
+                                           StructureScanFault fault,
+                                           BlockPos waitingPosition) {
+            this.level = level;
+            this.fault = fault;
+            this.waitingPosition = waitingPosition;
+        }
+
+        @Override
+        public boolean isLoaded(BlockPos pos) {
+            return this.level.isLoaded(pos);
+        }
+
+        @Override
+        public BlockState getBlockState(BlockPos pos) {
+            return this.fault == StructureScanFault.NONE ? this.level.getBlockState(pos) : Blocks.AIR.defaultBlockState();
+        }
+
+        @Override
+        public BlockEntity getBlockEntity(BlockPos pos) {
+            return this.fault == StructureScanFault.NONE ? this.level.getBlockEntity(pos) : null;
+        }
+
+        @Override
+        public HolderLookup.Provider registryAccess() {
+            return this.level.registryAccess();
+        }
+
+        @Override
+        public BlockPos firstUnloadedPosition() {
+            return this.fault == StructureScanFault.DEFERRED ? this.waitingPosition : null;
+        }
     }
 
     private static final class OneShotUnloadedWorldViewFactory implements TrinityStructureWorldViewFactory {
