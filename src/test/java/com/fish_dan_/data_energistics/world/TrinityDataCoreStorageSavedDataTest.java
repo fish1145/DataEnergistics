@@ -235,6 +235,49 @@ public final class TrinityDataCoreStorageSavedDataTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_storage_saved_data_keeps_storage_ids_isolated")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void savesAndLoadsDistinctContentsForEachStorageId(GameTestHelper helper) {
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
+        UUID firstStorageId = UUID.randomUUID();
+        UUID secondStorageId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+
+        data.insert(firstStorageId, iron, 11L, Actionable.MODULATE);
+        data.insert(secondStorageId, gold, 29L, Actionable.MODULATE);
+
+        CompoundTag saved = data.save(new CompoundTag(), registries);
+        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(saved, registries);
+        helper.assertValueEqual(
+                loaded.amount(firstStorageId, iron),
+                BigInteger.valueOf(11L),
+                "First storage UUID should reload its own contents");
+        helper.assertValueEqual(
+                loaded.amount(firstStorageId, gold),
+                BigInteger.ZERO,
+                "First storage UUID must not see the second storage contents");
+        helper.assertValueEqual(
+                loaded.amount(secondStorageId, iron),
+                BigInteger.ZERO,
+                "Second storage UUID must not see the first storage contents");
+        helper.assertValueEqual(
+                loaded.amount(secondStorageId, gold),
+                BigInteger.valueOf(29L),
+                "Second storage UUID should reload its own contents");
+        helper.assertValueEqual(
+                loaded.summary(firstStorageId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(1, "11"),
+                "First storage summary should remain isolated after reload");
+        helper.assertValueEqual(
+                loaded.summary(secondStorageId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(1, "29"),
+                "Second storage summary should remain isolated after reload");
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_storage_saved_data_capacity_reduction_retains_extract")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
