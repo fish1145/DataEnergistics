@@ -1,10 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
-import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
-
-import net.minecraft.core.BlockPos;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
@@ -50,6 +45,7 @@ public final class TrinityCraftingRuntimeRegistryTest {
         assertTrue(this.registry.withdraw(secondNode));
         assertFalse(this.registry.withdraw(secondNode));
         assertTrue(this.registry.snapshot().isEmpty());
+        assertEquals(List.of(runtime), published);
     }
 
     @Test
@@ -60,16 +56,30 @@ public final class TrinityCraftingRuntimeRegistryTest {
         TrinityDataCoreCraftingRuntime replacementRuntime = runtime();
 
         assertTrue(this.registry.publish(node, firstRuntime));
+        List<TrinityDataCoreCraftingRuntime> published = this.registry.snapshot();
         assertFalse(this.registry.publish(node, firstRuntime));
+        assertSame(published, this.registry.snapshot());
 
         assertThrows(
                 IllegalStateException.class,
                 () -> this.registry.publish(node, replacementRuntime));
+        assertSame(published, this.registry.snapshot());
         assertSame(firstRuntime, this.registry.snapshot().getFirst());
 
         assertTrue(this.registry.withdraw(node));
         assertTrue(this.registry.publish(node, replacementRuntime));
         assertSame(replacementRuntime, this.registry.snapshot().getFirst());
+    }
+
+    @Test
+    void failedPublicationDoesNotRetainAPartialNodeRegistration() {
+        IGridNode node = new EqualGridNode(new StubGrid());
+        TrinityDataCoreCraftingRuntime runtime = runtime();
+
+        assertThrows(NullPointerException.class, () -> this.registry.publish(node, null));
+        assertTrue(this.registry.snapshot().isEmpty());
+        assertTrue(this.registry.publish(node, runtime));
+        assertEquals(List.of(runtime), this.registry.snapshot());
     }
 
     @Test
@@ -93,17 +103,38 @@ public final class TrinityCraftingRuntimeRegistryTest {
         assertEquals(List.of(replacementRuntime), reconciled);
         assertSame(reconciled, this.registry.snapshot());
         assertTrue(otherRegistry.snapshot().isEmpty());
+        assertFalse(this.registry.withdraw(oldNode));
         this.registry.withdraw(firstReplacementNode);
         assertEquals(List.of(replacementRuntime), this.registry.snapshot());
         this.registry.withdraw(secondReplacementNode);
         assertTrue(this.registry.snapshot().isEmpty());
     }
 
+    @Test
+    void reconciliationRepairsOneNodeRuntimeAndTreatsAnEmptyScanAsComplete() {
+        IGridNode node = new EqualGridNode(new StubGrid());
+        TrinityDataCoreCraftingRuntime staleRuntime = runtime();
+        TrinityDataCoreCraftingRuntime repairedRuntime = runtime();
+        this.registry.publish(node, staleRuntime);
+        List<TrinityDataCoreCraftingRuntime> staleSnapshot = this.registry.snapshot();
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> completeScan = new IdentityHashMap<>();
+        completeScan.put(node, repairedRuntime);
+
+        List<TrinityDataCoreCraftingRuntime> repairedSnapshot = this.registry.reconcile(completeScan);
+
+        assertEquals(List.of(staleRuntime), staleSnapshot);
+        assertEquals(List.of(repairedRuntime), repairedSnapshot);
+        assertSame(repairedSnapshot, this.registry.snapshot());
+        assertFalse(this.registry.publish(node, repairedRuntime));
+        assertThrows(IllegalStateException.class, () -> this.registry.publish(node, staleRuntime));
+        assertTrue(this.registry.reconcile(new IdentityHashMap<>()).isEmpty());
+        assertTrue(this.registry.snapshot().isEmpty());
+        assertFalse(this.registry.withdraw(node));
+    }
+
+    /** Creates an identity token without invoking host-backed runtime behavior. */
     private static TrinityDataCoreCraftingRuntime runtime() {
-        TrinityDataCoreBlockEntity host = new TrinityDataCoreBlockEntity(
-                BlockPos.ZERO,
-                ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
-        return host.getCraftingRuntime();
+        return new TrinityDataCoreCraftingRuntime(null);
     }
 
     private static final class EqualGridNode extends GridNode {

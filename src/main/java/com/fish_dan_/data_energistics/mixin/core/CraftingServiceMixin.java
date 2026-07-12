@@ -110,8 +110,8 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Inject(method = "removeNode", at = @At("HEAD"))
     private void dataEnergistics$removeTrinityDataCoreCpuNode(IGridNode gridNode, CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
-            withdraw(gridNode);
+        boolean withdrawn = withdraw(gridNode);
+        if (withdrawn || gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }

@@ -75,8 +75,10 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
             throw new IllegalStateException("A different Trinity crafting runtime is already published for this node");
         }
 
-        this.registrations.put(node, runtime);
-        this.snapshot = createSnapshot(this.registrations.values());
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements =
+                new IdentityHashMap<>(this.registrations);
+        replacements.put(node, runtime);
+        commitRegistrations(replacements);
         return true;
     }
 
@@ -85,8 +87,10 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
         if (!this.registrations.containsKey(node)) {
             return false;
         }
-        this.registrations.remove(node);
-        this.snapshot = createSnapshot(this.registrations.values());
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements =
+                new IdentityHashMap<>(this.registrations);
+        replacements.remove(node);
+        commitRegistrations(replacements);
         return true;
     }
 
@@ -100,8 +104,13 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
                                                                        Map<IGridNode, TrinityDataCoreCraftingRuntime> scannedRegistrations) {
         Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements = new IdentityHashMap<>();
         replacements.putAll(scannedRegistrations);
-        List<TrinityDataCoreCraftingRuntime> replacementSnapshot = createSnapshot(replacements.values());
+        return commitRegistrations(replacements);
+    }
 
+    /** Builds the complete immutable view before changing live identity registrations. */
+    private List<TrinityDataCoreCraftingRuntime> commitRegistrations(
+            Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements) {
+        List<TrinityDataCoreCraftingRuntime> replacementSnapshot = createSnapshot(replacements.values());
         this.registrations.clear();
         this.registrations.putAll(replacements);
         this.snapshot = replacementSnapshot;
