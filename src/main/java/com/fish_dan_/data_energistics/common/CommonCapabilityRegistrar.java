@@ -167,6 +167,10 @@ final class CommonCapabilityRegistrar {
                 ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
                 AECapabilities.ME_STORAGE,
                 ModBlockEntities.ME_COMPOSITE_OUTPUT_WAREHOUSE_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.outputStorage());
