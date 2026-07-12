@@ -38,11 +38,18 @@ public interface TowerEnergyDistributorContext {
     AENetworkedBlockEntity aeNetworkHost();
 
     /**
-     * Returns per-tick FE transfer budget.
+     * Returns energy already extracted from a source but not yet delivered or restored.
      *
-     * @return FE budget for one server tick
+     * @return persisted transfer-buffer energy in FE
      */
-    long transferBudgetPerTick();
+    long bufferedTransferEnergy();
+
+    /**
+     * Replaces the persisted transfer-buffer amount after a verified transfer mutation.
+     *
+     * @param amount non-negative transfer-buffer energy in FE
+     */
+    void setBufferedTransferEnergy(long amount);
 
     /**
      * Marks a direct-access target block entity changed after successful insertion.

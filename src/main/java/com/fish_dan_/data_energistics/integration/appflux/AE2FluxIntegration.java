@@ -49,4 +49,45 @@ public final class AE2FluxIntegration {
             return 0;
         }
     }
+
+    /**
+     * Reinserts an active-transfer remainder into the tower's own AppFlux network.
+     *
+     * @param blockEntity tower accessing its grid storage
+     * @param amount      non-negative amount to restore
+     * @return amount accepted by the network
+     */
+    public static long insertEnergyIntoOwnNetwork(AENetworkedBlockEntity blockEntity, long amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+
+        try {
+            IManagedGridNode mainNode = blockEntity.getMainNode();
+            if (mainNode == null || !mainNode.isReady()) {
+                return 0;
+            }
+
+            IGrid grid = mainNode.getGrid();
+            if (grid == null) {
+                return 0;
+            }
+
+            IStorageService storageService = grid.getStorageService();
+            if (storageService == null) {
+                return 0;
+            }
+
+            MEStorage inventory = storageService.getInventory();
+            if (inventory == null) {
+                return 0;
+            }
+
+            return inventory.insert(
+                    FluxKey.of(EnergyType.FE), amount, Actionable.MODULATE, IActionSource.ofMachine(blockEntity));
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error("Failed to restore AppFlux energy to AE network", exception);
+            return 0;
+        }
+    }
 }

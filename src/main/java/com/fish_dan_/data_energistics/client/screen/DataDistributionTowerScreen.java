@@ -2,12 +2,14 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
+import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
 
 import net.minecraft.client.Minecraft;
@@ -257,7 +259,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     }
 
     private List<BoundRow> buildRows() {
-        if (this.menu.boundTargets == null || this.menu.boundTargets.isBlank()) {
+        if (this.menu.boundTargetEntries.isEmpty()) {
             return List.of(new BoundRow(new ItemStack(Items.BARRIER),
                     Component.translatable("screen.data_energistics.data_distribution_tower.bound_none").getString(),
                     "",
@@ -267,21 +269,16 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     true));
         }
 
-        String[] names = this.menu.boundTargets.split("\\n");
-        String[] icons = this.menu.boundTargetIcons == null || this.menu.boundTargetIcons.isBlank() ? new String[0] : this.menu.boundTargetIcons.split("\\n");
-        String[] metas = this.menu.boundTargetMeta == null || this.menu.boundTargetMeta.isBlank() ? new String[0] : this.menu.boundTargetMeta.split("\\n");
-        String[] kinds = this.menu.boundTargetKinds == null || this.menu.boundTargetKinds.isBlank() ? new String[0] : this.menu.boundTargetKinds.split("\\n");
-        String[] modes = this.menu.boundTargetModes == null || this.menu.boundTargetModes.isBlank() ? new String[0] : this.menu.boundTargetModes.split("\\n");
-
         ArrayList<BoundRow> rows = new ArrayList<>();
-        for (int i = 0; i < names.length; i++) {
+        for (DataDistributionTowerTargetEntry entry : this.menu.boundTargetEntries) {
+            String displayText = entry.count() > 1 ? entry.displayName() + " x" + entry.count() + " (" + entry.kind().name() + ")" : entry.displayName() + " (" + entry.kind().name() + ")";
             rows.add(new BoundRow(
-                    i < icons.length ? toStack(icons[i]) : new ItemStack(Items.BARRIER),
-                    names[i],
-                    names[i],
-                    i < metas.length ? parseMeta(metas[i]) : new TargetRef(Level.OVERWORLD, new BlockPos(0, 0, 0)),
-                    i < kinds.length ? parseKind(kinds[i]) : RowKind.FE,
-                    i < modes.length ? parseMode(modes[i]) : TargetMode.AUTO,
+                    toStack(entry.itemId()),
+                    displayText,
+                    entry.displayName(),
+                    new TargetRef(ResourceKey.create(Registries.DIMENSION, entry.dimensionId()), entry.pos()),
+                    entry.kind() == TargetKind.AE ? RowKind.AE : RowKind.FE,
+                    toTargetMode(entry.transferMode()),
                     false));
         }
         return rows;
@@ -296,13 +293,16 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         return !this.disabledTargetsOnly || row.placeholder() || row.mode() == TargetMode.DISABLED;
     }
 
-    private ItemStack toStack(String itemId) {
-        try {
-            var item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemId));
-            return item == Items.AIR ? new ItemStack(Items.BARRIER) : new ItemStack(item);
-        } catch (Exception ignored) {
-            return new ItemStack(Items.BARRIER);
-        }
+    private ItemStack toStack(ResourceLocation itemId) {
+        var item = BuiltInRegistries.ITEM.get(itemId);
+        return item == Items.AIR ? new ItemStack(Items.BARRIER) : new ItemStack(item);
+    }
+
+    private TargetMode toTargetMode(TargetTransferMode mode) {
+        return switch (mode) {
+            case AUTO -> TargetMode.AUTO;
+            case DISABLED -> TargetMode.DISABLED;
+        };
     }
 
     private void renderRowIcon(GuiGraphics guiGraphics, ItemStack stack, int x, int y) {
@@ -374,33 +374,6 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             }
         }
         return null;
-    }
-
-    private TargetRef parseMeta(String meta) {
-        try {
-            String[] parts = meta.split("\\|");
-            ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION,
-                    ResourceLocation.parse(parts[0]));
-            BlockPos pos = new BlockPos(
-                    Integer.parseInt(parts[1]),
-                    Integer.parseInt(parts[2]),
-                    Integer.parseInt(parts[3]));
-            return new TargetRef(dimension, pos);
-        } catch (Exception ignored) {
-            return new TargetRef(Level.OVERWORLD, new BlockPos(0, 0, 0));
-        }
-    }
-
-    private RowKind parseKind(String kind) {
-        return "AE".equalsIgnoreCase(kind) ? RowKind.AE : RowKind.FE;
-    }
-
-    private TargetMode parseMode(String mode) {
-        try {
-            return TargetMode.valueOf(mode);
-        } catch (Exception ignored) {
-            return TargetMode.AUTO;
-        }
     }
 
     private record BoundRow(ItemStack iconStack, String displayText, String searchIndex, TargetRef target, RowKind kind,

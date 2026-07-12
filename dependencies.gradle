@@ -37,6 +37,10 @@ dependencies {
     // FTB
     compileOnly(forge.ftbultimine)
 
+    // Energy integrations
+    compileOnly(forge.oritech)
+    testImplementation(forge.oritech)
+
     // Recipe viewers
     compileOnly(forge.bundles.jei)
     compileOnly(forge.emi)

@@ -42,6 +42,13 @@ public interface TowerTargetDisplayResolverContext {
     Collection<BlockPos> linkedPositions();
 
     /**
+     * Returns all persisted and pending point-to-point target positions.
+     *
+     * @return tracked target positions
+     */
+    Collection<BlockPos> trackedPositions();
+
+    /**
      * Returns target positions with explicit transfer mode settings.
      *
      * @return configured target positions
@@ -107,7 +114,7 @@ public interface TowerTargetDisplayResolverContext {
      * @param pos target position
      * @return true when an AE node host is present
      */
-    boolean hasAeNodeCapability(BlockPos pos);
+    boolean hasExposedAeNode(BlockPos pos);
 
     /**
      * Checks whether a target has receive-capable FE storage.

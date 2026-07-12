@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
+import com.fish_dan_.data_energistics.ae2.ChannelHubHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverage;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverageImpl;
@@ -17,12 +17,11 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraphImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverImpl;
-import com.fish_dan_.data_energistics.config.Config;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
-import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
-import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccessImpl;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
@@ -73,12 +72,9 @@ import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
-import appeng.api.parts.IPart;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.core.AEConfig;
 import appeng.core.definitions.AEItems;
-import appeng.parts.CableBusContainer;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
@@ -90,29 +86,32 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
-public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost,
+public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements ChannelHubHost,
                                               InternalInventoryHost, TowerEnergyEndpointResolverContext, TowerEnergyDistributorContext,
                                               TowerTargetDisplayResolverContext {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final DirectEnergyAccess DIRECT_ENERGY_ACCESS = new DirectEnergyAccessImpl();
+    private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new UnlimitedEnergyAccessImpl();
     /** Selects the connector source captured when a player places a potentially compatible target. */
     private static final DataDistributionConnectorSelector CONNECTOR_SELECTOR = DataDistributionConnectorSelector.create();
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final String CONNECTION_MODE_TAG = "connection_mode";
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
+    private static final String BUFFERED_TRANSFER_ENERGY_TAG = "buffered_transfer_energy";
     private static final int PERSISTED_LINK_RETRY_DELAY = 10;
     private static final int PERSISTED_LINK_REQUEUE_TICKS = 40;
     private static final String RANGE_ADJUSTMENT_MODE_TAG = "range_adjustment_mode";
@@ -138,6 +137,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
+    private long bufferedTransferEnergy;
     private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private List<BlockPos> cachedAeDisplayTargets = List.of();
@@ -180,8 +180,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.coverage = new TowerCoverageImpl(blockPos);
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
-        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(this, oritechEnergyBridge, DIRECT_ENERGY_ACCESS);
-        this.energyDistributor = new TowerEnergyDistributorImpl(this, this.energyEndpointResolver, DIRECT_ENERGY_ACCESS);
+        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(this, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
+        this.energyDistributor = new TowerEnergyDistributorImpl(this, this.energyEndpointResolver, UNLIMITED_ENERGY_ACCESS);
         this.targetDisplayResolver = new TowerTargetDisplayResolverImpl(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()
@@ -218,6 +218,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
         this.connectionMode = ConnectionMode.fromSerializedName(data.getString(CONNECTION_MODE_TAG));
         this.rangeAdjustmentMode = RangeAdjustmentMode.fromSerializedName(data.getString(RANGE_ADJUSTMENT_MODE_TAG));
+        this.bufferedTransferEnergy = readBufferedTransferEnergy(data);
         this.wirelessBoosters.readFromNBT(data, "wireless_boosters", registries);
         this.syncedChunkRadius = computeChunkRadius();
         updateIdlePowerUsage();
@@ -254,6 +255,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
         data.putString(CONNECTION_MODE_TAG, this.connectionMode.getSerializedName());
         data.putString(RANGE_ADJUSTMENT_MODE_TAG, this.rangeAdjustmentMode.getSerializedName());
+        data.putLong(BUFFERED_TRANSFER_ENERGY_TAG, this.bufferedTransferEnergy);
         this.wirelessBoosters.writeToNBT(data, "wireless_boosters", registries);
 
         data.put(LINKED_POSITIONS_TAG, createLinkedPositionsTag());
@@ -274,6 +276,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
         super.exportSettings(mode, builder, player);
+        if (mode == SettingsFrom.DISMANTLE_ITEM) {
+            if (this.bufferedTransferEnergy > 0) {
+                CompoundTag settings = new CompoundTag();
+                settings.putLong(BUFFERED_TRANSFER_ENERGY_TAG, this.bufferedTransferEnergy);
+                builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
+            }
+            return;
+        }
         if (mode != SettingsFrom.MEMORY_CARD) {
             return;
         }
@@ -289,11 +299,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         super.importSettings(mode, input, player);
+        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
+        if (mode == SettingsFrom.DISMANTLE_ITEM) {
+            if (settings != null) {
+                setBufferedTransferEnergy(readBufferedTransferEnergy(settings));
+            }
+            return;
+        }
         if (mode != SettingsFrom.MEMORY_CARD) {
             return;
         }
 
-        CompoundTag settings = input.get(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get());
         if (settings != null) {
             applyMemoryCardSettings(settings);
         }
@@ -360,6 +376,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (isClusterCoordinator()) {
             performActiveRangeTransfer();
+        } else {
+            this.energyDistributor.flushBufferedEnergy();
         }
     }
 
@@ -405,7 +423,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (normalizedMode == TargetTransferMode.DISABLED) {
             destroyTargetConnections(normalizedPos);
             this.linkGraph.removePending(normalizedPos);
-            this.linkGraph.removeLinked(normalizedPos);
         } else if (canMaintainGridLinkTo(normalizedPos)) {
             queueLink(normalizedPos, 0);
         }
@@ -460,7 +477,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return ConnectorBindResult.fail(ConnectorBindFailure.OUT_OF_RANGE);
         }
 
-        boolean aeSupported = hasAeNodeCapability(normalizedPos);
+        boolean aeSupported = hasExposedAeNode(normalizedPos);
         boolean feSupported = canReceiveEnergy(findReceiveEnergyStorage(normalizedPos));
         if (!aeSupported && !feSupported) {
             return ConnectorBindResult.fail(ConnectorBindFailure.UNSUPPORTED);
@@ -665,7 +682,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             canReceive |= canReceiveEnergy(internal);
         }
 
-        boolean hasAeTarget = this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, normalizedPos, null) != null;
+        boolean hasAeTarget = hasExposedAeNode(normalizedPos);
         return new TargetTransferInfo(channelConnections, hasAeTarget, hasEnergy, stored, capacity, canExtract, canReceive);
     }
 
@@ -695,15 +712,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public List<BoundTargetSummary> getBoundTargetSummaries(int maxEntries) {
         return this.targetDisplayResolver.boundTargetSummaries(maxEntries);
-    }
-
-    @Override
-    public int getCustomAdHocChannels() {
-        ChannelMode mode = AEConfig.instance().getChannelMode();
-        if (mode == ChannelMode.INFINITE) {
-            return Integer.MAX_VALUE;
-        }
-        return 32 * mode.getCableCapacityFactor();
     }
 
     @SubscribeEvent
@@ -898,7 +906,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         ArrayList<BlockEntity> blockEntities = new ArrayList<>(chunk.getBlockEntities().values());
         blockEntities.sort(this::compareLinkTargetPriority);
         for (BlockEntity blockEntity : blockEntities) {
-            BlockPos pos = blockEntity.getBlockPos().immutable();
+            BlockPos pos = normalizeTargetPos(blockEntity.getBlockPos());
             if (pos.equals(this.worldPosition) || !isWithinTowerCoverage(pos)) {
                 continue;
             }
@@ -940,14 +948,21 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos targetPos : readyTargets) {
             List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
             if (linkableNodes.isEmpty()) {
-                if (this.linkGraph.containsLinked(targetPos.immutable())) {
+                reconnectTarget(selfNode, targetPos, List.of());
+                if (this.linkGraph.containsLinked(targetPos.immutable()) && needsAeChannelLink(targetPos)) {
                     this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
                 } else {
                     this.linkGraph.removePending(targetPos);
                 }
                 continue;
             }
-            if (linkableNodes.size() > remainingChannels) {
+            int missingConnections = 0;
+            for (IGridNode targetNode : linkableNodes) {
+                if (!this.linkGraph.hasConnection(targetPos, targetNode)) {
+                    missingConnections++;
+                }
+            }
+            if (missingConnections > remainingChannels) {
                 continue;
             }
 
@@ -1043,13 +1058,26 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
-    public long transferBudgetPerTick() {
-        return Config.dataDistributionTowerTransferPerTick;
+    public AENetworkedBlockEntity aeNetworkHost() {
+        return this;
     }
 
     @Override
-    public AENetworkedBlockEntity aeNetworkHost() {
-        return this;
+    public long bufferedTransferEnergy() {
+        return this.bufferedTransferEnergy;
+    }
+
+    @Override
+    public void setBufferedTransferEnergy(long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("Buffered tower transfer energy must be non-negative: " + amount);
+        }
+        if (amount == this.bufferedTransferEnergy) {
+            return;
+        }
+
+        this.bufferedTransferEnergy = amount;
+        this.setChanged();
     }
 
     @Override
@@ -1092,7 +1120,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         IGrid grid = this.getMainNode().getGrid();
         if (grid == null) {
-            return getCustomAdHocChannels();
+            return 32;
         }
         IPathingService pathingService = grid.getPathingService();
         ChannelMode mode = pathingService.getChannelMode();
@@ -1203,14 +1231,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         LinkedHashSet<BlockPos> aeDisplayTargets = new LinkedHashSet<>();
         if (allowsAutomaticRangeConnections()) {
             for (BlockEntity blockEntity : getNearbyBlockEntities()) {
-                BlockPos pos = blockEntity.getBlockPos().immutable();
+                BlockPos pos = normalizeTargetPos(blockEntity.getBlockPos());
                 if (isTowerBlock(pos)) {
                     continue;
                 }
                 if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
                     endpoints.add(pos);
                 }
-                if (allowsAeTargets() && targetAllowsAe(pos) && this.targetDisplayResolver.hasDisplayableAeTarget(blockEntity)) {
+                BlockEntity targetBlockEntity = this.level.getBlockEntity(pos);
+                if (allowsAeTargets() && targetAllowsAe(pos) && this.targetDisplayResolver.hasDisplayableAeTarget(pos, targetBlockEntity)) {
                     aeDisplayTargets.add(pos);
                 }
             }
@@ -1223,7 +1252,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 if (allowsFeTargets() && targetAllowsFe(pos) && hasAnyEnergyCapability(pos)) {
                     endpoints.add(pos);
                 }
-                if (allowsAeTargets() && targetAllowsAe(pos) && this.targetDisplayResolver.hasDisplayableAeTarget(blockEntity)) {
+                if (allowsAeTargets() && targetAllowsAe(pos) && this.targetDisplayResolver.hasDisplayableAeTarget(pos, blockEntity)) {
                     aeDisplayTargets.add(pos);
                 }
             }
@@ -1319,7 +1348,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.level == null || blockEntity instanceof DataDistributionTowerBlockEntity || this.level.getBlockState(pos).isAir()) {
             return null;
         }
-        if (hasAeNodeCapability(pos)) {
+        if (hasExposedAeNode(pos)) {
             return TargetKind.AE;
         }
         if (canReceiveEnergy(findReceiveEnergyStorage(pos))) {
@@ -1337,6 +1366,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public Set<BlockPos> linkedPositions() {
         return this.linkGraph.linkedPositions();
+    }
+
+    @Override
+    public List<BlockPos> trackedPositions() {
+        return this.linkGraph.trackedPositions();
     }
 
     @Override
@@ -1400,7 +1434,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
 
-        if (this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, pos, null) == null) {
+        if (!hasExposedAeNode(pos)) {
             return false;
         }
 
@@ -1493,6 +1527,24 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.energyDistributor.performActiveRangeTransfer();
     }
 
+    private long readBufferedTransferEnergy(CompoundTag data) {
+        if (!data.contains(BUFFERED_TRANSFER_ENERGY_TAG)) {
+            return 0L;
+        }
+        if (!data.contains(BUFFERED_TRANSFER_ENERGY_TAG, Tag.TAG_LONG)) {
+            LOGGER.error("Data Distribution Tower at {} has a non-long transfer buffer tag", this.worldPosition);
+            return 0L;
+        }
+
+        long amount = data.getLong(BUFFERED_TRANSFER_ENERGY_TAG);
+        if (amount < 0) {
+            LOGGER.error("Data Distribution Tower at {} has negative buffered transfer energy: {}",
+                    this.worldPosition, amount);
+            return 0L;
+        }
+        return amount;
+    }
+
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
         return this.energyDistributor.distributeEnergyInRange(amount, simulate, excludedPos);
     }
@@ -1522,11 +1574,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean queueLink(BlockPos targetPos, int delay) {
-        if (!canMaintainGridLinkTo(targetPos)) {
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        if (!canMaintainGridLinkTo(normalizedPos)) {
             return false;
         }
 
-        return this.linkGraph.queuePending(targetPos, delay);
+        return this.linkGraph.queuePending(normalizedPos, delay);
     }
 
     @Override
@@ -1573,32 +1626,28 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private int reconnectTarget(IGridNode selfNode, BlockPos targetPos, List<IGridNode> targetNodes) {
-        destroyTargetConnections(targetPos);
-
-        if (targetNodes.isEmpty()) {
-            this.setChanged();
-            return 0;
-        }
-
-        ArrayList<IGridConnection> newConnections = new ArrayList<>();
+        Map<IGridNode, IGridConnection> existingConnections = this.linkGraph.connections(targetPos);
+        LinkedHashMap<IGridNode, IGridConnection> reconciledConnections = new LinkedHashMap<>();
+        int createdConnections = 0;
         for (IGridNode targetNode : targetNodes) {
+            IGridConnection existingConnection = existingConnections.get(targetNode);
+            if (existingConnection != null) {
+                reconciledConnections.put(targetNode, existingConnection);
+                continue;
+            }
             try {
-                newConnections.add(GridHelper.createConnection(selfNode, targetNode));
+                reconciledConnections.put(targetNode, GridHelper.createConnection(selfNode, targetNode));
+                createdConnections++;
             } catch (IllegalStateException exception) {
                 LOGGER.debug("Failed to reconnect data distribution tower at {} to target {}", this.worldPosition, targetPos, exception);
             }
         }
 
-        if (newConnections.isEmpty()) {
-            this.setChanged();
-            return 0;
-        }
-
-        this.linkGraph.putConnections(targetPos, newConnections);
+        this.linkGraph.reconcileConnections(targetPos, reconciledConnections);
         this.invalidateEndpointCache();
         this.invalidateClusterCache();
         this.setChanged();
-        return newConnections.size();
+        return createdConnections;
     }
 
     private boolean shouldReconnectTrackedTarget(BlockPos targetPos) {
@@ -1624,7 +1673,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean towerTarget = level.getBlockEntity(targetPos) instanceof DataDistributionTowerBlockEntity;
         ArrayList<IGridNode> linkableNodes = new ArrayList<>();
         for (IGridNode targetNode : targetNodes) {
-            if (isLinkableTargetNode(selfNode, targetNode, towerTarget)) {
+            if (this.linkGraph.hasConnection(targetPos, targetNode) || isLinkableTargetNode(selfNode, targetNode, towerTarget)) {
                 linkableNodes.add(targetNode);
             }
         }
@@ -1694,19 +1743,19 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 return;
             }
 
-            tower.enqueueMissingPersistedLinks();
+            tower.enqueuePersistedLinkReconciliation();
             schedulePersistedLinkRequeue(server, level, towerPos, remainingTicks - 1);
         });
     }
 
-    private void enqueueMissingPersistedLinks() {
+    private void enqueuePersistedLinkReconciliation() {
         if (this.linkGraph.linkedPositions().isEmpty()) {
             return;
         }
 
         boolean changed = false;
         for (BlockPos pos : List.copyOf(this.linkGraph.linkedPositions())) {
-            if (this.linkGraph.hasConnections(pos) || this.linkGraph.containsPending(pos)) {
+            if (this.linkGraph.containsPending(pos)) {
                 continue;
             }
             changed |= queueLink(pos, 0);
@@ -1735,41 +1784,36 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         this.autoDiscoveryCooldown = AUTO_DISCOVERY_INTERVAL_TICKS;
+        enqueuePersistedLinkReconciliation();
         requestNearbyConnectableNodeScanIfIdle();
     }
 
     public static List<IGridNode> getConnectableNodes(Level level, BlockPos pos) {
-        LinkedHashSet<IGridNode> nodes = new LinkedHashSet<>();
         IInWorldGridNodeHost nodeHost = level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, pos, null);
         if (nodeHost == null) {
             return List.of();
         }
 
-        if (nodeHost instanceof CableBusBlockEntity cableBusBlockEntity) {
-            CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
-            IPart center = cableBus.getPart(null);
-            if (center != null) {
-                nodes.add(center.getGridNode());
-            }
-            for (var direction : Direction.values()) {
-                IPart part = cableBus.getPart(direction);
-                if (part != null) {
-                    nodes.add(part.getGridNode());
-                    nodes.add(cableBus.getGridNode(direction));
-                }
-            }
-        } else {
-            for (var direction : Direction.values()) {
-                IGridNode node = nodeHost.getGridNode(direction);
-                if (node != null) {
-                    nodes.add(node);
-                    break;
-                }
+        return collectConnectableNodes(nodeHost);
+    }
+
+    /**
+     * Collects every distinct sided node exposed by one capability host.
+     *
+     * @param nodeHost host returned by the direction-neutral AE capability query
+     * @return immutable nodes in AE direction iteration order, de-duplicated by node identity
+     */
+    static List<IGridNode> collectConnectableNodes(IInWorldGridNodeHost nodeHost) {
+        Set<IGridNode> nodes = Collections.newSetFromMap(new IdentityHashMap<>());
+        ArrayList<IGridNode> orderedNodes = new ArrayList<>();
+        for (Direction direction : Direction.values()) {
+            IGridNode node = nodeHost.getGridNode(direction);
+            if (node != null && nodes.add(node)) {
+                orderedNodes.add(node);
             }
         }
 
-        nodes.removeIf(Objects::isNull);
-        return List.copyOf(nodes);
+        return List.copyOf(orderedNodes);
     }
 
     private static void invalidateNearbyCaches(Level level, BlockPos changedPos) {
@@ -1827,7 +1871,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return excludedPos == null ? null : excludedPos.immutable();
     }
 
-    private static BlockPos normalizeTargetPos(BlockPos targetPos) {
+    private BlockPos normalizeTargetPos(BlockPos targetPos) {
+        if (this.level != null) {
+            BlockPos networkPortPos = DataSanctumBlockEntity.findNetworkPortPos(this.level, targetPos);
+            if (networkPortPos != null) {
+                return networkPortPos.immutable();
+            }
+        }
         return targetPos.immutable();
     }
 
@@ -2020,19 +2070,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean canMaintainGridLinkTo(BlockPos targetPos) {
-        if (this.level == null || this.worldPosition.equals(targetPos) || !isWithinTowerCoverage(targetPos)) {
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        if (this.level == null || this.worldPosition.equals(normalizedPos) || !isWithinTowerCoverage(normalizedPos)) {
             return false;
         }
-        if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
+        if (getTargetTransferMode(normalizedPos) == TargetTransferMode.DISABLED) {
             return false;
         }
 
-        BlockEntity blockEntity = this.level.getBlockEntity(targetPos);
+        BlockEntity blockEntity = this.level.getBlockEntity(normalizedPos);
         if (blockEntity instanceof DataDistributionTowerBlockEntity) {
             return true;
         }
 
-        return allowsAeTargets() && needsAeChannelLink(targetPos);
+        return allowsAeTargets() && hasExposedAeNode(normalizedPos) && (this.linkGraph.containsLinked(normalizedPos) || this.linkGraph.containsPending(normalizedPos) || needsAeChannelLink(normalizedPos));
     }
 
     private boolean allowsAutomaticRangeConnections() {
@@ -2052,7 +2103,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
             return false;
         }
-        return needsAeChannelLink(targetPos);
+        return hasExposedAeNode(targetPos);
     }
 
     @Override
@@ -2064,12 +2115,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @Override
-    public boolean hasAeNodeCapability(BlockPos targetPos) {
-        return this.level != null && this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, targetPos, null) != null;
+    public boolean hasExposedAeNode(BlockPos targetPos) {
+        return this.level != null && !getConnectableNodes(this.level, normalizeTargetPos(targetPos)).isEmpty();
     }
 
     private boolean needsAeChannelLink(BlockPos targetPos) {
-        if (this.level == null || !hasAeNodeCapability(targetPos)) {
+        if (this.level == null || !hasExposedAeNode(targetPos)) {
             return false;
         }
 
