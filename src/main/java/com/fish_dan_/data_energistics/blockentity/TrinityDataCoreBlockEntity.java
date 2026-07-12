@@ -723,27 +723,32 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return this.storageProfile;
     }
 
-    public void restoreStorageIdFromItem(ItemStack stack) {
+    /**
+     * Restores the storage and crafting identities carried by one moved host item.
+     *
+     * <p>Both components form one identity pair. A malformed item containing only one component is rejected so a
+     * newly created host cannot accidentally bind half of another host's persistent state.</p>
+     *
+     * @param stack placed Trinity host item
+     * @return whether a complete identity pair was restored
+     */
+    public boolean restoreIdentityFromItem(ItemStack stack) {
         UUID itemStorageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
-        if (itemStorageId != null) {
-            setStorageId(itemStorageId);
-        }
-    }
-
-    public void saveStorageIdToItem(ItemStack stack) {
-        stack.set(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
-    }
-
-    /** Restores the stable crafting host identity carried by a moved Trinity host item. */
-    public void restoreHostIdFromItem(ItemStack stack) {
         UUID itemHostId = stack.get(ModDataComponents.TRINITY_DATA_CORE_HOST_ID);
-        if (itemHostId != null) {
-            setHostId(itemHostId);
+        if (itemStorageId == null && itemHostId == null) {
+            return false;
         }
+        if (itemStorageId == null || itemHostId == null) {
+            LOGGER.error("Rejecting partial Trinity Data Core identity on item {}", stack);
+            return false;
+        }
+        setIdentity(itemStorageId, itemHostId);
+        return true;
     }
 
-    /** Saves the crafting host identity independently from the legacy main-storage identity. */
-    public void saveHostIdToItem(ItemStack stack) {
+    /** Saves the storage and crafting identities as one typed-component pair on a moved host item. */
+    public void saveIdentityToItem(ItemStack stack) {
+        stack.set(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID, this.storageId);
         stack.set(ModDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
     }
 
@@ -1102,22 +1107,21 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return this.craftingRuntime.insertIntoCpus(key, amount, mode, inserted);
     }
 
-    private void setStorageId(UUID storageId) {
-        if (this.storageId.equals(storageId)) {
+    private void setIdentity(UUID storageId, UUID hostId) {
+        boolean storageChanged = !this.storageId.equals(storageId);
+        boolean hostChanged = !this.hostId.equals(hostId);
+        if (!storageChanged && !hostChanged) {
             return;
+        }
+        if (hostChanged) {
+            clearPatternCatalog();
         }
         this.storageId = storageId;
-        setChanged();
-    }
-
-    private void setHostId(UUID hostId) {
-        if (this.hostId.equals(hostId)) {
-            return;
+        if (hostChanged) {
+            this.hostId = hostId;
+            this.patternCatalog = new TrinityPatternCatalogImpl(hostId);
+            this.patternCatalogValid = false;
         }
-        clearPatternCatalog();
-        this.hostId = hostId;
-        this.patternCatalog = new TrinityPatternCatalogImpl(hostId);
-        this.patternCatalogValid = false;
         requestStructureRecheck();
         setChanged();
     }

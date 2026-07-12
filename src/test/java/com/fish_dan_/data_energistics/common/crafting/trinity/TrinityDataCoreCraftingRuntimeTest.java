@@ -891,13 +891,13 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     public static void storageIdRoundTripsThroughItemAndNbt(GameTestHelper helper) {
         TrinityDataCoreBlockEntity original = trinityDataCore(false);
         ItemStack stack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        original.saveStorageIdToItem(stack);
+        original.saveIdentityToItem(stack);
         UUID storageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
 
         TrinityDataCoreBlockEntity placed = trinityDataCore(false);
-        placed.restoreStorageIdFromItem(stack);
+        placed.restoreIdentityFromItem(stack);
         ItemStack placedStack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        placed.saveStorageIdToItem(placedStack);
+        placed.saveIdentityToItem(placedStack);
         helper.assertValueEqual(
                 placedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
@@ -908,7 +908,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         TrinityDataCoreBlockEntity loaded = trinityDataCore(false);
         loaded.loadTag(saved, HolderLookup.Provider.create(Stream.empty()));
         ItemStack loadedStack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        loaded.saveStorageIdToItem(loadedStack);
+        loaded.saveIdentityToItem(loadedStack);
         helper.assertValueEqual(
                 loadedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
