@@ -63,7 +63,10 @@ import java.util.stream.Stream;
 @PrefixGameTestTemplate(false)
 public final class TrinityDataCoreCraftingRuntimeTest {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int HOST_SCHEMA_VERSION = 1;
+    private static final int RUNTIME_SCHEMA_VERSION = 2;
+    private static final int LEGACY_RUNTIME_SCHEMA_VERSION = 1;
+    private static final int CPU_LOGIC_SCHEMA_VERSION = 1;
 
     private TrinityDataCoreCraftingRuntimeTest() {}
 
@@ -96,19 +99,19 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.setLevel(helper.getLevel());
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
-        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
         CraftingPlan plan = ingredientPlan(iron, 2L);
         seedStorage(leaseGrid.storage(), iron, 2L);
         seedStorage(wrongGrid.storage(), iron, 2L);
 
-        assertOfflineWithoutExtraction(helper, cpu, wrongGrid, plan, iron, "Wrong grid");
+        assertOfflineWithoutExtraction(helper, reserveCpu, wrongGrid, plan, iron, "Wrong grid");
 
         host.setCpuProviderAvailable(false);
-        assertOfflineWithoutExtraction(helper, cpu, leaseGrid, plan, iron, "Unavailable CPU child");
+        assertOfflineWithoutExtraction(helper, reserveCpu, leaseGrid, plan, iron, "Unavailable CPU child");
 
         host.setCpuProviderAvailable(true);
         host.clearCpuContribution("cpu");
-        assertOfflineWithoutExtraction(helper, cpu, leaseGrid, plan, iron, "Stale CPU partition");
+        assertOfflineWithoutExtraction(helper, reserveCpu, leaseGrid, plan, iron, "Stale CPU partition");
         helper.succeed();
     }
 
@@ -122,17 +125,23 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.setLevel(helper.getLevel());
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(2048L, 0, 2));
-        List<TrinityDataCoreVirtualCpu> cpus = host.getCpuPartitions();
         seedStorage(grid.storage(), iron, 4L);
 
-        for (TrinityDataCoreVirtualCpu cpu : cpus) {
-            ICraftingSubmitResult result = cpu.submitJob(
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        for (int job = 0; job < 2; job++) {
+            ICraftingSubmitResult result = reserveCpu.submitJob(
                     grid,
                     ingredientPlan(iron, 2L),
                     IActionSource.empty(),
                     null);
             helper.assertTrue(result.successful(), "Recovery test should submit a job to every retained CPU");
         }
+        List<TrinityDataCoreVirtualCpu> cpus = host.getCpuPartitions().stream()
+                .filter(TrinityDataCoreVirtualCpu::isBusy)
+                .toList();
+        helper.assertValueEqual(cpus.size(), 2, "Recovery test should allocate worker CPUs 1 and 2");
+        helper.assertValueEqual(cpus.get(0).number(), 1, "First recovery job should use worker CPU 1");
+        helper.assertValueEqual(cpus.get(1).number(), 2, "Second recovery job should use worker CPU 2");
         helper.assertValueEqual(grid.storage().getStored(iron), 0L,
                 "Submitted CPU jobs should own all four extracted ingredients");
 
@@ -155,11 +164,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuContributionRebuildsPartitions(GameTestHelper helper) {
-        TrinityDataCoreBlockEntity host = trinityDataCore(true);
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
 
         host.setCpuContribution("partition", TrinityDataCoreCpuContribution.of(1024L, 2, 2));
 
-        helper.assertValueEqual(host.getCpuPartitions().size(), 2, "Child contribution should add CPU partitions");
+        helper.assertValueEqual(host.getCpuPartitions().size(), 1, "Idle runtime should publish only reserved CPU 0");
+        helper.assertValueEqual(host.getCpuPartitions().getFirst().number(), 0, "Idle runtime should reserve CPU number 0");
         helper.assertValueEqual(
                 host.getCraftingRuntime().profile().coProcessors(),
                 2,
@@ -169,6 +182,128 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 host.getCpuPartitions().size(),
                 0,
                 "Clearing child contribution should remove child CPU partitions");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_pool_reuses_lowest_available_worker")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuPoolReusesLowestAvailableWorker(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 2));
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+
+        helper.assertTrue(
+                reserveCpu.submitJob(grid, emptyJobPlan(), IActionSource.empty(), null).successful(),
+                "First pool job should be accepted");
+        helper.assertTrue(
+                reserveCpu.submitJob(grid, emptyJobPlan(), IActionSource.empty(), null).successful(),
+                "Second pool job should be accepted");
+
+        List<TrinityDataCoreVirtualCpu> published = host.getCpuPartitions();
+        helper.assertValueEqual(published.size(), 3, "Pool should publish reserved CPU 0 and two busy workers");
+        helper.assertValueEqual(published.get(0).number(), 0, "Reserved CPU must remain first");
+        helper.assertValueEqual(published.get(1).number(), 1, "First job must use worker CPU 1");
+        helper.assertValueEqual(published.get(2).number(), 2, "Second job must use worker CPU 2");
+
+        TrinityDataCoreVirtualCpu releasedWorker = published.get(1);
+        releasedWorker.cancelJob();
+        helper.assertTrue(
+                reserveCpu.submitJob(grid, emptyJobPlan(), IActionSource.empty(), null).successful(),
+                "A new job should reuse the released low worker number");
+
+        published = host.getCpuPartitions();
+        helper.assertValueEqual(published.get(1).number(), 1, "Released worker number 1 must be reused first");
+        helper.assertFalse(
+                published.get(1) == releasedWorker,
+                "Reused worker number should belong to a fresh runtime worker object");
+        helper.assertValueEqual(published.get(2).number(), 2, "Worker CPU 2 must retain its existing job");
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_pool_supports_worker_256_boundary")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuPoolSupportsWorker256Boundary(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 256));
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        CraftingPlan plan = emptyJobPlan();
+
+        for (int workerNumber = 1; workerNumber <= 256; workerNumber++) {
+            ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
+            helper.assertTrue(result.successful(), "Worker allocation should succeed through CPU 256");
+        }
+
+        List<TrinityDataCoreVirtualCpu> published = host.getCpuPartitions();
+        helper.assertValueEqual(published.size(), 257, "Full pool should publish CPU 0 and 256 busy workers");
+        helper.assertValueEqual(published.getFirst().number(), 0, "Full pool must keep reserved CPU 0 first");
+        helper.assertValueEqual(published.getLast().number(), 256, "Full pool must expose worker CPU 256");
+        helper.assertTrue(
+                reserveCpu.submitJob(grid, plan, IActionSource.empty(), null) == CraftingSubmitResult.CPU_BUSY,
+                "A 257th worker job must be rejected as CPU busy");
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_runtime_omits_released_worker_nbt")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimeOmitsReleasedWorkerNbt(GameTestHelper helper) {
+        BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        fixture.cpu().cancelJob();
+
+        CompoundTag saved = new CompoundTag();
+        fixture.runtime().writeToTag(saved, helper.getLevel().registryAccess());
+
+        helper.assertValueEqual(
+                saved.getList("partitions", 10).size(),
+                0,
+                "Released worker and reserved CPU 0 must not be serialized");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_runtime_persists_hidden_inventory_worker")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimePersistsHiddenInventoryWorker(GameTestHelper helper) {
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        seedStorage(grid.storage(), iron, 2L);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        helper.assertTrue(
+                reserveCpu.submitJob(grid, ingredientPlan(iron, 2L), IActionSource.empty(), null).successful(),
+                "Inventory retention job should be accepted");
+        TrinityDataCoreVirtualCpu worker = singleBusyWorker(host.getCraftingRuntime());
+
+        grid.storage().setMaxAcceptedPerInsert(0L);
+        worker.cancelJob();
+
+        helper.assertValueEqual(host.getCpuPartitions().size(), 1, "Idle inventory worker must be hidden behind CPU 0");
+        helper.assertValueEqual(worker.getStored(iron), 2L, "Rejected ingredients must remain in the hidden worker");
+        CompoundTag saved = new CompoundTag();
+        host.getCraftingRuntime().writeToTag(saved, helper.getLevel().registryAccess());
+        ListTag partitions = saved.getList("partitions", 10);
+        helper.assertValueEqual(partitions.size(), 1, "Hidden inventory worker must remain serialized");
+        helper.assertValueEqual(partitions.getCompound(0).getInt("index"), 1, "Retained inventory must belong to worker CPU 1");
+        CompoundTag logic = partitions.getCompound(0).getCompound("logic");
+        helper.assertValueEqual(logic.getList("inventory", 10).size(), 1, "Retained worker inventory must be persisted");
+        helper.assertFalse(logic.contains("job"), "Canceled inventory worker must not persist a completed job");
+
+        grid.storage().setMaxAcceptedPerInsert(Long.MAX_VALUE);
+        host.getCraftingRuntime().tick(grid.energyService(), grid.craftingService());
+        helper.assertValueEqual(worker.getStored(iron), 0L, "Hidden worker should retry inventory return while online");
         helper.succeed();
     }
 
@@ -187,7 +322,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.setCpuContribution(
                 "maximum",
                 TrinityDataCoreCpuContribution.of(Long.MAX_VALUE, Integer.MAX_VALUE, 1));
-        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
         CraftingPlan plan = new CraftingPlan(
                 new GenericStack(output, 1L),
                 1L,
@@ -198,8 +333,9 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 new KeyCounter(),
                 Map.of(pattern, 1L));
 
-        ICraftingSubmitResult result = cpu.submitJob(grid, plan, IActionSource.empty(), null);
+        ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
         helper.assertTrue(result.successful(), "Maximum CPU profile should accept a directly dispatched pattern job");
+        TrinityDataCoreVirtualCpu cpu = singleBusyWorker(host.getCraftingRuntime());
         helper.assertValueEqual(
                 cpu.getCoProcessors(),
                 Integer.MAX_VALUE,
@@ -246,29 +382,28 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         AEItemKey bucket = AEItemKey.of(Items.BUCKET);
         TestRequester requester = new TestRequester(Long.MAX_VALUE);
-        submitOutputJob(
-                fixture.cpu(),
-                fixture.grid(),
+        TrinityDataCoreVirtualCpu cpu = submitOutputJob(
+                fixture,
                 requester,
                 outputPlan(new GenericStack(diamond, 1L), new GenericStack(bucket, 1L)));
 
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                cpu.insert(diamond, 1L, Actionable.MODULATE),
                 1L,
                 "Requester should accept the final output");
-        helper.assertTrue(fixture.cpu().isBusy(), "CPU must remain busy while a container output is still requested");
+        helper.assertTrue(cpu.isBusy(), "CPU must remain busy while a container output is still requested");
         helper.assertValueEqual(
-                fixture.cpu().getWaitingFor(bucket),
+                cpu.getWaitingFor(bucket),
                 1L,
                 "Container output must remain requested after the final output arrives");
 
         helper.assertValueEqual(
-                fixture.cpu().insert(bucket, 1L, Actionable.MODULATE),
+                cpu.insert(bucket, 1L, Actionable.MODULATE),
                 1L,
                 "CPU should accept the remaining container output");
-        helper.assertFalse(fixture.cpu().isBusy(), "CPU should finish after every requested output has arrived");
+        helper.assertFalse(cpu.isBusy(), "CPU should finish after every requested output has arrived");
         helper.assertValueEqual(
-                fixture.cpu().getStored(bucket),
+                cpu.getStored(bucket),
                 1L,
                 "Container output should be retained in CPU inventory until network storage accepts it");
         helper.assertValueEqual(requester.jobStateChanges(), 1, "Requester should be notified exactly once on completion");
@@ -282,47 +417,46 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         OutputRuntimeFixture fixture = outputRuntime(helper, new BlockPos(1, 1, 1));
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         TestRequester requester = new TestRequester(0L);
-        submitOutputJob(
-                fixture.cpu(),
-                fixture.grid(),
+        TrinityDataCoreVirtualCpu cpu = submitOutputJob(
+                fixture,
                 requester,
                 outputPlan(new GenericStack(diamond, 5L)));
         KeyCounter statusChanges = new KeyCounter();
-        fixture.cpu().addListener(what -> statusChanges.add(what, 1L));
+        cpu.addListener(what -> statusChanges.add(what, 1L));
 
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 5L, Actionable.MODULATE),
+                cpu.insert(diamond, 5L, Actionable.MODULATE),
                 0L,
                 "A requester with no capacity should reject the final output");
         helper.assertValueEqual(
-                fixture.cpu().getWaitingFor(diamond),
+                cpu.getWaitingFor(diamond),
                 5L,
                 "Rejected final output must not mutate the requested amount");
-        helper.assertTrue(fixture.cpu().isBusy(), "Rejected final output must keep the CPU busy");
+        helper.assertTrue(cpu.isBusy(), "Rejected final output must keep the CPU busy");
         helper.assertValueEqual(requester.jobStateChanges(), 0, "Rejected output must not complete the job");
         helper.assertValueEqual(statusChanges.get(diamond), 0L, "Rejected output must not notify CPU status listeners");
 
         requester.setMaxAccepted(2L, 1L);
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 5L, Actionable.SIMULATE),
+                cpu.insert(diamond, 5L, Actionable.SIMULATE),
                 2L,
                 "Simulation should report the requester's partial capacity");
         helper.assertValueEqual(
-                fixture.cpu().getWaitingFor(diamond),
+                cpu.getWaitingFor(diamond),
                 5L,
                 "Simulation must not mutate the requested amount");
         helper.assertValueEqual(statusChanges.get(diamond), 0L, "Simulation must not notify CPU status listeners");
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 5L, Actionable.MODULATE),
+                cpu.insert(diamond, 5L, Actionable.MODULATE),
                 1L,
                 "Modulation should report the amount actually accepted by the requester");
 
-        helper.assertTrue(fixture.cpu().isBusy(), "Partially delivered final output must keep the CPU busy");
+        helper.assertTrue(cpu.isBusy(), "Partially delivered final output must keep the CPU busy");
         helper.assertValueEqual(
-                fixture.cpu().getWaitingFor(diamond),
+                cpu.getWaitingFor(diamond),
                 4L,
                 "Only accepted final output may be removed from waiting state");
-        CompoundTag jobTag = fixture.cpu()
+        CompoundTag jobTag = cpu
                 .logic()
                 .writeToTag(helper.getLevel().registryAccess())
                 .getCompound("job");
@@ -344,13 +478,13 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         requester.setMaxAccepted(4L);
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 4L, Actionable.MODULATE),
+                cpu.insert(diamond, 4L, Actionable.MODULATE),
                 4L,
                 "Requester should accept the remaining final output");
-        helper.assertFalse(fixture.cpu().isBusy(), "CPU should finish after the final remainder is delivered");
+        helper.assertFalse(cpu.isBusy(), "CPU should finish after the final remainder is delivered");
         helper.assertValueEqual(requester.jobStateChanges(), 1, "Requester should be notified exactly once on completion");
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                cpu.insert(diamond, 1L, Actionable.MODULATE),
                 0L,
                 "A completed CPU must reject later output");
         helper.assertValueEqual(requester.jobStateChanges(), 1, "Completion notification must not repeat");
@@ -365,44 +499,42 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         OutputRuntimeFixture negativeFixture = outputRuntime(helper, new BlockPos(1, 1, 1));
         TestRequester negativeRequester = new TestRequester(1L);
         negativeRequester.returnExactly(-1L, -1L);
-        submitOutputJob(
-                negativeFixture.cpu(),
-                negativeFixture.grid(),
+        TrinityDataCoreVirtualCpu negativeCpu = submitOutputJob(
+                negativeFixture,
                 negativeRequester,
                 outputPlan(new GenericStack(diamond, 1L)));
 
         IllegalStateException negativeFailure = assertThrows(
                 helper,
                 IllegalStateException.class,
-                () -> negativeFixture.cpu().insert(diamond, 1L, Actionable.SIMULATE),
+                () -> negativeCpu.insert(diamond, 1L, Actionable.SIMULATE),
                 "Negative requester acceptance must fail fast");
         assertAcceptanceFailureMessage(helper, negativeFailure, diamond, Actionable.SIMULATE, 1L, -1L);
         helper.assertValueEqual(
-                negativeFixture.cpu().getWaitingFor(diamond),
+                negativeCpu.getWaitingFor(diamond),
                 1L,
                 "Rejected simulation result must not mutate waiting state");
-        helper.assertTrue(negativeFixture.cpu().isBusy(), "Rejected simulation result must retain the CPU job");
+        helper.assertTrue(negativeCpu.isBusy(), "Rejected simulation result must retain the CPU job");
 
         OutputRuntimeFixture excessFixture = outputRuntime(helper, new BlockPos(3, 1, 1));
         TestRequester excessRequester = new TestRequester(1L);
         excessRequester.returnExactly(2L, 2L);
-        submitOutputJob(
-                excessFixture.cpu(),
-                excessFixture.grid(),
+        TrinityDataCoreVirtualCpu excessCpu = submitOutputJob(
+                excessFixture,
                 excessRequester,
                 outputPlan(new GenericStack(diamond, 1L)));
 
         IllegalStateException excessFailure = assertThrows(
                 helper,
                 IllegalStateException.class,
-                () -> excessFixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                () -> excessCpu.insert(diamond, 1L, Actionable.MODULATE),
                 "Excess requester acceptance must fail fast");
         assertAcceptanceFailureMessage(helper, excessFailure, diamond, Actionable.MODULATE, 1L, 2L);
         helper.assertValueEqual(
-                excessFixture.cpu().getWaitingFor(diamond),
+                excessCpu.getWaitingFor(diamond),
                 1L,
                 "Rejected modulation result must not mutate waiting state");
-        helper.assertTrue(excessFixture.cpu().isBusy(), "Rejected modulation result must retain the CPU job");
+        helper.assertTrue(excessCpu.isBusy(), "Rejected modulation result must retain the CPU job");
         helper.assertValueEqual(excessRequester.jobStateChanges(), 0, "Rejected result must not complete the CPU job");
         helper.succeed();
     }
@@ -425,16 +557,16 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 emittedItems,
                 new KeyCounter(),
                 Map.of(new PendingPatternDetails(diamond), 1L));
-        submitOutputJob(fixture.cpu(), fixture.grid(), requester, plan);
+        TrinityDataCoreVirtualCpu cpu = submitOutputJob(fixture, requester, plan);
 
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 1L, Actionable.MODULATE),
+                cpu.insert(diamond, 1L, Actionable.MODULATE),
                 1L,
                 "Requester should accept the final output");
-        helper.assertValueEqual(fixture.cpu().getWaitingFor(diamond), 0L, "Final output should leave no waiting amount");
-        helper.assertTrue(fixture.cpu().isBusy(), "Pending pattern tasks must prevent job completion");
+        helper.assertValueEqual(cpu.getWaitingFor(diamond), 0L, "Final output should leave no waiting amount");
+        helper.assertTrue(cpu.isBusy(), "Pending pattern tasks must prevent job completion");
         helper.assertValueEqual(requester.jobStateChanges(), 0, "Pending tasks must suppress completion notification");
-        CompoundTag jobTag = fixture.cpu()
+        CompoundTag jobTag = cpu
                 .logic()
                 .writeToTag(helper.getLevel().registryAccess())
                 .getCompound("job");
@@ -450,39 +582,38 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         OutputRuntimeFixture fixture = outputRuntime(helper, new BlockPos(1, 1, 1));
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         fixture.grid().storage().setMaxAcceptedPerInsert(2L);
-        submitOutputJob(
-                fixture.cpu(),
-                fixture.grid(),
+        TrinityDataCoreVirtualCpu cpu = submitOutputJob(
+                fixture,
                 null,
                 outputPlan(new GenericStack(diamond, 4L)));
 
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 4L, Actionable.SIMULATE),
+                cpu.insert(diamond, 4L, Actionable.SIMULATE),
                 4L,
                 "Standalone CPU should advertise internal capacity for its final output");
         helper.assertValueEqual(
-                fixture.cpu().getWaitingFor(diamond),
+                cpu.getWaitingFor(diamond),
                 4L,
                 "Standalone simulation must not mutate waiting state");
         helper.assertValueEqual(
-                fixture.cpu().insert(diamond, 4L, Actionable.MODULATE),
+                cpu.insert(diamond, 4L, Actionable.MODULATE),
                 4L,
                 "Standalone CPU should accept its final output into internal inventory");
 
-        helper.assertFalse(fixture.cpu().isBusy(), "Standalone job should finish after its output is accepted");
-        helper.assertValueEqual(fixture.cpu().getWaitingFor(diamond), 0L, "Finished job should have no waiting output");
+        helper.assertFalse(cpu.isBusy(), "Standalone job should finish after its output is accepted");
+        helper.assertValueEqual(cpu.getWaitingFor(diamond), 0L, "Finished job should have no waiting output");
         helper.assertValueEqual(
                 fixture.grid().storage().getStored(diamond),
                 2L,
                 "Job completion should return the accepted portion to network storage");
         helper.assertValueEqual(
-                fixture.cpu().getStored(diamond),
+                cpu.getStored(diamond),
                 2L,
                 "Network remainder must stay in CPU inventory for retry");
 
         fixture.grid().storage().setMaxAcceptedPerInsert(Long.MAX_VALUE);
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
-        helper.assertValueEqual(fixture.cpu().getStored(diamond), 0L, "Idle CPU should retry returning retained output");
+        cpu.tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        helper.assertValueEqual(cpu.getStored(diamond), 0L, "Idle CPU should retry returning retained output");
         helper.assertValueEqual(
                 fixture.grid().storage().getStored(diamond),
                 4L,
@@ -508,10 +639,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         fixture.runtime().setContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
         fixture.runtime().setPaused(false);
 
-        helper.assertValueEqual(fixture.runtime().partitions().size(), 1, "Recovered structure should republish its CPU partition");
+        helper.assertValueEqual(fixture.runtime().partitions().size(), 2,
+                "Recovered structure should publish reserved CPU 0 and its busy worker");
         helper.assertTrue(
-                fixture.runtime().partitions().getFirst() == originalCpu,
-                "Recovered structure should reuse the partition that owns the paused job");
+                fixture.runtime().partitions().get(1) == originalCpu,
+                "Recovered structure should reuse the worker that owns the paused job");
         helper.assertTrue(fixture.runtime().hasBusyJobs(), "Recovered partition should still own the paused job");
 
         fixture.runtime().cancelAllJobs();
@@ -532,7 +664,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         CompoundTag saved = new CompoundTag();
         fixture.runtime().writeToTag(saved, helper.getLevel().registryAccess());
 
-        TestHost restoredHost = new TestHost(helper.absolutePos(new BlockPos(2, 1, 1)));
+        TestHost restoredHost = new TestHost(helper.absolutePos(new BlockPos(2, 1, 1)), new TestGrid());
         restoredHost.setLevel(helper.getLevel());
         restoredHost.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         TrinityDataCoreCraftingRuntime restored = restoredHost.getCraftingRuntime();
@@ -544,8 +676,9 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         restored.setMainStructureFormed(true);
         restored.setContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
 
-        helper.assertValueEqual(restored.partitions().size(), 1, "Restored CPU should republish after contribution recovery");
-        helper.assertTrue(restored.partitions().getFirst().isBusy(), "Republished CPU should still own the restored job");
+        helper.assertValueEqual(restored.partitions().size(), 2,
+                "Restored runtime should publish reserved CPU 0 and its recovered worker");
+        helper.assertTrue(restored.partitions().get(1).isBusy(), "Republished worker should still own the restored job");
         restored.cancelAllJobs();
         helper.succeed();
     }
@@ -562,7 +695,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         CompoundTag saved = new CompoundTag();
         fixture.host().saveAdditional(saved, helper.getLevel().registryAccess());
 
-        TestHost restored = new TestHost(helper.absolutePos(new BlockPos(3, 1, 1)));
+        TestHost restored = new TestHost(helper.absolutePos(new BlockPos(3, 1, 1)), new TestGrid());
         restored.setLevel(helper.getLevel());
         restored.loadTag(saved, helper.getLevel().registryAccess());
 
@@ -571,9 +704,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(restored.isStructureFormed(), "Root NBT should preserve the main structure state");
         helper.assertTrue(restored.isCpuStructureFormed(), "Root NBT should preserve the CPU structure state");
         helper.assertTrue(restored.isCraftingStructureFormed(), "Root NBT should preserve the crafting structure state");
-        helper.assertValueEqual(restored.getCpuPartitions().size(), 1, "Root NBT should restore the active CPU partition");
+        helper.assertValueEqual(restored.getCpuPartitions().size(), 2,
+                "Root NBT should restore reserved CPU 0 and the active worker");
         helper.assertTrue(restored.getCraftingRuntime().hasBusyJobs(), "Root NBT should restore the active CPU job");
-        helper.assertTrue(restored.getCpuPartitions().getFirst().isBusy(), "Restored CPU partition should own the active job");
+        helper.assertTrue(restored.getCpuPartitions().get(1).isBusy(), "Restored worker should own the active job");
 
         fixture.runtime().cancelAllJobs();
         restored.getCraftingRuntime().cancelAllJobs();
@@ -594,14 +728,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.loadTag(formedCraftingProfileTag(), helper.getLevel().registryAccess());
         host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 1, 1));
 
-        helper.assertValueEqual(host.getCpuPartitions().size(), 1, "CPU child contribution should be active before recheck");
+        helper.assertValueEqual(
+                host.getCraftingRuntime().profile().storageBytes(),
+                1024L,
+                "CPU child contribution should be retained before recheck");
         helper.assertTrue(host.isCraftingStructureFormed(), "Crafting child structure should be active before recheck");
         helper.assertValueEqual(
                 host.getCraftingPatternCapacity(),
                 704,
                 "Crafting child profile should be active before recheck");
-        TrinityDataCoreVirtualCpu retainedPartition = host.getCpuPartitions().getFirst();
-
         host.serverTick();
 
         helper.assertFalse(host.isStructureFormed(), "Missing main structure should make the host unformed");
@@ -621,10 +756,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         host.getCraftingRuntime().setMainStructureFormed(true);
 
-        helper.assertValueEqual(host.getCpuPartitions().size(), 1,
-                "Recovered main structure should republish the retained CPU partition");
-        helper.assertTrue(host.getCpuPartitions().getFirst() == retainedPartition,
-                "Recovered main structure should reuse the retained CPU partition and its job state");
+        helper.assertValueEqual(
+                host.getCraftingRuntime().profile().storageBytes(),
+                1024L,
+                "Manually restoring the main runtime flag must preserve the retained CPU contribution");
+        helper.assertValueEqual(
+                host.getCpuPartitions().size(),
+                0,
+                "CPU publication must remain withdrawn until the CPU child status is restored");
         helper.succeed();
     }
 
@@ -677,7 +816,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         TrinityDataCoreBlockEntity host = trinityDataCore(true);
 
         CompoundTag runtimeTag = new CompoundTag();
-        runtimeTag.putInt("schema_version", SCHEMA_VERSION);
+        runtimeTag.putInt("schema_version", LEGACY_RUNTIME_SCHEMA_VERSION);
         runtimeTag.put("contributions", new ListTag());
         ListTag partitionsTag = new ListTag();
         CompoundTag partitionTag = new CompoundTag();
@@ -687,7 +826,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         partitionTag.putInt("co_processors", 0);
         partitionTag.putString("selection_mode", CpuSelectionMode.ANY.name());
         CompoundTag logicTag = new CompoundTag();
-        logicTag.put("job", new CompoundTag());
+        logicTag.putInt("schema_version", CPU_LOGIC_SCHEMA_VERSION);
+        logicTag.put("inventory", new ListTag());
+        CompoundTag pendingJob = new CompoundTag();
+        pendingJob.putString("pending_marker", "preserve_without_level");
+        logicTag.put("job", pendingJob);
         partitionTag.put("logic", logicTag);
         partitionsTag.add(partitionTag);
         runtimeTag.put("partitions", partitionsTag);
@@ -699,6 +842,23 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 host.getCpuPartitions().size(),
                 0,
                 "Pending partition logic should not create CPU partitions without a child contribution");
+        helper.assertTrue(host.getCraftingRuntime().hasBusyJobs(), "Pending legacy job should remain retained before level binding");
+
+        CompoundTag resaved = new CompoundTag();
+        host.getCraftingRuntime().writeToTag(resaved, HolderLookup.Provider.create(Stream.empty()));
+        helper.assertValueEqual(
+                resaved.getInt("schema_version"),
+                RUNTIME_SCHEMA_VERSION,
+                "Pending legacy runtime should be normalized to schema 2 when resaved");
+        ListTag resavedPartitions = resaved.getList("partitions", 10);
+        helper.assertValueEqual(resavedPartitions.size(), 1, "Pending worker must survive a save before level binding");
+        helper.assertValueEqual(
+                resavedPartitions.getCompound(0).getInt("index"),
+                1,
+                "Legacy partition index 0 must map to worker CPU 1");
+        helper.assertTrue(
+                resavedPartitions.getCompound(0).getCompound("logic").equals(logicTag),
+                "Pending raw CPU logic must be forwarded without decoding or mutation");
         helper.succeed();
     }
 
@@ -710,7 +870,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         UUID unsupportedStorageId = unsupportedFixture.host().getStorageId();
         UUID unsupportedHostId = unsupportedFixture.host().getHostId();
         CompoundTag unsupportedTag = formedTrinityTag();
-        unsupportedTag.putInt("schema_version", SCHEMA_VERSION + 1);
+        unsupportedTag.putInt("schema_version", HOST_SCHEMA_VERSION + 1);
         unsupportedTag.putUUID("trinity_data_core_storage_id", unsupportedStorageId);
         unsupportedTag.putUUID("trinity_data_core_host_id", unsupportedHostId);
 
@@ -774,11 +934,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
     private static CompoundTag currentHostTag() {
         CompoundTag tag = new CompoundTag();
-        tag.putInt("schema_version", SCHEMA_VERSION);
+        tag.putInt("schema_version", HOST_SCHEMA_VERSION);
         tag.putUUID("trinity_data_core_storage_id", UUID.randomUUID());
         tag.putUUID("trinity_data_core_host_id", UUID.randomUUID());
         CompoundTag runtimeTag = new CompoundTag();
-        runtimeTag.putInt("schema_version", SCHEMA_VERSION);
+        runtimeTag.putInt("schema_version", RUNTIME_SCHEMA_VERSION);
         runtimeTag.put("contributions", new ListTag());
         runtimeTag.put("partitions", new ListTag());
         tag.put("trinity_data_core_crafting_runtime", runtimeTag);
@@ -801,8 +961,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
 
-        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
-        ICraftingSubmitResult result = cpu.submitJob(
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        ICraftingSubmitResult result = reserveCpu.submitJob(
                 grid,
                 new CraftingPlan(
                         new GenericStack(AEItemKey.of(Items.DIAMOND), 1L),
@@ -818,6 +978,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         if (!result.successful()) {
             throw new IllegalStateException("Test CPU job submission failed: " + result.errorCode());
         }
+        TrinityDataCoreVirtualCpu cpu = singleBusyWorker(host.getCraftingRuntime());
         return new BusyRuntimeFixture(host, host.getCraftingRuntime(), cpu);
     }
 
@@ -827,7 +988,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.setLevel(helper.getLevel());
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
-        return new OutputRuntimeFixture(grid, host.getCpuPartitions().getFirst());
+        return new OutputRuntimeFixture(grid, host.getCraftingRuntime(), host.getCpuPartitions().getFirst());
     }
 
     private static CraftingPlan outputPlan(GenericStack finalOutput, GenericStack... additionalOutputs) {
@@ -843,6 +1004,18 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 false,
                 new KeyCounter(),
                 emittedItems,
+                new KeyCounter(),
+                Map.of());
+    }
+
+    private static CraftingPlan emptyJobPlan() {
+        return new CraftingPlan(
+                new GenericStack(AEItemKey.of(Items.DIAMOND), 1L),
+                1L,
+                false,
+                false,
+                new KeyCounter(),
+                new KeyCounter(),
                 new KeyCounter(),
                 Map.of());
     }
@@ -886,11 +1059,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertFalse(cpu.isBusy(), scenario + " must not install a CPU job");
     }
 
-    private static void submitOutputJob(TrinityDataCoreVirtualCpu cpu,
-                                        TestGrid grid,
-                                        @Nullable TestRequester requester,
-                                        CraftingPlan plan) {
-        ICraftingSubmitResult result = cpu.submitJob(grid, plan, IActionSource.empty(), requester);
+    private static TrinityDataCoreVirtualCpu submitOutputJob(OutputRuntimeFixture fixture,
+                                                             @Nullable TestRequester requester,
+                                                             CraftingPlan plan) {
+        ICraftingSubmitResult result = fixture.reserveCpu().submitJob(
+                fixture.grid(),
+                plan,
+                IActionSource.empty(),
+                requester);
         if (!result.successful()) {
             throw new IllegalStateException("Test CPU output job submission failed: " + result.errorCode());
         }
@@ -901,6 +1077,17 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             }
             requester.track(link);
         }
+        return singleBusyWorker(fixture.runtime());
+    }
+
+    private static TrinityDataCoreVirtualCpu singleBusyWorker(TrinityDataCoreCraftingRuntime runtime) {
+        List<TrinityDataCoreVirtualCpu> busyWorkers = runtime.publishedCpus().stream()
+                .filter(TrinityDataCoreVirtualCpu::isBusy)
+                .toList();
+        if (busyWorkers.size() != 1) {
+            throw new IllegalStateException("Expected exactly one busy test worker, found " + busyWorkers.size());
+        }
+        return busyWorkers.getFirst();
     }
 
     private static void assertAcceptanceFailureMessage(GameTestHelper helper,
@@ -968,7 +1155,9 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                                       TrinityDataCoreCraftingRuntime runtime,
                                       TrinityDataCoreVirtualCpu cpu) {}
 
-    private record OutputRuntimeFixture(TestGrid grid, TrinityDataCoreVirtualCpu cpu) {}
+    private record OutputRuntimeFixture(TestGrid grid,
+                                        TrinityDataCoreCraftingRuntime runtime,
+                                        TrinityDataCoreVirtualCpu reserveCpu) {}
 
     private static final class TestHost extends TrinityDataCoreBlockEntity {
 

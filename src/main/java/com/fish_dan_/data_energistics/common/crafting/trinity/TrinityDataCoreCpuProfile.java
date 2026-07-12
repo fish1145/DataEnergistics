@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import appeng.api.config.CpuSelectionMode;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -18,6 +16,7 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
                                         int partitionCount,
                                         CpuSelectionMode selectionMode) {
 
+    public static final int MAX_PARTITION_COUNT = TrinityDataCoreCpuContribution.MAX_PARTITION_COUNT;
     public static final TrinityDataCoreCpuProfile EMPTY = new TrinityDataCoreCpuProfile(0L, 0, 0, CpuSelectionMode.ANY);
 
     public TrinityDataCoreCpuProfile {
@@ -29,6 +28,9 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
         }
         if (partitionCount < 0) {
             throw new IllegalArgumentException("CPU profile partition count must not be negative");
+        }
+        if (partitionCount > MAX_PARTITION_COUNT) {
+            throw new IllegalArgumentException("CPU profile partition count must not exceed " + MAX_PARTITION_COUNT);
         }
         if (partitionCount > 0 && storageBytes < partitionCount) {
             throw new IllegalArgumentException("CPU profile storage bytes must provide at least one byte per partition");
@@ -74,26 +76,17 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
         return this.partitionCount > 0;
     }
 
-    /**
-     * Resolves aggregate resources into deterministic per-partition profiles.
-     *
-     * @return partition profiles ordered by index
-     */
-    public List<TrinityDataCoreCpuPartitionProfile> partitions() {
+    /** Resolves resources for the reserved CPU or one worker without materializing the entire worker pool. */
+    public TrinityDataCoreCpuPartitionProfile partition(int number) {
         if (!active()) {
-            return List.of();
+            throw new IllegalStateException("Inactive CPU profile cannot resolve a virtual CPU");
         }
-
-        List<TrinityDataCoreCpuPartitionProfile> partitions = new ArrayList<>(this.partitionCount);
-        for (int index = 0; index < this.partitionCount; index++) {
-            partitions.add(new TrinityDataCoreCpuPartitionProfile(
-                    index,
-                    this.partitionCount,
-                    this.storageBytes,
-                    this.coProcessors,
-                    this.selectionMode));
-        }
-        return List.copyOf(partitions);
+        return new TrinityDataCoreCpuPartitionProfile(
+                number,
+                this.partitionCount,
+                this.storageBytes,
+                this.coProcessors,
+                this.selectionMode);
     }
 
     private static CpuSelectionMode mergeSelectionMode(CpuSelectionMode current,

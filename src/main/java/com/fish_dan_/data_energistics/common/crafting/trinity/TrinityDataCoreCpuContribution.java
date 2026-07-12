@@ -14,6 +14,7 @@ public record TrinityDataCoreCpuContribution(long storageBytes,
                                              int partitionCount,
                                              CpuSelectionMode selectionMode) {
 
+    public static final int MAX_PARTITION_COUNT = 256;
     public static final TrinityDataCoreCpuContribution EMPTY = new TrinityDataCoreCpuContribution(0L, 0, 0, CpuSelectionMode.ANY);
 
     public TrinityDataCoreCpuContribution {
@@ -25,6 +26,10 @@ public record TrinityDataCoreCpuContribution(long storageBytes,
         }
         if (partitionCount < 0) {
             throw new IllegalArgumentException("CPU contribution partition count must not be negative");
+        }
+        if (partitionCount > MAX_PARTITION_COUNT) {
+            throw new IllegalArgumentException(
+                    "CPU contribution partition count must not exceed " + MAX_PARTITION_COUNT);
         }
     }
 

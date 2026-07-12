@@ -18,6 +18,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.service.CraftingService;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,12 +36,15 @@ import java.util.function.Consumer;
 public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     private final TrinityDataCoreBlockEntity host;
+    private final TrinityDataCoreCraftingRuntime runtime;
     private final TrinityDataCoreCpuLogic logic = new TrinityDataCoreCpuLogic(this);
     private TrinityDataCoreCpuPartitionProfile profile;
 
     TrinityDataCoreVirtualCpu(TrinityDataCoreBlockEntity host,
+                              TrinityDataCoreCraftingRuntime runtime,
                               TrinityDataCoreCpuPartitionProfile profile) {
         this.host = host;
+        this.runtime = runtime;
         this.profile = profile;
     }
 
@@ -66,6 +70,19 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
                                            ICraftingPlan plan,
                                            IActionSource source,
                                            @Nullable ICraftingRequester requester) {
+        if (number() == 0) {
+            return this.runtime.submitJob(grid, plan, source, requester);
+        }
+        return CraftingSubmitResult.CPU_BUSY;
+    }
+
+    ICraftingSubmitResult submitWorkerJob(IGrid grid,
+                                          ICraftingPlan plan,
+                                          IActionSource source,
+                                          @Nullable ICraftingRequester requester) {
+        if (number() == 0) {
+            throw new IllegalStateException("Reserved Trinity CPU cannot own a crafting job");
+        }
         return this.logic.trySubmitJob(grid, plan, source, requester);
     }
 
@@ -195,7 +212,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @return true only while the CPU child publishes this current partition on an active lease grid
      */
     public boolean isActive() {
-        return this.host.isCpuProviderAvailable() && isCurrentPartition() && this.host.accessGrid() != null;
+        return isOnline() && this.runtime.isCurrentCpu(this);
     }
 
     /**
@@ -205,16 +222,16 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @return true only while this remains a current CPU partition on the host's active lease grid
      */
     boolean isActiveOnGrid(IGrid grid) {
-        return this.host.isCpuProviderAvailable() && isCurrentPartition() && this.host.accessGrid() == grid;
+        return this.host.isCpuProviderAvailable() && this.runtime.isCurrentCpu(this) && this.host.accessGrid() == grid;
     }
 
-    private boolean isCurrentPartition() {
-        return this.host.getCpuPartitions().stream().anyMatch(partition -> partition == this);
+    boolean isOnline() {
+        return this.host.isCpuProviderAvailable() && this.host.accessGrid() != null;
     }
 
     @Override
     public boolean isBusy() {
-        return this.logic.hasJob();
+        return number() != 0 && this.logic.hasJob();
     }
 
     @Nullable
@@ -231,7 +248,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     @Override
     public void cancelJob() {
-        this.logic.cancel();
+        if (number() != 0) {
+            this.logic.cancel();
+        }
     }
 
     @Override
@@ -249,7 +268,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
     public Component getName() {
         return Component.translatable("block.data_energistics.trinity_data_core")
                 .append(" #")
-                .append(Integer.toString(this.profile.index() + 1));
+                .append(Integer.toString(number()));
     }
 
     @Override
@@ -315,7 +334,20 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.logic;
     }
 
-    int index() {
+    /** Returns the stable runtime number: zero for the reserve and one through the worker capacity for workers. */
+    public int number() {
         return this.profile.index();
+    }
+
+    int workerCapacity() {
+        return this.profile.totalPartitions();
+    }
+
+    boolean hasRetainedState() {
+        return this.logic.hasRetainedState();
+    }
+
+    boolean isReleasable() {
+        return this.logic.isReleasable();
     }
 }

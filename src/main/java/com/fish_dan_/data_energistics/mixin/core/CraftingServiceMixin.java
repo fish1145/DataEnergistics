@@ -102,7 +102,7 @@ public abstract class CraftingServiceMixin {
         CraftingService service = (CraftingService) (Object) this;
         for (TrinityAccessHatchBlockEntity hatch : this.grid.getMachines(TrinityAccessHatchBlockEntity.class)) {
             TrinityDataCoreCraftingRuntime runtime = hatch.boundCraftingRuntime();
-            if (runtime == null || runtime.partitions().isEmpty()) {
+            if (runtime == null || !runtime.shouldRemainRegistered()) {
                 continue;
             }
             this.dataEnergistics$trinityDataCoreRuntimes.add(runtime);
@@ -284,7 +284,7 @@ public abstract class CraftingServiceMixin {
         int excluded = 0;
 
         for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
-            for (TrinityDataCoreVirtualCpu cpu : runtime.partitions()) {
+            for (TrinityDataCoreVirtualCpu cpu : runtime.publishedCpus()) {
                 if (!cpu.isActive()) {
                     offline++;
                     continue;
@@ -310,7 +310,7 @@ public abstract class CraftingServiceMixin {
     @Unique
     private void dataEnergistics$forEachTrinityDataCoreCpu(Consumer<TrinityDataCoreVirtualCpu> consumer) {
         for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
-            for (TrinityDataCoreVirtualCpu cpu : runtime.partitions()) {
+            for (TrinityDataCoreVirtualCpu cpu : runtime.publishedCpus()) {
                 consumer.accept(cpu);
             }
         }
