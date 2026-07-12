@@ -69,6 +69,16 @@ public final class ModUpgrades {
                 "item.data_energistics.portable_data_flow_cell_64k");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get(), 3,
                 "item.data_energistics.portable_data_flow_cell_256k");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_1M.get(), 3,
+                "item.data_energistics.portable_data_flow_cell_1m");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_4M.get(), 3,
+                "item.data_energistics.portable_data_flow_cell_4m");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_16M.get(), 3,
+                "item.data_energistics.portable_data_flow_cell_16m");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_64M.get(), 3,
+                "item.data_energistics.portable_data_flow_cell_64m");
+        Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_256M.get(), 3,
+                "item.data_energistics.portable_data_flow_cell_256m");
         Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 3,
                 "item.data_energistics.data_capture_ball");
         Upgrades.add(AEItems.FUZZY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 1,

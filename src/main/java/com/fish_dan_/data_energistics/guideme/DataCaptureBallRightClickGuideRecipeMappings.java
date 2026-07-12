@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.guideme;
 
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.world.item.ItemStack;
@@ -34,13 +33,21 @@ public final class DataCaptureBallRightClickGuideRecipeMappings implements Recip
 
         return LytStandardRecipeBox.builder()
                 .title("Right Click")
-                .icon(ModItems.DATA_CAPTURE_BALL.get())
+                .icon(recipe.getItemIngredient().getItems()[0].getItem())
                 .input(LytSlotGrid.row(List.of(
-                        Ingredient.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost())),
+                        getItemInput(recipe),
                         Ingredient.of(new ItemStack(recipe.getInputBlock()))), true))
                 .output(LytSlotGrid.rowFromStacks(List.of(new ItemStack(recipe.getResultBlock())), true))
                 .addBottom(details)
                 .build(holder);
+    }
+
+    private static Ingredient getItemInput(DataCaptureBallRightClickRecipe recipe) {
+        ItemStack[] itemStacks = recipe.getItemIngredient().getItems();
+        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof DataCaptureBallItem) {
+            return Ingredient.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
+        }
+        return recipe.getItemIngredient();
     }
 
     private static String buildDetails(DataCaptureBallRightClickRecipe recipe) {

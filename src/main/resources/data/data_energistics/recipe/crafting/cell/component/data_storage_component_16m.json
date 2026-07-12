@@ -1,0 +1,11 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "ACA"],
+	"key": {
+		"A": { "tag": "c:dusts/fluix" },
+		"B": { "item": "data_energistics:data_processor" },
+		"C": { "item": "data_energistics:data_storage_component_4m" },
+		"D": { "item": "ae2:spatial_cell_component_2" }
+	},
+	"result": { "id": "data_energistics:data_storage_component_16m", "count": 1 }
+}

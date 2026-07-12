@@ -70,7 +70,7 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
 
     @Unique
     private boolean dataEnergistics$isValidDataCaptureBallStorageComponent(ItemStack stack) {
-        return stack.is(ModItems.DATA_STORAGE_COMPONENT_16K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_64K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_256K.get());
+        return stack.is(ModItems.DATA_STORAGE_COMPONENT_16K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_64K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_256K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_1M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_4M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_16M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_64M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_256M.get());
     }
 
     @Inject(method = "saveAdditional", at = @At("TAIL"))
