@@ -82,7 +82,8 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
                 host.getCpuLastFailureReason() + " at " + host.getCpuLastFailurePosition());
         helper.assertTrue(host.isCraftingStructureFormed(), "Trinity crafting structure should form: " +
                 host.getCraftingLastFailureReason() + " at " + host.getCraftingLastFailurePosition());
-        helper.assertTrue(!host.getCpuPartitions().isEmpty(), "Formed Trinity CPU structure should expose a CPU");
+        helper.assertTrue(host.getCpuPartitionCount() > 0,
+                "Formed Trinity CPU structure should contribute worker capacity");
         helper.assertTrue(
                 !host.getPatternCatalog().mountedCores().isEmpty(),
                 "Formed Trinity crafting structure should expose P cores");
@@ -122,6 +123,9 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
         await(this.host.isCpuProviderAvailable(), "Trinity CPU provider is not available yet");
         await(this.hatches.stream().filter(this.host::isLeaseOwner).count() == 1L,
                 "Trinity access lease has not elected exactly one hatch");
+        await(this.host.getCpuPartitions().size() == 1 &&
+                this.host.getCpuPartitions().getFirst().number() == 0,
+                "Idle online Trinity runtime must publish only reserved CPU 0");
         await(grid.getCraftingService().getCpus().containsAll(this.host.getCpuPartitions()),
                 "AE2 crafting service has not published all Trinity CPUs yet");
     }
