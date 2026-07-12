@@ -56,8 +56,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -111,7 +109,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final int FORMED_CHILD_RECHECK_INTERVAL_TICKS = 1_200;
     private static final int CRAFTING_RECHECK_PHASE_OFFSET_TICKS = 600;
     private static final String FORMED_TAG = "formed";
-    private static final String MATCHED_POSITIONS_TAG = "matched_positions";
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
     private static final String CPU_STRUCTURE_FORMED_TAG = "cpu_structure_formed";
@@ -1169,7 +1166,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
         this.patternCatalogValid = false;
         this.formed = data.getBoolean(FORMED_TAG);
-        this.matchedPositions = readMatchedPositions(data);
+        this.matchedPositions = List.of();
         this.lastFailureReason = data.getString(LAST_FAILURE_REASON_TAG);
         if (data.contains(LAST_FAILURE_POSITION_TAG)) {
             this.lastFailurePosition = BlockPos.of(data.getLong(LAST_FAILURE_POSITION_TAG));
@@ -1213,7 +1210,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         data.putUUID(STORAGE_ID_TAG, this.storageId);
         data.putUUID(HOST_ID_TAG, this.hostId);
         data.putBoolean(FORMED_TAG, this.formed);
-        data.put(MATCHED_POSITIONS_TAG, createMatchedPositionsTag());
         data.putString(LAST_FAILURE_REASON_TAG, this.lastFailureReason);
         if (this.lastFailurePosition != null) {
             data.putLong(LAST_FAILURE_POSITION_TAG, this.lastFailurePosition.asLong());
@@ -1793,13 +1789,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 CRAFTING_STRUCTURE_NAME);
     }
 
-    private static List<BlockPos> readMatchedPositions(CompoundTag data) {
-        ListTag positions = data.getList(MATCHED_POSITIONS_TAG, Tag.TAG_LONG);
-        return positions.stream()
-                .map(tag -> BlockPos.of(((LongTag) tag).getAsLong()))
-                .toList();
-    }
-
     private static TrinityDataCoreCraftingCoreProfile readCraftingProfile(CompoundTag data) {
         if (!data.contains(CRAFTING_PATTERN_CORE_COUNT_TAG) && !data.contains(CRAFTING_PATTERN_CAPACITY_TAG)) {
             return TrinityDataCoreCraftingCoreProfile.EMPTY;
@@ -1807,14 +1796,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return new TrinityDataCoreCraftingCoreProfile(
                 data.getInt(CRAFTING_PATTERN_CORE_COUNT_TAG),
                 data.getInt(CRAFTING_PATTERN_CAPACITY_TAG));
-    }
-
-    private ListTag createMatchedPositionsTag() {
-        ListTag positions = new ListTag();
-        for (BlockPos pos : this.matchedPositions) {
-            positions.add(LongTag.valueOf(pos.asLong()));
-        }
-        return positions;
     }
 
     private void notifyTrinityAccessChanged() {
