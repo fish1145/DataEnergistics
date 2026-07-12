@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -31,7 +30,6 @@ public final class DataDistributionTowerTargetsAssembler {
      */
     public synchronized Optional<DataDistributionTowerTargetsSnapshot> accept(
                                                                               DataDistributionTowerTargetsPayload payload) {
-        Objects.requireNonNull(payload, "payload");
         Assembly assembly = this.assemblies.get(payload.containerId());
         if (assembly != null && payload.revision() < assembly.revision) {
             return Optional.empty();

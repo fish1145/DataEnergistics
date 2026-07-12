@@ -9,7 +9,6 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * One bounded batch in a complete Data Distribution Tower target snapshot.
@@ -48,7 +47,7 @@ public record DataDistributionTowerTargetsPayload(int containerId,
      * Validates packet metadata and freezes its entry list.
      */
     public DataDistributionTowerTargetsPayload {
-        entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
+        entries = List.copyOf(entries);
         if (containerId < 0) {
             throw new IllegalArgumentException("Container id must be non-negative: " + containerId);
         }
@@ -96,7 +95,7 @@ public record DataDistributionTowerTargetsPayload(int containerId,
                                                                     int containerId,
                                                                     long revision,
                                                                     List<DataDistributionTowerTargetEntry> entries) {
-        List<DataDistributionTowerTargetEntry> immutableEntries = List.copyOf(Objects.requireNonNull(entries, "entries"));
+        List<DataDistributionTowerTargetEntry> immutableEntries = List.copyOf(entries);
         int totalCount = immutableEntries.size();
         int batchCount = totalCount == 0 ? 1 : ((totalCount - 1) / MAX_ENTRIES_PER_BATCH) + 1;
         ArrayList<DataDistributionTowerTargetsPayload> payloads = new ArrayList<>(batchCount);
