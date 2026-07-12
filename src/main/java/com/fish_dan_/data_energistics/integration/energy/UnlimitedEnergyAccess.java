@@ -14,7 +14,11 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 public interface UnlimitedEnergyAccess {
 
     /**
-     * Sentinel returned when the inspected storage cannot be accessed or mutated safely through the unlimited path.
+     * Sentinel returned only when the inspected storage has no direct unlimited-access plan.
+     *
+     * <p>
+     * Callers may use the standard capability after this result. Once a direct plan has been selected, failures are
+     * reported with {@link UnlimitedEnergyAccessException} instead so callers cannot apply an unsafe second mutation.
      */
     long UNAVAILABLE = Long.MIN_VALUE;
 
@@ -56,7 +60,8 @@ public interface UnlimitedEnergyAccess {
      * @param storage  target sided capability
      * @param amount   non-negative amount requested
      * @param simulate whether the mutation should only be simulated
-     * @return inserted amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when direct access is unsafe
+     * @return inserted amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when no direct plan exists
+     * @throws UnlimitedEnergyAccessException when a selected direct plan fails or cannot be verified
      */
     long insert(IEnergyStorage storage, long amount, boolean simulate);
 
@@ -66,7 +71,8 @@ public interface UnlimitedEnergyAccess {
      * @param storage  source sided capability
      * @param amount   non-negative amount requested
      * @param simulate whether the mutation should only be simulated
-     * @return extracted amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when direct access is unsafe
+     * @return extracted amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when no direct plan exists
+     * @throws UnlimitedEnergyAccessException when a selected direct plan fails or cannot be verified
      */
     long extract(IEnergyStorage storage, long amount, boolean simulate);
 
@@ -79,8 +85,9 @@ public interface UnlimitedEnergyAccess {
      *
      * @param storage source storage whose extraction is being compensated
      * @param amount  non-negative extracted amount that was not delivered
-     * @return restored amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when the source has no verified direct
-     *         mutation path
+     * @return restored amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when the source has no direct mutation
+     *         plan
+     * @throws UnlimitedEnergyAccessException when a selected direct plan fails or cannot be verified
      */
     long rollbackExtraction(IEnergyStorage storage, long amount);
 

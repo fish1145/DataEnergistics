@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,6 +20,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TowerEnergyDistributorImplTest {
@@ -58,6 +62,191 @@ class TowerEnergyDistributorImplTest {
         assertEquals(12L, receiver.stored());
         assertEquals(12, source.realExtractCalls());
         assertEquals(12, receiver.realInsertCalls());
+    }
+
+    @Test
+    void doesNotFallbackAfterADirectReceiverMutationCannotBeRolledBack() {
+        TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        RollbackFailingReceiver receiver = new RollbackFailingReceiver(10L);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new UnlimitedEnergyAccessImpl(),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(0L, source.stored());
+        assertEquals(10L, receiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(10L, source.stored() + receiver.stored() + context.bufferedTransferEnergy());
+        assertEquals(List.of(10L, 0L), context.bufferedTransferHistory());
+        assertEquals(1, receiver.directInsertCalls());
+        assertEquals(1, receiver.rollbackAttempts());
+        assertEquals(0, receiver.capabilityReceiveCalls());
+    }
+
+    @Test
+    void stopsTheReceiveRangeAfterAConfirmedPartialDirectMutation() {
+        TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        RollbackFailingReceiver failingReceiver = new RollbackFailingReceiver(10L, 3L);
+        TestEnergyStorage untouchedReceiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(
+                        endpoint(RECEIVER_POS, failingReceiver),
+                        endpoint(new BlockPos(4, 0, 0), untouchedReceiver)),
+                new UnlimitedEnergyAccessImpl(),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(7L, source.stored());
+        assertEquals(3L, failingReceiver.stored());
+        assertEquals(0L, untouchedReceiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(10L, source.stored() + failingReceiver.stored() + untouchedReceiver.stored());
+        assertEquals(List.of(10L, 7L, 0L), context.bufferedTransferHistory());
+        assertEquals(0, failingReceiver.capabilityReceiveCalls());
+        assertEquals(0, untouchedReceiver.realInsertAttempts());
+    }
+
+    @Test
+    void quarantinesAnUnknownReceiverMutationAndStopsTheRange() {
+        TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        TestEnergyStorage failedReceiver = TestEnergyStorage.receiver(5, Long.MAX_VALUE);
+        TestEnergyStorage untouchedReceiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, failedReceiver), endpoint(SECOND_POS, untouchedReceiver)),
+                new UnknownMutationUnlimitedEnergyAccess(failedReceiver, UnknownOperation.INSERT),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(0L, source.stored());
+        assertEquals(0L, failedReceiver.stored());
+        assertEquals(0L, untouchedReceiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(10L, context.quarantinedTransferEnergy());
+        assertEquals(0, untouchedReceiver.realInsertAttempts());
+        assertEquals(1, failedReceiver.notifications());
+        assertEquals(List.of(FIRST_POS, RECEIVER_POS), context.changedEndpoints());
+    }
+
+    @Test
+    void quarantinesAnUnknownSourceMutationAndStopsOtherSources() {
+        TestEnergyStorage failedSource = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        TestEnergyStorage untouchedSource = TestEnergyStorage.source(7, Long.MAX_VALUE);
+        TestEnergyStorage receiver = TestEnergyStorage.receiver(17, Long.MAX_VALUE);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, failedSource), endpoint(SECOND_POS, untouchedSource)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new UnknownMutationUnlimitedEnergyAccess(failedSource, UnknownOperation.EXTRACT),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(10L, failedSource.stored());
+        assertEquals(7L, untouchedSource.stored());
+        assertEquals(0L, receiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(10L, context.quarantinedTransferEnergy());
+        assertEquals(0, untouchedSource.realExtractAttempts());
+        assertEquals(1, failedSource.notifications());
+        assertEquals(List.of(FIRST_POS), context.changedEndpoints());
+    }
+
+    @Test
+    void quarantinesUnknownCompensationAndRemovesItFromTheActiveBuffer() {
+        TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 3);
+        receiver.reportFullInsertionDuringSimulation();
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new UnknownMutationUnlimitedEnergyAccess(source, UnknownOperation.ROLLBACK),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(0L, source.stored());
+        assertEquals(3L, receiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(7L, context.quarantinedTransferEnergy());
+        assertEquals(List.of(10L, 7L, 0L), context.bufferedTransferHistory());
+        assertEquals(2, source.notifications());
+        assertEquals(1, receiver.notifications());
+        assertEquals(List.of(FIRST_POS, RECEIVER_POS, FIRST_POS), context.changedEndpoints());
+    }
+
+    @Test
+    void publishesKnownDirectMutationsForBothEndpoints() {
+        TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        TestEnergyStorage receiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new TestUnlimitedEnergyAccess(),
+                context);
+
+        distributor.performActiveRangeTransfer();
+
+        assertEquals(1, source.notifications());
+        assertEquals(1, receiver.notifications());
+        assertEquals(List.of(FIRST_POS, RECEIVER_POS), context.changedEndpoints());
+    }
+
+    @Test
+    void escrowsConfirmedExtractionAfterADirectSourceRollbackFailure() {
+        RollbackFailingSource source = new RollbackFailingSource(10L);
+        TestEnergyStorage receiver = TestEnergyStorage.receiver(10, Long.MAX_VALUE);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new UnlimitedEnergyAccessImpl(),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(0L, source.stored());
+        assertEquals(10L, receiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(10L, source.stored() + receiver.stored() + context.bufferedTransferEnergy());
+        assertEquals(List.of(10L, 0L), context.bufferedTransferHistory());
+        assertEquals(1, source.directExtractCalls());
+        assertEquals(1, source.rollbackAttempts());
+        assertEquals(0, source.capabilityExtractCalls());
+    }
+
+    @Test
+    void consumesConfirmedCompensationAfterARestoreRollbackFailure() {
+        CompensationRollbackFailingSource source = new CompensationRollbackFailingSource(10L);
+        OpaqueShortWritingReceiver receiver = new OpaqueShortWritingReceiver(10L, 3L);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new UnlimitedEnergyAccessImpl(),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(7L, source.stored());
+        assertEquals(3L, receiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(10L, source.stored() + receiver.stored() + context.bufferedTransferEnergy());
+        assertEquals(List.of(10L, 7L, 0L), context.bufferedTransferHistory());
+        assertEquals(1, source.directExtractCalls());
+        assertEquals(2, source.compensationWriteAttempts());
+        assertEquals(0, source.capabilityExtractCalls());
     }
 
     @Test
@@ -120,6 +309,120 @@ class TowerEnergyDistributorImplTest {
         assertEquals(accepted, receiver.stored());
         assertEquals(amount - accepted, gridEnergy.restored());
         assertEquals(1, gridEnergy.restoreCalls());
+    }
+
+    @Test
+    void isolatesThrowingAppFluxAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction();
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void isolatesAppFluxAssertionErrorAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(new AssertionError("Deliberate AppFlux assertion failure"));
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void isolatesSneakyCheckedAppFluxFailureAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(new Exception("Deliberate AppFlux checked failure"));
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void rethrowsVirtualMachineErrorFromAppFluxUnchanged() {
+        TestVirtualMachineError failure = new TestVirtualMachineError("Deliberate fatal AppFlux failure");
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(failure);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+
+        TestVirtualMachineError thrown = assertThrows(TestVirtualMachineError.class,
+                () -> distributor.extractGridEnergy(1L, false, "fatal throwable test"));
+
+        assertSame(failure, thrown);
+    }
+
+    @Test
+    void rethrowsThreadDeathFromAppFluxUnchanged() {
+        ThreadDeath failure = new ThreadDeath();
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction(failure);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+
+        ThreadDeath thrown = assertThrows(ThreadDeath.class,
+                () -> distributor.extractGridEnergy(1L, false, "thread termination test"));
+
+        assertSame(failure, thrown);
+    }
+
+    @Test
+    void rejectsNegativeAppFluxResultAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.returnExtractionResult(-1L);
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = distributor.extractEnergyFromRange(10, false, null);
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void rejectsOverRequestAppFluxResultAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.returnExtractionResult(11L);
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = distributor.extractEnergyFromRange(10, false, null);
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void guardedAppFluxExtractionPreservesLongWidth() {
+        long amount = 4_000_000_000L;
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(amount);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+
+        long extracted = distributor.extractGridEnergy(Long.MAX_VALUE, true, "long-width query test");
+
+        assertEquals(amount, extracted);
+        assertEquals(amount, gridEnergy.stored());
+        assertEquals(1, gridEnergy.simulatedExtractCalls());
     }
 
     @Test
@@ -359,6 +662,25 @@ class TowerEnergyDistributorImplTest {
         assertEquals(1, zeroProgressReceiver.insertAttempts());
     }
 
+    @Test
+    void isolatesNonFatalCapabilityThrowableAndContinuesWithHealthyEndpoint() {
+        TestEnergyStorage source = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TestEnergyStorage throwingReceiver = TestEnergyStorage.receiver(7L, Long.MAX_VALUE);
+        throwingReceiver.failInsertion(new AssertionError("Deliberate capability assertion failure"));
+        TestEnergyStorage healthyReceiver = TestEnergyStorage.receiver(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(SECOND_POS, throwingReceiver), endpoint(RECEIVER_POS, healthyReceiver)),
+                new FallbackUnlimitedEnergyAccess());
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(0L, source.stored());
+        assertEquals(0L, throwingReceiver.stored());
+        assertEquals(7L, healthyReceiver.stored());
+        assertEquals(1, throwingReceiver.insertAttempts());
+    }
+
     private static TowerEnergyDistributorImpl createDistributor(List<TowerEnergyEndpoint> extractEndpoints,
                                                                 List<TowerEnergyEndpoint> receiveEndpoints) {
         return createDistributor(extractEndpoints, receiveEndpoints, new TestUnlimitedEnergyAccess());
@@ -381,14 +703,27 @@ class TowerEnergyDistributorImplTest {
                 false);
     }
 
-    private static TowerEnergyEndpoint endpoint(BlockPos pos, TestEnergyStorage storage) {
+    private static TowerEnergyDistributorImpl createGridDistributor(
+                                                                    List<TowerEnergyEndpoint> extractEndpoints,
+                                                                    TestGridEnergyAccess gridEnergyAccess) {
+        return new TowerEnergyDistributorImpl(
+                new TestContext(),
+                new TestEndpointResolver(extractEndpoints, List.of()),
+                new TestUnlimitedEnergyAccess(),
+                true,
+                gridEnergyAccess);
+    }
+
+    private static TowerEnergyEndpoint endpoint(BlockPos pos, IEnergyStorage storage) {
         return new TowerEnergyEndpoint(pos, Direction.NORTH, storage);
     }
 
     private static final class TestContext implements TowerEnergyDistributorContext {
 
         private long bufferedTransferEnergy;
+        private long quarantinedTransferEnergy;
         private final List<Long> bufferedTransferHistory = new ArrayList<>();
+        private final List<BlockPos> changedEndpoints = new ArrayList<>();
 
         @Override
         public @Nullable Level level() {
@@ -406,7 +741,9 @@ class TowerEnergyDistributorImplTest {
         }
 
         @Override
-        public void markEndpointChanged(BlockPos pos) {}
+        public void markEndpointChanged(BlockPos pos) {
+            this.changedEndpoints.add(pos);
+        }
 
         @Override
         public long bufferedTransferEnergy() {
@@ -419,8 +756,22 @@ class TowerEnergyDistributorImplTest {
             this.bufferedTransferHistory.add(amount);
         }
 
+        @Override
+        public long quarantinedTransferEnergy() {
+            return this.quarantinedTransferEnergy;
+        }
+
+        @Override
+        public void setQuarantinedTransferEnergy(long amount) {
+            this.quarantinedTransferEnergy = amount;
+        }
+
         private List<Long> bufferedTransferHistory() {
             return List.copyOf(this.bufferedTransferHistory);
+        }
+
+        private List<BlockPos> changedEndpoints() {
+            return List.copyOf(this.changedEndpoints);
         }
 
         @Override
@@ -528,6 +879,10 @@ class TowerEnergyDistributorImplTest {
         private int simulatedExtractCalls;
         private int realExtractCalls;
         private int restoreCalls;
+        @Nullable
+        private Throwable extractionFailure;
+        @Nullable
+        private Long forcedExtractionResult;
 
         private TestGridEnergyAccess(long stored) {
             this.stored = stored;
@@ -535,11 +890,20 @@ class TowerEnergyDistributorImplTest {
 
         @Override
         public long extract(AENetworkedBlockEntity tower, long amount, boolean simulate) {
-            long extracted = Math.min(amount, this.stored);
             if (simulate) {
                 this.simulatedExtractCalls++;
             } else {
                 this.realExtractCalls++;
+            }
+            if (this.extractionFailure != null) {
+                throwUnchecked(this.extractionFailure);
+            }
+            if (this.forcedExtractionResult != null) {
+                return this.forcedExtractionResult;
+            }
+
+            long extracted = Math.min(amount, this.stored);
+            if (!simulate) {
                 this.realExtracted += extracted;
                 this.stored -= extracted;
             }
@@ -576,6 +940,18 @@ class TowerEnergyDistributorImplTest {
 
         private int restoreCalls() {
             return this.restoreCalls;
+        }
+
+        private void failExtraction() {
+            this.extractionFailure = new IllegalStateException("Deliberate AppFlux extraction failure");
+        }
+
+        private void failExtraction(Throwable failure) {
+            this.extractionFailure = failure;
+        }
+
+        private void returnExtractionResult(long result) {
+            this.forcedExtractionResult = result;
         }
     }
 
@@ -629,6 +1005,77 @@ class TowerEnergyDistributorImplTest {
         }
     }
 
+    private enum UnknownOperation {
+        INSERT,
+        EXTRACT,
+        ROLLBACK
+    }
+
+    private static final class UnknownMutationUnlimitedEnergyAccess implements UnlimitedEnergyAccess {
+
+        private final TestUnlimitedEnergyAccess delegate = new TestUnlimitedEnergyAccess();
+        private final IEnergyStorage failedStorage;
+        private final UnknownOperation failedOperation;
+
+        private UnknownMutationUnlimitedEnergyAccess(IEnergyStorage failedStorage, UnknownOperation failedOperation) {
+            this.failedStorage = failedStorage;
+            this.failedOperation = failedOperation;
+        }
+
+        @Override
+        public long stored(IEnergyStorage storage) {
+            return this.delegate.stored(storage);
+        }
+
+        @Override
+        public long capacity(IEnergyStorage storage) {
+            return this.delegate.capacity(storage);
+        }
+
+        @Override
+        public boolean canReceive(IEnergyStorage storage) {
+            return this.delegate.canReceive(storage);
+        }
+
+        @Override
+        public boolean canExtract(IEnergyStorage storage) {
+            return this.delegate.canExtract(storage);
+        }
+
+        @Override
+        public long insert(IEnergyStorage storage, long amount, boolean simulate) {
+            if (!simulate && storage == this.failedStorage && this.failedOperation == UnknownOperation.INSERT) {
+                throw unknownMutation();
+            }
+            return this.delegate.insert(storage, amount, simulate);
+        }
+
+        @Override
+        public long extract(IEnergyStorage storage, long amount, boolean simulate) {
+            if (!simulate && storage == this.failedStorage && this.failedOperation == UnknownOperation.EXTRACT) {
+                throw unknownMutation();
+            }
+            return this.delegate.extract(storage, amount, simulate);
+        }
+
+        @Override
+        public long rollbackExtraction(IEnergyStorage storage, long amount) {
+            if (storage == this.failedStorage && this.failedOperation == UnknownOperation.ROLLBACK) {
+                throw unknownMutation();
+            }
+            return this.delegate.rollbackExtraction(storage, amount);
+        }
+
+        @Override
+        public void notifyStorageChanged(IEnergyStorage storage) {
+            this.delegate.notifyStorageChanged(storage);
+        }
+
+        private static UnlimitedEnergyAccessException unknownMutation() {
+            return UnlimitedEnergyAccessException.withUnknownMutationAmount("Deliberate unreadable final state");
+        }
+    }
+
     private static final class FallbackUnlimitedEnergyAccess implements UnlimitedEnergyAccess {
 
         @Override
@@ -672,6 +1119,318 @@ class TowerEnergyDistributorImplTest {
         }
     }
 
+    private static final class RollbackFailingReceiver implements IEnergyStorage {
+
+        private long amount;
+        private final long capacity;
+        private final long realMutationLimit;
+        private int directInsertCalls;
+        private int rollbackAttempts;
+        private int capabilityReceiveCalls;
+
+        private RollbackFailingReceiver(long capacity) {
+            this(capacity, capacity);
+        }
+
+        private RollbackFailingReceiver(long capacity, long realMutationLimit) {
+            this.capacity = capacity;
+            this.realMutationLimit = realMutationLimit;
+        }
+
+        private long getAmount() {
+            return this.amount;
+        }
+
+        private long getCapacity() {
+            return this.capacity;
+        }
+
+        private void setAmount(long amount) {
+            this.rollbackAttempts++;
+            throw new IllegalStateException("Deliberate rollback failure for " + amount + " FE");
+        }
+
+        private long insertIgnoringLimit(long amount, boolean simulate) {
+            this.directInsertCalls++;
+            if (simulate) {
+                return amount;
+            }
+            this.amount += Math.min(amount, this.realMutationLimit);
+            return amount + 1L;
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            this.capabilityReceiveCalls++;
+            return 0;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return (int) this.amount;
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return (int) this.capacity;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return false;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
+        }
+
+        private long stored() {
+            return this.amount;
+        }
+
+        private int directInsertCalls() {
+            return this.directInsertCalls;
+        }
+
+        private int rollbackAttempts() {
+            return this.rollbackAttempts;
+        }
+
+        private int capabilityReceiveCalls() {
+            return this.capabilityReceiveCalls;
+        }
+    }
+
+    private static final class RollbackFailingSource implements IEnergyStorage {
+
+        private long amount;
+        private final long capacity;
+        private int directExtractCalls;
+        private int rollbackAttempts;
+        private int capabilityExtractCalls;
+
+        private RollbackFailingSource(long amount) {
+            this.amount = amount;
+            this.capacity = amount;
+        }
+
+        private long getAmount() {
+            return this.amount;
+        }
+
+        private long getCapacity() {
+            return this.capacity;
+        }
+
+        private void setAmount(long amount) {
+            this.rollbackAttempts++;
+            throw new IllegalStateException("Deliberate source rollback failure for " + amount + " FE");
+        }
+
+        private long extractIgnoringLimit(long amount, boolean simulate) {
+            this.directExtractCalls++;
+            if (simulate) {
+                return amount;
+            }
+            this.amount -= amount;
+            return amount + 1L;
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            this.capabilityExtractCalls++;
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return (int) this.amount;
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return (int) this.capacity;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return true;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return false;
+        }
+
+        private long stored() {
+            return this.amount;
+        }
+
+        private int directExtractCalls() {
+            return this.directExtractCalls;
+        }
+
+        private int rollbackAttempts() {
+            return this.rollbackAttempts;
+        }
+
+        private int capabilityExtractCalls() {
+            return this.capabilityExtractCalls;
+        }
+    }
+
+    private static final class CompensationRollbackFailingSource implements IEnergyStorage {
+
+        private long amount;
+        private final long capacity;
+        private int directExtractCalls;
+        private int compensationWriteAttempts;
+        private int capabilityExtractCalls;
+
+        private CompensationRollbackFailingSource(long amount) {
+            this.amount = amount;
+            this.capacity = amount;
+        }
+
+        private long getAmount() {
+            return this.amount;
+        }
+
+        private long getCapacity() {
+            return this.capacity;
+        }
+
+        private void setAmount(long amount) {
+            this.compensationWriteAttempts++;
+            if (amount > 0L) {
+                this.amount = amount;
+            }
+            throw new IllegalStateException("Deliberate compensation rollback failure for " + amount + " FE");
+        }
+
+        private long extractIgnoringLimit(long amount, boolean simulate) {
+            this.directExtractCalls++;
+            if (!simulate) {
+                this.amount -= amount;
+            }
+            return amount;
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            this.capabilityExtractCalls++;
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return (int) this.amount;
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return (int) this.capacity;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return true;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return false;
+        }
+
+        private long stored() {
+            return this.amount;
+        }
+
+        private int directExtractCalls() {
+            return this.directExtractCalls;
+        }
+
+        private int compensationWriteAttempts() {
+            return this.compensationWriteAttempts;
+        }
+
+        private int capabilityExtractCalls() {
+            return this.capabilityExtractCalls;
+        }
+    }
+
+    private static final class OpaqueShortWritingReceiver implements IEnergyStorage {
+
+        private long value;
+        private final long limit;
+        private final long firstWriteLimit;
+        private int realAttempts;
+
+        private OpaqueShortWritingReceiver(long limit, long firstWriteLimit) {
+            this.limit = limit;
+            this.firstWriteLimit = firstWriteLimit;
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            if (simulate) {
+                return (int) Math.min(maxReceive, this.limit - this.value);
+            }
+            this.realAttempts++;
+            if (this.realAttempts > 1) {
+                return 0;
+            }
+            long inserted = Math.min(maxReceive, Math.min(this.firstWriteLimit, this.limit - this.value));
+            this.value += inserted;
+            return (int) inserted;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return (int) this.value;
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return (int) this.limit;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return false;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
+        }
+
+        private long stored() {
+            return this.value;
+        }
+    }
+
     private static final class TestEnergyStorage implements IEnergyStorage {
 
         private long stored;
@@ -680,7 +1439,8 @@ class TowerEnergyDistributorImplTest {
         private final boolean extractAllowed;
         private long maxInsert;
         private final long maxExtract;
-        private boolean failInsertion;
+        @Nullable
+        private Throwable insertionFailure;
         private boolean invalidInsertion;
         private boolean failExtraction;
         private boolean fullInsertionDuringSimulation;
@@ -774,7 +1534,11 @@ class TowerEnergyDistributorImplTest {
         }
 
         private void failInsertion() {
-            this.failInsertion = true;
+            failInsertion(new IllegalStateException("Deliberate receiver failure"));
+        }
+
+        private void failInsertion(Throwable failure) {
+            this.insertionFailure = failure;
         }
 
         private void returnInvalidInsertion() {
@@ -813,8 +1577,8 @@ class TowerEnergyDistributorImplTest {
                     throw new IllegalStateException("Deliberate segmented receiver failure");
                 }
             }
-            if (this.failInsertion) {
-                throw new IllegalStateException("Deliberate receiver failure");
+            if (this.insertionFailure != null) {
+                throwUnchecked(this.insertionFailure);
             }
             if (this.invalidInsertion) {
                 return amount + 1;
@@ -872,6 +1636,10 @@ class TowerEnergyDistributorImplTest {
             this.notifications++;
         }
 
+        private int notifications() {
+            return this.notifications;
+        }
+
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
             return (int) insert(maxReceive, simulate);
@@ -900,6 +1668,18 @@ class TowerEnergyDistributorImplTest {
         @Override
         public boolean canReceive() {
             return this.receiveAllowed;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void throwUnchecked(Throwable throwable) throws T {
+        throw (T) throwable;
+    }
+
+    private static final class TestVirtualMachineError extends VirtualMachineError {
+
+        private TestVirtualMachineError(String message) {
+            super(message);
         }
     }
 }

@@ -52,6 +52,20 @@ public interface TowerEnergyDistributorContext {
     void setBufferedTransferEnergy(long amount);
 
     /**
+     * Returns energy whose final third-party storage location could not be verified after a direct mutation failure.
+     *
+     * @return persisted, unavailable quarantine amount in FE
+     */
+    long quarantinedTransferEnergy();
+
+    /**
+     * Replaces the persisted quarantine amount after an uncertain direct mutation.
+     *
+     * @param amount non-negative unavailable quarantine amount in FE
+     */
+    void setQuarantinedTransferEnergy(long amount);
+
+    /**
      * Marks a direct-access target block entity changed after successful insertion.
      *
      * @param pos endpoint position

@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.integration.appflux;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
-
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
@@ -21,7 +19,7 @@ public final class AE2FluxIntegration {
             return 0;
         }
 
-        try {
+        return AppFluxThrowableBoundary.isolateExtraction(() -> {
             IManagedGridNode mainNode = blockEntity.getMainNode();
             if (mainNode == null || !mainNode.isReady()) {
                 return 0;
@@ -44,10 +42,7 @@ public final class AE2FluxIntegration {
 
             Actionable actionable = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
             return inventory.extract(FluxKey.of(EnergyType.FE), amount, actionable, IActionSource.ofMachine(blockEntity));
-        } catch (RuntimeException | LinkageError e) {
-            Data_Energistics.LOGGER.debug("Failed to extract AppFlux energy from AE network", e);
-            return 0;
-        }
+        });
     }
 
     /**
@@ -62,7 +57,7 @@ public final class AE2FluxIntegration {
             return 0;
         }
 
-        try {
+        return AppFluxThrowableBoundary.isolateRestoration(() -> {
             IManagedGridNode mainNode = blockEntity.getMainNode();
             if (mainNode == null || !mainNode.isReady()) {
                 return 0;
@@ -85,9 +80,6 @@ public final class AE2FluxIntegration {
 
             return inventory.insert(
                     FluxKey.of(EnergyType.FE), amount, Actionable.MODULATE, IActionSource.ofMachine(blockEntity));
-        } catch (RuntimeException | LinkageError exception) {
-            Data_Energistics.LOGGER.error("Failed to restore AppFlux energy to AE network", exception);
-            return 0;
-        }
+        });
     }
 }
