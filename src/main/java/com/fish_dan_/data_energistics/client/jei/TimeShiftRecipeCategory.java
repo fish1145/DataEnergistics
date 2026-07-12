@@ -139,13 +139,28 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     }
 
     private void setRightClickRecipe(IRecipeLayoutBuilder builder, DataCaptureBallRightClickRecipe recipe) {
-        builder.addInputSlot(RIGHT_CLICK_ITEM_X, RIGHT_CLICK_ITEM_Y)
-                .addItemStack(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()))
-                .addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(
-                        "recipe.data_energistics.data_capture_ball_right_click.preset",
-                        recipe.getDataCost(), formatEnergy(recipe.getEnergyCost()))));
+        var itemSlot = builder.addInputSlot(RIGHT_CLICK_ITEM_X, RIGHT_CLICK_ITEM_Y)
+                .addItemStacks(getItemInputStacks(recipe));
+        if (isDataCaptureBallInput(recipe)) {
+            itemSlot.addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(
+                    "recipe.data_energistics.data_capture_ball_right_click.preset",
+                    recipe.getDataCost(), formatEnergy(recipe.getEnergyCost()))));
+        }
         builder.addInputSlot(RIGHT_CLICK_BLOCK_X, RIGHT_CLICK_BLOCK_Y).addItemStack(new ItemStack(recipe.getInputBlock()));
         builder.addOutputSlot(RIGHT_CLICK_OUTPUT_X, RIGHT_CLICK_OUTPUT_Y).addItemStack(new ItemStack(recipe.getResultBlock()));
+    }
+
+    private static List<ItemStack> getItemInputStacks(DataCaptureBallRightClickRecipe recipe) {
+        ItemStack[] itemStacks = recipe.getItemIngredient().getItems();
+        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof DataCaptureBallItem) {
+            return List.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
+        }
+        return Arrays.stream(itemStacks).map(ItemStack::copy).toList();
+    }
+
+    private static boolean isDataCaptureBallInput(DataCaptureBallRightClickRecipe recipe) {
+        return Arrays.stream(recipe.getItemIngredient().getItems())
+                .anyMatch(stack -> stack.getItem() instanceof DataCaptureBallItem);
     }
 
     private void drawSlotFrames(GuiGraphics guiGraphics, TimeShiftRecipe recipe) {

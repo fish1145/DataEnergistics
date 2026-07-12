@@ -86,6 +86,11 @@ final class CommonCapabilityRegistrar {
         registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16K.get());
         registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64K.get());
         registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_1M.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_4M.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_16M.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_64M.get());
+        registerPoweredItemEnergyStorage(event, ModItems.PORTABLE_DATA_FLOW_CELL_256M.get());
         registerPoweredItemEnergyStorage(event, ModItems.DATA_CAPTURE_BALL.get());
         registerPoweredItemEnergyStorage(event, ModItems.MATTER_CONVERGING_CROSSBOW.get());
         event.registerBlockEntity(

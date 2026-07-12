@@ -49,5 +49,9 @@
 			"id": "data_energistics:data_distribution_tower",
 			"count": 1
 		}
-	]
+	],
+	"key_input": {
+		"#t": "data_energistics:data",
+		"#": 4
+	}
 }
