@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
-import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -53,9 +52,17 @@ public final class TrinityDataCoreCraftingRuntime {
     private final Map<String, TrinityDataCoreCpuContribution> externalContributions = new TreeMap<>();
     private final NavigableMap<Integer, TrinityDataCoreVirtualCpu> retainedWorkers = new TreeMap<>();
     private final NavigableMap<Integer, CompoundTag> pendingWorkerLogic = new TreeMap<>();
+    /** Derived request lookup removes full-worker scans from network output routing. */
+    private final TrinityCpuWaitingIndex waitingIndex = new TrinityCpuWaitingIndexImpl();
     @Nullable
     private TrinityDataCoreVirtualCpu reservedCpu;
     private TrinityDataCoreCpuProfile profile = TrinityDataCoreCpuProfile.EMPTY;
+    /** Immutable publication snapshot remains identity-stable until CPU topology changes. */
+    private List<TrinityDataCoreVirtualCpu> publishedCpus = List.of();
+    /** Cached latest change tick is updated while workers are already being visited. */
+    private long lastModifiedOnTick;
+    /** Allocation cursor always identifies the smallest free positive worker number. */
+    private int nextAvailableWorkerNumber = 1;
     private boolean mainStructureFormed;
     private boolean paused;
 
@@ -65,20 +72,29 @@ public final class TrinityDataCoreCraftingRuntime {
 
     /** Updates whether child structure CPU contributions are active. */
     public void setMainStructureFormed(boolean formed) {
+        if (this.mainStructureFormed == formed) {
+            return;
+        }
         this.mainStructureFormed = formed;
-        applyProfile(this.profile);
+        rebuildPublishedCpus();
     }
 
     /** Pauses or resumes execution without discarding jobs or their inventories. */
     public void setPaused(boolean paused) {
+        if (this.paused == paused) {
+            return;
+        }
         this.paused = paused;
+        rebuildPublishedCpus();
     }
 
     /** Cancels every active worker job. This is reserved for permanent host removal. */
     public void cancelAllJobs() {
         for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
-            cpu.cancelJob();
+            cpu.logic().cancel();
         }
+        rebuildWaitingIndex();
+        rebuildPublishedCpus();
     }
 
     /** Moves inventory left behind after cancellation into durable host-owned storage. */
@@ -107,8 +123,12 @@ public final class TrinityDataCoreCraftingRuntime {
 
     /** Adds or replaces CPU data contributed by a named child structure. */
     public void setContribution(String structureName, TrinityDataCoreCpuContribution contribution) {
+        String checkedStructureName = requireStructureName(structureName);
+        if (contribution.equals(this.externalContributions.get(checkedStructureName))) {
+            return;
+        }
         Map<String, TrinityDataCoreCpuContribution> nextContributions = new TreeMap<>(this.externalContributions);
-        nextContributions.put(requireStructureName(structureName), contribution);
+        nextContributions.put(checkedStructureName, contribution);
         TrinityDataCoreCpuProfile nextProfile = TrinityDataCoreCpuProfile.fromContributions(nextContributions);
         this.externalContributions.clear();
         this.externalContributions.putAll(nextContributions);
@@ -117,8 +137,12 @@ public final class TrinityDataCoreCraftingRuntime {
 
     /** Clears CPU data contributed by a named child structure. */
     public void clearContribution(String structureName) {
+        String checkedStructureName = requireStructureName(structureName);
+        if (!this.externalContributions.containsKey(checkedStructureName)) {
+            return;
+        }
         Map<String, TrinityDataCoreCpuContribution> nextContributions = new TreeMap<>(this.externalContributions);
-        nextContributions.remove(requireStructureName(structureName));
+        nextContributions.remove(checkedStructureName);
         TrinityDataCoreCpuProfile nextProfile = TrinityDataCoreCpuProfile.fromContributions(nextContributions);
         this.externalContributions.clear();
         this.externalContributions.putAll(nextContributions);
@@ -134,19 +158,7 @@ public final class TrinityDataCoreCraftingRuntime {
      * Returns the AE2-visible CPU view: the reserved CPU first, followed by active busy workers in numeric order.
      */
     public List<TrinityDataCoreVirtualCpu> publishedCpus() {
-        TrinityDataCoreVirtualCpu coordinator = this.reservedCpu;
-        if (coordinator == null || !coordinator.isActive()) {
-            return List.of();
-        }
-
-        List<TrinityDataCoreVirtualCpu> published = new ArrayList<>(this.retainedWorkers.size() + 1);
-        published.add(coordinator);
-        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
-            if (worker.isBusy() && worker.isActive()) {
-                published.add(worker);
-            }
-        }
-        return List.copyOf(published);
+        return this.publishedCpus;
     }
 
     /** Compatibility alias used by the host's existing published CPU view contract. */
@@ -185,14 +197,24 @@ public final class TrinityDataCoreCraftingRuntime {
                 this,
                 this.profile.partition(workerNumber));
         this.retainedWorkers.put(workerNumber, worker);
+        advanceAvailableWorkerNumber();
         try {
             ICraftingSubmitResult result = worker.submitWorkerJob(grid, plan, source, requester);
             if (!result.successful()) {
                 removeWorkerIfReleasable(workerNumber, worker);
+            } else {
+                refreshWorkerWaiting(worker);
+                cacheLastModified(worker);
+                rebuildPublishedCpus();
             }
             return result;
         } catch (RuntimeException exception) {
             removeWorkerIfReleasable(workerNumber, worker);
+            if (this.retainedWorkers.get(workerNumber) == worker) {
+                refreshWorkerWaiting(worker);
+                cacheLastModified(worker);
+                rebuildPublishedCpus();
+            }
             Data_Energistics.LOGGER.error(
                     "Failed to submit a Trinity crafting job to worker CPU {}",
                     workerNumber,
@@ -212,6 +234,8 @@ public final class TrinityDataCoreCraftingRuntime {
             TrinityDataCoreVirtualCpu worker = entry.getValue();
             worker.tick(energyService, craftingService);
             if (!this.pendingWorkerLogic.containsKey(entry.getKey()) && worker.isReleasable()) {
+                this.waitingIndex.removeWorker(entry.getKey());
+                makeWorkerNumberAvailable(entry.getKey());
                 iterator.remove();
             }
         }
@@ -220,10 +244,11 @@ public final class TrinityDataCoreCraftingRuntime {
     /** Inserts returned crafting outputs into retained workers. */
     public long insertIntoCpus(AEKey what, long amount, Actionable mode, long inserted) {
         long totalInserted = inserted;
-        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
+        for (int workerNumber : this.waitingIndex.waitingWorkerNumbers(what)) {
             if (totalInserted >= amount) {
                 break;
             }
+            TrinityDataCoreVirtualCpu cpu = this.retainedWorkers.get(workerNumber);
             totalInserted += cpu.insert(what, amount - totalInserted, mode);
         }
         return totalInserted;
@@ -231,18 +256,12 @@ public final class TrinityDataCoreCraftingRuntime {
 
     /** Adds all currently awaited keys to AE2's request set. */
     public void getAllWaitingFor(Set<AEKey> waitingFor) {
-        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
-            cpu.getAllWaitingFor(waitingFor);
-        }
+        this.waitingIndex.addWaitingKeys(waitingFor);
     }
 
     /** Returns the amount all retained workers are waiting for. */
     public long getRequestedAmount(AEKey what) {
-        long requested = 0L;
-        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
-            requested = LongAmountMath.saturatingAddNonNegative(requested, cpu.getWaitingFor(what));
-        }
-        return requested;
+        return this.waitingIndex.requestedAmount(what);
     }
 
     /** Returns whether a CPU object is owned by this runtime, including hidden retained workers. */
@@ -258,11 +277,7 @@ public final class TrinityDataCoreCraftingRuntime {
 
     /** Returns the latest crafting-visible change tick across retained workers. */
     public long getLastModifiedOnTick() {
-        long latest = 0L;
-        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
-            latest = Math.max(latest, cpu.getLastModifiedOnTick());
-        }
-        return latest;
+        return this.lastModifiedOnTick;
     }
 
     /** Re-registers persisted links for every retained worker. */
@@ -384,6 +399,7 @@ public final class TrinityDataCoreCraftingRuntime {
             iterator.remove();
         }
         releaseReleasableWorkers();
+        rebuildRuntimeCaches();
     }
 
     /** Returns whether this CPU remains an active member of the current worker capacity. */
@@ -398,28 +414,59 @@ public final class TrinityDataCoreCraftingRuntime {
                 this.retainedWorkers.get(cpu.number()) == cpu;
     }
 
-    private int findAvailableWorkerNumber() {
-        for (int number = 1; number <= this.profile.partitionCount(); number++) {
-            if (!this.retainedWorkers.containsKey(number)) {
-                return number;
-            }
+    /** Applies one key-level CPU change to the aggregate waiting index and modification cache. */
+    void workerCraftingVisibleChanged(TrinityDataCoreVirtualCpu worker, AEKey what) {
+        if (this.retainedWorkers.get(worker.number()) != worker) {
+            return;
         }
-        return -1;
+        this.waitingIndex.update(worker.number(), what, worker.getWaitingFor(what));
+        cacheLastModified(worker);
+    }
+
+    /** Synchronizes caches after a worker operation that may start or finish a job. */
+    void workerOperationCompleted(TrinityDataCoreVirtualCpu worker, boolean wasBusy) {
+        if (this.retainedWorkers.get(worker.number()) != worker) {
+            return;
+        }
+        cacheLastModified(worker);
+        if (wasBusy != worker.isBusy()) {
+            refreshWorkerWaiting(worker);
+            rebuildPublishedCpus();
+        }
+    }
+
+    private int findAvailableWorkerNumber() {
+        return this.nextAvailableWorkerNumber <= this.profile.partitionCount()
+                ? this.nextAvailableWorkerNumber
+                : -1;
     }
 
     private void removeWorkerIfReleasable(int number, TrinityDataCoreVirtualCpu worker) {
         if (!this.pendingWorkerLogic.containsKey(number) && worker.isReleasable()) {
-            this.retainedWorkers.remove(number, worker);
+            if (this.retainedWorkers.remove(number, worker)) {
+                this.waitingIndex.removeWorker(number);
+                makeWorkerNumberAvailable(number);
+            }
         }
     }
 
     private void releaseReleasableWorkers() {
-        this.retainedWorkers.entrySet().removeIf(entry -> !this.pendingWorkerLogic.containsKey(entry.getKey()) && entry.getValue().isReleasable());
+        var iterator = this.retainedWorkers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry = iterator.next();
+            if (!this.pendingWorkerLogic.containsKey(entry.getKey()) && entry.getValue().isReleasable()) {
+                this.waitingIndex.removeWorker(entry.getKey());
+                makeWorkerNumberAvailable(entry.getKey());
+                iterator.remove();
+            }
+        }
     }
 
     private void applyProfile(TrinityDataCoreCpuProfile nextProfile) {
         this.profile = nextProfile;
         if (!nextProfile.active()) {
+            rebuildAvailableWorkerNumber();
+            rebuildPublishedCpus();
             return;
         }
 
@@ -435,6 +482,88 @@ public final class TrinityDataCoreCraftingRuntime {
                 entry.getValue().updateProfile(nextProfile.partition(entry.getKey()));
             }
         }
+        rebuildAvailableWorkerNumber();
+        rebuildPublishedCpus();
+    }
+
+    /** Rebuilds all derived runtime caches after persisted logic has been decoded. */
+    private void rebuildRuntimeCaches() {
+        rebuildWaitingIndex();
+        rebuildAvailableWorkerNumber();
+        this.lastModifiedOnTick = 0L;
+        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
+            cacheLastModified(worker);
+        }
+        rebuildPublishedCpus();
+    }
+
+    /** Rebuilds the waiting index from authoritative worker jobs after load or bulk cancellation. */
+    private void rebuildWaitingIndex() {
+        this.waitingIndex.clear();
+        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
+            refreshWorkerWaiting(worker);
+        }
+    }
+
+    /** Replaces all indexed keys for one worker without exposing a partially rebuilt membership. */
+    private void refreshWorkerWaiting(TrinityDataCoreVirtualCpu worker) {
+        this.waitingIndex.removeWorker(worker.number());
+        Set<AEKey> workerKeys = new HashSet<>();
+        worker.getAllWaitingFor(workerKeys);
+        for (AEKey what : workerKeys) {
+            this.waitingIndex.update(worker.number(), what, worker.getWaitingFor(what));
+        }
+    }
+
+    /** Updates the O(1) last-modified query while a worker is already being visited. */
+    private void cacheLastModified(TrinityDataCoreVirtualCpu worker) {
+        this.lastModifiedOnTick = Math.max(this.lastModifiedOnTick, worker.getLastModifiedOnTick());
+    }
+
+    /** Replaces the immutable AE2 CPU view only when publication topology changes. */
+    private void rebuildPublishedCpus() {
+        TrinityDataCoreVirtualCpu coordinator = this.reservedCpu;
+        if (this.paused || !this.mainStructureFormed || !this.profile.active() || coordinator == null) {
+            replacePublishedCpus(List.of());
+            return;
+        }
+
+        List<TrinityDataCoreVirtualCpu> published = new ArrayList<>(this.retainedWorkers.size() + 1);
+        published.add(coordinator);
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            if (entry.getKey() <= this.profile.partitionCount() && entry.getValue().isBusy()) {
+                published.add(entry.getValue());
+            }
+        }
+        replacePublishedCpus(List.copyOf(published));
+    }
+
+    /** Preserves the list identity when a repeated lifecycle event leaves CPU publication unchanged. */
+    private void replacePublishedCpus(List<TrinityDataCoreVirtualCpu> nextPublishedCpus) {
+        if (!this.publishedCpus.equals(nextPublishedCpus)) {
+            this.publishedCpus = nextPublishedCpus;
+        }
+    }
+
+    /** Advances the allocation cursor after occupying its current minimum worker number. */
+    private void advanceAvailableWorkerNumber() {
+        while (this.nextAvailableWorkerNumber <= this.profile.partitionCount() &&
+                this.retainedWorkers.containsKey(this.nextAvailableWorkerNumber)) {
+            this.nextAvailableWorkerNumber++;
+        }
+    }
+
+    /** Makes a released lower worker number the next allocation candidate. */
+    private void makeWorkerNumberAvailable(int workerNumber) {
+        if (workerNumber < this.nextAvailableWorkerNumber) {
+            this.nextAvailableWorkerNumber = workerNumber;
+        }
+    }
+
+    /** Recomputes the minimum free worker after profile or persisted-state replacement. */
+    private void rebuildAvailableWorkerNumber() {
+        this.nextAvailableWorkerNumber = 1;
+        advanceAvailableWorkerNumber();
     }
 
     private Map<String, TrinityDataCoreCpuContribution> readContributions(ListTag contributionsTag) {
@@ -502,6 +631,7 @@ public final class TrinityDataCoreCraftingRuntime {
                         exception);
             }
         }
+        rebuildAvailableWorkerNumber();
     }
 
     private static TrinityDataCoreCpuPartitionProfile readWorkerProfile(CompoundTag data, int schemaVersion) {
@@ -540,7 +670,11 @@ public final class TrinityDataCoreCraftingRuntime {
         this.externalContributions.clear();
         this.retainedWorkers.clear();
         this.pendingWorkerLogic.clear();
+        this.waitingIndex.clear();
         this.profile = TrinityDataCoreCpuProfile.EMPTY;
+        this.publishedCpus = List.of();
+        this.lastModifiedOnTick = 0L;
+        this.nextAvailableWorkerNumber = 1;
     }
 
     private static void writeContribution(CompoundTag data, TrinityDataCoreCpuContribution contribution) {
