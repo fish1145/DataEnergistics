@@ -7,43 +7,43 @@
 	},
 	"slots": {
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_1": {
-			"left": 16,
-			"top": 28,
+			"left": 17,
+			"top": 17,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_2": {
-			"left": 16,
-			"top": 46,
+			"left": 17,
+			"top": 35,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_3": {
-			"left": 16,
-			"top": 64,
+			"left": 17,
+			"top": 53,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_4": {
-			"left": 16,
-			"top": 82,
+			"left": 17,
+			"top": 71,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_5": {
-			"left": 16,
-			"top": 100,
+			"left": 17,
+			"top": 89,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_6": {
-			"left": 16,
-			"top": 118,
+			"left": 17,
+			"top": 107,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_7": {
-			"left": 16,
-			"top": 136,
+			"left": 17,
+			"top": 125,
 			"grid": "HORIZONTAL"
 		},
 		"TRINITY_PATTERN_CORE_PATTERN_ROW_8": {
-			"left": 16,
-			"top": 154,
+			"left": 17,
+			"top": 143,
 			"grid": "HORIZONTAL"
 		}
 	},
@@ -52,22 +52,15 @@
 			"position": {
 				"left": 8,
 				"top": 6
-			}
+			},
+			"scale": 0.7
 		},
 		"page_info": {
 			"position": {
-				"left": 16,
-				"top": 18
-			}
-		},
-		"player_inventory_title": {
-			"text": {
-				"translate": "container.inventory"
+				"right": 8,
+				"bottom": 95
 			},
-			"position": {
-				"left": 104,
-				"top": 18
-			}
+			"align": "RIGHT"
 		}
 	}
 }

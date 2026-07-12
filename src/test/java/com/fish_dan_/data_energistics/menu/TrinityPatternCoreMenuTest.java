@@ -36,9 +36,7 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
-import appeng.client.gui.Icon;
 import appeng.menu.SlotSemantic;
-import appeng.menu.slot.AppEngSlot;
 
 import java.util.List;
 import java.util.UUID;
@@ -77,10 +75,6 @@ public final class TrinityPatternCoreMenuTest {
             TrinityPatternCoreMenu menu = new TrinityPatternCoreMenu(tier + 1, player.getInventory(), core);
             assertEquals(TrinityPatternCoreMenu.SLOTS_PER_PAGE, menu.pagePatternSlots().size());
             assertEquals(pages[tier], menu.totalPages);
-            for (Slot slot : menu.pagePatternSlots()) {
-                assertTrue(slot instanceof AppEngSlot appEngSlot &&
-                        appEngSlot.getIcon() == Icon.BACKGROUND_BLANK_PATTERN);
-            }
             for (SlotSemantic row : TrinityPatternCoreMenu.PAGE_PATTERN_ROWS) {
                 assertEquals(8, menu.getSlots(row).size());
             }

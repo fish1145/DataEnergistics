@@ -95,6 +95,22 @@ public final class TrinityDataCoreResourceTest {
         assertSourceRect(background, 176, 256);
         assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Trinity pattern core GUI texture should exist");
         assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
+
+        JsonObject slots = object(root, "slots");
+        for (int row = 0; row < 8; row++) {
+            JsonObject rowStyle = object(slots, "TRINITY_PATTERN_CORE_PATTERN_ROW_" + (row + 1));
+            assertEquals(17, rowStyle.get("left").getAsInt(), "Pattern slots should align with the texture's inner edge");
+            assertEquals(
+                    17 + row * 18,
+                    rowStyle.get("top").getAsInt(),
+                    "Pattern row should align with its 16 by 16 texture interior");
+        }
+
+        JsonObject pageInfo = object(object(root, "text"), "page_info");
+        JsonObject pagePosition = object(pageInfo, "position");
+        assertEquals(8, pagePosition.get("right").getAsInt());
+        assertEquals(95, pagePosition.get("bottom").getAsInt());
+        assertEquals("RIGHT", string(pageInfo, "align"));
     }
 
     @Test
