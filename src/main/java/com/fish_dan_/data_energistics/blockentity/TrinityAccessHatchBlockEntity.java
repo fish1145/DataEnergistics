@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
@@ -74,6 +75,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Nullable
     private IGrid terminalPartitionGrid;
     private long terminalPartitionLayoutRevision = -1L;
+    @Nullable
+    private CpuPublication cpuPublication;
 
     public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -112,7 +115,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         updateActiveState();
         requestStorageUpdate();
         requestCraftingProviderUpdate();
-        notifyCraftingCpuChanged();
+        refreshCraftingCpuPublication();
         refreshTerminalPartitionsSafely();
         setChanged();
     }
@@ -122,6 +125,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         super.onMainNodeStateChanged(reason);
         this.terminalPartitionsDirty = true;
         this.terminalPartitionAttachmentCheckRequested = true;
+        refreshCraftingCpuPublication();
         TrinityDataCoreBlockEntity host = boundHost(false);
         if (host != null) {
             host.requestAccessLeaseReevaluation();
@@ -130,6 +134,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void onChunkUnloaded() {
+        withdrawCraftingCpuPublicationAndNotify();
         this.terminalPartitionsDirty = true;
         detachTerminalPartitions();
         TrinityDataCoreBlockEntity host = boundHost(false);
@@ -141,6 +146,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void setRemoved() {
+        withdrawCraftingCpuPublicationAndNotify();
         this.terminalPartitionsDirty = true;
         detachTerminalPartitions();
         TrinityDataCoreBlockEntity host = boundHost(false);
@@ -336,11 +342,87 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    private void notifyCraftingCpuChanged() {
-        var node = this.getMainNode().getNode();
-        if (node != null) {
-            node.getGrid().postEvent(new GridCraftingCpuChange(node));
+    private void refreshCraftingCpuPublication() {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
         }
+
+        CpuPublication desired = resolveCraftingCpuPublication();
+        CpuPublication current = this.cpuPublication;
+        if (current != null && desired != null && current.matches(desired)) {
+            return;
+        }
+
+        CpuPublication withdrawn = withdrawCraftingCpuPublication();
+        if (desired == null) {
+            if (withdrawn != null) {
+                notifyCraftingCpuChanged(withdrawn);
+            } else {
+                withdrawUntrackedCraftingCpuPublicationAndNotify();
+            }
+            return;
+        }
+
+        boolean published = desired.registry().publish(desired.node(), desired.runtime());
+        this.cpuPublication = desired;
+        if (withdrawn != null && !withdrawn.hasSameNotificationTarget(desired)) {
+            notifyCraftingCpuChanged(withdrawn);
+        }
+        if (published) {
+            notifyCraftingCpuChanged(desired);
+        }
+    }
+
+    @Nullable
+    private CpuPublication resolveCraftingCpuPublication() {
+        TrinityDataCoreCraftingRuntime runtime = boundCraftingRuntime();
+        if (runtime == null) {
+            return null;
+        }
+
+        IGridNode node = this.getMainNode().getNode();
+        IGrid grid = node.getGrid();
+        if (!(grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry)) {
+            LOGGER.error("Cannot publish Trinity CPU at {} because the AE2 crafting service has no runtime registry",
+                    this.worldPosition);
+            return null;
+        }
+        return new CpuPublication(registry, grid, node, runtime);
+    }
+
+    @Nullable
+    private CpuPublication withdrawCraftingCpuPublication() {
+        CpuPublication publication = this.cpuPublication;
+        if (publication == null) {
+            return null;
+        }
+        this.cpuPublication = null;
+        return publication.registry().withdraw(publication.node()) ? publication : null;
+    }
+
+    private void withdrawCraftingCpuPublicationAndNotify() {
+        CpuPublication withdrawn = withdrawCraftingCpuPublication();
+        if (withdrawn != null) {
+            notifyCraftingCpuChanged(withdrawn);
+            return;
+        }
+
+        withdrawUntrackedCraftingCpuPublicationAndNotify();
+    }
+
+    private void withdrawUntrackedCraftingCpuPublicationAndNotify() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null) {
+            return;
+        }
+        IGrid grid = node.getGrid();
+        if (grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry && registry.withdraw(node)) {
+            grid.postEvent(new GridCraftingCpuChange(node));
+        }
+    }
+
+    private static void notifyCraftingCpuChanged(CpuPublication publication) {
+        publication.grid().postEvent(new GridCraftingCpuChange(publication.node()));
     }
 
     private void refreshTerminalPartitionsSafely() {
@@ -445,6 +527,21 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                     host.isStorageAvailable()) {
                 storageMounts.mount(networkStorage, 0);
             }
+        }
+    }
+
+    private record CpuPublication(TrinityCraftingRuntimeRegistry registry,
+                                  IGrid grid,
+                                  IGridNode node,
+                                  TrinityDataCoreCraftingRuntime runtime) {
+
+        private boolean matches(CpuPublication other) {
+            return this.registry == other.registry && this.grid == other.grid && this.node == other.node &&
+                    this.runtime == other.runtime;
+        }
+
+        private boolean hasSameNotificationTarget(CpuPublication other) {
+            return this.grid == other.grid && this.node == other.node;
         }
     }
 

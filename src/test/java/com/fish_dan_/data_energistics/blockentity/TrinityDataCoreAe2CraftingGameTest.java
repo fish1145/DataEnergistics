@@ -66,6 +66,47 @@ public final class TrinityDataCoreAe2CraftingGameTest {
 
     private TrinityDataCoreAe2CraftingGameTest() {}
 
+    @TestHolder("trinity_data_core_cpu_publication_is_synchronous_with_storage")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void cpuPublicationIsSynchronousWithStorage(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    TrinityDataCoreBlockEntity host = fixture.host();
+                    TrinityAccessHatchBlockEntity initialHatch = fixture.accessHatches().stream()
+                            .filter(host::isLeaseOwner)
+                            .findFirst()
+                            .orElseThrow(() -> new GameTestAssertException("Trinity fixture has no lease-owning hatch"));
+                    IGrid grid = fixture.grid();
+
+                    AEKey storedKey = AEItemKey.of(Items.AMETHYST_SHARD);
+                    insertIntoNetwork(helper, fixture, storedKey, 3L);
+                    TrinityDataCoreVirtualCpu reservedCpu = reservedCpu(host);
+                    initialHatch.getMainNode().destroy();
+                    helper.assertFalse(grid.getCraftingService().getCpus().contains(reservedCpu),
+                            "Removing the lease node must immediately hide the Trinity CPU");
+
+                    host.requestAccessLeaseReevaluation();
+                    TrinityAccessHatchBlockEntity replacementHatch = fixture.accessHatches().stream()
+                            .filter(host::isLeaseOwner)
+                            .findFirst()
+                            .orElseThrow(() -> new GameTestAssertException("Trinity lease did not move to the online hatch"));
+
+                    KeyCounter available = new KeyCounter();
+                    grid.getStorageService().getInventory().getAvailableStacks(available);
+                    helper.assertValueEqual(available.get(storedKey), 3L,
+                            "Replacement hatch must mount Trinity storage during the lease change");
+                    helper.assertTrue(replacementHatch != initialHatch,
+                            "Trinity lease must move away from the removed node");
+                    helper.assertTrue(grid.getCraftingService().getCpus().contains(reservedCpu),
+                            "Replacement hatch must publish its CPU in the same lease-change tick");
+                })
+                .thenSucceed();
+    }
+
     @TestHolder("trinity_data_core_real_ae2_planning_routes_and_executes_crafting")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
