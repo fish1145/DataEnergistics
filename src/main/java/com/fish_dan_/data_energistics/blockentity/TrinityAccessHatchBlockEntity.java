@@ -70,6 +70,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private List<TrinityPatternTerminalPartition> terminalPartitions = List.of();
     private boolean terminalPartitionsDirty = true;
     private boolean terminalPartitionAttachmentCheckRequested = true;
+    private boolean gridBootReevaluationPending;
     @Nullable
     private UUID terminalPartitionHostId;
     @Nullable
@@ -77,6 +78,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private long terminalPartitionLayoutRevision = -1L;
     @Nullable
     private CpuPublication cpuPublication;
+    @Nullable
+    private PatternPublication patternPublication;
 
     public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -102,6 +105,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
+        finishGridBootReevaluation();
         updateActiveState();
         refreshTerminalPartitionsSafely();
     }
@@ -124,12 +128,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    /** Notifies AE2 that only the published crafting patterns changed. */
-    public void refreshTrinityPatternPublication() {
+    /**
+     * Reconciles the immutable pattern snapshot published to AE2.
+     *
+     * @return whether AE2 had to rebuild this provider's pattern index
+     */
+    public boolean refreshTrinityPatternPublication() {
         if (!canRefreshGridServices()) {
-            return;
+            return false;
         }
-        requestCraftingProviderUpdate();
+        return synchronizeCraftingPatternPublication();
     }
 
     /** Reconciles only the pattern-terminal layout and its grid attachments. */
@@ -146,8 +154,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         this.terminalPartitionsDirty = true;
         detachTerminalPartitions();
         withdrawCraftingCpuPublicationAndNotify();
+        withdrawCraftingPatternPublication();
         if (canRefreshGridServices()) {
-            requestCraftingProviderUpdate();
             requestStorageUpdate();
             updateActiveState();
         }
@@ -172,6 +180,11 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Override
     public void onMainNodeStateChanged(IGridNodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
+        if (reason == IGridNodeListener.State.GRID_BOOT) {
+            this.gridBootReevaluationPending = true;
+            return;
+        }
+        this.gridBootReevaluationPending = false;
         this.terminalPartitionAttachmentCheckRequested = true;
         TrinityDataCoreBlockEntity host = boundHost(false);
         if (host == null || !isCandidateOnline()) {
@@ -184,6 +197,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void onChunkUnloaded() {
+        this.gridBootReevaluationPending = false;
         withdrawTrinityLeasePublications();
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.onChunkUnloaded();
@@ -194,6 +208,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void setRemoved() {
+        this.gridBootReevaluationPending = false;
         withdrawTrinityLeasePublications();
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.setRemoved();
@@ -208,6 +223,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         BlockState state = getBlockState();
         if (state.hasProperty(CompartmentBlock.ACTIVE) && state.getValue(CompartmentBlock.ACTIVE) != active) {
             this.level.setBlock(this.worldPosition, state.setValue(CompartmentBlock.ACTIVE, active), 3);
+        }
+    }
+
+    private void finishGridBootReevaluation() {
+        if (!this.gridBootReevaluationPending || !isCandidateOnline()) {
+            return;
+        }
+        this.gridBootReevaluationPending = false;
+        this.terminalPartitionAttachmentCheckRequested = true;
+        this.terminalPartitionsDirty = true;
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host != null) {
+            host.requestAccessLeaseReevaluation();
         }
     }
 
@@ -398,6 +426,44 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     private void requestCraftingProviderUpdate() {
         ICraftingProvider.requestUpdate(this.getMainNode());
+    }
+
+    private boolean synchronizeCraftingPatternPublication() {
+        PatternPublication desired = resolveCraftingPatternPublication();
+        PatternPublication current = this.patternPublication;
+        if (current == null && desired == null) {
+            return false;
+        }
+        if (current != null && desired != null && current.matches(desired)) {
+            return false;
+        }
+        this.patternPublication = desired;
+        requestCraftingProviderUpdate();
+        return true;
+    }
+
+    @Nullable
+    private PatternPublication resolveCraftingPatternPublication() {
+        TrinityDataCoreBlockEntity host = patternProviderHost();
+        if (host == null) {
+            return null;
+        }
+        IGridNode node = this.getMainNode().getNode();
+        return new PatternPublication(
+                host.getHostId(),
+                node.getGrid(),
+                node,
+                host.getPatternCatalog().getAvailablePatterns());
+    }
+
+    private void withdrawCraftingPatternPublication() {
+        if (this.patternPublication == null) {
+            return;
+        }
+        this.patternPublication = null;
+        if (canRefreshGridServices()) {
+            requestCraftingProviderUpdate();
+        }
     }
 
     private boolean synchronizeCraftingCpuPublication() {
@@ -601,6 +667,20 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         private boolean hasSameNotificationTarget(CpuPublication other) {
             return this.grid == other.grid && this.node == other.node;
+        }
+    }
+
+    /** Identifies the exact immutable pattern view already indexed by one AE grid. */
+    private record PatternPublication(UUID hostId,
+                                      IGrid grid,
+                                      IGridNode node,
+                                      List<IPatternDetails> patterns) {
+
+        private boolean matches(PatternPublication other) {
+            return this.hostId.equals(other.hostId) &&
+                    this.grid == other.grid &&
+                    this.node == other.node &&
+                    this.patterns == other.patterns;
         }
     }
 
