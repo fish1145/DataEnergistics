@@ -534,17 +534,31 @@ public final class TrinityPatternCatalogImplTest {
 
         core.refreshPatternCache(7);
         KeyCounter[] staleDelegateInputs = counters(iron, 1L);
-        assertTrue(catalog.pushPattern(published, staleDelegateInputs, 10L));
+        assertFalse(catalog.pushPattern(published, staleDelegateInputs, 10L));
+        assertEquals(1L, staleDelegateInputs[0].get(iron));
+        assertEquals(0, core.queuedBatchCount(7));
+
+        catalog.onCoreChanged(
+                core,
+                new TrinityPatternSlot.Change(7, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        RoutedCraftingPatternDetails refreshed = catalog.getAvailablePatterns().stream()
+                .map(RoutedCraftingPatternDetails.class::cast)
+                .filter(details -> details.route().slot() == 7)
+                .findFirst()
+                .orElseThrow();
+        assertNotSame(published, refreshed);
+        assertTrue(catalog.pushPattern(refreshed, staleDelegateInputs, 10L));
         assertTrue(staleDelegateInputs[0].isEmpty());
         assertEquals(1, core.queuedBatchCount(7));
 
         core.trySetPattern(7, new ItemStack(Items.MAP));
         KeyCounter[] changedDefinitionInputs = counters(iron, 1L);
-        assertFalse(catalog.pushPattern(published, changedDefinitionInputs, 10L));
+        assertFalse(catalog.pushPattern(refreshed, changedDefinitionInputs, 10L));
         assertEquals(1L, changedDefinitionInputs[0].get(iron));
         assertEquals(1, core.queuedBatchCount(7));
         TrinityCraftingBatch batch = core.queuedBatches(7).getFirst();
-        assertEquals(published.route(), batch.route());
+        assertEquals(refreshed.route(), batch.route());
         assertTrue(batch.inputs().getFirst().is(Items.IRON_INGOT));
         assertEquals(9, batch.inputs().size());
 
