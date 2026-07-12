@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -239,7 +240,7 @@ public final class TrinityDataCoreCraftingRuntime {
     public long getRequestedAmount(AEKey what) {
         long requested = 0L;
         for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
-            requested += cpu.getWaitingFor(what);
+            requested = LongAmountMath.saturatingAddNonNegative(requested, cpu.getWaitingFor(what));
         }
         return requested;
     }

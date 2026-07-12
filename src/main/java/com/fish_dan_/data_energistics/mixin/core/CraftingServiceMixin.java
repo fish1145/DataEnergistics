@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.nbt.CompoundTag;
 
@@ -227,7 +228,7 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     private void dataEnergistics$getTrinityDataCoreRequestedAmount(AEKey what, CallbackInfoReturnable<Long> cir) {
         long requested = cir.getReturnValue();
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
-            requested += runtime.getRequestedAmount(what);
+            requested = LongAmountMath.saturatingAddNonNegative(requested, runtime.getRequestedAmount(what));
         }
         cir.setReturnValue(requested);
     }
