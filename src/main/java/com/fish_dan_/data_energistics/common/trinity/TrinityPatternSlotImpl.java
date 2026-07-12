@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,6 +51,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private final LinkedHashMap<Long, TrinityPatternDefinition> definitions = new LinkedHashMap<>();
     private final ArrayDeque<TrinityCraftingBatch> queue = new ArrayDeque<>();
     private final LinkedHashMap<PatternRoute, ArrayList<TrinityItemAmount>> pendingOutputs = new LinkedHashMap<>();
+    /** Counts queued groups per host so ordinary mutations never rescan the FIFO. */
+    private final Map<UUID, Integer> queuedGroupsByHost = new HashMap<>();
+    /** Counts pending routes per host so partial output consumption leaves membership untouched. */
+    private final Map<UUID, Integer> pendingRoutesByHost = new HashMap<>();
 
     private ItemStack pattern = ItemStack.EMPTY;
     @Nullable
@@ -58,6 +63,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private IMolecularAssemblerSupportedPattern decodedPattern;
     private long nextDefinitionId;
     private long revision;
+    /** Separates queue and pending topology for one precise internal WORK notification. */
+    private WorkMembership workMembership = new WorkMembership(Set.of(), Set.of());
+    /** Immutable union consumed by the core's sparse per-host work index. */
+    private Set<UUID> workHostIds = Set.of();
     @Nullable
     private PendingOutputCursorImpl activePendingOutputCursor;
 
@@ -191,7 +200,14 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     @Override
-    public boolean enqueue(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick) {
+    public boolean enqueue(PatternRoute route,
+                           ItemStack patternSnapshot,
+                           List<ItemStack> inputs,
+                           long queuedTick,
+                           long count) {
+        if (count <= 0L) {
+            throw new IllegalArgumentException("Queued crafting count must be positive: " + count);
+        }
         ItemStack normalized = normalizePattern(patternSnapshot);
         if (this.pattern.isEmpty() || this.decodedPattern == null || this.installedDefinition == null ||
                 !this.installedDefinition.resolved() || !ItemStack.matches(this.pattern, normalized)) {
@@ -203,14 +219,25 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                 route,
                 this.installedDefinition,
                 inputs,
-                1L,
+                count,
                 true);
-        WorkMembership previousWork = workMembership();
-        if (!this.queue.isEmpty() && this.queue.getLast().canMerge(incoming)) {
+        WorkMembership previousWork = this.workMembership;
+        long mergeCount = this.queue.isEmpty() ? 0L : this.queue.getLast().mergeableCount(incoming);
+        boolean membershipChanged = false;
+        if (mergeCount > 0L) {
             TrinityCraftingBatch previousTail = this.queue.removeLast();
-            this.queue.addLast(previousTail.incremented());
+            this.queue.addLast(previousTail.mergedWith(incoming, mergeCount));
+            long remainingCount = count - mergeCount;
+            if (remainingCount > 0L) {
+                this.queue.addLast(incoming.withCount(remainingCount));
+                membershipChanged = incrementHostCount(this.queuedGroupsByHost, route.hostId());
+            }
         } else {
             this.queue.addLast(incoming);
+            membershipChanged = incrementHostCount(this.queuedGroupsByHost, route.hostId());
+        }
+        if (membershipChanged) {
+            refreshWorkMembership();
         }
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -243,14 +270,12 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
      * @return immutable host-membership snapshot for sparse core work indexes
      */
     Set<UUID> workHostIds() {
-        HashSet<UUID> hostIds = new HashSet<>();
-        for (TrinityCraftingBatch batch : this.queue) {
-            hostIds.add(batch.route().hostId());
-        }
-        for (PatternRoute route : this.pendingOutputs.keySet()) {
-            hostIds.add(route.hostId());
-        }
-        return Set.copyOf(hostIds);
+        return this.workHostIds;
+    }
+
+    /** Returns the cached host set that currently owns at least one pending-output route. */
+    Set<UUID> pendingOutputHostIds() {
+        return this.workMembership.pendingOutputHosts();
     }
 
     @Override
@@ -283,8 +308,15 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
             return;
         }
         List<TrinityItemAmount> appended = List.copyOf(outputs);
-        WorkMembership previousWork = workMembership();
-        ArrayList<TrinityItemAmount> routeOutputs = this.pendingOutputs.computeIfAbsent(route, ignored -> new ArrayList<>());
+        WorkMembership previousWork = this.workMembership;
+        ArrayList<TrinityItemAmount> routeOutputs = this.pendingOutputs.get(route);
+        if (routeOutputs == null) {
+            routeOutputs = new ArrayList<>();
+            this.pendingOutputs.put(route, routeOutputs);
+            if (incrementHostCount(this.pendingRoutesByHost, route.hostId())) {
+                refreshWorkMembership();
+            }
+        }
         for (TrinityItemAmount output : appended) {
             appendCountedOutput(routeOutputs, output);
         }
@@ -307,12 +339,46 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     @Override
+    public void completeHead(TrinityCraftingBatch completed, List<TrinityItemAmount> outputs) {
+        if (this.queue.isEmpty() || this.queue.getFirst() != completed) {
+            throw new IllegalStateException("Completed Trinity crafting group is no longer the FIFO head");
+        }
+        ensureNoPendingOutputCursor();
+        List<TrinityItemAmount> completedOutputs = List.copyOf(outputs);
+        WorkMembership previousWork = this.workMembership;
+        boolean membershipChanged = false;
+        if (!completedOutputs.isEmpty()) {
+            PatternRoute route = completed.route();
+            ArrayList<TrinityItemAmount> routeOutputs = this.pendingOutputs.get(route);
+            if (routeOutputs == null) {
+                routeOutputs = new ArrayList<>();
+                this.pendingOutputs.put(route, routeOutputs);
+                membershipChanged = incrementHostCount(this.pendingRoutesByHost, route.hostId());
+            }
+            for (TrinityItemAmount output : completedOutputs) {
+                appendCountedOutput(routeOutputs, output);
+            }
+        }
+        this.queue.removeFirst();
+        membershipChanged |= decrementHostCount(this.queuedGroupsByHost, completed.route().hostId());
+        if (membershipChanged) {
+            refreshWorkMembership();
+        }
+        collectUnusedDefinitions();
+        changed(ChangeKind.PERSISTENT);
+        notifyWorkMembershipChanged(previousWork);
+    }
+
+    @Override
     public void removeCompletedHead(TrinityCraftingBatch completed) {
         if (this.queue.isEmpty() || this.queue.getFirst() != completed) {
             throw new IllegalStateException("Completed Trinity crafting group is no longer the FIFO head");
         }
-        WorkMembership previousWork = workMembership();
+        WorkMembership previousWork = this.workMembership;
         this.queue.removeFirst();
+        if (decrementHostCount(this.queuedGroupsByHost, completed.route().hostId())) {
+            refreshWorkMembership();
+        }
         collectUnusedDefinitions();
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -323,8 +389,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         if (this.queue.isEmpty()) {
             return;
         }
-        WorkMembership previousWork = workMembership();
+        WorkMembership previousWork = this.workMembership;
         this.queue.clear();
+        this.queuedGroupsByHost.clear();
+        refreshWorkMembership();
         collectUnusedDefinitions();
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -332,11 +400,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     @Override
     public void clearQueuedBatches(UUID hostId) {
-        WorkMembership previousWork = workMembership();
+        WorkMembership previousWork = this.workMembership;
         boolean changedQueue = this.queue.removeIf(batch -> hostId.equals(batch.route().hostId()));
         if (!changedQueue) {
             return;
         }
+        this.queuedGroupsByHost.remove(hostId);
+        refreshWorkMembership();
         collectUnusedDefinitions();
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -344,12 +414,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     @Override
     public void replaceQueuedBatches(List<TrinityCraftingBatch> batches) {
-        WorkMembership previousWork = workMembership();
+        WorkMembership previousWork = this.workMembership;
         this.queue.clear();
         for (TrinityCraftingBatch batch : batches) {
             retainDefinition(batch.definition());
             this.queue.addLast(batch.copy());
         }
+        rebuildQueuedHostCounts();
         collectUnusedDefinitions();
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -426,6 +497,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         }
         slot.readPendingOutputs(compoundList(data, PENDING_OUTPUTS_TAG), registries);
         slot.validateDefinitionReferences();
+        slot.rebuildWorkMembership();
         return slot;
     }
 
@@ -458,6 +530,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
             Optional<TrinityPatternRecipeIdResolvers.Resolution> resolution = slot.resolveV1Definition(slot.pattern);
             slot.installedDefinition = slot.findOrCreateDefinition(slot.pattern, resolution.orElse(null));
         }
+        slot.rebuildWorkMembership();
         return slot;
     }
 
@@ -476,6 +549,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
             }
             this.pendingOutputs.put(entry.getKey(), new ArrayList<>(entry.getValue()));
         }
+        rebuildPendingRouteHostCounts();
     }
 
     void ensureCanApplyValidatedState(TrinityPatternSlotImpl state) {
@@ -502,6 +576,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         }
         this.pendingOutputs.clear();
         this.pendingOutputs.putAll(copyPendingOutputs(state.pendingOutputs));
+        rebuildWorkMembership();
         this.revision++;
     }
 
@@ -520,13 +595,25 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     void clearRefundableWork(@Nullable UUID hostId) {
         ensureNoPendingOutputCursor();
-        WorkMembership previousWork = workMembership();
+        WorkMembership previousWork = this.workMembership;
         boolean queueChanged = this.queue.removeIf(batch -> hostId == null || hostId.equals(batch.route().hostId()));
         boolean outputsChanged = this.pendingOutputs.entrySet().removeIf(
                 entry -> hostId == null || hostId.equals(entry.getKey().hostId()));
         if (!queueChanged && !outputsChanged) {
             return;
         }
+        if (hostId == null) {
+            this.queuedGroupsByHost.clear();
+            this.pendingRoutesByHost.clear();
+        } else {
+            if (queueChanged) {
+                this.queuedGroupsByHost.remove(hostId);
+            }
+            if (outputsChanged) {
+                this.pendingRoutesByHost.remove(hostId);
+            }
+        }
+        refreshWorkMembership();
         collectUnusedDefinitions();
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -534,7 +621,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     void restoreWorkState(WorkState state) {
         ensureNoPendingOutputCursor();
-        WorkMembership previousWork = workMembership();
+        WorkMembership previousWork = this.workMembership;
         this.queue.clear();
         for (TrinityCraftingBatch batch : state.batches()) {
             retainDefinition(batch.definition());
@@ -542,6 +629,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         }
         this.pendingOutputs.clear();
         this.pendingOutputs.putAll(copyPendingOutputs(state.pendingOutputs()));
+        rebuildWorkMembership();
         collectUnusedDefinitions();
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
@@ -756,22 +844,70 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         this.changeListener.onChanged(new Change(this.index, kind));
     }
 
-    private WorkMembership workMembership() {
-        HashSet<UUID> queuedHosts = new HashSet<>();
+    private void rebuildWorkMembership() {
+        this.queuedGroupsByHost.clear();
         for (TrinityCraftingBatch batch : this.queue) {
-            queuedHosts.add(batch.route().hostId());
+            incrementHostCount(this.queuedGroupsByHost, batch.route().hostId());
         }
-        HashSet<UUID> pendingOutputHosts = new HashSet<>();
+        this.pendingRoutesByHost.clear();
         for (PatternRoute route : this.pendingOutputs.keySet()) {
-            pendingOutputHosts.add(route.hostId());
+            incrementHostCount(this.pendingRoutesByHost, route.hostId());
         }
-        return new WorkMembership(Set.copyOf(queuedHosts), Set.copyOf(pendingOutputHosts));
+        refreshWorkMembership();
+    }
+
+    private void rebuildQueuedHostCounts() {
+        this.queuedGroupsByHost.clear();
+        for (TrinityCraftingBatch batch : this.queue) {
+            incrementHostCount(this.queuedGroupsByHost, batch.route().hostId());
+        }
+        refreshWorkMembership();
+    }
+
+    private void rebuildPendingRouteHostCounts() {
+        this.pendingRoutesByHost.clear();
+        for (PatternRoute route : this.pendingOutputs.keySet()) {
+            incrementHostCount(this.pendingRoutesByHost, route.hostId());
+        }
+        refreshWorkMembership();
+    }
+
+    private void refreshWorkMembership() {
+        Set<UUID> queuedHosts = Set.copyOf(this.queuedGroupsByHost.keySet());
+        Set<UUID> pendingOutputHosts = Set.copyOf(this.pendingRoutesByHost.keySet());
+        this.workMembership = new WorkMembership(queuedHosts, pendingOutputHosts);
+        HashSet<UUID> combinedHosts = new HashSet<>(queuedHosts);
+        combinedHosts.addAll(pendingOutputHosts);
+        this.workHostIds = Set.copyOf(combinedHosts);
     }
 
     private void notifyWorkMembershipChanged(WorkMembership previousWork) {
-        if (!previousWork.equals(workMembership())) {
+        if (!previousWork.equals(this.workMembership)) {
             changed(ChangeKind.WORK);
         }
+    }
+
+    private static boolean incrementHostCount(Map<UUID, Integer> counts, UUID hostId) {
+        Integer previous = counts.get(hostId);
+        if (previous == null) {
+            counts.put(hostId, 1);
+            return true;
+        }
+        counts.put(hostId, Math.incrementExact(previous));
+        return false;
+    }
+
+    private static boolean decrementHostCount(Map<UUID, Integer> counts, UUID hostId) {
+        Integer previous = counts.get(hostId);
+        if (previous == null) {
+            throw new IllegalStateException("Missing Trinity work membership for host " + hostId);
+        }
+        if (previous == 1) {
+            counts.remove(hostId);
+            return true;
+        }
+        counts.put(hostId, previous - 1);
+        return false;
     }
 
     private static void appendCountedOutput(ArrayList<TrinityItemAmount> outputs, TrinityItemAmount output) {
@@ -951,7 +1087,8 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                 throw new IllegalArgumentException(
                         "Consumed Trinity pending-output amount must be between one and " + this.current.amount());
             }
-            WorkMembership previousWork = workMembership();
+            boolean removedRoute = false;
+            WorkMembership previousWork = TrinityPatternSlotImpl.this.workMembership;
             if (amount == this.current.amount()) {
                 this.iterator.remove();
                 this.current = null;
@@ -960,13 +1097,21 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                     if (!TrinityPatternSlotImpl.this.pendingOutputs.remove(this.route, this.outputs)) {
                         throw new IllegalStateException("Missing Trinity pending-output route " + this.route);
                     }
+                    removedRoute = true;
+                    if (decrementHostCount(
+                            TrinityPatternSlotImpl.this.pendingRoutesByHost,
+                            this.route.hostId())) {
+                        refreshWorkMembership();
+                    }
                 }
             } else {
                 this.current = this.current.withAmount(this.current.amount() - amount);
                 this.iterator.set(this.current);
             }
             changed(ChangeKind.PERSISTENT);
-            notifyWorkMembershipChanged(previousWork);
+            if (removedRoute) {
+                notifyWorkMembershipChanged(previousWork);
+            }
         }
 
         @Override

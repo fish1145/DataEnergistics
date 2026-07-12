@@ -38,7 +38,7 @@ public final class TrinityPatternOutputRouterImplTest {
         AtomicLong largestStorageOffer = new AtomicLong();
         AtomicLong inserted = new AtomicLong();
 
-        boolean changed = router.route(
+        TrinityPatternOutputRouter.RouteResult result = router.route(
                 pending,
                 key -> 5L,
                 (key, amount, mode) -> {
@@ -57,7 +57,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     return accepted;
                 });
 
-        assertTrue(changed);
+        assertTrue(result.progressed());
+        assertTrue(result.storageChanged());
         assertEquals(7L, inserted.get());
         assertEquals(5L, largestStorageOffer.get());
         assertEntries(pending.snapshot(), entry(Items.DIAMOND, 3L));
@@ -73,7 +74,7 @@ public final class TrinityPatternOutputRouterImplTest {
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong storageModulated = new AtomicLong();
 
-        boolean changed = router.route(
+        TrinityPatternOutputRouter.RouteResult result = router.route(
                 pending,
                 key -> 8L,
                 (key, amount, mode) -> 0L,
@@ -84,9 +85,34 @@ public final class TrinityPatternOutputRouterImplTest {
                     return amount;
                 });
 
-        assertTrue(changed);
+        assertTrue(result.progressed());
+        assertTrue(result.storageChanged());
         assertEquals(2L, storageModulated.get());
         assertEntries(pending.snapshot(), entry(Items.DIAMOND, 8L));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_output_router_reports_cpu_only_progress_without_storage_change")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void reportsCpuOnlyProgressWithoutStorageChange(GameTestHelper helper) {
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 5L));
+        AtomicBoolean storageTouched = new AtomicBoolean();
+
+        TrinityPatternOutputRouter.RouteResult result = router.route(
+                pending,
+                key -> 5L,
+                (key, amount, mode) -> amount,
+                (key, amount, mode) -> {
+                    storageTouched.set(true);
+                    return amount;
+                });
+
+        assertTrue(result.progressed());
+        assertFalse(result.storageChanged());
+        assertFalse(storageTouched.get());
+        assertTrue(pending.snapshot().isEmpty());
         helper.succeed();
     }
 
@@ -101,7 +127,7 @@ public final class TrinityPatternOutputRouterImplTest {
         AtomicBoolean diamondCpuTouched = new AtomicBoolean();
         AtomicBoolean diamondStorageTouched = new AtomicBoolean();
 
-        boolean blocked = router.route(
+        TrinityPatternOutputRouter.RouteResult blocked = router.route(
                 pending,
                 key -> key.is(Items.BUCKET) ? bucketRequested.get() : 0L,
                 (key, amount, mode) -> {
@@ -123,7 +149,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     return amount;
                 });
 
-        assertFalse(blocked);
+        assertFalse(blocked.progressed());
+        assertFalse(blocked.storageChanged());
         assertFalse(diamondCpuTouched.get());
         assertFalse(diamondStorageTouched.get());
         assertEquals(0L, pending.checkpointCount());
@@ -131,7 +158,7 @@ public final class TrinityPatternOutputRouterImplTest {
 
         acceptBucket.set(true);
         pending = cursor(pending.snapshot());
-        boolean completed = router.route(
+        TrinityPatternOutputRouter.RouteResult completed = router.route(
                 pending,
                 key -> key.is(Items.BUCKET) ? bucketRequested.get() : 0L,
                 (key, amount, mode) -> {
@@ -153,7 +180,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     return amount;
                 });
 
-        assertTrue(completed);
+        assertTrue(completed.progressed());
+        assertTrue(completed.storageChanged());
         assertFalse(diamondCpuTouched.get());
         assertTrue(diamondStorageTouched.get());
         assertEquals(2L, pending.checkpointCount());
@@ -168,13 +196,14 @@ public final class TrinityPatternOutputRouterImplTest {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 6L), entry(Items.GOLD_INGOT, 2L));
 
-        boolean changed = router.route(
+        TrinityPatternOutputRouter.RouteResult result = router.route(
                 pending,
                 key -> 0L,
                 (key, amount, mode) -> 0L,
                 (key, amount, mode) -> 0L);
 
-        assertFalse(changed);
+        assertFalse(result.progressed());
+        assertFalse(result.storageChanged());
         assertEntries(pending.snapshot(), entry(Items.DIAMOND, 6L), entry(Items.GOLD_INGOT, 2L));
         helper.succeed();
     }
@@ -187,7 +216,7 @@ public final class TrinityPatternOutputRouterImplTest {
         FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 1L), entry(Items.GOLD_INGOT, 1L));
         AtomicBoolean goldReachedStorage = new AtomicBoolean();
 
-        boolean changed = router.route(
+        TrinityPatternOutputRouter.RouteResult result = router.route(
                 pending,
                 key -> 0L,
                 (key, amount, mode) -> 0L,
@@ -199,7 +228,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     return 0L;
                 });
 
-        assertTrue(changed);
+        assertTrue(result.progressed());
+        assertTrue(result.storageChanged());
         assertTrue(goldReachedStorage.get());
         assertEntries(pending.snapshot(), entry(Items.DIAMOND, 1L));
         helper.succeed();
@@ -295,9 +325,9 @@ public final class TrinityPatternOutputRouterImplTest {
                 remaining -> events.add("checkpoint-" + totalAmount(remaining)),
                 entry(Items.DIAMOND, 10L));
 
-        boolean changed;
+        TrinityPatternOutputRouter.RouteResult result;
         try (pending) {
-            changed = router.route(
+            result = router.route(
                     pending,
                     key -> 4L,
                     (key, amount, mode) -> {
@@ -310,7 +340,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     });
         }
 
-        assertTrue(changed);
+        assertTrue(result.progressed());
+        assertTrue(result.storageChanged());
         assertTrue(pending.closed());
         assertTrue(pending.snapshot().isEmpty());
         assertListEquals(
@@ -382,7 +413,7 @@ public final class TrinityPatternOutputRouterImplTest {
                 entry(Items.GOLD_INGOT, 1L));
         AtomicBoolean laterEntryTouched = new AtomicBoolean();
 
-        boolean changed = router.route(
+        TrinityPatternOutputRouter.RouteResult result = router.route(
                 pending,
                 key -> key.is(Items.DIAMOND) ? 5L : 0L,
                 (key, amount, mode) -> {
@@ -398,7 +429,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     return mode == Actionable.SIMULATE ? amount : Math.min(amount, 3L);
                 });
 
-        assertTrue(changed);
+        assertTrue(result.progressed());
+        assertTrue(result.storageChanged());
         assertFalse(laterEntryTouched.get());
         assertLongListEquals(List.of(9L, 6L), checkpointTotals);
         assertEntries(pending.snapshot(), entry(Items.DIAMOND, 5L), entry(Items.GOLD_INGOT, 1L));
@@ -415,7 +447,7 @@ public final class TrinityPatternOutputRouterImplTest {
                 entry(Items.GOLD_INGOT, Long.MAX_VALUE));
         List<Long> storageOffers = new ArrayList<>();
 
-        boolean changed = router.route(
+        TrinityPatternOutputRouter.RouteResult result = router.route(
                 pending,
                 key -> 0L,
                 (key, amount, mode) -> 0L,
@@ -426,7 +458,8 @@ public final class TrinityPatternOutputRouterImplTest {
                     return amount;
                 });
 
-        assertTrue(changed);
+        assertTrue(result.progressed());
+        assertTrue(result.storageChanged());
         assertLongListEquals(List.of(Long.MAX_VALUE, Long.MAX_VALUE), storageOffers);
         assertEquals(2L, pending.checkpointCount());
         assertTrue(pending.snapshot().isEmpty());

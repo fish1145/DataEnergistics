@@ -46,6 +46,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         this.host = host;
         this.runtime = runtime;
         this.profile = profile;
+        this.logic.addListener(this::craftingVisibleChanged);
     }
 
     /**
@@ -93,7 +94,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param craftingService AE2 crafting service
      */
     public void tick(IEnergyService energyService, CraftingService craftingService) {
+        boolean wasBusy = isBusy();
         this.logic.tickCraftingLogic(energyService, craftingService);
+        this.runtime.workerOperationCompleted(this, wasBusy);
     }
 
     /**
@@ -105,7 +108,10 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @return accepted amount
      */
     public long insert(AEKey what, long amount, Actionable mode) {
-        return this.logic.insert(what, amount, mode);
+        boolean wasBusy = isBusy();
+        long inserted = this.logic.insert(what, amount, mode);
+        this.runtime.workerOperationCompleted(this, wasBusy);
+        return inserted;
     }
 
     /**
@@ -249,7 +255,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
     @Override
     public void cancelJob() {
         if (number() != 0) {
+            boolean wasBusy = isBusy();
             this.logic.cancel();
+            this.runtime.workerOperationCompleted(this, wasBusy);
         }
     }
 
@@ -349,5 +357,10 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     boolean isReleasable() {
         return this.logic.isReleasable();
+    }
+
+    /** Forwards one logic-level AEKey change into the runtime's aggregate waiting index. */
+    private void craftingVisibleChanged(AEKey what) {
+        this.runtime.workerCraftingVisibleChanged(this, what);
     }
 }

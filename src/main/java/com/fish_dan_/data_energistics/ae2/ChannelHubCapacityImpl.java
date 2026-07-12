@@ -13,7 +13,6 @@ import appeng.api.networking.pathing.IPathingService;
 import appeng.blockentity.networking.ControllerBlockEntity;
 
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -35,7 +34,6 @@ public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
      */
     @Override
     public int calculate(IGrid grid) {
-        Objects.requireNonNull(grid, "grid");
         IPathingService pathingService = grid.getPathingService();
         Set<BlockPos> controllerPositions = new HashSet<>();
         for (IGridNode node : grid.getMachineNodes(ControllerBlockEntity.class)) {
@@ -58,10 +56,6 @@ public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
     @Override
     public int calculate(ControllerState controllerState, ChannelMode channelMode,
                          Iterable<BlockPos> controllerPositions) {
-        Objects.requireNonNull(controllerState, "controllerState");
-        Objects.requireNonNull(channelMode, "channelMode");
-        Objects.requireNonNull(controllerPositions, "controllerPositions");
-
         if (controllerState == ControllerState.CONTROLLER_CONFLICT) {
             Data_Energistics.LOGGER.error("Cannot expose channel-hub capacity while the AE controller is conflicted");
             return 0;
@@ -100,7 +94,7 @@ public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
     private static Set<BlockPos> immutablePositionSet(Iterable<BlockPos> controllerPositions) {
         Set<BlockPos> positions = new HashSet<>();
         for (BlockPos position : controllerPositions) {
-            positions.add(Objects.requireNonNull(position, "controller position").immutable());
+            positions.add(position.immutable());
         }
         return positions;
     }

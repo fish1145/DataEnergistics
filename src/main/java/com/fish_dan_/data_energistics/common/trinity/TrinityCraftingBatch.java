@@ -165,28 +165,45 @@ public final class TrinityCraftingBatch {
     }
 
     /**
-     * Tests the exact tail-merge key required by the queue contract.
+     * Calculates how much of a compatible later group can fill this queue tail without overflowing.
      *
      * @param later later adjacent group candidate
-     * @return whether the groups differ only by count
+     * @return positive transferable count, or zero when the merge key differs or this tail is full
      */
-    public boolean canMerge(TrinityCraftingBatch later) {
+    long mergeableCount(TrinityCraftingBatch later) {
         if (!this.mergeable || !later.mergeable || this.count == Long.MAX_VALUE ||
                 this.queuedTick != later.queuedTick || !this.route.equals(later.route) ||
                 this.definition != later.definition) {
-            return false;
+            return 0L;
         }
-        return stackListsMatch(this.inputs, later.inputs);
+        return stackListsMatch(this.inputs, later.inputs) ? Math.min(later.count, Long.MAX_VALUE - this.count) : 0L;
     }
 
     /**
-     * @return copy of this exact group with its count incremented by one
+     * Combines part or all of a compatible later group without overflowing the retained tail.
+     *
+     * @param later      adjacent later group
+     * @param laterCount positive count to transfer from the later group
+     * @return one group containing the transferred logical count
      */
-    public TrinityCraftingBatch incremented() {
-        if (this.count == Long.MAX_VALUE) {
-            throw new ArithmeticException("Trinity crafting group count overflow");
+    TrinityCraftingBatch mergedWith(TrinityCraftingBatch later, long laterCount) {
+        if (laterCount <= 0L || laterCount > mergeableCount(later)) {
+            throw new IllegalArgumentException("Trinity crafting groups cannot merge count " + laterCount);
         }
-        return new TrinityCraftingBatch(this.queuedTick, this.route, this.definition, this.inputs, this.count + 1L,
+        return withCount(Math.addExact(this.count, laterCount));
+    }
+
+    /**
+     * @param count replacement positive logical count
+     * @return copy of this exact group with the replacement count
+     */
+    TrinityCraftingBatch withCount(long count) {
+        return new TrinityCraftingBatch(
+                this.queuedTick,
+                this.route,
+                this.definition,
+                this.inputs,
+                count,
                 this.mergeable);
     }
 
