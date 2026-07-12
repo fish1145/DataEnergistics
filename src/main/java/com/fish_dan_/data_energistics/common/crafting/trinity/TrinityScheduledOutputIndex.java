@@ -9,14 +9,16 @@ import java.util.Set;
 /**
  * Aggregates outputs that have not yet been dispatched by one Trinity CPU job.
  *
- * <p>The index is derived from authoritative task progress and is deliberately excluded from persistence.</p>
+ * <p>
+ * The index is derived from authoritative task progress and is deliberately excluded from persistence.
+ * </p>
  */
 interface TrinityScheduledOutputIndex {
 
     /**
      * Adds every output produced by a positive number of logical pattern executions.
      *
-     * @param pattern pattern whose outputs are being scheduled
+     * @param pattern    pattern whose outputs are being scheduled
      * @param craftCount positive logical execution count
      */
     void add(IPatternDetails pattern, long craftCount);
@@ -24,7 +26,7 @@ interface TrinityScheduledOutputIndex {
     /**
      * Removes outputs after a positive number of logical pattern executions has been dispatched.
      *
-     * @param pattern pattern whose outputs were dispatched
+     * @param pattern    pattern whose outputs were dispatched
      * @param craftCount positive logical execution count
      */
     void remove(IPatternDetails pattern, long craftCount);

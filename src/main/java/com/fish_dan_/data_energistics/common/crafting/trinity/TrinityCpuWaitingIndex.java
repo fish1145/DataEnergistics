@@ -8,15 +8,17 @@ import java.util.Set;
 /**
  * Indexes the output amounts awaited by Trinity CPU workers so network return paths do not scan every worker.
  *
- * <p>The index owns only rebuildable runtime state. CPU job NBT remains the authoritative persisted source.</p>
+ * <p>
+ * The index owns only rebuildable runtime state. CPU job NBT remains the authoritative persisted source.
+ * </p>
  */
 interface TrinityCpuWaitingIndex {
 
     /**
      * Replaces one worker's requested amount for a key.
      *
-     * @param workerNumber stable positive worker number
-     * @param what requested AE2 key
+     * @param workerNumber    stable positive worker number
+     * @param what            requested AE2 key
      * @param requestedAmount current non-negative amount requested by the worker
      */
     void update(int workerNumber, AEKey what, long requestedAmount);

@@ -436,9 +436,7 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private int findAvailableWorkerNumber() {
-        return this.nextAvailableWorkerNumber <= this.profile.partitionCount()
-                ? this.nextAvailableWorkerNumber
-                : -1;
+        return this.nextAvailableWorkerNumber <= this.profile.partitionCount() ? this.nextAvailableWorkerNumber : -1;
     }
 
     private void removeWorkerIfReleasable(int number, TrinityDataCoreVirtualCpu worker) {

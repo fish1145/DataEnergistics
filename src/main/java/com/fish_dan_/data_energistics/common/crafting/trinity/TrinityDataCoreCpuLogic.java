@@ -331,9 +331,9 @@ final class TrinityDataCoreCpuLogic {
 
     @Nullable
     private PreparedPatternBatch preparePatternBatch(TrinityDataCoreExecutingCraftingJob currentJob,
-                                                      ExtractedPatternInputs extractedInputs,
-                                                      long maximumCount,
-                                                      IEnergyService energyService) {
+                                                     ExtractedPatternInputs extractedInputs,
+                                                     long maximumCount,
+                                                     IEnergyService energyService) {
         KeyCounter inputsPerCraft = aggregateInputs(extractedInputs.inputHolder());
         KeyCounter waitingPerCraft = aggregateWaiting(extractedInputs);
         if (inputsPerCraft == null || waitingPerCraft == null) {

@@ -14,8 +14,7 @@ import java.util.function.Predicate;
 public final class TrinityStructureValidationImpl implements TrinityStructureValidation {
 
     /** Exact MDLib diagnostic emitted when a structure position is outside the loaded world view. */
-    private static final ResourceLocation UNLOADED_DIAGNOSTIC =
-            ResourceLocation.fromNamespaceAndPath("mdlib", "unloaded");
+    private static final ResourceLocation UNLOADED_DIAGNOSTIC = ResourceLocation.fromNamespaceAndPath("mdlib", "unloaded");
 
     /** Independent runtime status indexed by structure capability domain. */
     private final Map<Structure, Status> statuses = new EnumMap<>(Structure.class);

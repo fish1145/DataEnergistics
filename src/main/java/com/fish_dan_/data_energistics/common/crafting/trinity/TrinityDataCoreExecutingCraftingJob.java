@@ -311,6 +311,7 @@ final class TrinityDataCoreExecutingCraftingJob {
 
         private final Map<IPatternDetails, TaskNode> index = new HashMap<>();
         private final Set<Entry<IPatternDetails, TaskProgress>> entries = new AbstractSet<>() {
+
             @Override
             public Iterator<Entry<IPatternDetails, TaskProgress>> iterator() {
                 return new TaskIterator();

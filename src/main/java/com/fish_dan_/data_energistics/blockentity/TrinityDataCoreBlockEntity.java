@@ -204,8 +204,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     /**
      * Creates a host with explicit validation collaborators for direct reconstruction tests.
      *
-     * @param blockPos           controller position
-     * @param blockState         controller state
+     * @param blockPos            controller position
+     * @param blockState          controller state
      * @param structureValidation independent runtime validation state
      * @param structureWorldViews tracking matcher-view factory
      */
@@ -1229,7 +1229,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                             key,
                             amount,
                             mode,
-                            this.storageProfile)).storageChanged();
+                            this.storageProfile))
+                    .storageChanged();
         } catch (RuntimeException exception) {
             LOGGER.error(
                     "Failed to route Trinity pattern core {} slot {} outputs for host {}",

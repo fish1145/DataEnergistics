@@ -176,15 +176,13 @@ public final class TrinityCraftingBatch {
                 this.definition != later.definition) {
             return 0L;
         }
-        return stackListsMatch(this.inputs, later.inputs)
-                ? Math.min(later.count, Long.MAX_VALUE - this.count)
-                : 0L;
+        return stackListsMatch(this.inputs, later.inputs) ? Math.min(later.count, Long.MAX_VALUE - this.count) : 0L;
     }
 
     /**
      * Combines part or all of a compatible later group without overflowing the retained tail.
      *
-     * @param later     adjacent later group
+     * @param later      adjacent later group
      * @param laterCount positive count to transfer from the later group
      * @return one group containing the transferred logical count
      */

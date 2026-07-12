@@ -11,7 +11,7 @@ public interface TrinityPatternOutputRouter {
     /**
      * Describes the externally visible effects committed during one routing pass.
      *
-     * @param progressed whether any pending output was durably consumed
+     * @param progressed     whether any pending output was durably consumed
      * @param storageChanged whether main storage accepted at least one item
      */
     record RouteResult(boolean progressed, boolean storageChanged) {}

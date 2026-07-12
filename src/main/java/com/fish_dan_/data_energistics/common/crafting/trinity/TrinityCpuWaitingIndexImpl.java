@@ -84,9 +84,7 @@ final class TrinityCpuWaitingIndexImpl implements TrinityCpuWaitingIndex {
         if (entry == null) {
             return 0L;
         }
-        return entry.exactTotal.compareTo(MAX_PUBLIC_AMOUNT) >= 0
-                ? Long.MAX_VALUE
-                : entry.exactTotal.longValueExact();
+        return entry.exactTotal.compareTo(MAX_PUBLIC_AMOUNT) >= 0 ? Long.MAX_VALUE : entry.exactTotal.longValueExact();
     }
 
     @Override
