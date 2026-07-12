@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
@@ -12,6 +13,9 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -66,7 +70,9 @@ public final class TrinityPatternCoreBlockEntityTest {
             PatternRoute route = new PatternRoute(HOST_ID, source.coreId(), patternSlot);
             assertTrue(source.trySetPattern(patternSlot, encodedPattern));
             assertTrue(source.enqueueBatch(route, encodedPattern, oakLogInputs(), 40L + index));
-            source.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND, index + 1)));
+            source.appendPendingOutputs(
+                    route,
+                    List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, index + 1))));
             List<ItemStack> drops = Block.getDrops(
                     source.getBlockState(),
                     helper.getLevel(),
@@ -90,7 +96,7 @@ public final class TrinityPatternCoreBlockEntityTest {
             assertEquals(1, restored.queuedBatchCount(patternSlot));
             assertEquals(route, restored.queuedBatches(patternSlot).getFirst().route());
             assertTrue(restored.queuedBatches(patternSlot).getFirst().inputs().getFirst().is(Items.OAK_LOG));
-            assertEquals(index + 1, restored.pendingOutputs(route).getFirst().getCount());
+            assertEquals(index + 1L, restored.pendingOutputs(route).getFirst().amount());
         }
         helper.succeed();
     }
@@ -110,6 +116,72 @@ public final class TrinityPatternCoreBlockEntityTest {
 
         assertEquals(revisionBeforeReload + 1L, core.revision());
         assertTrue(core.decodedPattern(0) != null);
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_defers_level_dependent_state_validation")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void defersStateValidationUntilLevelAndRejectsInvalidInitialState(GameTestHelper helper) {
+        BlockPos sourcePos = new BlockPos(1, 1, 1);
+        TrinityPatternCoreBlock block = ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get();
+        helper.setBlock(sourcePos, block.defaultBlockState());
+        TrinityPatternCoreBlockEntity source = helper.getBlockEntity(sourcePos);
+        ItemStack encodedPattern = encodedOakPlanksPattern(helper);
+        assertTrue(source.trySetPattern(0, encodedPattern));
+
+        CompoundTag validState = new CompoundTag();
+        source.writeToTag(validState, helper.getLevel().registryAccess());
+        TrinityPatternCoreBlockEntity deferred = new TrinityPatternCoreBlockEntity(
+                helper.absolutePos(new BlockPos(2, 1, 1)), block.defaultBlockState());
+        deferred.loadTag(validState, helper.getLevel().registryAccess());
+        assertFalse(deferred.isCoreStateReady());
+        deferred.setLevel(helper.getLevel());
+        assertTrue(deferred.isCoreStateReady());
+        assertEquals(source.coreId(), deferred.coreId());
+        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, deferred.pattern(0)));
+        long loadedRevision = deferred.revision();
+        deferred.setLevel(helper.getLevel());
+        assertEquals(loadedRevision, deferred.revision());
+
+        CompoundTag invalidState = validState.copy();
+        setFirstDefinitionRecipeId(invalidState, "minecraft:crafting_table");
+        TrinityPatternCoreBlockEntity rejected = new TrinityPatternCoreBlockEntity(
+                helper.absolutePos(new BlockPos(3, 1, 1)), block.defaultBlockState());
+        rejected.loadTag(invalidState, helper.getLevel().registryAccess());
+        rejected.setLevel(helper.getLevel());
+        assertFalse(rejected.isCoreStateReady());
+        CompoundTag retainedState = new CompoundTag();
+        rejected.saveAdditional(retainedState, helper.getLevel().registryAccess());
+        assertEquals("minecraft:crafting_table", firstDefinitionRecipeId(retainedState));
+        assertEquals(validState.getUUID("core_id"), retainedState.getUUID("core_id"));
+        CompoundTag directRetainedState = new CompoundTag();
+        rejected.writeToTag(directRetainedState, helper.getLevel().registryAccess());
+        assertEquals("minecraft:crafting_table", firstDefinitionRecipeId(directRetainedState));
+        assertIllegalState(() -> rejected.trySetPattern(0, encodedPattern));
+
+        ItemStack invalidItem = new ItemStack(block);
+        source.saveToItem(invalidItem, helper.getLevel().registryAccess());
+        CompoundTag invalidItemState = invalidItem.get(DataComponents.BLOCK_ENTITY_DATA).copyTag();
+        setFirstDefinitionRecipeId(invalidItemState, "minecraft:crafting_table");
+        invalidItem.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(invalidItemState));
+        BlockPos invalidItemPos = new BlockPos(4, 1, 1);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, invalidItem);
+        helper.placeAt(player, invalidItem, invalidItemPos.below(), Direction.UP);
+        TrinityPatternCoreBlockEntity invalidItemCore = helper.getBlockEntity(invalidItemPos);
+        assertFalse(invalidItemCore.isCoreStateReady());
+        CompoundTag retainedItemState = new CompoundTag();
+        invalidItemCore.saveAdditional(retainedItemState, helper.getLevel().registryAccess());
+        assertEquals("minecraft:crafting_table", firstDefinitionRecipeId(retainedItemState));
+
+        source.serverTick();
+        UUID committedId = source.coreId();
+        ItemStack committedPattern = source.pattern(0);
+        source.loadTag(invalidState, helper.getLevel().registryAccess());
+        assertTrue(source.isCoreStateReady());
+        assertEquals(committedId, source.coreId());
+        assertTrue(ItemStack.matches(committedPattern, source.pattern(0)));
         helper.succeed();
     }
 
@@ -145,12 +217,12 @@ public final class TrinityPatternCoreBlockEntityTest {
         assertTrue(core.enqueueBatch(route, encodedPattern, cakeInputs(), 10L));
         assertEquals(1, core.executeOwnedBatches(HOST_ID, 11L));
 
-        List<ItemStack> outputs = core.pendingOutputs(route);
+        List<TrinityItemAmount> outputs = core.pendingOutputs(route);
         assertEquals(4, outputs.size());
-        assertTrue(outputs.get(0).is(Items.BUCKET));
-        assertTrue(outputs.get(1).is(Items.BUCKET));
-        assertTrue(outputs.get(2).is(Items.BUCKET));
-        assertTrue(outputs.get(3).is(Items.CAKE));
+        assertTrue(outputs.get(0).key().is(Items.BUCKET));
+        assertTrue(outputs.get(1).key().is(Items.BUCKET));
+        assertTrue(outputs.get(2).key().is(Items.BUCKET));
+        assertTrue(outputs.get(3).key().is(Items.CAKE));
         helper.succeed();
     }
 
@@ -210,6 +282,19 @@ public final class TrinityPatternCoreBlockEntityTest {
                 new ItemStack(Items.WHEAT));
     }
 
+    private static void setFirstDefinitionRecipeId(CompoundTag state, String recipeId) {
+        ListTag slots = state.getList("slots", Tag.TAG_COMPOUND);
+        CompoundTag slot = slots.getCompound(0);
+        ListTag definitions = slot.getList("definitions", Tag.TAG_COMPOUND);
+        definitions.getCompound(0).putString("recipe_id", recipeId);
+    }
+
+    private static String firstDefinitionRecipeId(CompoundTag state) {
+        ListTag slots = state.getList("slots", Tag.TAG_COMPOUND);
+        ListTag definitions = slots.getCompound(0).getList("definitions", Tag.TAG_COMPOUND);
+        return definitions.getCompound(0).getString("recipe_id");
+    }
+
     private static void assertTrue(boolean condition) {
         if (!condition) {
             throw new GameTestAssertException("Expected condition to be true");
@@ -238,5 +323,14 @@ public final class TrinityPatternCoreBlockEntityTest {
         if (expected != actual) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
+    }
+
+    private static void assertIllegalState(Runnable action) {
+        try {
+            action.run();
+        } catch (IllegalStateException exception) {
+            return;
+        }
+        throw new GameTestAssertException("Expected IllegalStateException");
     }
 }

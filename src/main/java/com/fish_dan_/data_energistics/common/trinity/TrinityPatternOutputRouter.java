@@ -1,11 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEItemKey;
-
-import java.util.List;
 
 /**
  * Routes ordered Trinity crafting output batches without allowing CPU-reserved items to leak into general storage.
@@ -40,53 +36,48 @@ public interface TrinityPatternOutputRouter {
         long insert(AEItemKey key, long amount, Actionable mode);
     }
 
-    /** Persists exact ordered route-owned remainders after each output stack changes external state. */
-    @FunctionalInterface
-    interface OutputCheckpoint {
+    /** Mutable cursor over one route's authoritative ordered pending outputs. */
+    interface PendingOutputCursor extends AutoCloseable {
 
         /**
-         * Durably replaces the route-owned state before routing may perform another mutating insertion.
+         * Advances past the previously retained entry and selects the next pending entry.
          *
-         * @param remaining exact outputs, in routing order, that must remain after the completed insertion
+         * @return whether {@link #current()} now exposes an entry
          */
-        void replace(List<ItemStack> remaining);
-    }
-
-    /**
-     * Reports the exact remainder after one routing pass.
-     *
-     * @param remaining defensively copied stacks that must stay on the core
-     * @param inserted  total amount delivered to CPUs or main storage
-     */
-    record RoutingResult(List<ItemStack> remaining, long inserted) {
+        boolean advance();
 
         /**
-         * Validates and defensively copies the routing outcome.
+         * @return selected immutable entry; valid only after {@link #advance()} returned true
          */
-        public RoutingResult {
-            if (inserted < 0L) {
-                throw new IllegalArgumentException("A Trinity output routing result cannot report negative insertion");
-            }
-            remaining = remaining.stream().map(ItemStack::copy).toList();
-        }
+        TrinityItemAmount current();
+
+        /**
+         * Atomically consumes an externally inserted amount from the selected entry and checkpoints the new state.
+         * This method must durably mark its owner changed before it returns.
+         *
+         * @param amount positive amount no greater than the selected entry amount
+         */
+        void consumeCurrent(long amount);
+
+        /** Releases the route's exclusive cursor state. */
+        @Override
+        void close();
     }
 
     /**
-     * Routes each pending stack to waiting CPUs first and only offers its non-requested portion to main storage.
-     * Pending order is significant: when a stack retains a CPU-requested amount, the router checkpoints that stack and
-     * every later stack, then ends the pass. The current stack's non-requested portion may still enter main storage
-     * before that barrier. A remainder caused only by main-storage capacity does not block later stacks.
+     * Routes each pending entry to waiting CPUs first and only offers its non-requested portion to main storage.
+     * Pending order is significant: when an entry retains a CPU-requested amount, the router ends the pass without
+     * advancing the cursor. The current entry's non-requested portion may still enter main storage before that barrier.
+     * A remainder caused only by main-storage capacity does not block later entries.
      *
-     * @param pending         pending route-owned outputs in required routing order
+     * @param pending         exclusive cursor over authoritative route-owned outputs
      * @param requestedAmount lease-grid CPU request lookup
      * @param cpuSink         lease-grid crafting CPU insertion
      * @param storageSink     Trinity main storage insertion
-     * @param checkpoint      persistent route-output replacement after every changed stack
-     * @return exact retained outputs and total inserted amount
+     * @return whether at least one positive insertion was immediately checkpointed
      */
-    RoutingResult route(List<ItemStack> pending,
-                        RequestedAmount requestedAmount,
-                        OutputSink cpuSink,
-                        OutputSink storageSink,
-                        OutputCheckpoint checkpoint);
+    boolean route(PendingOutputCursor pending,
+                  RequestedAmount requestedAmount,
+                  OutputSink cpuSink,
+                  OutputSink storageSink);
 }

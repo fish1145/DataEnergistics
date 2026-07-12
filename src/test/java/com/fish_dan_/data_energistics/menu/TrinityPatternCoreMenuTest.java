@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.TrinityPatternCoreBlock;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
@@ -108,7 +109,7 @@ public final class TrinityPatternCoreMenuTest {
         assertTrue(core.trySetPattern(0, encodedPattern));
         core.appendPendingOutputs(
                 new PatternRoute(UUID.randomUUID(), core.coreId(), 0),
-                List.of(new ItemStack(Items.DIAMOND, 2)));
+                List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2))));
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         Inventory inventory = player.getInventory();
@@ -139,7 +140,7 @@ public final class TrinityPatternCoreMenuTest {
         assertTrue(core.trySetPattern(0, encodedPattern));
         core.appendPendingOutputs(
                 new PatternRoute(UUID.randomUUID(), core.coreId(), 0),
-                List.of(new ItemStack(Items.DIAMOND, 2)));
+                List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2))));
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         Inventory inventory = player.getInventory();

@@ -1,13 +1,19 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -29,12 +35,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
 public final class TrinityPatternCoreImplTest {
 
     private static final UUID HOST_ID = UUID.fromString("f14921fa-5649-4f5f-98c3-41af0ea28b12");
+    private static final ResourceLocation TEST_RESOLVER_ID = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "test_pattern");
 
     private TrinityPatternCoreImplTest() {}
 
@@ -123,30 +131,271 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_pattern_core_enqueue_rolls_back_failed_notification")
+    @TestHolder("trinity_pattern_core_execution_transfers_work_to_pending")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void enqueueRollsBackWhenPersistenceNotificationFails(GameTestHelper helper) {
-        AtomicBoolean rejectNotification = new AtomicBoolean();
+    public static void executionRetainsWorkingSlotUntilCountedOutputIsConsumed(GameTestHelper helper) {
+        TrinityPatternCoreImpl core = core(64);
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = route(core, 6);
+        assertTrue(core.trySetPattern(6, pattern));
+        assertTrue(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+
+        assertEquals(1, core.executeReadyBatches(
+                2L,
+                (slot, batch) -> TrinityPatternCore.BatchExecutionResult.completed(
+                        List.of(new ItemStack(Items.DIAMOND, 3)))));
+
+        assertEquals(0, core.queuedBatchCount(6));
+        assertEquals(List.of(6), core.workingSlots(HOST_ID));
+        assertEquals(List.of(6), core.pendingOutputSlots(HOST_ID));
+        assertAmount(Items.DIAMOND, 3L, core.pendingOutputs(route).getFirst());
+        try (PendingOutputCursor cursor = core.openPendingOutputCursor(route)) {
+            assertTrue(cursor.advance());
+            cursor.consumeCurrent(2L);
+            assertAmount(Items.DIAMOND, 1L, cursor.current());
+            cursor.consumeCurrent(1L);
+            assertFalse(cursor.advance());
+        }
+        assertTrue(core.workingSlots(HOST_ID).isEmpty());
+        assertTrue(core.pendingOutputSlots(HOST_ID).isEmpty());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_enqueue_reports_typed_changes")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void enqueueReportsPersistentChangesAndOnlyOneWorkTransition(GameTestHelper helper) {
+        List<TrinityPatternSlot.ChangeKind> changes = new ArrayList<>();
         TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
                 64,
                 TrinityPatternCoreImplTest::decode,
-                () -> {
-                    if (rejectNotification.get()) {
-                        throw new IllegalStateException("test persistence notification failure");
-                    }
-                });
+                testResolvers(),
+                change -> changes.add(change.kind()));
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(core, 0);
         assertTrue(core.trySetPattern(0, pattern));
+        changes.clear();
 
-        rejectNotification.set(true);
-        assertFalse(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
-        assertEquals(0, core.queuedBatchCount(0));
-
-        rejectNotification.set(false);
+        assertTrue(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
         assertTrue(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
         assertEquals(1, core.queuedBatchCount(0));
+        assertEquals(
+                List.of(
+                        TrinityPatternSlot.ChangeKind.PERSISTENT,
+                        TrinityPatternSlot.ChangeKind.WORK,
+                        TrinityPatternSlot.ChangeKind.PERSISTENT),
+                changes);
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_merges_only_exact_adjacent_groups")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void enqueueMergesOnlyExactAdjacentGroups(GameTestHelper helper) {
+        TrinityPatternCoreImpl core = core(64);
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = route(core, 2);
+        List<ItemStack> iron = inputs(new ItemStack(Items.IRON_INGOT));
+        List<ItemStack> gold = inputs(new ItemStack(Items.GOLD_INGOT));
+        assertTrue(core.trySetPattern(2, pattern));
+
+        assertTrue(core.enqueueBatch(route, pattern, iron, 4L));
+        assertTrue(core.enqueueBatch(route, pattern, iron, 4L));
+        assertTrue(core.enqueueBatch(route, pattern, iron, 4L));
+        assertEquals(1, core.queuedBatchCount(2));
+        assertEquals(3L, core.queuedBatches(2).getFirst().count());
+
+        assertTrue(core.enqueueBatch(route, pattern, iron, 5L));
+        assertTrue(core.enqueueBatch(route, pattern, gold, 5L));
+        assertTrue(core.enqueueBatch(new PatternRoute(UUID.randomUUID(), core.coreId(), 2), pattern, gold, 5L));
+        assertEquals(4, core.queuedBatchCount(2));
+        assertEquals(1L, core.queuedBatches(2).get(1).count());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_slot_definition_uses_complete_pattern")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void definitionIdentityIncludesCompletePatternAndRecipeId(GameTestHelper helper) {
+        TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
+                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+        ItemStack firstPattern = pattern(Items.PAPER);
+        firstPattern.set(DataComponents.CUSTOM_NAME, Component.literal("first"));
+        ItemStack secondPattern = pattern(Items.PAPER);
+        secondPattern.set(DataComponents.CUSTOM_NAME, Component.literal("second"));
+        PatternRoute route = new PatternRoute(HOST_ID, UUID.randomUUID(), 0);
+        List<ItemStack> inputs = inputs(new ItemStack(Items.IRON_INGOT));
+
+        assertTrue(slot.trySetPattern(firstPattern));
+        assertTrue(slot.enqueue(route, firstPattern, inputs, 4L));
+        assertTrue(slot.trySetPattern(secondPattern));
+        assertTrue(slot.enqueue(route, secondPattern, inputs, 4L));
+
+        List<TrinityCraftingBatch> batches = slot.queuedBatches();
+        assertEquals(2, batches.size());
+        assertFalse(batches.get(0).definitionId() == batches.get(1).definitionId());
+        assertTrue(batches.get(0).definition().matchesPattern(firstPattern));
+        assertTrue(batches.get(1).definition().matchesPattern(secondPattern));
+        assertEquals(batches.get(0).definition().resolution(), batches.get(1).definition().resolution());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_tracks_multiple_hosts_in_one_slot")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void hostWorkIndexTracksEverySameSlotEnqueueAndCompletion(GameTestHelper helper) {
+        TrinityPatternCoreImpl core = core(64);
+        UUID secondHost = UUID.fromString("42de32c2-b693-4fec-9847-fd2e0f89a21e");
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute firstRoute = route(core, 0);
+        PatternRoute secondRoute = new PatternRoute(secondHost, core.coreId(), 0);
+        assertTrue(core.trySetPattern(0, pattern));
+        assertTrue(core.enqueueBatch(
+                firstRoute, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+        assertTrue(core.enqueueBatch(
+                secondRoute, pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 1L));
+        assertTrue(core.hasWork(HOST_ID));
+        assertTrue(core.hasWork(secondHost));
+        assertEquals(List.of(0), core.workingSlots(HOST_ID));
+        assertEquals(List.of(0), core.workingSlots(secondHost));
+
+        assertEquals(1, core.executeReadyBatches(2L, (slot, batch) -> batch.route().equals(firstRoute) ? TrinityPatternCore.BatchExecutionResult.completed(List.of()) : TrinityPatternCore.BatchExecutionResult.paused()));
+
+        assertFalse(core.hasWork(HOST_ID));
+        assertTrue(core.hasWork(secondHost));
+        assertTrue(core.workingSlots(HOST_ID).isEmpty());
+        assertEquals(List.of(0), core.workingSlots(secondHost));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_working_slots_are_sorted_union_snapshots")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void workingSlotsUniteQueuedAndPendingRoutesAsSortedImmutableSnapshots(GameTestHelper helper) {
+        TrinityPatternCoreImpl core = core(64);
+        UUID otherHost = UUID.fromString("65e2cd06-602f-47d8-86fa-7a3e2b848a99");
+        ItemStack pattern = pattern(Items.PAPER);
+        assertTrue(core.trySetPattern(9, pattern));
+        assertTrue(core.trySetPattern(2, pattern));
+        assertTrue(core.enqueueBatch(
+                route(core, 9), pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+        assertTrue(core.enqueueBatch(
+                route(core, 2), pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 1L));
+        core.appendPendingOutputs(route(core, 7), List.of(amount(Items.DIAMOND, 2L)));
+        core.appendPendingOutputs(route(core, 2), List.of(amount(Items.EMERALD, 3L)));
+        core.appendPendingOutputs(
+                new PatternRoute(otherHost, core.coreId(), 1),
+                List.of(amount(Items.BUCKET, 1L)));
+
+        List<Integer> snapshot = core.workingSlots(HOST_ID);
+        assertEquals(List.of(2, 7, 9), snapshot);
+        assertEquals(List.of(2, 7), core.pendingOutputSlots(HOST_ID));
+        assertThrows(UnsupportedOperationException.class, () -> snapshot.add(10));
+
+        core.appendPendingOutputs(route(core, 5), List.of(amount(Items.DIAMOND, 1L)));
+        assertEquals(List.of(2, 7, 9), snapshot);
+        assertEquals(List.of(2, 5, 7, 9), core.workingSlots(HOST_ID));
+        assertEquals(List.of(1), core.workingSlots(otherHost));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_work_events_follow_host_union")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void workEventsTrackHostUnionMembershipDespiteForeignSameSlotWork(GameTestHelper helper) {
+        List<TrinityPatternSlot.Change> workChanges = new ArrayList<>();
+        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+                64,
+                TrinityPatternCoreImplTest::decode,
+                testResolvers(),
+                change -> {
+                    if (change.kind() == TrinityPatternSlot.ChangeKind.WORK) {
+                        workChanges.add(change);
+                    }
+                });
+        UUID otherHost = UUID.fromString("ec8b7c10-ce0d-498e-b431-5cb1af9d66f2");
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute ownRoute = route(core, 4);
+        PatternRoute otherRoute = new PatternRoute(otherHost, core.coreId(), 4);
+        assertTrue(core.trySetPattern(4, pattern));
+
+        assertTrue(core.enqueueBatch(
+                ownRoute, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+        assertEquals(1, workChanges.size());
+        core.appendPendingOutputs(ownRoute, List.of(amount(Items.DIAMOND, 2L)));
+        assertEquals(1, workChanges.size());
+        assertTrue(core.enqueueBatch(
+                otherRoute, pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 1L));
+        assertEquals(2, workChanges.size());
+
+        core.patternSlot(4).clearQueuedBatches(HOST_ID);
+        assertEquals(2, workChanges.size());
+        assertEquals(List.of(4), core.workingSlots(HOST_ID));
+        try (PendingOutputCursor cursor = core.openPendingOutputCursor(ownRoute)) {
+            assertTrue(cursor.advance());
+            cursor.consumeCurrent(cursor.current().amount());
+        }
+        assertEquals(3, workChanges.size());
+        assertTrue(core.workingSlots(HOST_ID).isEmpty());
+        assertEquals(List.of(4), core.workingSlots(otherHost));
+
+        core.patternSlot(4).clearQueuedBatches(otherHost);
+        assertEquals(4, workChanges.size());
+        assertTrue(core.workingSlots(otherHost).isEmpty());
+        assertTrue(workChanges.stream().allMatch(change -> change.slot() == 4));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_slot_max_count_starts_new_group")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void maxCountTailStartsNewGroupWithoutOverflow(GameTestHelper helper) {
+        TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
+                0, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = new PatternRoute(HOST_ID, UUID.randomUUID(), 0);
+        List<ItemStack> inputs = inputs(new ItemStack(Items.IRON_INGOT));
+        assertTrue(slot.trySetPattern(pattern));
+        assertTrue(slot.enqueue(route, pattern, inputs, 7L));
+        TrinityPatternDefinition definition = slot.queuedBatches().getFirst().definition();
+        slot.replaceQueuedBatches(List.of(TrinityCraftingBatch.resolved(
+                7L, route, definition, inputs, Long.MAX_VALUE, true)));
+
+        assertTrue(slot.enqueue(route, pattern, inputs, 7L));
+
+        assertEquals(2, slot.queuedBatchCount());
+        assertEquals(Long.MAX_VALUE, slot.queuedBatches().getFirst().count());
+        assertEquals(1L, slot.queuedBatches().get(1).count());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_rejects_opaque_and_ambiguous_patterns")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void newOpaquePatternsAreRejectedAndResolverAmbiguityFailsFast(GameTestHelper helper) {
+        TrinityPatternRecipeIdResolvers emptyResolvers = new TrinityPatternRecipeIdResolvers();
+        TrinityPatternCoreImpl opaqueCore = new TrinityPatternCoreImpl(
+                64, TrinityPatternCoreImplTest::decode, emptyResolvers, change -> {});
+        assertFalse(opaqueCore.trySetPattern(0, pattern(Items.PAPER)));
+
+        TrinityPatternRecipeIdResolvers duplicateResolvers = testResolvers();
+        assertThrows(IllegalArgumentException.class,
+                () -> duplicateResolvers.register(new TestRecipeIdResolver()));
+
+        TrinityPatternRecipeIdResolvers ambiguousResolvers = testResolvers();
+        ambiguousResolvers.register(new ConflictingTestRecipeIdResolver());
+        TrinityPatternCoreImpl ambiguousCore = new TrinityPatternCoreImpl(
+                64, TrinityPatternCoreImplTest::decode, ambiguousResolvers, change -> {});
+        assertThrows(IllegalStateException.class,
+                () -> ambiguousCore.trySetPattern(0, pattern(Items.PAPER)));
+
+        TrinityPatternRecipeIdResolvers nullRecipeResolvers = new TrinityPatternRecipeIdResolvers();
+        nullRecipeResolvers.register(new NullRecipeIdResolver());
+        TrinityPatternCoreImpl nullRecipeCore = new TrinityPatternCoreImpl(
+                64, TrinityPatternCoreImplTest::decode, nullRecipeResolvers, change -> {});
+        assertThrows(IllegalStateException.class,
+                () -> nullRecipeCore.trySetPattern(0, pattern(Items.PAPER)));
         helper.succeed();
     }
 
@@ -181,6 +430,35 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_core_recipe_id_mismatch_sleeps_and_resumes")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void recipeIdMismatchSleepsPersistedGroupUntilIdentityReturns(GameTestHelper helper) {
+        ResourceLocation originalRecipe = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "original");
+        ResourceLocation changedRecipe = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "changed");
+        AtomicReference<ResourceLocation> recipeId = new AtomicReference<>(originalRecipe);
+        TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers();
+        resolvers.register(new MutableTestRecipeIdResolver(recipeId));
+        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
+                64, TrinityPatternCoreImplTest::decode, resolvers, change -> {});
+        ItemStack pattern = pattern(Items.PAPER);
+        assertTrue(core.trySetPattern(0, pattern));
+        assertTrue(core.enqueueBatch(
+                route(core, 0), pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L));
+
+        recipeId.set(changedRecipe);
+        core.refreshPatternCache(0);
+        assertEquals(0, core.executeReadyBatches(
+                2L, (slot, batch) -> TrinityPatternCore.BatchExecutionResult.completed(List.of())));
+        assertEquals(1, core.queuedBatchCount(0));
+
+        recipeId.set(originalRecipe);
+        core.refreshPatternCache(0);
+        assertEquals(1, core.executeReadyBatches(
+                3L, (slot, batch) -> TrinityPatternCore.BatchExecutionResult.completed(List.of())));
+        helper.succeed();
+    }
+
     @TestHolder("trinity_pattern_core_invalid_cache_retains_pattern_and_batch")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -190,7 +468,8 @@ public final class TrinityPatternCoreImplTest {
                 64,
                 UUID.randomUUID(),
                 stack -> stack.is(Items.PAPER) && decodable.get() ? new TestSupportedPattern(stack) : null,
-                () -> {});
+                testResolvers(),
+                change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         assertTrue(core.trySetPattern(0, pattern));
         assertEquals(1L, core.revision());
@@ -225,7 +504,12 @@ public final class TrinityPatternCoreImplTest {
                 64,
                 UUID.randomUUID(),
                 stack -> stack.is(Items.PAPER) ? new TestSupportedPattern(stack) : null,
-                persistentChanges::incrementAndGet);
+                testResolvers(),
+                change -> {
+                    if (change.kind() == TrinityPatternSlot.ChangeKind.PERSISTENT) {
+                        persistentChanges.incrementAndGet();
+                    }
+                });
 
         assertTrue(core.trySetPattern(0, pattern(Items.PAPER)));
         assertEquals(1, persistentChanges.get());
@@ -247,13 +531,16 @@ public final class TrinityPatternCoreImplTest {
                 128,
                 coreId,
                 TrinityPatternCoreImplTest::decode,
-                () -> {});
+                testResolvers(),
+                change -> {});
         ItemStack pattern = pattern(Items.PAPER);
         PatternRoute route = route(original, 127);
         original.trySetPattern(127, pattern);
         original.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 10L);
         original.enqueueBatch(route, pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 11L);
-        original.appendPendingOutputs(route, List.of(new ItemStack(Items.BUCKET), new ItemStack(Items.DIAMOND, 3)));
+        original.appendPendingOutputs(route, List.of(
+                amount(Items.BUCKET, 1L),
+                amount(Items.DIAMOND, 3L)));
         CompoundTag saved = new CompoundTag();
 
         original.writeToTag(saved, helper.getLevel().registryAccess());
@@ -261,10 +548,14 @@ public final class TrinityPatternCoreImplTest {
         TrinityPatternCoreImpl loaded = new TrinityPatternCoreImpl(
                 128,
                 TrinityPatternCoreImplTest::decode,
-                () -> {});
+                testResolvers(),
+                change -> {});
+        TrinityPatternSlot stableSlot = loaded.patternSlot(127);
         loaded.readFromTag(saved, helper.getLevel().registryAccess());
 
         assertEquals(coreId, loaded.coreId());
+        assertTrue(stableSlot == loaded.patternSlot(127));
+        assertTrue(stableSlot.pattern().is(Items.PAPER));
         assertEquals(1L, loaded.revision());
         assertEquals(128, loaded.patternCapacity());
         assertTrue(loaded.pattern(127).is(Items.PAPER));
@@ -273,7 +564,9 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(loaded.queuedBatches(127).get(1).inputs().getFirst().is(Items.GOLD_INGOT));
         assertEquals(route, loaded.queuedBatches(127).getFirst().route());
         assertEquals(2, loaded.pendingOutputs(route).size());
-        assertEquals(3, loaded.pendingOutputs(route).get(1).getCount());
+        assertAmount(Items.DIAMOND, 3L, loaded.pendingOutputs(route).get(1));
+        assertEquals(List.of(127), loaded.workingSlots(HOST_ID));
+        assertEquals(List.of(127), loaded.pendingOutputSlots(HOST_ID));
         assertFalse(loaded.enqueueBatch(route, pattern, inputs(new ItemStack(Items.DIAMOND)), 12L));
         loaded.refreshAllPatternCaches();
         assertEquals(2L, loaded.revision());
@@ -281,18 +574,219 @@ public final class TrinityPatternCoreImplTest {
         assertEquals(2L, loaded.revision());
 
         CompoundTag malformedQueueState = saved.copy();
-        malformedQueueState.getList("queues", Tag.TAG_COMPOUND)
+        malformedQueueState.getList("slots", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .getList("batches", Tag.TAG_COMPOUND)
                 .getCompound(0)
                 .remove("route");
-        assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(128, TrinityPatternCoreImplTest::decode, () -> {})
+        assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
+                128, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedQueueState, helper.getLevel().registryAccess()));
 
         CompoundTag malformedOutputState = saved.copy();
-        malformedOutputState.getList("pending_outputs", Tag.TAG_COMPOUND).getCompound(0).remove("route");
-        assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(128, TrinityPatternCoreImplTest::decode, () -> {})
+        malformedOutputState.getList("slots", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .getList("pending_outputs", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .remove("route");
+        assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
+                128, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedOutputState, helper.getLevel().registryAccess()));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_v2_rebuilds_multi_host_work_indexes")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void v2LoadRebuildsMultiHostQueuedAndPendingWorkIndexes(GameTestHelper helper) {
+        UUID coreId = UUID.fromString("65ffbb90-79f4-4ce1-b52a-9aeff3bc892f");
+        UUID otherHost = UUID.fromString("39dc42a8-e0fb-4645-ae41-5c1e542f6c66");
+        TrinityPatternCoreImpl source = new TrinityPatternCoreImpl(
+                64,
+                coreId,
+                TrinityPatternCoreImplTest::decode,
+                testResolvers(),
+                change -> {});
+        ItemStack paper = pattern(Items.PAPER);
+        ItemStack map = pattern(Items.MAP);
+        assertTrue(source.trySetPattern(11, paper));
+        assertTrue(source.trySetPattern(7, map));
+        assertTrue(source.enqueueBatch(
+                new PatternRoute(HOST_ID, coreId, 11),
+                paper,
+                inputs(new ItemStack(Items.IRON_INGOT)),
+                1L));
+        assertTrue(source.enqueueBatch(
+                new PatternRoute(otherHost, coreId, 7),
+                map,
+                inputs(new ItemStack(Items.GOLD_INGOT)),
+                1L));
+        source.appendPendingOutputs(
+                new PatternRoute(HOST_ID, coreId, 2),
+                List.of(amount(Items.DIAMOND, 4L)));
+        source.appendPendingOutputs(
+                new PatternRoute(otherHost, coreId, 2),
+                List.of(amount(Items.EMERALD, 5L)));
+        CompoundTag saved = new CompoundTag();
+        source.writeToTag(saved, helper.getLevel().registryAccess());
+
+        TrinityPatternCoreImpl loaded = core(64);
+        loaded.readFromTag(saved, helper.getLevel().registryAccess());
+
+        assertEquals(List.of(2, 11), loaded.workingSlots(HOST_ID));
+        assertEquals(List.of(2, 7), loaded.workingSlots(otherHost));
+        assertEquals(List.of(2), loaded.pendingOutputSlots(HOST_ID));
+        assertEquals(List.of(2), loaded.pendingOutputSlots(otherHost));
+        assertTrue(loaded.hasWork(HOST_ID));
+        assertTrue(loaded.hasWork(otherHost));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_v1_migrates_without_merging_and_v2_round_trips")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void v1MigrationKeepsCountOneGroupsAndV2RestoresMerging(GameTestHelper helper) {
+        UUID coreId = UUID.fromString("9e90368c-d784-4963-bb63-b253d29362db");
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = new PatternRoute(HOST_ID, coreId, 0);
+        List<ItemStack> inputs = inputs(new ItemStack(Items.IRON_INGOT));
+        CompoundTag v1 = v1State(
+                coreId, pattern, route, inputs, 8L, 2, helper.getLevel().registryAccess());
+        TrinityPatternCoreImpl migrated = core(64);
+
+        migrated.readFromTag(v1, helper.getLevel().registryAccess());
+
+        assertEquals(2, migrated.queuedBatchCount(0));
+        assertEquals(1L, migrated.queuedBatches(0).get(0).count());
+        assertEquals(1L, migrated.queuedBatches(0).get(1).count());
+        assertFalse(migrated.queuedBatches(0).get(0).mergeable());
+        assertFalse(migrated.queuedBatches(0).get(1).mergeable());
+        migrated.refreshAllPatternCaches();
+        assertTrue(migrated.enqueueBatch(route, pattern, inputs, 8L));
+        assertEquals(3, migrated.queuedBatchCount(0));
+
+        CompoundTag v2 = new CompoundTag();
+        migrated.writeToTag(v2, helper.getLevel().registryAccess());
+        assertEquals(2, v2.getInt("version"));
+        TrinityPatternCoreImpl restored = core(64);
+        restored.readFromTag(v2, helper.getLevel().registryAccess());
+        restored.refreshAllPatternCaches();
+        assertTrue(restored.enqueueBatch(route, pattern, inputs, 8L));
+
+        assertEquals(3, restored.queuedBatchCount(0));
+        assertEquals(2L, restored.queuedBatches(0).get(2).count());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_v1_unresolved_recovers_after_refresh")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void unresolvedV1DefinitionSurvivesV2AndRecoversAfterRefresh(GameTestHelper helper) {
+        UUID coreId = UUID.fromString("03ef839c-743b-4226-b36e-9f9478f0f4bc");
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = new PatternRoute(HOST_ID, coreId, 0);
+        List<ItemStack> inputs = inputs(new ItemStack(Items.IRON_INGOT, 3));
+        CompoundTag v1 = v1State(
+                coreId, pattern, route, inputs, 2L, 1, helper.getLevel().registryAccess());
+        AtomicBoolean decodable = new AtomicBoolean(false);
+        TrinityPatternCoreImpl migrated = new TrinityPatternCoreImpl(
+                64,
+                stack -> decodable.get() ? decode(stack) : null,
+                testResolvers(),
+                change -> {});
+        migrated.readFromTag(v1, helper.getLevel().registryAccess());
+
+        assertEquals(0, migrated.executeReadyBatches(
+                3L, (slot, batch) -> TrinityPatternCore.BatchExecutionResult.completed(List.of())));
+        assertEquals(1, migrated.queuedBatchCount(0));
+        TrinityPatternCore.RefundTransaction refund = migrated.prepareRefund();
+        assertTrue(refund.refundableItems().stream()
+                .anyMatch(item -> item.key().equals(AEItemKey.of(Items.IRON_INGOT)) && item.amount() == 3L));
+        refund.rollback();
+
+        CompoundTag v2 = new CompoundTag();
+        migrated.writeToTag(v2, helper.getLevel().registryAccess());
+
+        CompoundTag invalidUnresolved = v2.copy();
+        invalidUnresolved.getList("slots", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .getList("batches", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .putLong("count", 2L);
+        TrinityPatternCoreImpl unchanged = core(64);
+        unchanged.trySetPattern(0, pattern(Items.MAP));
+        assertThrows(IllegalArgumentException.class,
+                () -> unchanged.readFromTag(invalidUnresolved, helper.getLevel().registryAccess()));
+        assertTrue(unchanged.pattern(0).is(Items.MAP));
+
+        decodable.set(true);
+        migrated.refreshAllPatternCaches();
+        assertEquals(1L, migrated.queuedBatches(0).getFirst().count());
+        assertFalse(migrated.queuedBatches(0).getFirst().mergeable());
+        assertTrue(migrated.queuedBatches(0).getFirst().definition().resolved());
+        assertEquals(1, migrated.executeReadyBatches(
+                3L, (slot, batch) -> TrinityPatternCore.BatchExecutionResult.completed(List.of())));
+        assertEquals(0, migrated.queuedBatchCount(0));
+
+        TrinityPatternCoreImpl restored = new TrinityPatternCoreImpl(
+                64, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+        restored.readFromTag(v2, helper.getLevel().registryAccess());
+        restored.refreshAllPatternCaches();
+        assertEquals(1L, restored.queuedBatches(0).getFirst().count());
+        assertFalse(restored.queuedBatches(0).getFirst().mergeable());
+        assertTrue(restored.queuedBatches(0).getFirst().definition().resolved());
+        assertEquals(1, restored.executeReadyBatches(
+                4L, (slot, batch) -> TrinityPatternCore.BatchExecutionResult.completed(List.of())));
+        assertEquals(0, restored.queuedBatchCount(0));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_v2_definition_mismatch_fails_atomically")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void v2RecipeIdMismatchAndMalformedResolutionAreAtomic(GameTestHelper helper) {
+        TrinityPatternCoreImpl source = core(64);
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = route(source, 0);
+        source.trySetPattern(0, pattern);
+        source.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L);
+        CompoundTag saved = new CompoundTag();
+        source.writeToTag(saved, helper.getLevel().registryAccess());
+        CompoundTag definition = saved.getList("slots", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .getList("definitions", Tag.TAG_COMPOUND)
+                .getCompound(0);
+
+        CompoundTag mismatched = saved.copy();
+        mismatched.getList("slots", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .getList("definitions", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .putString("recipe_id", Data_Energistics.MODID + ":other");
+        CompoundTag malformed = saved.copy();
+        malformed.getList("slots", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .getList("definitions", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .remove("recipe_id");
+        TrinityPatternCoreImpl destination = core(64);
+        destination.trySetPattern(0, pattern(Items.MAP));
+        assertThrows(IllegalArgumentException.class,
+                () -> destination.readFromTag(mismatched, helper.getLevel().registryAccess()));
+        assertTrue(destination.pattern(0).is(Items.MAP));
+        assertThrows(IllegalArgumentException.class,
+                () -> destination.readFromTag(malformed, helper.getLevel().registryAccess()));
+        assertTrue(destination.pattern(0).is(Items.MAP));
+
+        CompoundTag duplicateDefinition = saved.copy();
+        ListTag definitions = duplicateDefinition.getList("slots", Tag.TAG_COMPOUND)
+                .getCompound(0)
+                .getList("definitions", Tag.TAG_COMPOUND);
+        definitions.add(definitions.getCompound(0).copy());
+        assertThrows(IllegalArgumentException.class,
+                () -> destination.readFromTag(duplicateDefinition, helper.getLevel().registryAccess()));
+        assertTrue(destination.pattern(0).is(Items.MAP));
+        assertTrue(definition.contains("recipe_id", Tag.TAG_STRING));
         helper.succeed();
     }
 
@@ -312,55 +806,110 @@ public final class TrinityPatternCoreImplTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_pattern_core_nbt_requires_current_state_lists_atomically")
+    @TestHolder("trinity_pattern_core_nbt_rejects_mixed_schema_atomically")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void currentNbtRequiresAllStateListsBeforeMutation(GameTestHelper helper) {
+    public static void mixedV1AndV2SchemasAreRejectedWithoutMutatingCurrentState(GameTestHelper helper) {
         TrinityPatternCoreImpl source = core(64);
         source.trySetPattern(0, pattern(Items.PAPER));
-        CompoundTag saved = new CompoundTag();
-        source.writeToTag(saved, helper.getLevel().registryAccess());
+        CompoundTag v2 = new CompoundTag();
+        source.writeToTag(v2, helper.getLevel().registryAccess());
+
+        UUID v1CoreId = UUID.fromString("ac4d42bd-e96f-4803-ad80-c695a356bf0f");
+        CompoundTag v1 = v1State(
+                v1CoreId,
+                pattern(Items.PAPER),
+                new PatternRoute(HOST_ID, v1CoreId, 0),
+                inputs(new ItemStack(Items.IRON_INGOT)),
+                1L,
+                1,
+                helper.getLevel().registryAccess());
+
+        ArrayList<CompoundTag> invalidStates = new ArrayList<>();
+        for (String legacyList : List.of("patterns", "queues", "pending_outputs")) {
+            CompoundTag mixed = v2.copy();
+            mixed.put(legacyList, new ListTag());
+            invalidStates.add(mixed);
+        }
+        CompoundTag v1WithSlots = v1.copy();
+        v1WithSlots.put("slots", new ListTag());
+        invalidStates.add(v1WithSlots);
+        CompoundTag v1WithVersion = v1.copy();
+        v1WithVersion.putInt("version", 2);
+        invalidStates.add(v1WithVersion);
+        CompoundTag missingSlots = v2.copy();
+        missingSlots.remove("slots");
+        invalidStates.add(missingSlots);
+        CompoundTag wrongSlotsType = v2.copy();
+        wrongSlotsType.putString("slots", "invalid");
+        invalidStates.add(wrongSlotsType);
 
         TrinityPatternCoreImpl destination = core(64);
-        destination.trySetPattern(0, pattern(Items.MAP));
-        for (String requiredList : List.of("patterns", "queues", "pending_outputs")) {
-            CompoundTag missingList = saved.copy();
-            missingList.remove(requiredList);
-            assertThrows(IllegalArgumentException.class,
-                    () -> destination.readFromTag(missingList, helper.getLevel().registryAccess()));
-            assertTrue(destination.pattern(0).is(Items.MAP));
-        }
+        ItemStack retainedPattern = pattern(Items.MAP);
+        PatternRoute retainedRoute = route(destination, 3);
+        assertTrue(destination.trySetPattern(3, retainedPattern));
+        assertTrue(destination.enqueueBatch(
+                retainedRoute,
+                retainedPattern,
+                inputs(new ItemStack(Items.GOLD_INGOT)),
+                1L));
+        UUID retainedCoreId = destination.coreId();
+        TrinityPatternSlot retainedSlot = destination.patternSlot(3);
+        long retainedSlotRevision = retainedSlot.revision();
+        long retainedCoreRevision = destination.revision();
 
-        CompoundTag wrongListType = saved.copy();
-        wrongListType.putString("queues", "invalid");
-        assertThrows(IllegalArgumentException.class,
-                () -> destination.readFromTag(wrongListType, helper.getLevel().registryAccess()));
-        assertTrue(destination.pattern(0).is(Items.MAP));
+        for (CompoundTag invalidState : invalidStates) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> destination.readFromTag(invalidState, helper.getLevel().registryAccess()));
+            assertEquals(retainedCoreId, destination.coreId());
+            assertTrue(retainedSlot == destination.patternSlot(3));
+            assertEquals(retainedSlotRevision, retainedSlot.revision());
+            assertEquals(retainedCoreRevision, destination.revision());
+            assertTrue(destination.pattern(3).is(Items.MAP));
+            assertEquals(1, destination.queuedBatchCount(3));
+            assertEquals(List.of(3), destination.workingSlots(HOST_ID));
+        }
         helper.succeed();
     }
 
-    @TestHolder("trinity_pattern_core_pending_outputs_are_route_isolated_copies")
+    @TestHolder("trinity_pattern_core_pending_outputs_merge_and_segment_counted_amounts")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void pendingOutputAccessUsesDefensiveCopies(GameTestHelper helper) {
+    public static void pendingOutputAppendMergesAdjacentKeysAndSegmentsAtLongMaximum(GameTestHelper helper) {
         TrinityPatternCoreImpl core = core(64);
-        ItemStack output = new ItemStack(Items.DIAMOND, 4);
         PatternRoute route = route(core, 0);
         PatternRoute otherHostRoute = new PatternRoute(UUID.randomUUID(), core.coreId(), 0);
-        core.appendPendingOutputs(route, List.of(output));
-        core.appendPendingOutputs(otherHostRoute, List.of(new ItemStack(Items.GOLD_INGOT, 2)));
+        core.appendPendingOutputs(route, List.of(
+                amount(Items.DIAMOND, Long.MAX_VALUE - 2L),
+                amount(Items.DIAMOND, 5L),
+                amount(Items.GOLD_INGOT, 4L),
+                amount(Items.DIAMOND, 6L)));
+        core.appendPendingOutputs(otherHostRoute, List.of(amount(Items.EMERALD, 2L)));
         assertEquals(0L, core.revision());
 
-        output.setCount(1);
-        List<ItemStack> firstRead = core.pendingOutputs(route);
-        firstRead.getFirst().setCount(2);
-        List<ItemStack> secondRead = core.pendingOutputs(route);
+        List<TrinityItemAmount> firstRead = core.pendingOutputs(route);
+        assertEquals(4, firstRead.size());
+        assertAmount(Items.DIAMOND, Long.MAX_VALUE, firstRead.get(0));
+        assertAmount(Items.DIAMOND, 3L, firstRead.get(1));
+        assertAmount(Items.GOLD_INGOT, 4L, firstRead.get(2));
+        assertAmount(Items.DIAMOND, 6L, firstRead.get(3));
+        assertThrows(UnsupportedOperationException.class,
+                () -> firstRead.add(amount(Items.STICK, 1L)));
 
-        assertNotSame(firstRead.getFirst(), secondRead.getFirst());
-        assertEquals(4, secondRead.getFirst().getCount());
-        core.replacePendingOutputs(route, List.of());
+        core.appendPendingOutputs(route, List.of(amount(Items.DIAMOND, Long.MAX_VALUE)));
+        List<TrinityItemAmount> secondRead = core.pendingOutputs(route);
+        assertEquals(5, secondRead.size());
+        assertAmount(Items.DIAMOND, Long.MAX_VALUE, secondRead.get(3));
+        assertAmount(Items.DIAMOND, 6L, secondRead.get(4));
+        assertEquals(4, firstRead.size());
+
+        try (PendingOutputCursor cursor = core.openPendingOutputCursor(route)) {
+            while (cursor.advance()) {
+                cursor.consumeCurrent(cursor.current().amount());
+            }
+        }
         assertTrue(core.pendingOutputs(route).isEmpty());
-        assertEquals(2, core.pendingOutputs(otherHostRoute).getFirst().getCount());
+        assertAmount(Items.EMERALD, 2L, core.pendingOutputs(otherHostRoute).getFirst());
         assertEquals(0L, core.revision());
         helper.succeed();
     }
@@ -375,7 +924,7 @@ public final class TrinityPatternCoreImplTest {
         core.trySetPattern(0, pattern);
         long catalogRevision = core.revision();
         core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
-        core.appendPendingOutputs(route, List.of(new ItemStack(Items.GOLD_INGOT, 3)));
+        core.appendPendingOutputs(route, List.of(amount(Items.GOLD_INGOT, 3L)));
         assertEquals(catalogRevision, core.revision());
 
         RecordingRefundDelivery rejected = new RecordingRefundDelivery(false);
@@ -391,10 +940,14 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(core.tryRefundAll(accepted));
 
         assertTrue(accepted.delivered);
-        assertEquals(2, accepted.deliveredStacks.size());
-        assertTrue(accepted.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
-        assertTrue(accepted.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.GOLD_INGOT) && stack.getCount() == 3));
-        assertEquals(0L, accepted.deliveredStacks.stream().filter(stack -> stack.is(Items.PAPER)).count());
+        assertEquals(2, accepted.deliveredItems.size());
+        assertTrue(accepted.deliveredItems.stream()
+                .anyMatch(item -> item.key().equals(AEItemKey.of(Items.IRON_INGOT)) && item.amount() == 2L));
+        assertTrue(accepted.deliveredItems.stream()
+                .anyMatch(item -> item.key().equals(AEItemKey.of(Items.GOLD_INGOT)) && item.amount() == 3L));
+        assertEquals(0L, accepted.deliveredItems.stream()
+                .filter(item -> item.key().equals(AEItemKey.of(Items.PAPER)))
+                .count());
         assertTrue(core.pattern(0).is(Items.PAPER));
         assertFalse(core.hasWork());
         assertEquals(catalogRevision, core.revision());
@@ -410,25 +963,35 @@ public final class TrinityPatternCoreImplTest {
         PatternRoute route = route(core, 0);
         core.trySetPattern(0, pattern);
         core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 1L);
+        assertEquals(List.of(0), core.workingSlots(HOST_ID));
 
         assertThrows(IllegalArgumentException.class, () -> core.prepareRefund((UUID) null));
         TrinityPatternCore.RefundTransaction transaction = core.prepareRefund(HOST_ID);
         assertThrows(IllegalStateException.class,
-                () -> core.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND))));
+                () -> core.appendPendingOutputs(route, List.of(amount(Items.DIAMOND, 1L))));
         assertTrue(transaction.commit());
+        assertTrue(core.workingSlots(HOST_ID).isEmpty());
         assertThrows(IllegalStateException.class,
                 () -> core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 2L));
 
         transaction.rollback();
 
         assertEquals(1, core.queuedBatchCount(0));
-        core.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+        assertEquals(List.of(0), core.workingSlots(HOST_ID));
+        core.appendPendingOutputs(route, List.of(amount(Items.DIAMOND, 1L)));
         assertEquals(1, core.pendingOutputs(route).size());
         helper.succeed();
     }
 
     private static TrinityPatternCoreImpl core(int capacity) {
-        return new TrinityPatternCoreImpl(capacity, TrinityPatternCoreImplTest::decode, () -> {});
+        return new TrinityPatternCoreImpl(
+                capacity, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {});
+    }
+
+    private static TrinityPatternRecipeIdResolvers testResolvers() {
+        TrinityPatternRecipeIdResolvers resolvers = new TrinityPatternRecipeIdResolvers();
+        resolvers.register(new TestRecipeIdResolver());
+        return resolvers;
     }
 
     private static PatternRoute route(TrinityPatternCore core, int slot) {
@@ -450,6 +1013,56 @@ public final class TrinityPatternCoreImplTest {
             inputs.add(ItemStack.EMPTY);
         }
         return inputs;
+    }
+
+    private static TrinityItemAmount amount(ItemLike item, long amount) {
+        return new TrinityItemAmount(AEItemKey.of(item), amount);
+    }
+
+    private static void assertAmount(ItemLike item, long amount, TrinityItemAmount actual) {
+        assertEquals(AEItemKey.of(item), actual.key());
+        assertEquals(amount, actual.amount());
+    }
+
+    private static CompoundTag v1State(UUID coreId, ItemStack pattern, PatternRoute route, List<ItemStack> inputs,
+                                       long queuedTick, int batchCount, HolderLookup.Provider registries) {
+        CompoundTag state = new CompoundTag();
+        state.putUUID("core_id", coreId);
+        state.putInt("pattern_capacity", 64);
+
+        CompoundTag patternEntry = new CompoundTag();
+        patternEntry.putInt("slot", 0);
+        patternEntry.put("stack", pattern.saveOptional(registries));
+        ListTag patterns = new ListTag();
+        patterns.add(patternEntry);
+        state.put("patterns", patterns);
+
+        ListTag batches = new ListTag();
+        for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+            CompoundTag batch = new CompoundTag();
+            batch.putLong("queued_tick", queuedTick);
+            batch.put("route", route.writeToTag());
+            batch.put("pattern", pattern.saveOptional(registries));
+            ListTag inputEntries = new ListTag();
+            for (int slot = 0; slot < inputs.size(); slot++) {
+                if (!inputs.get(slot).isEmpty()) {
+                    CompoundTag input = new CompoundTag();
+                    input.putInt("slot", slot);
+                    input.put("stack", inputs.get(slot).saveOptional(registries));
+                    inputEntries.add(input);
+                }
+            }
+            batch.put("inputs", inputEntries);
+            batches.add(batch);
+        }
+        CompoundTag queue = new CompoundTag();
+        queue.putInt("slot", 0);
+        queue.put("batches", batches);
+        ListTag queues = new ListTag();
+        queues.add(queue);
+        state.put("queues", queues);
+        state.put("pending_outputs", new ListTag());
+        return state;
     }
 
     private static void assertTrue(boolean condition) {
@@ -482,12 +1095,6 @@ public final class TrinityPatternCoreImplTest {
         }
     }
 
-    private static void assertNotSame(Object unexpected, Object actual) {
-        if (unexpected == actual) {
-            throw new GameTestAssertException("Expected different object identities");
-        }
-    }
-
     private static <T extends Throwable> void assertThrows(Class<T> expectedType, Runnable action) {
         try {
             action.run();
@@ -501,28 +1108,30 @@ public final class TrinityPatternCoreImplTest {
         throw new GameTestAssertException("Expected " + expectedType.getName() + " to be thrown");
     }
 
-    /** Captures direct core delivery calls without introducing an external destination into this logic test. */
+    /**
+     * Captures direct core delivery calls without introducing an external destination into this logic test.
+     */
     private static final class RecordingRefundDelivery implements TrinityRefundDelivery {
 
         private final boolean prepareResult;
         private boolean prepared;
         private boolean delivered;
-        private List<ItemStack> deliveredStacks = List.of();
+        private List<TrinityItemAmount> deliveredItems = List.of();
 
         private RecordingRefundDelivery(boolean prepareResult) {
             this.prepareResult = prepareResult;
         }
 
         @Override
-        public boolean prepare(List<ItemStack> stacks) {
+        public boolean prepare(List<TrinityItemAmount> items) {
             this.prepared = true;
             return this.prepareResult;
         }
 
         @Override
-        public void deliver(List<ItemStack> stacks) {
+        public void deliver(List<TrinityItemAmount> items) {
             this.delivered = true;
-            this.deliveredStacks = stacks.stream().map(ItemStack::copy).toList();
+            this.deliveredItems = List.copyOf(items);
         }
     }
 
@@ -570,6 +1179,97 @@ public final class TrinityPatternCoreImplTest {
         @Override
         public List<GenericStack> getOutputs() {
             return List.of(new GenericStack(AEItemKey.of(Items.DIAMOND), 1L));
+        }
+    }
+
+    /**
+     * Gives the test-only supported pattern a stable recipe identity without weakening production opaque rejection.
+     */
+    private static final class TestRecipeIdResolver implements TrinityPatternRecipeIdResolver {
+
+        @Override
+        public ResourceLocation id() {
+            return TEST_RESOLVER_ID;
+        }
+
+        @Override
+        public boolean supports(IMolecularAssemblerSupportedPattern pattern) {
+            return pattern instanceof TestSupportedPattern;
+        }
+
+        @Override
+        public ResourceLocation recipeId(IMolecularAssemblerSupportedPattern pattern) {
+            String path = pattern.getDefinition().toStack().is(Items.PAPER) ? "paper" : "map";
+            return ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, path);
+        }
+    }
+
+    /**
+     * Deliberately overlaps the primary test resolver to verify ambiguity rejection.
+     */
+    private static final class ConflictingTestRecipeIdResolver implements TrinityPatternRecipeIdResolver {
+
+        @Override
+        public ResourceLocation id() {
+            return ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "conflicting_test_pattern");
+        }
+
+        @Override
+        public boolean supports(IMolecularAssemblerSupportedPattern pattern) {
+            return pattern instanceof TestSupportedPattern;
+        }
+
+        @Override
+        public ResourceLocation recipeId(IMolecularAssemblerSupportedPattern pattern) {
+            return ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "conflict");
+        }
+    }
+
+    /**
+     * Violates the resolver contract so the registry's extension boundary can be verified directly.
+     */
+    private static final class NullRecipeIdResolver implements TrinityPatternRecipeIdResolver {
+
+        @Override
+        public ResourceLocation id() {
+            return ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "null_recipe_test_pattern");
+        }
+
+        @Override
+        public boolean supports(IMolecularAssemblerSupportedPattern pattern) {
+            return pattern instanceof TestSupportedPattern;
+        }
+
+        @Override
+        public ResourceLocation recipeId(IMolecularAssemblerSupportedPattern pattern) {
+            return null;
+        }
+    }
+
+    /**
+     * Mutable recipe identity models a data reload changing what an opaque integration resolves.
+     */
+    private static final class MutableTestRecipeIdResolver implements TrinityPatternRecipeIdResolver {
+
+        private final AtomicReference<ResourceLocation> recipeId;
+
+        private MutableTestRecipeIdResolver(AtomicReference<ResourceLocation> recipeId) {
+            this.recipeId = recipeId;
+        }
+
+        @Override
+        public ResourceLocation id() {
+            return TEST_RESOLVER_ID;
+        }
+
+        @Override
+        public boolean supports(IMolecularAssemblerSupportedPattern pattern) {
+            return pattern instanceof TestSupportedPattern;
+        }
+
+        @Override
+        public ResourceLocation recipeId(IMolecularAssemblerSupportedPattern pattern) {
+            return this.recipeId.get();
         }
     }
 }

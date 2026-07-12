@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
-import net.minecraft.world.item.ItemStack;
-
 import java.util.List;
 
 /**
@@ -18,10 +16,10 @@ public interface TrinityRefundDelivery {
     /**
      * Captures and validates the delivery context without inserting, dropping, or mutating any offered stack.
      *
-     * @param stacks immutable defensive copies of every queued input and pending output in the aggregate
+     * @param items immutable counted entries for every queued input and pending output in the aggregate
      * @return true when {@link #deliver(List)} may be invoked for this exact aggregate
      */
-    boolean prepare(List<ItemStack> stacks);
+    boolean prepare(List<TrinityItemAmount> items);
 
     /**
      * Delivers every supplied stack after the core transaction has committed.
@@ -31,7 +29,7 @@ public interface TrinityRefundDelivery {
      * fallback instead of silently discarding it.
      * </p>
      *
-     * @param stacks immutable defensive copies of every queued input and pending output in the aggregate
+     * @param items immutable counted entries for every queued input and pending output in the aggregate
      */
-    void deliver(List<ItemStack> stacks);
+    void deliver(List<TrinityItemAmount> items);
 }

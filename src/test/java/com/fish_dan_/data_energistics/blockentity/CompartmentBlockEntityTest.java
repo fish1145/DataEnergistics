@@ -17,8 +17,10 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -397,7 +399,8 @@ public final class CompartmentBlockEntityTest {
                         mount.blockCapacity(),
                         UUID.randomUUID(),
                         stack -> null,
-                        () -> {});
+                        TrinityPatternRecipeIdResolvers.global(),
+                        change -> {});
                 CompoundTag restoredTag = new CompoundTag();
                 restoredState.writeToTag(restoredTag, level.registryAccess());
                 mount.core().readFromTag(restoredTag, level.registryAccess());
@@ -736,7 +739,9 @@ public final class CompartmentBlockEntityTest {
                 helper.assertTrue(ItemStack.isSameItemSameComponents(mount.core().pattern(0), encodedPattern),
                         "Current terminal write should install the encoded pattern in its routed core");
                 PatternRoute route = new PatternRoute(host.getHostId(), mount.core().coreId(), 0);
-                mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+                mount.core().appendPendingOutputs(
+                        route,
+                        List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
 
                 TrinityPatternCatalog.CoreMount duplicateTarget = host.getPatternCatalog().mountedCores().stream()
                         .filter(candidate -> candidate.core() != mount.core() &&
@@ -893,7 +898,9 @@ public final class CompartmentBlockEntityTest {
                         "Complete Trinity structure must publish a P-core before host reconstruction");
                 TrinityPatternCatalog.CoreMount mount = activeHost.getPatternCatalog().mountedCores().getFirst();
                 PatternRoute route = new PatternRoute(activeHost.getHostId(), mount.core().coreId(), 0);
-                mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+                mount.core().appendPendingOutputs(
+                        route,
+                        List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
                 helper.assertTrue(activeHost.getPatternCatalog().hasWork(),
                         "P-core work must lock the non-default lease before host reconstruction");
                 originalLeaseHatch.set(intendedOwner);
@@ -941,7 +948,9 @@ public final class CompartmentBlockEntityTest {
 
                 TrinityPatternCatalog.CoreMount mount = restoredHost.getPatternCatalog().mountedCores().getFirst();
                 PatternRoute route = new PatternRoute(restoredHost.getHostId(), mount.core().coreId(), 0);
-                mount.core().appendPendingOutputs(route, List.of(new ItemStack(Items.EMERALD)));
+                mount.core().appendPendingOutputs(
+                        route,
+                        List.of(TrinityItemAmount.of(new ItemStack(Items.EMERALD))));
                 ownerPower.get().destroy();
                 ownerPower.set(null);
                 ownerOffline.set(true);

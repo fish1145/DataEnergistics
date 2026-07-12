@@ -41,6 +41,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
@@ -73,7 +74,6 @@ import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.parts.IPartItem;
-import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
@@ -98,6 +98,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                         implements MultiBlockStatusProvider, CompartmentHost, TrinityDataCoreMenuHost,
@@ -223,10 +224,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             tickServerState();
         } catch (RuntimeException exception) {
             this.craftingRuntime.setPaused(true);
+            notifyTrinityCpuChanged();
             this.cpuStructureRecheckRequested = true;
             this.craftingStructureRecheckRequested = true;
             if (withdrawPatternCatalog()) {
-                notifyTrinityAccessChanged();
+                notifyTrinityPatternChanged();
             }
             LOGGER.error("Failed to tick Trinity Data Core at {}; runtime was paused", this.worldPosition, exception);
         }
@@ -238,7 +240,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         reevaluateAccessLease();
         if (this.patternCatalogValid && this.patternCatalog.refreshChangedPatterns()) {
             this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
-            notifyTrinityAccessChanged();
+            notifyTrinityPatternChanged();
         }
         tickOwnedPatternCores();
     }
@@ -335,7 +337,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         boolean refunded = this.patternCatalog.tryRefundAll(createRefundDelivery(player));
         if (refunded) {
-            notifyTrinityAccessChanged();
             setChanged();
         }
         return refunded;
@@ -361,7 +362,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         boolean refunded = core.tryRefundAll(createRefundDelivery(player));
         if (refunded) {
-            notifyTrinityAccessChanged();
             setChanged();
         }
         return refunded;
@@ -375,7 +375,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         boolean changed = withdrawPatternCatalog();
         requestStructureRecheck();
         if (changed) {
-            notifyTrinityAccessChanged();
+            notifyTrinityPatternChanged();
         }
         setChanged();
     }
@@ -726,8 +726,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     /**
      * Restores the storage and crafting identities carried by one moved host item.
      *
-     * <p>Both components form one identity pair. A malformed item containing only one component is rejected so a
-     * newly created host cannot accidentally bind half of another host's persistent state.</p>
+     * <p>
+     * Both components form one identity pair. A malformed item containing only one component is rejected so a
+     * newly created host cannot accidentally bind half of another host's persistent state.
+     * </p>
      *
      * @param stack placed Trinity host item
      * @return whether a complete identity pair was restored
@@ -806,7 +808,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      */
     public void setCpuContribution(String structureName, TrinityDataCoreCpuContribution contribution) {
         this.craftingRuntime.setContribution(structureName, contribution);
-        notifyTrinityAccessChanged();
+        notifyTrinityCpuChanged();
         setChanged();
     }
 
@@ -817,7 +819,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      */
     public void clearCpuContribution(String structureName) {
         this.craftingRuntime.clearContribution(structureName);
-        notifyTrinityAccessChanged();
+        notifyTrinityCpuChanged();
         setChanged();
     }
 
@@ -1050,7 +1052,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             }
         }
         if (routedAnyOutput) {
-            notifyTrinityAccessChanged();
+            notifyTrinityStorageChanged();
         }
     }
 
@@ -1060,29 +1062,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         boolean changed = false;
         for (int slot : core.pendingOutputSlots(this.hostId)) {
             PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
-            List<ItemStack> pending = core.pendingOutputs(route);
-            boolean[] checkpointed = { false };
-            try {
-                this.patternOutputRouter.route(
+            try (PendingOutputCursor pending = core.openPendingOutputCursor(route)) {
+                changed |= this.patternOutputRouter.route(
                         pending,
-                        key -> Math.max(
-                                craftingService.getRequestedAmount(key),
-                                this.craftingRuntime.getRequestedAmount(key)),
-                        (key, amount, mode) -> insertPatternOutputIntoCpus(
-                                craftingService,
-                                key,
-                                amount,
-                                mode),
+                        craftingService::getRequestedAmount,
+                        craftingService::insertIntoCpus,
                         (key, amount, mode) -> storage.insert(
                                 this.storageId,
                                 key,
                                 amount,
                                 mode,
-                                this.storageProfile),
-                        remaining -> {
-                            core.replacePendingOutputs(route, remaining);
-                            checkpointed[0] = true;
-                        });
+                                this.storageProfile));
             } catch (RuntimeException exception) {
                 LOGGER.error(
                         "Failed to route Trinity pattern core {} slot {} outputs for host {}",
@@ -1091,20 +1081,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         this.worldPosition,
                         exception);
             }
-            changed |= checkpointed[0];
         }
         return changed;
-    }
-
-    private long insertPatternOutputIntoCpus(CraftingService craftingService,
-                                             AEItemKey key,
-                                             long amount,
-                                             Actionable mode) {
-        long inserted = craftingService.insertIntoCpus(key, amount, mode);
-        if (inserted >= amount) {
-            return inserted;
-        }
-        return this.craftingRuntime.insertIntoCpus(key, amount, mode, inserted);
     }
 
     private void setIdentity(UUID storageId, UUID hostId) {
@@ -1596,7 +1574,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.cpuStructureContribution = contribution;
             setCpuContribution(CPU_STRUCTURE_NAME, contribution);
         } else if (statusChanged) {
-            notifyTrinityAccessChanged();
+            notifyTrinityCpuChanged();
             setChanged();
         }
     }
@@ -1629,7 +1607,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.cpuStructureMatchedBlockCount = 0;
         this.cpuLastFailureReason = nextFailureReason;
         this.cpuLastFailurePosition = nextFailurePosition;
-        notifyTrinityAccessChanged();
+        notifyTrinityCpuChanged();
         setChanged();
     }
 
@@ -1648,7 +1626,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingLastFailureReason = NO_FAILURE;
         this.craftingLastFailurePosition = null;
         if (statusChanged) {
-            notifyTrinityAccessChanged();
+            notifyTrinityPatternChanged();
             setChanged();
         }
     }
@@ -1668,7 +1646,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 Objects.equals(this.craftingLastFailureReason, nextFailureReason) &&
                 Objects.equals(this.craftingLastFailurePosition, nextFailurePosition)) {
             if (catalogWithdrawn) {
-                notifyTrinityAccessChanged();
+                notifyTrinityPatternChanged();
             }
             return;
         }
@@ -1684,7 +1662,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingStructureMatchedBlockCount = 0;
         this.craftingLastFailureReason = nextFailureReason;
         this.craftingLastFailurePosition = nextFailurePosition;
-        notifyTrinityAccessChanged();
+        notifyTrinityPatternChanged();
         setChanged();
     }
 
@@ -1815,10 +1793,26 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 data.getInt(CRAFTING_PATTERN_CAPACITY_TAG));
     }
 
+    private void notifyTrinityStorageChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStorageAccess);
+    }
+
+    private void notifyTrinityCpuChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityCpuAccess);
+    }
+
+    private void notifyTrinityPatternChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternAccess);
+    }
+
     private void notifyTrinityAccessChanged() {
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityAccess);
+    }
+
+    private void refreshTrinityAccessHatches(Consumer<TrinityAccessHatchBlockEntity> refresh) {
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
             if (part instanceof TrinityAccessHatchBlockEntity hatch) {
-                hatch.refreshTrinityAccess();
+                refresh.accept(hatch);
             }
         }
     }
@@ -1967,6 +1961,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 return PatternCatalogScanResult.failure(
                         pos,
                         "Trinity pattern processing core at " + pos + " has no matching block entity");
+            }
+            if (!patternCore.isCoreStateReady()) {
+                return PatternCatalogScanResult.failure(
+                        pos,
+                        "Trinity pattern processing core at " + pos + " has rejected persisted state");
             }
             if (!patternCore.canBindPatternHost(this)) {
                 return PatternCatalogScanResult.failure(

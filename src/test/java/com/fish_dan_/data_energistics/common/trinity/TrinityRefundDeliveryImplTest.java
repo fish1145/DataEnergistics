@@ -40,10 +40,10 @@ public final class TrinityRefundDeliveryImplTest {
         fillInventory(player.getInventory(), new ItemStack(Items.STONE, 64));
         RecordingStorage storage = new RecordingStorage(true);
         TrinityRefundDeliveryImpl delivery = new TrinityRefundDeliveryImpl(player, storage, IActionSource.empty());
-        List<ItemStack> stacks = List.of(new ItemStack(Items.DIAMOND, 2));
+        List<TrinityItemAmount> items = List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2)));
 
-        assertTrue(delivery.prepare(stacks));
-        delivery.deliver(stacks);
+        assertTrue(delivery.prepare(items));
+        delivery.deliver(items);
 
         assertEquals(2L, storage.insertedAmount);
         for (ItemStack stack : player.getInventory().items) {
@@ -61,10 +61,10 @@ public final class TrinityRefundDeliveryImplTest {
         clearInventory(player.getInventory());
         RecordingStorage storage = new RecordingStorage(false);
         TrinityRefundDeliveryImpl delivery = new TrinityRefundDeliveryImpl(player, storage, IActionSource.empty());
-        List<ItemStack> stacks = List.of(new ItemStack(Items.DIAMOND, 2));
+        List<TrinityItemAmount> items = List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2)));
 
-        assertTrue(delivery.prepare(stacks));
-        delivery.deliver(stacks);
+        assertTrue(delivery.prepare(items));
+        delivery.deliver(items);
 
         assertEquals(0L, storage.insertedAmount);
         assertHasStack(player.getInventory().items, Items.DIAMOND, 2);
@@ -79,10 +79,10 @@ public final class TrinityRefundDeliveryImplTest {
         fillInventory(player.getInventory(), new ItemStack(Items.STONE, 64));
         RecordingStorage storage = new RecordingStorage(false);
         TrinityRefundDeliveryImpl delivery = new TrinityRefundDeliveryImpl(player, storage, IActionSource.empty());
-        List<ItemStack> stacks = List.of(new ItemStack(Items.DIAMOND, 2));
+        List<TrinityItemAmount> items = List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2)));
 
-        assertTrue(delivery.prepare(stacks));
-        delivery.deliver(stacks);
+        assertTrue(delivery.prepare(items));
+        delivery.deliver(items);
 
         assertEquals(0L, storage.insertedAmount);
         assertDroppedItem(helper, player, Items.DIAMOND, 2);

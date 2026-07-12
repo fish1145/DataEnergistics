@@ -6,7 +6,6 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -14,12 +13,15 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.config.Actionable;
+import appeng.api.stacks.AEItemKey;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -32,22 +34,34 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void retainsUnacceptedCpuRequestAndStoresOnlyNonRequestedAmount(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong largestStorageOffer = new AtomicLong();
+        AtomicLong inserted = new AtomicLong();
 
-        TrinityPatternOutputRouter.RoutingResult result = router.route(
-                List.of(new ItemStack(Items.DIAMOND, 10)),
+        boolean changed = router.route(
+                pending,
                 key -> 5L,
-                (key, amount, mode) -> Math.min(amount, 3L),
+                (key, amount, mode) -> {
+                    long accepted = Math.min(amount, 3L);
+                    if (mode == Actionable.MODULATE) {
+                        inserted.addAndGet(accepted);
+                    }
+                    return accepted;
+                },
                 (key, amount, mode) -> {
                     largestStorageOffer.accumulateAndGet(amount, Math::max);
-                    return Math.min(amount, 4L);
-                },
-                remaining -> {});
+                    long accepted = Math.min(amount, 4L);
+                    if (mode == Actionable.MODULATE) {
+                        inserted.addAndGet(accepted);
+                    }
+                    return accepted;
+                });
 
-        assertEquals(7L, result.inserted());
+        assertTrue(changed);
+        assertEquals(7L, inserted.get());
         assertEquals(5L, largestStorageOffer.get());
-        assertEquals(1, result.remaining().size());
-        assertEquals(3, result.remaining().getFirst().getCount());
+        assertEntries(pending.snapshot(), entry(Items.DIAMOND, 3L));
+        assertEquals(2L, pending.checkpointCount());
         helper.succeed();
     }
 
@@ -56,10 +70,11 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void neverLeaksTemporarilyRejectedRequestedItemsIntoStorage(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong storageModulated = new AtomicLong();
 
-        TrinityPatternOutputRouter.RoutingResult result = router.route(
-                List.of(new ItemStack(Items.DIAMOND, 10)),
+        boolean changed = router.route(
+                pending,
                 key -> 8L,
                 (key, amount, mode) -> 0L,
                 (key, amount, mode) -> {
@@ -67,12 +82,11 @@ public final class TrinityPatternOutputRouterImplTest {
                         storageModulated.addAndGet(amount);
                     }
                     return amount;
-                },
-                remaining -> {});
+                });
 
-        assertEquals(2L, result.inserted());
+        assertTrue(changed);
         assertEquals(2L, storageModulated.get());
-        assertEquals(8, result.remaining().getFirst().getCount());
+        assertEntries(pending.snapshot(), entry(Items.DIAMOND, 8L));
         helper.succeed();
     }
 
@@ -81,17 +95,14 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void blocksLaterOutputsUntilEarlierCpuRequestIsAccepted(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
-        AtomicReference<List<ItemStack>> persisted = new AtomicReference<>(List.of(
-                new ItemStack(Items.BUCKET),
-                new ItemStack(Items.DIAMOND)));
+        FakePendingOutputCursor pending = cursor(entry(Items.BUCKET, 1L), entry(Items.DIAMOND, 1L));
         AtomicLong bucketRequested = new AtomicLong(1L);
-        AtomicLong checkpointCount = new AtomicLong();
         AtomicBoolean acceptBucket = new AtomicBoolean();
         AtomicBoolean diamondCpuTouched = new AtomicBoolean();
         AtomicBoolean diamondStorageTouched = new AtomicBoolean();
 
-        TrinityPatternOutputRouter.RoutingResult blocked = router.route(
-                persisted.get(),
+        boolean blocked = router.route(
+                pending,
                 key -> key.is(Items.BUCKET) ? bucketRequested.get() : 0L,
                 (key, amount, mode) -> {
                     if (key.is(Items.DIAMOND)) {
@@ -110,23 +121,18 @@ public final class TrinityPatternOutputRouterImplTest {
                         diamondStorageTouched.set(true);
                     }
                     return amount;
-                },
-                remaining -> {
-                    checkpointCount.incrementAndGet();
-                    persisted.set(remaining.stream().map(ItemStack::copy).toList());
                 });
 
-        assertEquals(0L, blocked.inserted());
+        assertFalse(blocked);
         assertFalse(diamondCpuTouched.get());
         assertFalse(diamondStorageTouched.get());
-        assertEquals(1L, checkpointCount.get());
-        assertStacks(persisted.get(), Items.BUCKET, Items.DIAMOND);
-        assertStacks(blocked.remaining(), Items.BUCKET, Items.DIAMOND);
+        assertEquals(0L, pending.checkpointCount());
+        assertEntries(pending.snapshot(), entry(Items.BUCKET, 1L), entry(Items.DIAMOND, 1L));
 
         acceptBucket.set(true);
-        checkpointCount.set(0L);
-        TrinityPatternOutputRouter.RoutingResult completed = router.route(
-                persisted.get(),
+        pending = cursor(pending.snapshot());
+        boolean completed = router.route(
+                pending,
                 key -> key.is(Items.BUCKET) ? bucketRequested.get() : 0L,
                 (key, amount, mode) -> {
                     if (key.is(Items.DIAMOND)) {
@@ -145,18 +151,13 @@ public final class TrinityPatternOutputRouterImplTest {
                         diamondStorageTouched.set(true);
                     }
                     return amount;
-                },
-                remaining -> {
-                    checkpointCount.incrementAndGet();
-                    persisted.set(remaining.stream().map(ItemStack::copy).toList());
                 });
 
-        assertEquals(2L, completed.inserted());
+        assertTrue(completed);
         assertFalse(diamondCpuTouched.get());
         assertTrue(diamondStorageTouched.get());
-        assertEquals(2L, checkpointCount.get());
-        assertTrue(persisted.get().isEmpty());
-        assertTrue(completed.remaining().isEmpty());
+        assertEquals(2L, pending.checkpointCount());
+        assertTrue(pending.snapshot().isEmpty());
         helper.succeed();
     }
 
@@ -165,20 +166,16 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void preservesExactRemainderWhenStorageCapacityIsExhausted(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 6L), entry(Items.GOLD_INGOT, 2L));
 
-        TrinityPatternOutputRouter.RoutingResult result = router.route(
-                List.of(new ItemStack(Items.DIAMOND, 6), new ItemStack(Items.GOLD_INGOT, 2)),
+        boolean changed = router.route(
+                pending,
                 key -> 0L,
                 (key, amount, mode) -> 0L,
-                (key, amount, mode) -> 0L,
-                remaining -> {});
+                (key, amount, mode) -> 0L);
 
-        assertEquals(0L, result.inserted());
-        assertEquals(2, result.remaining().size());
-        assertEquals(6, result.remaining().get(0).getCount());
-        assertEquals(2, result.remaining().get(1).getCount());
-        assertTrue(result.remaining().get(0).is(Items.DIAMOND));
-        assertTrue(result.remaining().get(1).is(Items.GOLD_INGOT));
+        assertFalse(changed);
+        assertEntries(pending.snapshot(), entry(Items.DIAMOND, 6L), entry(Items.GOLD_INGOT, 2L));
         helper.succeed();
     }
 
@@ -187,10 +184,11 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void storageRemainderDoesNotBlockLaterStack(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        FakePendingOutputCursor pending = cursor(entry(Items.DIAMOND, 1L), entry(Items.GOLD_INGOT, 1L));
         AtomicBoolean goldReachedStorage = new AtomicBoolean();
 
-        TrinityPatternOutputRouter.RoutingResult result = router.route(
-                List.of(new ItemStack(Items.DIAMOND), new ItemStack(Items.GOLD_INGOT)),
+        boolean changed = router.route(
+                pending,
                 key -> 0L,
                 (key, amount, mode) -> 0L,
                 (key, amount, mode) -> {
@@ -199,109 +197,91 @@ public final class TrinityPatternOutputRouterImplTest {
                         return amount;
                     }
                     return 0L;
-                },
-                remaining -> {});
+                });
 
+        assertTrue(changed);
         assertTrue(goldReachedStorage.get());
-        assertEquals(1L, result.inserted());
-        assertStacks(result.remaining(), Items.DIAMOND);
+        assertEntries(pending.snapshot(), entry(Items.DIAMOND, 1L));
         helper.succeed();
     }
 
     @TestHolder("trinity_pattern_output_router_checkpoints_before_later_failure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void checkpointsCompletedPrefixBeforeLaterSinkFailure(GameTestHelper helper) {
+    public static void checkpointsCompletedEntryBeforeLaterSinkFailure(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
-        AtomicReference<List<ItemStack>> persisted = new AtomicReference<>(List.of(
-                new ItemStack(Items.DIAMOND),
-                new ItemStack(Items.GOLD_INGOT)));
+        FakePendingOutputCursor firstPending = cursor(entry(Items.DIAMOND, 1L), entry(Items.GOLD_INGOT, 1L));
         AtomicLong insertedDiamonds = new AtomicLong();
-        boolean failed = false;
-        try {
-            router.route(
-                    persisted.get(),
-                    key -> 0L,
-                    (key, amount, mode) -> 0L,
-                    (key, amount, mode) -> {
-                        if (key.is(Items.GOLD_INGOT)) {
-                            throw new IllegalStateException("expected second-stack failure");
-                        }
-                        if (mode == Actionable.MODULATE) {
-                            insertedDiamonds.addAndGet(amount);
-                        }
-                        return amount;
-                    },
-                    remaining -> persisted.set(remaining.stream().map(ItemStack::copy).toList()));
-        } catch (IllegalStateException exception) {
-            failed = true;
-        }
 
-        assertTrue(failed);
-        assertEquals(1L, insertedDiamonds.get());
-        assertEquals(1, persisted.get().size());
-        assertTrue(persisted.get().getFirst().is(Items.GOLD_INGOT));
-
-        router.route(
-                persisted.get(),
+        assertIllegalState(() -> router.route(
+                firstPending,
                 key -> 0L,
                 (key, amount, mode) -> 0L,
-                (key, amount, mode) -> amount,
-                remaining -> persisted.set(remaining.stream().map(ItemStack::copy).toList()));
+                (key, amount, mode) -> {
+                    if (key.is(Items.GOLD_INGOT)) {
+                        throw new IllegalStateException("expected second-entry failure");
+                    }
+                    if (mode == Actionable.MODULATE) {
+                        insertedDiamonds.addAndGet(amount);
+                    }
+                    return amount;
+                }));
+
         assertEquals(1L, insertedDiamonds.get());
-        assertTrue(persisted.get().isEmpty());
+        assertEntries(firstPending.snapshot(), entry(Items.GOLD_INGOT, 1L));
+
+        FakePendingOutputCursor retryPending = cursor(firstPending.snapshot());
+        router.route(
+                retryPending,
+                key -> 0L,
+                (key, amount, mode) -> 0L,
+                (key, amount, mode) -> amount);
+        assertEquals(1L, insertedDiamonds.get());
+        assertTrue(retryPending.snapshot().isEmpty());
         helper.succeed();
     }
 
     @TestHolder("trinity_pattern_output_router_checkpoints_cpu_before_storage_failure")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void checkpointsCpuInsertionBeforeSameStackStorageFailure(GameTestHelper helper) {
+    public static void checkpointsCpuInsertionBeforeSameEntryStorageFailure(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
-        AtomicReference<List<ItemStack>> persisted = new AtomicReference<>(
-                List.of(new ItemStack(Items.DIAMOND, 10)));
+        FakePendingOutputCursor firstPending = cursor(entry(Items.DIAMOND, 10L));
         AtomicLong requested = new AtomicLong(3L);
         AtomicLong insertedIntoCpu = new AtomicLong();
         AtomicBoolean failStorage = new AtomicBoolean(true);
-        boolean failed = false;
-        try {
-            router.route(
-                    persisted.get(),
-                    key -> requested.get(),
-                    (key, amount, mode) -> {
-                        if (mode == Actionable.MODULATE) {
-                            requested.addAndGet(-amount);
-                            insertedIntoCpu.addAndGet(amount);
-                        }
-                        return amount;
-                    },
-                    (key, amount, mode) -> {
-                        if (failStorage.get()) {
-                            throw new IllegalStateException("expected same-stack storage failure");
-                        }
-                        return amount;
-                    },
-                    remaining -> persisted.set(remaining.stream().map(ItemStack::copy).toList()));
-        } catch (IllegalStateException exception) {
-            failed = true;
-        }
 
-        assertTrue(failed);
+        assertIllegalState(() -> router.route(
+                firstPending,
+                key -> requested.get(),
+                (key, amount, mode) -> {
+                    if (mode == Actionable.MODULATE) {
+                        requested.addAndGet(-amount);
+                        insertedIntoCpu.addAndGet(amount);
+                    }
+                    return amount;
+                },
+                (key, amount, mode) -> {
+                    if (failStorage.get()) {
+                        throw new IllegalStateException("expected same-entry storage failure");
+                    }
+                    return amount;
+                }));
+
         assertEquals(3L, insertedIntoCpu.get());
-        assertEquals(1, persisted.get().size());
-        assertEquals(7, persisted.get().getFirst().getCount());
+        assertEntries(firstPending.snapshot(), entry(Items.DIAMOND, 7L));
 
         failStorage.set(false);
+        FakePendingOutputCursor retryPending = cursor(firstPending.snapshot());
         router.route(
-                persisted.get(),
+                retryPending,
                 key -> requested.get(),
                 (key, amount, mode) -> {
                     throw new GameTestAssertException("CPU must not receive the already completed amount again");
                 },
-                (key, amount, mode) -> amount,
-                remaining -> persisted.set(remaining.stream().map(ItemStack::copy).toList()));
+                (key, amount, mode) -> amount);
         assertEquals(3L, insertedIntoCpu.get());
-        assertTrue(persisted.get().isEmpty());
+        assertTrue(retryPending.snapshot().isEmpty());
         helper.succeed();
     }
 
@@ -311,22 +291,28 @@ public final class TrinityPatternOutputRouterImplTest {
     public static void checkpointsEveryInsertionBeforeStartingTheNextMutation(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
         List<String> events = new ArrayList<>();
+        FakePendingOutputCursor pending = cursor(
+                remaining -> events.add("checkpoint-" + totalAmount(remaining)),
+                entry(Items.DIAMOND, 10L));
 
-        TrinityPatternOutputRouter.RoutingResult result = router.route(
-                List.of(new ItemStack(Items.DIAMOND, 10)),
-                key -> 4L,
-                (key, amount, mode) -> {
-                    events.add(mode == Actionable.SIMULATE ? "cpu-simulate" : "cpu-modulate");
-                    return amount;
-                },
-                (key, amount, mode) -> {
-                    events.add(mode == Actionable.SIMULATE ? "storage-simulate" : "storage-modulate");
-                    return amount;
-                },
-                remaining -> events.add("checkpoint-" + remaining.stream().mapToInt(ItemStack::getCount).sum()));
+        boolean changed;
+        try (pending) {
+            changed = router.route(
+                    pending,
+                    key -> 4L,
+                    (key, amount, mode) -> {
+                        events.add(mode == Actionable.SIMULATE ? "cpu-simulate" : "cpu-modulate");
+                        return amount;
+                    },
+                    (key, amount, mode) -> {
+                        events.add(mode == Actionable.SIMULATE ? "storage-simulate" : "storage-modulate");
+                        return amount;
+                    });
+        }
 
-        assertEquals(10L, result.inserted());
-        assertTrue(result.remaining().isEmpty());
+        assertTrue(changed);
+        assertTrue(pending.closed());
+        assertTrue(pending.snapshot().isEmpty());
         assertListEquals(
                 List.of(
                         "cpu-simulate",
@@ -344,47 +330,42 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsEveryOutOfRangeSinkResult(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
-        List<ItemStack> pending = List.of(new ItemStack(Items.DIAMOND));
 
-        assertIllegalState(
+        assertIllegalStateMessage(
                 () -> router.route(
-                        pending,
+                        cursor(entry(Items.DIAMOND, 1L)),
                         key -> 1L,
                         (key, amount, mode) -> -1L,
                         (key, amount, mode) -> {
                             throw new GameTestAssertException("Storage must not run after invalid CPU simulation");
-                        },
-                        remaining -> {}),
+                        }),
                 "Trinity output crafting CPU returned invalid simulate insertion -1 for offer 1");
-        assertIllegalState(
+        assertIllegalStateMessage(
                 () -> router.route(
-                        pending,
+                        cursor(entry(Items.DIAMOND, 1L)),
                         key -> 1L,
                         (key, amount, mode) -> mode == Actionable.SIMULATE ? amount : amount + 1L,
                         (key, amount, mode) -> {
                             throw new GameTestAssertException("Storage must not run after invalid CPU modulation");
-                        },
-                        remaining -> {}),
+                        }),
                 "Trinity output crafting CPU returned invalid modulate insertion 2 for offer 1");
-        assertIllegalState(
+        assertIllegalStateMessage(
                 () -> router.route(
-                        pending,
+                        cursor(entry(Items.DIAMOND, 1L)),
                         key -> 0L,
                         (key, amount, mode) -> {
                             throw new GameTestAssertException("CPU must not run without a request");
                         },
-                        (key, amount, mode) -> -1L,
-                        remaining -> {}),
+                        (key, amount, mode) -> -1L),
                 "Trinity output main storage returned invalid simulate insertion -1 for offer 1");
-        assertIllegalState(
+        assertIllegalStateMessage(
                 () -> router.route(
-                        pending,
+                        cursor(entry(Items.DIAMOND, 1L)),
                         key -> 0L,
                         (key, amount, mode) -> {
                             throw new GameTestAssertException("CPU must not run without a request");
                         },
-                        (key, amount, mode) -> mode == Actionable.SIMULATE ? amount : amount + 1L,
-                        remaining -> {}),
+                        (key, amount, mode) -> mode == Actionable.SIMULATE ? amount : amount + 1L),
                 "Trinity output main storage returned invalid modulate insertion 2 for offer 1");
         helper.succeed();
     }
@@ -394,45 +375,93 @@ public final class TrinityPatternOutputRouterImplTest {
     @GameTest(template = "empty_5x5")
     public static void checkpointsOrderedRemaindersAfterPartialModulation(GameTestHelper helper) {
         TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
-        AtomicReference<List<ItemStack>> persisted = new AtomicReference<>(List.of(
-                new ItemStack(Items.DIAMOND, 10),
-                new ItemStack(Items.GOLD_INGOT)));
-        List<Integer> checkpointTotals = new ArrayList<>();
-        AtomicBoolean laterStackTouched = new AtomicBoolean();
+        List<Long> checkpointTotals = new ArrayList<>();
+        FakePendingOutputCursor pending = cursor(
+                remaining -> checkpointTotals.add(totalAmount(remaining)),
+                entry(Items.DIAMOND, 10L),
+                entry(Items.GOLD_INGOT, 1L));
+        AtomicBoolean laterEntryTouched = new AtomicBoolean();
 
-        TrinityPatternOutputRouter.RoutingResult result = router.route(
-                persisted.get(),
+        boolean changed = router.route(
+                pending,
                 key -> key.is(Items.DIAMOND) ? 5L : 0L,
                 (key, amount, mode) -> {
                     if (key.is(Items.GOLD_INGOT)) {
-                        laterStackTouched.set(true);
+                        laterEntryTouched.set(true);
                     }
                     return mode == Actionable.SIMULATE ? amount : Math.min(amount, 2L);
                 },
                 (key, amount, mode) -> {
                     if (key.is(Items.GOLD_INGOT)) {
-                        laterStackTouched.set(true);
+                        laterEntryTouched.set(true);
                     }
                     return mode == Actionable.SIMULATE ? amount : Math.min(amount, 3L);
-                },
-                remaining -> {
-                    List<ItemStack> copied = remaining.stream().map(ItemStack::copy).toList();
-                    persisted.set(copied);
-                    checkpointTotals.add(copied.stream().mapToInt(ItemStack::getCount).sum());
                 });
 
-        assertEquals(5L, result.inserted());
-        assertFalse(laterStackTouched.get());
-        assertIntegerListEquals(List.of(9, 6), checkpointTotals);
-        assertEquals(2L, result.remaining().size());
-        assertEquals(5L, result.remaining().getFirst().getCount());
-        assertTrue(result.remaining().getFirst().is(Items.DIAMOND));
-        assertTrue(result.remaining().get(1).is(Items.GOLD_INGOT));
-        assertEquals(2L, persisted.get().size());
-        assertEquals(5L, persisted.get().getFirst().getCount());
-        assertTrue(persisted.get().getFirst().is(Items.DIAMOND));
-        assertTrue(persisted.get().get(1).is(Items.GOLD_INGOT));
+        assertTrue(changed);
+        assertFalse(laterEntryTouched.get());
+        assertLongListEquals(List.of(9L, 6L), checkpointTotals);
+        assertEntries(pending.snapshot(), entry(Items.DIAMOND, 5L), entry(Items.GOLD_INGOT, 1L));
         helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_output_router_routes_multiple_long_max_entries")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void routesMultipleLongMaxEntriesWithoutAggregatingTheirAmounts(GameTestHelper helper) {
+        TrinityPatternOutputRouter router = new TrinityPatternOutputRouterImpl();
+        FakePendingOutputCursor pending = cursor(
+                entry(Items.DIAMOND, Long.MAX_VALUE),
+                entry(Items.GOLD_INGOT, Long.MAX_VALUE));
+        List<Long> storageOffers = new ArrayList<>();
+
+        boolean changed = router.route(
+                pending,
+                key -> 0L,
+                (key, amount, mode) -> 0L,
+                (key, amount, mode) -> {
+                    if (mode == Actionable.MODULATE) {
+                        storageOffers.add(amount);
+                    }
+                    return amount;
+                });
+
+        assertTrue(changed);
+        assertLongListEquals(List.of(Long.MAX_VALUE, Long.MAX_VALUE), storageOffers);
+        assertEquals(2L, pending.checkpointCount());
+        assertTrue(pending.snapshot().isEmpty());
+        helper.succeed();
+    }
+
+    private static TrinityItemAmount entry(Item item, long amount) {
+        return new TrinityItemAmount(AEItemKey.of(item), amount);
+    }
+
+    private static FakePendingOutputCursor cursor(TrinityItemAmount... entries) {
+        return cursor(ignored -> {}, entries);
+    }
+
+    private static FakePendingOutputCursor cursor(List<TrinityItemAmount> entries) {
+        return new FakePendingOutputCursor(entries, ignored -> {});
+    }
+
+    private static FakePendingOutputCursor cursor(Consumer<List<TrinityItemAmount>> checkpoint,
+                                                  TrinityItemAmount... entries) {
+        return new FakePendingOutputCursor(List.of(entries), checkpoint);
+    }
+
+    private static long totalAmount(List<TrinityItemAmount> entries) {
+        long total = 0L;
+        for (TrinityItemAmount entry : entries) {
+            total = Math.addExact(total, entry.amount());
+        }
+        return total;
+    }
+
+    private static void assertEntries(List<TrinityItemAmount> actual, TrinityItemAmount... expected) {
+        if (!actual.equals(List.of(expected))) {
+            throw new GameTestAssertException("Expected " + List.of(expected) + " but got " + actual);
+        }
     }
 
     private static void assertTrue(boolean value) {
@@ -459,13 +488,22 @@ public final class TrinityPatternOutputRouterImplTest {
         }
     }
 
-    private static void assertIntegerListEquals(List<Integer> expected, List<Integer> actual) {
+    private static void assertLongListEquals(List<Long> expected, List<Long> actual) {
         if (!expected.equals(actual)) {
             throw new GameTestAssertException("Expected " + expected + " but got " + actual);
         }
     }
 
-    private static void assertIllegalState(Runnable action, String expectedMessage) {
+    private static void assertIllegalState(Runnable action) {
+        try {
+            action.run();
+        } catch (IllegalStateException exception) {
+            return;
+        }
+        throw new GameTestAssertException("Expected IllegalStateException");
+    }
+
+    private static void assertIllegalStateMessage(Runnable action, String expectedMessage) {
         try {
             action.run();
         } catch (IllegalStateException exception) {
@@ -479,11 +517,68 @@ public final class TrinityPatternOutputRouterImplTest {
         throw new GameTestAssertException("Expected IllegalStateException: " + expectedMessage);
     }
 
-    private static void assertStacks(List<ItemStack> actual, Item... expected) {
-        assertEquals(expected.length, actual.size());
-        for (int index = 0; index < expected.length; index++) {
-            assertTrue(actual.get(index).is(expected[index]));
-            assertEquals(1L, actual.get(index).getCount());
+    /** Mutable route state that checkpoints each consumed amount before allowing the router to continue. */
+    private static final class FakePendingOutputCursor implements TrinityPatternOutputRouter.PendingOutputCursor {
+
+        private final LinkedList<TrinityItemAmount> entries;
+        private final ListIterator<TrinityItemAmount> iterator;
+        private final Consumer<List<TrinityItemAmount>> checkpoint;
+        private TrinityItemAmount current;
+        private long checkpointCount;
+        private boolean closed;
+
+        private FakePendingOutputCursor(List<TrinityItemAmount> entries,
+                                        Consumer<List<TrinityItemAmount>> checkpoint) {
+            this.entries = new LinkedList<>(entries);
+            this.iterator = this.entries.listIterator();
+            this.checkpoint = checkpoint;
+        }
+
+        @Override
+        public boolean advance() {
+            if (!this.iterator.hasNext()) {
+                return false;
+            }
+            this.current = this.iterator.next();
+            return true;
+        }
+
+        @Override
+        public TrinityItemAmount current() {
+            return this.current;
+        }
+
+        @Override
+        public void consumeCurrent(long amount) {
+            if (amount <= 0L || amount > this.current.amount()) {
+                throw new IllegalArgumentException("Invalid fake cursor consumption: " + amount);
+            }
+            long remaining = this.current.amount() - amount;
+            if (remaining == 0L) {
+                this.iterator.remove();
+            } else {
+                this.current = this.current.withAmount(remaining);
+                this.iterator.set(this.current);
+            }
+            this.checkpointCount++;
+            this.checkpoint.accept(snapshot());
+        }
+
+        @Override
+        public void close() {
+            this.closed = true;
+        }
+
+        private List<TrinityItemAmount> snapshot() {
+            return List.copyOf(this.entries);
+        }
+
+        private long checkpointCount() {
+            return this.checkpointCount;
+        }
+
+        private boolean closed() {
+            return this.closed;
         }
     }
 }

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
@@ -97,10 +98,10 @@ public final class TrinityDataCoreMenuTest {
         TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
         first.appendPendingOutputs(
                 new PatternRoute(catalog.hostId(), first.coreId(), 0),
-                List.of(new ItemStack(Items.DIAMOND, 2)));
+                List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2))));
         second.appendPendingOutputs(
                 new PatternRoute(catalog.hostId(), second.coreId(), 0),
-                List.of(new ItemStack(Items.GOLD_INGOT, 3)));
+                List.of(TrinityItemAmount.of(new ItemStack(Items.GOLD_INGOT, 3))));
         TrinityPatternCatalog.RebuildResult rebuilt = catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(firstPosition, 64, first),
                 new TrinityPatternCatalog.CoreMount(secondPosition, 64, second)));

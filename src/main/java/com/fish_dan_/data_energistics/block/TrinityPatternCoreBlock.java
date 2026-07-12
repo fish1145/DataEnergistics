@@ -55,7 +55,9 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore) {
-            MenuOpener.open(ModMenus.TRINITY_PATTERN_CORE.get(), player, MenuLocators.forBlockEntity(patternCore));
+            if (patternCore.isCoreStateReady()) {
+                MenuOpener.open(ModMenus.TRINITY_PATTERN_CORE.get(), player, MenuLocators.forBlockEntity(patternCore));
+            }
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }

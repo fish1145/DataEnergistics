@@ -301,7 +301,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         }
 
         ArrayList<TrinityPatternCore.RefundTransaction> transactions = new ArrayList<>(capturedLayout.mounts().size());
-        ArrayList<ItemStack> refundable = new ArrayList<>();
+        ArrayList<TrinityItemAmount> refundable = new ArrayList<>();
         boolean committed = false;
         try {
             for (CoreRange range : capturedLayout.ranges()) {
@@ -311,15 +311,9 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                 }
                 TrinityPatternCore.RefundTransaction transaction = mount.core().prepareRefund(this.hostId);
                 transactions.add(transaction);
-                for (ItemStack stack : transaction.refundableStacks()) {
-                    if (stack.isEmpty()) {
-                        throw new IllegalStateException("Trinity pattern core " + mount.core().coreId() +
-                                " exposed an empty refund stack");
-                    }
-                    refundable.add(stack.copy());
-                }
+                refundable.addAll(transaction.refundableItems());
             }
-            List<ItemStack> offered = List.copyOf(refundable);
+            List<TrinityItemAmount> offered = List.copyOf(refundable);
             if (offered.isEmpty() || this.layout != capturedLayout || !delivery.prepare(offered)) {
                 return false;
             }

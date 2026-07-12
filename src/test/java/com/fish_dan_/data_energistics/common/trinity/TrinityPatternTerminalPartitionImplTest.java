@@ -271,7 +271,7 @@ public final class TrinityPatternTerminalPartitionImplTest {
                 return new TestPattern(stack);
             }
             return null;
-        }, () -> {});
+        }, TrinityPatternTestResolvers.create(), change -> {});
     }
 
     private static PatternContainerGroup terminalGroup() {
