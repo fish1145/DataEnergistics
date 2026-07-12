@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.TrinityPatternCoreMenu;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
@@ -22,6 +25,7 @@ public final class TrinityPatternCoreScreen extends AEBaseScreen<TrinityPatternC
     public TrinityPatternCoreScreen(TrinityPatternCoreMenu menu, Inventory playerInventory, Component title,
                                     ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        setTextContent(TEXT_ID_DIALOG_TITLE, title);
         this.previousPageButton = new ToggleButton(
                 Icon.ARROW_LEFT,
                 Icon.ARROW_LEFT,
@@ -42,6 +46,16 @@ public final class TrinityPatternCoreScreen extends AEBaseScreen<TrinityPatternC
         addToLeftToolbar(this.previousPageButton);
         addToLeftToolbar(this.nextPageButton);
         addToLeftToolbar(this.refundAllButton);
+    }
+
+    @Override
+    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
+        if (slot.isActive() && slot.getItem().isEmpty() && this.menu.isPagePatternSlot(slot)) {
+            DataEnergisticsIcon.getBlitter("BACKGROUND_DATA_CARRIER_PATTERN")
+                    .dest(slot.x, slot.y)
+                    .blit(guiGraphics);
+        }
+        super.renderSlot(guiGraphics, slot);
     }
 
     @Override
