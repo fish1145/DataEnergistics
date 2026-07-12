@@ -59,6 +59,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @PrefixGameTestTemplate(false)
 public final class TrinityDataCoreAe2CraftingGameTest {
 
+    private static final long COUNTED_BATCH_SIZE = 128L;
     private static final int TABLE_PATTERN_SLOT = 37;
     private static final int CAKE_PATTERN_SLOT = 38;
     private static final int REMOVAL_PATTERN_SLOT = 39;
@@ -231,6 +232,32 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             1L,
                             "The allocated Trinity worker must wait for the routed output");
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
+
+                    AEItemKey busyStorageProbe = AEItemKey.of(Items.REDSTONE);
+                    helper.assertValueEqual(
+                            networkStorage.insert(
+                                    busyStorageProbe,
+                                    2L,
+                                    Actionable.MODULATE,
+                                    host.accessActionSource()),
+                            2L,
+                            "Storage must remain writable while the Trinity CPU and pattern provider are active");
+                    helper.assertValueEqual(
+                            networkStorage.extract(
+                                    busyStorageProbe,
+                                    2L,
+                                    Actionable.MODULATE,
+                                    host.accessActionSource()),
+                            2L,
+                            "Storage must remain readable while a routed CPU job is waiting");
+                    helper.assertTrue(
+                            craftingService.getCpus().contains(worker),
+                            "Busy storage I/O must not withdraw the allocated Trinity worker");
+                    helper.assertValueEqual(
+                            fixture.accessHatches().stream().filter(host::isLeaseOwner).count(),
+                            1L,
+                            "Busy storage I/O must retain the same unique lease publication");
+                    assertHostStorage(helper, fixture, busyStorageProbe, 0L);
                     assertCpuPublishedOnce(helper, craftingService, reservedCpu);
                     helper.assertValueEqual(
                             providerCount(
@@ -260,13 +287,22 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
         TrinityPatternCore core = mount.core();
         helper.assertTrue(core.patternCapacity() > CAKE_PATTERN_SLOT, "Selected P core should expose both test slots");
+        helper.assertTrue(
+                host.getCpuCoProcessors() >= COUNTED_BATCH_SIZE - 1L,
+                "Real counted-batch fixture needs at least 127 co-processors for one-tick dispatch");
 
         ItemStack tablePattern = craftingTablePattern(level);
         ItemStack cakePattern = cakePattern(level);
         PatternRoute tableRoute = new PatternRoute(host.getHostId(), core.coreId(), TABLE_PATTERN_SLOT);
         PatternRoute cakeRoute = new PatternRoute(host.getHostId(), core.coreId(), CAKE_PATTERN_SLOT);
-        PendingCraftingPlan tablePlan = new PendingCraftingPlan(level, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
-        PendingCraftingPlan cakePlan = new PendingCraftingPlan(level, AEItemKey.of(Items.CAKE), 1L);
+        PendingCraftingPlan tablePlan = new PendingCraftingPlan(
+                level,
+                AEItemKey.of(Items.CRAFTING_TABLE),
+                COUNTED_BATCH_SIZE);
+        PendingCraftingPlan cakePlan = new PendingCraftingPlan(
+                level,
+                AEItemKey.of(Items.CAKE),
+                COUNTED_BATCH_SIZE);
         AtomicReference<TrinityDataCoreVirtualCpu> activeWorker = new AtomicReference<>();
 
         helper.startSequence()
@@ -286,16 +322,16 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CAKE), cakeRoute);
                 })
                 .thenExecute(() -> {
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 8L);
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 512L);
                     tablePlan.start(fixture.grid(), host.accessActionSource());
                 })
                 .thenWaitUntil(tablePlan::await)
                 .thenExecute(() -> {
                     ICraftingPlan plan = tablePlan.plan();
-                    assertPlan(helper, plan, tableRoute, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
+                    assertPlan(helper, plan, tableRoute, AEItemKey.of(Items.CRAFTING_TABLE), COUNTED_BATCH_SIZE);
                     helper.assertValueEqual(
                             plan.usedItems().get(AEItemKey.of(Items.CRIMSON_PLANKS)),
-                            8L,
+                            512L,
                             "Real AE2 planning should select stored Crimson Planks as substitutes");
                     helper.assertValueEqual(
                             plan.usedItems().get(AEItemKey.of(Items.OAK_PLANKS)),
@@ -306,11 +342,16 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     activeWorker.set(worker);
                     long dispatchTick = level.getGameTime();
                     assertOnlyRouteQueued(helper, host, tableRoute, 1);
-                    assertSubstitutedTableBatches(helper, core.queuedBatches(TABLE_PATTERN_SLOT), tableRoute, dispatchTick);
+                    assertSubstitutedTableBatch(
+                            helper,
+                            core.queuedBatches(TABLE_PATTERN_SLOT),
+                            tableRoute,
+                            dispatchTick,
+                            COUNTED_BATCH_SIZE);
                     helper.assertValueEqual(
                             worker.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
-                            2L,
-                            "Trinity CPU should wait for both routed table outputs");
+                            COUNTED_BATCH_SIZE,
+                            "Trinity CPU should wait for every counted routed table output");
 
                     host.serverTick();
                     assertOnlyRouteQueued(helper, host, tableRoute, 1);
@@ -324,31 +365,37 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "All table outputs should leave the P core after CPU routing");
                     helper.assertFalse(activeWorker.get().isBusy(),
                             "Trinity worker should finish after both table outputs return");
-                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), COUNTED_BATCH_SIZE);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
 
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.MILK_BUCKET), 3L);
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.SUGAR), 2L);
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.EGG), 1L);
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.WHEAT), 3L);
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.MILK_BUCKET), 384L);
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.SUGAR), 256L);
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.EGG), COUNTED_BATCH_SIZE);
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.WHEAT), 384L);
                     cakePlan.start(fixture.grid(), host.accessActionSource());
                 })
                 .thenWaitUntil(cakePlan::await)
                 .thenExecute(() -> {
                     ICraftingPlan plan = cakePlan.plan();
-                    assertPlan(helper, plan, cakeRoute, AEItemKey.of(Items.CAKE), 1L);
+                    assertPlan(helper, plan, cakeRoute, AEItemKey.of(Items.CAKE), COUNTED_BATCH_SIZE);
                     TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
                     activeWorker.set(worker);
                     helper.assertValueEqual(core.queuedBatchCount(CAKE_PATTERN_SLOT), 1,
-                            "Cake dispatch should enter its exact physical slot");
+                            "Counted cake dispatch should enter one group in its exact physical slot");
+                    TrinityCraftingBatch cakeBatch = core.queuedBatches(CAKE_PATTERN_SLOT).getFirst();
+                    helper.assertValueEqual(
+                            cakeBatch.count(),
+                            COUNTED_BATCH_SIZE,
+                            "One cake queue group should retain all counted logical crafts");
+                    helper.assertValueEqual(cakeBatch.route(), cakeRoute, "Counted cake group should retain its route");
                     helper.assertValueEqual(
                             worker.getWaitingFor(AEItemKey.of(Items.CAKE)),
-                            1L,
-                            "Trinity CPU should wait for the cake output");
+                            COUNTED_BATCH_SIZE,
+                            "Trinity CPU should wait for every counted cake output");
                     helper.assertValueEqual(
                             worker.getWaitingFor(AEItemKey.of(Items.BUCKET)),
-                            3L,
-                            "Trinity CPU should wait for all three container remainders");
+                            384L,
+                            "Trinity CPU should scale all three container remainders by the counted batch");
 
                     host.serverTick();
                     helper.assertValueEqual(core.queuedBatchCount(CAKE_PATTERN_SLOT), 1,
@@ -363,13 +410,13 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Cake and buckets should leave the P core after CPU routing");
                     helper.assertFalse(activeWorker.get().isBusy(),
                             "Trinity worker should finish after cake and buckets return");
-                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CAKE), 1L);
-                    assertHostStorage(helper, fixture, AEItemKey.of(Items.BUCKET), 3L);
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CAKE), COUNTED_BATCH_SIZE);
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.BUCKET), 384L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.MILK_BUCKET), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.SUGAR), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.EGG), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.WHEAT), 0L);
-                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), COUNTED_BATCH_SIZE);
                 })
                 .thenSucceed();
     }
@@ -742,13 +789,14 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 "No other P-core slot should receive this route's queue groups");
     }
 
-    private static void assertSubstitutedTableBatches(GameTestHelper helper,
-                                                      List<TrinityCraftingBatch> batches,
-                                                      PatternRoute expectedRoute,
-                                                      long dispatchTick) {
-        helper.assertValueEqual(batches.size(), 1, "Identical same-tick dispatches should tail-merge into one group");
+    private static void assertSubstitutedTableBatch(GameTestHelper helper,
+                                                    List<TrinityCraftingBatch> batches,
+                                                    PatternRoute expectedRoute,
+                                                    long dispatchTick,
+                                                    long expectedCount) {
+        helper.assertValueEqual(batches.size(), 1, "A counted dispatch should create one homogeneous queue group");
         TrinityCraftingBatch batch = batches.getFirst();
-        helper.assertValueEqual(batch.count(), 2L, "Merged table group should represent both logical crafts");
+        helper.assertValueEqual(batch.count(), expectedCount, "Table group should retain every logical craft");
         helper.assertValueEqual(batch.route(), expectedRoute, "Queued table group should retain its exact route");
         helper.assertValueEqual(batch.queuedTick(), dispatchTick, "Merged table group should retain its enqueue tick");
         long substitutedAmount = 0L;
@@ -766,8 +814,8 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         helper.assertValueEqual(substitutedAmount, 4L, "Merged table group should retain one input-grid prototype");
         helper.assertValueEqual(
                 Math.multiplyExact(substitutedAmount, batch.count()),
-                8L,
-                "Merged table group should account for both crafts' substituted inputs");
+                Math.multiplyExact(4L, expectedCount),
+                "Counted table group should account for every substituted input");
     }
 
     private static void insertIntoNetwork(GameTestHelper helper,
