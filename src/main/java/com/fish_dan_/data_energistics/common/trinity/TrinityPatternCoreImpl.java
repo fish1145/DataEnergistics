@@ -706,8 +706,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             for (ItemStack output : result.outputs()) {
                 countedOutputs.addAll(TrinityItemAmount.multiply(output, batch.count()));
             }
-            slot.appendPendingOutputs(batch.route(), countedOutputs);
-            slot.removeCompletedHead(batch);
+            slot.completeHead(batch, countedOutputs);
             completedGroups = Math.incrementExact(completedGroups);
         }
         return completedGroups;
@@ -768,9 +767,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         removeIndexedSlot(this.pendingOutputSlotsByHost, slot);
         if (patternSlot.hasPendingOutputs()) {
             this.pendingOutputSlots.add(slot);
-            for (PatternRoute route : patternSlot.pendingOutputRoutes()) {
+            for (UUID hostId : patternSlot.pendingOutputHostIds()) {
                 this.pendingOutputSlotsByHost
-                        .computeIfAbsent(route.hostId(), ignored -> new TreeSet<>())
+                        .computeIfAbsent(hostId, ignored -> new TreeSet<>())
                         .add(slot);
             }
         } else {
@@ -813,9 +812,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             }
             if (patternSlot.hasPendingOutputs()) {
                 loadedPendingOutputSlots.add(slot);
-                for (PatternRoute route : patternSlot.pendingOutputRoutes()) {
+                for (UUID hostId : patternSlot.pendingOutputHostIds()) {
                     loadedPendingSlotsByHost
-                            .computeIfAbsent(route.hostId(), ignored -> new TreeSet<>())
+                            .computeIfAbsent(hostId, ignored -> new TreeSet<>())
                             .add(slot);
                 }
             }

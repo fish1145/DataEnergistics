@@ -116,7 +116,21 @@ public interface TrinityPatternSlot {
      * @param queuedTick      accepting server tick
      * @return whether the current installed definition accepted the dispatch
      */
-    boolean enqueue(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick);
+    default boolean enqueue(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick) {
+        return enqueue(route, patternSnapshot, inputs, queuedTick, 1L);
+    }
+
+    /**
+     * Appends or tail-merges one homogeneous counted dispatch.
+     *
+     * @param route           exact owner route
+     * @param patternSnapshot encoded definition selected by the crafting plan
+     * @param inputs          one nine-slot row-major input prototype
+     * @param queuedTick      accepting server tick
+     * @param count           positive number of identical logical crafts represented by the prototype
+     * @return whether the current installed definition accepted the complete counted dispatch
+     */
+    boolean enqueue(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick, long count);
 
     /**
      * @return immutable defensive FIFO snapshot of counted groups
@@ -165,6 +179,18 @@ public interface TrinityPatternSlot {
      */
     @Nullable
     TrinityCraftingBatch readyHead(long currentTick);
+
+    /**
+     * Atomically moves the exact completed FIFO head into its counted pending outputs.
+     *
+     * <p>
+     * Queue removal and output publication form one durable mutation so observers never see the intermediate state.
+     * </p>
+     *
+     * @param completed group previously returned by {@link #readyHead(long)}
+     * @param outputs   counted outputs produced by the complete group
+     */
+    void completeHead(TrinityCraftingBatch completed, List<TrinityItemAmount> outputs);
 
     /**
      * Removes the exact completed FIFO head.

@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityBatchCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
@@ -684,7 +685,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    private final class HatchCraftingProvider implements ICraftingProvider {
+    private final class HatchCraftingProvider implements TrinityBatchCraftingProvider {
 
         @Override
         public List<IPatternDetails> getAvailablePatterns() {
@@ -694,11 +695,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         @Override
         public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            return pushPatternBatch(patternDetails, inputHolder, 1L);
+        }
+
+        @Override
+        public boolean pushPatternBatch(IPatternDetails patternDetails, KeyCounter[] inputHolder, long count) {
             TrinityDataCoreBlockEntity host = patternProviderHost();
             if (host == null || level == null || level.isClientSide()) {
                 return false;
             }
-            return host.getPatternCatalog().pushPattern(patternDetails, inputHolder, level.getGameTime());
+            return host.getPatternCatalog().pushPattern(patternDetails, inputHolder, level.getGameTime(), count);
         }
 
         @Override
