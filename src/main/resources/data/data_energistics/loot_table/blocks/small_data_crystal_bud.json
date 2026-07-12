@@ -31,10 +31,20 @@
 						},
 						{
 							"type": "minecraft:item",
+							"functions": [
+								{
+									"enchantment": "minecraft:fortune",
+									"formula": "minecraft:uniform_bonus_count",
+									"function": "minecraft:apply_bonus",
+									"parameters": {
+										"bonusMultiplier": 1
+									}
+								}
+							],
 							"conditions": [
 								{
 									"condition": "minecraft:random_chance",
-									"chance": 0.05
+									"chance": 0.1
 								}
 							],
 							"name": "data_energistics:data_dust"

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.recipe;
 
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 
 import net.minecraft.core.HolderLookup;
@@ -57,7 +58,7 @@ public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput>
 
     @Override
     public ItemStack assemble(RecipeInput input, HolderLookup.Provider registries) {
-        return this.getResultItem(registries);
+        return DataCaptureBallItem.createChargedStack();
     }
 
     @Override

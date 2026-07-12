@@ -1,0 +1,19 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "BCB", "ABA"],
+	"key": {
+		"A": {
+			"tag": "c:gems/data_crystal"
+		},
+		"B": {
+			"tag": "c:ingots/iron"
+		},
+		"C": {
+			"item": "ae2:fluix_block"
+		}
+	},
+	"result": {
+		"id": "data_energistics:data_framework",
+		"count": 1
+	}
+}

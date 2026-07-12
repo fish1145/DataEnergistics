@@ -3,6 +3,7 @@
 		{
 			"id": "#minecraft:is_overworld",
 			"required": false
-		}
+		},
+		"data_energistics:meteorite_cluster"
 	]
 }

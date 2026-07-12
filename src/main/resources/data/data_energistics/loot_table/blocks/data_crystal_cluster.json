@@ -32,11 +32,6 @@
 							"type": "minecraft:item",
 							"functions": [
 								{
-									"add": false,
-									"count": 1.0,
-									"function": "minecraft:set_count"
-								},
-								{
 									"enchantment": "minecraft:fortune",
 									"formula": "minecraft:uniform_bonus_count",
 									"function": "minecraft:apply_bonus",
@@ -48,7 +43,7 @@
 									"function": "minecraft:explosion_decay"
 								}
 							],
-							"name": "data_energistics:data_crystal"
+							"name": "data_energistics:data_dust"
 						}
 					]
 				}

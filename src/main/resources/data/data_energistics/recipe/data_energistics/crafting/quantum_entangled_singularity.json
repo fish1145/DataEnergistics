@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "ae2:quantum_entangled_singularity"
+		}
+	],
+	"result": {
+		"id": "ae2:quantum_entangled_singularity",
+		"count": 1
+	}
+}

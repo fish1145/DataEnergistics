@@ -27,7 +27,7 @@ public final class TrinityCoreResourceTest {
     private static final String ITEM_MODEL_ROOT = "assets/data_energistics/models/item/";
     private static final String TEXTURE_ROOT = "assets/data_energistics/textures/";
     private static final String LOOT_TABLE_ROOT = "data/data_energistics/loot_table/blocks/";
-    private static final String RECIPE_ROOT = "data/data_energistics/recipe/crafting/trinity_core/";
+    private static final String RECIPE_ROOT = "data/data_energistics/recipe/data_energistics/crafting/trinity_core/";
     private static final String DATA_ROOT = "data/";
     private static final String LANG_ROOT = "assets/data_energistics/lang/";
     private static final String ACCESS_HATCH_MODEL = "data_energistics:block/trinity_core/access_hatch/trinity_access_hatch";

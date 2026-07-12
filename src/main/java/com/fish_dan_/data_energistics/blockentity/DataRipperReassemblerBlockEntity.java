@@ -523,7 +523,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
-        if (!canAcceptItemOutputs(recipe)) {
+        List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
+        if (!canAcceptItemOutputs(recipe, itemOutputs)) {
             resetProcessingState();
             return;
         }
@@ -548,7 +549,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        insertRecipeOutputs(recipe);
+        insertRecipeOutputs(recipe, itemOutputs);
         resetProcessingState();
         saveChanges();
         markForClientUpdate();
@@ -614,13 +615,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return new DataRipperReassemblerRecipeInput(inputs, fluids, copyKeyStack(this.keyInputStack));
     }
 
-    private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe) {
+    private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
         ItemStack[] simulated = new ItemStack[ITEM_OUTPUT_SLOT_COUNT];
         for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
             simulated[i] = this.storage.getStackInSlot(ITEM_OUTPUT_START_SLOT + i).copy();
         }
 
-        for (ItemStack output : recipe.getItemOutputs()) {
+        for (ItemStack output : itemOutputs) {
             if (output.isEmpty()) {
                 continue;
             }
@@ -697,8 +698,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return true;
     }
 
-    private void insertRecipeOutputs(DataRipperReassemblerRecipe recipe) {
-        for (ItemStack output : recipe.getItemOutputs()) {
+    private void insertRecipeOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
+        for (ItemStack output : itemOutputs) {
             if (output.isEmpty()) {
                 continue;
             }

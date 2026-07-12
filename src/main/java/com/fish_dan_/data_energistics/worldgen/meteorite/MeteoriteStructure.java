@@ -28,6 +28,8 @@ import java.util.Set;
 
 public class MeteoriteStructure extends Structure {
 
+    private static final int VOID_METEORITE_MAX_CENTER_Y = 96;
+
     public static final MapCodec<MeteoriteStructure> CODEC;
     public static final ResourceKey<Structure> KEY;
     public static final ResourceKey<StructureSet> STRUCTURE_SET_KEY;
@@ -45,7 +47,14 @@ public class MeteoriteStructure extends Structure {
     public Optional<Structure.GenerationStub> findGenerationPoint(Structure.GenerationContext context) {
         WorldgenRandom worldgenRandom = new WorldgenRandom(new LegacyRandomSource(0L));
         worldgenRandom.setLargeFeatureSeed(context.seed(), context.chunkPos().x, context.chunkPos().z);
-        return !worldgenRandom.nextBoolean() ? Optional.empty() : onTopOfChunkCenter(context, Heightmap.Types.OCEAN_FLOOR_WG,
+        int centerX = context.chunkPos().getMiddleBlockX();
+        int centerZ = context.chunkPos().getMiddleBlockZ();
+        boolean voidTerrain = context.chunkGenerator().getBaseHeight(centerX, centerZ, Heightmap.Types.WORLD_SURFACE_WG,
+                context.heightAccessor(), context.randomState()) <= context.heightAccessor().getMinBuildHeight();
+        if (!voidTerrain && !worldgenRandom.nextBoolean()) {
+            return Optional.empty();
+        }
+        return onTopOfChunkCenter(context, Heightmap.Types.OCEAN_FLOOR_WG,
                 structurePiecesBuilder -> generatePieces(structurePiecesBuilder, context));
     }
 
@@ -56,33 +65,43 @@ public class MeteoriteStructure extends Structure {
         ChunkGenerator generator = context.chunkGenerator();
         int centerX = chunkPos.getMinBlockX() + random.nextInt(16);
         int centerZ = chunkPos.getMinBlockZ() + random.nextInt(16);
-        float meteoriteRadius = random.nextFloat() * 8.0F + 4.0F;
+        boolean voidTerrain = generator.getBaseHeight(centerX, centerZ, Heightmap.Types.WORLD_SURFACE_WG,
+                heightAccessor, context.randomState()) <= heightAccessor.getMinBuildHeight();
+        float meteoriteRadius = voidTerrain ? random.nextFloat() * 15.0F + 10.0F : random.nextFloat() * 8.0F + 4.0F;
         int yOffset = (int) Math.ceil(meteoriteRadius) + 1;
         Set<Holder<Biome>> t2 = generator.getBiomeSource().getBiomesWithin(centerX, generator.getSeaLevel(), centerZ, 0, context.randomState().sampler());
         Holder<Biome> spawnBiome = t2.stream().findFirst().orElseThrow();
-        boolean isOcean = spawnBiome.is(BiomeTags.IS_OCEAN);
-        Heightmap.Types heightmapType = isOcean ? Heightmap.Types.OCEAN_FLOOR_WG : Heightmap.Types.WORLD_SURFACE_WG;
-        StatsAccumulator stats = new StatsAccumulator();
-        int scanRadius = (int) Math.max(1.0F, meteoriteRadius * 2.0F);
+        int centerY;
+        if (voidTerrain) {
+            centerY = random.nextIntBetweenInclusive(
+                    heightAccessor.getMinBuildHeight() + yOffset,
+                    Math.min(heightAccessor.getMaxBuildHeight() - yOffset - 1,
+                            VOID_METEORITE_MAX_CENTER_Y - yOffset));
+        } else {
+            boolean isOcean = spawnBiome.is(BiomeTags.IS_OCEAN);
+            Heightmap.Types heightmapType = isOcean ? Heightmap.Types.OCEAN_FLOOR_WG : Heightmap.Types.WORLD_SURFACE_WG;
+            StatsAccumulator stats = new StatsAccumulator();
+            int scanRadius = (int) Math.max(1.0F, meteoriteRadius * 2.0F);
 
-        for (int x = -scanRadius; x <= scanRadius; ++x) {
-            for (int z = -scanRadius; z <= scanRadius; ++z) {
-                int h = generator.getBaseHeight(centerX + x, centerZ + z, heightmapType, heightAccessor, context.randomState());
-                stats.add(h);
+            for (int x = -scanRadius; x <= scanRadius; ++x) {
+                for (int z = -scanRadius; z <= scanRadius; ++z) {
+                    int h = generator.getBaseHeight(centerX + x, centerZ + z, heightmapType, heightAccessor, context.randomState());
+                    stats.add(h);
+                }
             }
-        }
 
-        int centerY = (int) stats.mean();
-        if (stats.populationVariance() > 5.0F) {
-            centerY = (int) (centerY - (stats.mean() - stats.min()) * 0.75F);
-        }
+            centerY = (int) stats.mean();
+            if (stats.populationVariance() > 5.0F) {
+                centerY = (int) (centerY - (stats.mean() - stats.min()) * 0.75F);
+            }
 
-        centerY -= yOffset;
-        centerY = Math.max(heightAccessor.getMinBuildHeight() + yOffset, centerY);
+            centerY -= yOffset;
+            centerY = Math.max(heightAccessor.getMinBuildHeight() + yOffset, centerY);
+        }
         BlockPos actualPos = new BlockPos(centerX, centerY, centerZ);
-        boolean craterLake = locateWaterAroundTheCrater(actualPos, meteoriteRadius, context);
-        CraterType craterType = determineCraterType(actualPos, spawnBiome, random);
-        boolean pureCrater = random.nextFloat() > 0.9F;
+        CraterType craterType = voidTerrain ? CraterType.NONE : determineCraterType(actualPos, spawnBiome, random);
+        boolean craterLake = !voidTerrain && locateWaterAroundTheCrater(actualPos, meteoriteRadius, context);
+        boolean pureCrater = !voidTerrain && random.nextFloat() > 0.9F;
         FalloutMode fallout = FalloutMode.fromBiome(spawnBiome);
         piecesBuilder.addPiece(new MeteoriteStructurePiece(actualPos, meteoriteRadius, craterType, fallout, pureCrater, craterLake));
     }

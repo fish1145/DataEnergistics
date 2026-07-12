@@ -220,16 +220,19 @@ public final class MeteoritePlacer {
     }
 
     private void placeMeteoriteSkyStone() {
-        int meteorXLength = this.minX(this.x - METEORITE_BODY_RADIUS);
-        int meteorXHeight = this.maxX(this.x + METEORITE_BODY_RADIUS);
-        int meteorZLength = this.minZ(this.z - METEORITE_BODY_RADIUS);
-        int meteorZHeight = this.maxZ(this.z + METEORITE_BODY_RADIUS);
+        boolean roundMeteorite = this.craterType == CraterType.NONE;
+        int bodyRadius = roundMeteorite ? (int) Math.ceil(this.meteoriteSize) : METEORITE_BODY_RADIUS;
+        int verticalRadius = roundMeteorite ? bodyRadius : 8;
+        int meteorXLength = this.minX(this.x - bodyRadius);
+        int meteorXHeight = this.maxX(this.x + bodyRadius);
+        int meteorZLength = this.minZ(this.z - bodyRadius);
+        int meteorZHeight = this.maxZ(this.z + bodyRadius);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
         for (int i = meteorXLength; i <= meteorXHeight; ++i) {
             pos.setX(i);
 
-            for (int j = this.y - 8; j < this.y + 8; ++j) {
+            for (int j = this.y - verticalRadius; j < this.y + verticalRadius + (roundMeteorite ? 1 : 0); ++j) {
                 pos.setY(j);
 
                 for (int k = meteorZLength; k <= meteorZHeight; ++k) {
@@ -237,7 +240,8 @@ public final class MeteoritePlacer {
                     int dx = i - this.x;
                     int dy = j - this.y;
                     int dz = k - this.z;
-                    if ((double) (dx * dx) * 0.7 + (double) (dy * dy) * (j > this.y ? 1.4 : 0.8) + (double) (dz * dz) * 0.7 < this.squaredMeteoriteSize) {
+                    double distance = roundMeteorite ? (double) dx * dx + (double) dy * dy + (double) dz * dz : (double) (dx * dx) * 0.7 + (double) (dy * dy) * (j > this.y ? 1.4 : 0.8) + (double) (dz * dz) * 0.7;
+                    if (distance < this.squaredMeteoriteSize) {
                         boolean isCoreColumn = Math.abs(dx) <= CORE_RADIUS && Math.abs(dz) <= CORE_RADIUS && Math.abs(dy) <= CORE_RADIUS;
                         if (isCoreColumn) {
                             CoreColumnData coreColumn = this.getOrCreateCoreColumn(i, k);

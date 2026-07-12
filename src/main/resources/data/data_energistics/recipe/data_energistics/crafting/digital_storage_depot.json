@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "EFE"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_meteorite_0"
+		},
+		"B": {
+			"item": "data_energistics:data_storage_component_1k"
+		},
+		"C": {
+			"item": "ae2:cell_component_1k"
+		},
+		"D": {
+			"item": "data_energistics:data_meteorite_2"
+		},
+		"E": {
+			"item": "data_energistics:data_meteorite_1"
+		},
+		"F": {
+			"item": "ae2:sky_stone_tank"
+		}
+	},
+	"result": {
+		"id": "data_energistics:digital_storage_depot",
+		"count": 1
+	}
+}

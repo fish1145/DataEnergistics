@@ -103,6 +103,11 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
     }
 
     @Override
+    public double getActionEnergyCost(ItemStack stack) {
+        return DataCaptureBallItem.ENERGY_PER_CAPTURE + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack) + ENERGY_PER_SABER_ENERGY_CARD * this.getSaberEnergyCardCount(stack);
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
         ItemStack stack = player.getItemInHand(usedHand);
         if (!player.isShiftKeyDown()) {

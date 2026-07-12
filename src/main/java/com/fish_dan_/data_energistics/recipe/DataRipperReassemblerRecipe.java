@@ -14,6 +14,8 @@ import net.minecraft.world.level.Level;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.blockentity.qnb.QuantumBridgeBlockEntity;
+import appeng.core.definitions.AEItems;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -96,7 +98,8 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
     @Override
     public ItemStack assemble(DataRipperReassemblerRecipeInput input, HolderLookup.Provider registries) {
-        return this.getResultItem(registries).copy();
+        NonNullList<ItemStack> outputs = this.getCraftedItemOutputs();
+        return outputs.isEmpty() ? ItemStack.EMPTY : outputs.getFirst();
     }
 
     @Override
@@ -130,6 +133,21 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
     public NonNullList<ItemStack> getItemOutputs() {
         return this.itemOutputs;
+    }
+
+    public NonNullList<ItemStack> getCraftedItemOutputs() {
+        NonNullList<ItemStack> outputs = NonNullList.create();
+        for (ItemStack output : this.itemOutputs) {
+            outputs.add(output.copy());
+        }
+
+        if (!outputs.isEmpty()) {
+            ItemStack result = outputs.getFirst();
+            if (AEItems.QUANTUM_ENTANGLED_SINGULARITY.is(result) && result.getCount() > 1) {
+                QuantumBridgeBlockEntity.assignFrequency(result);
+            }
+        }
+        return outputs;
     }
 
     public List<GenericStack> getFluidOutputs() {
