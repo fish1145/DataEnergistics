@@ -1,7 +1,7 @@
 {
 	"parent": "minecraft:item/generated",
 	"textures": {
-		"layer0": "data_energistics:item/data_cell_infinity",
+		"layer0": "data_energistics:item/cell/data_cell_infinity",
 		"layer1": "ae2:item/storage_cell_led"
 	}
 }

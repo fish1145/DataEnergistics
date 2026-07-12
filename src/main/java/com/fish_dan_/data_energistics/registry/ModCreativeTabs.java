@@ -31,6 +31,11 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_FLOW_CELL_16K);
                         output.accept(ModItems.DATA_FLOW_CELL_64K);
                         output.accept(ModItems.DATA_FLOW_CELL_256K);
+                        output.accept(ModItems.DATA_FLOW_CELL_1M);
+                        output.accept(ModItems.DATA_FLOW_CELL_4M);
+                        output.accept(ModItems.DATA_FLOW_CELL_16M);
+                        output.accept(ModItems.DATA_FLOW_CELL_64M);
+                        output.accept(ModItems.DATA_FLOW_CELL_256M);
                         output.accept(ModItems.DATA_CELL_INFINITY);
 
                         output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_1K);
@@ -38,12 +43,22 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_16K);
                         output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_64K);
                         output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_256K);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_1M);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_4M);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_16M);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_64M);
+                        output.accept(ModItems.PORTABLE_DATA_FLOW_CELL_256M);
 
                         output.accept(ModItems.DATA_STORAGE_COMPONENT_1K);
                         output.accept(ModItems.DATA_STORAGE_COMPONENT_4K);
                         output.accept(ModItems.DATA_STORAGE_COMPONENT_16K);
                         output.accept(ModItems.DATA_STORAGE_COMPONENT_64K);
                         output.accept(ModItems.DATA_STORAGE_COMPONENT_256K);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_1M);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_4M);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_16M);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_64M);
+                        output.accept(ModItems.DATA_STORAGE_COMPONENT_256M);
 
                         output.accept(ModItems.DATA_SOLAR_PANEL);
                         output.accept(ModItems.DATA_EXTRACTOR);

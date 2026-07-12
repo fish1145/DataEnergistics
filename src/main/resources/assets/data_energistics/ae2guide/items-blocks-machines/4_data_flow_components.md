@@ -10,17 +10,32 @@ item_ids:
 - data_energistics:data_storage_component_16k
 - data_energistics:data_storage_component_64k
 - data_energistics:data_storage_component_256k
+- data_energistics:data_storage_component_1m
+- data_energistics:data_storage_component_4m
+- data_energistics:data_storage_component_16m
+- data_energistics:data_storage_component_64m
+- data_energistics:data_storage_component_256m
 - data_energistics:data_flow_component_housing
 - data_energistics:data_flow_cell_1k
 - data_energistics:data_flow_cell_4k
 - data_energistics:data_flow_cell_16k
 - data_energistics:data_flow_cell_64k
 - data_energistics:data_flow_cell_256k
+- data_energistics:data_flow_cell_1m
+- data_energistics:data_flow_cell_4m
+- data_energistics:data_flow_cell_16m
+- data_energistics:data_flow_cell_64m
+- data_energistics:data_flow_cell_256m
 - data_energistics:portable_data_flow_cell_1k
 - data_energistics:portable_data_flow_cell_4k
 - data_energistics:portable_data_flow_cell_16k
 - data_energistics:portable_data_flow_cell_64k
 - data_energistics:portable_data_flow_cell_256k
+- data_energistics:portable_data_flow_cell_1m
+- data_energistics:portable_data_flow_cell_4m
+- data_energistics:portable_data_flow_cell_16m
+- data_energistics:portable_data_flow_cell_64m
+- data_energistics:portable_data_flow_cell_256m
 - data_energistics:data_cell_infinity
 ---
 
@@ -46,7 +61,7 @@ Data Flow Components are a set of components and finished cells built around dat
 
 ## Storage Components
 
-Data Flow Storage Components determine the capacity tier of the corresponding cell. Five tiers from 1K to 256K are currently available.
+Data Flow Storage Components determine the capacity tier of the corresponding cell. Ten tiers from 1K to 256M are currently available.
 
 <Column>
   <Row>
@@ -58,6 +73,17 @@ Data Flow Storage Components determine the capacity tier of the corresponding ce
   <Row>
     <RecipeFor id="data_storage_component_64k" />
     <RecipeFor id="data_storage_component_256k" />
+  </Row>
+
+  <Row>
+    <RecipeFor id="data_storage_component_1m" />
+    <RecipeFor id="data_storage_component_4m" />
+    <RecipeFor id="data_storage_component_16m" />
+  </Row>
+
+  <Row>
+    <RecipeFor id="data_storage_component_64m" />
+    <RecipeFor id="data_storage_component_256m" />
   </Row>
 </Column>
 

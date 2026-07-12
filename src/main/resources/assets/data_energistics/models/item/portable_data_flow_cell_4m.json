@@ -1,0 +1,11 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "data_energistics:item/cell/data_storage_component",
+		"layer1": "ae2:item/portable_cell_led",
+		"layer2": "data_energistics:item/cell/portable_cell_screen",
+		"layer3": "data_energistics:item/cell/portable_cell_side_4m"
+	}
+}

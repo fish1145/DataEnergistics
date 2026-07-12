@@ -10,10 +10,12 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import dev.emi.emi.api.recipe.BasicEmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.render.EmiTexture;
+import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.TextWidget;
 import dev.emi.emi.api.widget.WidgetHolder;
 
+import java.util.Arrays;
 import java.util.List;
 
 public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
@@ -37,8 +39,7 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
     public DataCaptureBallRightClickEmiRecipe(RecipeHolder<DataCaptureBallRightClickRecipe> holder) {
         super(CATEGORY, holder.id(), WIDTH, HEIGHT);
         this.recipe = holder.value();
-        this.inputs.add(EmiStack.of(DataCaptureBallItem.createConfiguredStack(
-                this.recipe.getEnergyCost(), this.recipe.getDataCost())));
+        this.inputs.add(getItemInput(this.recipe));
         this.inputs.add(EmiStack.of(new ItemStack(this.recipe.getInputBlock())));
         this.outputs.add(EmiStack.of(new ItemStack(this.recipe.getResultBlock())));
     }
@@ -46,11 +47,13 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
     @Override
     public void addWidgets(WidgetHolder widgets) {
         widgets.addSlot(this.inputs.get(0), INPUT_ITEM_X, INPUT_ITEM_Y);
-        widgets.addTooltipText(
-                List.of(Component.translatable(
-                        "recipe.data_energistics.data_capture_ball_right_click.preset",
-                        this.recipe.getDataCost(), formatEnergy(this.recipe.getEnergyCost()))),
-                INPUT_ITEM_X, INPUT_ITEM_Y, 18, 18);
+        if (isDataCaptureBallInput(this.recipe)) {
+            widgets.addTooltipText(
+                    List.of(Component.translatable(
+                            "recipe.data_energistics.data_capture_ball_right_click.preset",
+                            this.recipe.getDataCost(), formatEnergy(this.recipe.getEnergyCost()))),
+                    INPUT_ITEM_X, INPUT_ITEM_Y, 18, 18);
+        }
         widgets.addSlot(this.inputs.get(1), INPUT_BLOCK_X, INPUT_BLOCK_Y).drawBack(false);
         widgets.addTexture(EmiTexture.EMPTY_ARROW, ARROW_LEFT_X, ARROW_Y);
         widgets.addTexture(EmiTexture.EMPTY_ARROW, ARROW_RIGHT_X, ARROW_Y);
@@ -62,6 +65,19 @@ public final class DataCaptureBallRightClickEmiRecipe extends BasicEmiRecipe {
                 0x7E7E7E,
                 false)
                 .horizontalAlign(TextWidget.Alignment.CENTER);
+    }
+
+    private static EmiIngredient getItemInput(DataCaptureBallRightClickRecipe recipe) {
+        ItemStack[] itemStacks = recipe.getItemIngredient().getItems();
+        if (itemStacks.length == 1 && itemStacks[0].getItem() instanceof DataCaptureBallItem) {
+            return EmiStack.of(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()));
+        }
+        return EmiIngredient.of(Arrays.stream(itemStacks).map(EmiStack::of).toList());
+    }
+
+    private static boolean isDataCaptureBallInput(DataCaptureBallRightClickRecipe recipe) {
+        return Arrays.stream(recipe.getItemIngredient().getItems())
+                .anyMatch(stack -> stack.getItem() instanceof DataCaptureBallItem);
     }
 
     private static String formatEnergy(double energy) {

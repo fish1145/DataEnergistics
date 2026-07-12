@@ -18,20 +18,25 @@ public final class DataCaptureBallRightClickRecipeLogic {
         Level level = event.getLevel();
         Player player = event.getEntity();
         ItemStack stack = event.getItemStack();
-        if (!(stack.getItem() instanceof DataCaptureBallItem dataCaptureBallItem)) {
-            return;
-        }
 
         BlockState state = level.getBlockState(event.getPos());
         var input = new DataCaptureBallRightClickRecipeInput(stack, state);
         for (var holder : level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get())) {
             var recipe = holder.value();
-            if (!recipe.matches(input, level) || !dataCaptureBallItem.canRunRightClickRecipe(stack, recipe)) {
+            if (!recipe.matches(input, level)) {
+                continue;
+            }
+
+            DataCaptureBallItem dataCaptureBallItem = stack.getItem() instanceof DataCaptureBallItem item ? item : null;
+            if (dataCaptureBallItem == null && !canRunOrdinaryItem(recipe.getDataCost(), recipe.getEnergyCost())) {
+                continue;
+            }
+            if (dataCaptureBallItem != null && !dataCaptureBallItem.canRunRightClickRecipe(stack, recipe)) {
                 continue;
             }
 
             if (!level.isClientSide) {
-                if (!dataCaptureBallItem.runRightClickRecipe(stack, player, recipe)) {
+                if (dataCaptureBallItem != null && !dataCaptureBallItem.runRightClickRecipe(stack, player, recipe)) {
                     return;
                 }
                 level.setBlockAndUpdate(event.getPos(), recipe.getResultBlock().defaultBlockState());
@@ -41,5 +46,9 @@ public final class DataCaptureBallRightClickRecipeLogic {
             event.setCancellationResult(InteractionResult.sidedSuccess(level.isClientSide));
             return;
         }
+    }
+
+    static boolean canRunOrdinaryItem(long dataCost, double energyCost) {
+        return dataCost == 0L && energyCost == 0.0D;
     }
 }

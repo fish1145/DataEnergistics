@@ -73,6 +73,21 @@ public class DataFlowStorageCellItem extends BasicStorageCell {
         if (item == ModItems.DATA_FLOW_CELL_256K.get()) {
             return ModItems.DATA_STORAGE_COMPONENT_256K.toStack();
         }
+        if (item == ModItems.DATA_FLOW_CELL_1M.get()) {
+            return ModItems.DATA_STORAGE_COMPONENT_1M.toStack();
+        }
+        if (item == ModItems.DATA_FLOW_CELL_4M.get()) {
+            return ModItems.DATA_STORAGE_COMPONENT_4M.toStack();
+        }
+        if (item == ModItems.DATA_FLOW_CELL_16M.get()) {
+            return ModItems.DATA_STORAGE_COMPONENT_16M.toStack();
+        }
+        if (item == ModItems.DATA_FLOW_CELL_64M.get()) {
+            return ModItems.DATA_STORAGE_COMPONENT_64M.toStack();
+        }
+        if (item == ModItems.DATA_FLOW_CELL_256M.get()) {
+            return ModItems.DATA_STORAGE_COMPONENT_256M.toStack();
+        }
 
         return ItemStack.EMPTY;
     }

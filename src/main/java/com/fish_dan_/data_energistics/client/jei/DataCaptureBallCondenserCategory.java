@@ -70,7 +70,12 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
                 .addItemStacks(List.of(
                         ModItems.DATA_STORAGE_COMPONENT_16K.toStack(),
                         ModItems.DATA_STORAGE_COMPONENT_64K.toStack(),
-                        ModItems.DATA_STORAGE_COMPONENT_256K.toStack()));
+                        ModItems.DATA_STORAGE_COMPONENT_256K.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_1M.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_4M.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_16M.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_64M.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_256M.toStack()));
     }
 
     @Override

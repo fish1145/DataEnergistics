@@ -34,7 +34,12 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
         this.catalysts.add(EmiIngredient.of(List.of(
                 EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16K.get()),
                 EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_64K.get()),
-                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()))));
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_1M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_4M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_64M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256M.get()))));
     }
 
     @Override
@@ -56,7 +61,12 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
         widgets.addSlot(EmiIngredient.of(List.of(
                 EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16K.get()),
                 EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_64K.get()),
-                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()))), 52, 0).drawBack(false);
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_1M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_4M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_64M.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256M.get()))), 52, 0).drawBack(false);
     }
 
     private static EmiRecipeCategory resolveCategory() {

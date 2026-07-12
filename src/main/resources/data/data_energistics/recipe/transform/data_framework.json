@@ -1,0 +1,18 @@
+{
+	"type": "data_energistics:right_click",
+	"ingredients": [
+		{
+			"item": {
+				"item": "data_energistics:data_crystal_block"
+			}
+		},
+		{
+			"block": "minecraft:amethyst_block"
+		}
+	],
+	"results": [
+		{
+			"id": "data_energistics:data_framework"
+		}
+	]
+}

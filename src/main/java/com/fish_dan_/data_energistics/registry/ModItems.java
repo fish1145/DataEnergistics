@@ -30,6 +30,7 @@ import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -75,6 +76,11 @@ public final class ModItems {
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16K = registerDataFlowCell("data_flow_cell_16k", 1.5, 16);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64K = registerDataFlowCell("data_flow_cell_64k", 2.5, 65);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256K = registerDataFlowCell("data_flow_cell_256k", 3.0, 262);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_1M = registerDataFlowCell("data_flow_cell_1m", 3.5, 1024);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_4M = registerDataFlowCell("data_flow_cell_4m", 4.0, 4096);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16M = registerDataFlowCell("data_flow_cell_16m", 4.5, 16384);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64M = registerDataFlowCell("data_flow_cell_64m", 5.0, 65536);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256M = registerDataFlowCell("data_flow_cell_256m", 5.5, 262144);
     public static final DeferredItem<InfiniteDataCellItem> DATA_CELL_INFINITY = ITEMS.register(
             "data_cell_infinity",
             () -> new InfiniteDataCellItem(new Item.Properties()));
@@ -249,6 +255,33 @@ public final class ModItems {
     public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_256K = ITEMS.register(
             "data_storage_component_256k",
             () -> new DataStorageComponentItem(new Item.Properties(), 256));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_1M = ITEMS.register(
+            "data_storage_component_1m",
+            () -> new DataStorageComponentItem(new Item.Properties(), 1024));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_4M = ITEMS.register(
+            "data_storage_component_4m",
+            () -> new DataStorageComponentItem(new Item.Properties(), 4096));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_16M = ITEMS.register(
+            "data_storage_component_16m",
+            () -> new DataStorageComponentItem(new Item.Properties(), 16384));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_64M = ITEMS.register(
+            "data_storage_component_64m",
+            () -> new DataStorageComponentItem(new Item.Properties(), 65536));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_256M = ITEMS.register(
+            "data_storage_component_256m",
+            () -> new DataStorageComponentItem(new Item.Properties(), 262144));
+
+    private static final StorageTier DATA_FLOW_SIZE_1M = dataFlowPortableTier(6, "1m", 1_048_576, 3.0);
+    private static final StorageTier DATA_FLOW_SIZE_4M = dataFlowPortableTier(7, "4m", 4_194_304, 3.5);
+    private static final StorageTier DATA_FLOW_SIZE_16M = dataFlowPortableTier(8, "16m", 16_777_216, 4.0);
+    private static final StorageTier DATA_FLOW_SIZE_64M = dataFlowPortableTier(9, "64m", 67_108_864, 4.5);
+    private static final StorageTier DATA_FLOW_SIZE_256M = dataFlowPortableTier(10, "256m", 268_435_456, 5.0);
+
+    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_1M = registerPortableDataFlowCell("portable_data_flow_cell_1m", DATA_FLOW_SIZE_1M, 0x68D9FF);
+    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_4M = registerPortableDataFlowCell("portable_data_flow_cell_4m", DATA_FLOW_SIZE_4M, 0x70F0C0);
+    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_16M = registerPortableDataFlowCell("portable_data_flow_cell_16m", DATA_FLOW_SIZE_16M, 0xB0EE78);
+    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_64M = registerPortableDataFlowCell("portable_data_flow_cell_64m", DATA_FLOW_SIZE_64M, 0xFFAB6C);
+    public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_256M = registerPortableDataFlowCell("portable_data_flow_cell_256m", DATA_FLOW_SIZE_256M, 0xFF82D8);
     public static final DeferredItem<Item> DATA_CAPTURE_BALL = ITEMS.register(
             "data_capture_ball",
             () -> new DataCaptureBallItem(new Item.Properties().stacksTo(1)));
@@ -277,6 +310,11 @@ public final class ModItems {
 
     private static DeferredItem<DataFlowPortableCellItem> registerPortableDataFlowCell(String id, StorageTier tier, int color) {
         return ITEMS.register(id, () -> new DataFlowPortableCellItem(tier, new Item.Properties(), color));
+    }
+
+    private static StorageTier dataFlowPortableTier(int index, String namePrefix, int bytes, double idleDrain) {
+        return new StorageTier(index, namePrefix, bytes, idleDrain,
+                () -> BuiltInRegistries.ITEM.get(Data_Energistics.id("data_storage_component_" + namePrefix)));
     }
 
     private static Item.Properties handheldProperties(int durability, ItemAttributeModifiers attributes) {
