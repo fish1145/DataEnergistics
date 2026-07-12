@@ -214,8 +214,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.setRemoved();
         if (host != null) {
+            host.requestMainStructureRecheck();
             host.requestAccessLeaseReevaluation();
-            host.requestStructureRecheck();
         }
     }
 

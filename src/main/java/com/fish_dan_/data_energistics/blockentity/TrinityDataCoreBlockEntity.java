@@ -276,11 +276,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.lastPatternCoreHealthCheckTick = gameTime;
             if (!hasHealthyPatternCoreIdentities()) {
                 boolean changed = withdrawPatternCatalog();
-                requestStructureRecheck();
+                requestCraftingStructureRecheck();
                 if (changed) {
                     notifyTrinityPatternLayoutChanged();
                 }
-                return;
             }
         }
         updateScheduledStructureMatches();
@@ -294,7 +293,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     notifyTrinityPatternPublicationChanged();
                 } else {
                     releasePatternCoreBindings(mountedBeforeFlush);
-                    requestStructureRecheck();
+                    requestCraftingStructureRecheck();
                     notifyTrinityPatternLayoutChanged();
                 }
             }
@@ -429,7 +428,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
         boolean changed = withdrawPatternCatalog();
-        requestStructureRecheck();
+        requestCraftingStructureRecheck();
         if (changed) {
             notifyTrinityPatternLayoutChanged();
         }
@@ -530,18 +529,33 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     public void requestStructureRecheck() {
-        markPendingUnlessDeferred(Structure.MAIN);
-        markPendingUnlessDeferred(Structure.CPU);
-        markPendingUnlessDeferred(Structure.CRAFTING);
+        requestMainStructureRecheck();
+        requestCpuStructureRecheck();
+        requestCraftingStructureRecheck();
+    }
+
+    /** Queues a main-structure validation without withdrawing the last confirmed valid publication. */
+    public void requestMainStructureRecheck() {
         this.recheckRequested = true;
+    }
+
+    /** Queues an independent CPU-child validation without affecting storage or crafting publication. */
+    public void requestCpuStructureRecheck() {
         this.cpuStructureRecheckRequested = true;
+    }
+
+    /** Queues an independent crafting-child validation without affecting storage or CPU publication. */
+    public void requestCraftingStructureRecheck() {
         this.craftingStructureRecheckRequested = true;
     }
 
-    /** Preserves an unloaded wait point while coalescing additional structure-change notifications. */
-    private void markPendingUnlessDeferred(Structure structure) {
-        if (this.structureValidation.status(structure).state() != State.DEFERRED) {
-            this.structureValidation.markPending(structure);
+    /** Queues only the structure selected by an auto-build request. */
+    private void requestStructureRecheck(int structureIndex) {
+        switch (structureIndex) {
+            case TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX -> requestMainStructureRecheck();
+            case TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX -> requestCpuStructureRecheck();
+            case TrinityAutoBuildRequest.CRAFTING_STRUCTURE_INDEX -> requestCraftingStructureRecheck();
+            default -> throw new IllegalArgumentException("Unknown Trinity auto-build structure index: " + structureIndex);
         }
     }
 
@@ -596,7 +610,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     orientation.flipped(),
                     request);
             if (result.success()) {
-                requestStructureRecheck();
+                requestStructureRecheck(structureIndex);
             }
             reportAutoBuildResult(player, structureIndex, result);
         } catch (IllegalArgumentException exception) {
@@ -1012,7 +1026,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             }
             return;
         }
-        boolean childValidationUnknown = isValidationUnknown(Structure.CRAFTING);
+        boolean leaseLocked = hasPendingTrinityWork() || hasUnresolvedStructureValidation();
         List<TrinityAccessHatchBlockEntity> candidates = isStorageAvailable() ? compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
                 .filter(TrinityAccessHatchBlockEntity.class::isInstance)
                 .map(TrinityAccessHatchBlockEntity.class::cast)
@@ -1031,14 +1045,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     this.craftingRuntime.setPaused(!isCpuProviderAvailable());
                     return;
                 }
-                if (this.accessLease.grid() != null && (hasPendingTrinityWork() || childValidationUnknown)) {
+                if (this.accessLease.grid() != null && leaseLocked) {
                     this.craftingRuntime.setPaused(true);
                     return;
                 }
                 transitionAccessLease(this.accessLease.bind(electedGrid));
                 return;
             }
-            if (hasPendingTrinityWork() || childValidationUnknown) {
+            if (leaseLocked) {
                 transitionAccessLease(this.accessLease.unbind());
                 this.craftingRuntime.setPaused(true);
                 return;
@@ -1067,6 +1081,16 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean isValidationUnknown(Structure structure) {
         State state = this.structureValidation.status(structure).state();
         return state == State.PENDING || state == State.DEFERRED;
+    }
+
+    /** Keeps the elected network stable while any structure still lacks a complete current result. */
+    private boolean hasUnresolvedStructureValidation() {
+        return this.recheckRequested ||
+                this.cpuStructureRecheckRequested ||
+                this.craftingStructureRecheckRequested ||
+                isValidationUnknown(Structure.MAIN) ||
+                isValidationUnknown(Structure.CPU) ||
+                isValidationUnknown(Structure.CRAFTING);
     }
 
     private void transitionAccessLease(@Nullable TrinityAccessLease nextLease) {
@@ -1269,7 +1293,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
         BlockEntity blockEntity = level.getBlockEntity(origin);
         if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
-            host.requestStructureRecheck();
+            host.requestMainStructureRecheck();
         }
     }
 
@@ -1588,6 +1612,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean hasHealthyPatternCoreIdentities() {
         long layoutRevision = this.patternCatalog.layoutSnapshot().revision();
         for (TrinityPatternCatalog.CoreMount mount : this.patternCatalog.mountedCores()) {
+            if (!this.level.isLoaded(mount.position())) {
+                requestCraftingStructureRecheck();
+                return true;
+            }
             BlockEntity blockEntity = this.level.getBlockEntity(mount.position());
             BlockState state = this.level.getBlockState(mount.position());
             if (blockEntity != mount.core() ||
@@ -1970,7 +1998,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 structureName,
                 nextFailurePosition,
                 nextFailureReason);
-        TrinityAccessLease retainedLease = this.accessLease != null && hasPendingTrinityWork() ? this.accessLease.unbind() : null;
+        TrinityAccessLease retainedLease = this.accessLease != null &&
+                (hasPendingTrinityWork() || hasUnresolvedStructureValidation()) ? this.accessLease.unbind() : null;
         transitionAccessLease(retainedLease);
         clearCompartmentBindings(structureName);
         clearCpuStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
