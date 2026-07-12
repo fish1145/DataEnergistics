@@ -132,25 +132,105 @@ public final class TrinityPatternCatalogImplTest {
     @TestHolder("trinity_pattern_catalog_refreshes_only_changed_core")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void refreshesOnlyTheCoreWhoseRevisionChanged(GameTestHelper helper) {
+    public static void refreshesOnlyTheChangedSlotWithinCore(GameTestHelper helper) {
         TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
-        TrinityPatternCoreImpl first = core(UUID.randomUUID());
+        TrinityPatternCoreImpl firstDelegate = core(UUID.randomUUID());
+        TopologyCapacityCore first = new TopologyCapacityCore(firstDelegate, () -> {});
         TrinityPatternCoreImpl second = core(UUID.randomUUID());
         first.trySetPattern(0, new ItemStack(Items.PAPER));
+        first.trySetPattern(1, new ItemStack(Items.MAP));
         second.trySetPattern(0, new ItemStack(Items.MAP));
         catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
-        IPatternDetails firstBefore = catalog.getAvailablePatterns().get(0);
-        IPatternDetails secondBefore = catalog.getAvailablePatterns().get(1);
+        IPatternDetails unchangedBefore = catalog.getAvailablePatterns().get(0);
+        IPatternDetails changedBefore = catalog.getAvailablePatterns().get(1);
+        IPatternDetails secondBefore = catalog.getAvailablePatterns().get(2);
+        List<IPatternDetails> aggregateBefore = catalog.getAvailablePatterns();
 
-        first.trySetPattern(1, new ItemStack(Items.MAP));
+        first.trySetPattern(1, new ItemStack(Items.PAPER));
+        assertSame(aggregateBefore, catalog.getAvailablePatterns());
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
 
         assertTrue(catalog.refreshChangedPatterns());
         List<IPatternDetails> refreshed = catalog.getAvailablePatterns();
-        assertNotSame(firstBefore, refreshed.get(0));
+        assertSame(unchangedBefore, refreshed.get(0));
+        assertNotSame(changedBefore, refreshed.get(1));
         assertSame(secondBefore, refreshed.get(2));
+        assertEquals(2, first.patternCacheSnapshotCalls);
         assertFalse(catalog.refreshChangedPatterns());
+        assertEquals(2, first.patternCacheSnapshotCalls);
+
+        assertTrue(first.trySetPattern(1, ItemStack.EMPTY));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        List<IPatternDetails> removed = catalog.getAvailablePatterns();
+        assertEquals(2, removed.size());
+        assertSame(unchangedBefore, removed.get(0));
+        assertSame(secondBefore, removed.get(1));
+        assertEquals(3, first.patternCacheSnapshotCalls);
+
+        assertTrue(first.trySetPattern(1, new ItemStack(Items.MAP)));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        catalog.onCoreChanged(
+                first,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        List<IPatternDetails> republished = catalog.getAvailablePatterns();
+        assertEquals(3, republished.size());
+        assertSame(unchangedBefore, republished.get(0));
+        assertNotSame(changedBefore, republished.get(1));
+        assertSame(secondBefore, republished.get(2));
+        assertEquals(4, first.patternCacheSnapshotCalls);
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_catalog_dispatch_uses_stable_slot_binding")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void repeatedDispatchUsesStableSlotBindingWithoutRefreshingCatalog(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl delegate = core(UUID.randomUUID());
+        assertTrue(delegate.trySetPattern(3, new ItemStack(Items.PAPER)));
+        TopologyCapacityCore core = new TopologyCapacityCore(delegate, () -> {});
+        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+
+        List<IPatternDetails> published = catalog.getAvailablePatterns();
+        RoutedCraftingPatternDetails route = (RoutedCraftingPatternDetails) published.getFirst();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        for (int dispatch = 0; dispatch < 128; dispatch++) {
+            KeyCounter[] inputs = counters(iron, 1L);
+            assertTrue(catalog.pushPattern(route, inputs, 20L));
+            assertTrue(inputs[0].isEmpty());
+        }
+
+        assertSame(published, catalog.getAvailablePatterns());
+        assertFalse(catalog.refreshChangedPatterns());
+        assertEquals(1, core.patternCacheSnapshotCalls);
+        assertEquals(1, core.patternSlotCalls);
+        assertEquals(1, core.workingSlotsCalls);
+        assertEquals(1, core.isSlotWorkingCalls);
+        assertEquals(1, catalog.activeSlots().size());
+        TrinityPatternCatalog.ActiveSlot activeSlot = catalog.activeSlots().getFirst();
+        assertEquals(3, activeSlot.globalIndex());
+        assertSame(delegate.patternSlot(3), activeSlot.slot());
+        assertEquals(new PatternRoute(hostId, delegate.coreId(), 3), activeSlot.route());
+        assertEquals(1, delegate.queuedBatchCount(3));
+        assertEquals(128L, delegate.queuedBatches(3).getFirst().count());
+        assertUnmodifiable(catalog.activeSlots());
         helper.succeed();
     }
 
@@ -163,16 +243,19 @@ public final class TrinityPatternCatalogImplTest {
         TrinityPatternCoreImpl delegate = new TrinityPatternCoreImpl(
                 64,
                 UUID.randomUUID(),
-                stack -> decodable.get() && stack.is(Items.PAPER) ? new FillingPattern(stack) : null,
-                () -> {});
+                stack -> decodable.get() && (stack.is(Items.PAPER) || stack.is(Items.MAP)) ? new FillingPattern(stack) : null,
+                TrinityPatternTestResolvers.create(),
+                change -> {});
         TopologyCapacityCore core = new TopologyCapacityCore(delegate, () -> {
             if (reloadPending.getAndSet(false)) {
                 delegate.refreshAllPatternCaches();
             }
         });
         assertTrue(core.trySetPattern(0, new ItemStack(Items.PAPER)));
+        assertTrue(core.trySetPattern(1, new ItemStack(Items.MAP)));
         TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
+        assertEquals(2, catalog.getAvailablePatterns().size());
         RoutedCraftingPatternDetails staleRoute = (RoutedCraftingPatternDetails) catalog
                 .getAvailablePatterns()
                 .getFirst();
@@ -180,42 +263,23 @@ public final class TrinityPatternCatalogImplTest {
         decodable.set(false);
         reloadPending.set(true);
 
-        assertTrue(catalog.getAvailablePatterns().isEmpty());
-        assertFalse(reloadPending.get());
+        assertSame(staleRoute, catalog.getAvailablePatterns().getFirst());
+        assertTrue(reloadPending.get());
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
         KeyCounter[] inputs = counters(iron, 1L);
         assertFalse(catalog.pushPattern(staleRoute, inputs, 1L));
         assertEquals(1L, inputs[0].get(iron));
         assertEquals(0, core.queuedBatchCount());
-        helper.succeed();
-    }
+        assertFalse(reloadPending.get());
+        assertSame(staleRoute, catalog.getAvailablePatterns().getFirst());
+        assertEquals(2, catalog.getAvailablePatterns().size());
 
-    @TestHolder("trinity_pattern_catalog_push_rolls_back_notification_failure")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void pushKeepsInputsWhenCoreNotificationRejectsEnqueue(GameTestHelper helper) {
-        AtomicBoolean rejectNotification = new AtomicBoolean();
-        TrinityPatternCoreImpl core = new TrinityPatternCoreImpl(
-                64,
-                UUID.randomUUID(),
-                stack -> stack.is(Items.PAPER) ? new FillingPattern(stack) : null,
-                () -> {
-                    if (rejectNotification.get()) {
-                        throw new IllegalStateException("test persistence notification failure");
-                    }
-                });
-        assertTrue(core.trySetPattern(0, new ItemStack(Items.PAPER)));
-        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(UUID.randomUUID());
-        catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
-        RoutedCraftingPatternDetails route = (RoutedCraftingPatternDetails) catalog
-                .getAvailablePatterns()
-                .getFirst();
-        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        KeyCounter[] inputs = counters(iron, 1L);
-
-        rejectNotification.set(true);
-
-        assertFalse(catalog.pushPattern(route, inputs, 1L));
+        catalog.onCoreChanged(
+                core,
+                new TrinityPatternSlot.Change(0, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        assertTrue(catalog.getAvailablePatterns().isEmpty());
+        assertFalse(catalog.pushPattern(staleRoute, inputs, 1L));
         assertEquals(1L, inputs[0].get(iron));
         assertEquals(0, core.queuedBatchCount());
         helper.succeed();
@@ -244,6 +308,9 @@ public final class TrinityPatternCatalogImplTest {
         restoredState.writeToTag(restoredTag, helper.getLevel().registryAccess());
         core.readFromTag(restoredTag, helper.getLevel().registryAccess());
         core.refreshAllPatternCaches();
+        catalog.onCoreChanged(
+                core,
+                new TrinityPatternSlot.Change(0, TrinityPatternSlot.ChangeKind.CATALOG));
 
         assertTrue(catalog.refreshChangedPatterns());
         TrinityPatternCatalog.LayoutSnapshot invalidLayout = catalog.layoutSnapshot();
@@ -356,6 +423,9 @@ public final class TrinityPatternCatalogImplTest {
                 new TrinityPatternCatalog.CoreMount(smallMount.position(), 128, small)));
 
         assertTrue(small.trySetPattern(0, new ItemStack(Items.PAPER)));
+        catalog.onCoreChanged(
+                small,
+                new TrinityPatternSlot.Change(0, TrinityPatternSlot.ChangeKind.CATALOG));
         assertTrue(catalog.refreshChangedPatterns());
         assertEquals(firstLayout.revision(), catalog.layoutSnapshot().revision());
         assertTrue(catalog.isMountCurrent(firstLayout.revision(), smallMount));
@@ -391,7 +461,11 @@ public final class TrinityPatternCatalogImplTest {
         IPatternDetails beforeInvalidation = catalog.getAvailablePatterns().getFirst();
 
         PatternRoute retainedRoute = new PatternRoute(hostId, replacement.coreId(), 0);
-        replacement.appendPendingOutputs(retainedRoute, List.of(new ItemStack(Items.DIAMOND)));
+        replacement.appendPendingOutputs(
+                retainedRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
+        catalog.onCoreChanged(
+                replacement,
+                new TrinityPatternSlot.Change(0, TrinityPatternSlot.ChangeKind.WORK));
         catalog.invalidateLayout();
         TrinityPatternCatalog.LayoutSnapshot invalidLayout = catalog.layoutSnapshot();
         assertEquals(replacedLayout.revision() + 1L, invalidLayout.revision());
@@ -460,17 +534,31 @@ public final class TrinityPatternCatalogImplTest {
 
         core.refreshPatternCache(7);
         KeyCounter[] staleDelegateInputs = counters(iron, 1L);
-        assertTrue(catalog.pushPattern(published, staleDelegateInputs, 10L));
+        assertFalse(catalog.pushPattern(published, staleDelegateInputs, 10L));
+        assertEquals(1L, staleDelegateInputs[0].get(iron));
+        assertEquals(0, core.queuedBatchCount(7));
+
+        catalog.onCoreChanged(
+                core,
+                new TrinityPatternSlot.Change(7, TrinityPatternSlot.ChangeKind.CATALOG));
+        assertTrue(catalog.refreshChangedPatterns());
+        RoutedCraftingPatternDetails refreshed = catalog.getAvailablePatterns().stream()
+                .map(RoutedCraftingPatternDetails.class::cast)
+                .filter(details -> details.route().slot() == 7)
+                .findFirst()
+                .orElseThrow();
+        assertNotSame(published, refreshed);
+        assertTrue(catalog.pushPattern(refreshed, staleDelegateInputs, 10L));
         assertTrue(staleDelegateInputs[0].isEmpty());
         assertEquals(1, core.queuedBatchCount(7));
 
         core.trySetPattern(7, new ItemStack(Items.MAP));
         KeyCounter[] changedDefinitionInputs = counters(iron, 1L);
-        assertFalse(catalog.pushPattern(published, changedDefinitionInputs, 10L));
+        assertFalse(catalog.pushPattern(refreshed, changedDefinitionInputs, 10L));
         assertEquals(1L, changedDefinitionInputs[0].get(iron));
         assertEquals(1, core.queuedBatchCount(7));
         TrinityCraftingBatch batch = core.queuedBatches(7).getFirst();
-        assertEquals(published.route(), batch.route());
+        assertEquals(refreshed.route(), batch.route());
         assertTrue(batch.inputs().getFirst().is(Items.IRON_INGOT));
         assertEquals(9, batch.inputs().size());
 
@@ -496,7 +584,8 @@ public final class TrinityPatternCatalogImplTest {
         first.trySetPattern(0, firstPattern);
         second.trySetPattern(0, secondPattern);
         first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
-        first.appendPendingOutputs(firstRoute, List.of(new ItemStack(Items.DIAMOND, 3)));
+        first.appendPendingOutputs(
+                firstRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 3))));
         catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
@@ -510,7 +599,7 @@ public final class TrinityPatternCatalogImplTest {
         assertTrue(first.pattern(0).is(Items.PAPER));
         assertTrue(second.pattern(0).is(Items.MAP));
         assertEquals(1, first.queuedBatchCount(0));
-        assertEquals(3, first.pendingOutputs(firstRoute).getFirst().getCount());
+        assertEquals(3L, first.pendingOutputs(firstRoute).getFirst().amount());
         helper.succeed();
     }
 
@@ -549,9 +638,11 @@ public final class TrinityPatternCatalogImplTest {
         PatternRoute secondRoute = new PatternRoute(secondHostId, core.coreId(), 0);
         core.trySetPattern(0, pattern);
         core.enqueueBatch(firstRoute, pattern, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
-        core.appendPendingOutputs(firstRoute, List.of(new ItemStack(Items.DIAMOND, 3)));
+        core.appendPendingOutputs(
+                firstRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 3))));
         core.enqueueBatch(secondRoute, pattern, craftingInputs(new ItemStack(Items.GOLD_INGOT, 4)), 1L);
-        core.appendPendingOutputs(secondRoute, List.of(new ItemStack(Items.EMERALD, 5)));
+        core.appendPendingOutputs(
+                secondRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.EMERALD, 5))));
         TrinityPatternCatalog.CoreMount mount = new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core);
         firstCatalog.rebuild(List.of(mount));
         secondCatalog.rebuild(List.of(mount));
@@ -561,13 +652,15 @@ public final class TrinityPatternCatalogImplTest {
         assertTrue(secondCatalog.hasRefundableState());
         assertTrue(firstCatalog.tryRefundAll(delivery));
 
-        assertEquals(2, delivery.deliveredStacks.size());
-        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
-        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.DIAMOND) && stack.getCount() == 3));
+        assertEquals(2, delivery.deliveredItems.size());
+        assertTrue(delivery.deliveredItems.stream().anyMatch(
+                item -> item.key().is(Items.IRON_INGOT) && item.amount() == 2L));
+        assertTrue(delivery.deliveredItems.stream().anyMatch(
+                item -> item.key().is(Items.DIAMOND) && item.amount() == 3L));
         assertEquals(1, core.queuedBatchCount(0));
         assertEquals(1, core.pendingOutputs(secondRoute).size());
         assertTrue(core.queuedBatches(0).getFirst().route().hostId().equals(secondHostId));
-        assertTrue(core.pendingOutputs(secondRoute).getFirst().is(Items.EMERALD));
+        assertTrue(core.pendingOutputs(secondRoute).getFirst().key().is(Items.EMERALD));
         assertFalse(firstCatalog.hasRefundableState());
         assertTrue(secondCatalog.hasRefundableState());
         helper.succeed();
@@ -588,7 +681,8 @@ public final class TrinityPatternCatalogImplTest {
         first.trySetPattern(0, firstPattern);
         second.trySetPattern(0, secondPattern);
         first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
-        first.appendPendingOutputs(firstRoute, List.of(new ItemStack(Items.DIAMOND, 3)));
+        first.appendPendingOutputs(
+                firstRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 3))));
         second.enqueueBatch(secondRoute, secondPattern, craftingInputs(new ItemStack(Items.GOLD_INGOT, 4)), 1L);
         long firstRevision = first.revision();
         long secondRevision = second.revision();
@@ -601,12 +695,15 @@ public final class TrinityPatternCatalogImplTest {
 
         assertEquals(1, delivery.prepareCalls);
         assertEquals(1, delivery.deliveryCalls);
-        assertEquals(3, delivery.deliveredStacks.size());
-        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.IRON_INGOT) && stack.getCount() == 2));
-        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.DIAMOND) && stack.getCount() == 3));
-        assertTrue(delivery.deliveredStacks.stream().anyMatch(stack -> stack.is(Items.GOLD_INGOT) && stack.getCount() == 4));
-        assertEquals(0L, delivery.deliveredStacks.stream().filter(stack -> stack.is(Items.PAPER)).count());
-        assertEquals(0L, delivery.deliveredStacks.stream().filter(stack -> stack.is(Items.MAP)).count());
+        assertEquals(3, delivery.deliveredItems.size());
+        assertTrue(delivery.deliveredItems.stream().anyMatch(
+                item -> item.key().is(Items.IRON_INGOT) && item.amount() == 2L));
+        assertTrue(delivery.deliveredItems.stream().anyMatch(
+                item -> item.key().is(Items.DIAMOND) && item.amount() == 3L));
+        assertTrue(delivery.deliveredItems.stream().anyMatch(
+                item -> item.key().is(Items.GOLD_INGOT) && item.amount() == 4L));
+        assertEquals(0L, delivery.deliveredItems.stream().filter(item -> item.key().is(Items.PAPER)).count());
+        assertEquals(0L, delivery.deliveredItems.stream().filter(item -> item.key().is(Items.MAP)).count());
         assertTrue(first.pattern(0).is(Items.PAPER));
         assertTrue(second.pattern(0).is(Items.MAP));
         assertFalse(first.hasWork());
@@ -632,7 +729,8 @@ public final class TrinityPatternCatalogImplTest {
         first.trySetPattern(0, firstPattern);
         second.trySetPattern(0, secondPattern);
         first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT)), 1L);
-        second.appendPendingOutputs(secondRoute, List.of(new ItemStack(Items.DIAMOND)));
+        second.appendPendingOutputs(
+                secondRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
         catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, second)));
@@ -663,7 +761,8 @@ public final class TrinityPatternCatalogImplTest {
         PatternRoute firstRoute = new PatternRoute(hostId, first.coreId(), 0);
         PatternRoute secondRoute = new PatternRoute(hostId, failingSecond.coreId(), 0);
         first.enqueueBatch(firstRoute, firstPattern, craftingInputs(new ItemStack(Items.IRON_INGOT)), 1L);
-        failingSecond.appendPendingOutputs(secondRoute, List.of(new ItemStack(Items.DIAMOND)));
+        failingSecond.appendPendingOutputs(
+                secondRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
         catalog.rebuild(List.of(
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, first),
                 new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, failingSecond)));
@@ -701,7 +800,7 @@ public final class TrinityPatternCatalogImplTest {
         assertTrue(core.pattern(0).is(Items.PAPER));
         assertFalse(core.hasWork());
         assertFalse(catalog.hasRefundableState());
-        core.appendPendingOutputs(route, List.of(new ItemStack(Items.DIAMOND)));
+        core.appendPendingOutputs(route, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
         assertEquals(1, core.pendingOutputs(route).size());
         helper.succeed();
     }
@@ -776,7 +875,7 @@ public final class TrinityPatternCatalogImplTest {
                 return new FillingPattern(stack);
             }
             return null;
-        }, () -> {});
+        }, TrinityPatternTestResolvers.create(), change -> {});
     }
 
     private static void assertResolvedSlot(TrinityPatternCatalog catalog,
@@ -814,7 +913,9 @@ public final class TrinityPatternCatalogImplTest {
         void run();
     }
 
-    /** Captures catalog delivery calls while keeping aggregate atomicity tests independent from world destinations. */
+    /**
+     * Captures catalog delivery calls while keeping aggregate atomicity tests independent from world destinations.
+     */
     private static final class RecordingRefundDelivery implements TrinityRefundDelivery {
 
         private final boolean prepareResult;
@@ -822,7 +923,7 @@ public final class TrinityPatternCatalogImplTest {
         private final boolean throwDuringDelivery;
         private int prepareCalls;
         private int deliveryCalls;
-        private List<ItemStack> deliveredStacks = List.of();
+        private List<TrinityItemAmount> deliveredItems = List.of();
 
         private RecordingRefundDelivery(boolean prepareResult, boolean throwDuringPrepare) {
             this(prepareResult, throwDuringPrepare, false);
@@ -837,7 +938,7 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
-        public boolean prepare(List<ItemStack> stacks) {
+        public boolean prepare(List<TrinityItemAmount> items) {
             this.prepareCalls++;
             if (this.throwDuringPrepare) {
                 throw new IllegalStateException("delivery preparation failure");
@@ -846,22 +947,28 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
-        public void deliver(List<ItemStack> stacks) {
+        public void deliver(List<TrinityItemAmount> items) {
             this.deliveryCalls++;
-            this.deliveredStacks = stacks.stream().map(ItemStack::copy).toList();
+            this.deliveredItems = List.copyOf(items);
             if (this.throwDuringDelivery) {
                 throw new IllegalStateException("delivery failure after committed refund");
             }
         }
     }
 
-    /** Delegates state operations while exposing an extreme capacity solely to exercise topology overflow. */
+    /**
+     * Delegates state operations while exposing an extreme capacity solely to exercise topology overflow.
+     */
     private static final class TopologyCapacityCore implements TrinityPatternCore {
 
         private final int topologyCapacity;
         private final TrinityPatternCore delegate;
         private final boolean rejectRefundCommit;
         private final Runnable cacheSynchronizer;
+        private int patternSlotCalls;
+        private int patternCacheSnapshotCalls;
+        private int workingSlotsCalls;
+        private int isSlotWorkingCalls;
 
         private TopologyCapacityCore(int topologyCapacity) {
             this(topologyCapacity, false);
@@ -896,12 +1003,19 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
+        public TrinityPatternSlot patternSlot(int slot) {
+            this.patternSlotCalls++;
+            return this.delegate.patternSlot(slot);
+        }
+
+        @Override
         public long revision() {
             return this.delegate.revision();
         }
 
         @Override
         public PatternCacheSnapshot patternCacheSnapshot() {
+            this.patternCacheSnapshotCalls++;
             return this.delegate.patternCacheSnapshot();
         }
 
@@ -970,23 +1084,40 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
-        public List<ItemStack> pendingOutputs(PatternRoute route) {
+        public int executeReadyBatches(int slot, long currentTick, BatchExecutor executor) {
+            return this.delegate.executeReadyBatches(slot, currentTick, executor);
+        }
+
+        @Override
+        public List<TrinityItemAmount> pendingOutputs(PatternRoute route) {
             return this.delegate.pendingOutputs(route);
         }
 
         @Override
-        public void appendPendingOutputs(PatternRoute route, List<ItemStack> outputs) {
+        public void appendPendingOutputs(PatternRoute route, List<TrinityItemAmount> outputs) {
             this.delegate.appendPendingOutputs(route, outputs);
         }
 
         @Override
-        public void replacePendingOutputs(PatternRoute route, List<ItemStack> outputs) {
-            this.delegate.replacePendingOutputs(route, outputs);
+        public TrinityPatternOutputRouter.PendingOutputCursor openPendingOutputCursor(PatternRoute route) {
+            return this.delegate.openPendingOutputCursor(route);
         }
 
         @Override
         public List<Integer> pendingOutputSlots(UUID hostId) {
             return this.delegate.pendingOutputSlots(hostId);
+        }
+
+        @Override
+        public List<Integer> workingSlots(UUID hostId) {
+            this.workingSlotsCalls++;
+            return this.delegate.workingSlots(hostId);
+        }
+
+        @Override
+        public boolean isSlotWorking(UUID hostId, int slot) {
+            this.isSlotWorkingCalls++;
+            return this.delegate.isSlotWorking(hostId, slot);
         }
 
         @Override
@@ -1016,8 +1147,8 @@ public final class TrinityPatternCatalogImplTest {
             return new RefundTransaction() {
 
                 @Override
-                public List<ItemStack> refundableStacks() {
-                    return transaction.refundableStacks();
+                public List<TrinityItemAmount> refundableItems() {
+                    return transaction.refundableItems();
                 }
 
                 @Override

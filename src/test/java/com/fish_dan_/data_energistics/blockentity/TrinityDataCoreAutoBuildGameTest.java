@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildOptions;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
+import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -209,7 +210,9 @@ public final class TrinityDataCoreAutoBuildGameTest {
             return;
         }
         PatternRoute sourceRoute = new PatternRoute(host.getHostId(), sourceCore.coreId(), 0);
-        sourceCore.appendPendingOutputs(sourceRoute, List.of(new ItemStack(Items.DIAMOND, 2)));
+        sourceCore.appendPendingOutputs(
+                sourceRoute,
+                List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 2))));
         ItemStack expectedDrop = Block.getDrops(
                 sourceCore.getBlockState(),
                 level,

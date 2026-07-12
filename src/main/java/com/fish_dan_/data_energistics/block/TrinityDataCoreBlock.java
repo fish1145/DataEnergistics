@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 
+import appeng.hooks.WrenchHook;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
@@ -52,8 +54,7 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
-            host.restoreStorageIdFromItem(stack);
-            host.restoreHostIdFromItem(stack);
+            host.restoreIdentityFromItem(stack);
         }
         TrinityDataCoreBlockEntity.requestRecheckAt(level, pos);
     }
@@ -61,12 +62,19 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
     @Override
     public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
         BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
-        ItemStack stack = new ItemStack(this);
-        if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
-            host.saveStorageIdToItem(stack);
-            host.saveHostIdToItem(stack);
+        ItemStack drop = createHostDrop(blockEntity);
+        return drop.isEmpty() ? List.of() : List.of(drop);
+    }
+
+    @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide() && player.getAbilities().instabuild && !WrenchHook.isDisassembling()) {
+            ItemStack drop = createHostDrop(level.getBlockEntity(pos));
+            if (!drop.isEmpty()) {
+                Block.popResource(level, pos, drop);
+            }
         }
-        return List.of(stack);
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override
@@ -96,5 +104,15 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
             return null;
         }
         return (tickerLevel, tickerPos, tickerState, tickerBlockEntity) -> ((TrinityDataCoreBlockEntity) tickerBlockEntity).serverTick();
+    }
+
+    private ItemStack createHostDrop(@Nullable BlockEntity blockEntity) {
+        if (!(blockEntity instanceof TrinityDataCoreBlockEntity host)) {
+            Data_Energistics.LOGGER.error("Cannot create a stateful Trinity Data Core drop without its block entity");
+            return ItemStack.EMPTY;
+        }
+        ItemStack stack = new ItemStack(this);
+        host.saveIdentityToItem(stack);
+        return stack;
     }
 }

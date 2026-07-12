@@ -114,7 +114,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
     void awaitOnline() {
         connectGridWhenNodesAreReady();
         this.host.serverTick();
-        refreshAccessHatches();
+        refreshPatternPublication();
 
         IGrid grid = this.host.accessGrid();
         await(grid != null, "Trinity host is waiting for its access grid");
@@ -130,9 +130,9 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
                 "AE2 crafting service has not published all Trinity CPUs yet");
     }
 
-    void refreshAccessHatches() {
+    void refreshPatternPublication() {
         for (TrinityAccessHatchBlockEntity hatch : this.hatches) {
-            hatch.refreshTrinityAccess();
+            hatch.refreshTrinityPatternPublication();
         }
     }
 

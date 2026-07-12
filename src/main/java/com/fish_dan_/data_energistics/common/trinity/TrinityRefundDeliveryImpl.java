@@ -22,7 +22,7 @@ public final class TrinityRefundDeliveryImpl implements TrinityRefundDelivery {
     private final MEStorage networkStorage;
     @Nullable
     private final IActionSource actionSource;
-    private List<ItemStack> preparedStacks = List.of();
+    private List<TrinityItemAmount> preparedItems = List.of();
     private boolean prepared;
     private boolean delivered;
 
@@ -42,114 +42,121 @@ public final class TrinityRefundDeliveryImpl implements TrinityRefundDelivery {
     }
 
     @Override
-    public boolean prepare(List<ItemStack> stacks) {
-        if (this.prepared || this.player.level().isClientSide() || stacks.isEmpty()) {
+    public boolean prepare(List<TrinityItemAmount> items) {
+        if (this.prepared || this.player.level().isClientSide() || items.isEmpty()) {
             return false;
         }
-        for (ItemStack stack : stacks) {
-            if (stack.isEmpty()) {
-                return false;
-            }
-        }
-        this.preparedStacks = stacks.stream().map(ItemStack::copy).toList();
+        this.preparedItems = List.copyOf(items);
         this.prepared = true;
         return true;
     }
 
     @Override
-    public void deliver(List<ItemStack> stacks) {
-        if (!this.prepared || this.delivered || !stacksMatch(this.preparedStacks, stacks)) {
+    public void deliver(List<TrinityItemAmount> items) {
+        if (!this.prepared || this.delivered || !this.preparedItems.equals(items)) {
             throw new IllegalStateException("Trinity refund delivery was not prepared for this aggregate");
         }
         this.delivered = true;
-        for (ItemStack stack : stacks) {
-            deliverStack(stack.copy());
+        for (TrinityItemAmount item : items) {
+            deliverItem(item);
         }
     }
 
-    private void deliverStack(ItemStack remaining) {
-        insertIntoNetwork(remaining);
-        insertIntoPlayerInventory(remaining);
-        if (!remaining.isEmpty()) {
-            dropRemainder(remaining);
-        }
-    }
-
-    private void insertIntoNetwork(ItemStack remaining) {
-        if (this.networkStorage == null || this.actionSource == null || remaining.isEmpty()) {
+    private void deliverItem(TrinityItemAmount item) {
+        long remaining = insertIntoNetwork(item);
+        if (remaining == 0L) {
             return;
         }
+        long worldRemainder = insertIntoPlayerInventory(item.key(), remaining);
+        if (worldRemainder > 0L) {
+            dropRemainder(item.key(), worldRemainder);
+        }
+    }
+
+    private long insertIntoNetwork(TrinityItemAmount item) {
+        if (this.networkStorage == null || this.actionSource == null) {
+            return item.amount();
+        }
+        long offered = item.amount();
+        long inserted;
         try {
-            long offered = remaining.getCount();
-            long inserted = this.networkStorage.insert(
-                    AEItemKey.of(remaining),
+            inserted = this.networkStorage.insert(
+                    item.key(),
                     offered,
                     Actionable.MODULATE,
                     this.actionSource);
-            if (inserted < 0L || inserted > offered) {
-                throw new IllegalStateException("AE storage accepted invalid Trinity refund amount " + inserted +
-                        " for offer " + offered);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to insert Trinity refund item {} into the selected AE network; trying player inventory",
+                    item,
+                    exception);
+            return item.amount();
+        }
+        if (inserted < 0L || inserted > offered) {
+            throw new IllegalStateException("AE storage accepted invalid Trinity refund amount " + inserted +
+                    " for offer " + offered);
+        }
+        return offered - inserted;
+    }
+
+    private long insertIntoPlayerInventory(AEItemKey key, long amount) {
+        if (amount <= 0L) {
+            return 0L;
+        }
+        int maximumStackSize = key.toStack(1).getMaxStackSize();
+        long remaining = amount;
+        while (remaining > 0L) {
+            int offered = (int) Math.min(remaining, maximumStackSize);
+            ItemStack stack = key.toStack(offered);
+            try {
+                this.player.getInventory().add(stack);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to insert Trinity refund stack {} into player {} inventory; dropping its remainder",
+                        stack,
+                        this.player.getGameProfile().getName(),
+                        exception);
+                return remaining;
             }
-            remaining.shrink(Math.toIntExact(inserted));
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Failed to insert Trinity refund stack {} into the selected AE network; trying player inventory",
-                    remaining,
-                    exception);
+            long inserted = offered - stack.getCount();
+            remaining -= inserted;
+            if (!stack.isEmpty()) {
+                return remaining;
+            }
+        }
+        return 0L;
+    }
+
+    private void dropRemainder(AEItemKey key, long amount) {
+        long remaining = amount;
+        while (remaining > 0L) {
+            int count = (int) Math.min(remaining, Integer.MAX_VALUE);
+            dropStack(key.toStack(count));
+            remaining -= count;
         }
     }
 
-    private void insertIntoPlayerInventory(ItemStack remaining) {
-        if (remaining.isEmpty()) {
-            return;
-        }
+    private void dropStack(ItemStack stack) {
         try {
-            this.player.getInventory().add(remaining);
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Failed to insert Trinity refund stack {} into player {} inventory; dropping it instead",
-                    remaining,
-                    this.player.getGameProfile().getName(),
-                    exception);
-        }
-    }
-
-    private void dropRemainder(ItemStack remaining) {
-        ItemStack dropped = remaining.copy();
-        try {
-            if (this.player.drop(dropped, false) != null) {
+            if (this.player.drop(stack.copy(), false) != null) {
                 return;
             }
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to drop Trinity refund stack {} for player {}; trying block drop fallback",
-                    remaining,
+                    stack,
                     this.player.getGameProfile().getName(),
                     exception);
         }
         try {
-            Block.popResource(this.player.level(), this.player.blockPosition(), remaining.copy());
+            Block.popResource(this.player.level(), this.player.blockPosition(), stack.copy());
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to place final Trinity refund stack {} into the world for player {}",
-                    remaining,
+                    stack,
                     this.player.getGameProfile().getName(),
                     exception);
+            throw new IllegalStateException("Unable to deliver final Trinity refund stack " + stack, exception);
         }
-    }
-
-    private static boolean stacksMatch(List<ItemStack> expected, List<ItemStack> actual) {
-        if (expected.size() != actual.size()) {
-            return false;
-        }
-        for (int index = 0; index < expected.size(); index++) {
-            ItemStack expectedStack = expected.get(index);
-            ItemStack actualStack = actual.get(index);
-            if (expectedStack.getCount() != actualStack.getCount() ||
-                    !ItemStack.isSameItemSameComponents(expectedStack, actualStack)) {
-                return false;
-            }
-        }
-        return true;
     }
 }

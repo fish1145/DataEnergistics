@@ -138,7 +138,7 @@ public interface TrinityPatternCore {
 
         private static List<ItemStack> copyStacks(List<ItemStack> stacks) {
             return stacks.stream()
-                    .filter(stack -> stack != null && !stack.isEmpty())
+                    .filter(stack -> !stack.isEmpty())
                     .map(ItemStack::copy)
                     .toList();
         }
@@ -153,6 +153,15 @@ public interface TrinityPatternCore {
      * @return fixed slot count derived from the core block tier
      */
     int patternCapacity();
+
+    /**
+     * Returns the stable object representing one physical slot. Its identity never changes during this core's
+     * lifetime, including after successful NBT loads.
+     *
+     * @param slot physical slot index
+     * @return stable slot state boundary
+     */
+    TrinityPatternSlot patternSlot(int slot);
 
     /**
      * @return monotonically increasing runtime revision for catalog cache invalidation
@@ -234,12 +243,12 @@ public interface TrinityPatternCore {
 
     /**
      * @param slot pattern slot index
-     * @return number of batches waiting in that slot
+     * @return number of physical queue groups waiting in that slot after adjacent merging
      */
     int queuedBatchCount(int slot);
 
     /**
-     * @return total number of batches across every slot
+     * @return total number of physical queue groups across every slot
      */
     int queuedBatchCount();
 
@@ -254,26 +263,37 @@ public interface TrinityPatternCore {
     int executeReadyBatches(long currentTick, BatchExecutor executor);
 
     /**
-     * @param route exact owner route to query
-     * @return defensive copies of that route's outputs still awaiting host routing
+     * Executes every FIFO group eligible in one exact physical slot. A definition mismatch or paused executor leaves
+     * the current head asleep without touching other slots.
+     *
+     * @param slot        exact physical slot to execute
+     * @param currentTick current server tick
+     * @param executor    crafting callback
+     * @return number of completed queue groups
      */
-    List<ItemStack> pendingOutputs(PatternRoute route);
+    int executeReadyBatches(int slot, long currentTick, BatchExecutor executor);
+
+    /**
+     * @param route exact owner route to query
+     * @return immutable defensive snapshot of counted outputs still awaiting host routing
+     */
+    List<TrinityItemAmount> pendingOutputs(PatternRoute route);
 
     /**
      * Appends crafted output or container remainders to a slot's persistent output queue.
      *
      * @param route   exact host/core/slot route that owns these outputs
-     * @param outputs output stacks to append
+     * @param outputs positive counted outputs to append
      */
-    void appendPendingOutputs(PatternRoute route, List<ItemStack> outputs);
+    void appendPendingOutputs(PatternRoute route, List<TrinityItemAmount> outputs);
 
     /**
-     * Replaces a slot's pending outputs after the host atomically routes a prefix.
+     * Opens the authoritative exclusive cursor used to checkpoint every successful external insertion in place.
      *
-     * @param route   exact host/core/slot route whose outputs were routed
-     * @param outputs remaining output stacks
+     * @param route exact host/core/slot route whose outputs are being routed
+     * @return exclusive cursor that must be closed by the caller
      */
-    void replacePendingOutputs(PatternRoute route, List<ItemStack> outputs);
+    TrinityPatternOutputRouter.PendingOutputCursor openPendingOutputCursor(PatternRoute route);
 
     /**
      * Finds only slots that currently retain output for one host without scanning the core's full capacity.
@@ -282,6 +302,23 @@ public interface TrinityPatternCore {
      * @return immutable ascending slot indexes
      */
     List<Integer> pendingOutputSlots(UUID hostId);
+
+    /**
+     * Finds physical slots containing queued inputs or pending outputs owned by one host without scanning capacity.
+     *
+     * @param hostId stable host identity whose active slots are requested
+     * @return immutable ascending physical slot indexes
+     */
+    List<Integer> workingSlots(UUID hostId);
+
+    /**
+     * Tests one exact physical slot against the core's host work index without copying the full sparse slot set.
+     *
+     * @param hostId stable host identity whose work is requested
+     * @param slot   exact physical slot to inspect
+     * @return whether queued input or pending output in that slot belongs to the host
+     */
+    boolean isSlotWorking(UUID hostId, int slot);
 
     /**
      * @return whether queued inputs or pending outputs lock this core to its current host/grid
@@ -312,9 +349,9 @@ public interface TrinityPatternCore {
     interface RefundTransaction {
 
         /**
-         * @return defensive copies of every queued input and pending output in the capture
+         * @return immutable counted entries for every queued input and pending output in the capture
          */
-        List<ItemStack> refundableStacks();
+        List<TrinityItemAmount> refundableItems();
 
         /**
          * Clears the captured core state when it is still current.
@@ -333,7 +370,9 @@ public interface TrinityPatternCore {
          */
         void complete();
 
-        /** Restores the captured state after a successful commit, or abandons an uncommitted capture. */
+        /**
+         * Restores the captured state after a successful commit, or abandons an uncommitted capture.
+         */
         void rollback();
     }
 

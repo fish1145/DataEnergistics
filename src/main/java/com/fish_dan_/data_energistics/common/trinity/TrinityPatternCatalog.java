@@ -141,6 +141,44 @@ public interface TrinityPatternCatalog {
     }
 
     /**
+     * Immutable host-runtime reference for one physical slot that currently owns queued input or pending output.
+     *
+     * <p>
+     * Entries are exposed in ascending {@code globalIndex} order. The referenced slot object remains stable for the
+     * lifetime of its physical core and lets the host execute work without scanning mounted-core capacities.
+     * </p>
+     *
+     * @param globalIndex stable aggregate index from the current layout
+     * @param mount       exact mounted core and world position captured by the layout
+     * @param route       host/core/physical-slot identity used by queued work and pending output
+     * @param slot        exact stable physical slot object
+     */
+    record ActiveSlot(int globalIndex, CoreMount mount, PatternRoute route, TrinityPatternSlot slot) {
+
+        /** Validates that every identity component describes the same mounted physical slot. */
+        public ActiveSlot {
+            if (globalIndex < 0 || route.slot() != slot.index() || route.slot() >= mount.blockCapacity() ||
+                    !route.coreId().equals(mount.core().coreId())) {
+                throw new IllegalArgumentException("An active Trinity slot must match its mounted core and route");
+            }
+        }
+
+        /**
+         * @return exact mounted core that owns this active slot
+         */
+        public TrinityPatternCore core() {
+            return this.mount.core();
+        }
+
+        /**
+         * @return physical slot index inside the mounted core
+         */
+        public int coreSlot() {
+            return this.route.slot();
+        }
+    }
+
+    /**
      * Reports whether a scanned structure can publish patterns.
      *
      * @param valid           true when every scanned core passed validation
@@ -209,6 +247,14 @@ public interface TrinityPatternCatalog {
     GlobalSlot resolveCoreSlot(long expectedRevision, CoreMount mount, int coreSlot);
 
     /**
+     * Tests exact mounted-core object identity without scanning the public mount list.
+     *
+     * @param core core instance to verify
+     * @return whether the current active layout owns that exact instance
+     */
+    boolean isCoreMounted(TrinityPatternCore core);
+
+    /**
      * Replaces the mounted-core snapshot after validating capacities, positions, and persistent core identities.
      *
      * @param mounts cores found in the crafting child structure
@@ -217,16 +263,34 @@ public interface TrinityPatternCatalog {
     RebuildResult rebuild(List<CoreMount> mounts);
 
     /**
-     * Validates every captured core identity before refreshing only pattern caches whose runtime revision changed.
+     * Applies all core-local catalog notifications accumulated since the previous host tick.
      *
-     * @return true when the published AE pattern list changed or a stale layout was withdrawn
+     * <p>
+     * This method reads only cores explicitly marked dirty and rebuilds the immutable aggregate at most once.
+     * </p>
+     *
+     * @return true when the published AE pattern list changed
      */
     boolean refreshChangedPatterns();
+
+    /**
+     * Records one exact mounted-core mutation. Catalog changes are deferred to the next flush; work changes update
+     * only the supplied physical slot's active binding.
+     *
+     * @param core   exact mounted core that emitted the change
+     * @param change physical slot and changed state surface
+     */
+    void onCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change);
 
     /**
      * @return immutable routed AE patterns in stable core-position and slot order
      */
     List<IPatternDetails> getAvailablePatterns();
+
+    /**
+     * @return immutable work-bearing slot references in ascending global-index order
+     */
+    List<ActiveSlot> activeSlots();
 
     /**
      * Validates and enqueues one routed AE dispatch without partially consuming its input counters.

@@ -30,6 +30,14 @@ public interface TrinityPatternCoreHost {
     boolean tryRefundPatternCore(TrinityPatternCore core, Player player);
 
     /**
+     * Delivers one typed mutation from an exact mounted core so the host can update only the affected runtime index.
+     *
+     * @param core   exact mounted core that changed
+     * @param change physical slot and changed state surface
+     */
+    void onPatternCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change);
+
+    /**
      * Withdraws publication when a bound core unloads or is removed before the next structure scan.
      *
      * @param core core instance that is no longer available

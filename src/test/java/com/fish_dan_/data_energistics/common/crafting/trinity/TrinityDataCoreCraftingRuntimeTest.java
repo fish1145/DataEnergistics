@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.util.LongAmountMath;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
@@ -371,6 +372,45 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         fixture.runtime().tick(null, null);
 
         helper.assertFalse(fixture.runtime().hasBusyJobs(), "Resumed runtime should process the canceled job on its next tick");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_requested_amount_saturates_across_workers")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void requestedAmountSaturatesAcrossWorkers(GameTestHelper helper) {
+        helper.assertValueEqual(
+                LongAmountMath.saturatingAddNonNegative(Long.MAX_VALUE, 1L),
+                Long.MAX_VALUE,
+                "MAX plus one must saturate");
+        helper.assertValueEqual(
+                LongAmountMath.saturatingAddNonNegative(Long.MAX_VALUE, Long.MAX_VALUE),
+                Long.MAX_VALUE,
+                "Multiple maximum amounts must saturate");
+        helper.assertValueEqual(
+                LongAmountMath.saturatingAddNonNegative(20L, 22L),
+                42L,
+                "Representable amounts must retain their exact sum");
+
+        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
+        OutputRuntimeFixture saturated = outputRuntime(helper, new BlockPos(1, 1, 1), 3);
+        submitWaitingOutputJob(helper, saturated, diamond, Long.MAX_VALUE);
+        submitWaitingOutputJob(helper, saturated, diamond, Long.MAX_VALUE);
+        submitWaitingOutputJob(helper, saturated, diamond, 1L);
+        helper.assertValueEqual(
+                saturated.runtime().getRequestedAmount(diamond),
+                Long.MAX_VALUE,
+                "Requested amount across retained workers must saturate");
+
+        OutputRuntimeFixture exact = outputRuntime(helper, new BlockPos(3, 1, 1), 2);
+        submitWaitingOutputJob(helper, exact, diamond, 20L);
+        submitWaitingOutputJob(helper, exact, diamond, 22L);
+        helper.assertValueEqual(
+                exact.runtime().getRequestedAmount(diamond),
+                42L,
+                "Representable requested amount across retained workers must remain exact");
+        saturated.runtime().cancelAllJobs();
+        exact.runtime().cancelAllJobs();
         helper.succeed();
     }
 
@@ -891,13 +931,13 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     public static void storageIdRoundTripsThroughItemAndNbt(GameTestHelper helper) {
         TrinityDataCoreBlockEntity original = trinityDataCore(false);
         ItemStack stack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        original.saveStorageIdToItem(stack);
+        original.saveIdentityToItem(stack);
         UUID storageId = stack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID);
 
         TrinityDataCoreBlockEntity placed = trinityDataCore(false);
-        placed.restoreStorageIdFromItem(stack);
+        placed.restoreIdentityFromItem(stack);
         ItemStack placedStack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        placed.saveStorageIdToItem(placedStack);
+        placed.saveIdentityToItem(placedStack);
         helper.assertValueEqual(
                 placedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
@@ -908,7 +948,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         TrinityDataCoreBlockEntity loaded = trinityDataCore(false);
         loaded.loadTag(saved, HolderLookup.Provider.create(Stream.empty()));
         ItemStack loadedStack = new ItemStack(ModBlocks.TRINITY_DATA_CORE.get());
-        loaded.saveStorageIdToItem(loadedStack);
+        loaded.saveIdentityToItem(loadedStack);
         helper.assertValueEqual(
                 loadedStack.get(ModDataComponents.TRINITY_DATA_CORE_STORAGE_ID),
                 storageId,
@@ -983,11 +1023,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     }
 
     private static OutputRuntimeFixture outputRuntime(GameTestHelper helper, BlockPos hostPos) {
+        return outputRuntime(helper, hostPos, 1);
+    }
+
+    private static OutputRuntimeFixture outputRuntime(GameTestHelper helper, BlockPos hostPos, int workerCapacity) {
         TestGrid grid = new TestGrid();
         NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(hostPos), grid);
         host.setLevel(helper.getLevel());
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
-        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 2, workerCapacity));
         return new OutputRuntimeFixture(grid, host.getCraftingRuntime(), host.getCpuPartitions().getFirst());
     }
 
@@ -1078,6 +1122,18 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             requester.track(link);
         }
         return singleBusyWorker(fixture.runtime());
+    }
+
+    private static void submitWaitingOutputJob(GameTestHelper helper,
+                                               OutputRuntimeFixture fixture,
+                                               AEKey what,
+                                               long amount) {
+        ICraftingSubmitResult result = fixture.reserveCpu().submitJob(
+                fixture.grid(),
+                outputPlan(new GenericStack(what, amount)),
+                IActionSource.empty(),
+                null);
+        helper.assertTrue(result.successful(), "Requested-amount test worker should accept its output job");
     }
 
     private static TrinityDataCoreVirtualCpu singleBusyWorker(TrinityDataCoreCraftingRuntime runtime) {

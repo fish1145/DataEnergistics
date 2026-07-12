@@ -2,104 +2,42 @@ package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.Actionable;
 import appeng.api.stacks.AEItemKey;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /** Default two-phase, ordered implementation of {@link TrinityPatternOutputRouter}. */
 public final class TrinityPatternOutputRouterImpl implements TrinityPatternOutputRouter {
 
     @Override
-    public RoutingResult route(List<ItemStack> pending,
-                               RequestedAmount requestedAmount,
-                               OutputSink cpuSink,
-                               OutputSink storageSink,
-                               OutputCheckpoint checkpoint) {
-        List<ItemStack> snapshot = pending.stream().map(ItemStack::copy).toList();
-        ArrayList<ItemStack> retainedPrefix = new ArrayList<>();
-        long totalInserted = 0L;
-        for (int index = 0; index < snapshot.size(); index++) {
-            ItemStack output = snapshot.get(index);
-            if (output.isEmpty()) {
-                checkpoint.replace(checkpointState(retainedPrefix, snapshot, index + 1));
-                continue;
-            }
-            AEItemKey key = AEItemKey.of(output);
-
-            long amount = output.getCount();
+    public boolean route(PendingOutputCursor pending,
+                         RequestedAmount requestedAmount,
+                         OutputSink cpuSink,
+                         OutputSink storageSink) {
+        boolean changed = false;
+        while (pending.advance()) {
+            TrinityItemAmount output = pending.current();
+            AEItemKey key = output.key();
+            long amount = output.amount();
             long requestedBefore = checkedRequestedAmount(requestedAmount.get(key));
             long cpuOffer = Math.min(amount, requestedBefore);
             long insertedIntoCpu = insertTwoPhase(cpuSink, key, cpuOffer, "crafting CPU");
             long requestedRemainder = cpuOffer - insertedIntoCpu;
             if (insertedIntoCpu > 0L) {
-                checkpoint.replace(checkpointStateWithCurrent(
-                        retainedPrefix,
-                        output,
-                        amount - insertedIntoCpu,
-                        snapshot,
-                        index + 1));
+                pending.consumeCurrent(insertedIntoCpu);
+                changed = true;
             }
 
             long storageOffer = amount - cpuOffer;
             long insertedIntoStorage = insertTwoPhase(storageSink, key, storageOffer, "main storage");
-            long storageRemainder = storageOffer - insertedIntoStorage;
-            long retained = requestedRemainder + storageRemainder;
-            long inserted = insertedIntoCpu + insertedIntoStorage;
-            totalInserted += inserted;
-            if (retained > 0L) {
-                ItemStack retainedStack = output.copy();
-                retainedStack.setCount(Math.toIntExact(retained));
-                retainedPrefix.add(retainedStack);
-            }
             if (insertedIntoStorage > 0L) {
-                checkpoint.replace(checkpointState(retainedPrefix, snapshot, index + 1));
+                pending.consumeCurrent(insertedIntoStorage);
+                changed = true;
             }
             if (requestedRemainder > 0L) {
-                List<ItemStack> blockedState = checkpointState(retainedPrefix, snapshot, index + 1);
-                if (insertedIntoCpu == 0L && insertedIntoStorage == 0L) {
-                    checkpoint.replace(blockedState);
-                }
-                return new RoutingResult(blockedState, totalInserted);
+                return changed;
             }
         }
-        return new RoutingResult(retainedPrefix, totalInserted);
-    }
-
-    private static List<ItemStack> checkpointStateWithCurrent(List<ItemStack> retainedPrefix,
-                                                              ItemStack current,
-                                                              long retainedCurrentAmount,
-                                                              List<ItemStack> pending,
-                                                              int unprocessedStart) {
-        ArrayList<ItemStack> currentPrefix = new ArrayList<>(retainedPrefix.size() + 1);
-        for (ItemStack retained : retainedPrefix) {
-            currentPrefix.add(retained.copy());
-        }
-        if (retainedCurrentAmount > 0L) {
-            ItemStack retainedCurrent = current.copy();
-            retainedCurrent.setCount(Math.toIntExact(retainedCurrentAmount));
-            currentPrefix.add(retainedCurrent);
-        }
-        return checkpointState(currentPrefix, pending, unprocessedStart);
-    }
-
-    private static List<ItemStack> checkpointState(List<ItemStack> retainedPrefix,
-                                                   List<ItemStack> pending,
-                                                   int unprocessedStart) {
-        ArrayList<ItemStack> state = new ArrayList<>(retainedPrefix.size() + pending.size() - unprocessedStart);
-        for (ItemStack retained : retainedPrefix) {
-            state.add(retained.copy());
-        }
-        for (int index = unprocessedStart; index < pending.size(); index++) {
-            ItemStack unprocessed = pending.get(index);
-            if (!unprocessed.isEmpty()) {
-                state.add(unprocessed.copy());
-            }
-        }
-        return List.copyOf(state);
+        return changed;
     }
 
     private static long checkedRequestedAmount(long requested) {

@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.nbt.CompoundTag;
 
@@ -34,12 +37,14 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
 @Mixin(CraftingService.class)
-public abstract class CraftingServiceMixin {
+public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegistry {
 
     @Unique
     private static final Comparator<ICraftingCPU> DATA_ENERGISTICS_FAST_FIRST_COMPARATOR = Comparator
@@ -53,7 +58,7 @@ public abstract class CraftingServiceMixin {
             .thenComparingLong(ICraftingCPU::getAvailableStorage);
 
     @Unique
-    private final Set<TrinityDataCoreCraftingRuntime> dataEnergistics$trinityDataCoreRuntimes = new HashSet<>();
+    private final TrinityCraftingRuntimeRegistry.Local dataEnergistics$trinityCraftingRuntimeRegistry = TrinityCraftingRuntimeRegistry.createLocal();
 
     @Unique
     private long dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick;
@@ -80,32 +85,51 @@ public abstract class CraftingServiceMixin {
     @Shadow
     private long lastProcessedCraftingLogicChangeTick;
 
+    @Override
+    public boolean publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
+        if (node.getGrid() != this.grid) {
+            Data_Energistics.LOGGER.error("Cannot publish a Trinity crafting runtime through a different grid service");
+            throw new IllegalArgumentException("The Trinity crafting node belongs to a different grid");
+        }
+        return this.dataEnergistics$trinityCraftingRuntimeRegistry.publish(node, runtime);
+    }
+
+    @Override
+    public boolean withdraw(IGridNode node) {
+        return this.dataEnergistics$trinityCraftingRuntimeRegistry.withdraw(node);
+    }
+
     @Inject(method = "addNode", at = @At("RETURN"))
-    private void dataEnergistics$markTrinityDataCoreCpuListDirty(IGridNode gridNode,
-                                                                 CompoundTag savedData,
-                                                                 CallbackInfo ci) {
+    private void dataEnergistics$markAddedTrinityDataCoreCpuListDirty(IGridNode gridNode,
+                                                                      CompoundTag savedData,
+                                                                      CallbackInfo ci) {
         if (gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }
 
-    @Inject(method = "removeNode", at = @At("RETURN"))
-    private void dataEnergistics$markTrinityDataCoreCpuListDirty(IGridNode gridNode, CallbackInfo ci) {
-        if (gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
+    @Inject(method = "removeNode", at = @At("HEAD"))
+    private void dataEnergistics$removeTrinityDataCoreCpuNode(IGridNode gridNode, CallbackInfo ci) {
+        boolean withdrawn = withdraw(gridNode);
+        if (withdrawn || gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
             this.updateList = true;
         }
     }
 
     @Inject(method = "updateCPUClusters", at = @At("RETURN"))
     private void dataEnergistics$updateTrinityDataCoreCpuClusters(CallbackInfo ci) {
-        this.dataEnergistics$trinityDataCoreRuntimes.clear();
-        CraftingService service = (CraftingService) (Object) this;
-        for (TrinityAccessHatchBlockEntity hatch : this.grid.getMachines(TrinityAccessHatchBlockEntity.class)) {
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> scannedRuntimes = new IdentityHashMap<>();
+        for (IGridNode node : this.grid.getMachineNodes(TrinityAccessHatchBlockEntity.class)) {
+            TrinityAccessHatchBlockEntity hatch = (TrinityAccessHatchBlockEntity) node.getOwner();
             TrinityDataCoreCraftingRuntime runtime = hatch.boundCraftingRuntime();
-            if (runtime == null || !runtime.shouldRemainRegistered()) {
-                continue;
+            if (runtime != null) {
+                scannedRuntimes.put(node, runtime);
             }
-            this.dataEnergistics$trinityDataCoreRuntimes.add(runtime);
+        }
+
+        List<TrinityDataCoreCraftingRuntime> reconciledRuntimes = this.dataEnergistics$trinityCraftingRuntimeRegistry.reconcile(scannedRuntimes);
+        CraftingService service = (CraftingService) (Object) this;
+        for (TrinityDataCoreCraftingRuntime runtime : reconciledRuntimes) {
             runtime.restoreLinks(service);
         }
     }
@@ -114,7 +138,7 @@ public abstract class CraftingServiceMixin {
     private void dataEnergistics$tickTrinityDataCoreCpuClusters(CallbackInfo ci) {
         CraftingService service = (CraftingService) (Object) this;
         long latestChange = 0L;
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             runtime.tick(this.energyGrid, service);
             latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
         }
@@ -132,7 +156,7 @@ public abstract class CraftingServiceMixin {
                      opcode = Opcodes.GETFIELD,
                      ordinal = 0))
     private void dataEnergistics$collectTrinityDataCoreCpuWaitingKeys(CallbackInfo ci) {
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             runtime.getAllWaitingFor(this.currentlyCrafting);
         }
     }
@@ -143,7 +167,7 @@ public abstract class CraftingServiceMixin {
                                                                Actionable type,
                                                                CallbackInfoReturnable<Long> cir) {
         long inserted = cir.getReturnValue();
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             inserted = runtime.insertIntoCpus(what, amount, type, inserted);
         }
         cir.setReturnValue(inserted);
@@ -161,7 +185,11 @@ public abstract class CraftingServiceMixin {
             return;
         }
         if (target instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu) {
-            cir.setReturnValue(trinityDataCoreCpu.submitJob(this.grid, job, src, requestingMachine));
+            if (dataEnergistics$hasTrinityDataCoreCpu(trinityDataCoreCpu)) {
+                cir.setReturnValue(trinityDataCoreCpu.submitJob(this.grid, job, src, requestingMachine));
+            } else {
+                cir.setReturnValue(CraftingSubmitResult.CPU_OFFLINE);
+            }
             return;
         }
         if (target != null) {
@@ -199,20 +227,32 @@ public abstract class CraftingServiceMixin {
     @Inject(method = "getRequestedAmount", at = @At("RETURN"), cancellable = true)
     private void dataEnergistics$getTrinityDataCoreRequestedAmount(AEKey what, CallbackInfoReturnable<Long> cir) {
         long requested = cir.getReturnValue();
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
-            requested += runtime.getRequestedAmount(what);
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
+            requested = LongAmountMath.saturatingAddNonNegative(requested, runtime.getRequestedAmount(what));
         }
         cir.setReturnValue(requested);
     }
 
     @Inject(method = "hasCpu", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$hasTrinityDataCoreCpu(ICraftingCPU cpu, CallbackInfoReturnable<Boolean> cir) {
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
+        if (dataEnergistics$hasTrinityDataCoreCpu(cpu)) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Unique
+    private List<TrinityDataCoreCraftingRuntime> dataEnergistics$trinityDataCoreRuntimes() {
+        return this.dataEnergistics$trinityCraftingRuntimeRegistry.snapshot();
+    }
+
+    @Unique
+    private boolean dataEnergistics$hasTrinityDataCoreCpu(ICraftingCPU cpu) {
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             if (runtime.hasCpu(cpu)) {
-                cir.setReturnValue(true);
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     @Unique
@@ -283,7 +323,7 @@ public abstract class CraftingServiceMixin {
         int tooSmall = 0;
         int excluded = 0;
 
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             for (TrinityDataCoreVirtualCpu cpu : runtime.publishedCpus()) {
                 if (!cpu.isActive()) {
                     offline++;
@@ -309,7 +349,7 @@ public abstract class CraftingServiceMixin {
 
     @Unique
     private void dataEnergistics$forEachTrinityDataCoreCpu(Consumer<TrinityDataCoreVirtualCpu> consumer) {
-        for (TrinityDataCoreCraftingRuntime runtime : this.dataEnergistics$trinityDataCoreRuntimes) {
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             for (TrinityDataCoreVirtualCpu cpu : runtime.publishedCpus()) {
                 consumer.accept(cpu);
             }

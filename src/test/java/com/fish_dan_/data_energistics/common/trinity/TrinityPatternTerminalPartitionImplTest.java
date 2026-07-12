@@ -208,6 +208,9 @@ public final class TrinityPatternTerminalPartitionImplTest {
         assertTrue(original.pattern(0).is(Items.PAPER));
         long originalRevision = originalPartition.layoutRevision();
         assertTrue(original.trySetPattern(1, new ItemStack(Items.MAP)));
+        catalog.onCoreChanged(
+                original,
+                new TrinityPatternSlot.Change(1, TrinityPatternSlot.ChangeKind.CATALOG));
         assertTrue(catalog.refreshChangedPatterns());
         assertEquals(originalRevision, catalog.layoutSnapshot().revision());
         assertTrue(staleInventory.getStackInSlot(1).is(Items.MAP));
@@ -271,7 +274,7 @@ public final class TrinityPatternTerminalPartitionImplTest {
                 return new TestPattern(stack);
             }
             return null;
-        }, () -> {});
+        }, TrinityPatternTestResolvers.create(), change -> {});
     }
 
     private static PatternContainerGroup terminalGroup() {
