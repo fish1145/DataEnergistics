@@ -25,10 +25,14 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.crafting.IPatternDetails.IInput;
+import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+import appeng.crafting.pattern.EncodedCraftingPattern;
+import appeng.crafting.pattern.EncodedSmithingTablePattern;
+import appeng.crafting.pattern.EncodedStonecuttingPattern;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -209,10 +213,39 @@ public final class TrinityPatternCoreImplTest {
         assertEquals(3L, core.queuedBatches(2).getFirst().count());
 
         assertTrue(core.enqueueBatch(route, pattern, iron, 5L));
+        assertTrue(core.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT, 2)), 5L));
         assertTrue(core.enqueueBatch(route, pattern, gold, 5L));
         assertTrue(core.enqueueBatch(new PatternRoute(UUID.randomUUID(), core.coreId(), 2), pattern, gold, 5L));
-        assertEquals(4, core.queuedBatchCount(2));
+        assertEquals(5, core.queuedBatchCount(2));
         assertEquals(1L, core.queuedBatches(2).get(1).count());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_core_merges_ten_thousand_dispatches")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void tenThousandIdenticalDispatchesExecuteAsOneCountedGroup(GameTestHelper helper) {
+        TrinityPatternCoreImpl core = core(64);
+        ItemStack pattern = pattern(Items.PAPER);
+        PatternRoute route = route(core, 2);
+        List<ItemStack> iron = inputs(new ItemStack(Items.IRON_INGOT));
+        assertTrue(core.trySetPattern(2, pattern));
+
+        for (int dispatch = 0; dispatch < 10_000; dispatch++) {
+            assertTrue(core.enqueueBatch(route, pattern, iron, 4L));
+        }
+
+        assertEquals(1, core.queuedBatchCount(2));
+        assertEquals(10_000L, core.queuedBatches(2).getFirst().count());
+        AtomicInteger executions = new AtomicInteger();
+        assertEquals(1, core.executeReadyBatches(5L, (slot, batch) -> {
+            executions.incrementAndGet();
+            assertEquals(10_000L, batch.count());
+            return TrinityPatternCore.BatchExecutionResult.completed(List.of(new ItemStack(Items.DIAMOND, 2)));
+        }));
+        assertEquals(1, executions.get());
+        assertEquals(1, core.pendingOutputs(route).size());
+        assertAmount(Items.DIAMOND, 20_000L, core.pendingOutputs(route).getFirst());
         helper.succeed();
     }
 
@@ -398,6 +431,57 @@ public final class TrinityPatternCoreImplTest {
                 64, TrinityPatternCoreImplTest::decode, nullRecipeResolvers, change -> {});
         assertThrows(IllegalStateException.class,
                 () -> nullRecipeCore.trySetPattern(0, pattern(Items.PAPER)));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_pattern_recipe_id_resolvers_cover_ae2_builtins")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void builtInResolversReadCraftingStonecuttingAndSmithingRecipeIds(GameTestHelper helper) {
+        ResourceLocation craftingRecipe = ResourceLocation.withDefaultNamespace("crafting_table");
+        ResourceLocation stonecuttingRecipe = ResourceLocation.withDefaultNamespace("stone_stairs");
+        ResourceLocation smithingRecipe = ResourceLocation.withDefaultNamespace("netherite_sword_smithing");
+        ItemStack crafting = pattern(Items.PAPER);
+        crafting.set(
+                AEComponents.ENCODED_CRAFTING_PATTERN,
+                new EncodedCraftingPattern(
+                        inputs(new ItemStack(Items.OAK_PLANKS)),
+                        new ItemStack(Items.CRAFTING_TABLE),
+                        craftingRecipe,
+                        false,
+                        false));
+        ItemStack stonecutting = pattern(Items.PAPER);
+        stonecutting.set(
+                AEComponents.ENCODED_STONECUTTING_PATTERN,
+                new EncodedStonecuttingPattern(
+                        new ItemStack(Items.STONE),
+                        new ItemStack(Items.STONE_STAIRS),
+                        false,
+                        stonecuttingRecipe));
+        ItemStack smithing = pattern(Items.PAPER);
+        smithing.set(
+                AEComponents.ENCODED_SMITHING_TABLE_PATTERN,
+                new EncodedSmithingTablePattern(
+                        new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),
+                        new ItemStack(Items.DIAMOND_SWORD),
+                        new ItemStack(Items.NETHERITE_INGOT),
+                        new ItemStack(Items.NETHERITE_SWORD),
+                        false,
+                        smithingRecipe));
+        TrinityPatternRecipeIdResolvers resolvers = TrinityPatternRecipeIdResolvers.createWithBuiltIns();
+
+        assertEquals(
+                new TrinityPatternRecipeIdResolvers.Resolution(
+                        TrinityPatternRecipeIdResolvers.AE2_CRAFTING, craftingRecipe),
+                resolvers.resolve(new TestSupportedPattern(crafting)).orElseThrow());
+        assertEquals(
+                new TrinityPatternRecipeIdResolvers.Resolution(
+                        TrinityPatternRecipeIdResolvers.AE2_STONECUTTING, stonecuttingRecipe),
+                resolvers.resolve(new TestSupportedPattern(stonecutting)).orElseThrow());
+        assertEquals(
+                new TrinityPatternRecipeIdResolvers.Resolution(
+                        TrinityPatternRecipeIdResolvers.AE2_SMITHING, smithingRecipe),
+                resolvers.resolve(new TestSupportedPattern(smithing)).orElseThrow());
         helper.succeed();
     }
 
