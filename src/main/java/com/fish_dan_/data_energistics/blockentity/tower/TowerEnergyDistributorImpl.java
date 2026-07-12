@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
+import appeng.blockentity.grid.AENetworkedBlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -137,16 +138,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     private ArrayList<TransferSource> createTransferSources() {
         ArrayList<TransferSource> sources = new ArrayList<>();
         if (this.appFluxEnergySupportLoaded) {
-            try {
-                long quota = this.gridEnergyAccess.extract(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
-                if (quota > 0) {
-                    sources.add(new TransferSource(null, quota));
-                } else if (quota < 0) {
-                    Data_Energistics.LOGGER.error("AppFlux returned an invalid simulated extraction amount: {}", quota);
-                }
-            } catch (RuntimeException | LinkageError exception) {
-                Data_Energistics.LOGGER.error("Failed to freeze the AppFlux source quota for unlimited tower transfer",
-                        exception);
+            long quota = extractGridEnergy(Long.MAX_VALUE, true, "active source quota");
+            if (quota > 0) {
+                sources.add(new TransferSource(null, quota));
             }
         }
 
@@ -166,6 +160,40 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
         }
         return sources;
+    }
+
+    long extractGridEnergy(long requested, boolean simulate, String purpose) {
+        if (requested < 0) {
+            throw new IllegalArgumentException("AppFlux extraction request must not be negative: " + requested);
+        }
+        if (requested == 0) {
+            return 0L;
+        }
+
+        AENetworkedBlockEntity host = this.context.aeNetworkHost();
+        long extracted;
+        try {
+            extracted = this.gridEnergyAccess.extract(host, requested, simulate);
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error(
+                    "AppFlux grid extraction failed for {} at {}; request={} FE, simulate={}",
+                    purpose, describeGridEnergyHost(host), requested, simulate, exception);
+            return 0L;
+        }
+        if (extracted < 0 || extracted > requested) {
+            Data_Energistics.LOGGER.error(
+                    "AppFlux grid extraction returned invalid amount {} for {} at {}; request={} FE, simulate={}",
+                    extracted, purpose, describeGridEnergyHost(host), requested, simulate);
+            return 0L;
+        }
+        return extracted;
+    }
+
+    private static String describeGridEnergyHost(@Nullable AENetworkedBlockEntity host) {
+        if (host == null) {
+            return "<unavailable tower host>";
+        }
+        return host.getClass().getName() + " at " + host.getBlockPos();
     }
 
     private long transferSourceOnce(TransferSource source, List<TowerEnergyEndpoint> receiveEndpoints,
@@ -695,7 +723,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long remaining = amount - bufferedExtracted;
 
         if (this.appFluxEnergySupportLoaded) {
-            long extracted = this.gridEnergyAccess.extract(this.context.aeNetworkHost(), remaining, simulate);
+            long extracted = extractGridEnergy(remaining, simulate, "range extraction");
             if (extracted > 0) {
                 totalExtracted += extracted;
                 remaining -= extracted;
@@ -761,7 +789,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
         long aeExtractable = 0L;
         if (this.appFluxEnergySupportLoaded) {
-            aeExtractable = this.gridEnergyAccess.extract(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
+            aeExtractable = extractGridEnergy(Long.MAX_VALUE, true, "extractable-energy query");
             totalStored = saturatingAdd(totalStored, aeExtractable);
         }
 
@@ -905,8 +933,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
         private long extract(long amount, boolean simulate) {
             if (this.endpoint == null) {
-                return TowerEnergyDistributorImpl.this.gridEnergyAccess.extract(
-                        TowerEnergyDistributorImpl.this.context.aeNetworkHost(), amount, simulate);
+                return TowerEnergyDistributorImpl.this.extractGridEnergy(amount, simulate, "active source transfer");
             }
             EndpointTransferResult result = TowerEnergyDistributorImpl.this.extractEnergyFromEndpointResult(
                     this.endpoint, amount, simulate);

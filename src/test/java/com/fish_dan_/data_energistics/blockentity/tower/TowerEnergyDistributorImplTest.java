@@ -310,6 +310,64 @@ class TowerEnergyDistributorImplTest {
     }
 
     @Test
+    void isolatesThrowingAppFluxAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.failExtraction();
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = assertDoesNotThrow(() -> distributor.extractEnergyFromRange(10, false, null));
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void rejectsNegativeAppFluxResultAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.returnExtractionResult(-1L);
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = distributor.extractEnergyFromRange(10, false, null);
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void rejectsOverRequestAppFluxResultAndContinuesRangeExtractionFromFe() {
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
+        gridEnergy.returnExtractionResult(11L);
+        TestEnergyStorage feSource = TestEnergyStorage.source(7L, Long.MAX_VALUE);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(
+                List.of(endpoint(FIRST_POS, feSource)), gridEnergy);
+
+        int extracted = distributor.extractEnergyFromRange(10, false, null);
+
+        assertEquals(7, extracted);
+        assertEquals(0L, feSource.stored());
+        assertEquals(10L, gridEnergy.stored());
+    }
+
+    @Test
+    void guardedAppFluxExtractionPreservesLongWidth() {
+        long amount = 4_000_000_000L;
+        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(amount);
+        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
+
+        long extracted = distributor.extractGridEnergy(Long.MAX_VALUE, true, "long-width query test");
+
+        assertEquals(amount, extracted);
+        assertEquals(amount, gridEnergy.stored());
+        assertEquals(1, gridEnergy.simulatedExtractCalls());
+    }
+
+    @Test
     void stopsWhenReceiversCannotMakeProgress() {
         TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
         TestEnergyStorage receiver = TestEnergyStorage.receiver(10, 0);
@@ -568,6 +626,17 @@ class TowerEnergyDistributorImplTest {
                 false);
     }
 
+    private static TowerEnergyDistributorImpl createGridDistributor(
+                                                                    List<TowerEnergyEndpoint> extractEndpoints,
+                                                                    TestGridEnergyAccess gridEnergyAccess) {
+        return new TowerEnergyDistributorImpl(
+                new TestContext(),
+                new TestEndpointResolver(extractEndpoints, List.of()),
+                new TestUnlimitedEnergyAccess(),
+                true,
+                gridEnergyAccess);
+    }
+
     private static TowerEnergyEndpoint endpoint(BlockPos pos, IEnergyStorage storage) {
         return new TowerEnergyEndpoint(pos, Direction.NORTH, storage);
     }
@@ -733,6 +802,10 @@ class TowerEnergyDistributorImplTest {
         private int simulatedExtractCalls;
         private int realExtractCalls;
         private int restoreCalls;
+        @Nullable
+        private RuntimeException extractionFailure;
+        @Nullable
+        private Long forcedExtractionResult;
 
         private TestGridEnergyAccess(long stored) {
             this.stored = stored;
@@ -740,11 +813,20 @@ class TowerEnergyDistributorImplTest {
 
         @Override
         public long extract(AENetworkedBlockEntity tower, long amount, boolean simulate) {
-            long extracted = Math.min(amount, this.stored);
             if (simulate) {
                 this.simulatedExtractCalls++;
             } else {
                 this.realExtractCalls++;
+            }
+            if (this.extractionFailure != null) {
+                throw this.extractionFailure;
+            }
+            if (this.forcedExtractionResult != null) {
+                return this.forcedExtractionResult;
+            }
+
+            long extracted = Math.min(amount, this.stored);
+            if (!simulate) {
                 this.realExtracted += extracted;
                 this.stored -= extracted;
             }
@@ -781,6 +863,14 @@ class TowerEnergyDistributorImplTest {
 
         private int restoreCalls() {
             return this.restoreCalls;
+        }
+
+        private void failExtraction() {
+            this.extractionFailure = new IllegalStateException("Deliberate AppFlux extraction failure");
+        }
+
+        private void returnExtractionResult(long result) {
+            this.forcedExtractionResult = result;
         }
     }
 
