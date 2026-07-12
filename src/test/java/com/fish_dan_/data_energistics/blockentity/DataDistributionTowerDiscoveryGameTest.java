@@ -55,6 +55,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static final BlockPos SANCTUM_MAIN_POS = new BlockPos(25, 4, 25);
     private static final Direction SANCTUM_FACING = Direction.NORTH;
     private static final long BUFFERED_TRANSFER_ENERGY = (long) Integer.MAX_VALUE + 4_096L;
+    private static final long QUARANTINED_TRANSFER_ENERGY = (long) Integer.MAX_VALUE + 8_192L;
 
     private DataDistributionTowerDiscoveryGameTest() {}
 
@@ -198,15 +199,25 @@ public final class DataDistributionTowerDiscoveryGameTest {
         CompoundTag savedData = new CompoundTag();
 
         tower.setBufferedTransferEnergy(BUFFERED_TRANSFER_ENERGY);
+        tower.setQuarantinedTransferEnergy(QUARANTINED_TRANSFER_ENERGY);
         tower.saveAdditional(savedData, registries);
         tower.setBufferedTransferEnergy(0L);
+        tower.setQuarantinedTransferEnergy(0L);
         helper.assertValueEqual(tower.bufferedTransferEnergy(), 0L, "The transfer buffer must be cleared before loading");
+        helper.assertValueEqual(
+                tower.quarantinedTransferEnergy(),
+                0L,
+                "The quarantined transfer energy must be cleared before loading");
 
         tower.loadTag(savedData, registries);
         helper.assertValueEqual(
                 tower.bufferedTransferEnergy(),
                 BUFFERED_TRANSFER_ENERGY,
                 "The transfer buffer must survive an NBT round trip");
+        helper.assertValueEqual(
+                tower.quarantinedTransferEnergy(),
+                QUARANTINED_TRANSFER_ENERGY,
+                "The quarantined transfer energy must survive an NBT round trip");
         helper.succeed();
     }
 
@@ -217,21 +228,32 @@ public final class DataDistributionTowerDiscoveryGameTest {
         DataDistributionTowerBlockEntity tower = placeTower(helper, REGULAR_CHARGER_POS);
 
         tower.setBufferedTransferEnergy(BUFFERED_TRANSFER_ENERGY);
+        tower.setQuarantinedTransferEnergy(QUARANTINED_TRANSFER_ENERGY);
         DataComponentMap dismantleComponents = tower.exportSettings(SettingsFrom.DISMANTLE_ITEM, null);
         tower.setBufferedTransferEnergy(0L);
+        tower.setQuarantinedTransferEnergy(0L);
         tower.importSettings(SettingsFrom.DISMANTLE_ITEM, dismantleComponents, null);
         helper.assertValueEqual(
                 tower.bufferedTransferEnergy(),
                 BUFFERED_TRANSFER_ENERGY,
                 "The dismantled tower item must retain its transfer buffer");
+        helper.assertValueEqual(
+                tower.quarantinedTransferEnergy(),
+                QUARANTINED_TRANSFER_ENERGY,
+                "The dismantled tower item must retain quarantined transfer energy");
 
         DataComponentMap memoryCardComponents = tower.exportSettings(SettingsFrom.MEMORY_CARD, null);
         tower.setBufferedTransferEnergy(0L);
+        tower.setQuarantinedTransferEnergy(0L);
         tower.importSettings(SettingsFrom.MEMORY_CARD, memoryCardComponents, null);
         helper.assertValueEqual(
                 tower.bufferedTransferEnergy(),
                 0L,
                 "Memory card settings must not duplicate buffered transfer energy");
+        helper.assertValueEqual(
+                tower.quarantinedTransferEnergy(),
+                0L,
+                "Memory card settings must not duplicate quarantined transfer energy");
         helper.succeed();
     }
 
