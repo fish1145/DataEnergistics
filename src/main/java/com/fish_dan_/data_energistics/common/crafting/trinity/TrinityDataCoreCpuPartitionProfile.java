@@ -3,10 +3,11 @@ package com.fish_dan_.data_energistics.common.crafting.trinity;
 import appeng.api.config.CpuSelectionMode;
 
 /**
- * Resolved resource slice for one virtual Trinity Data Core crafting CPU.
+ * Resolved resources for the reserved CPU or one virtual Trinity Data Core worker.
  *
  * <p>
- * Runtime CPU objects copy this immutable profile so structure changes can rebuild partitions deterministically.
+ * {@code totalPartitions} is the worker capacity. CPU number zero is reserved, so valid numbers are zero through the
+ * worker capacity, inclusive.
  */
 public record TrinityDataCoreCpuPartitionProfile(int index,
                                                  int totalPartitions,
@@ -16,10 +17,14 @@ public record TrinityDataCoreCpuPartitionProfile(int index,
 
     public TrinityDataCoreCpuPartitionProfile {
         if (totalPartitions <= 0) {
-            throw new IllegalArgumentException("CPU partition total must be positive");
+            throw new IllegalArgumentException("CPU worker capacity must be positive");
         }
-        if (index < 0 || index >= totalPartitions) {
-            throw new IllegalArgumentException("CPU partition index is out of range: " + index);
+        if (totalPartitions > TrinityDataCoreCpuContribution.MAX_PARTITION_COUNT) {
+            throw new IllegalArgumentException(
+                    "CPU worker capacity must not exceed " + TrinityDataCoreCpuContribution.MAX_PARTITION_COUNT);
+        }
+        if (index < 0 || index > totalPartitions) {
+            throw new IllegalArgumentException("CPU number is out of range: " + index);
         }
         if (storageBytes <= 0) {
             throw new IllegalArgumentException("CPU partition storage bytes must be positive");

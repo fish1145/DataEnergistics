@@ -307,14 +307,15 @@ public final class TrinityPatternTerminalPartitionImpl implements TrinityPattern
         if (localSlot < 0 || localSlot >= this.slotCount) {
             throw new IllegalArgumentException("Trinity terminal partition slot out of range: " + localSlot);
         }
-        if (!this.catalog.isMountCurrent(this.layoutRevision, this.coreMount)) {
-            return null;
-        }
-        int globalIndex = Math.addExact(this.firstGlobalIndex, localSlot);
-        TrinityPatternCatalog.GlobalSlot resolved = this.catalog.resolveGlobalSlot(this.layoutRevision, globalIndex);
+        int coreSlot = Math.addExact(this.firstCoreSlot, localSlot);
+        TrinityPatternCatalog.GlobalSlot resolved = this.catalog.resolveCoreSlot(
+                this.layoutRevision,
+                this.coreMount,
+                coreSlot);
         if (resolved == null || !resolved.range().coreId().equals(this.key.coreId()) ||
                 resolved.core() != this.coreMount.core() ||
-                resolved.coreSlot() != this.firstCoreSlot + localSlot) {
+                resolved.globalIndex() != this.firstGlobalIndex + localSlot ||
+                resolved.coreSlot() != coreSlot) {
             return null;
         }
         return resolved;

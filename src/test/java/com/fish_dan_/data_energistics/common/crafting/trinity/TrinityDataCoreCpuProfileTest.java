@@ -22,6 +22,17 @@ public final class TrinityDataCoreCpuProfileTest {
     }
 
     @Test
+    void rejectsWorkerCapacityAboveMaximumAcrossCpuProfiles() {
+        assertThrows(IllegalArgumentException.class, () -> TrinityDataCoreCpuContribution.of(257L, 0, 257));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new TrinityDataCoreCpuProfile(257L, 0, 257, CpuSelectionMode.ANY));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new TrinityDataCoreCpuPartitionProfile(1, 257, 257L, 0, CpuSelectionMode.ANY));
+    }
+
+    @Test
     void aggregatesNamedContributionsDeterministically() {
         TrinityDataCoreCpuProfile profile = TrinityDataCoreCpuProfile.fromContributions(Map.of(
                 "zeta", new TrinityDataCoreCpuContribution(9L, 2, 2, CpuSelectionMode.ANY),
@@ -34,39 +45,34 @@ public final class TrinityDataCoreCpuProfileTest {
     }
 
     @Test
-    void partitionsCopyFullStorageAndCoProcessors() {
+    void partitionsResolveFullStorageAndCoProcessorsOnDemand() {
         TrinityDataCoreCpuProfile profile = new TrinityDataCoreCpuProfile(
                 10L,
                 5,
                 3,
                 CpuSelectionMode.ANY);
 
-        var partitions = profile.partitions();
-
-        assertEquals(3, partitions.size());
-        assertEquals(10L, partitions.get(0).storageBytes());
-        assertEquals(10L, partitions.get(1).storageBytes());
-        assertEquals(10L, partitions.get(2).storageBytes());
-        assertEquals(5, partitions.get(0).coProcessors());
-        assertEquals(5, partitions.get(1).coProcessors());
-        assertEquals(5, partitions.get(2).coProcessors());
+        assertEquals(10L, profile.partition(0).storageBytes());
+        assertEquals(10L, profile.partition(1).storageBytes());
+        assertEquals(10L, profile.partition(3).storageBytes());
+        assertEquals(5, profile.partition(0).coProcessors());
+        assertEquals(5, profile.partition(1).coProcessors());
+        assertEquals(5, profile.partition(3).coProcessors());
+        assertThrows(IllegalArgumentException.class, () -> profile.partition(4));
     }
 
     @Test
-    void partitionsCopyMaxStorageAndCoProcessorsWithoutDivision() {
+    void maxPartitionResolvesMaxStorageAndCoProcessorsWithoutDivision() {
         TrinityDataCoreCpuProfile profile = new TrinityDataCoreCpuProfile(
                 Long.MAX_VALUE,
                 Integer.MAX_VALUE,
                 256,
                 CpuSelectionMode.ANY);
 
-        var partitions = profile.partitions();
-
-        assertEquals(256, partitions.size());
-        assertEquals(Long.MAX_VALUE, partitions.get(0).storageBytes());
-        assertEquals(Long.MAX_VALUE, partitions.get(255).storageBytes());
-        assertEquals(Integer.MAX_VALUE, partitions.get(0).coProcessors());
-        assertEquals(Integer.MAX_VALUE, partitions.get(255).coProcessors());
+        assertEquals(Long.MAX_VALUE, profile.partition(0).storageBytes());
+        assertEquals(Long.MAX_VALUE, profile.partition(256).storageBytes());
+        assertEquals(Integer.MAX_VALUE, profile.partition(0).coProcessors());
+        assertEquals(Integer.MAX_VALUE, profile.partition(256).coProcessors());
     }
 
     @Test

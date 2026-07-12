@@ -15,11 +15,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -50,11 +53,23 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private final List<@Nullable IMolecularAssemblerSupportedPattern> decodedPatterns;
     private final List<ArrayDeque<TrinityCraftingBatch>> queues;
     private final List<LinkedHashMap<PatternRoute, ArrayList<ItemStack>>> pendingOutputs;
+    /** Slot-ordered decoded recipes used to publish a core snapshot without rescanning empty capacity. */
+    private final TreeMap<Integer, CachedPattern> cachedPatterns = new TreeMap<>();
+    /** Slots with at least one queued batch, ordered to preserve the prior deterministic execution order. */
+    private final TreeSet<Integer> queuedSlots = new TreeSet<>();
+    /** Slots with at least one pending output route, ordered for sparse persistence and routing. */
+    private final TreeSet<Integer> pendingOutputSlots = new TreeSet<>();
+    /** Per-host batch totals make lease work checks independent of the physical core capacity. */
+    private final Map<UUID, Integer> queuedBatchCountsByHost = new HashMap<>();
+    /** Per-host output slot indexes isolate sleeping routes left behind when a core moves between hosts. */
+    private final Map<UUID, TreeSet<Integer>> pendingOutputSlotsByHost = new HashMap<>();
     private final InternalInventory patternInventory = new PatternInventory();
 
     private UUID coreId;
     private long revision;
     private long stateRevision;
+    /** Latest immutable publication view; replaced atomically after each local recipe-cache revision. */
+    private PatternCacheSnapshot patternCacheSnapshot = new PatternCacheSnapshot(0L, List.of());
     @Nullable
     private CoreRefundTransaction activeRefundTransaction;
 
@@ -111,6 +126,11 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     @Override
+    public PatternCacheSnapshot patternCacheSnapshot() {
+        return this.patternCacheSnapshot;
+    }
+
+    @Override
     public InternalInventory patternInventory() {
         return this.patternInventory;
     }
@@ -134,13 +154,13 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         ItemStack current = this.patterns.get(slot);
         if (ItemStack.matches(current, normalized)) {
             if (!normalized.isEmpty() && this.decodedPatterns.get(slot) == null) {
-                this.decodedPatterns.set(slot, decoded);
+                replaceDecodedPattern(slot, decoded);
                 markPatternCacheChanged();
             }
             return true;
         }
         this.patterns.set(slot, normalized);
-        this.decodedPatterns.set(slot, decoded);
+        replaceDecodedPattern(slot, decoded);
         markPatternCatalogChanged();
         return true;
     }
@@ -157,16 +177,21 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         ensureNoActiveRefundTransaction();
         checkSlot(slot);
         ItemStack pattern = this.patterns.get(slot);
-        this.decodedPatterns.set(slot, pattern.isEmpty() ? null : this.decoder.decode(pattern));
+        replaceDecodedPattern(slot, pattern.isEmpty() ? null : this.decoder.decode(pattern));
         markPatternCacheChanged();
     }
 
     @Override
     public void refreshAllPatternCaches() {
         ensureNoActiveRefundTransaction();
+        this.cachedPatterns.clear();
         for (int slot = 0; slot < this.patternCapacity; slot++) {
             ItemStack pattern = this.patterns.get(slot);
-            this.decodedPatterns.set(slot, pattern.isEmpty() ? null : this.decoder.decode(pattern));
+            IMolecularAssemblerSupportedPattern decoded = pattern.isEmpty() ? null : this.decoder.decode(pattern);
+            this.decodedPatterns.set(slot, decoded);
+            if (decoded != null) {
+                this.cachedPatterns.put(slot, new CachedPattern(slot, decoded));
+            }
         }
         markPatternCacheChanged();
     }
@@ -198,11 +223,16 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         ArrayDeque<TrinityCraftingBatch> queue = this.queues.get(slot);
         long previousStateRevision = this.stateRevision;
         queue.addLast(batch);
+        trackEnqueuedBatch(batch);
         try {
             markPersistentStateChanged();
             return true;
         } catch (RuntimeException exception) {
             queue.removeLast();
+            trackDequeuedBatch(batch);
+            if (queue.isEmpty()) {
+                this.queuedSlots.remove(slot);
+            }
             this.stateRevision = previousStateRevision;
             Data_Energistics.LOGGER.error(
                     "Failed to persist Trinity pattern core {} slot {} batch; the enqueue was rolled back",
@@ -236,8 +266,8 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     @Override
     public int queuedBatchCount() {
         int count = 0;
-        for (ArrayDeque<TrinityCraftingBatch> queue : this.queues) {
-            count += queue.size();
+        for (int slot : this.queuedSlots) {
+            count += this.queues.get(slot).size();
         }
         return count;
     }
@@ -249,7 +279,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             throw new IllegalArgumentException("Current tick must not be negative: " + currentTick);
         }
         int completed = 0;
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
+        for (int slot : List.copyOf(this.queuedSlots)) {
             ArrayDeque<TrinityCraftingBatch> queue = this.queues.get(slot);
             while (!queue.isEmpty()) {
                 TrinityCraftingBatch batch = queue.peekFirst();
@@ -264,8 +294,12 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                 }
 
                 queue.removeFirst();
+                trackDequeuedBatch(batch);
                 appendOutputsWithoutNotification(batch.route(), result.outputs());
                 completed++;
+            }
+            if (queue.isEmpty()) {
+                this.queuedSlots.remove(slot);
             }
         }
         if (completed > 0) {
@@ -300,21 +334,31 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         appendNonEmptyCopies(replacement, outputs);
         Map<PatternRoute, ArrayList<ItemStack>> outputGroups = this.pendingOutputs.get(route.slot());
         if (replacement.isEmpty()) {
-            outputGroups.remove(route);
+            if (outputGroups.remove(route) != null) {
+                untrackPendingOutputRoute(route);
+            }
         } else {
-            outputGroups.put(route, replacement);
+            if (outputGroups.put(route, replacement) == null) {
+                trackPendingOutputRoute(route);
+            }
         }
         markPersistentStateChanged();
     }
 
     @Override
+    public List<Integer> pendingOutputSlots(UUID hostId) {
+        TreeSet<Integer> slots = this.pendingOutputSlotsByHost.get(hostId);
+        return slots == null ? List.of() : List.copyOf(slots);
+    }
+
+    @Override
     public boolean hasWork() {
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            if (!this.queues.get(slot).isEmpty() || !this.pendingOutputs.get(slot).isEmpty()) {
-                return true;
-            }
-        }
-        return false;
+        return !this.queuedSlots.isEmpty() || !this.pendingOutputSlots.isEmpty();
+    }
+
+    @Override
+    public boolean hasWork(UUID hostId) {
+        return this.queuedBatchCountsByHost.containsKey(hostId) || this.pendingOutputSlotsByHost.containsKey(hostId);
     }
 
     @Override
@@ -400,15 +444,22 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private void clearRefundState(@Nullable UUID routeHostId) {
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            if (routeHostId == null) {
+        if (routeHostId == null) {
+            for (int slot : this.queuedSlots) {
                 this.queues.get(slot).clear();
+            }
+            for (int slot : this.pendingOutputSlots) {
                 this.pendingOutputs.get(slot).clear();
-            } else {
+            }
+        } else {
+            for (int slot : List.copyOf(this.queuedSlots)) {
                 this.queues.get(slot).removeIf(batch -> routeHostId.equals(batch.route().hostId()));
+            }
+            for (int slot : List.copyOf(this.pendingOutputSlots)) {
                 this.pendingOutputs.get(slot).entrySet().removeIf(entry -> routeHostId.equals(entry.getKey().hostId()));
             }
         }
+        rebuildWorkIndexes();
         markPersistentStateChanged();
     }
 
@@ -427,6 +478,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             this.queues.set(slot, copyQueue(captured.queues().get(slot)));
             this.pendingOutputs.set(slot, copyPendingOutputGroup(captured.pendingOutputs().get(slot)));
         }
+        rebuildWorkIndexes();
         markPersistentStateChanged();
     }
 
@@ -584,6 +636,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             this.pendingOutputs.set(slot, loadedOutputs.get(slot));
         }
         this.revision = Math.incrementExact(this.revision);
+        this.cachedPatterns.clear();
+        rebuildPatternCacheSnapshot();
+        rebuildWorkIndexes();
         this.stateRevision = Math.incrementExact(this.stateRevision);
     }
 
@@ -604,11 +659,8 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
 
     private ListTag writeQueues(HolderLookup.Provider registries) {
         ListTag entries = new ListTag();
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
+        for (int slot : this.queuedSlots) {
             ArrayDeque<TrinityCraftingBatch> queue = this.queues.get(slot);
-            if (queue.isEmpty()) {
-                continue;
-            }
             CompoundTag entry = new CompoundTag();
             entry.putInt(SLOT_TAG, slot);
             ListTag batches = new ListTag();
@@ -623,7 +675,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
 
     private ListTag writePendingOutputs(HolderLookup.Provider registries) {
         ListTag entries = new ListTag();
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
+        for (int slot : this.pendingOutputSlots) {
             for (Map.Entry<PatternRoute, ArrayList<ItemStack>> group : this.pendingOutputs.get(slot).entrySet()) {
                 CompoundTag entry = new CompoundTag();
                 entry.put(ROUTE_TAG, group.getKey().writeToTag());
@@ -747,11 +799,18 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private void appendOutputsWithoutNotification(PatternRoute route, List<ItemStack> outputs) {
-        ArrayList<ItemStack> outputGroup = this.pendingOutputs.get(route.slot())
-                .computeIfAbsent(route, ignored -> new ArrayList<>());
-        appendNonEmptyCopies(outputGroup, outputs);
-        if (outputGroup.isEmpty()) {
-            this.pendingOutputs.get(route.slot()).remove(route);
+        ArrayList<ItemStack> appended = new ArrayList<>();
+        appendNonEmptyCopies(appended, outputs);
+        if (appended.isEmpty()) {
+            return;
+        }
+        Map<PatternRoute, ArrayList<ItemStack>> outputGroups = this.pendingOutputs.get(route.slot());
+        ArrayList<ItemStack> outputGroup = outputGroups.get(route);
+        if (outputGroup == null) {
+            outputGroups.put(route, appended);
+            trackPendingOutputRoute(route);
+        } else {
+            outputGroup.addAll(appended);
         }
     }
 
@@ -841,6 +900,84 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
 
     private void markPatternCacheChanged() {
         this.revision = Math.incrementExact(this.revision);
+        rebuildPatternCacheSnapshot();
+    }
+
+    private void replaceDecodedPattern(int slot, @Nullable IMolecularAssemblerSupportedPattern decoded) {
+        this.decodedPatterns.set(slot, decoded);
+        if (decoded == null) {
+            this.cachedPatterns.remove(slot);
+        } else {
+            this.cachedPatterns.put(slot, new CachedPattern(slot, decoded));
+        }
+    }
+
+    private void rebuildPatternCacheSnapshot() {
+        this.patternCacheSnapshot = new PatternCacheSnapshot(
+                this.revision,
+                new ArrayList<>(this.cachedPatterns.values()));
+    }
+
+    private void trackEnqueuedBatch(TrinityCraftingBatch batch) {
+        this.queuedSlots.add(batch.route().slot());
+        this.queuedBatchCountsByHost.merge(batch.route().hostId(), 1, Math::addExact);
+    }
+
+    private void trackDequeuedBatch(TrinityCraftingBatch batch) {
+        UUID hostId = batch.route().hostId();
+        Integer current = this.queuedBatchCountsByHost.get(hostId);
+        if (current == null || current <= 0) {
+            throw new IllegalStateException("Missing queued batch index for Trinity host " + hostId);
+        }
+        int remaining = Math.decrementExact(current);
+        if (remaining == 0) {
+            this.queuedBatchCountsByHost.remove(hostId);
+        } else {
+            this.queuedBatchCountsByHost.put(hostId, remaining);
+        }
+    }
+
+    private void trackPendingOutputRoute(PatternRoute route) {
+        this.pendingOutputSlots.add(route.slot());
+        this.pendingOutputSlotsByHost.computeIfAbsent(route.hostId(), ignored -> new TreeSet<>()).add(route.slot());
+    }
+
+    private void untrackPendingOutputRoute(PatternRoute route) {
+        TreeSet<Integer> hostSlots = this.pendingOutputSlotsByHost.get(route.hostId());
+        if (hostSlots == null || !hostSlots.remove(route.slot())) {
+            throw new IllegalStateException("Missing pending output index for Trinity route " + route);
+        }
+        if (hostSlots.isEmpty()) {
+            this.pendingOutputSlotsByHost.remove(route.hostId());
+        }
+        if (this.pendingOutputs.get(route.slot()).isEmpty()) {
+            this.pendingOutputSlots.remove(route.slot());
+        }
+    }
+
+    private void rebuildWorkIndexes() {
+        this.queuedSlots.clear();
+        this.pendingOutputSlots.clear();
+        this.queuedBatchCountsByHost.clear();
+        this.pendingOutputSlotsByHost.clear();
+        for (int slot = 0; slot < this.patternCapacity; slot++) {
+            ArrayDeque<TrinityCraftingBatch> queue = this.queues.get(slot);
+            if (!queue.isEmpty()) {
+                this.queuedSlots.add(slot);
+                for (TrinityCraftingBatch batch : queue) {
+                    this.queuedBatchCountsByHost.merge(batch.route().hostId(), 1, Math::addExact);
+                }
+            }
+            Map<PatternRoute, ArrayList<ItemStack>> outputGroups = this.pendingOutputs.get(slot);
+            if (!outputGroups.isEmpty()) {
+                this.pendingOutputSlots.add(slot);
+                for (PatternRoute route : outputGroups.keySet()) {
+                    this.pendingOutputSlotsByHost
+                            .computeIfAbsent(route.hostId(), ignored -> new TreeSet<>())
+                            .add(slot);
+                }
+            }
+        }
     }
 
     private void markPersistentStateChanged() {

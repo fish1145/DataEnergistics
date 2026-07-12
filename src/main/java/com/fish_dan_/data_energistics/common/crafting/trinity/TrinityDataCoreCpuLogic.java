@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -133,7 +134,7 @@ final class TrinityDataCoreCpuLogic {
      * @param craftingService AE2 crafting service
      */
     void tickCraftingLogic(IEnergyService energyService, CraftingService craftingService) {
-        if (!this.cpu.isActive()) {
+        if (!this.cpu.isOnline()) {
             return;
         }
         this.cantStoreItems = false;
@@ -142,6 +143,9 @@ final class TrinityDataCoreCpuLogic {
             if (!this.inventory.list.isEmpty()) {
                 this.cantStoreItems = true;
             }
+            return;
+        }
+        if (!this.cpu.isActive()) {
             return;
         }
         if (this.job.link.isCanceled()) {
@@ -364,6 +368,16 @@ final class TrinityDataCoreCpuLogic {
         return this.job != null;
     }
 
+    /** Returns whether this worker owns state that must survive hiding, saving, and pool reuse. */
+    boolean hasRetainedState() {
+        return this.job != null || !this.inventory.list.isEmpty();
+    }
+
+    /** Returns whether the runtime can discard this worker and reuse its number. */
+    boolean isReleasable() {
+        return !hasRetainedState();
+    }
+
     /**
      * @return current final output, or null when idle
      */
@@ -443,7 +457,7 @@ final class TrinityDataCoreCpuLogic {
      * @param registries registry lookup
      */
     void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
-        clearPersistedState();
+        discardPersistedState();
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
             Data_Energistics.LOGGER.warn("Ignoring Trinity Data Core CPU logic without a schema version");
             return;
@@ -456,8 +470,14 @@ final class TrinityDataCoreCpuLogic {
                     SCHEMA_VERSION);
             return;
         }
+        Tag rawInventory = data.get(INVENTORY_TAG);
+        if (!(rawInventory instanceof ListTag inventoryTag) ||
+                (!inventoryTag.isEmpty() && inventoryTag.getElementType() != Tag.TAG_COMPOUND)) {
+            Data_Energistics.LOGGER.error("Ignoring Trinity Data Core CPU logic without a list inventory");
+            return;
+        }
 
-        this.inventory.readFromNBT(data.getList(INVENTORY_TAG, 10), registries);
+        this.inventory.readFromNBT(inventoryTag, registries);
         if (!data.contains(JOB_TAG)) {
             return;
         }
@@ -485,9 +505,18 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    private void clearPersistedState() {
+    void discardPersistedState() {
         this.inventory.clear();
         this.job = null;
+    }
+
+    static boolean persistedHasJob(CompoundTag data) {
+        return data.contains(JOB_TAG, Tag.TAG_COMPOUND);
+    }
+
+    static boolean persistedHasRetainedState(CompoundTag data) {
+        return data.contains(JOB_TAG) ||
+                !data.getList(INVENTORY_TAG, Tag.TAG_COMPOUND).isEmpty();
     }
 
     /**

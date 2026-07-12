@@ -21,6 +21,48 @@ import java.util.UUID;
 public interface TrinityPatternCore {
 
     /**
+     * One publishable recipe retained by a physical core's local cache.
+     *
+     * @param slot    stable slot that must be included in the host-created route
+     * @param details decoded AE2 crafting details owned by this cache entry
+     */
+    record CachedPattern(int slot, IMolecularAssemblerSupportedPattern details) {
+
+        public CachedPattern {
+            if (slot < 0) {
+                throw new IllegalArgumentException("Cached Trinity pattern slot must not be negative");
+            }
+        }
+    }
+
+    /**
+     * Immutable, slot-ordered publication state for one physical pattern core.
+     *
+     * <p>
+     * Hosts merge these snapshots and add their own route identity without rescanning every physical slot.
+     *
+     * @param revision core-local publication revision
+     * @param patterns publishable entries in ascending slot order
+     */
+    record PatternCacheSnapshot(long revision, List<CachedPattern> patterns) {
+
+        public PatternCacheSnapshot {
+            if (revision < 0L) {
+                throw new IllegalArgumentException("Trinity pattern cache revision must not be negative");
+            }
+            patterns = List.copyOf(patterns);
+            int previousSlot = -1;
+            for (CachedPattern pattern : patterns) {
+                if (pattern.slot() <= previousSlot) {
+                    throw new IllegalArgumentException(
+                            "Trinity pattern cache entries must use unique ascending slots");
+                }
+                previousSlot = pattern.slot();
+            }
+        }
+    }
+
+    /**
      * Decodes an encoded item into a molecular-assembler-compatible crafting pattern.
      */
     @FunctionalInterface
@@ -116,6 +158,13 @@ public interface TrinityPatternCore {
      * @return monotonically increasing runtime revision for catalog cache invalidation
      */
     long revision();
+
+    /**
+     * Returns the core-local publishable pattern cache used by an aggregate host catalog.
+     *
+     * @return stable immutable snapshot whose entries are ordered by physical slot
+     */
+    PatternCacheSnapshot patternCacheSnapshot();
 
     /**
      * @return fixed-size inventory exposed to menus
@@ -227,9 +276,28 @@ public interface TrinityPatternCore {
     void replacePendingOutputs(PatternRoute route, List<ItemStack> outputs);
 
     /**
+     * Finds only slots that currently retain output for one host without scanning the core's full capacity.
+     *
+     * @param hostId stable host identity whose routed outputs are requested
+     * @return immutable ascending slot indexes
+     */
+    List<Integer> pendingOutputSlots(UUID hostId);
+
+    /**
      * @return whether queued inputs or pending outputs lock this core to its current host/grid
      */
     boolean hasWork();
+
+    /**
+     * Reports whether one host owns queued inputs or pending outputs in constant time.
+     *
+     * <p>
+     * Host scoping is required because a moved core may retain sleeping routes belonging to a different host.
+     *
+     * @param hostId stable host identity to inspect
+     * @return whether that host has work retained by this core
+     */
+    boolean hasWork(UUID hostId);
 
     /**
      * Reversible prepared refund for one physical P core.

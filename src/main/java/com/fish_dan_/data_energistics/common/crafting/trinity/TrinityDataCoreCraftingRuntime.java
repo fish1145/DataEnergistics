@@ -10,30 +10,34 @@ import net.minecraft.nbt.Tag;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
+import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingPlan;
+import appeng.api.networking.crafting.ICraftingRequester;
+import appeng.api.networking.crafting.ICraftingSubmitResult;
 import appeng.api.networking.energy.IEnergyService;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.crafting.CraftingLink;
+import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.service.CraftingService;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
 
-/**
- * Runtime CPU container owned by a Trinity Data Core block entity.
- *
- * <p>
- * The runtime keeps structure contribution data separate from AE2's crafting service and exposes resolved virtual CPU
- * partitions for mixin integration.
- */
+/** Runtime CPU pool owned by one Trinity Data Core block entity. */
 public final class TrinityDataCoreCraftingRuntime {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 1;
+    private static final int LEGACY_SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final String CONTRIBUTIONS_TAG = "contributions";
     private static final String CONTRIBUTION_NAME_TAG = "name";
     private static final String STORAGE_BYTES_TAG = "storage_bytes";
@@ -46,148 +50,176 @@ public final class TrinityDataCoreCraftingRuntime {
 
     private final TrinityDataCoreBlockEntity host;
     private final Map<String, TrinityDataCoreCpuContribution> externalContributions = new TreeMap<>();
-    private final List<TrinityDataCoreVirtualCpu> partitions = new ArrayList<>();
+    private final NavigableMap<Integer, TrinityDataCoreVirtualCpu> retainedWorkers = new TreeMap<>();
+    private final NavigableMap<Integer, CompoundTag> pendingWorkerLogic = new TreeMap<>();
+    @Nullable
+    private TrinityDataCoreVirtualCpu reservedCpu;
     private TrinityDataCoreCpuProfile profile = TrinityDataCoreCpuProfile.EMPTY;
-    private int activePartitionCount;
     private boolean mainStructureFormed;
     private boolean paused;
-    private ListTag pendingPartitionLogic;
 
     public TrinityDataCoreCraftingRuntime(TrinityDataCoreBlockEntity host) {
         this.host = host;
     }
 
-    /**
-     * Updates whether child structure CPU contributions are active.
-     *
-     * @param formed true when the main structure is formed
-     */
+    /** Updates whether child structure CPU contributions are active. */
     public void setMainStructureFormed(boolean formed) {
-        if (this.mainStructureFormed == formed) {
-            rebuildPartitions();
-            return;
-        }
         this.mainStructureFormed = formed;
-        rebuildPartitions();
+        applyProfile(this.profile);
     }
 
-    /**
-     * Pauses or resumes execution without discarding jobs or their inventories.
-     */
+    /** Pauses or resumes execution without discarding jobs or their inventories. */
     public void setPaused(boolean paused) {
         this.paused = paused;
     }
 
-    /**
-     * Cancels every active job. This is reserved for permanent host removal.
-     */
+    /** Cancels every active worker job. This is reserved for permanent host removal. */
     public void cancelAllJobs() {
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             cpu.cancelJob();
         }
     }
 
-    /**
-     * Moves inventory left behind after cancellation into durable host-owned storage.
-     *
-     * @param recovery sink that reports how much of each offered key was durably recovered
-     * @return true when every retained partition has no remaining inventory
-     */
+    /** Moves inventory left behind after cancellation into durable host-owned storage. */
     public boolean recoverCancelledInventory(BiFunction<AEKey, Long, Long> recovery) {
         boolean recoveredAll = true;
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             recoveredAll &= cpu.recoverIdleInventory(recovery);
         }
         return recoveredAll;
     }
 
-    /**
-     * Returns whether at least one partition currently owns a job.
-     */
+    /** Returns whether at least one worker currently owns a job. */
     public boolean hasBusyJobs() {
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             if (cpu.isBusy()) {
+                return true;
+            }
+        }
+        for (CompoundTag pendingLogic : this.pendingWorkerLogic.values()) {
+            if (TrinityDataCoreCpuLogic.persistedHasJob(pendingLogic)) {
                 return true;
             }
         }
         return false;
     }
 
-    /**
-     * Adds or replaces CPU data contributed by a named child structure.
-     *
-     * @param structureName structure name
-     * @param contribution  contribution data
-     */
+    /** Adds or replaces CPU data contributed by a named child structure. */
     public void setContribution(String structureName, TrinityDataCoreCpuContribution contribution) {
-        this.externalContributions.put(requireStructureName(structureName), contribution);
-        rebuildPartitions();
+        Map<String, TrinityDataCoreCpuContribution> nextContributions = new TreeMap<>(this.externalContributions);
+        nextContributions.put(requireStructureName(structureName), contribution);
+        TrinityDataCoreCpuProfile nextProfile = TrinityDataCoreCpuProfile.fromContributions(nextContributions);
+        this.externalContributions.clear();
+        this.externalContributions.putAll(nextContributions);
+        applyProfile(nextProfile);
     }
 
-    /**
-     * Clears CPU data contributed by a named child structure.
-     *
-     * @param structureName structure name
-     */
+    /** Clears CPU data contributed by a named child structure. */
     public void clearContribution(String structureName) {
-        this.externalContributions.remove(requireStructureName(structureName));
-        rebuildPartitions();
+        Map<String, TrinityDataCoreCpuContribution> nextContributions = new TreeMap<>(this.externalContributions);
+        nextContributions.remove(requireStructureName(structureName));
+        TrinityDataCoreCpuProfile nextProfile = TrinityDataCoreCpuProfile.fromContributions(nextContributions);
+        this.externalContributions.clear();
+        this.externalContributions.putAll(nextContributions);
+        applyProfile(nextProfile);
     }
 
-    /**
-     * Returns whether a named child structure currently has stored CPU data.
-     *
-     * @param structureName structure name
-     * @return true when contribution data exists for the structure
-     */
+    /** Returns whether a named child structure currently has stored CPU data. */
     public boolean hasContribution(String structureName) {
         return this.externalContributions.containsKey(requireStructureName(structureName));
     }
 
     /**
-     * @return active virtual CPU partitions owned by the formed host
+     * Returns the AE2-visible CPU view: the reserved CPU first, followed by active busy workers in numeric order.
      */
-    public List<TrinityDataCoreVirtualCpu> partitions() {
-        if (!this.mainStructureFormed || this.activePartitionCount == 0) {
+    public List<TrinityDataCoreVirtualCpu> publishedCpus() {
+        TrinityDataCoreVirtualCpu coordinator = this.reservedCpu;
+        if (coordinator == null || !coordinator.isActive()) {
             return List.of();
         }
-        return List.copyOf(activePartitions());
+
+        List<TrinityDataCoreVirtualCpu> published = new ArrayList<>(this.retainedWorkers.size() + 1);
+        published.add(coordinator);
+        for (TrinityDataCoreVirtualCpu worker : this.retainedWorkers.values()) {
+            if (worker.isBusy() && worker.isActive()) {
+                published.add(worker);
+            }
+        }
+        return List.copyOf(published);
     }
 
-    /**
-     * @return current aggregate profile
-     */
+    /** Compatibility alias used by the host's existing published CPU view contract. */
+    public List<TrinityDataCoreVirtualCpu> partitions() {
+        return publishedCpus();
+    }
+
+    /** Returns whether this runtime must remain attached to AE2 even when no CPU is currently published. */
+    public boolean shouldRemainRegistered() {
+        return (this.mainStructureFormed && this.profile.active()) || !this.retainedWorkers.isEmpty();
+    }
+
+    /** Returns the current aggregate worker profile. */
     public TrinityDataCoreCpuProfile profile() {
         return this.profile;
     }
 
-    /**
-     * Ticks every virtual CPU partition from AE2's crafting service.
-     *
-     * @param energyService   AE2 energy service
-     * @param craftingService AE2 crafting service
-     */
+    /** Allocates the smallest available worker and submits the job directly to that worker. */
+    ICraftingSubmitResult submitJob(IGrid grid,
+                                    ICraftingPlan plan,
+                                    IActionSource source,
+                                    @Nullable ICraftingRequester requester) {
+        TrinityDataCoreVirtualCpu coordinator = this.reservedCpu;
+        if (coordinator == null || !coordinator.isActiveOnGrid(grid)) {
+            return CraftingSubmitResult.CPU_OFFLINE;
+        }
+
+        releaseReleasableWorkers();
+        int workerNumber = findAvailableWorkerNumber();
+        if (workerNumber < 0) {
+            return CraftingSubmitResult.CPU_BUSY;
+        }
+
+        TrinityDataCoreVirtualCpu worker = new TrinityDataCoreVirtualCpu(
+                this.host,
+                this,
+                this.profile.partition(workerNumber));
+        this.retainedWorkers.put(workerNumber, worker);
+        try {
+            ICraftingSubmitResult result = worker.submitWorkerJob(grid, plan, source, requester);
+            if (!result.successful()) {
+                removeWorkerIfReleasable(workerNumber, worker);
+            }
+            return result;
+        } catch (RuntimeException exception) {
+            removeWorkerIfReleasable(workerNumber, worker);
+            Data_Energistics.LOGGER.error(
+                    "Failed to submit a Trinity crafting job to worker CPU {}",
+                    workerNumber,
+                    exception);
+            throw exception;
+        }
+    }
+
+    /** Ticks retained workers and releases workers only after both job and inventory are empty. */
     public void tick(IEnergyService energyService, CraftingService craftingService) {
         if (this.paused) {
             return;
         }
-        for (TrinityDataCoreVirtualCpu cpu : activePartitions()) {
-            cpu.tick(energyService, craftingService);
+        var iterator = this.retainedWorkers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry = iterator.next();
+            TrinityDataCoreVirtualCpu worker = entry.getValue();
+            worker.tick(energyService, craftingService);
+            if (!this.pendingWorkerLogic.containsKey(entry.getKey()) && worker.isReleasable()) {
+                iterator.remove();
+            }
         }
     }
 
-    /**
-     * Inserts returned crafting outputs into the virtual CPU partitions.
-     *
-     * @param what     key to insert
-     * @param amount   amount to insert
-     * @param mode     simulation or mutation mode
-     * @param inserted amount already inserted by earlier CPU providers
-     * @return total inserted amount
-     */
+    /** Inserts returned crafting outputs into retained workers. */
     public long insertIntoCpus(AEKey what, long amount, Actionable mode, long inserted) {
         long totalInserted = inserted;
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             if (totalInserted >= amount) {
                 break;
             }
@@ -196,60 +228,45 @@ public final class TrinityDataCoreCraftingRuntime {
         return totalInserted;
     }
 
-    /**
-     * Adds all currently awaited keys to AE2's request set.
-     *
-     * @param waitingFor output set
-     */
+    /** Adds all currently awaited keys to AE2's request set. */
     public void getAllWaitingFor(Set<AEKey> waitingFor) {
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             cpu.getAllWaitingFor(waitingFor);
         }
     }
 
-    /**
-     * @param what requested key
-     * @return amount all partitions are waiting for
-     */
+    /** Returns the amount all retained workers are waiting for. */
     public long getRequestedAmount(AEKey what) {
         long requested = 0L;
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             requested += cpu.getWaitingFor(what);
         }
         return requested;
     }
 
-    /**
-     * @param cpu CPU instance to check
-     * @return true when the CPU belongs to this runtime
-     */
+    /** Returns whether a CPU object is owned by this runtime, including hidden retained workers. */
     public boolean hasCpu(Object cpu) {
-        for (TrinityDataCoreVirtualCpu partition : this.partitions) {
-            if (partition == cpu) {
-                return true;
-            }
+        if (this.reservedCpu != null && cpu == this.reservedCpu) {
+            return true;
         }
-        return false;
+        if (!(cpu instanceof TrinityDataCoreVirtualCpu virtualCpu)) {
+            return false;
+        }
+        return this.retainedWorkers.get(virtualCpu.number()) == virtualCpu;
     }
 
-    /**
-     * @return latest crafting-visible change tick across all partitions
-     */
+    /** Returns the latest crafting-visible change tick across retained workers. */
     public long getLastModifiedOnTick() {
         long latest = 0L;
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             latest = Math.max(latest, cpu.getLastModifiedOnTick());
         }
         return latest;
     }
 
-    /**
-     * Re-registers persisted crafting links after AE2 refreshes its CPU list.
-     *
-     * @param service AE2 crafting service
-     */
+    /** Re-registers persisted links for every retained worker. */
     public void restoreLinks(CraftingService service) {
-        for (TrinityDataCoreVirtualCpu cpu : activePartitions()) {
+        for (TrinityDataCoreVirtualCpu cpu : this.retainedWorkers.values()) {
             ICraftingLink link = cpu.logic().getLastLink();
             if (link instanceof CraftingLink craftingLink) {
                 service.addLink(craftingLink);
@@ -257,12 +274,7 @@ public final class TrinityDataCoreCraftingRuntime {
         }
     }
 
-    /**
-     * Serializes runtime contributions and partition state.
-     *
-     * @param data       destination tag
-     * @param registries registry lookup
-     */
+    /** Serializes contributions and only workers that retain a job, inventory, or pending raw logic. */
     public void writeToTag(CompoundTag data, HolderLookup.Provider registries) {
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
 
@@ -276,25 +288,28 @@ public final class TrinityDataCoreCraftingRuntime {
         data.put(CONTRIBUTIONS_TAG, contributionsTag);
 
         ListTag partitionsTag = new ListTag();
-        for (TrinityDataCoreVirtualCpu cpu : this.partitions) {
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            TrinityDataCoreVirtualCpu cpu = entry.getValue();
+            CompoundTag pendingLogic = this.pendingWorkerLogic.get(entry.getKey());
+            if (pendingLogic == null && !cpu.hasRetainedState()) {
+                continue;
+            }
+
             CompoundTag partitionTag = new CompoundTag();
-            partitionTag.putInt(PARTITION_INDEX_TAG, cpu.index());
-            partitionTag.putInt(PARTITION_COUNT_TAG, this.partitions.size());
+            partitionTag.putInt(PARTITION_INDEX_TAG, cpu.number());
+            partitionTag.putInt(PARTITION_COUNT_TAG, cpu.workerCapacity());
             partitionTag.putLong(STORAGE_BYTES_TAG, cpu.getAvailableStorage());
             partitionTag.putInt(CO_PROCESSORS_TAG, cpu.getCoProcessors());
             partitionTag.putString(SELECTION_MODE_TAG, cpu.getSelectionMode().name());
-            partitionTag.put(PARTITION_LOGIC_TAG, cpu.logic().writeToTag(registries));
+            partitionTag.put(
+                    PARTITION_LOGIC_TAG,
+                    pendingLogic != null ? pendingLogic.copy() : cpu.logic().writeToTag(registries));
             partitionsTag.add(partitionTag);
         }
         data.put(PARTITIONS_TAG, partitionsTag);
     }
 
-    /**
-     * Restores runtime contributions and stores partition state until partitions are rebuilt.
-     *
-     * @param data       source tag
-     * @param registries registry lookup
-     */
+    /** Restores contributions and normalizes persisted workers before their level-dependent logic is decoded. */
     public void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
         clearPersistedState();
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
@@ -302,24 +317,35 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion != LEGACY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU runtime schema version {}; expected {}",
+                    "Ignoring Trinity Data Core CPU runtime schema version {}; expected {} or {}",
                     schemaVersion,
+                    LEGACY_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return;
         }
-
-        ListTag contributionsTag = data.getList(CONTRIBUTIONS_TAG, Tag.TAG_COMPOUND);
-        for (int index = 0; index < contributionsTag.size(); index++) {
-            CompoundTag contributionTag = contributionsTag.getCompound(index);
-            this.externalContributions.put(
-                    requireStructureName(contributionTag.getString(CONTRIBUTION_NAME_TAG)),
-                    readContribution(contributionTag));
+        ListTag contributionsTag;
+        ListTag partitionsTag;
+        try {
+            contributionsTag = readCompoundList(data, CONTRIBUTIONS_TAG);
+            partitionsTag = readCompoundList(data, PARTITIONS_TAG);
+        } catch (IllegalArgumentException exception) {
+            Data_Energistics.LOGGER.error("Ignoring invalid Trinity Data Core CPU runtime lists", exception);
+            return;
         }
-        this.pendingPartitionLogic = data.getList(PARTITIONS_TAG, Tag.TAG_COMPOUND);
-        rebuildPartitions();
-        restoreRetainedPartitions();
+
+        Map<String, TrinityDataCoreCpuContribution> restoredContributions = readContributions(contributionsTag);
+        TrinityDataCoreCpuProfile restoredProfile;
+        try {
+            restoredProfile = TrinityDataCoreCpuProfile.fromContributions(restoredContributions);
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Ignoring invalid Trinity CPU contribution aggregate", exception);
+            return;
+        }
+        this.externalContributions.putAll(restoredContributions);
+        applyProfile(restoredProfile);
+        restorePendingWorkers(partitionsTag, schemaVersion);
         restorePendingPartitionLogic(registries);
     }
 
@@ -328,85 +354,192 @@ public final class TrinityDataCoreCraftingRuntime {
         clearPersistedState();
     }
 
-    private void clearPersistedState() {
-        this.externalContributions.clear();
-        this.partitions.clear();
-        this.profile = TrinityDataCoreCpuProfile.EMPTY;
-        this.activePartitionCount = 0;
-        this.pendingPartitionLogic = null;
-    }
-
-    /**
-     * Restores pending partition logic once the owning block entity is attached to a level.
-     *
-     * @param registries registry lookup
-     */
+    /** Restores pending worker logic once the owning block entity is attached to a level. */
     public void restorePendingPartitionLogic(HolderLookup.Provider registries) {
-        applyPendingPartitionLogic(registries);
-    }
-
-    private void rebuildPartitions() {
-        Map<String, TrinityDataCoreCpuContribution> contributions = new TreeMap<>(this.externalContributions);
-        this.profile = TrinityDataCoreCpuProfile.fromContributions(contributions);
-        List<TrinityDataCoreCpuPartitionProfile> partitionProfiles = this.profile.partitions();
-        this.activePartitionCount = partitionProfiles.size();
-        for (TrinityDataCoreCpuPartitionProfile partitionProfile : partitionProfiles) {
-            if (partitionProfile.index() < this.partitions.size()) {
-                this.partitions.get(partitionProfile.index()).updateProfile(partitionProfile);
-            } else {
-                this.partitions.add(new TrinityDataCoreVirtualCpu(this.host, partitionProfile));
-            }
+        if (this.pendingWorkerLogic.isEmpty() || this.host.getLevel() == null) {
+            return;
         }
-    }
 
-    private List<TrinityDataCoreVirtualCpu> activePartitions() {
-        return this.partitions.subList(0, this.activePartitionCount);
-    }
-
-    private void restoreRetainedPartitions() {
-        for (int tagIndex = 0; tagIndex < this.pendingPartitionLogic.size(); tagIndex++) {
-            CompoundTag partitionTag = this.pendingPartitionLogic.getCompound(tagIndex);
-            int cpuIndex = partitionTag.getInt(PARTITION_INDEX_TAG);
-            if (cpuIndex < this.partitions.size()) {
-                continue;
-            }
-            if (cpuIndex != this.partitions.size()) {
+        var iterator = this.pendingWorkerLogic.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Integer, CompoundTag> entry = iterator.next();
+            TrinityDataCoreVirtualCpu worker = this.retainedWorkers.get(entry.getKey());
+            if (worker == null) {
                 Data_Energistics.LOGGER.error(
-                        "Cannot restore Trinity CPU partition {} because partition {} is missing",
-                        cpuIndex,
-                        this.partitions.size());
+                        "Cannot restore Trinity CPU worker {} because its runtime object is missing",
+                        entry.getKey());
+                iterator.remove();
                 continue;
             }
             try {
-                this.partitions.add(new TrinityDataCoreVirtualCpu(
-                        this.host,
-                        new TrinityDataCoreCpuPartitionProfile(
-                                cpuIndex,
-                                partitionTag.getInt(PARTITION_COUNT_TAG),
-                                partitionTag.getLong(STORAGE_BYTES_TAG),
-                                partitionTag.getInt(CO_PROCESSORS_TAG),
-                                CpuSelectionMode.valueOf(partitionTag.getString(SELECTION_MODE_TAG)))));
-            } catch (IllegalArgumentException exception) {
-                Data_Energistics.LOGGER.error("Cannot restore Trinity CPU partition {}", cpuIndex, exception);
+                worker.logic().readFromTag(entry.getValue(), registries);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Rejecting invalid persisted logic for Trinity CPU worker {}",
+                        entry.getKey(),
+                        exception);
+                worker.logic().discardPersistedState();
+            }
+            iterator.remove();
+        }
+        releaseReleasableWorkers();
+    }
+
+    /** Returns whether this CPU remains an active member of the current worker capacity. */
+    boolean isCurrentCpu(TrinityDataCoreVirtualCpu cpu) {
+        if (!this.mainStructureFormed || !this.profile.active()) {
+            return false;
+        }
+        if (cpu.number() == 0) {
+            return cpu == this.reservedCpu;
+        }
+        return cpu.number() <= this.profile.partitionCount() &&
+                this.retainedWorkers.get(cpu.number()) == cpu;
+    }
+
+    private int findAvailableWorkerNumber() {
+        for (int number = 1; number <= this.profile.partitionCount(); number++) {
+            if (!this.retainedWorkers.containsKey(number)) {
+                return number;
+            }
+        }
+        return -1;
+    }
+
+    private void removeWorkerIfReleasable(int number, TrinityDataCoreVirtualCpu worker) {
+        if (!this.pendingWorkerLogic.containsKey(number) && worker.isReleasable()) {
+            this.retainedWorkers.remove(number, worker);
+        }
+    }
+
+    private void releaseReleasableWorkers() {
+        this.retainedWorkers.entrySet().removeIf(entry -> !this.pendingWorkerLogic.containsKey(entry.getKey()) && entry.getValue().isReleasable());
+    }
+
+    private void applyProfile(TrinityDataCoreCpuProfile nextProfile) {
+        this.profile = nextProfile;
+        if (!nextProfile.active()) {
+            return;
+        }
+
+        TrinityDataCoreCpuPartitionProfile coordinatorProfile = nextProfile.partition(0);
+        if (this.reservedCpu == null) {
+            this.reservedCpu = new TrinityDataCoreVirtualCpu(this.host, this, coordinatorProfile);
+        } else {
+            this.reservedCpu.updateProfile(coordinatorProfile);
+        }
+
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            if (entry.getKey() <= nextProfile.partitionCount()) {
+                entry.getValue().updateProfile(nextProfile.partition(entry.getKey()));
             }
         }
     }
 
-    private void applyPendingPartitionLogic(HolderLookup.Provider registries) {
-        if (this.pendingPartitionLogic == null) {
-            return;
-        }
-        if (this.host.getLevel() == null) {
-            return;
-        }
-        for (int tagIndex = 0; tagIndex < this.pendingPartitionLogic.size(); tagIndex++) {
-            CompoundTag partitionTag = this.pendingPartitionLogic.getCompound(tagIndex);
-            int cpuIndex = partitionTag.getInt(PARTITION_INDEX_TAG);
-            if (cpuIndex >= 0 && cpuIndex < this.partitions.size() && partitionTag.contains(PARTITION_LOGIC_TAG)) {
-                this.partitions.get(cpuIndex).logic().readFromTag(partitionTag.getCompound(PARTITION_LOGIC_TAG), registries);
+    private Map<String, TrinityDataCoreCpuContribution> readContributions(ListTag contributionsTag) {
+        Map<String, TrinityDataCoreCpuContribution> restored = new TreeMap<>();
+        for (int index = 0; index < contributionsTag.size(); index++) {
+            CompoundTag contributionTag = contributionsTag.getCompound(index);
+            try {
+                String structureName = requireStructureName(contributionTag.getString(CONTRIBUTION_NAME_TAG));
+                restored.put(structureName, readContribution(contributionTag));
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Rejecting invalid Trinity CPU contribution at persisted index {}",
+                        index,
+                        exception);
             }
         }
-        this.pendingPartitionLogic = null;
+        return restored;
+    }
+
+    private static ListTag readCompoundList(CompoundTag data, String name) {
+        Tag rawTag = data.get(name);
+        if (!(rawTag instanceof ListTag listTag) ||
+                (!listTag.isEmpty() && listTag.getElementType() != Tag.TAG_COMPOUND)) {
+            throw new IllegalArgumentException("Persisted Trinity CPU tag '" + name + "' is not a compound list");
+        }
+        return listTag;
+    }
+
+    private void restorePendingWorkers(ListTag partitionsTag, int schemaVersion) {
+        Set<Integer> seenWorkerNumbers = new HashSet<>();
+        for (int tagIndex = 0; tagIndex < partitionsTag.size(); tagIndex++) {
+            CompoundTag partitionTag = partitionsTag.getCompound(tagIndex);
+            try {
+                TrinityDataCoreCpuPartitionProfile savedProfile = readWorkerProfile(partitionTag, schemaVersion);
+                int workerNumber = savedProfile.index();
+                if (!seenWorkerNumbers.add(workerNumber)) {
+                    Data_Energistics.LOGGER.error(
+                            "Rejecting duplicate persisted Trinity CPU worker {} at index {}",
+                            workerNumber,
+                            tagIndex);
+                    continue;
+                }
+                if (!partitionTag.contains(PARTITION_LOGIC_TAG, Tag.TAG_COMPOUND)) {
+                    Data_Energistics.LOGGER.error(
+                            "Rejecting persisted Trinity CPU worker {} without compound logic",
+                            workerNumber);
+                    continue;
+                }
+                CompoundTag pendingLogic = partitionTag.getCompound(PARTITION_LOGIC_TAG);
+                if (!TrinityDataCoreCpuLogic.persistedHasRetainedState(pendingLogic)) {
+                    continue;
+                }
+
+                TrinityDataCoreCpuPartitionProfile effectiveProfile = savedProfile;
+                if (this.profile.active() && workerNumber <= this.profile.partitionCount()) {
+                    effectiveProfile = this.profile.partition(workerNumber);
+                }
+                TrinityDataCoreVirtualCpu worker = new TrinityDataCoreVirtualCpu(this.host, this, effectiveProfile);
+                this.retainedWorkers.put(workerNumber, worker);
+                this.pendingWorkerLogic.put(workerNumber, pendingLogic.copy());
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Rejecting invalid persisted Trinity CPU worker at index {}",
+                        tagIndex,
+                        exception);
+            }
+        }
+    }
+
+    private static TrinityDataCoreCpuPartitionProfile readWorkerProfile(CompoundTag data, int schemaVersion) {
+        if (!data.contains(PARTITION_INDEX_TAG, Tag.TAG_INT) ||
+                !data.contains(PARTITION_COUNT_TAG, Tag.TAG_INT) ||
+                !data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG) ||
+                !data.contains(CO_PROCESSORS_TAG, Tag.TAG_INT) ||
+                !data.contains(SELECTION_MODE_TAG, Tag.TAG_STRING)) {
+            throw new IllegalArgumentException("Persisted Trinity CPU worker profile is incomplete");
+        }
+
+        int persistedIndex = data.getInt(PARTITION_INDEX_TAG);
+        int workerCapacity = data.getInt(PARTITION_COUNT_TAG);
+        int workerNumber;
+        if (schemaVersion == LEGACY_SCHEMA_VERSION) {
+            if (persistedIndex < 0 || persistedIndex >= workerCapacity) {
+                throw new IllegalArgumentException("Legacy Trinity CPU partition index is out of range: " + persistedIndex);
+            }
+            workerNumber = Math.addExact(persistedIndex, 1);
+        } else {
+            if (persistedIndex <= 0 || persistedIndex > workerCapacity) {
+                throw new IllegalArgumentException("Trinity CPU worker number is out of range: " + persistedIndex);
+            }
+            workerNumber = persistedIndex;
+        }
+
+        return new TrinityDataCoreCpuPartitionProfile(
+                workerNumber,
+                workerCapacity,
+                data.getLong(STORAGE_BYTES_TAG),
+                data.getInt(CO_PROCESSORS_TAG),
+                CpuSelectionMode.valueOf(data.getString(SELECTION_MODE_TAG)));
+    }
+
+    private void clearPersistedState() {
+        this.externalContributions.clear();
+        this.retainedWorkers.clear();
+        this.pendingWorkerLogic.clear();
+        this.profile = TrinityDataCoreCpuProfile.EMPTY;
     }
 
     private static void writeContribution(CompoundTag data, TrinityDataCoreCpuContribution contribution) {
@@ -417,6 +550,12 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private static TrinityDataCoreCpuContribution readContribution(CompoundTag data) {
+        if (!data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG) ||
+                !data.contains(CO_PROCESSORS_TAG, Tag.TAG_INT) ||
+                !data.contains(PARTITION_COUNT_TAG, Tag.TAG_INT) ||
+                !data.contains(SELECTION_MODE_TAG, Tag.TAG_STRING)) {
+            throw new IllegalArgumentException("Persisted Trinity CPU contribution is incomplete");
+        }
         CpuSelectionMode selectionMode = CpuSelectionMode.valueOf(data.getString(SELECTION_MODE_TAG));
         return new TrinityDataCoreCpuContribution(
                 data.getLong(STORAGE_BYTES_TAG),
@@ -427,7 +566,7 @@ public final class TrinityDataCoreCraftingRuntime {
 
     private static String requireStructureName(String structureName) {
         if (structureName.isBlank()) {
-            throw new IllegalArgumentException("Trinity Data Core CPU contribution structure name must not be blank");
+            throw new IllegalArgumentException("CPU contribution structure name must not be blank");
         }
         return structureName;
     }

@@ -55,7 +55,7 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
             host.restoreStorageIdFromItem(stack);
             host.restoreHostIdFromItem(stack);
         }
-        TrinityDataCoreBlockEntity.requestRecheckAround(level, pos);
+        TrinityDataCoreBlockEntity.requestRecheckAt(level, pos);
     }
 
     @Override
@@ -75,7 +75,6 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
             if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
                 host.onPermanentRemoval();
             }
-            TrinityDataCoreBlockEntity.requestRecheckAround(level, pos);
         }
         super.onRemove(state, level, pos, newState, isMoving);
     }
@@ -83,7 +82,7 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
     @Override
     public void neighborChanged(BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
         super.neighborChanged(state, level, pos, block, fromPos, isMoving);
-        TrinityDataCoreBlockEntity.requestRecheckAround(level, pos);
+        TrinityDataCoreBlockEntity.requestRecheckAt(level, pos);
     }
 
     @Override

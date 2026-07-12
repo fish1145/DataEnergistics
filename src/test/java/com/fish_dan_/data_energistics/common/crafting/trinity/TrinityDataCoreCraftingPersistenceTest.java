@@ -8,20 +8,21 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import appeng.api.config.Actionable;
 import appeng.api.stacks.AEItemKey;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class TrinityDataCoreCraftingPersistenceTest {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int RUNTIME_SCHEMA_VERSION = 2;
+    private static final int CPU_LOGIC_SCHEMA_VERSION = 1;
 
     private TrinityDataCoreCraftingPersistenceTest() {}
 
@@ -36,13 +37,17 @@ public final class TrinityDataCoreCraftingPersistenceTest {
         original.writeToTag(saved, helper.getLevel().registryAccess());
         helper.assertValueEqual(
                 saved.getInt("schema_version"),
-                SCHEMA_VERSION,
+                RUNTIME_SCHEMA_VERSION,
                 "Current runtime should persist its schema version");
 
         TrinityDataCoreCraftingRuntime restored = runtime(helper, new BlockPos(2, 1, 1));
         restored.readFromTag(saved, helper.getLevel().registryAccess());
 
-        helper.assertValueEqual(restored.partitions().size(), 1, "Current runtime should restore its CPU partition");
+        helper.assertValueEqual(restored.profile().partitionCount(), 1, "Current runtime should restore its worker capacity");
+        helper.assertValueEqual(
+                saved.getList("partitions", 10).size(),
+                0,
+                "Idle runtime should not persist reserved CPU 0 or empty workers");
         helper.assertValueEqual(restored.profile().storageBytes(), 1024L, "Current runtime should restore CPU storage");
         helper.assertValueEqual(restored.profile().coProcessors(), 2, "Current runtime should restore co-processors");
         helper.succeed();
@@ -56,7 +61,7 @@ public final class TrinityDataCoreCraftingPersistenceTest {
         source.setContribution("source", TrinityDataCoreCpuContribution.of(1024L, 2, 1));
         CompoundTag unsupportedTag = new CompoundTag();
         source.writeToTag(unsupportedTag, helper.getLevel().registryAccess());
-        unsupportedTag.putInt("schema_version", SCHEMA_VERSION + 1);
+        unsupportedTag.putInt("schema_version", RUNTIME_SCHEMA_VERSION + 1);
 
         TrinityDataCoreCraftingRuntime unsupported = runtime(helper, new BlockPos(2, 1, 1));
         unsupported.setContribution("existing", TrinityDataCoreCpuContribution.of(2048L, 1, 1));
@@ -80,9 +85,17 @@ public final class TrinityDataCoreCraftingPersistenceTest {
     public static void unsupportedCpuLogicSchemaResetsState(GameTestHelper helper) {
         TrinityDataCoreVirtualCpu cpu = activeCpu(helper, new BlockPos(1, 1, 1));
         AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
-        CompoundTag unsupported = cpu.logic().writeToTag(helper.getLevel().registryAccess());
-        unsupported.putInt("schema_version", SCHEMA_VERSION + 1);
-        cpu.insert(iron, 7L, Actionable.MODULATE);
+        CompoundTag current = cpu.logic().writeToTag(helper.getLevel().registryAccess());
+        ListTag inventory = new ListTag();
+        CompoundTag storedIron = iron.toTagGeneric(helper.getLevel().registryAccess());
+        storedIron.putLong("#", 7L);
+        inventory.add(storedIron);
+        current.put("inventory", inventory);
+        cpu.logic().readFromTag(current, helper.getLevel().registryAccess());
+        helper.assertValueEqual(cpu.getStored(iron), 7L, "Supported CPU logic schema should restore inventory state");
+
+        CompoundTag unsupported = current.copy();
+        unsupported.putInt("schema_version", CPU_LOGIC_SCHEMA_VERSION + 1);
         cpu.logic().readFromTag(unsupported, helper.getLevel().registryAccess());
 
         helper.assertValueEqual(cpu.getStored(iron), 0L, "Unsupported CPU logic schema must not retain inventory state");
@@ -91,9 +104,12 @@ public final class TrinityDataCoreCraftingPersistenceTest {
     }
 
     private static TrinityDataCoreVirtualCpu activeCpu(GameTestHelper helper, BlockPos pos) {
-        TrinityDataCoreCraftingRuntime runtime = runtime(helper, pos);
+        TestHost host = new TestHost(helper.absolutePos(pos));
+        host.setLevel(helper.getLevel());
+        TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
+        runtime.setMainStructureFormed(true);
         runtime.setContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
-        return runtime.partitions().getFirst();
+        return new TrinityDataCoreVirtualCpu(host, runtime, runtime.profile().partition(1));
     }
 
     private static TrinityDataCoreCraftingRuntime runtime(GameTestHelper helper, BlockPos pos) {

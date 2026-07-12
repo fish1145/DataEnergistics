@@ -81,9 +81,9 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         ItemStack cakePattern = cakePattern(level);
         PatternRoute tableRoute = new PatternRoute(host.getHostId(), core.coreId(), TABLE_PATTERN_SLOT);
         PatternRoute cakeRoute = new PatternRoute(host.getHostId(), core.coreId(), CAKE_PATTERN_SLOT);
-        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
         PendingCraftingPlan tablePlan = new PendingCraftingPlan(level, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
         PendingCraftingPlan cakePlan = new PendingCraftingPlan(level, AEItemKey.of(Items.CAKE), 1L);
+        AtomicReference<TrinityDataCoreVirtualCpu> activeWorker = new AtomicReference<>();
 
         helper.startSequence()
                 .thenWaitUntil(fixture::awaitOnline)
@@ -118,12 +118,13 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             0L,
                             "Real AE2 planning should not require unavailable encoded Oak Planks");
 
-                    submitAndDispatch(helper, fixture, cpu, plan);
+                    TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
+                    activeWorker.set(worker);
                     long dispatchTick = level.getGameTime();
                     assertOnlyRouteQueued(helper, host, tableRoute, 2);
                     assertSubstitutedTableBatches(helper, core.queuedBatches(TABLE_PATTERN_SLOT), tableRoute, dispatchTick);
                     helper.assertValueEqual(
-                            cpu.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
+                            worker.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
                             2L,
                             "Trinity CPU should wait for both routed table outputs");
 
@@ -137,7 +138,8 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Both same-slot batches should execute on the next tick");
                     helper.assertTrue(core.pendingOutputs(tableRoute).isEmpty(),
                             "All table outputs should leave the P core after CPU routing");
-                    helper.assertFalse(cpu.isBusy(), "Trinity CPU should finish after both table outputs return");
+                    helper.assertFalse(activeWorker.get().isBusy(),
+                            "Trinity worker should finish after both table outputs return");
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 2L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
 
@@ -151,15 +153,16 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenExecute(() -> {
                     ICraftingPlan plan = cakePlan.plan();
                     assertPlan(helper, plan, cakeRoute, AEItemKey.of(Items.CAKE), 1L);
-                    submitAndDispatch(helper, fixture, cpu, plan);
+                    TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
+                    activeWorker.set(worker);
                     helper.assertValueEqual(core.queuedBatchCount(CAKE_PATTERN_SLOT), 1,
                             "Cake dispatch should enter its exact physical slot");
                     helper.assertValueEqual(
-                            cpu.getWaitingFor(AEItemKey.of(Items.CAKE)),
+                            worker.getWaitingFor(AEItemKey.of(Items.CAKE)),
                             1L,
                             "Trinity CPU should wait for the cake output");
                     helper.assertValueEqual(
-                            cpu.getWaitingFor(AEItemKey.of(Items.BUCKET)),
+                            worker.getWaitingFor(AEItemKey.of(Items.BUCKET)),
                             3L,
                             "Trinity CPU should wait for all three container remainders");
 
@@ -174,7 +177,8 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Cake batch should execute on the next tick");
                     helper.assertTrue(core.pendingOutputs(cakeRoute).isEmpty(),
                             "Cake and buckets should leave the P core after CPU routing");
-                    helper.assertFalse(cpu.isBusy(), "Trinity CPU should finish after cake and buckets return");
+                    helper.assertFalse(activeWorker.get().isBusy(),
+                            "Trinity worker should finish after cake and buckets return");
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CAKE), 1L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.BUCKET), 3L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.MILK_BUCKET), 0L);
@@ -193,7 +197,6 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
         TrinityDataCoreBlockEntity host = fixture.host();
         TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
-        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
         PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), REMOVAL_PATTERN_SLOT);
         PendingCraftingPlan plan = new PendingCraftingPlan(
                 helper.getLevel(),
@@ -201,6 +204,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 1L);
         ItemStack pattern = craftingTablePattern(helper.getLevel());
         AtomicReference<IGrid> removalGrid = new AtomicReference<>();
+        AtomicReference<List<TrinityDataCoreVirtualCpu>> removalCpus = new AtomicReference<>();
 
         helper.startSequence()
                 .thenWaitUntil(fixture::awaitOnline)
@@ -226,21 +230,27 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenWaitUntil(plan::await)
                 .thenExecute(() -> {
                     IGrid grid = fixture.grid();
+                    TrinityDataCoreVirtualCpu reserveCpu = reservedCpu(host);
                     ICraftingSubmitResult result = grid.getCraftingService().submitJob(
                             plan.plan(),
                             null,
-                            cpu,
+                            reserveCpu,
                             true,
                             host.accessActionSource());
                     helper.assertTrue(result.successful(),
                             "Removal test should submit a real AE2 job: " + result.errorCode());
-                    helper.assertTrue(cpu.isBusy(), "Submitted removal test CPU should own an active job");
+                    TrinityDataCoreVirtualCpu worker = busyWorker(host);
+                    List<TrinityDataCoreVirtualCpu> publishedCpus = List.copyOf(host.getCpuPartitions());
+                    helper.assertTrue(publishedCpus.contains(reserveCpu) && publishedCpus.contains(worker),
+                            "Removal test should capture both reserved CPU 0 and its allocated worker");
+                    removalCpus.set(publishedCpus);
+                    helper.assertTrue(worker.isBusy(), "Submitted removal test worker should own an active job");
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
                     removalGrid.set(grid);
 
                     helper.getLevel().destroyBlock(host.getBlockPos(), false);
 
-                    helper.assertFalse(cpu.isBusy(), "Permanent host removal should cancel its active CPU job");
+                    helper.assertFalse(worker.isBusy(), "Permanent host removal should cancel its active worker job");
                     helper.assertFalse(host.isStorageAvailable(),
                             "Permanent host removal should withdraw its storage capability");
                     helper.assertTrue(host.accessGrid() == null,
@@ -249,8 +259,9 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 })
                 .thenWaitUntil(() -> {
                     IGrid grid = removalGrid.get();
-                    helper.assertFalse(grid.getCraftingService().getCpus().contains(cpu),
-                            "Removed host CPU must not remain published on the old grid");
+                    helper.assertTrue(removalCpus.get().stream()
+                            .noneMatch(grid.getCraftingService().getCpus()::contains),
+                            "Removed host reserved CPU and worker must not remain published on the old grid");
                     helper.assertTrue(grid.getCraftingService()
                             .getCraftingFor(AEItemKey.of(Items.CRAFTING_TABLE))
                             .stream()
@@ -281,12 +292,12 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         ServerLevel level = helper.getLevel();
         TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
         TrinityPatternCore core = mount.core();
-        TrinityDataCoreVirtualCpu cpu = host.getCpuPartitions().getFirst();
         PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), STRUCTURE_PAUSE_PATTERN_SLOT);
         ItemStack pattern = craftingTablePattern(level);
         PendingCraftingPlan plan = new PendingCraftingPlan(level, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
         BlockPos interruptedPosition = findAdjacentCraftingFrame(level, host.getPatternCatalog().mountedCores());
         BlockState interruptedState = level.getBlockState(interruptedPosition);
+        AtomicReference<TrinityDataCoreVirtualCpu> activeWorker = new AtomicReference<>();
 
         helper.startSequence()
                 .thenWaitUntil(fixture::awaitOnline)
@@ -312,11 +323,12 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenWaitUntil(plan::await)
                 .thenExecute(() -> {
                     assertPlan(helper, plan.plan(), route, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
-                    submitAndDispatch(helper, fixture, cpu, plan.plan());
+                    TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan.plan());
+                    activeWorker.set(worker);
                     helper.assertValueEqual(core.queuedBatchCount(STRUCTURE_PAUSE_PATTERN_SLOT), 1,
                             "Real AE2 dispatch should enqueue one routed batch before structure interruption");
                     helper.assertValueEqual(
-                            cpu.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
+                            worker.getWaitingFor(AEItemKey.of(Items.CRAFTING_TABLE)),
                             1L,
                             "Trinity CPU should wait for the interrupted routed output");
 
@@ -328,7 +340,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
 
                     helper.assertFalse(host.isCraftingStructureFormed(),
                             "Removing a real crafting frame block should invalidate the crafting structure");
-                    assertPausedRoutedBatch(helper, fixture, core, cpu, route);
+                    assertPausedRoutedBatch(helper, fixture, core, activeWorker.get(), route);
                 })
                 .thenIdle(2)
                 .thenExecute(() -> {
@@ -336,7 +348,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     fixture.refreshAccessHatches();
                     helper.assertFalse(host.isCraftingStructureFormed(),
                             "Crafting structure should remain invalid while its frame block is absent");
-                    assertPausedRoutedBatch(helper, fixture, core, cpu, route);
+                    assertPausedRoutedBatch(helper, fixture, core, activeWorker.get(), route);
 
                     var rebuild = TrinityDataCoreBlockEntity.executeAutoBuild(
                             level,
@@ -368,8 +380,8 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "The same retained routed batch should execute after structure recovery");
                     helper.assertTrue(core.pendingOutputs(route).isEmpty(),
                             "Recovered routed output should leave the P core after CPU routing");
-                    helper.assertFalse(cpu.isBusy(),
-                            "Trinity CPU should complete after the recovered routed output returns");
+                    helper.assertFalse(activeWorker.get().isBusy(),
+                            "Trinity worker should complete after the recovered routed output returns");
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), 1L);
                 })
@@ -441,27 +453,55 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         helper.assertValueEqual(entry.getValue(), expectedTimes, "AE2 plan should retain the expected pattern count");
     }
 
-    private static void submitAndDispatch(GameTestHelper helper,
-                                          TrinityDataCoreGameTestFixture fixture,
-                                          TrinityDataCoreVirtualCpu cpu,
-                                          ICraftingPlan plan) {
+    private static TrinityDataCoreVirtualCpu submitAndDispatch(GameTestHelper helper,
+                                                               TrinityDataCoreGameTestFixture fixture,
+                                                               ICraftingPlan plan) {
         IGrid grid = fixture.grid();
         ICraftingService craftingService = grid.getCraftingService();
-        helper.assertTrue(craftingService.getCpus().contains(cpu), "AE2 should publish the selected Trinity CPU");
-        helper.assertTrue(cpu.getCoProcessors() >= 1, "Test CPU should dispatch both table batches in one tick");
+        TrinityDataCoreVirtualCpu reserveCpu = reservedCpu(fixture.host());
+        helper.assertTrue(craftingService.getCpus().contains(reserveCpu),
+                "AE2 should publish reserved Trinity CPU 0");
+        helper.assertTrue(reserveCpu.getCoProcessors() >= 1,
+                "Test CPU profile should dispatch both table batches in one tick");
         ICraftingSubmitResult result = craftingService.submitJob(
                 plan,
                 null,
-                cpu,
+                reserveCpu,
                 true,
                 fixture.host().accessActionSource());
         helper.assertTrue(result.successful(), "AE2 should submit the job to the explicit Trinity CPU: " +
                 result.errorCode());
-        helper.assertTrue(cpu.isBusy(), "Explicit Trinity CPU should own the submitted job");
+        helper.assertFalse(reserveCpu.isBusy(), "Reserved Trinity CPU 0 must remain idle after job allocation");
+        helper.assertTrue(reserveCpu.getJobStatus() == null,
+                "Reserved Trinity CPU 0 must not retain the allocated worker job");
+        TrinityDataCoreVirtualCpu worker = busyWorker(fixture.host());
+        helper.assertTrue(craftingService.getCpus().contains(worker),
+                "AE2 should publish the allocated busy Trinity worker");
+        helper.assertTrue(worker.isBusy(), "Allocated Trinity worker should own the submitted job");
         if (!(craftingService instanceof CraftingService concreteService)) {
             throw new IllegalStateException("Trinity CPU requires AE2 CraftingService for dispatch");
         }
         fixture.host().getCraftingRuntime().tick(grid.getEnergyService(), concreteService);
+        return worker;
+    }
+
+    private static TrinityDataCoreVirtualCpu reservedCpu(TrinityDataCoreBlockEntity host) {
+        List<TrinityDataCoreVirtualCpu> published = host.getCpuPartitions();
+        if (published.isEmpty() || published.getFirst().number() != 0) {
+            throw new GameTestAssertException("Online Trinity runtime did not publish reserved CPU 0 first");
+        }
+        return published.getFirst();
+    }
+
+    private static TrinityDataCoreVirtualCpu busyWorker(TrinityDataCoreBlockEntity host) {
+        List<TrinityDataCoreVirtualCpu> busyWorkers = host.getCpuPartitions().stream()
+                .filter(cpu -> cpu.number() != 0 && cpu.isBusy())
+                .toList();
+        if (busyWorkers.size() != 1) {
+            throw new GameTestAssertException(
+                    "Expected exactly one busy Trinity worker, found " + busyWorkers.size());
+        }
+        return busyWorkers.getFirst();
     }
 
     private static void assertOnlyRouteQueued(GameTestHelper helper,

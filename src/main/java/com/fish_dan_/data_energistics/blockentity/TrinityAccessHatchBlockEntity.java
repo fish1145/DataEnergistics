@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * AE network hatch that exposes the bound Trinity Data Core UUID storage instead of storing contents locally.
@@ -66,6 +67,13 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Nullable
     private String lastUnavailableReason;
     private List<TrinityPatternTerminalPartition> terminalPartitions = List.of();
+    private boolean terminalPartitionsDirty = true;
+    private boolean terminalPartitionAttachmentCheckRequested = true;
+    @Nullable
+    private UUID terminalPartitionHostId;
+    @Nullable
+    private IGrid terminalPartitionGrid;
+    private long terminalPartitionLayoutRevision = -1L;
 
     public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -99,6 +107,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         if (this.level == null || this.level.isClientSide()) {
             return;
         }
+        this.terminalPartitionsDirty = true;
         invalidateCapabilities();
         updateActiveState();
         requestStorageUpdate();
@@ -111,6 +120,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Override
     public void onMainNodeStateChanged(IGridNodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
+        this.terminalPartitionsDirty = true;
+        this.terminalPartitionAttachmentCheckRequested = true;
         TrinityDataCoreBlockEntity host = boundHost(false);
         if (host != null) {
             host.requestAccessLeaseReevaluation();
@@ -119,6 +130,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void onChunkUnloaded() {
+        this.terminalPartitionsDirty = true;
         detachTerminalPartitions();
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.onChunkUnloaded();
@@ -129,6 +141,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void setRemoved() {
+        this.terminalPartitionsDirty = true;
         detachTerminalPartitions();
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.setRemoved();
@@ -331,9 +344,14 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     private void refreshTerminalPartitionsSafely() {
+        if (!this.terminalPartitionsDirty) {
+            return;
+        }
+        this.terminalPartitionsDirty = false;
         try {
             refreshTerminalPartitions();
         } catch (RuntimeException exception) {
+            this.terminalPartitionsDirty = true;
             detachTerminalPartitions();
             LOGGER.error("Failed to mount Trinity pattern terminal partitions at {}", this.worldPosition, exception);
         }
@@ -349,6 +367,15 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
 
         IGrid grid = accessNode.getGrid();
+        long layoutRevision = host.getPatternCatalog().layoutSnapshot().revision();
+        if (host.getHostId().equals(this.terminalPartitionHostId) &&
+                this.terminalPartitionGrid == grid &&
+                this.terminalPartitionLayoutRevision == layoutRevision) {
+            if (!this.terminalPartitionAttachmentCheckRequested || terminalPartitionsAttachedTo(grid)) {
+                this.terminalPartitionAttachmentCheckRequested = false;
+                return;
+            }
+        }
         List<TrinityPatternTerminalPartition> desired = TrinityPatternTerminalPartition.createLayout(
                 host.getPatternCatalog(),
                 terminalGroup());
@@ -378,6 +405,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                 partition.attach(serverLevel, accessNode);
             }
         }
+        this.terminalPartitionHostId = host.getHostId();
+        this.terminalPartitionGrid = grid;
+        this.terminalPartitionLayoutRevision = layoutRevision;
+        this.terminalPartitionAttachmentCheckRequested = false;
+    }
+
+    private boolean terminalPartitionsAttachedTo(IGrid grid) {
+        for (TrinityPatternTerminalPartition partition : this.terminalPartitions) {
+            if (!partition.isAttachedTo(grid)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private PatternContainerGroup terminalGroup() {
@@ -390,6 +430,10 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             partition.detach();
         }
         this.terminalPartitions = List.of();
+        this.terminalPartitionHostId = null;
+        this.terminalPartitionGrid = null;
+        this.terminalPartitionLayoutRevision = -1L;
+        this.terminalPartitionAttachmentCheckRequested = true;
     }
 
     private final class HatchStorageProvider implements IStorageProvider {

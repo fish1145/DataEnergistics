@@ -56,8 +56,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -105,10 +103,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                         implements MultiBlockStatusProvider, CompartmentHost, TrinityDataCoreMenuHost,
                                         TrinityPatternCoreHost {
 
-    private static final int RECHECK_RADIUS = 24;
-    private static final int RECHECK_INTERVAL_TICKS = 100;
+    private static final int UNFORMED_MAIN_RECHECK_INTERVAL_TICKS = 100;
+    private static final int FORMED_MAIN_RECHECK_INTERVAL_TICKS = 1_200;
+    private static final int UNFORMED_CHILD_RECHECK_INTERVAL_TICKS = 100;
+    private static final int FORMED_CHILD_RECHECK_INTERVAL_TICKS = 1_200;
+    private static final int CRAFTING_RECHECK_PHASE_OFFSET_TICKS = 50;
     private static final String FORMED_TAG = "formed";
-    private static final String MATCHED_POSITIONS_TAG = "matched_positions";
     private static final String LAST_FAILURE_REASON_TAG = "last_failure_reason";
     private static final String LAST_FAILURE_POSITION_TAG = "last_failure_position";
     private static final String CPU_STRUCTURE_FORMED_TAG = "cpu_structure_formed";
@@ -163,6 +163,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Nullable
     private BlockPos craftingLastFailurePosition;
     private boolean recheckRequested = true;
+    private boolean cpuStructureRecheckRequested = true;
+    private boolean craftingStructureRecheckRequested = true;
+    private long lastCpuStructureRecheckTick = Long.MIN_VALUE;
+    private long lastCraftingStructureRecheckTick = Long.MIN_VALUE;
+    private long observedMultiBlockDefinitionRevision = -1L;
+    @Nullable
+    private Direction mainStructureFrontFacing;
+    private boolean mainStructureFlipped;
     private boolean structureRecheckInProgress;
     private final CompartmentHostState compartmentHostState = new CompartmentHostState();
     private final JsonMultiBlockCompartmentBinder compartmentBinder = new JsonDeclaredCompartmentBinder();
@@ -215,6 +223,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             tickServerState();
         } catch (RuntimeException exception) {
             this.craftingRuntime.setPaused(true);
+            this.cpuStructureRecheckRequested = true;
+            this.craftingStructureRecheckRequested = true;
             if (withdrawPatternCatalog()) {
                 notifyTrinityAccessChanged();
             }
@@ -223,18 +233,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void tickServerState() {
-        boolean periodicRecheck = Math.floorMod(
-                this.level.getGameTime() + this.worldPosition.asLong(),
-                RECHECK_INTERVAL_TICKS) == 0;
-        if (this.recheckRequested || periodicRecheck) {
-            this.recheckRequested = false;
-            this.structureRecheckInProgress = true;
-            try {
-                updateStructureMatch(this.level);
-            } finally {
-                this.structureRecheckInProgress = false;
-            }
-        }
+        observeMultiBlockDefinitionRevision();
+        updateScheduledStructureMatches();
         reevaluateAccessLease();
         if (this.patternCatalogValid && this.patternCatalog.refreshChangedPatterns()) {
             this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
@@ -474,6 +474,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     public void requestStructureRecheck() {
         this.recheckRequested = true;
+        this.cpuStructureRecheckRequested = true;
+        this.craftingStructureRecheckRequested = true;
     }
 
     /**
@@ -1027,6 +1029,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         mount.position());
                 continue;
             }
+            if (!patternCore.hasWork(this.hostId)) {
+                continue;
+            }
             try {
                 patternCore.executeOwnedBatches(this.hostId, this.level.getGameTime());
                 routedAnyOutput |= routePendingOutputs(patternCore, craftingService, storage);
@@ -1048,12 +1053,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                         CraftingService craftingService,
                                         TrinityDataCoreStorageSavedData storage) {
         boolean changed = false;
-        for (int slot = 0; slot < core.patternCapacity(); slot++) {
+        for (int slot : core.pendingOutputSlots(this.hostId)) {
             PatternRoute route = new PatternRoute(this.hostId, core.coreId(), slot);
             List<ItemStack> pending = core.pendingOutputs(route);
-            if (pending.isEmpty()) {
-                continue;
-            }
             boolean[] checkpointed = { false };
             try {
                 this.patternOutputRouter.route(
@@ -1120,18 +1122,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
-    public static void requestRecheckAround(Level level, BlockPos origin) {
-        if (!(level instanceof ServerLevel) || level.isClientSide()) {
+    public static void requestRecheckAt(Level level, BlockPos origin) {
+        if (!(level instanceof ServerLevel)) {
             return;
         }
 
-        BlockPos min = origin.offset(-RECHECK_RADIUS, -RECHECK_RADIUS, -RECHECK_RADIUS);
-        BlockPos max = origin.offset(RECHECK_RADIUS, RECHECK_RADIUS, RECHECK_RADIUS);
-        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-            BlockEntity blockEntity = level.getBlockEntity(pos);
-            if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
-                host.requestStructureRecheck();
-            }
+        BlockEntity blockEntity = level.getBlockEntity(origin);
+        if (blockEntity instanceof TrinityDataCoreBlockEntity host) {
+            host.requestStructureRecheck();
         }
     }
 
@@ -1164,7 +1162,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
         this.patternCatalogValid = false;
         this.formed = data.getBoolean(FORMED_TAG);
-        this.matchedPositions = readMatchedPositions(data);
+        this.matchedPositions = List.of();
         this.lastFailureReason = data.getString(LAST_FAILURE_REASON_TAG);
         if (data.contains(LAST_FAILURE_POSITION_TAG)) {
             this.lastFailurePosition = BlockPos.of(data.getLong(LAST_FAILURE_POSITION_TAG));
@@ -1208,7 +1206,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         data.putUUID(STORAGE_ID_TAG, this.storageId);
         data.putUUID(HOST_ID_TAG, this.hostId);
         data.putBoolean(FORMED_TAG, this.formed);
-        data.put(MATCHED_POSITIONS_TAG, createMatchedPositionsTag());
         data.putString(LAST_FAILURE_REASON_TAG, this.lastFailureReason);
         if (this.lastFailurePosition != null) {
             data.putLong(LAST_FAILURE_POSITION_TAG, this.lastFailurePosition.asLong());
@@ -1286,34 +1283,182 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.accessLeaseEpoch = 0L;
         this.missingBusyLeaseReported = false;
         this.recheckRequested = true;
+        this.cpuStructureRecheckRequested = true;
+        this.craftingStructureRecheckRequested = true;
+        this.lastCpuStructureRecheckTick = Long.MIN_VALUE;
+        this.lastCraftingStructureRecheckTick = Long.MIN_VALUE;
+        this.mainStructureFrontFacing = null;
+        this.mainStructureFlipped = false;
     }
 
-    private void updateStructureMatch(Level level) {
+    private void observeMultiBlockDefinitionRevision() {
+        long currentRevision = ModVerticalMultiBlocks.JSON_MULTI_BLOCKS.revision();
+        if (this.observedMultiBlockDefinitionRevision != currentRevision) {
+            this.observedMultiBlockDefinitionRevision = currentRevision;
+            requestStructureRecheck();
+        }
+    }
+
+    private void updateScheduledStructureMatches() {
+        long gameTime = this.level.getGameTime();
+        int mainRecheckInterval = this.formed ? FORMED_MAIN_RECHECK_INTERVAL_TICKS : UNFORMED_MAIN_RECHECK_INTERVAL_TICKS;
+        boolean mainRecheckDue = this.recheckRequested || isPeriodicRecheckDue(gameTime, mainRecheckInterval, 0);
+        boolean cpuRecheckDue = this.cpuStructureRecheckRequested || isChildPeriodicRecheckDue(
+                gameTime,
+                this.cpuStructureFormed,
+                0,
+                this.lastCpuStructureRecheckTick);
+        boolean craftingRecheckDue = this.craftingStructureRecheckRequested || isChildPeriodicRecheckDue(
+                gameTime,
+                this.craftingStructureFormed,
+                CRAFTING_RECHECK_PHASE_OFFSET_TICKS,
+                this.lastCraftingStructureRecheckTick);
+        boolean childRechecksAvailable = this.formed && this.mainStructureFrontFacing != null;
+        if (!mainRecheckDue && (!childRechecksAvailable || (!cpuRecheckDue && !craftingRecheckDue))) {
+            return;
+        }
+
+        this.structureRecheckInProgress = true;
+        try {
+            if (mainRecheckDue) {
+                recheckMainStructure();
+            }
+            if (!this.formed || this.mainStructureFrontFacing == null) {
+                return;
+            }
+            if (this.cpuStructureRecheckRequested || isChildPeriodicRecheckDue(
+                    gameTime,
+                    this.cpuStructureFormed,
+                    0,
+                    this.lastCpuStructureRecheckTick)) {
+                recheckCpuStructure(gameTime);
+            }
+            if (this.craftingStructureRecheckRequested || isChildPeriodicRecheckDue(
+                    gameTime,
+                    this.craftingStructureFormed,
+                    CRAFTING_RECHECK_PHASE_OFFSET_TICKS,
+                    this.lastCraftingStructureRecheckTick)) {
+                recheckCraftingStructure(gameTime);
+            }
+        } finally {
+            this.structureRecheckInProgress = false;
+        }
+    }
+
+    private void recheckMainStructure() {
+        this.recheckRequested = false;
+        try {
+            if (updateMainStructureMatch(this.level)) {
+                this.cpuStructureRecheckRequested = true;
+                this.craftingStructureRecheckRequested = true;
+            }
+        } catch (RuntimeException exception) {
+            this.recheckRequested = true;
+            this.cpuStructureRecheckRequested = true;
+            this.craftingStructureRecheckRequested = true;
+            throw exception;
+        }
+    }
+
+    private void recheckCpuStructure(long gameTime) {
+        this.cpuStructureRecheckRequested = false;
+        try {
+            updateCpuStructureMatch(
+                    new LevelStructureWorldView(this.level),
+                    this.mainStructureFrontFacing,
+                    this.mainStructureFlipped);
+            this.lastCpuStructureRecheckTick = gameTime;
+        } catch (RuntimeException exception) {
+            this.cpuStructureRecheckRequested = true;
+            throw exception;
+        }
+    }
+
+    private void recheckCraftingStructure(long gameTime) {
+        this.craftingStructureRecheckRequested = false;
+        try {
+            updateCraftingStructureMatch(
+                    new LevelStructureWorldView(this.level),
+                    this.mainStructureFrontFacing,
+                    this.mainStructureFlipped);
+            this.lastCraftingStructureRecheckTick = gameTime;
+        } catch (RuntimeException exception) {
+            this.craftingStructureRecheckRequested = true;
+            throw exception;
+        }
+    }
+
+    private boolean isChildPeriodicRecheckDue(long gameTime,
+                                              boolean childFormed,
+                                              int phaseOffset,
+                                              long lastRecheckTick) {
+        if (lastRecheckTick == gameTime) {
+            return false;
+        }
+        int interval = childFormed ? FORMED_CHILD_RECHECK_INTERVAL_TICKS : UNFORMED_CHILD_RECHECK_INTERVAL_TICKS;
+        return isPeriodicRecheckDue(gameTime, interval, phaseOffset);
+    }
+
+    private boolean isPeriodicRecheckDue(long gameTime, int interval, int phaseOffset) {
+        return Math.floorMod(gameTime + this.worldPosition.asLong() + phaseOffset, interval) == 0;
+    }
+
+    private boolean updateMainStructureMatch(Level level) {
         JsonMultiBlockDefinition definition = requireMainJsonDefinition();
         Direction preferredFrontFacing = getStructureFrontFacing(level);
         StructureWorldView world = new LevelStructureWorldView(level);
-        StructureMatchResult result = JsonMultiBlockPatternMatcher.match(
-                definition.pattern(),
-                world,
-                this.worldPosition,
-                preferredFrontFacing,
-                mainDefinitionKey().structureName());
+        StructureMatchResult result;
+        if (this.formed && this.mainStructureFrontFacing != null) {
+            result = JsonMultiBlockPatternMatcher.matchExact(
+                    definition.pattern(),
+                    world,
+                    this.worldPosition,
+                    this.mainStructureFrontFacing,
+                    this.mainStructureFlipped,
+                    mainDefinitionKey().structureName());
+            if (!result.matched()) {
+                result = JsonMultiBlockPatternMatcher.match(
+                        definition.pattern(),
+                        world,
+                        this.worldPosition,
+                        preferredFrontFacing,
+                        mainDefinitionKey().structureName());
+            }
+        } else {
+            result = JsonMultiBlockPatternMatcher.match(
+                    definition.pattern(),
+                    world,
+                    this.worldPosition,
+                    preferredFrontFacing,
+                    mainDefinitionKey().structureName());
+        }
 
         if (result.matched()) {
             Map<BlockPos, CompartmentType> declaredCompartments = JsonMultiBlockCompartmentPredicate.declaredCompartments(
                     result.context());
             PatternDiagnostic compartmentFailure = this.compartmentBinder.validate(world, result, declaredCompartments);
             if (compartmentFailure != null) {
+                boolean topologyChanged = this.formed || this.mainStructureFrontFacing != null;
                 applyFailure(compartmentFailure, mainDefinitionKey().structureName());
-                return;
+                this.mainStructureFrontFacing = null;
+                this.mainStructureFlipped = false;
+                return topologyChanged;
             }
+            boolean topologyChanged = !this.formed ||
+                    !this.matchedPositions.equals(result.positions()) ||
+                    this.mainStructureFrontFacing != result.frontFacing() ||
+                    this.mainStructureFlipped != result.flipped();
             applyMatch(world, result.positions(), declaredCompartments, mainDefinitionKey().structureName());
-            boolean childStructureFlipped = result.flipped();
-            updateCpuStructureMatch(world, result.frontFacing(), childStructureFlipped);
-            updateCraftingStructureMatch(world, result.frontFacing(), childStructureFlipped);
-        } else {
-            applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
+            this.mainStructureFrontFacing = result.frontFacing();
+            this.mainStructureFlipped = result.flipped();
+            return topologyChanged;
         }
+
+        boolean topologyChanged = this.formed || this.mainStructureFrontFacing != null;
+        applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
+        this.mainStructureFrontFacing = null;
+        this.mainStructureFlipped = false;
+        return topologyChanged;
     }
 
     private void updateCpuStructureMatch(StructureWorldView world,
@@ -1657,13 +1802,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 CRAFTING_STRUCTURE_NAME);
     }
 
-    private static List<BlockPos> readMatchedPositions(CompoundTag data) {
-        ListTag positions = data.getList(MATCHED_POSITIONS_TAG, Tag.TAG_LONG);
-        return positions.stream()
-                .map(tag -> BlockPos.of(((LongTag) tag).getAsLong()))
-                .toList();
-    }
-
     private static TrinityDataCoreCraftingCoreProfile readCraftingProfile(CompoundTag data) {
         if (!data.contains(CRAFTING_PATTERN_CORE_COUNT_TAG) && !data.contains(CRAFTING_PATTERN_CAPACITY_TAG)) {
             return TrinityDataCoreCraftingCoreProfile.EMPTY;
@@ -1671,14 +1809,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return new TrinityDataCoreCraftingCoreProfile(
                 data.getInt(CRAFTING_PATTERN_CORE_COUNT_TAG),
                 data.getInt(CRAFTING_PATTERN_CAPACITY_TAG));
-    }
-
-    private ListTag createMatchedPositionsTag() {
-        ListTag positions = new ListTag();
-        for (BlockPos pos : this.matchedPositions) {
-            positions.add(LongTag.valueOf(pos.asLong()));
-        }
-        return positions;
     }
 
     private void notifyTrinityAccessChanged() {
@@ -1748,7 +1878,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (this.accessLease != null) {
             this.accessLease = this.accessLease.unbind();
         }
-        this.recheckRequested = true;
+        requestStructureRecheck();
         notifyTrinityAccessChanged();
         super.onChunkUnloaded();
     }
