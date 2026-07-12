@@ -46,17 +46,15 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private static final AmountWriter TYPED_AMOUNT_WRITER = new AmountWriter() {
 
         @Override
-        public boolean write(Object target, long amount) {
+        public void write(Object target, long amount) {
             if (!supports(amount)) {
-                return false;
+                throw new UnlimitedEnergyAccessException(
+                        "Typed unlimited energy writer cannot represent " + amount + " FE");
             }
             try {
                 ((UnlimitedEnergyStorage) target).setStoredEnergyLong(amount);
-                return true;
             } catch (RuntimeException | LinkageError exception) {
-                Data_Energistics.LOGGER.error("Could not write typed unlimited energy storage {}",
-                        target.getClass().getName(), exception);
-                return false;
+                throw directFailure("Could not write typed unlimited energy storage", target, exception);
             }
         }
 
@@ -74,12 +72,16 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private static final AmountWriter NEOFORGE_AMOUNT_WRITER = new AmountWriter() {
 
         @Override
-        public boolean write(Object target, long amount) {
+        public void write(Object target, long amount) {
             if (!supports(amount)) {
-                return false;
+                throw new UnlimitedEnergyAccessException(
+                        "NeoForge energy writer cannot represent " + amount + " FE");
             }
-            ((NeoForgeEnergyStorageAccessor) target).dataEnergistics$setEnergy((int) amount);
-            return true;
+            try {
+                ((NeoForgeEnergyStorageAccessor) target).dataEnergistics$setEnergy((int) amount);
+            } catch (RuntimeException | LinkageError exception) {
+                throw directFailure("Could not write NeoForge unlimited energy storage", target, exception);
+            }
         }
 
         @Override
@@ -168,30 +170,25 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         DirectTarget target = resolvedTarget.get();
         Snapshot before = readVerifiedSnapshot(storage, target);
         if (before == null || !target.access().state().writer().supports(before.stored())) {
-            return UNAVAILABLE;
+            throw directFailure("Could not verify unlimited extraction compensation state", target.target());
         }
 
         long restoredAmount = safeAdd(before.stored(), amount);
         if (restoredAmount < 0L || restoredAmount > before.capacity() || !target.access().state().writer().supports(restoredAmount)) {
-            Data_Energistics.LOGGER.error(
-                    "Could not compensate {} FE on unlimited energy source {} with state {}/{}",
-                    amount,
-                    target.target().getClass().getName(),
-                    before.stored(),
-                    before.capacity());
-            return UNAVAILABLE;
+            throw directFailure(
+                    "Could not compensate " + amount + " FE with state " + before.stored() + "/" + before.capacity(),
+                    target.target());
         }
-        if (!target.access().state().writer().write(target.target(), restoredAmount)) {
-            return UNAVAILABLE;
+        try {
+            target.access().state().writer().write(target.target(), restoredAmount);
+        } catch (RuntimeException | LinkageError exception) {
+            throw mutationFailure(storage, target, before, "Unlimited extraction compensation write failed", exception);
         }
 
         Snapshot after = readVerifiedSnapshot(storage, target);
         if (after == null || after.stored() != restoredAmount || after.capacity() != before.capacity()) {
-            Data_Energistics.LOGGER.error(
-                    "Unlimited extraction compensation on {} failed read-back verification",
-                    target.target().getClass().getName());
-            rollback(storage, target, before);
-            return UNAVAILABLE;
+            throw mutationFailure(storage, target, before,
+                    "Unlimited extraction compensation failed read-back verification", null);
         }
         return amount;
     }
@@ -219,7 +216,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         DirectTarget target = resolvedTarget.get();
         Snapshot before = readVerifiedSnapshot(storage, target);
         if (before == null || !target.access().state().writer().supports(before.stored())) {
-            return UNAVAILABLE;
+            throw directFailure("Could not verify unlimited energy state", target.target());
         }
 
         long available = inserting ? insertionSpace(before, target.access().state()) : before.stored();
@@ -238,29 +235,28 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private static long invokeOperation(IEnergyStorage storage, DirectTarget target, Snapshot before, long requested,
                                         boolean simulate, boolean inserting, AmountOperation operation) {
         long invocationAmount = Math.min(requested, operation.maxArgument());
-        Long changed = operation.invoke(target.target(), invocationAmount, simulate);
-        if (changed == null || changed < 0L || changed > invocationAmount || changed > requested) {
-            Data_Energistics.LOGGER.error("Unlimited energy operation on {} returned invalid amount {} for request {}",
-                    target.target().getClass().getName(), changed, invocationAmount);
-            rollback(storage, target, before);
-            return UNAVAILABLE;
+        long changed;
+        try {
+            changed = operation.invoke(target.target(), invocationAmount, simulate);
+        } catch (RuntimeException | LinkageError exception) {
+            throw mutationFailure(storage, target, before, "Unlimited energy operation invocation failed", exception);
+        }
+        if (changed < 0L || changed > invocationAmount || changed > requested) {
+            throw mutationFailure(storage, target, before,
+                    "Unlimited energy operation returned " + changed + " for request " + invocationAmount, null);
         }
 
         long expectedStored = inserting ? safeAdd(before.stored(), changed) : before.stored() - changed;
         if (expectedStored < 0L || expectedStored > before.capacity()) {
-            Data_Energistics.LOGGER.error("Unlimited energy operation on {} produced out-of-range state {}",
-                    target.target().getClass().getName(), expectedStored);
-            rollback(storage, target, before);
-            return UNAVAILABLE;
+            throw mutationFailure(storage, target, before,
+                    "Unlimited energy operation produced out-of-range state " + expectedStored, null);
         }
 
         Snapshot after = readVerifiedSnapshot(storage, target);
         long requiredStored = simulate ? before.stored() : expectedStored;
         if (after == null || after.stored() != requiredStored || after.capacity() != before.capacity()) {
-            Data_Energistics.LOGGER.error("Unlimited energy operation on {} did not produce its reported state",
-                    target.target().getClass().getName());
-            rollback(storage, target, before);
-            return UNAVAILABLE;
+            throw mutationFailure(storage, target, before,
+                    "Unlimited energy operation did not produce its reported state", null);
         }
         return changed;
     }
@@ -269,34 +265,49 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                                             boolean simulate, boolean inserting) {
         long targetAmount = inserting ? safeAdd(before.stored(), requested) : before.stored() - requested;
         if (targetAmount < 0L || targetAmount > before.capacity() || !target.access().state().writer().supports(targetAmount)) {
-            return UNAVAILABLE;
+            throw directFailure("Unlimited direct write cannot represent target state " + targetAmount, target.target());
         }
         if (simulate) {
             return requested;
         }
 
-        if (!target.access().state().writer().write(target.target(), targetAmount)) {
-            rollback(storage, target, before);
-            return UNAVAILABLE;
+        try {
+            target.access().state().writer().write(target.target(), targetAmount);
+        } catch (RuntimeException | LinkageError exception) {
+            throw mutationFailure(storage, target, before, "Unlimited direct write invocation failed", exception);
         }
 
         Snapshot after = readVerifiedSnapshot(storage, target);
         if (after == null || after.stored() != targetAmount || after.capacity() != before.capacity()) {
-            Data_Energistics.LOGGER.error("Unlimited direct write on {} failed read-back verification",
-                    target.target().getClass().getName());
-            rollback(storage, target, before);
-            return UNAVAILABLE;
+            throw mutationFailure(storage, target, before,
+                    "Unlimited direct write failed read-back verification", null);
         }
         return requested;
     }
 
-    private static void rollback(IEnergyStorage storage, DirectTarget target, Snapshot before) {
-        boolean restored = target.access().state().writer().write(target.target(), before.stored());
-        Snapshot afterRollback = restored ? readVerifiedSnapshot(storage, target) : null;
-        if (afterRollback == null || afterRollback.stored() != before.stored() || afterRollback.capacity() != before.capacity()) {
-            Data_Energistics.LOGGER.error("Could not roll back unlimited energy mutation on {}",
-                    target.target().getClass().getName());
+    private static UnlimitedEnergyAccessException mutationFailure(IEnergyStorage storage, DirectTarget target,
+                                                                  Snapshot before, String message,
+                                                                  @Nullable Throwable cause) {
+        UnlimitedEnergyAccessException failure = directFailure(message, target.target(), cause);
+        UnlimitedEnergyAccessException rollbackFailure = rollback(storage, target, before);
+        if (rollbackFailure != null) {
+            failure.addSuppressed(rollbackFailure);
         }
+        return failure;
+    }
+
+    @Nullable
+    private static UnlimitedEnergyAccessException rollback(IEnergyStorage storage, DirectTarget target, Snapshot before) {
+        try {
+            target.access().state().writer().write(target.target(), before.stored());
+        } catch (RuntimeException | LinkageError exception) {
+            return directFailure("Could not invoke unlimited energy rollback", target.target(), exception);
+        }
+        Snapshot afterRollback = readVerifiedSnapshot(storage, target);
+        if (afterRollback == null || afterRollback.stored() != before.stored() || afterRollback.capacity() != before.capacity()) {
+            return directFailure("Could not verify unlimited energy rollback", target.target());
+        }
+        return null;
     }
 
     private static long insertionSpace(Snapshot snapshot, StateAccess state) {
@@ -552,8 +563,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         try {
             storage.onUnlimitedEnergyChanged();
         } catch (RuntimeException | LinkageError exception) {
-            Data_Energistics.LOGGER.error("Could not notify typed unlimited energy storage {}",
-                    storage.getClass().getName(), exception);
+            throw directFailure("Could not notify typed unlimited energy storage", storage, exception);
         }
     }
 
@@ -593,6 +603,16 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         return right > Long.MAX_VALUE - left ? Long.MIN_VALUE : left + right;
     }
 
+    private static UnlimitedEnergyAccessException directFailure(String message, Object target) {
+        return directFailure(message, target, null);
+    }
+
+    private static UnlimitedEnergyAccessException directFailure(String message, Object target,
+                                                                @Nullable Throwable cause) {
+        String contextualMessage = message + " on " + target.getClass().getName();
+        return cause == null ? new UnlimitedEnergyAccessException(contextualMessage) : new UnlimitedEnergyAccessException(contextualMessage, cause);
+    }
+
     private static void validateRequestedAmount(long amount) {
         if (amount < 0L) {
             throw new IllegalArgumentException("Energy amount must not be negative: " + amount);
@@ -624,7 +644,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     private interface AmountWriter {
 
-        boolean write(Object target, long amount);
+        void write(Object target, long amount);
 
         long maxValue();
 
@@ -635,8 +655,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     private interface AmountOperation {
 
-        @Nullable
-        Long invoke(Object target, long amount, boolean simulate);
+        long invoke(Object target, long amount, boolean simulate);
 
         long maxArgument();
     }
@@ -682,9 +701,10 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
         }
 
         @Override
-        public boolean write(Object target, long amount) {
+        public void write(Object target, long amount) {
             if (!supports(amount)) {
-                return false;
+                throw new UnlimitedEnergyAccessException(
+                        "Unlimited energy field " + this.description + " cannot represent " + amount + " FE");
             }
             try {
                 if (this.handle.varType() == int.class) {
@@ -692,10 +712,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                 } else {
                     this.handle.set(target, amount);
                 }
-                return true;
             } catch (RuntimeException | LinkageError exception) {
-                Data_Energistics.LOGGER.error("Could not write unlimited energy field {}", this.description, exception);
-                return false;
+                throw directFailure("Could not write unlimited energy field " + this.description, target, exception);
             }
         }
 
@@ -738,9 +756,10 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     private record MethodAmountWriter(MethodHandle handle, long maxValue, String description) implements AmountWriter {
 
         @Override
-        public boolean write(Object target, long amount) {
+        public void write(Object target, long amount) {
             if (!supports(amount)) {
-                return false;
+                throw new UnlimitedEnergyAccessException(
+                        "Unlimited energy writer " + this.description + " cannot represent " + amount + " FE");
             }
             try {
                 Object argument;
@@ -750,10 +769,8 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                     argument = Long.valueOf(amount);
                 }
                 this.handle.invokeWithArguments(target, argument);
-                return true;
             } catch (Throwable throwable) {
-                Data_Energistics.LOGGER.error("Could not invoke unlimited energy writer {}", this.description, throwable);
-                return false;
+                throw directFailure("Could not invoke unlimited energy writer " + this.description, target, throwable);
             }
         }
     }
@@ -763,8 +780,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             implements AmountOperation {
 
         @Override
-        @Nullable
-        public Long invoke(Object target, long amount, boolean simulate) {
+        public long invoke(Object target, long amount, boolean simulate) {
             try {
                 Object argument;
                 if (this.maxArgument == Integer.MAX_VALUE) {
@@ -773,11 +789,17 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
                     argument = Long.valueOf(amount);
                 }
                 Object result = this.handle.invokeWithArguments(target, argument, simulate);
-                return result instanceof Number number ? number.longValue() : null;
+                if (result instanceof Number number) {
+                    return number.longValue();
+                }
+                throw new UnlimitedEnergyAccessException(
+                        "Unlimited energy operation " + this.description + " returned a non-numeric result");
             } catch (Throwable throwable) {
-                Data_Energistics.LOGGER.error("Could not invoke unlimited energy operation {}", this.description,
+                if (throwable instanceof UnlimitedEnergyAccessException exception) {
+                    throw exception;
+                }
+                throw directFailure("Could not invoke unlimited energy operation " + this.description, target,
                         throwable);
-                return null;
             }
         }
     }
@@ -789,7 +811,7 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
             try {
                 this.handle.invokeWithArguments(target);
             } catch (Throwable throwable) {
-                Data_Energistics.LOGGER.error("Could not invoke unlimited energy notification {}", this.description,
+                throw directFailure("Could not invoke unlimited energy notification " + this.description, target,
                         throwable);
             }
         }

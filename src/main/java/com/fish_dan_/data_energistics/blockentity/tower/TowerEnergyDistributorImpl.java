@@ -509,7 +509,15 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
 
         IEnergyStorage storage = endpoint.storage();
-        long directExtracted = this.unlimitedEnergyAccess.extract(storage, amount, simulate);
+        long directExtracted;
+        try {
+            directExtracted = this.unlimitedEnergyAccess.extract(storage, amount, simulate);
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error(
+                    "Unlimited energy source mutation failed at {} side {} storage {}",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            return EndpointTransferResult.STALLED;
+        }
         if (directExtracted != UnlimitedEnergyAccess.UNAVAILABLE) {
             if (directExtracted < 0 || directExtracted > amount) {
                 Data_Energistics.LOGGER.error(

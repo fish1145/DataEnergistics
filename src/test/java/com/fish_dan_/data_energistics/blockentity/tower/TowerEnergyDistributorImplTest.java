@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -58,6 +59,27 @@ class TowerEnergyDistributorImplTest {
         assertEquals(12L, receiver.stored());
         assertEquals(12, source.realExtractCalls());
         assertEquals(12, receiver.realInsertCalls());
+    }
+
+    @Test
+    void doesNotFallbackAfterADirectReceiverMutationCannotBeRolledBack() {
+        TestEnergyStorage source = TestEnergyStorage.source(10, Long.MAX_VALUE);
+        RollbackFailingReceiver receiver = new RollbackFailingReceiver(10L);
+        TestContext context = new TestContext();
+        TowerEnergyDistributorImpl distributor = createDistributor(
+                List.of(endpoint(FIRST_POS, source)),
+                List.of(endpoint(RECEIVER_POS, receiver)),
+                new UnlimitedEnergyAccessImpl(),
+                context);
+
+        assertDoesNotThrow(distributor::performActiveRangeTransfer);
+
+        assertEquals(10L, source.stored());
+        assertEquals(10L, receiver.stored());
+        assertEquals(0L, context.bufferedTransferEnergy());
+        assertEquals(2, receiver.directInsertCalls());
+        assertEquals(1, receiver.rollbackAttempts());
+        assertEquals(0, receiver.capabilityReceiveCalls());
     }
 
     @Test
@@ -381,7 +403,7 @@ class TowerEnergyDistributorImplTest {
                 false);
     }
 
-    private static TowerEnergyEndpoint endpoint(BlockPos pos, TestEnergyStorage storage) {
+    private static TowerEnergyEndpoint endpoint(BlockPos pos, IEnergyStorage storage) {
         return new TowerEnergyEndpoint(pos, Direction.NORTH, storage);
     }
 
@@ -669,6 +691,88 @@ class TowerEnergyDistributorImplTest {
         @Override
         public void notifyStorageChanged(IEnergyStorage storage) {
             throw new IllegalStateException("Fallback capability mutations must notify themselves");
+        }
+    }
+
+    private static final class RollbackFailingReceiver implements IEnergyStorage {
+
+        private long amount;
+        private final long capacity;
+        private int directInsertCalls;
+        private int rollbackAttempts;
+        private int capabilityReceiveCalls;
+
+        private RollbackFailingReceiver(long capacity) {
+            this.capacity = capacity;
+        }
+
+        private long getAmount() {
+            return this.amount;
+        }
+
+        private long getCapacity() {
+            return this.capacity;
+        }
+
+        private void setAmount(long amount) {
+            this.rollbackAttempts++;
+            throw new IllegalStateException("Deliberate rollback failure for " + amount + " FE");
+        }
+
+        private long insertIgnoringLimit(long amount, boolean simulate) {
+            this.directInsertCalls++;
+            if (simulate) {
+                return amount;
+            }
+            this.amount += amount;
+            return amount + 1L;
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            this.capabilityReceiveCalls++;
+            return 0;
+        }
+
+        @Override
+        public int extractEnergy(int maxExtract, boolean simulate) {
+            return 0;
+        }
+
+        @Override
+        public int getEnergyStored() {
+            return (int) this.amount;
+        }
+
+        @Override
+        public int getMaxEnergyStored() {
+            return (int) this.capacity;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return false;
+        }
+
+        @Override
+        public boolean canReceive() {
+            return true;
+        }
+
+        private long stored() {
+            return this.amount;
+        }
+
+        private int directInsertCalls() {
+            return this.directInsertCalls;
+        }
+
+        private int rollbackAttempts() {
+            return this.rollbackAttempts;
+        }
+
+        private int capabilityReceiveCalls() {
+            return this.capabilityReceiveCalls;
         }
     }
 

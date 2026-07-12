@@ -120,9 +120,9 @@ class UnlimitedEnergyAccessImplTest {
     void rollsBackInvalidOperationReturnsInBothDirections() {
         InvalidOperationStorage storage = new InvalidOperationStorage(200L, 1_000L);
 
-        assertEquals(UnlimitedEnergyAccess.UNAVAILABLE, this.access.insert(storage, 100L, false));
+        assertThrows(UnlimitedEnergyAccessException.class, () -> this.access.insert(storage, 100L, false));
         assertEquals(200L, this.access.stored(storage));
-        assertEquals(UnlimitedEnergyAccess.UNAVAILABLE, this.access.extract(storage, 50L, false));
+        assertThrows(UnlimitedEnergyAccessException.class, () -> this.access.extract(storage, 50L, false));
         assertEquals(200L, this.access.stored(storage));
     }
 
@@ -130,7 +130,7 @@ class UnlimitedEnergyAccessImplTest {
     void rollsBackAnOperationThatMutatesDuringSimulation() {
         SimulationMutatingStorage storage = new SimulationMutatingStorage(30L, 300L);
 
-        assertEquals(UnlimitedEnergyAccess.UNAVAILABLE, this.access.insert(storage, 90L, true));
+        assertThrows(UnlimitedEnergyAccessException.class, () -> this.access.insert(storage, 90L, true));
         assertEquals(30L, this.access.stored(storage));
     }
 
@@ -138,8 +138,22 @@ class UnlimitedEnergyAccessImplTest {
     void rollsBackASetterWhoseReadBackDoesNotMatch() {
         MismatchingSetterStorage storage = new MismatchingSetterStorage(25L, 250L);
 
-        assertEquals(UnlimitedEnergyAccess.UNAVAILABLE, this.access.insert(storage, 50L, false));
+        assertThrows(UnlimitedEnergyAccessException.class, () -> this.access.insert(storage, 50L, false));
         assertEquals(25L, this.access.stored(storage));
+    }
+
+    @Test
+    void preservesRollbackFailureOnTheDirectOperationException() {
+        RollbackFailingOperationStorage storage = new RollbackFailingOperationStorage(0L, 100L);
+
+        UnlimitedEnergyAccessException exception = assertThrows(
+                UnlimitedEnergyAccessException.class,
+                () -> this.access.insert(storage, 40L, false));
+
+        assertEquals(1, exception.getSuppressed().length);
+        assertEquals(40L, storage.actualStored());
+        assertEquals(1, storage.rollbackAttempts());
+        assertEquals(0, storage.capabilityReceiveCalls());
     }
 
     @Test
@@ -565,6 +579,70 @@ class UnlimitedEnergyAccessImplTest {
         private long insertIgnoringLimit(long amount, boolean simulate) {
             setActualStored(actualStored() + amount);
             return amount;
+        }
+    }
+
+    private static final class RollbackFailingOperationStorage extends TestStorage {
+
+        private long amount;
+        private final long capacity;
+        private int rollbackAttempts;
+        private int capabilityReceiveCalls;
+
+        private RollbackFailingOperationStorage(long amount, long capacity) {
+            super(true, false);
+            this.amount = amount;
+            this.capacity = capacity;
+        }
+
+        private long getAmount() {
+            return this.amount;
+        }
+
+        private long getCapacity() {
+            return this.capacity;
+        }
+
+        private void setAmount(long amount) {
+            this.rollbackAttempts++;
+            throw new IllegalStateException("Deliberate rollback failure for " + amount + " FE");
+        }
+
+        private long insertIgnoringLimit(long amount, boolean simulate) {
+            if (simulate) {
+                return amount;
+            }
+            this.amount += amount;
+            return amount + 1L;
+        }
+
+        @Override
+        public int receiveEnergy(int maxReceive, boolean simulate) {
+            this.capabilityReceiveCalls++;
+            return super.receiveEnergy(maxReceive, simulate);
+        }
+
+        @Override
+        protected long actualStored() {
+            return this.amount;
+        }
+
+        @Override
+        protected long actualCapacity() {
+            return this.capacity;
+        }
+
+        @Override
+        protected void setActualStored(long amount) {
+            this.amount = amount;
+        }
+
+        private int rollbackAttempts() {
+            return this.rollbackAttempts;
+        }
+
+        private int capabilityReceiveCalls() {
+            return this.capabilityReceiveCalls;
         }
     }
 
