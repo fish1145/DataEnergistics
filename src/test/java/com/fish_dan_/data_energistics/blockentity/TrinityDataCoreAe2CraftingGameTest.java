@@ -134,11 +134,11 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     helper.assertTrue(core.trySetPattern(CAKE_PATTERN_SLOT, cakePattern),
                             "Cake pattern should install in its exact physical slot");
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                 })
                 .thenWaitUntil(() -> {
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CRAFTING_TABLE), tableRoute);
                     assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CAKE), cakeRoute);
                 })
@@ -253,11 +253,11 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     helper.assertTrue(core.trySetPattern(REMOVAL_PATTERN_SLOT, pattern),
                             "Removal test pattern should install in its exact physical slot");
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                 })
                 .thenWaitUntil(() -> {
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                     assertPublishedRoute(
                             helper,
                             fixture.grid(),
@@ -346,11 +346,11 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     helper.assertTrue(core.trySetPattern(STRUCTURE_PAUSE_PATTERN_SLOT, pattern),
                             "Pause test pattern should install in its exact physical slot");
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                 })
                 .thenWaitUntil(() -> {
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                     assertPublishedRoute(
                             helper,
                             fixture.grid(),
@@ -377,7 +377,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Pause test should physically remove one crafting frame block");
                     host.requestStructureRecheck();
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
 
                     helper.assertFalse(host.isCraftingStructureFormed(),
                             "Removing a real crafting frame block should invalidate the crafting structure");
@@ -386,7 +386,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenIdle(2)
                 .thenExecute(() -> {
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
                     helper.assertFalse(host.isCraftingStructureFormed(),
                             "Crafting structure should remain invalid while its frame block is absent");
                     assertPausedRoutedBatch(helper, fixture, core, activeWorker.get(), route);
@@ -413,7 +413,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 })
                 .thenWaitUntil(() -> {
                     host.serverTick();
-                    fixture.refreshAccessHatches();
+                    fixture.refreshPatternPublication();
 
                     helper.assertTrue(host.isCraftingStructureFormed(),
                             "Restored crafting structure should pass a real host recheck");

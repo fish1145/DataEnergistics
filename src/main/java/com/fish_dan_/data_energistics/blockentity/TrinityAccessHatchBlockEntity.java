@@ -106,64 +106,77 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         refreshTerminalPartitionsSafely();
     }
 
-    /** Refreshes only the storage mount exposed through this hatch. */
-    public void refreshTrinityStorageAccess() {
-        if (!canRefreshTrinityAccess()) {
+    /** Notifies the selected grid that only the host storage content changed. */
+    public void refreshTrinityStorageContent() {
+        if (!canRefreshGridServices()) {
             return;
         }
-        refreshTrinityStorageAccessNow();
+        requestStorageUpdate();
     }
 
-    /** Refreshes only the virtual CPU publication exposed through this hatch. */
-    public void refreshTrinityCpuAccess() {
-        if (!canRefreshTrinityAccess()) {
+    /** Synchronizes virtual CPU membership before posting AE2's CPU-cache notification. */
+    public void refreshTrinityCpuTopology() {
+        if (!canRefreshGridServices()) {
             return;
         }
-        if (!refreshCraftingCpuPublication() && this.cpuPublication != null) {
+        if (!synchronizeCraftingCpuPublication() && this.cpuPublication != null) {
             notifyCraftingCpuChanged(this.cpuPublication);
         }
     }
 
-    /** Refreshes only the crafting provider and pattern-terminal partitions exposed through this hatch. */
-    public void refreshTrinityPatternAccess() {
-        if (!canRefreshTrinityAccess()) {
+    /** Notifies AE2 that only the published crafting patterns changed. */
+    public void refreshTrinityPatternPublication() {
+        if (!canRefreshGridServices()) {
             return;
         }
-        refreshTrinityPatternAccessNow();
-    }
-
-    /** Refreshes storage, CPU and pattern access after a shared lifecycle or lease change. */
-    public void refreshTrinityAccess() {
-        if (!canRefreshTrinityAccess()) {
-            return;
-        }
-        invalidateCapabilities();
-        updateActiveState();
-        refreshTrinityStorageAccessNow();
-        refreshCraftingCpuPublication();
-        refreshTrinityPatternAccessNow();
-    }
-
-    private boolean canRefreshTrinityAccess() {
-        return this.level != null && !this.level.isClientSide();
-    }
-
-    private void refreshTrinityStorageAccessNow() {
-        requestStorageUpdate();
-    }
-
-    private void refreshTrinityPatternAccessNow() {
-        this.terminalPartitionsDirty = true;
         requestCraftingProviderUpdate();
+    }
+
+    /** Reconciles only the pattern-terminal layout and its grid attachments. */
+    public void refreshTrinityTerminalLayout() {
+        if (!canRefreshGridServices()) {
+            return;
+        }
+        this.terminalPartitionsDirty = true;
         refreshTerminalPartitionsSafely();
+    }
+
+    /** Forcefully withdraws an old lease owner in terminal, CPU, pattern, then storage order. */
+    public void withdrawTrinityLeasePublications() {
+        this.terminalPartitionsDirty = true;
+        detachTerminalPartitions();
+        withdrawCraftingCpuPublicationAndNotify();
+        if (canRefreshGridServices()) {
+            requestCraftingProviderUpdate();
+            requestStorageUpdate();
+            updateActiveState();
+        }
+    }
+
+    /** Publishes a selected lease owner in CPU, storage, pattern, then terminal order. */
+    public void publishTrinityLeasePublications() {
+        if (!canRefreshGridServices()) {
+            return;
+        }
+        refreshTrinityCpuTopology();
+        refreshTrinityStorageContent();
+        refreshTrinityPatternPublication();
+        refreshTrinityTerminalLayout();
+        updateActiveState();
+    }
+
+    private boolean canRefreshGridServices() {
+        return this.level != null && !this.level.isClientSide();
     }
 
     @Override
     public void onMainNodeStateChanged(IGridNodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
         this.terminalPartitionAttachmentCheckRequested = true;
-        refreshTrinityAccess();
         TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host == null || !isCandidateOnline()) {
+            withdrawTrinityLeasePublications();
+        }
         if (host != null) {
             host.requestAccessLeaseReevaluation();
         }
@@ -171,9 +184,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void onChunkUnloaded() {
-        withdrawCraftingCpuPublicationAndNotify();
-        this.terminalPartitionsDirty = true;
-        detachTerminalPartitions();
+        withdrawTrinityLeasePublications();
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.onChunkUnloaded();
         if (host != null) {
@@ -183,9 +194,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void setRemoved() {
-        withdrawCraftingCpuPublicationAndNotify();
-        this.terminalPartitionsDirty = true;
-        detachTerminalPartitions();
+        withdrawTrinityLeasePublications();
         TrinityDataCoreBlockEntity host = boundHost(false);
         super.setRemoved();
         if (host != null) {
@@ -234,20 +243,27 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         if (this.compartmentHost == host && structureName.equals(this.structureName)) {
             if (!host.compartmentHost$getCompartments(structureName).contains(this)) {
                 CompartmentPart.super.compartment$bindToHost(structureName, host);
-                refreshTrinityAccess();
+                requestLeaseReevaluation(host);
             }
             return;
         }
 
-        if (this.compartmentHost != null) {
-            CompartmentPart.super.compartment$unbindFromHost(this.structureName, this.compartmentHost);
+        CompartmentHost previousHost = this.compartmentHost;
+        String previousStructureName = this.structureName;
+        if (previousHost != null) {
+            CompartmentPart.super.compartment$unbindFromHost(previousStructureName, previousHost);
+            this.compartmentHost = null;
+            this.structureName = null;
+            this.lastUnavailableReason = null;
+            withdrawTrinityLeasePublications();
+            requestLeaseReevaluation(previousHost);
         }
 
         CompartmentPart.super.compartment$bindToHost(structureName, host);
         this.compartmentHost = host;
         this.structureName = structureName;
         this.lastUnavailableReason = null;
-        refreshTrinityAccess();
+        requestLeaseReevaluation(host);
     }
 
     @Override
@@ -257,7 +273,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             this.compartmentHost = null;
             this.structureName = null;
             this.lastUnavailableReason = null;
-            refreshTrinityAccess();
+            withdrawTrinityLeasePublications();
+            requestLeaseReevaluation(host);
         }
     }
 
@@ -272,10 +289,18 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
         CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName);
         if (this.compartmentHost == controller && this.structureName.equals(structureName)) {
+            CompartmentHost previousHost = this.compartmentHost;
             this.compartmentHost = null;
             this.structureName = null;
             this.lastUnavailableReason = null;
-            refreshTrinityAccess();
+            withdrawTrinityLeasePublications();
+            requestLeaseReevaluation(previousHost);
+        }
+    }
+
+    private static void requestLeaseReevaluation(CompartmentHost host) {
+        if (host instanceof TrinityDataCoreBlockEntity dataCore) {
+            dataCore.requestAccessLeaseReevaluation();
         }
     }
 
@@ -375,7 +400,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         ICraftingProvider.requestUpdate(this.getMainNode());
     }
 
-    private boolean refreshCraftingCpuPublication() {
+    private boolean synchronizeCraftingCpuPublication() {
         CpuPublication desired = resolveCraftingCpuPublication();
         CpuPublication current = this.cpuPublication;
         if (current != null && desired != null && current.matches(desired)) {
@@ -614,7 +639,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             long inserted = TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                     .insert(host.getStorageId(), what, amount, mode, host.storageProfile());
             if (inserted > 0L && mode == Actionable.MODULATE) {
-                requestStorageUpdate();
+                refreshTrinityStorageContent();
             }
             return inserted;
         }
@@ -629,7 +654,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             long extracted = TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
                     .extract(host.getStorageId(), what, amount, mode);
             if (extracted > 0L && mode == Actionable.MODULATE) {
-                requestStorageUpdate();
+                refreshTrinityStorageContent();
             }
             return extracted;
         }

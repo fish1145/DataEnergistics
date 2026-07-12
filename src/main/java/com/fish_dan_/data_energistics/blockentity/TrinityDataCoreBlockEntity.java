@@ -182,6 +182,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Nullable
     private TrinityAccessLease accessLease;
     private long accessLeaseEpoch;
+    private boolean accessLeasePublicationRefreshRequested;
     private boolean missingBusyLeaseReported;
 
     public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -216,7 +217,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.loaded = true;
         this.craftingRuntime.setPaused(true);
         requestStructureRecheck();
-        notifyTrinityAccessChanged();
     }
 
     public void serverTick() {
@@ -255,6 +255,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
         updateScheduledStructureMatches();
         reevaluateAccessLease();
+        flushRequestedAccessLeasePublication();
         if (this.patternCatalogValid) {
             List<TrinityPatternCatalog.CoreMount> mountedBeforeFlush = this.patternCatalog.mountedCores();
             if (this.patternCatalog.refreshChangedPatterns()) {
@@ -944,7 +945,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     public void requestAccessLeaseReevaluation() {
+        this.accessLeasePublicationRefreshRequested = true;
         reevaluateAccessLease();
+        flushRequestedAccessLeasePublication();
     }
 
     private void reevaluateAccessLease() {
@@ -973,18 +976,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     this.craftingRuntime.setPaused(true);
                     return;
                 }
-                this.accessLease = this.accessLease.bind(electedGrid);
-                this.craftingRuntime.setPaused(!isCpuProviderAvailable());
-                notifyTrinityAccessChanged();
+                transitionAccessLease(this.accessLease.bind(electedGrid));
                 return;
             }
             if (hasPendingTrinityWork()) {
-                boolean wasBound = this.accessLease.grid() != null;
-                this.accessLease = this.accessLease.unbind();
-                this.craftingRuntime.setPaused(true);
-                if (wasBound) {
-                    notifyTrinityAccessChanged();
-                }
+                transitionAccessLease(this.accessLease.unbind());
                 return;
             }
         }
@@ -999,25 +995,94 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return;
         }
 
-        BlockPos previousPosition = this.accessLease == null ? null : this.accessLease.hatchPosition();
-        IGrid previousGrid = this.accessLease == null ? null : this.accessLease.grid();
-        this.accessLease = candidates.isEmpty() ? null : TrinityAccessLease.elect(
+        TrinityAccessLease electedLease = candidates.isEmpty() ? null : TrinityAccessLease.elect(
                 candidates.getFirst().getBlockPos(),
                 candidates.getFirst().connectedGrid(),
                 this.accessLeaseEpoch = Math.incrementExact(this.accessLeaseEpoch));
         this.missingBusyLeaseReported = false;
-        this.craftingRuntime.setPaused(this.accessLease == null || !isCpuProviderAvailable());
-        if (leaseChanged(previousPosition, previousGrid)) {
+        transitionAccessLease(electedLease);
+    }
+
+    private void transitionAccessLease(@Nullable TrinityAccessLease nextLease) {
+        TrinityAccessLease previousLease = this.accessLease;
+        if (sameRuntimeLease(previousLease, nextLease)) {
+            this.accessLease = nextLease;
+            this.craftingRuntime.setPaused(nextLease == null || nextLease.grid() == null || !isCpuProviderAvailable());
+            this.accessLeasePublicationRefreshRequested = false;
+            return;
+        }
+
+        TrinityAccessHatchBlockEntity previousOwner = findAccessHatch(previousLease);
+        TrinityAccessHatchBlockEntity nextOwner = nextLease == null || nextLease.grid() == null ? null : findAccessHatch(nextLease);
+        boolean persistentIdentityChanged = accessLeaseIdentityChanged(previousLease, nextLease);
+
+        this.accessLease = nextLease;
+        this.craftingRuntime.setPaused(nextLease == null || nextLease.grid() == null || !isCpuProviderAvailable());
+        if (persistentIdentityChanged) {
             setChanged();
-            notifyTrinityAccessChanged();
+        }
+
+        if (previousOwner != null) {
+            previousOwner.withdrawTrinityLeasePublications();
+        }
+        if (nextLease != null && nextLease.grid() != null) {
+            if (nextOwner == null) {
+                LOGGER.error(
+                        "Trinity host {} cannot publish lease {} because its access hatch is no longer bound",
+                        this.worldPosition,
+                        nextLease.hatchPosition());
+            } else {
+                nextOwner.publishTrinityLeasePublications();
+            }
+        }
+        this.accessLeasePublicationRefreshRequested = false;
+    }
+
+    private void flushRequestedAccessLeasePublication() {
+        if (!this.accessLeasePublicationRefreshRequested ||
+                this.level == null ||
+                this.level.isClientSide() ||
+                this.structureRecheckInProgress) {
+            return;
+        }
+        this.accessLeasePublicationRefreshRequested = false;
+        TrinityAccessHatchBlockEntity owner = activeLeaseHatch();
+        if (owner != null) {
+            owner.publishTrinityLeasePublications();
         }
     }
 
-    private boolean leaseChanged(@Nullable BlockPos previousPosition, @Nullable IGrid previousGrid) {
-        if (this.accessLease == null) {
-            return previousPosition != null;
+    private static boolean sameRuntimeLease(@Nullable TrinityAccessLease first,
+                                            @Nullable TrinityAccessLease second) {
+        if (first == second) {
+            return true;
         }
-        return !this.accessLease.hatchPosition().equals(previousPosition) || this.accessLease.grid() != previousGrid;
+        return first != null && second != null &&
+                first.hatchPosition().equals(second.hatchPosition()) &&
+                first.grid() == second.grid();
+    }
+
+    private static boolean accessLeaseIdentityChanged(@Nullable TrinityAccessLease previous,
+                                                      @Nullable TrinityAccessLease next) {
+        if (previous == next) {
+            return false;
+        }
+        return previous == null || next == null ||
+                !previous.hatchPosition().equals(next.hatchPosition()) ||
+                previous.epoch() != next.epoch();
+    }
+
+    @Nullable
+    private TrinityAccessHatchBlockEntity findAccessHatch(@Nullable TrinityAccessLease lease) {
+        if (lease == null) {
+            return null;
+        }
+        for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
+            if (part instanceof TrinityAccessHatchBlockEntity hatch && lease.identifies(hatch.getBlockPos())) {
+                return hatch;
+            }
+        }
+        return null;
     }
 
     private boolean hasPendingTrinityWork() {
@@ -1242,6 +1307,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void restoreAccessLease(CompoundTag data) {
+        this.accessLeasePublicationRefreshRequested = false;
         long persistedEpoch = data.contains(ACCESS_LEASE_EPOCH_TAG, Tag.TAG_LONG) ? data.getLong(ACCESS_LEASE_EPOCH_TAG) : 0L;
         if (persistedEpoch < 0L) {
             this.accessLease = null;
@@ -1289,6 +1355,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingRuntime.discardPersistedState();
         this.accessLease = null;
         this.accessLeaseEpoch = 0L;
+        this.accessLeasePublicationRefreshRequested = false;
         this.missingBusyLeaseReported = false;
         this.recheckRequested = true;
         this.cpuStructureRecheckRequested = true;
@@ -1603,15 +1670,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.compartmentBinder.ensureBound(world, structureName, this, declaredCompartments);
             return;
         }
-        clearCompartmentBindings(structureName);
+        boolean storageChanged = !this.formed || !this.storageProfile.equals(nextStorageProfile);
+        this.compartmentBinder.ensureBound(world, structureName, this, declaredCompartments);
         this.formed = true;
         this.matchedPositions = nextPositions;
         this.storageProfile = nextStorageProfile;
-        this.compartmentBinder.bind(world, structureName, this, declaredCompartments);
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = null;
         this.craftingRuntime.setMainStructureFormed(true);
-        notifyTrinityAccessChanged();
+        if (storageChanged) {
+            notifyTrinityStorageChanged();
+        }
         setChanged();
     }
 
@@ -1748,6 +1817,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 structureName,
                 nextFailurePosition,
                 nextFailureReason);
+        TrinityAccessLease retainedLease = this.accessLease != null && hasPendingTrinityWork() ? this.accessLease.unbind() : null;
+        transitionAccessLease(retainedLease);
         clearCompartmentBindings(structureName);
         clearCpuStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
         clearCraftingStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
@@ -1757,7 +1828,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.lastFailurePosition = nextFailurePosition;
         this.craftingRuntime.setMainStructureFormed(false);
         this.craftingRuntime.setPaused(true);
-        notifyTrinityAccessChanged();
         setChanged();
     }
 
@@ -1851,23 +1921,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void notifyTrinityStorageChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStorageAccess);
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityStorageContent);
     }
 
     private void notifyTrinityCpuChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityCpuAccess);
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityCpuTopology);
     }
 
     private void notifyTrinityPatternPublicationChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternAccess);
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternPublication);
     }
 
     private void notifyTrinityPatternLayoutChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityPatternAccess);
-    }
-
-    private void notifyTrinityAccessChanged() {
-        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityAccess);
+        notifyTrinityPatternPublicationChanged();
+        refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityTerminalLayout);
     }
 
     private void refreshTrinityAccessHatches(Consumer<TrinityAccessHatchBlockEntity> refresh) {
@@ -1934,11 +2001,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
         withdrawPatternCatalog();
-        if (this.accessLease != null) {
-            this.accessLease = this.accessLease.unbind();
-        }
+        transitionAccessLease(this.accessLease == null ? null : this.accessLease.unbind());
         requestStructureRecheck();
-        notifyTrinityAccessChanged();
         super.onChunkUnloaded();
     }
 
@@ -1947,9 +2011,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
         withdrawPatternCatalog();
-        if (this.accessLease != null) {
-            this.accessLease = this.accessLease.unbind();
-        }
+        transitionAccessLease(this.accessLease == null ? null : this.accessLease.unbind());
         clearCompartmentBindings(mainDefinitionKey().structureName());
         super.setRemoved();
     }
@@ -1962,7 +2024,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingRuntime.setPaused(true);
         clearPatternCatalog();
         this.patternCatalogValid = false;
-        this.accessLease = null;
+        transitionAccessLease(null);
         clearCompartmentBindings(mainDefinitionKey().structureName());
     }
 
