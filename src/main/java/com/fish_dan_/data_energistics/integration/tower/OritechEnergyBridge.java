@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.integration.tower;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.oritech.OritechEnergyIntegration;
 
 import net.minecraft.core.BlockPos;
@@ -28,6 +29,11 @@ public final class OritechEnergyBridge {
      */
     @Nullable
     public IEnergyStorage findEnergyStorage(Level level, BlockPos pos, @Nullable Direction side) {
-        return OritechEnergyIntegration.findEnergyStorage(level, pos, side);
+        try {
+            return OritechEnergyIntegration.findEnergyStorage(level, pos, side);
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error("Failed to resolve Oritech energy storage at {} side {}", pos, side, exception);
+            return null;
+        }
     }
 }

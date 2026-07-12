@@ -25,9 +25,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
@@ -579,7 +581,12 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
         return false;
     }
 
-    private @Nullable BlockPos getNetworkPortPos() {
+    /**
+     * Resolves the canonical external AE network port for this sanctum.
+     *
+     * @return network port position, or {@code null} while the structure is incomplete
+     */
+    public @Nullable BlockPos getNetworkPortPos() {
         if (this.level == null) {
             return null;
         }
@@ -595,6 +602,27 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
             return null;
         }
         return portPos;
+    }
+
+    /**
+     * Resolves any sanctum structure position to its canonical external AE network port.
+     *
+     * @param level world containing the sanctum
+     * @param pos   any position in the sanctum structure
+     * @return canonical network port, or {@code null} when the position is not part of a complete sanctum
+     */
+    public static @Nullable BlockPos findNetworkPortPos(BlockGetter level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (!state.is(ModBlocks.DATA_SANCTUM.get())) {
+            return null;
+        }
+
+        BlockPos mainPos = getMainPos(pos, state);
+        BlockEntity blockEntity = level.getBlockEntity(mainPos);
+        if (!(blockEntity instanceof DataSanctumBlockEntity sanctum)) {
+            return null;
+        }
+        return sanctum.getNetworkPortPos();
     }
 
     private void clampStoredPowerToCapacity() {

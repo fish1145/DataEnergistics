@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 
 import net.minecraft.core.BlockPos;
@@ -28,7 +28,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
 
     private final TowerEnergyEndpointResolverContext context;
     private final OritechEnergyBridge oritechEnergyBridge;
-    private final DirectEnergyAccess directEnergyAccess;
+    private final UnlimitedEnergyAccess unlimitedEnergyAccess;
     private final ArrayList<TowerEnergyEndpoint> reusableEndpointFilter = new ArrayList<>();
     private List<TowerEnergyEndpoint> cachedReceiveEnergyEndpoints = List.of();
     private List<TowerEnergyEndpoint> cachedExtractEnergyEndpoints = List.of();
@@ -38,16 +38,16 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
     /**
      * Creates an endpoint resolver for one tower.
      *
-     * @param context             tower state and callbacks required for endpoint discovery
-     * @param oritechEnergyBridge optional Oritech energy lookup bridge
-     * @param directEnergyAccess  direct storage access bridge used for receive capability checks
+     * @param context               tower state and callbacks required for endpoint discovery
+     * @param oritechEnergyBridge   optional Oritech energy lookup bridge
+     * @param unlimitedEnergyAccess rate-limit-free storage access used for capability checks
      */
     public TowerEnergyEndpointResolverImpl(TowerEnergyEndpointResolverContext context,
                                            OritechEnergyBridge oritechEnergyBridge,
-                                           DirectEnergyAccess directEnergyAccess) {
+                                           UnlimitedEnergyAccess unlimitedEnergyAccess) {
         this.context = context;
         this.oritechEnergyBridge = oritechEnergyBridge;
-        this.directEnergyAccess = directEnergyAccess;
+        this.unlimitedEnergyAccess = unlimitedEnergyAccess;
     }
 
     @Override
@@ -149,7 +149,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
 
     @Override
     public boolean canReceiveEnergy(@Nullable IEnergyStorage storage) {
-        return storage != null && (storage.canReceive() || this.directEnergyAccess.canReceive(storage));
+        return storage != null && this.unlimitedEnergyAccess.canReceive(storage);
     }
 
     @Override
@@ -200,7 +200,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
     }
 
     private boolean isUsableEnergyStorage(@Nullable IEnergyStorage storage, boolean forReceive) {
-        return storage != null && (forReceive ? canReceiveEnergy(storage) : storage.canExtract());
+        return storage != null && (forReceive ? canReceiveEnergy(storage) : this.unlimitedEnergyAccess.canExtract(storage));
     }
 
     @Nullable

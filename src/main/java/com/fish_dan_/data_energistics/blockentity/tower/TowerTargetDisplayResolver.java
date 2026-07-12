@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import org.jetbrains.annotations.Nullable;
@@ -35,10 +36,11 @@ public interface TowerTargetDisplayResolver {
     /**
      * Checks whether an AE target should appear in the bound target UI.
      *
-     * @param blockEntity block entity being inspected
+     * @param pos         canonical target position
+     * @param blockEntity block entity being inspected, or null for block-capability-only targets
      * @return true when the target should be shown
      */
-    boolean hasDisplayableAeTarget(@Nullable BlockEntity blockEntity);
+    boolean hasDisplayableAeTarget(BlockPos pos, @Nullable BlockEntity blockEntity);
 
     /**
      * Checks whether a target should be hidden from bound target summaries.

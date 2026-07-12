@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
-import com.fish_dan_.data_energistics.integration.energy.DirectEnergyAccess;
+import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -12,110 +12,192 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Default active FE balancing implementation for Data Distribution Towers.
  */
 public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor {
 
-    private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
-    private static final int TRANSFER_SCAN_CACHE_TICKS = 5;
     private static final int MAX_CURSOR_ENTRIES = 128;
 
     private final TowerEnergyDistributorContext context;
     private final TowerEnergyEndpointResolver endpointResolver;
-    private final DirectEnergyAccess directEnergyAccess;
+    private final UnlimitedEnergyAccess unlimitedEnergyAccess;
+    private final boolean appFluxEnergySupportLoaded;
     private final Map<BlockPos, EnergyQuerySummary> cachedExtractQuerySummaries = new HashMap<>();
     private final Map<BlockPos, ReceiverQuerySummary> cachedReceiveQuerySummaries = new HashMap<>();
     private final Map<BlockPos, Integer> extractRoundRobinCursor = new HashMap<>();
     private final Map<BlockPos, Integer> receiveRoundRobinCursor = new HashMap<>();
     private final Map<ExtractSimulationKey, Integer> cachedSimulatedExtracts = new HashMap<>();
-    private TransferScanSnapshot cachedTransferScanSnapshot = TransferScanSnapshot.EMPTY;
     private long cachedSimulatedExtractTick = Long.MIN_VALUE;
+    private int activeSourceCursor;
 
     /**
      * Creates an active FE distributor.
      *
-     * @param context            owning tower callbacks
-     * @param endpointResolver   endpoint resolver used for side probing and caching
-     * @param directEnergyAccess direct storage access bridge
+     * @param context               owning tower callbacks
+     * @param endpointResolver      endpoint resolver used for side probing and caching
+     * @param unlimitedEnergyAccess rate-limit-free storage access bridge
      */
     public TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
                                       TowerEnergyEndpointResolver endpointResolver,
-                                      DirectEnergyAccess directEnergyAccess) {
+                                      UnlimitedEnergyAccess unlimitedEnergyAccess) {
+        this(context, endpointResolver, unlimitedEnergyAccess, ModFlags.isAppFluxEnergySupportLoaded());
+    }
+
+    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
+                               TowerEnergyEndpointResolver endpointResolver,
+                               UnlimitedEnergyAccess unlimitedEnergyAccess,
+                               boolean appFluxEnergySupportLoaded) {
         this.context = context;
         this.endpointResolver = endpointResolver;
-        this.directEnergyAccess = directEnergyAccess;
+        this.unlimitedEnergyAccess = unlimitedEnergyAccess;
+        this.appFluxEnergySupportLoaded = appFluxEnergySupportLoaded;
     }
 
     @Override
     public void performActiveRangeTransfer() {
-        long transferBudget = this.context.transferBudgetPerTick();
-        if (transferBudget <= 0) {
+        if (!this.context.isTowerActive()) {
             return;
         }
 
-        TransferScanSnapshot transferScanSnapshot = getTransferScanSnapshot();
-        if (transferScanSnapshot.receiveEndpoints().isEmpty()) {
+        List<TowerEnergyEndpoint> receiveEndpoints = this.endpointResolver.getCachedResolvedEnergyEndpoints(true);
+        if (receiveEndpoints.isEmpty()) {
             return;
         }
 
-        long remainingBudget = transferBudget;
-        for (int substep = 0; substep < TRANSFER_SUBSTEPS_PER_TICK; substep++) {
-            if (remainingBudget <= 0) {
-                break;
-            }
+        ArrayList<TransferSource> sources = createTransferSources();
+        if (sources.isEmpty()) {
+            return;
+        }
 
-            long stepBudget = divideCeil(remainingBudget, TRANSFER_SUBSTEPS_PER_TICK - substep);
-            long simulatedExtract = simulateCachedTransferExtract(stepBudget, transferScanSnapshot);
-            if (simulatedExtract <= 0) {
-                break;
-            }
+        int sourceCount = sources.size();
+        int startIndex = Math.floorMod(this.activeSourceCursor, sourceCount);
+        Set<IEnergyStorage> stalledReceiveStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        boolean madeProgress;
+        do {
+            madeProgress = false;
+            for (int offset = 0; offset < sourceCount; offset++) {
+                TransferSource source = sources.get((startIndex + offset) % sourceCount);
+                if (source.stalled || source.remainingQuota <= 0) {
+                    continue;
+                }
 
-            long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, null, transferScanSnapshot.receiveEndpoints());
-            if (simulatedInsert <= 0) {
-                break;
-            }
-
-            long transferAmount = Math.min(simulatedExtract, Math.min(simulatedInsert, stepBudget));
-            long actuallyExtracted = 0;
-            long remainingExtraction = transferAmount;
-
-            if (ModFlags.isAppFluxEnergySupportLoaded()) {
-                long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), remainingExtraction, false);
-                if (extracted > 0) {
-                    actuallyExtracted += extracted;
-                    remainingExtraction -= extracted;
+                try {
+                    long inserted = transferSourceOnce(source, receiveEndpoints, stalledReceiveStorages);
+                    madeProgress |= inserted > 0;
+                } catch (RuntimeException | LinkageError exception) {
+                    source.stalled = true;
+                    Data_Energistics.LOGGER.error("Unlimited tower transfer failed for source {}", source.description(), exception);
                 }
             }
-            if (remainingExtraction > 0) {
-                actuallyExtracted += extractFromEndpointsRoundRobin(remainingExtraction, false, transferScanSnapshot.extractEndpoints());
-            }
-            if (actuallyExtracted <= 0) {
-                break;
-            }
+        } while (madeProgress && hasActiveSource(sources));
 
-            long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, null, transferScanSnapshot.receiveEndpoints());
-            if (actuallyInserted <= 0) {
-                Data_Energistics.LOGGER.warn("Active range transfer extracted {} FE but failed to insert it; aborting to avoid further loss.", actuallyExtracted);
-                break;
-            }
+        this.activeSourceCursor = (startIndex + 1) % sourceCount;
+    }
 
-            if (actuallyInserted < actuallyExtracted) {
-                Data_Energistics.LOGGER.warn("Active range transfer inserted only {} / {} FE after simulation; stopping to avoid desync.", actuallyInserted, actuallyExtracted);
-                break;
+    private ArrayList<TransferSource> createTransferSources() {
+        ArrayList<TransferSource> sources = new ArrayList<>();
+        if (this.appFluxEnergySupportLoaded) {
+            try {
+                long quota = AE2FluxIntegration.extractEnergyFromOwnNetwork(
+                        this.context.aeNetworkHost(), Long.MAX_VALUE, true);
+                if (quota > 0) {
+                    sources.add(new TransferSource(null, quota));
+                } else if (quota < 0) {
+                    Data_Energistics.LOGGER.error("AppFlux returned an invalid simulated extraction amount: {}", quota);
+                }
+            } catch (RuntimeException | LinkageError exception) {
+                Data_Energistics.LOGGER.error("Failed to freeze the AppFlux source quota for unlimited tower transfer",
+                        exception);
             }
-
-            remainingBudget -= actuallyInserted;
         }
+
+        for (TowerEnergyEndpoint endpoint : this.endpointResolver.getCachedResolvedEnergyEndpoints(false)) {
+            try {
+                IEnergyStorage storage = endpoint.storage();
+                if (!this.unlimitedEnergyAccess.canExtract(storage)) {
+                    continue;
+                }
+                long quota = this.unlimitedEnergyAccess.stored(storage);
+                if (quota > 0) {
+                    sources.add(new TransferSource(endpoint, quota));
+                }
+            } catch (RuntimeException | LinkageError exception) {
+                Data_Energistics.LOGGER.error("Failed to freeze unlimited tower source quota at {} side {} storage {}",
+                        endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(), exception);
+            }
+        }
+        return sources;
+    }
+
+    private long transferSourceOnce(TransferSource source, List<TowerEnergyEndpoint> receiveEndpoints,
+                                    Set<IEnergyStorage> stalledReceiveStorages) {
+        long simulatedExtract = source.extract(source.remainingQuota, true);
+        if (!isValidTransferResult(source, "simulate extract", source.remainingQuota, simulatedExtract)) {
+            return 0;
+        }
+        if (simulatedExtract == 0 || source.stalled) {
+            source.stalled = true;
+            return 0;
+        }
+
+        long simulatedInsert = distributeEnergyInRange(
+                simulatedExtract, true, source.excludedPos(), receiveEndpoints, stalledReceiveStorages);
+        if (simulatedInsert <= 0) {
+            source.stalled = true;
+            return 0;
+        }
+
+        long requested = Math.min(simulatedExtract, simulatedInsert);
+        long extracted = source.extract(requested, false);
+        if (!isValidTransferResult(source, "extract", requested, extracted) || extracted == 0) {
+            source.stalled = true;
+            return 0;
+        }
+        source.remainingQuota -= extracted;
+
+        long inserted = distributeEnergyInRange(
+                extracted, false, source.excludedPos(), receiveEndpoints, stalledReceiveStorages);
+        if (inserted != extracted) {
+            source.stalled = true;
+            Data_Energistics.LOGGER.error(
+                    "Unlimited tower transfer inserted only {} of {} FE from source {}; stopping this source",
+                    inserted, extracted, source.description());
+        }
+        return inserted;
+    }
+
+    private boolean isValidTransferResult(TransferSource source, String operation, long requested, long result) {
+        if (result >= 0 && result <= requested) {
+            return true;
+        }
+        source.stalled = true;
+        Data_Energistics.LOGGER.error("Unlimited tower {} returned {} for request {} at source {}",
+                operation, result, requested, source.description());
+        return false;
+    }
+
+    private static boolean hasActiveSource(List<TransferSource> sources) {
+        for (TransferSource source : sources) {
+            if (!source.stalled && source.remainingQuota > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
     public long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        return distributeEnergyInRange(amount, simulate, excludedPos, this.endpointResolver.collectClusterEnergyEndpoints(true));
+        Set<IEnergyStorage> stalledReceiveStorages = Collections.newSetFromMap(new IdentityHashMap<>());
+        return distributeEnergyInRange(amount, simulate, excludedPos,
+                this.endpointResolver.collectClusterEnergyEndpoints(true), stalledReceiveStorages);
     }
 
     @Override
@@ -152,7 +234,6 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         this.cachedReceiveQuerySummaries.clear();
         this.cachedSimulatedExtracts.clear();
         this.cachedSimulatedExtractTick = Long.MIN_VALUE;
-        this.cachedTransferScanSnapshot = TransferScanSnapshot.EMPTY;
     }
 
     @Override
@@ -178,116 +259,15 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
     }
 
-    private TransferScanSnapshot getTransferScanSnapshot() {
-        Level level = this.context.level();
-        if (level == null) {
-            return TransferScanSnapshot.EMPTY;
-        }
-
-        long gameTime = level.getGameTime();
-        TransferScanSnapshot cached = this.cachedTransferScanSnapshot;
-        if (cached.tick() != Long.MIN_VALUE && gameTime - cached.tick() < TRANSFER_SCAN_CACHE_TICKS) {
-            return cached;
-        }
-
-        List<TowerEnergyEndpoint> extractEndpoints = this.endpointResolver.getCachedResolvedEnergyEndpoints(false);
-        List<TowerEnergyEndpoint> receiveEndpoints = this.endpointResolver.getCachedResolvedEnergyEndpoints(true);
-
-        long aeExtractable = 0;
-        if (ModFlags.isAppFluxEnergySupportLoaded()) {
-            aeExtractable = Math.max(0L, AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), Long.MAX_VALUE, true));
-        }
-
-        ArrayList<TowerEnergyEndpoint> activeExtractEndpoints = new ArrayList<>(extractEndpoints.size());
-        for (TowerEnergyEndpoint endpoint : extractEndpoints) {
-            IEnergyStorage storage = endpoint.storage();
-            if (storage.canExtract() && storage.getEnergyStored() > 0) {
-                activeExtractEndpoints.add(endpoint);
-            }
-        }
-
-        ArrayList<TowerEnergyEndpoint> activeReceiveEndpoints = new ArrayList<>(receiveEndpoints.size());
-        for (TowerEnergyEndpoint endpoint : receiveEndpoints) {
-            IEnergyStorage storage = endpoint.storage();
-            if (this.endpointResolver.canReceiveEnergy(storage)) {
-                activeReceiveEndpoints.add(endpoint);
-            }
-        }
-
-        TransferScanSnapshot snapshot = new TransferScanSnapshot(
-                gameTime,
-                aeExtractable,
-                List.copyOf(activeExtractEndpoints),
-                List.copyOf(activeReceiveEndpoints));
-        this.cachedTransferScanSnapshot = snapshot;
-        return snapshot;
-    }
-
-    private long simulateCachedTransferExtract(long amount, TransferScanSnapshot transferScanSnapshot) {
-        if (amount <= 0) {
-            return 0;
-        }
-
-        long totalExtractable = 0;
-        if (transferScanSnapshot.aeExtractable() > 0) {
-            totalExtractable = Math.min(amount, transferScanSnapshot.aeExtractable());
-        }
-
-        long remaining = amount - totalExtractable;
-        if (remaining > 0) {
-            totalExtractable += extractFromEndpointsRoundRobin(remaining, true, transferScanSnapshot.extractEndpoints());
-        }
-        return Math.min(amount, totalExtractable);
-    }
-
-    private long extractFromEndpointsRoundRobin(long amount, boolean simulate, List<TowerEnergyEndpoint> extractEndpoints) {
-        if (amount <= 0 || extractEndpoints.isEmpty()) {
-            return 0;
-        }
-
-        long totalExtracted = 0;
-        long remaining = amount;
-        int endpointCount = extractEndpoints.size();
-        int startIndex = getExtractStartIndex(null, endpointCount);
-        int lastSuccessfulIndex = -1;
-
-        for (int offset = 0; offset < endpointCount; offset++) {
-            if (remaining <= 0) {
-                break;
-            }
-
-            int endpointIndex = (startIndex + offset) % endpointCount;
-            IEnergyStorage storage = extractEndpoints.get(endpointIndex).storage();
-            if (!storage.canExtract() || storage.getEnergyStored() <= 0) {
-                continue;
-            }
-
-            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
-            if (extracted > 0) {
-                totalExtracted += extracted;
-                remaining -= extracted;
-                lastSuccessfulIndex = endpointIndex;
-            }
-        }
-
-        if (lastSuccessfulIndex >= 0) {
-            this.extractRoundRobinCursor.put(null, lastSuccessfulIndex);
-        }
-
-        return totalExtracted;
-    }
-
     private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos,
-                                         List<TowerEnergyEndpoint> receiveEndpoints) {
+                                         List<TowerEnergyEndpoint> receiveEndpoints,
+                                         Set<IEnergyStorage> stalledReceiveStorages) {
         if (!this.context.isTowerActive() || amount <= 0) {
             return 0;
         }
 
         BlockPos normalizedExcludedPos = this.endpointResolver.normalizeReceiveExcludedPos(excludedPos);
-        List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(true, normalizedExcludedPos);
-        if (receiveEndpoints != this.endpointResolver.getCachedResolvedEnergyEndpoints(true)) {
-            endpoints = excludeEnergyEndpoint(receiveEndpoints, normalizedExcludedPos);
-        }
+        List<TowerEnergyEndpoint> endpoints = excludeEnergyEndpoint(receiveEndpoints, normalizedExcludedPos);
         this.context.recordMaxReceiveEndpoints(endpoints.size());
         if (endpoints.isEmpty()) {
             return 0;
@@ -306,11 +286,34 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             int endpointIndex = (startIndex + offset) % endpointCount;
             TowerEnergyEndpoint endpoint = endpoints.get(endpointIndex);
             IEnergyStorage storage = endpoint.storage();
-            if (!this.endpointResolver.canReceiveEnergy(storage)) {
+            if (stalledReceiveStorages.contains(storage)) {
                 continue;
             }
 
-            long inserted = insertEnergyIntoEndpoint(endpoint, remaining, simulate);
+            EndpointTransferResult result;
+            try {
+                if (!this.endpointResolver.canReceiveEnergy(storage)) {
+                    stalledReceiveStorages.add(storage);
+                    continue;
+                }
+                result = insertEnergyIntoEndpoint(endpoint, remaining, simulate);
+            } catch (RuntimeException | LinkageError exception) {
+                stalledReceiveStorages.add(storage);
+                Data_Energistics.LOGGER.error("Unlimited tower receiver failed at {} side {} storage {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+                continue;
+            }
+            long inserted = result.amount();
+            if (inserted < 0 || inserted > remaining) {
+                stalledReceiveStorages.add(storage);
+                Data_Energistics.LOGGER.error(
+                        "Unlimited tower receiver at {} side {} storage {} returned {} for request {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), inserted, remaining);
+                continue;
+            }
+            if (result.stalled() || inserted == 0) {
+                stalledReceiveStorages.add(storage);
+            }
             if (inserted > 0) {
                 totalInserted += inserted;
                 remaining -= inserted;
@@ -318,8 +321,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
         }
 
-        if (lastSuccessfulIndex >= 0) {
-            this.receiveRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
+        if (!simulate && lastSuccessfulIndex >= 0) {
+            this.receiveRoundRobinCursor.put(normalizedExcludedPos, (lastSuccessfulIndex + 1) % endpointCount);
         }
 
         if (!simulate && totalInserted > 0) {
@@ -328,23 +331,147 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return totalInserted;
     }
 
-    private long insertEnergyIntoEndpoint(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
+    private EndpointTransferResult insertEnergyIntoEndpoint(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
         if (amount <= 0) {
-            return 0;
+            return EndpointTransferResult.STALLED;
         }
 
         IEnergyStorage storage = endpoint.storage();
-        long directInserted = this.directEnergyAccess.insert(storage, amount, simulate);
-        if (directInserted != DirectEnergyAccess.INSERT_UNAVAILABLE) {
-            if (directInserted > 0 || !storage.canReceive()) {
-                if (!simulate && directInserted > 0) {
-                    this.directEnergyAccess.notifyStorageChanged(storage);
+        long directInserted = this.unlimitedEnergyAccess.insert(storage, amount, simulate);
+        if (directInserted != UnlimitedEnergyAccess.UNAVAILABLE) {
+            boolean stalled = directInserted == 0;
+            if (!simulate && directInserted > 0) {
+                try {
+                    this.unlimitedEnergyAccess.notifyStorageChanged(storage);
                     this.context.markEndpointChanged(endpoint.pos());
+                } catch (RuntimeException | LinkageError exception) {
+                    stalled = true;
+                    Data_Energistics.LOGGER.error(
+                            "Failed to publish unlimited tower receiver mutation at {} side {} storage {}",
+                            endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
                 }
-                return directInserted;
             }
+            return new EndpointTransferResult(directInserted, stalled);
         }
-        return storage.receiveEnergy(clampEnergyRequest(amount), simulate);
+        return insertThroughCapability(endpoint, amount, simulate);
+    }
+
+    private EndpointTransferResult insertThroughCapability(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
+        IEnergyStorage storage = endpoint.storage();
+        long insertedTotal = 0;
+        long remaining = simulate ? Math.min(amount, getCapabilityInsertionSpace(endpoint)) : amount;
+        if (remaining <= 0) {
+            return EndpointTransferResult.STALLED;
+        }
+        while (remaining > 0) {
+            int request = clampEnergyRequest(remaining);
+            int inserted = storage.receiveEnergy(request, simulate);
+            if (inserted < 0 || inserted > request) {
+                Data_Energistics.LOGGER.error("Energy receiver at {} side {} returned {} for request {}",
+                        endpoint.pos(), endpoint.side(), inserted, request);
+                return new EndpointTransferResult(insertedTotal, true);
+            }
+            if (inserted == 0) {
+                return new EndpointTransferResult(insertedTotal, true);
+            }
+            insertedTotal += inserted;
+            remaining -= inserted;
+        }
+        return new EndpointTransferResult(insertedTotal, false);
+    }
+
+    private long getCapabilityInsertionSpace(TowerEnergyEndpoint endpoint) {
+        IEnergyStorage storage = endpoint.storage();
+        try {
+            int stored = storage.getEnergyStored();
+            int capacity = storage.getMaxEnergyStored();
+            if (stored < 0 || capacity < stored) {
+                Data_Energistics.LOGGER.error(
+                        "Energy receiver at {} side {} storage {} reported invalid state {}/{}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), stored, capacity);
+                return 0;
+            }
+            return (long) capacity - stored;
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error("Energy receiver state query failed at {} side {} storage {}",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            return 0;
+        }
+    }
+
+    private long extractEnergyFromEndpoint(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
+        return extractEnergyFromEndpointResult(endpoint, amount, simulate).amount();
+    }
+
+    private EndpointTransferResult extractEnergyFromEndpointResult(
+                                                                   TowerEnergyEndpoint endpoint,
+                                                                   long amount,
+                                                                   boolean simulate) {
+        if (amount <= 0) {
+            return EndpointTransferResult.STALLED;
+        }
+
+        IEnergyStorage storage = endpoint.storage();
+        long directExtracted = this.unlimitedEnergyAccess.extract(storage, amount, simulate);
+        if (directExtracted != UnlimitedEnergyAccess.UNAVAILABLE) {
+            if (directExtracted < 0 || directExtracted > amount) {
+                Data_Energistics.LOGGER.error(
+                        "Unlimited energy source at {} side {} storage {} returned {} for request {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), directExtracted, amount);
+                return EndpointTransferResult.STALLED;
+            }
+            boolean stalled = directExtracted == 0;
+            if (!simulate && directExtracted > 0) {
+                try {
+                    this.unlimitedEnergyAccess.notifyStorageChanged(storage);
+                    this.context.markEndpointChanged(endpoint.pos());
+                } catch (RuntimeException | LinkageError exception) {
+                    stalled = true;
+                    Data_Energistics.LOGGER.error(
+                            "Failed to publish unlimited tower source mutation at {} side {} storage {}",
+                            endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+                }
+            }
+            return new EndpointTransferResult(directExtracted, stalled);
+        }
+
+        long extractedTotal = 0;
+        long remaining = simulate ? Math.min(amount, getCapabilityStoredEnergy(endpoint)) : amount;
+        if (remaining <= 0) {
+            return EndpointTransferResult.STALLED;
+        }
+        while (remaining > 0) {
+            int request = clampEnergyRequest(remaining);
+            int extracted = storage.extractEnergy(request, simulate);
+            if (extracted < 0 || extracted > request) {
+                Data_Energistics.LOGGER.error("Energy source at {} side {} returned {} for request {}",
+                        endpoint.pos(), endpoint.side(), extracted, request);
+                return new EndpointTransferResult(extractedTotal, true);
+            }
+            if (extracted == 0) {
+                return new EndpointTransferResult(extractedTotal, true);
+            }
+            extractedTotal += extracted;
+            remaining -= extracted;
+        }
+        return new EndpointTransferResult(extractedTotal, false);
+    }
+
+    private long getCapabilityStoredEnergy(TowerEnergyEndpoint endpoint) {
+        IEnergyStorage storage = endpoint.storage();
+        try {
+            int stored = storage.getEnergyStored();
+            if (stored < 0) {
+                Data_Energistics.LOGGER.error("Energy source at {} side {} storage {} reported negative stored energy {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), stored);
+                return 0;
+            }
+            return stored;
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error("Energy source state query failed at {} side {} storage {}",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            return 0;
+        }
     }
 
     private int getCachedSimulatedExtract(int amount, @Nullable BlockPos excludedPos) {
@@ -384,7 +511,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long totalExtracted = 0;
         long remaining = amount;
 
-        if (ModFlags.isAppFluxEnergySupportLoaded()) {
+        if (this.appFluxEnergySupportLoaded) {
             long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), remaining, simulate);
             if (extracted > 0) {
                 totalExtracted += extracted;
@@ -403,11 +530,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             int endpointIndex = (startIndex + offset) % endpointCount;
             TowerEnergyEndpoint endpoint = endpoints.get(endpointIndex);
             IEnergyStorage storage = endpoint.storage();
-            if (!storage.canExtract()) {
+            if (!this.unlimitedEnergyAccess.canExtract(storage)) {
                 continue;
             }
 
-            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
+            long extracted = extractEnergyFromEndpoint(endpoint, remaining, simulate);
             if (extracted > 0) {
                 totalExtracted += extracted;
                 remaining -= extracted;
@@ -415,8 +542,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
         }
 
-        if (lastSuccessfulIndex >= 0) {
-            this.extractRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
+        if (!simulate && lastSuccessfulIndex >= 0) {
+            this.extractRoundRobinCursor.put(normalizedExcludedPos, (lastSuccessfulIndex + 1) % endpointCount);
         }
 
         if (!simulate && totalExtracted > 0) {
@@ -442,11 +569,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long totalCapacity = 0L;
         List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(false, normalizedExcludedPos);
         for (TowerEnergyEndpoint endpoint : endpoints) {
-            totalStored = saturatingAdd(totalStored, endpoint.storage().getEnergyStored());
-            totalCapacity = saturatingAdd(totalCapacity, endpoint.storage().getMaxEnergyStored());
+            totalStored = saturatingAdd(totalStored, this.unlimitedEnergyAccess.stored(endpoint.storage()));
+            totalCapacity = saturatingAdd(totalCapacity, this.unlimitedEnergyAccess.capacity(endpoint.storage()));
         }
         long aeExtractable = 0L;
-        if (ModFlags.isAppFluxEnergySupportLoaded()) {
+        if (this.appFluxEnergySupportLoaded) {
             aeExtractable = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
             totalStored = saturatingAdd(totalStored, aeExtractable);
         }
@@ -526,14 +653,12 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return current + delta;
     }
 
-    private static long divideCeil(long dividend, int divisor) {
-        if (dividend <= 0 || divisor <= 0) {
-            return 0;
-        }
-        return 1L + (dividend - 1L) / divisor;
-    }
-
     private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {}
+
+    private record EndpointTransferResult(long amount, boolean stalled) {
+
+        private static final EndpointTransferResult STALLED = new EndpointTransferResult(0L, true);
+    }
 
     private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
 
@@ -545,9 +670,36 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, false);
     }
 
-    private record TransferScanSnapshot(long tick, long aeExtractable, List<TowerEnergyEndpoint> extractEndpoints,
-                                        List<TowerEnergyEndpoint> receiveEndpoints) {
+    private final class TransferSource {
 
-        private static final TransferScanSnapshot EMPTY = new TransferScanSnapshot(Long.MIN_VALUE, 0L, List.of(), List.of());
+        @Nullable
+        private final TowerEnergyEndpoint endpoint;
+        private long remainingQuota;
+        private boolean stalled;
+
+        private TransferSource(@Nullable TowerEnergyEndpoint endpoint, long remainingQuota) {
+            this.endpoint = endpoint;
+            this.remainingQuota = remainingQuota;
+        }
+
+        private long extract(long amount, boolean simulate) {
+            if (this.endpoint == null) {
+                return AE2FluxIntegration.extractEnergyFromOwnNetwork(
+                        TowerEnergyDistributorImpl.this.context.aeNetworkHost(), amount, simulate);
+            }
+            EndpointTransferResult result = TowerEnergyDistributorImpl.this.extractEnergyFromEndpointResult(
+                    this.endpoint, amount, simulate);
+            this.stalled |= result.stalled();
+            return result.amount();
+        }
+
+        @Nullable
+        private BlockPos excludedPos() {
+            return this.endpoint == null ? null : this.endpoint.pos();
+        }
+
+        private String description() {
+            return this.endpoint == null ? "AppFlux network" : this.endpoint.pos() + " side=" + this.endpoint.side() + " storage=" + this.endpoint.storage().getClass().getName();
+        }
     }
 }

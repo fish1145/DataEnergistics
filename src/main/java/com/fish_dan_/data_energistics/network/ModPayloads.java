@@ -10,6 +10,10 @@ public final class ModPayloads {
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
         registrar.playToClient(
+                DataDistributionTowerTargetsPayload.TYPE,
+                DataDistributionTowerTargetsPayload.STREAM_CODEC,
+                DataDistributionTowerTargetsPayload::handle);
+        registrar.playToClient(
                 UniversalTerminalStateSyncPayload.TYPE,
                 UniversalTerminalStateSyncPayload.STREAM_CODEC,
                 UniversalTerminalStateSyncPayload::handle);

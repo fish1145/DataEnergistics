@@ -1,10 +1,17 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.common.MenuClientRefresh;
+import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetEntry;
+import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsPayload;
+import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsReceiver;
+import com.fish_dan_.data_energistics.network.DataDistributionTowerTargetsSnapshot;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -12,7 +19,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.Tooltips;
@@ -24,9 +33,10 @@ import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Set;
 
-public class DataDistributionTowerMenu extends AEBaseMenu {
+public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistributionTowerTargetsReceiver {
 
     private static final String ACTION_FOCUS_TARGET = "focus_target";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
@@ -36,6 +46,9 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     @Nullable
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
+    private List<TargetSnapshotKey> lastTargetSnapshotKeys;
+    private long targetSnapshotRevision = -1L;
+    public List<DataDistributionTowerTargetEntry> boundTargetEntries = List.of();
 
     @GuiSync(730)
     public int usedChannels;
@@ -51,20 +64,8 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public boolean rangeVisible;
     @GuiSync(736)
     public int boundTargetCount;
-    @GuiSync(737)
-    public String boundTargets = "";
-    @GuiSync(738)
-    public String boundTargetIcons = "";
-    @GuiSync(739)
-    public String boundTargetMeta = "";
-    @GuiSync(740)
-    public String boundTargetKinds = "";
     @GuiSync(741)
     public int connectionMode = ConnectionMode.AE_AND_FE.ordinal();
-    @GuiSync(742)
-    public String boundTargetModes = "";
-    @GuiSync(743)
-    public String boundTargetTransferInfo = "";
     @GuiSync(744)
     public int rangeAdjustmentMode = RangeAdjustmentMode.POINT.ordinal();
 
@@ -106,28 +107,43 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
             this.connectionMode = tower.getConnectionMode().ordinal();
             this.rangeAdjustmentMode = tower.getRangeAdjustmentMode().ordinal();
             this.boundTargetCount = tower.getBoundTargetCount();
-            var summaries = tower.getBoundTargetSummaries(64);
-            this.boundTargets = String.join("\n", summaries.stream()
-                    .map(summary -> summary.count() > 1 ? summary.displayName() + " x" + summary.count() + " (" + summary.kind().name() + ")" : summary.displayName() + " (" + summary.kind().name() + ")")
-                    .toList());
-            this.boundTargetIcons = String.join("\n", summaries.stream()
-                    .map(summary -> summary.itemId().toString())
-                    .toList());
-            this.boundTargetMeta = String.join("\n", summaries.stream()
-                    .map(summary -> summary.dimensionId() + "|" + summary.pos().getX() + "|" + summary.pos().getY() + "|" + summary.pos().getZ())
-                    .toList());
-            this.boundTargetKinds = String.join("\n", summaries.stream()
-                    .map(summary -> summary.kind().name())
-                    .toList());
-            this.boundTargetModes = String.join("\n", summaries.stream()
-                    .map(summary -> summary.transferMode().name())
-                    .toList());
-            this.boundTargetTransferInfo = String.join("\n", summaries.stream()
-                    .map(summary -> summary.transferInfo().channelConnections() + "|" + summary.transferInfo().hasAeTarget() + "|" + summary.transferInfo().hasEnergyTarget() + "|" + summary.transferInfo().storedFe() + "|" + summary.transferInfo().capacityFe() + "|" + summary.transferInfo().canExtractFe() + "|" + summary.transferInfo().canReceiveFe())
-                    .toList());
+            syncTargetSnapshot(tower.getBoundTargetSummaries(Integer.MAX_VALUE));
         }
 
         super.broadcastChanges();
+    }
+
+    @Override
+    public void receiveDataDistributionTowerTargets(DataDistributionTowerTargetsSnapshot snapshot) {
+        if (snapshot.containerId() != this.containerId) {
+            throw new IllegalArgumentException("Target snapshot container does not match this menu");
+        }
+        this.boundTargetEntries = snapshot.entries();
+        this.boundTargetCount = snapshot.totalCount();
+        if (this.isClientSide()) {
+            MenuClientRefresh.refreshDataDistributionTowerScreen();
+        }
+    }
+
+    private void syncTargetSnapshot(List<BoundTargetSummary> summaries) {
+        if (!(getPlayer() instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        List<TargetSnapshotKey> snapshotKeys = summaries.stream().map(TargetSnapshotKey::fromSummary).toList();
+        if (snapshotKeys.equals(this.lastTargetSnapshotKeys)) {
+            return;
+        }
+
+        this.lastTargetSnapshotKeys = snapshotKeys;
+        this.targetSnapshotRevision = Math.incrementExact(this.targetSnapshotRevision);
+        List<DataDistributionTowerTargetEntry> entries = summaries.stream()
+                .map(DataDistributionTowerTargetEntry::fromSummary)
+                .toList();
+        for (DataDistributionTowerTargetsPayload payload : DataDistributionTowerTargetsPayload.batches(
+                this.containerId, this.targetSnapshotRevision, entries)) {
+            PacketDistributor.sendToPlayer(serverPlayer, payload);
+        }
     }
 
     public void sendFocusTarget(String dimensionId, int x, int y, int z, boolean teleport) {
@@ -236,4 +252,19 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     private record TargetAction(String dimensionId, int x, int y, int z, boolean teleport) {}
 
     private record TargetTransferModeAction(String dimensionId, int x, int y, int z, int mode) {}
+
+    private record TargetSnapshotKey(ResourceLocation itemId, String displayName, int count,
+                                     ResourceLocation dimensionId, BlockPos pos, TargetKind kind,
+                                     TargetTransferMode transferMode, int channelConnections,
+                                     boolean hasAeTarget, boolean hasEnergyTarget,
+                                     boolean canExtractFe, boolean canReceiveFe) {
+
+        private static TargetSnapshotKey fromSummary(BoundTargetSummary summary) {
+            TargetTransferInfo transferInfo = summary.transferInfo();
+            return new TargetSnapshotKey(summary.itemId(), summary.displayName(), summary.count(), summary.dimensionId(),
+                    summary.pos(), summary.kind(), summary.transferMode(), transferInfo.channelConnections(),
+                    transferInfo.hasAeTarget(), transferInfo.hasEnergyTarget(), transferInfo.canExtractFe(),
+                    transferInfo.canReceiveFe());
+        }
+    }
 }

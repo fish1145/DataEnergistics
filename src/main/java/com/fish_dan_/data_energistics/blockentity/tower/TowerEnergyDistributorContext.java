@@ -38,13 +38,6 @@ public interface TowerEnergyDistributorContext {
     AENetworkedBlockEntity aeNetworkHost();
 
     /**
-     * Returns per-tick FE transfer budget.
-     *
-     * @return FE budget for one server tick
-     */
-    long transferBudgetPerTick();
-
-    /**
      * Marks a direct-access target block entity changed after successful insertion.
      *
      * @param pos endpoint position

@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
@@ -114,8 +113,8 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
     }
 
     @Override
-    public boolean hasDisplayableAeTarget(@Nullable BlockEntity blockEntity) {
-        if (this.context.level() == null || blockEntity == null) {
+    public boolean hasDisplayableAeTarget(BlockPos pos, @Nullable BlockEntity blockEntity) {
+        if (this.context.level() == null) {
             return false;
         }
 
@@ -125,6 +124,10 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
 
         if (blockEntity instanceof CableBusBlockEntity cableBusBlockEntity) {
             return hasAnyCableBusPart(cableBusBlockEntity.getCableBus());
+        }
+
+        if (this.context.hasExposedAeNode(pos)) {
+            return true;
         }
 
         if (this.aeCraftingDisplayBridge.isDisplayComponent(blockEntity)) {
@@ -247,8 +250,8 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
 
         LinkedHashMap<BlockPos, TargetKind> positions = new LinkedHashMap<>();
 
-        for (BlockPos pos : this.context.linkedPositions()) {
-            if (this.context.allowsAeDisplayTargets() && this.context.targetTransferMode(pos) != TargetTransferMode.DISABLED && !level.getBlockState(pos).isAir()) {
+        for (BlockPos pos : this.context.trackedPositions()) {
+            if (!level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
                     TargetKind kind = this.context.preferredDisplayKind(pos);
@@ -260,7 +263,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         }
 
         for (BlockPos pos : this.context.cachedAeDisplayTargets()) {
-            if (this.context.allowsAeDisplayTargets() && this.context.targetAllowsAe(pos) && !level.getBlockState(pos).isAir()) {
+            if (this.context.allowsAeDisplayTargets() && !level.getBlockState(pos).isAir()) {
                 BlockEntity blockEntity = level.getBlockEntity(pos);
                 if (!(blockEntity instanceof DataDistributionTowerBlockEntity)) {
                     positions.putIfAbsent(pos.immutable(), TargetKind.AE);
@@ -276,7 +279,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
             if (blockEntity instanceof DataDistributionTowerBlockEntity) {
                 continue;
             }
-            if (this.context.allowsAeDisplayTargets() && this.context.isDedicatedAeGridTarget(pos)) {
+            if (this.context.allowsAeDisplayTargets() && this.context.hasExposedAeNode(pos)) {
                 positions.putIfAbsent(pos.immutable(), TargetKind.AE);
                 continue;
             }
@@ -306,6 +309,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
 
         ArrayList<DisplayTarget> results = new ArrayList<>(positions.size());
         positions.forEach((pos, kind) -> results.add(new DisplayTarget(pos, kind)));
+        results.sort((left, right) -> compareBlockPos(left.pos(), right.pos()));
         return List.copyOf(results);
     }
 

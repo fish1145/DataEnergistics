@@ -50,6 +50,7 @@ jech = "8117474"
 ctm = "5587515"
 worldedit = "5830452"
 worldedit-cui-forge = "7195941"
+oritech = "8295566"
 
 ## libs ##
 mdlib = "0.0.1"
@@ -108,6 +109,7 @@ jech                = { module = "curse.maven:just-enough-characters-250702", ve
 ctm                 = { module = "curse.maven:ctm-267602", version.ref = "ctm" }
 worldedit           = { module = "curse.maven:worldedit-225608", version.ref = "worldedit" }
 worldedit-cui-forge = { module = "curse.maven:worldedit-cui-forge-1380388", version.ref = "worldedit-cui-forge" }
+oritech             = { module = "curse.maven:oritech-1030830", version.ref = "oritech" }
 
 mdlib               = { module = "dev:mdlib-1.21.1", version.ref = "mdlib" }
 

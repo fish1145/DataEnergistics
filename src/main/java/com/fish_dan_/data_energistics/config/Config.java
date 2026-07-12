@@ -41,11 +41,6 @@ public class Config {
                     "数据均分塔的基础区块覆盖等级。1=1x1 区块，2=3x3 区块，依此类推。")
             .defineInRange("dataDistributionTowerRange", 1, 1, 128);
 
-    private static final ModConfigSpec.LongValue DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK = BUILDER
-            .comment("Maximum FE transferred per tick by a Data Distribution Tower network.",
-                    "数据均分塔网络每 tick 最大传输 FE。")
-            .defineInRange("dataDistributionTowerTransferPerTick", Long.MAX_VALUE, 1L, Long.MAX_VALUE);
-
     private static final ModConfigSpec.IntValue DATA_SANCTUM_INTERFACE_ITEM_LIMIT = BUILDER
             .comment("Base stocked item amount per Data Sanctum interface config/stock slot. Each capacity card doubles this value.",
                     "极限承载接口每个配置/库存槽的基础物品储备数量。每张容量卡会使该值翻倍。")
@@ -70,7 +65,6 @@ public class Config {
 
     public static int dataRipperBaseCost;
     public static int dataDistributionTowerRange;
-    public static long dataDistributionTowerTransferPerTick;
     public static int dataSanctumInterfaceItemLimit;
     public static int dataSanctumInterfaceFluidBuckets;
     public static int dataSanctumInterfaceReturnItemLimit;
@@ -84,7 +78,6 @@ public class Config {
     static void onLoad(final ModConfigEvent event) {
         dataRipperBaseCost = DATA_RIPPER_BASE_COST.get();
         dataDistributionTowerRange = DATA_DISTRIBUTION_TOWER_RANGE.get();
-        dataDistributionTowerTransferPerTick = DATA_DISTRIBUTION_TOWER_TRANSFER_PER_TICK.get();
         dataSanctumInterfaceItemLimit = DATA_SANCTUM_INTERFACE_ITEM_LIMIT.get();
         dataSanctumInterfaceFluidBuckets = DATA_SANCTUM_INTERFACE_FLUID_BUCKETS.get();
         dataSanctumInterfaceReturnItemLimit = DATA_SANCTUM_INTERFACE_RETURN_ITEM_LIMIT.get();
