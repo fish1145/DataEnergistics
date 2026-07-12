@@ -7,6 +7,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -147,6 +148,93 @@ public final class TrinityDataCoreStorageSavedDataTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_storage_saved_data_summary_tracks_mutations")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void summaryTracksModulatedMutationsAndIgnoresSimulations(GameTestHelper helper) {
+        TrinityDataCoreStorageSavedData data = new TrinityDataCoreStorageSavedData();
+        UUID hostId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        TrinityDataCoreStorageProfile profile = new TrinityDataCoreStorageProfile(
+                BigInteger.TEN,
+                2,
+                2,
+                3,
+                false);
+
+        data.insert(hostId, iron, 4L, Actionable.SIMULATE, profile);
+        helper.assertValueEqual(
+                data.summary(hostId),
+                TrinityDataCoreStorageSavedData.StorageSummary.EMPTY,
+                "Simulated insert should leave the summary empty");
+
+        data.insert(hostId, iron, 4L, Actionable.MODULATE, profile);
+        data.insert(hostId, gold, 3L, Actionable.MODULATE, profile);
+        helper.assertValueEqual(
+                data.summary(hostId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(2, "7"),
+                "Modulated inserts should update type count and total amount");
+
+        data.extract(hostId, iron, 4L, Actionable.SIMULATE);
+        helper.assertValueEqual(
+                data.summary(hostId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(2, "7"),
+                "Simulated extraction should not update the summary");
+
+        data.extract(hostId, iron, 4L, Actionable.MODULATE);
+        helper.assertValueEqual(
+                data.summary(hostId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(1, "3"),
+                "Removing a key should decrement the stored type count");
+        helper.assertValueEqual(
+                data.insert(hostId, iron, Long.MAX_VALUE, Actionable.MODULATE, profile),
+                7L,
+                "A removed key should free its type slot and the remaining total capacity");
+        helper.assertValueEqual(
+                data.summary(hostId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(2, "10"),
+                "Accepted insert should fill the total capacity exactly");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_storage_saved_data_duplicate_key_round_trip")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void loadsDuplicateKeysLastWinsAndRoundTripsSummary(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey gold = AEItemKey.of(Items.GOLD_INGOT);
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+        ListTag entries = new ListTag();
+        entries.add(entryTag(iron, BigInteger.valueOf(4L), registries));
+        entries.add(entryTag(gold, BigInteger.valueOf(3L), registries));
+        entries.add(entryTag(iron, BigInteger.valueOf(9L), registries));
+
+        CompoundTag host = new CompoundTag();
+        host.putUUID("host_id", hostId);
+        host.put("entries", entries);
+        ListTag hosts = new ListTag();
+        hosts.add(host);
+        CompoundTag source = new CompoundTag();
+        source.putInt("schema_version", 1);
+        source.put("hosts", hosts);
+
+        TrinityDataCoreStorageSavedData loaded = TrinityDataCoreStorageSavedData.load(source, registries);
+        helper.assertValueEqual(loaded.amount(hostId, iron), BigInteger.valueOf(9L), "Last duplicate key should win");
+        helper.assertValueEqual(
+                loaded.summary(hostId),
+                new TrinityDataCoreStorageSavedData.StorageSummary(2, "12"),
+                "Loaded summary should count each distinct key once and use its last amount");
+
+        CompoundTag saved = loaded.save(new CompoundTag(), registries);
+        TrinityDataCoreStorageSavedData reloaded = TrinityDataCoreStorageSavedData.load(saved, registries);
+        helper.assertValueEqual(reloaded.amount(hostId, iron), BigInteger.valueOf(9L), "Round trip should retain iron");
+        helper.assertValueEqual(reloaded.amount(hostId, gold), BigInteger.valueOf(3L), "Round trip should retain gold");
+        helper.assertValueEqual(reloaded.summary(hostId), loaded.summary(hostId), "Round trip should retain summary");
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_storage_saved_data_capacity_reduction_retains_extract")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -209,5 +297,12 @@ public final class TrinityDataCoreStorageSavedDataTest {
                 "Unlimited profile should accept additional key types");
         helper.assertValueEqual(data.summary(hostId).typeCount(), 2, "Unlimited profile should store both key types");
         helper.succeed();
+    }
+
+    private static CompoundTag entryTag(AEItemKey key, BigInteger amount, HolderLookup.Provider registries) {
+        CompoundTag entry = new CompoundTag();
+        entry.put("key", key.toTagGeneric(registries));
+        entry.putString("amount", amount.toString());
+        return entry;
     }
 }

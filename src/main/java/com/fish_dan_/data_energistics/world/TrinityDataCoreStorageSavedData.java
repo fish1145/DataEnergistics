@@ -16,7 +16,6 @@ import appeng.api.stacks.KeyCounter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.Map;
@@ -39,7 +38,7 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             TrinityDataCoreStorageSavedData::new,
             TrinityDataCoreStorageSavedData::load);
 
-    private final Object2ObjectOpenHashMap<UUID, Object2ObjectOpenHashMap<AEKey, BigInteger>> hosts = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<UUID, HostState> hosts = new Object2ObjectOpenHashMap<>();
 
     public static TrinityDataCoreStorageSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -73,13 +72,13 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
                 continue;
             }
 
-            Object2ObjectOpenHashMap<AEKey, BigInteger> entries = new Object2ObjectOpenHashMap<>();
+            HostState hostState = new HostState();
             Tag entriesTag = hostEntry.get(ENTRIES_TAG);
             if (entriesTag instanceof ListTag entryList) {
-                readEntries(registries, hostId, entryList, entries);
+                readEntries(registries, hostId, entryList, hostState);
             }
-            if (!entries.isEmpty()) {
-                data.hosts.put(hostId, entries);
+            if (!hostState.isEmpty()) {
+                data.hosts.put(hostId, hostState);
             }
         }
         return data;
@@ -102,11 +101,8 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             return 0L;
         }
         if (mode == Actionable.MODULATE) {
-            Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.computeIfAbsent(
-                    hostId,
-                    ignored -> new Object2ObjectOpenHashMap<>());
-            BigInteger current = entries.getOrDefault(key, BigInteger.ZERO);
-            entries.put(key, current.add(BigInteger.valueOf(acceptedAmount)));
+            HostState hostState = this.hosts.computeIfAbsent(hostId, ignored -> new HostState());
+            hostState.insert(key, acceptedAmount);
             setDirty();
         }
         return acceptedAmount;
@@ -117,25 +113,20 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             return 0L;
         }
 
-        Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
-        if (entries == null) {
+        HostState hostState = this.hosts.get(hostId);
+        if (hostState == null) {
             return 0L;
         }
-        BigInteger current = entries.getOrDefault(key, BigInteger.ZERO);
+        BigInteger current = hostState.amount(key);
         if (current.signum() <= 0) {
             return 0L;
         }
 
         BigInteger extracted = current.min(BigInteger.valueOf(amount));
         if (mode == Actionable.MODULATE) {
-            BigInteger remaining = current.subtract(extracted);
-            if (remaining.signum() <= 0) {
-                entries.remove(key);
-                if (entries.isEmpty()) {
-                    this.hosts.remove(hostId);
-                }
-            } else {
-                entries.put(key, remaining);
+            hostState.extract(key, current, extracted);
+            if (hostState.isEmpty()) {
+                this.hosts.remove(hostId);
             }
             setDirty();
         }
@@ -143,26 +134,13 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
     }
 
     public BigInteger amount(UUID hostId, AEKey key) {
-        Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
-        return entries == null ? BigInteger.ZERO : entries.getOrDefault(key, BigInteger.ZERO);
+        HostState hostState = this.hosts.get(hostId);
+        return hostState == null ? BigInteger.ZERO : hostState.amount(key);
     }
 
     public StorageSummary summary(UUID hostId) {
-        Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
-        if (entries == null || entries.isEmpty()) {
-            return StorageSummary.EMPTY;
-        }
-        BigInteger total = BigInteger.ZERO;
-        int typeCount = 0;
-        for (Object2ObjectMap.Entry<AEKey, BigInteger> entry : entries.object2ObjectEntrySet()) {
-            BigInteger amount = entry.getValue();
-            if (amount.signum() <= 0) {
-                continue;
-            }
-            typeCount++;
-            total = total.add(amount);
-        }
-        return typeCount == 0 ? StorageSummary.EMPTY : new StorageSummary(typeCount, total.toString());
+        HostState hostState = this.hosts.get(hostId);
+        return hostState == null ? StorageSummary.EMPTY : hostState.summary();
     }
 
     private long acceptedInsertAmount(UUID hostId, AEKey key, long amount, TrinityDataCoreStorageProfile profile) {
@@ -173,13 +151,15 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             return 0L;
         }
 
-        Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
-        BigInteger current = entries == null ? BigInteger.ZERO : entries.getOrDefault(key, BigInteger.ZERO);
-        if (current.signum() <= 0 && positiveTypeCount(entries) >= profile.typeCapacity()) {
+        HostState hostState = this.hosts.get(hostId);
+        if (hostState == null) {
+            return BigInteger.valueOf(amount).min(profile.totalCapacity()).longValue();
+        }
+        if (hostState.amount(key).signum() <= 0 && hostState.typeCount() >= profile.typeCapacity()) {
             return 0L;
         }
 
-        BigInteger remainingCapacity = profile.totalCapacity().subtract(totalAmount(entries));
+        BigInteger remainingCapacity = profile.totalCapacity().subtract(hostState.totalAmount());
         if (remainingCapacity.signum() <= 0) {
             return 0L;
         }
@@ -188,42 +168,13 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
         return accepted.longValue();
     }
 
-    private static int positiveTypeCount(@Nullable Object2ObjectOpenHashMap<AEKey, BigInteger> entries) {
-        if (entries == null || entries.isEmpty()) {
-            return 0;
-        }
-        int typeCount = 0;
-        for (BigInteger amount : entries.values()) {
-            if (amount.signum() > 0) {
-                typeCount++;
-            }
-        }
-        return typeCount;
-    }
-
-    private static BigInteger totalAmount(@Nullable Object2ObjectOpenHashMap<AEKey, BigInteger> entries) {
-        if (entries == null || entries.isEmpty()) {
-            return BigInteger.ZERO;
-        }
-        BigInteger total = BigInteger.ZERO;
-        for (BigInteger amount : entries.values()) {
-            if (amount.signum() > 0) {
-                total = total.add(amount);
-            }
-        }
-        return total;
-    }
-
     public void addAvailableStacks(UUID hostId, KeyCounter out) {
-        Object2ObjectOpenHashMap<AEKey, BigInteger> entries = this.hosts.get(hostId);
-        if (entries == null || entries.isEmpty()) {
+        HostState hostState = this.hosts.get(hostId);
+        if (hostState == null) {
             return;
         }
-        for (Object2ObjectMap.Entry<AEKey, BigInteger> entry : entries.object2ObjectEntrySet()) {
-            BigInteger amount = entry.getValue();
-            if (amount.signum() > 0) {
-                out.add(entry.getKey(), saturatingLong(amount));
-            }
+        for (Object2ObjectMap.Entry<AEKey, BigInteger> entry : hostState.entries().object2ObjectEntrySet()) {
+            out.add(entry.getKey(), saturatingLong(entry.getValue()));
         }
     }
 
@@ -231,18 +182,14 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         tag.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         ListTag hostList = new ListTag();
-        for (Object2ObjectMap.Entry<UUID, Object2ObjectOpenHashMap<AEKey, BigInteger>> hostEntry : this.hosts.object2ObjectEntrySet()) {
+        for (Object2ObjectMap.Entry<UUID, HostState> hostEntry : this.hosts.object2ObjectEntrySet()) {
             CompoundTag hostTag = new CompoundTag();
             hostTag.putUUID(HOST_ID_TAG, hostEntry.getKey());
             ListTag entryList = new ListTag();
-            for (Map.Entry<AEKey, BigInteger> storageEntry : hostEntry.getValue().entrySet()) {
-                BigInteger amount = storageEntry.getValue();
-                if (amount.signum() <= 0) {
-                    continue;
-                }
+            for (Map.Entry<AEKey, BigInteger> storageEntry : hostEntry.getValue().entries().entrySet()) {
                 CompoundTag entryTag = new CompoundTag();
                 entryTag.put(KEY_TAG, storageEntry.getKey().toTagGeneric(registries));
-                entryTag.putString(AMOUNT_TAG, amount.toString());
+                entryTag.putString(AMOUNT_TAG, storageEntry.getValue().toString());
                 entryList.add(entryTag);
             }
             if (!entryList.isEmpty()) {
@@ -257,7 +204,7 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
     private static void readEntries(HolderLookup.Provider registries,
                                     UUID hostId,
                                     ListTag entryList,
-                                    Object2ObjectOpenHashMap<AEKey, BigInteger> entries) {
+                                    HostState hostState) {
         for (Tag entryTag : entryList) {
             if (!(entryTag instanceof CompoundTag entry)) {
                 continue;
@@ -265,7 +212,7 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             AEKey key = AEKey.fromTagGeneric(registries, entry.getCompound(KEY_TAG));
             BigInteger amount = readAmount(hostId, entry);
             if (key != null && amount.signum() > 0) {
-                entries.put(key, amount);
+                hostState.putLoaded(key, amount);
             }
         }
     }
@@ -294,6 +241,69 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
 
     private static long saturatingLong(BigInteger amount) {
         return amount.compareTo(LONG_MAX) > 0 ? Long.MAX_VALUE : amount.longValue();
+    }
+
+    private static final class HostState {
+
+        private final Object2ObjectOpenHashMap<AEKey, BigInteger> entries = new Object2ObjectOpenHashMap<>();
+        private int typeCount;
+        private BigInteger totalAmount = BigInteger.ZERO;
+
+        private void insert(AEKey key, long amount) {
+            BigInteger insertedAmount = BigInteger.valueOf(amount);
+            BigInteger current = this.entries.put(
+                    key,
+                    this.entries.getOrDefault(key, BigInteger.ZERO).add(insertedAmount));
+            if (current == null) {
+                this.typeCount++;
+            }
+            this.totalAmount = this.totalAmount.add(insertedAmount);
+        }
+
+        private void extract(AEKey key, BigInteger currentAmount, BigInteger extractedAmount) {
+            BigInteger remaining = currentAmount.subtract(extractedAmount);
+            if (remaining.signum() <= 0) {
+                this.entries.remove(key);
+                this.typeCount--;
+            } else {
+                this.entries.put(key, remaining);
+            }
+            this.totalAmount = this.totalAmount.subtract(extractedAmount);
+        }
+
+        private void putLoaded(AEKey key, BigInteger amount) {
+            BigInteger previous = this.entries.put(key, amount);
+            if (previous == null) {
+                this.typeCount++;
+            } else {
+                this.totalAmount = this.totalAmount.subtract(previous);
+            }
+            this.totalAmount = this.totalAmount.add(amount);
+        }
+
+        private BigInteger amount(AEKey key) {
+            return this.entries.getOrDefault(key, BigInteger.ZERO);
+        }
+
+        private StorageSummary summary() {
+            return new StorageSummary(this.typeCount, this.totalAmount.toString());
+        }
+
+        private boolean isEmpty() {
+            return this.typeCount == 0;
+        }
+
+        private Object2ObjectOpenHashMap<AEKey, BigInteger> entries() {
+            return this.entries;
+        }
+
+        private int typeCount() {
+            return this.typeCount;
+        }
+
+        private BigInteger totalAmount() {
+            return this.totalAmount;
+        }
     }
 
     public record StorageSummary(int typeCount, String totalAmount) {
