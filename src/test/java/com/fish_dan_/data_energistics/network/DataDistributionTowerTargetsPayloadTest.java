@@ -80,6 +80,7 @@ public final class DataDistributionTowerTargetsPayloadTest {
         assertEquals(11L, snapshot.revision());
         assertEquals(70, snapshot.totalCount());
         assertEquals(entries, snapshot.entries());
+        assertEquals("Target 69", snapshot.entries().get(69).displayName());
         assertThrows(UnsupportedOperationException.class,
                 () -> snapshot.entries().add(entry(71)));
     }

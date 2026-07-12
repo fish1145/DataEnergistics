@@ -473,7 +473,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         return false;
     }
 
-    private static int compareBlockPos(BlockPos a, BlockPos b) {
+    static int compareBlockPos(BlockPos a, BlockPos b) {
         int cmp = Integer.compare(a.getX(), b.getX());
         if (cmp != 0) {
             return cmp;

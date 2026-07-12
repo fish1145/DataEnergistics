@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
@@ -61,6 +63,7 @@ public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
         Objects.requireNonNull(controllerPositions, "controllerPositions");
 
         if (controllerState == ControllerState.CONTROLLER_CONFLICT) {
+            Data_Energistics.LOGGER.error("Cannot expose channel-hub capacity while the AE controller is conflicted");
             return 0;
         }
         if (channelMode == ChannelMode.INFINITE) {

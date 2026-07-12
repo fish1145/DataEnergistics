@@ -38,6 +38,20 @@ public interface TowerEnergyDistributorContext {
     AENetworkedBlockEntity aeNetworkHost();
 
     /**
+     * Returns energy already extracted from a source but not yet delivered or restored.
+     *
+     * @return persisted transfer-buffer energy in FE
+     */
+    long bufferedTransferEnergy();
+
+    /**
+     * Replaces the persisted transfer-buffer amount after a verified transfer mutation.
+     *
+     * @param amount non-negative transfer-buffer energy in FE
+     */
+    void setBufferedTransferEnergy(long amount);
+
+    /**
      * Marks a direct-access target block entity changed after successful insertion.
      *
      * @param pos endpoint position

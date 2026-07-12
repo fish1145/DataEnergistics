@@ -106,6 +106,17 @@ class UnlimitedEnergyAccessImplTest {
     }
 
     @Test
+    void restoresUndeliveredExtractionOnASourceOnlyStorage() {
+        PrivateIntStorage storage = new PrivateIntStorage(100, 200, false, true);
+
+        assertEquals(70L, this.access.extract(storage, 70L, false));
+        assertEquals(30, storage.getEnergyStored());
+        assertEquals(70L, this.access.rollbackExtraction(storage, 70L));
+        assertEquals(100, storage.getEnergyStored());
+        assertFalse(storage.canReceive());
+    }
+
+    @Test
     void rollsBackInvalidOperationReturnsInBothDirections() {
         InvalidOperationStorage storage = new InvalidOperationStorage(200L, 1_000L);
 
@@ -157,6 +168,7 @@ class UnlimitedEnergyAccessImplTest {
 
         assertThrows(IllegalArgumentException.class, () -> this.access.insert(storage, -1L, false));
         assertThrows(IllegalArgumentException.class, () -> this.access.extract(storage, -1L, false));
+        assertThrows(IllegalArgumentException.class, () -> this.access.rollbackExtraction(storage, -1L));
     }
 
     @Test
@@ -169,6 +181,7 @@ class UnlimitedEnergyAccessImplTest {
         assertFalse(this.access.canExtract(storage));
         assertEquals(0L, this.access.insert(storage, 10L, false));
         assertEquals(0L, this.access.extract(storage, 10L, false));
+        assertEquals(UnlimitedEnergyAccess.UNAVAILABLE, this.access.rollbackExtraction(storage, 10L));
     }
 
     private abstract static class TestStorage implements IEnergyStorage {

@@ -71,6 +71,20 @@ public interface UnlimitedEnergyAccess {
     long extract(IEnergyStorage storage, long amount, boolean simulate);
 
     /**
+     * Restores energy removed by the immediately preceding extraction when a downstream receiver short-writes.
+     *
+     * <p>
+     * This is compensation, not a receive operation: it may restore a source-only storage to its prior amount, but
+     * it must never increase the storage above the state that existed before the failed transfer.
+     *
+     * @param storage source storage whose extraction is being compensated
+     * @param amount  non-negative extracted amount that was not delivered
+     * @return restored amount in {@code [0, amount]}, or {@link #UNAVAILABLE} when the source has no verified direct
+     *         mutation path
+     */
+    long rollbackExtraction(IEnergyStorage storage, long amount);
+
+    /**
      * Invokes known storage change callbacks after a successful direct mutation.
      *
      * @param storage mutated sided capability

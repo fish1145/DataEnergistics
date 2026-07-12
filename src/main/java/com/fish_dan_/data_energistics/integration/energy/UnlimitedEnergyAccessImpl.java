@@ -153,6 +153,50 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
     }
 
     @Override
+    public long rollbackExtraction(IEnergyStorage storage, long amount) {
+        Objects.requireNonNull(storage, "storage");
+        validateRequestedAmount(amount);
+        if (amount == 0L) {
+            return 0L;
+        }
+
+        Optional<DirectTarget> resolvedTarget = findDirectTarget(storage);
+        if (resolvedTarget.isEmpty()) {
+            return UNAVAILABLE;
+        }
+
+        DirectTarget target = resolvedTarget.get();
+        Snapshot before = readVerifiedSnapshot(storage, target);
+        if (before == null || !target.access().state().writer().supports(before.stored())) {
+            return UNAVAILABLE;
+        }
+
+        long restoredAmount = safeAdd(before.stored(), amount);
+        if (restoredAmount < 0L || restoredAmount > before.capacity() || !target.access().state().writer().supports(restoredAmount)) {
+            Data_Energistics.LOGGER.error(
+                    "Could not compensate {} FE on unlimited energy source {} with state {}/{}",
+                    amount,
+                    target.target().getClass().getName(),
+                    before.stored(),
+                    before.capacity());
+            return UNAVAILABLE;
+        }
+        if (!target.access().state().writer().write(target.target(), restoredAmount)) {
+            return UNAVAILABLE;
+        }
+
+        Snapshot after = readVerifiedSnapshot(storage, target);
+        if (after == null || after.stored() != restoredAmount || after.capacity() != before.capacity()) {
+            Data_Energistics.LOGGER.error(
+                    "Unlimited extraction compensation on {} failed read-back verification",
+                    target.target().getClass().getName());
+            rollback(storage, target, before);
+            return UNAVAILABLE;
+        }
+        return amount;
+    }
+
+    @Override
     public void notifyStorageChanged(IEnergyStorage storage) {
         Objects.requireNonNull(storage, "storage");
         Set<Object> notifiedTargets = Collections.newSetFromMap(new IdentityHashMap<>());

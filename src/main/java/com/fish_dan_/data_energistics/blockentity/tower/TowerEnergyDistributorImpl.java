@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.blockentity.tower;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.appflux.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 
 import net.minecraft.core.BlockPos;
@@ -29,6 +28,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     private final TowerEnergyDistributorContext context;
     private final TowerEnergyEndpointResolver endpointResolver;
     private final UnlimitedEnergyAccess unlimitedEnergyAccess;
+    private final TowerGridEnergyAccess gridEnergyAccess;
     private final boolean appFluxEnergySupportLoaded;
     private final Map<BlockPos, EnergyQuerySummary> cachedExtractQuerySummaries = new HashMap<>();
     private final Map<BlockPos, ReceiverQuerySummary> cachedReceiveQuerySummaries = new HashMap<>();
@@ -48,22 +48,38 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     public TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
                                       TowerEnergyEndpointResolver endpointResolver,
                                       UnlimitedEnergyAccess unlimitedEnergyAccess) {
-        this(context, endpointResolver, unlimitedEnergyAccess, ModFlags.isAppFluxEnergySupportLoaded());
+        this(context, endpointResolver, unlimitedEnergyAccess, ModFlags.isAppFluxEnergySupportLoaded(),
+                new TowerGridEnergyAccessImpl());
     }
 
     TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
                                TowerEnergyEndpointResolver endpointResolver,
                                UnlimitedEnergyAccess unlimitedEnergyAccess,
                                boolean appFluxEnergySupportLoaded) {
+        this(context, endpointResolver, unlimitedEnergyAccess, appFluxEnergySupportLoaded,
+                new TowerGridEnergyAccessImpl());
+    }
+
+    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
+                               TowerEnergyEndpointResolver endpointResolver,
+                               UnlimitedEnergyAccess unlimitedEnergyAccess,
+                               boolean appFluxEnergySupportLoaded,
+                               TowerGridEnergyAccess gridEnergyAccess) {
         this.context = context;
         this.endpointResolver = endpointResolver;
         this.unlimitedEnergyAccess = unlimitedEnergyAccess;
         this.appFluxEnergySupportLoaded = appFluxEnergySupportLoaded;
+        this.gridEnergyAccess = gridEnergyAccess;
     }
 
     @Override
     public void performActiveRangeTransfer() {
         if (!this.context.isTowerActive()) {
+            return;
+        }
+
+        flushBufferedEnergy();
+        if (this.context.bufferedTransferEnergy() > 0) {
             return;
         }
 
@@ -96,18 +112,32 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                     source.stalled = true;
                     Data_Energistics.LOGGER.error("Unlimited tower transfer failed for source {}", source.description(), exception);
                 }
+                if (this.context.bufferedTransferEnergy() > 0) {
+                    this.activeSourceCursor = (startIndex + offset + 1) % sourceCount;
+                    return;
+                }
             }
         } while (madeProgress && hasActiveSource(sources));
 
         this.activeSourceCursor = (startIndex + 1) % sourceCount;
     }
 
+    @Override
+    public void flushBufferedEnergy() {
+        long bufferedEnergy = this.context.bufferedTransferEnergy();
+        if (!this.context.isTowerActive() || bufferedEnergy <= 0) {
+            return;
+        }
+
+        long inserted = distributeEnergyInRange(bufferedEnergy, false, null);
+        consumeBufferedEnergy(inserted);
+    }
+
     private ArrayList<TransferSource> createTransferSources() {
         ArrayList<TransferSource> sources = new ArrayList<>();
         if (this.appFluxEnergySupportLoaded) {
             try {
-                long quota = AE2FluxIntegration.extractEnergyFromOwnNetwork(
-                        this.context.aeNetworkHost(), Long.MAX_VALUE, true);
+                long quota = this.gridEnergyAccess.extract(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
                 if (quota > 0) {
                     sources.add(new TransferSource(null, quota));
                 } else if (quota < 0) {
@@ -161,17 +191,76 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             source.stalled = true;
             return 0;
         }
-        source.remainingQuota -= extracted;
+
+        addBufferedEnergy(extracted);
 
         long inserted = distributeEnergyInRange(
                 extracted, false, source.excludedPos(), receiveEndpoints, stalledReceiveStorages);
+        consumeBufferedEnergy(inserted);
+        long restored = 0L;
         if (inserted != extracted) {
             source.stalled = true;
+            restored = rollbackUndeliveredEnergy(source, extracted - inserted);
+            consumeBufferedEnergy(restored);
             Data_Energistics.LOGGER.error(
-                    "Unlimited tower transfer inserted only {} of {} FE from source {}; stopping this source",
-                    inserted, extracted, source.description());
+                    "Unlimited tower transfer inserted {} of {} FE from source {}, restored {} FE, and retained {} FE; stopping this source",
+                    inserted, extracted, source.description(), restored, this.context.bufferedTransferEnergy());
         }
+        source.remainingQuota -= extracted - restored;
         return inserted;
+    }
+
+    private void addBufferedEnergy(long amount) {
+        if (amount <= 0) {
+            return;
+        }
+        setBufferedEnergy(Math.addExact(this.context.bufferedTransferEnergy(), amount));
+    }
+
+    private void consumeBufferedEnergy(long amount) {
+        if (amount <= 0) {
+            return;
+        }
+        long bufferedEnergy = this.context.bufferedTransferEnergy();
+        if (amount > bufferedEnergy) {
+            throw new IllegalStateException(
+                    "Cannot consume " + amount + " FE from a " + bufferedEnergy + " FE tower transfer buffer");
+        }
+        setBufferedEnergy(bufferedEnergy - amount);
+    }
+
+    private void setBufferedEnergy(long amount) {
+        this.context.setBufferedTransferEnergy(amount);
+        invalidateEnergyQueryCache();
+    }
+
+    private long rollbackUndeliveredEnergy(TransferSource source, long amount) {
+        long restored;
+        try {
+            restored = source.rollbackExtraction(amount);
+        } catch (RuntimeException | LinkageError exception) {
+            Data_Energistics.LOGGER.error(
+                    "Unlimited tower could not compensate {} FE on source {}", amount, source.description(), exception);
+            return 0L;
+        }
+        if (restored == UnlimitedEnergyAccess.UNAVAILABLE) {
+            Data_Energistics.LOGGER.error(
+                    "Unlimited tower source {} has no verified compensation path for {} FE",
+                    source.description(), amount);
+            return 0L;
+        }
+        if (restored < 0L || restored > amount) {
+            Data_Energistics.LOGGER.error(
+                    "Unlimited tower source {} returned invalid compensation {} for {} FE",
+                    source.description(), restored, amount);
+            return 0L;
+        }
+        if (restored != amount) {
+            Data_Energistics.LOGGER.error(
+                    "Unlimited tower source {} restored only {} of {} undelivered FE",
+                    source.description(), restored, amount);
+        }
+        return restored;
     }
 
     private boolean isValidTransferResult(TransferSource source, String operation, long requested, long result) {
@@ -476,8 +565,11 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
     private int getCachedSimulatedExtract(int amount, @Nullable BlockPos excludedPos) {
         Level level = this.context.level();
-        if (amount <= 0 || level == null) {
+        if (amount <= 0) {
             return 0;
+        }
+        if (level == null) {
+            return clampStoredAmount(extractEnergyFromRangeLong(amount, true, excludedPos));
         }
 
         long gameTime = level.getGameTime();
@@ -501,18 +593,27 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     }
 
     private long extractEnergyFromRangeLong(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
-        if (!this.context.isTowerActive() || amount <= 0) {
+        if (amount <= 0) {
             return 0;
+        }
+
+        long bufferedEnergy = this.context.bufferedTransferEnergy();
+        long bufferedExtracted = Math.min(amount, bufferedEnergy);
+        if (!simulate) {
+            consumeBufferedEnergy(bufferedExtracted);
+        }
+        if (bufferedExtracted == amount || !this.context.isTowerActive()) {
+            return bufferedExtracted;
         }
 
         BlockPos normalizedExcludedPos = this.endpointResolver.normalizeExtractExcludedPos(excludedPos);
         List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(false, normalizedExcludedPos);
         this.context.recordMaxExtractEndpoints(endpoints.size());
-        long totalExtracted = 0;
-        long remaining = amount;
+        long totalExtracted = bufferedExtracted;
+        long remaining = amount - bufferedExtracted;
 
         if (this.appFluxEnergySupportLoaded) {
-            long extracted = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), remaining, simulate);
+            long extracted = this.gridEnergyAccess.extract(this.context.aeNetworkHost(), remaining, simulate);
             if (extracted > 0) {
                 totalExtracted += extracted;
                 remaining -= extracted;
@@ -554,8 +655,12 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
     private EnergyQuerySummary getExtractQuerySummary(@Nullable BlockPos excludedPos) {
         Level level = this.context.level();
+        long bufferedEnergy = this.context.bufferedTransferEnergy();
         if (!this.context.isTowerActive() || level == null) {
-            return EnergyQuerySummary.EMPTY;
+            if (bufferedEnergy <= 0) {
+                return EnergyQuerySummary.EMPTY;
+            }
+            return new EnergyQuerySummary(Long.MIN_VALUE, bufferedEnergy, bufferedEnergy, true);
         }
 
         BlockPos normalizedExcludedPos = this.endpointResolver.normalizeExtractExcludedPos(excludedPos);
@@ -565,8 +670,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             return cached;
         }
 
-        long totalStored = 0L;
-        long totalCapacity = 0L;
+        long totalStored = bufferedEnergy;
+        long totalCapacity = bufferedEnergy;
         List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(false, normalizedExcludedPos);
         for (TowerEnergyEndpoint endpoint : endpoints) {
             totalStored = saturatingAdd(totalStored, this.unlimitedEnergyAccess.stored(endpoint.storage()));
@@ -574,7 +679,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
         long aeExtractable = 0L;
         if (this.appFluxEnergySupportLoaded) {
-            aeExtractable = AE2FluxIntegration.extractEnergyFromOwnNetwork(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
+            aeExtractable = this.gridEnergyAccess.extract(this.context.aeNetworkHost(), Long.MAX_VALUE, true);
             totalStored = saturatingAdd(totalStored, aeExtractable);
         }
 
@@ -684,13 +789,34 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
         private long extract(long amount, boolean simulate) {
             if (this.endpoint == null) {
-                return AE2FluxIntegration.extractEnergyFromOwnNetwork(
+                return TowerEnergyDistributorImpl.this.gridEnergyAccess.extract(
                         TowerEnergyDistributorImpl.this.context.aeNetworkHost(), amount, simulate);
             }
             EndpointTransferResult result = TowerEnergyDistributorImpl.this.extractEnergyFromEndpointResult(
                     this.endpoint, amount, simulate);
             this.stalled |= result.stalled();
             return result.amount();
+        }
+
+        private long rollbackExtraction(long amount) {
+            if (this.endpoint == null) {
+                return TowerEnergyDistributorImpl.this.gridEnergyAccess.restore(
+                        TowerEnergyDistributorImpl.this.context.aeNetworkHost(), amount);
+            }
+
+            IEnergyStorage storage = this.endpoint.storage();
+            long restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
+            if (restored > 0) {
+                try {
+                    TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.notifyStorageChanged(storage);
+                    TowerEnergyDistributorImpl.this.context.markEndpointChanged(this.endpoint.pos());
+                } catch (RuntimeException | LinkageError exception) {
+                    Data_Energistics.LOGGER.error(
+                            "Failed to publish unlimited tower source compensation at {} side {} storage {}",
+                            this.endpoint.pos(), this.endpoint.side(), storage.getClass().getName(), exception);
+                }
+            }
+            return restored;
         }
 
         @Nullable

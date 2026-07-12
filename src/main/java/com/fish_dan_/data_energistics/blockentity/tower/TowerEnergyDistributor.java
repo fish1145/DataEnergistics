@@ -19,6 +19,11 @@ public interface TowerEnergyDistributor {
     void performActiveRangeTransfer();
 
     /**
+     * Attempts to deliver energy retained by the owning tower after an incomplete transfer.
+     */
+    void flushBufferedEnergy();
+
+    /**
      * Inserts FE into receiver endpoints in range.
      *
      * @param amount      requested FE amount
