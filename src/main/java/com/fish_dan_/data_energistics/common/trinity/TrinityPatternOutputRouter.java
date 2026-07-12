@@ -9,6 +9,14 @@ import appeng.api.stacks.AEItemKey;
 public interface TrinityPatternOutputRouter {
 
     /**
+     * Describes the externally visible effects committed during one routing pass.
+     *
+     * @param progressed whether any pending output was durably consumed
+     * @param storageChanged whether main storage accepted at least one item
+     */
+    record RouteResult(boolean progressed, boolean storageChanged) {}
+
+    /**
      * Supplies the amount that crafting CPUs are currently waiting for.
      */
     @FunctionalInterface
@@ -74,10 +82,10 @@ public interface TrinityPatternOutputRouter {
      * @param requestedAmount lease-grid CPU request lookup
      * @param cpuSink         lease-grid crafting CPU insertion
      * @param storageSink     Trinity main storage insertion
-     * @return whether at least one positive insertion was immediately checkpointed
+     * @return committed routing effects, including whether main storage actually changed
      */
-    boolean route(PendingOutputCursor pending,
-                  RequestedAmount requestedAmount,
-                  OutputSink cpuSink,
-                  OutputSink storageSink);
+    RouteResult route(PendingOutputCursor pending,
+                      RequestedAmount requestedAmount,
+                      OutputSink cpuSink,
+                      OutputSink storageSink);
 }

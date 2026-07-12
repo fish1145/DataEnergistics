@@ -23,12 +23,17 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
@@ -43,6 +48,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -1261,11 +1267,29 @@ public final class CompartmentBlockEntityTest {
                     level.removeBlockEntity(origin);
 
                     BlockState hostState = level.getBlockState(origin);
-                    TrinityDataCoreBlockEntity loadedHost = new TrinityDataCoreBlockEntity(origin, hostState);
+                    TrinityDataCoreBlockEntity loadedHost = new TrinityDataCoreBlockEntity(
+                            origin,
+                            hostState,
+                            new TrinityStructureValidationImpl(),
+                            new OneShotUnloadedWorldViewFactory());
                     loadedHost.loadTag(saved, level.registryAccess());
                     level.setBlockEntity(loadedHost);
                     loadedHost.onLoad();
                     loadedHost.serverTick();
+                    helper.assertValueEqual(
+                            loadedHost.structureValidationStatus(Structure.MAIN).state(),
+                            State.DEFERRED,
+                            "Reconstructed host must defer an unloaded main-structure position");
+                    helper.assertTrue(loadedHost.multiBlock$isFormed() && loadedHost.isCpuStructureFormed() &&
+                            loadedHost.isCraftingStructureFormed(),
+                            "Deferred validation must retain every persisted formation snapshot");
+                    helper.assertTrue(!loadedHost.isStorageAvailable() && !loadedHost.isCpuProviderAvailable() &&
+                            !loadedHost.isPatternProviderAvailable(),
+                            "Deferred main validation must withdraw all three capability domains");
+                    helper.assertValueEqual(
+                            persistentMount.core().queuedBatchCount(suspendedSlot),
+                            1,
+                            "Deferred reconstruction must retain the suspended P-core queue");
                     currentHost.set(loadedHost);
                 })
                 .thenWaitUntil(() -> {
@@ -1764,6 +1788,57 @@ public final class CompartmentBlockEntityTest {
 
     private static String mainStructureName() {
         return TrinityDataCoreBlockEntity.autoBuildStructureName(TrinityAutoBuildRequest.MAIN_STRUCTURE_INDEX);
+    }
+
+    private static final class OneShotUnloadedWorldViewFactory implements TrinityStructureWorldViewFactory {
+
+        private final AtomicBoolean deferNextView = new AtomicBoolean(true);
+
+        @Override
+        public View create(Level level) {
+            return new OneShotWorldView(level, this.deferNextView.getAndSet(false));
+        }
+    }
+
+    private static final class OneShotWorldView implements TrinityStructureWorldViewFactory.View {
+
+        private final Level level;
+        private final boolean reportUnloaded;
+        private BlockPos firstUnloadedPosition;
+
+        private OneShotWorldView(Level level, boolean reportUnloaded) {
+            this.level = level;
+            this.reportUnloaded = reportUnloaded;
+        }
+
+        @Override
+        public boolean isLoaded(BlockPos pos) {
+            boolean loaded = !this.reportUnloaded && this.level.isLoaded(pos);
+            if (!loaded && this.firstUnloadedPosition == null) {
+                this.firstUnloadedPosition = pos.immutable();
+            }
+            return loaded;
+        }
+
+        @Override
+        public BlockState getBlockState(BlockPos pos) {
+            return this.level.getBlockState(pos);
+        }
+
+        @Override
+        public BlockEntity getBlockEntity(BlockPos pos) {
+            return this.level.getBlockEntity(pos);
+        }
+
+        @Override
+        public HolderLookup.Provider registryAccess() {
+            return this.level.registryAccess();
+        }
+
+        @Override
+        public BlockPos firstUnloadedPosition() {
+            return this.firstUnloadedPosition;
+        }
     }
 
     private static final class SimpleMEStorage implements MEStorage {

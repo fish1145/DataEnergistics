@@ -46,6 +46,12 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
+import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactoryImpl;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreCraftingStatus;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
@@ -145,6 +151,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private UUID hostId = UUID.randomUUID();
     private TrinityPatternCatalog patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
     private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouterImpl();
+    /** Runtime validation gates that keep unloaded chunks distinct from structural damage. */
+    private final TrinityStructureValidation structureValidation;
+    /** Factory for matcher views that retain unloaded coordinates lost by orientation fallbacks. */
+    private final TrinityStructureWorldViewFactory structureWorldViews;
     private boolean patternCatalogValid;
     private boolean loaded;
     private boolean formed;
@@ -188,7 +198,24 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean missingBusyLeaseReported;
 
     public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
+        this(blockPos, blockState, new TrinityStructureValidationImpl(), new TrinityStructureWorldViewFactoryImpl());
+    }
+
+    /**
+     * Creates a host with explicit validation collaborators for direct reconstruction tests.
+     *
+     * @param blockPos           controller position
+     * @param blockState         controller state
+     * @param structureValidation independent runtime validation state
+     * @param structureWorldViews tracking matcher-view factory
+     */
+    TrinityDataCoreBlockEntity(BlockPos blockPos,
+                               BlockState blockState,
+                               TrinityStructureValidation structureValidation,
+                               TrinityStructureWorldViewFactory structureWorldViews) {
         super(ModBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.structureValidation = structureValidation;
+        this.structureWorldViews = structureWorldViews;
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.TRINITY_DATA_CORE.get())
                 .setExposedOnSides(Set.of())
@@ -444,21 +471,22 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * Returns whether the formed and loaded main structure may expose its UUID storage through the elected lease.
      */
     public boolean isStorageAvailable() {
-        return this.loaded && this.formed;
+        return this.loaded && this.formed && this.structureValidation.isValid(Structure.MAIN);
     }
 
     /**
      * Returns whether the CPU child may publish its retained virtual CPU runtime through the elected lease.
      */
     public boolean isCpuProviderAvailable() {
-        return isStorageAvailable() && this.cpuStructureFormed;
+        return isStorageAvailable() && this.cpuStructureFormed && this.structureValidation.isValid(Structure.CPU);
     }
 
     /**
      * Returns whether the lease owner may publish the aggregated crafting patterns to AE2.
      */
     public boolean isPatternProviderAvailable() {
-        return isStorageAvailable() && this.craftingStructureFormed && this.craftingProfile.active() &&
+        return isStorageAvailable() && this.craftingStructureFormed &&
+                this.structureValidation.isValid(Structure.CRAFTING) && this.craftingProfile.active() &&
                 this.patternCatalogValid &&
                 this.patternCatalog.layoutSnapshot().active();
     }
@@ -502,9 +530,29 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     public void requestStructureRecheck() {
+        markPendingUnlessDeferred(Structure.MAIN);
+        markPendingUnlessDeferred(Structure.CPU);
+        markPendingUnlessDeferred(Structure.CRAFTING);
         this.recheckRequested = true;
         this.cpuStructureRecheckRequested = true;
         this.craftingStructureRecheckRequested = true;
+    }
+
+    /** Preserves an unloaded wait point while coalescing additional structure-change notifications. */
+    private void markPendingUnlessDeferred(Structure structure) {
+        if (this.structureValidation.status(structure).state() != State.DEFERRED) {
+            this.structureValidation.markPending(structure);
+        }
+    }
+
+    /**
+     * Returns one runtime validation status for direct lifecycle tests and diagnostics.
+     *
+     * @param structure structure capability domain
+     * @return immutable validation status
+     */
+    TrinityStructureValidation.Status structureValidationStatus(Structure structure) {
+        return this.structureValidation.status(structure);
     }
 
     /**
@@ -957,6 +1005,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (this.level == null || this.level.isClientSide() || this.structureRecheckInProgress) {
             return;
         }
+        if (!this.structureValidation.isValid(Structure.MAIN)) {
+            this.craftingRuntime.setPaused(true);
+            if (this.accessLease != null && this.accessLease.grid() != null) {
+                transitionAccessLease(this.accessLease.unbind());
+            }
+            return;
+        }
+        boolean childValidationUnknown = isValidationUnknown(Structure.CRAFTING);
         List<TrinityAccessHatchBlockEntity> candidates = isStorageAvailable() ? compartmentHost$getCompartments(mainDefinitionKey().structureName()).stream()
                 .filter(TrinityAccessHatchBlockEntity.class::isInstance)
                 .map(TrinityAccessHatchBlockEntity.class::cast)
@@ -975,15 +1031,16 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     this.craftingRuntime.setPaused(!isCpuProviderAvailable());
                     return;
                 }
-                if (this.accessLease.grid() != null && hasPendingTrinityWork()) {
+                if (this.accessLease.grid() != null && (hasPendingTrinityWork() || childValidationUnknown)) {
                     this.craftingRuntime.setPaused(true);
                     return;
                 }
                 transitionAccessLease(this.accessLease.bind(electedGrid));
                 return;
             }
-            if (hasPendingTrinityWork()) {
+            if (hasPendingTrinityWork() || childValidationUnknown) {
                 transitionAccessLease(this.accessLease.unbind());
+                this.craftingRuntime.setPaused(true);
                 return;
             }
         }
@@ -1004,6 +1061,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 this.accessLeaseEpoch = Math.incrementExact(this.accessLeaseEpoch));
         this.missingBusyLeaseReported = false;
         transitionAccessLease(electedLease);
+    }
+
+    /** Returns whether one child structure has not produced a complete success or mismatch result. */
+    private boolean isValidationUnknown(Structure structure) {
+        State state = this.structureValidation.status(structure).state();
+        return state == State.PENDING || state == State.DEFERRED;
     }
 
     private void transitionAccessLease(@Nullable TrinityAccessLease nextLease) {
@@ -1121,7 +1184,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
 
         TrinityDataCoreStorageSavedData storage = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
-        boolean routedAnyOutput = false;
+        boolean storageChanged = false;
         long gameTime = this.level.getGameTime();
         for (TrinityPatternCatalog.ActiveSlot activeSlot : this.patternCatalog.activeSlots()) {
             if (!(activeSlot.core() instanceof TrinityPatternCoreBlockEntity patternCore)) {
@@ -1132,7 +1195,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             }
             try {
                 patternCore.executeOwnedSlot(this.hostId, activeSlot.coreSlot(), gameTime);
-                routedAnyOutput |= routePendingOutputs(
+                storageChanged |= routePendingOutputs(
                         patternCore,
                         activeSlot.route(),
                         craftingService,
@@ -1147,7 +1210,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         exception);
             }
         }
-        if (routedAnyOutput) {
+        if (storageChanged) {
             notifyTrinityStorageChanged();
         }
     }
@@ -1166,7 +1229,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                             key,
                             amount,
                             mode,
-                            this.storageProfile));
+                            this.storageProfile)).storageChanged();
         } catch (RuntimeException exception) {
             LOGGER.error(
                     "Failed to route Trinity pattern core {} slot {} outputs for host {}",
@@ -1212,6 +1275,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
+        this.structureValidation.reset();
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
             discardPersistedTrinityState();
             LOGGER.warn("Ignoring Trinity Data Core block entity data without a schema version at {}", this.worldPosition);
@@ -1334,6 +1398,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void discardPersistedTrinityState() {
+        this.structureValidation.reset();
         clearPatternCatalog();
         this.storageId = UUID.randomUUID();
         this.hostId = UUID.randomUUID();
@@ -1393,20 +1458,25 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void updateScheduledStructureMatches() {
+        resumeDeferredStructureChecks();
         long gameTime = this.level.getGameTime();
         int mainRecheckInterval = this.formed ? FORMED_MAIN_RECHECK_INTERVAL_TICKS : UNFORMED_MAIN_RECHECK_INTERVAL_TICKS;
-        boolean mainRecheckDue = this.recheckRequested || isPeriodicRecheckDue(gameTime, mainRecheckInterval, 0);
-        boolean cpuRecheckDue = this.cpuStructureRecheckRequested || isChildPeriodicRecheckDue(
-                gameTime,
-                this.cpuStructureFormed,
-                0,
-                this.lastCpuStructureRecheckTick);
-        boolean craftingRecheckDue = this.craftingStructureRecheckRequested || isChildPeriodicRecheckDue(
-                gameTime,
-                this.craftingStructureFormed,
-                CRAFTING_RECHECK_PHASE_OFFSET_TICKS,
-                this.lastCraftingStructureRecheckTick);
-        boolean childRechecksAvailable = this.formed && this.mainStructureFrontFacing != null;
+        boolean mainRecheckDue = this.structureValidation.status(Structure.MAIN).state() != State.DEFERRED &&
+                (this.recheckRequested || isPeriodicRecheckDue(gameTime, mainRecheckInterval, 0));
+        boolean cpuRecheckDue = this.structureValidation.status(Structure.CPU).state() != State.DEFERRED &&
+                (this.cpuStructureRecheckRequested || isChildPeriodicRecheckDue(
+                        gameTime,
+                        this.cpuStructureFormed,
+                        0,
+                        this.lastCpuStructureRecheckTick));
+        boolean craftingRecheckDue = this.structureValidation.status(Structure.CRAFTING).state() != State.DEFERRED &&
+                (this.craftingStructureRecheckRequested || isChildPeriodicRecheckDue(
+                        gameTime,
+                        this.craftingStructureFormed,
+                        CRAFTING_RECHECK_PHASE_OFFSET_TICKS,
+                        this.lastCraftingStructureRecheckTick));
+        boolean childRechecksAvailable = this.structureValidation.isValid(Structure.MAIN) &&
+                this.mainStructureFrontFacing != null;
         if (!mainRecheckDue && (!childRechecksAvailable || (!cpuRecheckDue && !craftingRecheckDue))) {
             return;
         }
@@ -1416,21 +1486,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             if (mainRecheckDue) {
                 recheckMainStructure();
             }
-            if (!this.formed || this.mainStructureFrontFacing == null) {
+            if (!this.structureValidation.isValid(Structure.MAIN) || this.mainStructureFrontFacing == null) {
                 return;
             }
-            if (this.cpuStructureRecheckRequested || isChildPeriodicRecheckDue(
-                    gameTime,
-                    this.cpuStructureFormed,
-                    0,
-                    this.lastCpuStructureRecheckTick)) {
+            if (this.structureValidation.status(Structure.CPU).state() != State.DEFERRED &&
+                    (this.cpuStructureRecheckRequested || cpuRecheckDue)) {
                 recheckCpuStructure(gameTime);
             }
-            if (this.craftingStructureRecheckRequested || isChildPeriodicRecheckDue(
-                    gameTime,
-                    this.craftingStructureFormed,
-                    CRAFTING_RECHECK_PHASE_OFFSET_TICKS,
-                    this.lastCraftingStructureRecheckTick)) {
+            if (this.structureValidation.status(Structure.CRAFTING).state() != State.DEFERRED &&
+                    (this.craftingStructureRecheckRequested || craftingRecheckDue)) {
                 recheckCraftingStructure(gameTime);
             }
         } finally {
@@ -1438,10 +1502,25 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
+    /** Polls at most one stored unloaded coordinate per structure and requests one retry when it is ready. */
+    private void resumeDeferredStructureChecks() {
+        if (this.structureValidation.resumeIfLoaded(Structure.MAIN, this.level::isLoaded)) {
+            this.recheckRequested = true;
+        }
+        if (this.structureValidation.resumeIfLoaded(Structure.CPU, this.level::isLoaded)) {
+            this.cpuStructureRecheckRequested = true;
+        }
+        if (this.structureValidation.resumeIfLoaded(Structure.CRAFTING, this.level::isLoaded)) {
+            this.craftingStructureRecheckRequested = true;
+        }
+    }
+
     private void recheckMainStructure() {
         this.recheckRequested = false;
         try {
             if (updateMainStructureMatch(this.level)) {
+                this.structureValidation.markPending(Structure.CPU);
+                this.structureValidation.markPending(Structure.CRAFTING);
                 this.cpuStructureRecheckRequested = true;
                 this.craftingStructureRecheckRequested = true;
             }
@@ -1457,7 +1536,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.cpuStructureRecheckRequested = false;
         try {
             updateCpuStructureMatch(
-                    new LevelStructureWorldView(this.level),
+                    this.structureWorldViews.create(this.level),
                     this.mainStructureFrontFacing,
                     this.mainStructureFlipped);
             this.lastCpuStructureRecheckTick = gameTime;
@@ -1471,7 +1550,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingStructureRecheckRequested = false;
         try {
             updateCraftingStructureMatch(
-                    new LevelStructureWorldView(this.level),
+                    this.structureWorldViews.create(this.level),
                     this.mainStructureFrontFacing,
                     this.mainStructureFlipped);
             this.lastCraftingStructureRecheckTick = gameTime;
@@ -1529,7 +1608,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean updateMainStructureMatch(Level level) {
         JsonMultiBlockDefinition definition = requireMainJsonDefinition();
         Direction preferredFrontFacing = getStructureFrontFacing(level);
-        StructureWorldView world = new LevelStructureWorldView(level);
+        TrinityStructureWorldViewFactory.View world = this.structureWorldViews.create(level);
         StructureMatchResult result;
         if (this.formed && this.mainStructureFrontFacing != null) {
             result = JsonMultiBlockPatternMatcher.matchExact(
@@ -1561,6 +1640,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     result.context());
             PatternDiagnostic compartmentFailure = this.compartmentBinder.validate(world, result, declaredCompartments);
             if (compartmentFailure != null) {
+                if (deferStructureValidation(Structure.MAIN, compartmentFailure, world.firstUnloadedPosition())) {
+                    return false;
+                }
                 boolean topologyChanged = this.formed || this.mainStructureFrontFacing != null;
                 applyFailure(compartmentFailure, mainDefinitionKey().structureName());
                 this.mainStructureFrontFacing = null;
@@ -1577,6 +1659,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             return topologyChanged;
         }
 
+        if (deferStructureValidation(Structure.MAIN, result.diagnostic(), world.firstUnloadedPosition())) {
+            return false;
+        }
         boolean topologyChanged = this.formed || this.mainStructureFrontFacing != null;
         applyFailure(result.diagnostic(), mainDefinitionKey().structureName());
         this.mainStructureFrontFacing = null;
@@ -1584,7 +1669,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return topologyChanged;
     }
 
-    private void updateCpuStructureMatch(StructureWorldView world,
+    private void updateCpuStructureMatch(TrinityStructureWorldViewFactory.View world,
                                          Direction mainStructureFrontFacing,
                                          boolean mainStructureFlipped) {
         JsonMultiBlockDefinition definition = requireCpuJsonDefinition();
@@ -1599,11 +1684,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (result.matched()) {
             applyCpuMatch(world, result.positions());
         } else {
+            if (deferStructureValidation(Structure.CPU, result.diagnostic(), world.firstUnloadedPosition())) {
+                return;
+            }
             applyCpuFailure(result.diagnostic());
         }
     }
 
-    private void updateCraftingStructureMatch(StructureWorldView world,
+    private void updateCraftingStructureMatch(TrinityStructureWorldViewFactory.View world,
                                               Direction mainStructureFrontFacing,
                                               boolean mainStructureFlipped) {
         JsonMultiBlockDefinition definition = requireCraftingJsonDefinition();
@@ -1644,8 +1732,38 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             releaseStalePatternCoreBindings(previousMounts, scan.mounts());
             applyCraftingMatch(world, result.positions(), rebuild.changed());
         } else {
+            if (deferStructureValidation(Structure.CRAFTING, result.diagnostic(), world.firstUnloadedPosition())) {
+                return;
+            }
             applyCraftingFailure(result.diagnostic());
         }
+    }
+
+    /** Suspends only the affected capability domain when matching stopped at an unloaded position. */
+    private boolean deferStructureValidation(Structure structure,
+                                             @Nullable PatternDiagnostic diagnostic,
+                                             @Nullable BlockPos observedUnloadedPosition) {
+        if (!this.structureValidation.deferIfUnloaded(structure, diagnostic, observedUnloadedPosition)) {
+            return false;
+        }
+        BlockPos waitingPosition = this.structureValidation.status(structure).waitingPosition();
+        LOGGER.debug(
+                "Deferring Trinity structure '{}' at {} until {} is loaded",
+                structure,
+                this.worldPosition,
+                waitingPosition);
+        switch (structure) {
+            case MAIN -> {
+                this.craftingRuntime.setPaused(true);
+                transitionAccessLease(this.accessLease == null ? null : this.accessLease.unbind());
+            }
+            case CPU -> {
+                this.craftingRuntime.setPaused(true);
+                notifyTrinityCpuChanged();
+            }
+            case CRAFTING -> notifyTrinityPatternLayoutChanged();
+        }
+        return true;
     }
 
     private AutoBuildOrientation resolveAutoBuildOrientation(BlockPattern pattern,
@@ -1679,21 +1797,30 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                             String structureName) {
         List<BlockPos> nextPositions = List.copyOf(positions);
         TrinityDataCoreStorageProfile nextStorageProfile = buildStorageProfile(world, nextPositions);
+        boolean validationChanged = !this.structureValidation.isValid(Structure.MAIN);
         if (this.formed &&
                 this.matchedPositions.equals(nextPositions) &&
                 this.storageProfile.equals(nextStorageProfile) &&
                 NO_FAILURE.equals(this.lastFailureReason) &&
                 this.lastFailurePosition == null) {
             this.compartmentBinder.ensureBound(world, structureName, this, declaredCompartments);
+            this.structureValidation.markValid(Structure.MAIN);
+            this.craftingRuntime.setMainStructureFormed(true);
+            if (validationChanged) {
+                notifyTrinityStorageChanged();
+                notifyTrinityCpuChanged();
+                notifyTrinityPatternLayoutChanged();
+            }
             return;
         }
-        boolean storageChanged = !this.formed || !this.storageProfile.equals(nextStorageProfile);
+        boolean storageChanged = validationChanged || !this.formed || !this.storageProfile.equals(nextStorageProfile);
         this.compartmentBinder.ensureBound(world, structureName, this, declaredCompartments);
         this.formed = true;
         this.matchedPositions = nextPositions;
         this.storageProfile = nextStorageProfile;
         this.lastFailureReason = NO_FAILURE;
         this.lastFailurePosition = null;
+        this.structureValidation.markValid(Structure.MAIN);
         this.craftingRuntime.setMainStructureFormed(true);
         if (storageChanged) {
             notifyTrinityStorageChanged();
@@ -1704,7 +1831,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private void applyCpuMatch(StructureWorldView world, List<BlockPos> positions) {
         TrinityDataCoreCpuContribution contribution = buildCpuContribution(world, positions);
         boolean contributionChanged = !Objects.equals(this.cpuStructureContribution, contribution);
-        boolean statusChanged = !this.cpuStructureFormed ||
+        boolean statusChanged = !this.structureValidation.isValid(Structure.CPU) || !this.cpuStructureFormed ||
                 this.cpuStructureMatchedBlockCount != positions.size() ||
                 !NO_FAILURE.equals(this.cpuLastFailureReason) ||
                 this.cpuLastFailurePosition != null;
@@ -1713,6 +1840,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.cpuStructureMatchedBlockCount = positions.size();
         this.cpuLastFailureReason = NO_FAILURE;
         this.cpuLastFailurePosition = null;
+        this.structureValidation.markValid(Structure.CPU);
         if (contributionChanged) {
             this.cpuStructureContribution = contribution;
             setCpuContribution(CPU_STRUCTURE_NAME, contribution);
@@ -1723,6 +1851,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyCpuFailure(PatternDiagnostic diagnostic) {
+        this.structureValidation.markInvalid(Structure.CPU);
         this.craftingRuntime.setPaused(true);
         String nextFailureReason;
         BlockPos nextFailurePosition;
@@ -1756,7 +1885,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private void applyCraftingMatch(StructureWorldView world, List<BlockPos> positions, boolean catalogChanged) {
         TrinityDataCoreCraftingCoreProfile nextProfile = buildCraftingProfile(world, positions);
-        boolean statusChanged = !this.craftingStructureFormed ||
+        boolean statusChanged = !this.structureValidation.isValid(Structure.CRAFTING) ||
+                !this.craftingStructureFormed ||
                 this.craftingStructureMatchedBlockCount != positions.size() ||
                 !this.craftingProfile.equals(nextProfile) ||
                 catalogChanged ||
@@ -1768,6 +1898,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         this.craftingProfile = nextProfile;
         this.craftingLastFailureReason = NO_FAILURE;
         this.craftingLastFailurePosition = null;
+        this.structureValidation.markValid(Structure.CRAFTING);
         if (statusChanged) {
             notifyTrinityPatternLayoutChanged();
             setChanged();
@@ -1783,6 +1914,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyCraftingFailure(String nextFailureReason, @Nullable BlockPos nextFailurePosition) {
+        this.structureValidation.markInvalid(Structure.CRAFTING);
         boolean catalogWithdrawn = withdrawPatternCatalog();
         if (!this.craftingStructureFormed &&
                 this.craftingStructureMatchedBlockCount == 0 &&
@@ -1810,6 +1942,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void applyFailure(PatternDiagnostic diagnostic, String structureName) {
+        this.structureValidation.markInvalid(Structure.MAIN);
+        this.structureValidation.markPending(Structure.CPU);
+        this.structureValidation.markPending(Structure.CRAFTING);
         String nextFailureReason;
         BlockPos nextFailurePosition;
         if (diagnostic == null) {

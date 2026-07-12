@@ -9,11 +9,12 @@ import appeng.api.stacks.AEItemKey;
 public final class TrinityPatternOutputRouterImpl implements TrinityPatternOutputRouter {
 
     @Override
-    public boolean route(PendingOutputCursor pending,
-                         RequestedAmount requestedAmount,
-                         OutputSink cpuSink,
-                         OutputSink storageSink) {
-        boolean changed = false;
+    public RouteResult route(PendingOutputCursor pending,
+                             RequestedAmount requestedAmount,
+                             OutputSink cpuSink,
+                             OutputSink storageSink) {
+        boolean progressed = false;
+        boolean storageChanged = false;
         while (pending.advance()) {
             TrinityItemAmount output = pending.current();
             AEItemKey key = output.key();
@@ -24,20 +25,21 @@ public final class TrinityPatternOutputRouterImpl implements TrinityPatternOutpu
             long requestedRemainder = cpuOffer - insertedIntoCpu;
             if (insertedIntoCpu > 0L) {
                 pending.consumeCurrent(insertedIntoCpu);
-                changed = true;
+                progressed = true;
             }
 
             long storageOffer = amount - cpuOffer;
             long insertedIntoStorage = insertTwoPhase(storageSink, key, storageOffer, "main storage");
             if (insertedIntoStorage > 0L) {
                 pending.consumeCurrent(insertedIntoStorage);
-                changed = true;
+                progressed = true;
+                storageChanged = true;
             }
             if (requestedRemainder > 0L) {
-                return changed;
+                return new RouteResult(progressed, storageChanged);
             }
         }
-        return changed;
+        return new RouteResult(progressed, storageChanged);
     }
 
     private static long checkedRequestedAmount(long requested) {
