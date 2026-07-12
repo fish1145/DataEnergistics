@@ -218,11 +218,11 @@ public final class TrinityPatternCoreBlockEntityTest {
         assertEquals(1, core.executeOwnedBatches(HOST_ID, 11L));
 
         List<TrinityItemAmount> outputs = core.pendingOutputs(route);
-        assertEquals(4, outputs.size());
+        assertEquals(2, outputs.size());
         assertTrue(outputs.get(0).key().is(Items.BUCKET));
-        assertTrue(outputs.get(1).key().is(Items.BUCKET));
-        assertTrue(outputs.get(2).key().is(Items.BUCKET));
-        assertTrue(outputs.get(3).key().is(Items.CAKE));
+        assertEquals(3L, outputs.get(0).amount());
+        assertTrue(outputs.get(1).key().is(Items.CAKE));
+        assertEquals(1L, outputs.get(1).amount());
         helper.succeed();
     }
 

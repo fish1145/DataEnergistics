@@ -104,11 +104,13 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(core.enqueueBatch(route, pattern, first, 20L));
         assertTrue(core.enqueueBatch(route, pattern, second, 20L));
         assertFalse(core.enqueueBatch(route(core, 5), pattern, first, 20L));
-        assertFalse(core.enqueueBatch(
-                new PatternRoute(HOST_ID, UUID.randomUUID(), 4),
-                pattern,
-                first,
-                20L));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> core.enqueueBatch(
+                        new PatternRoute(HOST_ID, UUID.randomUUID(), 4),
+                        pattern,
+                        first,
+                        20L));
         assertThrows(IllegalArgumentException.class, () -> core.enqueueBatch(route, pattern, List.of(new ItemStack(Items.DIAMOND)), 20L));
         assertEquals(2, core.queuedBatchCount(4));
         assertEquals(catalogRevision, core.revision());
