@@ -201,7 +201,7 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(
                 pattern.structureSlices[24][1],
                 "            M@M            ",
-                "Bundled Trinity Data Core should allow Trinity access replacement directly above the host");
+                "Bundled Trinity Data Core should allow Trinity access replacement directly below the host");
         helper.assertValueEqual(
                 pattern.structureSlices[24][2],
                 "            M~M            ",
@@ -209,11 +209,17 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(
                 pattern.structureSlices[24][3],
                 "            M@M            ",
-                "Bundled Trinity Data Core should allow Trinity access replacement directly below the host");
+                "Bundled Trinity Data Core should allow Trinity access replacement directly above the host");
         helper.assertValueEqual(
                 pattern.structureSlices[0][0],
                 "                           ",
                 "Bundled Trinity Data Core should retain empty exported boundary rows");
+        helper.assertTrue(
+                pattern.structureSlices[0][27].charAt(0) == ' ',
+                "The upper-left WorldEdit corner marker should export as an unconstrained space");
+        helper.assertTrue(
+                pattern.structureSlices[31][0].charAt(26) == ' ',
+                "The lower-right WorldEdit corner marker should export as an unconstrained space");
         helper.assertValueEqual(pattern.getCenterOffset().x(), 13, "Controller X offset should match the exported host column");
         helper.assertValueEqual(pattern.getCenterOffset().y(), 2, "Controller Y offset should match the GregTech bottom-to-top JSON row");
         helper.assertValueEqual(pattern.getCenterOffset().z(), 24, "Controller Z offset should match the exported host aisle");
@@ -222,6 +228,12 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Data Core should expose all storage core slots through Z");
         helper.assertValueEqual(countSymbol(pattern, '@'), 2, "Main Trinity Data Core should expose exactly two access hatch replacement slots");
         helper.assertValueEqual(countSymbol(pattern, 'H'), 36, "Main Trinity Data Core should keep all other quartz vibrant glass slots fixed");
+        helper.assertValueEqual(countSymbol(pattern, ' '), 21525, "Main Trinity Data Core should leave exported air unconstrained");
+        helper.assertValueEqual(countSymbol(pattern, '#'), 12, "Main Trinity Data Core should retain all covered cable positions");
+        helper.assertValueEqual(countSymbol(pattern, 'D'), 160, "Main Trinity Data Core should retain the re-exported framework shell");
+        helper.assertValueEqual(countSymbol(pattern, 'P'), 34, "Main Trinity Data Core should retain every spatial pylon");
+        helper.assertValueEqual(countSymbol(pattern, 'W'), 53, "Main Trinity Data Core should retain every sky stone slab");
+        helper.assertValueEqual(countSymbol(pattern, 'K'), 58, "Main Trinity Data Core should retain every sky stone wall");
         ItemStack firstAccessPlacementCandidate = predicateForFirstSymbol(pattern, '@').placementCandidates().getFirst();
         helper.assertTrue(
                 firstAccessPlacementCandidate.is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
@@ -230,8 +242,29 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(structureDir.get("char").getAsString(), "left", "Main JSON should map chars to left");
         helper.assertValueEqual(structureDir.get("string").getAsString(), "up", "Main JSON should map rows to height");
         helper.assertValueEqual(structureDir.get("aisle").getAsString(), "front", "Main JSON should map aisles to front");
-        JsonObject quartzVibrantGlassPredicate = root.getAsJsonObject("predicates").getAsJsonObject("H");
-        JsonObject replaceableQuartzVibrantGlassPredicate = root.getAsJsonObject("predicates").getAsJsonObject("@");
+        helper.assertFalse(
+                hasJsonStringValue(root, "minecraft:air"),
+                "Main JSON should export schematic air as unconstrained spaces");
+        helper.assertFalse(
+                hasJsonStringValue(root, "mdlib:air"),
+                "Main JSON should not publish an explicit air predicate");
+        JsonObject predicates = root.getAsJsonObject("predicates");
+        for (String symbol : predicates.keySet()) {
+            helper.assertTrue(
+                    symbol.length() == 1 && countSymbol(pattern, symbol.charAt(0)) > 0,
+                    "Main JSON predicate '" + symbol + "' should be used by the exported structure");
+        }
+        JsonObject cablePredicate = predicates.getAsJsonObject("#");
+        helper.assertValueEqual(
+                cablePredicate.get("type").getAsString(),
+                "data_energistics:placement_items",
+                "Main covered cables should retain their placement-item predicate");
+        helper.assertValueEqual(
+                cablePredicate.get("item").getAsString(),
+                "ae2:fluix_covered_cable",
+                "Main covered cables should retain their exact AE2 part item");
+        JsonObject quartzVibrantGlassPredicate = predicates.getAsJsonObject("H");
+        JsonObject replaceableQuartzVibrantGlassPredicate = predicates.getAsJsonObject("@");
         helper.assertValueEqual(replaceableQuartzVibrantGlassPredicate, quartzVibrantGlassPredicate, "Dedicated access hatch symbol should match the same quartz vibrant glass block as H");
         JsonObject smoothQuartzSlabPredicate = root.getAsJsonObject("predicates").getAsJsonObject("N");
         helper.assertValueEqual(smoothQuartzSlabPredicate.get("type").getAsString(), "mdlib:blocks", "Main smooth quartz slab should match by block id only");
