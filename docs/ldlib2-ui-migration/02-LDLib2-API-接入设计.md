@@ -4,7 +4,7 @@
 
 | 能力 | LDLib2 API | 本项目用途 |
 | --- | --- | --- |
-| 方块 UI 入口 | `BlockUIMenuType.BlockUI`、`BlockUIHolder`、`BlockUIMenuType.openUI` | 方块交互后创建 LDLib2 容器菜单 |
+| 既有菜单挂载 | `IModularUIHolderMenu`、`AbstractContainerMenuMixin`、`ClientEventListener` | 给现有 AE2 菜单附着 `ModularUI`，不替换菜单类型 |
 | UI 根 | `ModularUI`、`UI.of`、`UIElement` | 构建独立的核心和舱室界面树 |
 | 布局与样式 | `UIElement.layout`、`UIElement.style`、LSS | 取代绝对坐标 `GuiGraphics` 绘制 |
 | 库存 | `ItemSlot`、`FluidSlot`、`InventorySlots` | 绑定现有 `Slot` 与玩家背包 |
@@ -35,7 +35,9 @@ ECO 已验证的实践是：以 `UIElement` 作为面板边界，以 `DataBindin
 
 ## 容器策略
 
-阶段一使用 LDLib2 的方块容器机制建立新入口，并让 holder 定位实际 `BlockEntity`。阶段二将现有菜单中稳定的槽位构造逻辑提取为可复用的槽位装配器，由 LDLib2 容器菜单调用。只有在每一类槽位通过交互回归后，才删除对应的 AE2 Screen/Menu 注册。
+保留全部现有 `MenuTypeBuilder`、`MenuOpener`、`AEBaseMenu`、`SlotSemantic` 与菜单注册。在每个目标菜单完成槽位、client action 和初始状态创建后，由显式 bridge 将 `ModularUI` 附着到菜单；必须在客户端菜单构造期间完成，不能等 Screen `init` 后再挂载。
+
+既有 `Slot` 由对应的 LDLib2 `ItemSlot` 包装，但不能重新创建或再次加入菜单。bridge 必须验证底层槽已属于目标菜单、尚未映射，然后调用 holder 的 existing-slot 映射入口。`AEBaseScreen` 继续保留 fake-slot 点击包、wrapped stack、AE tooltip 等输入协议，最终缩为只提供尺寸和协议的薄适配器；仅在每类交互回归通过后删除旧手工绘制逻辑。
 
 不得以反射读取 AE2 私有菜单字段；需要的宿主、库存和状态必须由现有公开接口、显式访问器或新增受控接口提供。
 
@@ -44,7 +46,7 @@ ECO 已验证的实践是：以 `UIElement` 作为面板边界，以 `DataBindin
 1. 在项目仓库声明 FirstDark snapshots 仓库和 LDLib2 NeoForge all artifact，版本固定到与 Minecraft 1.21.1 兼容的已验证版本。
 2. 执行前读取系统环境变量 `GRADLE_USER_HOME`；只在其已设置且指向允许位置时解析依赖。不得自行创建、重定向或通过 `-g` 覆盖 Gradle 缓存目录。
 3. 添加 `ILDLibPlugin` 实现，集中注册项目 LSS、纹理和可选 XEI 集成。
-4. 先做一个开发环境方块 UI 冒烟入口，确认 NeoForge、AE2、LDLib2 的菜单和网络初始化顺序。
+4. 以 Trinity Data Core 作为首个垂直切片，在现有 AE2 菜单上验证 LDLib2 挂载、既有玩家槽映射、单次渲染和网络初始化顺序。
 
 依赖版本不在本计划中硬编码：应在实施分支锁定后，以 LDLib2 的发布元数据、NeoForge 版本及现有 AE2 依赖解析结果共同确认。
 
