@@ -13,6 +13,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -21,6 +22,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -32,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.UUID;
 
 public class DataNukePrimedEntity extends PrimedTnt {
 
@@ -42,6 +45,10 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private static final String TAG_ACTIVE = "DataNukeActive";
     private static final String TAG_WORK_TICKS = "DataNukeWorkTicks";
     private static final String TAG_EXPANSION_RADIUS = "DataNukeExpansionRadius";
+    private static final TicketType<UUID> CHUNK_TICKET_TYPE = TicketType.create(
+            Data_Energistics.MODID + ":digital_annihilator",
+            UUID::compareTo);
+    private static final int CHUNK_TICKET_DISTANCE = 2;
     private static final double CENTER_Y_OFFSET = 0.5D;
     private static final int SURFACE_INNER_MARGIN = 3;
     private static final int SURFACE_OUTER_MARGIN = 3;
@@ -51,6 +58,8 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private int expansionRadius;
     @Nullable
     private LivingEntity owner;
+    @Nullable
+    private ChunkPos forcedChunk;
 
     public DataNukePrimedEntity(EntityType<? extends DataNukePrimedEntity> entityType, Level level) {
         super(entityType, level);
@@ -74,6 +83,30 @@ public class DataNukePrimedEntity extends PrimedTnt {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_ACTIVE, false);
+    }
+
+    @Override
+    public void onAddedToLevel() {
+        super.onAddedToLevel();
+        updateChunkTicket();
+    }
+
+    @Override
+    public void onRemovedFromLevel() {
+        removeChunkTicket();
+        super.onRemovedFromLevel();
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        removeChunkTicket();
+        super.remove(reason);
+    }
+
+    @Override
+    public void setPos(double x, double y, double z) {
+        super.setPos(x, y, z);
+        updateChunkTicket();
     }
 
     @Override
@@ -324,12 +357,59 @@ public class DataNukePrimedEntity extends PrimedTnt {
         return this.origin.getZ() + 0.5D;
     }
 
-    private boolean isActive() {
+    /**
+     * Returns whether this entity has finished its fuse and is actively annihilating the surrounding area.
+     */
+    public boolean isActive() {
         return this.entityData.get(DATA_ACTIVE);
     }
 
     private void setActive(boolean active) {
         this.entityData.set(DATA_ACTIVE, active);
+    }
+
+    private void updateChunkTicket() {
+        if (!this.isAddedToLevel() || this.isRemoved() || !(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        ChunkPos currentChunk = this.chunkPosition();
+        if (currentChunk.equals(this.forcedChunk)) {
+            return;
+        }
+
+        serverLevel.getChunkSource().addRegionTicket(
+                CHUNK_TICKET_TYPE,
+                currentChunk,
+                CHUNK_TICKET_DISTANCE,
+                this.getUUID(),
+                true);
+        if (this.forcedChunk != null) {
+            serverLevel.getChunkSource().removeRegionTicket(
+                    CHUNK_TICKET_TYPE,
+                    this.forcedChunk,
+                    CHUNK_TICKET_DISTANCE,
+                    this.getUUID(),
+                    true);
+        }
+        this.forcedChunk = currentChunk;
+    }
+
+    private void removeChunkTicket() {
+        if (this.forcedChunk == null) {
+            return;
+        }
+        if (!(this.level() instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("A client-side digital annihilator unexpectedly owns a server chunk ticket");
+        }
+
+        serverLevel.getChunkSource().removeRegionTicket(
+                CHUNK_TICKET_TYPE,
+                this.forcedChunk,
+                CHUNK_TICKET_DISTANCE,
+                this.getUUID(),
+                true);
+        this.forcedChunk = null;
     }
 
     private FlatteningTntConfig.DataNukeDefinition getDefinition() {
