@@ -34,4 +34,4 @@
 
 ## 结论
 
-采用“纯预览模型 + 共用 LDLib2 UI + XEI 薄适配器 + 服务端动作”的架构。方块 UI 与 XEI 页面共享展示组件，但 XEI 页面不得直接改世界、库存或样板。实施已在 `qy/ldlib2-ui-migration` 分支和 Draft PR [#99](https://github.com/fish1145/DataEnergistics/pull/99) 启动；中立结构投影 API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，并已将验证后的 jar 接入本项目。下一步为实现 common preview 模型与 AE/LDLib2 menu bridge，再完成 Trinity Data Core 首个垂直切片。每个工作包按功能独立提交，未通过对应验收前保留旧入口。
+采用“纯预览模型 + 共用 LDLib2 UI + XEI 薄适配器 + 服务端动作”的架构。方块 UI 与 XEI 页面共享展示组件，但 XEI 页面不得直接改世界、库存或样板。实施已在 `qy/ldlib2-ui-migration` 分支和 Draft PR [#99](https://github.com/fish1145/DataEnergistics/pull/99) 启动；中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，并已将验证后的 jar 接入本项目。Data Energistics 的 atomic definition snapshot、common preview 模型和 Trinity `main/cpu/crafting` catalog 已完成并通过 290/290 GameTest。下一步为实现 AE/LDLib2 menu bridge、既有槽包装与主机非模态子 UI，再完成 Trinity Data Core 首个垂直切片。每个工作包按功能独立提交，未通过对应验收前保留旧入口。

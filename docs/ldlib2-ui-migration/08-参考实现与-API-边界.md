@@ -44,10 +44,11 @@ Data Energistics 当前通过 MDLib `BlockPattern` 表达可重复结构。所�
 4. 定义最大 1,000,000 cells，repeat 与坐标算术使用 exact 方法；matcher 按实际访问 cell 计数，超限返回 `match_budget`，避免首层重试绕过预算。
 5. `SimplePredicate`、`TraceabilityPredicate` 与 block/state/tag/fluid/concatenated/restricted predicates 暴露精确 `BlockState` 和 component-aware placement `ItemStack` 候选；返回值防御性复制，null/empty supplier Fail Fast。
 6. 公开 layer/cell/snapshot 构造器验证 unit、repeat、inner/source layer、扁平 cells 与精确 bounds 的完整一致性，禁止外部构造矛盾快照。
+7. `PatternCandidate` 和 `patternCandidates()` 提供 exact preview state 与 component-aware placement stack 的稳定一一配对；内置 predicates 直接产生 pair，legacy 分离列表只在默认 item 映射、一对多或多对一可证明时转换，歧义 many-to-many Fail Fast。MDLib 不决定 Data Energistics 的舱室优先级，具体 wrapper 必须显式声明候选顺序。
 
 ### PR 与剩余边界
 
-MDLib PR 按功能拆为：空 enum extension 修复、数据目录延迟解析、可重复结构投影 API、谓词候选 API、投影与候选测试，以及恢复 Data Energistics vendored jar 已依赖的 `BlockPattern.getMinX/getMinY/getMinZ`。已使用系统 `GRADLE_USER_HOME=E:\.gradle` 通过 `spotlessCheck test runGameTestServer build`，GameTest 为 1/1，并生成 binary/source jar。
+MDLib PR 按功能拆为：空 enum extension 修复、数据目录延迟解析、可重复结构投影 API、谓词候选 API、投影与候选测试、恢复 Data Energistics vendored jar 已依赖的 `BlockPattern.getMinX/getMinY/getMinZ`，以及 `cbbbbd7` 成对候选 API。已使用系统 `GRADLE_USER_HOME=E:\.gradle` 通过 `spotlessCheck test runGameTestServer build`，GameTest 为 4/4，并生成已同步到 Data Energistics 的 binary/source jar。
 
 `MDLib.MDLIB_FOLDER` 已改为 `getMdlibFolder()`，这是需要在 PR 中显著说明的源码与二进制兼容性变化。Data Energistics 更新依赖后必须迁移任何字段访问。
 
