@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.client.render.DataChargerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
+import com.fish_dan_.data_energistics.client.render.DataNukeRenderer;
 import com.fish_dan_.data_energistics.client.render.DataSanctumRenderer;
 import com.fish_dan_.data_energistics.client.render.DataSanctumReturnPortalRenderer;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
@@ -32,6 +33,6 @@ final class ClientRendererRegistrar {
         event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
         event.registerEntityRenderer(ModEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
         event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
-        event.registerEntityRenderer(ModEntities.DATA_NUKE_PRIMED.get(), TntRenderer::new);
+        event.registerEntityRenderer(ModEntities.DATA_NUKE_PRIMED.get(), DataNukeRenderer::new);
     }
 }
