@@ -1,5 +1,47 @@
 # ChangeLog
 
+## Version [v2.1.0](https://github.com/fish1145/DataEnergistics/compare/v2.0.0-1.21...v2.1.0-1.21)
+### Added
+
+- 补充数据捕捉球合成提示 by @QiuYe-123 in [#68](https://github.com/fish1145/DataEnergistics/pull/68)
+- 移除外部 AE 界面覆盖 by @QiuYe-123 in [#70](https://github.com/fish1145/DataEnergistics/pull/70)
+- 实现通用舱室部件接入 by @QiuYe-123 in [#72](https://github.com/fish1145/DataEnergistics/pull/72)
+- 重新接入通用舱室部件 by @QiuYe-123 in [#74](https://github.com/fish1145/DataEnergistics/pull/74)
+- 修正数据电路板压印配方 by @QiuYe-123 in [#76](https://github.com/fish1145/DataEnergistics/pull/76)
+- Rename Trinity Data Core and add Data Extractor display filtering by @fish1145 in [#78](https://github.com/fish1145/DataEnergistics/pull/78)
+- 实现 ME 吸尘器物品、界面与动态渲染 by @fish1145 in [#79](https://github.com/fish1145/DataEnergistics/pull/79)
+- 新增三位一体结构核心方块 by @QiuYe-123 in [#77](https://github.com/fish1145/DataEnergistics/pull/77)
+- 支持佩戴均分连接器绑定设备 by @QiuYe-123 in [#83](https://github.com/fish1145/DataEnergistics/pull/83)
+- Add 1M-256M data flow cell tiers and polish Data Capture Ball transform flow by @fish1145 in [#88](https://github.com/fish1145/DataEnergistics/pull/88)
+- 优化 Trinity 合成运行时与能力同步 by @QiuYe-123 in [#87](https://github.com/fish1145/DataEnergistics/pull/87)
+- 优化 Trinity 重载重连与合成发配性能 by @QiuYe-123 in [#91](https://github.com/fish1145/DataEnergistics/pull/91)
+- Add meteorite cluster dimension and reorganize worldgen and recipe data by @fish1145 in [#92](https://github.com/fish1145/DataEnergistics/pull/92)
+- 新增数位湮灭体黑球光效与区块强加载 by @QiuYe-123 in [#93](https://github.com/fish1145/DataEnergistics/pull/93)
+- 优化 Trinity 样板缓存与合成发配 by @QiuYe-123 in [#94](https://github.com/fish1145/DataEnergistics/pull/94)
+- 重新导出 Trinity 主结构 by @QiuYe-123 in [#96](https://github.com/fish1145/DataEnergistics/pull/96)
+
+### Fixed
+
+- 优化数据拟生场 AE 输出 by @QiuYe-123 in [#66](https://github.com/fish1145/DataEnergistics/pull/66)
+- 修复极限承载接口拆除掉落 by @QiuYe-123 in [#67](https://github.com/fish1145/DataEnergistics/pull/67)
+- 修复数位组构之花结构映射 by @QiuYe-123 in [#69](https://github.com/fish1145/DataEnergistics/pull/69)
+- 移除外部 AE 界面覆盖 by @QiuYe-123 in [#70](https://github.com/fish1145/DataEnergistics/pull/70)
+- 修复上传面板编码后机器置顶 by @QiuYe-123 in [#71](https://github.com/fish1145/DataEnergistics/pull/71)
+- 重新接入通用舱室部件 by @QiuYe-123 in [#74](https://github.com/fish1145/DataEnergistics/pull/74)
+- 修正 states 精灵图引用格式 by @QiuYe-123 in [#75](https://github.com/fish1145/DataEnergistics/pull/75)
+- 修复 ME CPU 列表兼容 by @QiuYe-123 in [#80](https://github.com/fish1145/DataEnergistics/pull/80)
+- 修正 Trinity 样板核心界面纹理 by @QiuYe-123 in [#82](https://github.com/fish1145/DataEnergistics/pull/82)
+- 修复 Trinity 接入仓 AE2 链接 by @QiuYe-123 in [#84](https://github.com/fish1145/DataEnergistics/pull/84)
+- 优化 Trinity 运行时与虚拟 CPU by @QiuYe-123 in [#85](https://github.com/fish1145/DataEnergistics/pull/85)
+- 修正 Trinity 样板核心界面布局 by @QiuYe-123 in [#86](https://github.com/fish1145/DataEnergistics/pull/86)
+- 优化 Trinity 合成运行时与能力同步 by @QiuYe-123 in [#87](https://github.com/fish1145/DataEnergistics/pull/87)
+- 新增数据均分塔集线与无限速传输 by @QiuYe-123 in [#89](https://github.com/fish1145/DataEnergistics/pull/89)
+- 补齐数据均分塔集成验证与直写失败处理 by @QiuYe-123 in [#90](https://github.com/fish1145/DataEnergistics/pull/90)
+- 优化 Trinity 重载重连与合成发配性能 by @QiuYe-123 in [#91](https://github.com/fish1145/DataEnergistics/pull/91)
+- 优化样板上传面板同类项聚合 by @QiuYe-123 in [#95](https://github.com/fish1145/DataEnergistics/pull/95)
+- 修复 Advanced AE 回流与 UFO CPU 界面兼容 by @QiuYe-123 in [#97](https://github.com/fish1145/DataEnergistics/pull/97)
+
+ 
 ## Version [v2.0.0](https://github.com/fish1145/DataEnergistics/compare/v1.4.0-1.21...v2.0.0-1.21)
 ### Added
 
