@@ -25,7 +25,7 @@
 
 ## Modular Data Lib 边界
 
-Data Energistics 当前通过 MDLib `BlockPattern` 表达可重复结构。MDLib 当前工作树已经提供尺寸、最小偏移、`getPredicate`、`getActualRelativeOffset`，以及 predicate 的 `blockStateCandidates`/`placementCandidates`；`StructurePatternKey` 也能表达 owner 与具名结构。但是这些能力位于已有未提交改动中，后续不能假定已发布。
+Data Energistics 当前通过 MDLib `BlockPattern` 表达可重复结构。所需中立 API 已在隔离 worktree `F:/mc/Fish_Dan_/Modular-Data-lib-preview-api` 的 `qy/multiblock-preview-api` 实现、推送并创建 Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2)。原始 `F:/mc/Fish_Dan_/Modular-Data-lib` 含用户改动，禁止用于本任务写入。
 
 | 可能需要的 API | 所属库 | 原因 |
 | --- | --- | --- |
@@ -36,26 +36,19 @@ Data Energistics 当前通过 MDLib `BlockPattern` 表达可重复结构。MDLib
 | `TrackedDummyWorld` 填充与 LDLib2 `Scene` | Data Energistics client | MDLib 不应依赖 LDLib2 UI |
 | 普通多方块 recipe 到 AE 菜单的 transfer | Data Energistics AE2 integration | MDLib 不得依赖 AE2 或 XEI |
 
-### 已确认的 MDLib 缺口
+### 已实现的 MDLib API
 
-1. repeat 元数据仍以 `aisleRepetitions`、`unitStarts`、`unitDepths` 等 public 可变数组暴露，没有不可变 selection 和范围校验。
-2. 没有把 source slice 按所选 repeat 展开成 cell/layer 的公共 projector；消费者手工遍历会复制 matcher 算法。
-3. `getMinZ()` 依据最大 repeat 边界。控制器前方存在可变段时，非最大展开可能产生 anchor 偏移，预览不能直接套用。
-4. 没有 cell 的 unit/repeat/source slice 来源、按层查询或候选到 placement ItemStack 的一一映射。
-5. 没有保留替代集合的材料快照；tag/fluid tag 候选还需要 registry/tag reload 感知。
-6. 没有 pattern catalog、原子 reload snapshot、单调 revision 和 cache invalidation 契约。
+1. `PatternLayout`、`PatternUnit`、`RepeatRange` 与 `PatternRepeatSelection` 提供不可变 repeat 元数据和 min/max Fail Fast 校验；legacy public 数组保留为 deprecated detached snapshot，外部修改不再改变 matcher。
+2. `PatternProjector` 按选择展开为 `ExpandedPatternSnapshot`、`PatternLayerSnapshot`、`PatternCellSnapshot`、source metadata 与 `PatternBounds`，支持多个 variable unit、controller 前后 repeat、非默认 `StructureDir` 和 flip。
+3. controller 在所有合法 repeat 选择下保持 `BlockPos.ZERO` 锚定；controller 所在 unit 必须固定 repeat=1；结构只能包含一个 `~`。
+4. 定义最大 1,000,000 cells，repeat 与坐标算术使用 exact 方法；matcher 按实际访问 cell 计数，超限返回 `match_budget`，避免首层重试绕过预算。
+5. `SimplePredicate`、`TraceabilityPredicate` 与 block/state/tag/fluid/concatenated/restricted predicates 暴露精确 `BlockState` 和 component-aware placement `ItemStack` 候选；返回值防御性复制，null/empty supplier Fail Fast。
+6. 公开 layer/cell/snapshot 构造器验证 unit、repeat、inner/source layer、扁平 cells 与精确 bounds 的完整一致性，禁止外部构造矛盾快照。
 
-### 未来 MDLib PR 边界
+### PR 与剩余边界
 
-| API 组 | 目标 |
-| --- | --- |
-| `PatternLayout` / `PatternUnit` / `RepeatRange` | 只读暴露结构布局，并兼容弃用现有 public 数组 |
-| `PatternRepeatSelection` | 按 unit 保存次数并 Fail Fast 校验 min/max |
-| `PatternProjector` | 生成不可变 expanded pattern/layer/cell snapshot，统一 anchor、方向和分层 |
-| `PatternCandidateSet` | 保持 state 与 placement stack 的对应关系，区分 exact/any/air/controller/unresolved |
-| `PatternMaterialSnapshot` | 按候选集合聚合数量，不在库层擅自选择替代材料 |
-| `StructurePatternCatalog` | reload 成功后原子替换 snapshot，并提供单调 revision |
+MDLib PR 按功能拆为：空 enum extension 修复、数据目录延迟解析、可重复结构投影 API、谓词候选 API、投影与候选测试，以及恢复 Data Energistics vendored jar 已依赖的 `BlockPattern.getMinX/getMinY/getMinZ`。已使用系统 `GRADLE_USER_HOME=E:\.gradle` 通过 `spotlessCheck test runGameTestServer build`，GameTest 为 1/1，并生成 binary/source jar。
 
-MDLib PR 不包含子结构业务目录、tier 替换、LDLib2 Scene、JEI/EMI/REI 或 AE2 transfer。测试直接覆盖多个 variable unit、min/max 混合选择、控制器前后重复段、非默认 `StructureDir`/flip、逐层坐标、tag reload 和带 components 的 ItemStack；禁止反射和源码 contain 测试。
+`MDLib.MDLIB_FOLDER` 已改为 `getMdlibFolder()`，这是需要在 PR 中显著说明的源码与二进制兼容性变化。Data Energistics 更新依赖后必须迁移任何字段访问。
 
-未来 MDLib PR 必须只包含经审计确认缺失的中立 API 和直接逻辑测试。当前 MDLib 工作区已有未提交变更，因此不能在未确认所有权的情况下建立提交。
+MDLib PR 不包含子结构业务目录、tier 替换、材料选择/聚合策略、definition catalog/revision、LDLib2 `Scene`、JEI/EMI/REI 或 AE2 transfer；这些均留在 Data Energistics。除非 PR 审查发现中立 API 缺陷，不再向 MDLib 扩大范围。修复后的 jar/source jar 已同步到 Data Energistics，并通过 IDEA 编译与 `spotlessCheck test`。

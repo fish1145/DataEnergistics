@@ -18,12 +18,12 @@ XEI 页面、主机 UI 中的可拖动子面板、方块内自动建造面板和
 | --- | --- |
 | `MultiblockPreviewSpec` | controller id、标题、图标、稳定排序的子结构集合、definition revision |
 | `SubstructurePreviewSpec` | substructure id、标题、tier 域、repeat 域、默认选择、投影入口 |
-| `PreviewSelection` | controller id、当前子结构、每个子结构的 tier/repeat、formed 模式 |
+| `PreviewSelection` | controller id、当前子结构、每个子结构各自的 tier/repeat、definition revision |
 | `StructurePreviewSnapshot` | selection、相对坐标和 BlockState、位置候选、材料汇总、bounds、可见层列表、revision |
-| `PreviewViewState` | 相机、选中方块、显示层；不得参与材料计算或样板序列化 |
+| `PreviewViewState` | 相机、选中方块、显示层、formed 模式；不得参与材料计算或样板序列化 |
 | `MultiblockRecipeView` | 当前快照的材料 input、控制器/owner output 与稳定 recipe id，供 JEI/EMI 和 AE transfer 共用 |
 
-具体类名可以随项目风格调整，但这五种职责不能重新揉成一个 XEI wrapper。
+具体类名可以随项目风格调整，但这六种职责不能重新揉成一个 XEI wrapper。
 
 ## 控件行为
 
@@ -38,11 +38,11 @@ XEI 页面、主机 UI 中的可拖动子面板、方块内自动建造面板和
 | 方块选中 | 显示该位置允许的候选、谓词提示和所属逻辑层 |
 | 样板按钮 | 对当前 `MultiblockRecipeView` 发起标准 JEI/EMI transfer；最终编码仍由 AE 菜单完成 |
 
-主机 UI 嵌入时，以上控件放入可拖动、可关闭的子窗口。子窗口 provider 只能接收纯模型和明确动作接口，不得引用具体主机 Screen；同一 provider 也应能创建固定布局版本供 XEI 使用。
+主机 UI 嵌入时，以上控件放入可拖动、可关闭的非模态子窗口。子窗口 provider 只能接收纯模型和明确动作接口，不得引用具体主机 Screen；同一 provider 也应能创建固定布局版本供 XEI 使用。关闭必须从 host overlay `removeChild` 并释放 `Scene`/dummy world，重开由 provider 创建全新实例。
 
 ## 子结构与层级规则
 
-Trinity 的三个结构定义要注册到同一个 controller preview spec。切换子结构不会丢失其他子结构的选择，以便样板模式支持保存整个组合配置。显示层以快照坐标的结构轴为准，不能默认世界 Y；只有 UI 文案可显示为第 N 层。
+Trinity 的三个结构定义要注册到同一个 controller preview spec。切换子结构时，页面会话保留其他子结构的 tier/repeat 选择，便于来回比较；这些选择绝不写入 AE 样板。显示层以快照坐标的结构轴为准，不能默认世界 Y；只有 UI 文案可显示为第 N 层。
 
 等级和重复层数必须由定义提供合法域。XEI 客户端可以缓存快照，但缓存键必须包含 definition revision、子结构 id、tier 和 repeat；资源重载后全部失效。
 
@@ -50,7 +50,7 @@ Trinity 的三个结构定义要注册到同一个 controller preview spec。切
 
 JEI 参考 GT/ECO 继承 `ModularUIRecipeCategory`，EMI 继承 `ModularUIEMIRecipe`。两者使用同一个 UI factory，不复制按钮逻辑。recipe id 至少包含 controller id；子结构和参数是页面内部选择，不为每个组合预注册一个 recipe，避免组合爆炸。
 
-当前选择改变后，wrapper 同步刷新 recipe ingredient：聚合材料槽标记为 input，控制器/owner 槽标记为 output。该对象是普通 XEI 配方视图，不注册 AE 专属 RecipeType，也不携带编码后的样板 ItemStack。
+当前选择改变后，wrapper 同步刷新 recipe ingredient：聚合材料槽标记为 input，控制器/owner 槽标记为 output。该对象是普通 XEI 配方视图，不注册 AE 专属 RecipeType，也不携带编码后的样板 ItemStack。JEI setup 会固化 ingredient，EMI 也会缓存 inputs/outputs，因此展示缓存不能作为 transfer 权威来源；typed handler 必须在点击瞬间读取 session 的 `currentRecipeView()`。
 
 REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引用 JEI/EMI 专有类型，以便后续薄适配。
 
