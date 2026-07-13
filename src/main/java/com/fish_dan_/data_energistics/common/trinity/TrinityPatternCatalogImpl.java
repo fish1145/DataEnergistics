@@ -224,9 +224,6 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         boolean publicationChanged = false;
         for (Map.Entry<TrinityPatternCore, Set<Integer>> changedCore : changedSlots.entrySet()) {
             CoreRuntime runtime = this.runtimesByCore.get(changedCore.getKey());
-            if (runtime == null) {
-                continue;
-            }
             if (!runtime.matches(runtime.range.mount())) {
                 Data_Energistics.LOGGER.warn(
                         "Invalidating Trinity catalog {} because mounted core identity changed at {}",
