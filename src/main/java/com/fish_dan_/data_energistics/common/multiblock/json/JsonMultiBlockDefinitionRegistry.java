@@ -23,22 +23,40 @@ public interface JsonMultiBlockDefinitionRegistry {
     void applyJsonDefinitions(Collection<JsonMultiBlockDefinition> definitions);
 
     /**
+     * Returns one atomically published view of the active definitions and their revision.
+     *
+     * <p>
+     * Consumers that cache derived state must retain this snapshot instead of reading definitions and revision in
+     * separate calls.
+     * </p>
+     */
+    JsonMultiBlockDefinitionRegistrySnapshot snapshot();
+
+    /**
      * Looks up the active definition for the supplied machine and structure key.
      */
-    Optional<JsonMultiBlockDefinition> get(JsonMultiBlockStructureKey key);
+    default Optional<JsonMultiBlockDefinition> get(JsonMultiBlockStructureKey key) {
+        return Optional.ofNullable(snapshot().definitions().get(key));
+    }
 
     /**
      * Returns all currently active definitions after built-in and datapack layers are merged.
      */
-    Collection<JsonMultiBlockDefinition> values();
+    default Collection<JsonMultiBlockDefinition> values() {
+        return snapshot().definitions().values();
+    }
 
     /**
      * Returns the number of currently active definitions.
      */
-    int size();
+    default int size() {
+        return snapshot().definitions().size();
+    }
 
     /**
      * Returns the monotonic revision of the active definition set so loaded controllers can invalidate cached matches.
      */
-    long revision();
+    default long revision() {
+        return snapshot().revision();
+    }
 }
