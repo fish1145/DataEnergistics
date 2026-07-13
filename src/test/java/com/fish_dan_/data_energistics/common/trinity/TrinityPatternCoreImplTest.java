@@ -80,6 +80,9 @@ public final class TrinityPatternCoreImplTest {
         TrinityPatternCore.CachedPattern installedCache = core.cachedPattern(0);
         List<Integer> installedSlots = core.occupiedPatternSlots();
         assertTrue(installedCache != null);
+        assertEquals(AEItemKey.of(Items.PAPER), installedCache.encodedDefinition());
+        assertTrue(installedCache.definition().matchesPattern(new ItemStack(Items.PAPER)));
+        assertTrue(installedCache.recipeResolution() != null);
         assertEquals(List.of(0), core.occupiedPatternSlots());
 
         assertTrue(core.trySetPattern(0, pattern(Items.PAPER).copyWithCount(64)));
@@ -312,11 +315,17 @@ public final class TrinityPatternCoreImplTest {
         PatternRoute route = route(core, 2);
         List<ItemStack> iron = inputs(new ItemStack(Items.IRON_INGOT));
         assertTrue(core.trySetPattern(2, pattern));
+        long directoryRevision = core.revision();
+        TrinityPatternCore.PatternCacheSnapshot directory = core.patternCacheSnapshot();
+        TrinityPatternCore.CachedPattern cachedPattern = core.cachedPattern(2);
 
         for (int dispatch = 0; dispatch < 10_000; dispatch++) {
             assertTrue(core.enqueueBatch(route, pattern, iron, 4L));
         }
 
+        assertEquals(directoryRevision, core.revision());
+        assertTrue(directory == core.patternCacheSnapshot());
+        assertTrue(cachedPattern == core.cachedPattern(2));
         assertEquals(1, core.queuedBatchCount(2));
         assertEquals(10_000L, core.queuedBatches(2).getFirst().count());
         AtomicInteger executions = new AtomicInteger();
@@ -327,6 +336,9 @@ public final class TrinityPatternCoreImplTest {
                     batch, List.of(new ItemStack(Items.DIAMOND, 2)));
         }));
         assertEquals(1, executions.get());
+        assertEquals(directoryRevision, core.revision());
+        assertTrue(directory == core.patternCacheSnapshot());
+        assertTrue(cachedPattern == core.cachedPattern(2));
         assertEquals(1, core.pendingOutputs(route).size());
         assertAmount(Items.DIAMOND, 20_000L, core.pendingOutputs(route).getFirst());
         helper.succeed();
@@ -720,14 +732,14 @@ public final class TrinityPatternCoreImplTest {
     public static void nbtRoundTripPreservesUuidPatternsFifoInputsAndPendingOutputs(GameTestHelper helper) {
         UUID coreId = UUID.fromString("c3d48bd4-ef15-4198-b5a9-26fa2489466a");
         TrinityPatternCoreImpl original = new TrinityPatternCoreImpl(
-                128,
+                512,
                 coreId,
                 TrinityPatternCoreImplTest::decode,
                 testResolvers(),
                 change -> {});
         ItemStack pattern = pattern(Items.PAPER);
-        PatternRoute route = route(original, 127);
-        original.trySetPattern(127, pattern);
+        PatternRoute route = route(original, 511);
+        original.trySetPattern(511, pattern);
         original.enqueueBatch(route, pattern, inputs(new ItemStack(Items.IRON_INGOT)), 10L);
         original.enqueueBatch(route, pattern, inputs(new ItemStack(Items.GOLD_INGOT)), 11L);
         original.appendPendingOutputs(route, List.of(
@@ -740,31 +752,27 @@ public final class TrinityPatternCoreImplTest {
         AtomicInteger hydrationDecodeCalls = new AtomicInteger();
         ArrayList<TrinityPatternSlot.Change> hydrationChanges = new ArrayList<>();
         TrinityPatternCoreImpl loaded = new TrinityPatternCoreImpl(
-                128,
+                512,
                 stack -> {
                     hydrationDecodeCalls.incrementAndGet();
                     return decode(stack);
                 },
                 testResolvers(),
                 hydrationChanges::add);
-        TrinityPatternSlot stableSlot = loaded.patternSlot(127);
-        loaded.readFromTag(saved, helper.getLevel().registryAccess());
+        TrinityPatternSlot stableSlot = loaded.patternSlot(511);
+        loaded.hydrateFromTag(saved, helper.getLevel().registryAccess());
 
         assertEquals(1, hydrationDecodeCalls.get());
-        assertEquals(
-                List.of(
-                        new TrinityPatternSlot.Change(127, TrinityPatternSlot.ChangeKind.CATALOG),
-                        new TrinityPatternSlot.Change(127, TrinityPatternSlot.ChangeKind.WORK)),
-                hydrationChanges);
+        assertTrue(hydrationChanges.isEmpty());
         assertEquals(coreId, loaded.coreId());
-        assertTrue(stableSlot == loaded.patternSlot(127));
+        assertTrue(stableSlot == loaded.patternSlot(511));
         assertTrue(stableSlot.pattern().is(Items.PAPER));
         assertEquals(1L, loaded.revision());
-        assertEquals(128, loaded.patternCapacity());
-        assertTrue(loaded.pattern(127).is(Items.PAPER));
-        assertEquals(List.of(127), loaded.occupiedPatternSlots());
+        assertEquals(512, loaded.patternCapacity());
+        assertTrue(loaded.pattern(511).is(Items.PAPER));
+        assertEquals(List.of(511), loaded.occupiedPatternSlots());
         TrinityPatternCore.PatternCacheSnapshot hydratedDirectory = loaded.patternCacheSnapshot();
-        TrinityPatternCore.CachedPattern hydratedPattern = loaded.cachedPattern(127);
+        TrinityPatternCore.CachedPattern hydratedPattern = loaded.cachedPattern(511);
         List<Integer> hydratedSlots = loaded.occupiedPatternSlots();
         hydrationDecodeCalls.set(0);
         hydrationChanges.clear();
@@ -773,17 +781,17 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(hydrationChanges.isEmpty());
         assertEquals(1L, loaded.revision());
         assertTrue(hydratedDirectory == loaded.patternCacheSnapshot());
-        assertTrue(hydratedPattern == loaded.cachedPattern(127));
+        assertTrue(hydratedPattern == loaded.cachedPattern(511));
         assertTrue(hydratedSlots == loaded.occupiedPatternSlots());
-        assertEquals(2, loaded.queuedBatchCount(127));
-        assertTrue(loaded.queuedBatches(127).get(0).inputs().getFirst().is(Items.IRON_INGOT));
-        assertTrue(loaded.queuedBatches(127).get(1).inputs().getFirst().is(Items.GOLD_INGOT));
-        assertEquals(route, loaded.queuedBatches(127).getFirst().route());
+        assertEquals(2, loaded.queuedBatchCount(511));
+        assertTrue(loaded.queuedBatches(511).get(0).inputs().getFirst().is(Items.IRON_INGOT));
+        assertTrue(loaded.queuedBatches(511).get(1).inputs().getFirst().is(Items.GOLD_INGOT));
+        assertEquals(route, loaded.queuedBatches(511).getFirst().route());
         assertEquals(2, loaded.pendingOutputs(route).size());
         assertAmount(Items.DIAMOND, 3L, loaded.pendingOutputs(route).get(1));
-        assertEquals(List.of(127), loaded.workingSlots(HOST_ID));
-        assertEquals(List.of(127), loaded.pendingOutputSlots(HOST_ID));
-        assertTrue(loaded.decodedPattern(127) instanceof TestSupportedPattern);
+        assertEquals(List.of(511), loaded.workingSlots(HOST_ID));
+        assertEquals(List.of(511), loaded.pendingOutputSlots(HOST_ID));
+        assertTrue(loaded.decodedPattern(511) instanceof TestSupportedPattern);
         TrinityPatternCore.PatternCacheSnapshot loadedDirectory = loaded.patternCacheSnapshot();
         assertTrue(loaded.enqueueBatch(route, pattern, inputs(new ItemStack(Items.DIAMOND)), 12L));
         loaded.refreshAllPatternCaches();
@@ -799,7 +807,7 @@ public final class TrinityPatternCoreImplTest {
                 .getCompound(0)
                 .remove("route");
         assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
-                128, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
+                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedQueueState, helper.getLevel().registryAccess()));
 
         CompoundTag malformedOutputState = saved.copy();
@@ -809,7 +817,7 @@ public final class TrinityPatternCoreImplTest {
                 .getCompound(0)
                 .remove("route");
         assertThrows(IllegalArgumentException.class, () -> new TrinityPatternCoreImpl(
-                128, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
+                512, TrinityPatternCoreImplTest::decode, testResolvers(), change -> {})
                 .readFromTag(malformedOutputState, helper.getLevel().registryAccess()));
         helper.succeed();
     }

@@ -335,8 +335,14 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             0L,
                             "Real AE2 planning should not require unavailable encoded Oak Planks");
 
+                    long slotRevisionBeforeDispatch = core.patternSlot(TABLE_PATTERN_SLOT).revision();
                     TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
                     activeWorker.set(worker);
+                    // One first enqueue records persistent state and enters the sparse work index.
+                    helper.assertValueEqual(
+                            core.patternSlot(TABLE_PATTERN_SLOT).revision(),
+                            slotRevisionBeforeDispatch + 2L,
+                            "A real counted table task must enqueue through the Provider exactly once");
                     long dispatchTick = level.getGameTime();
                     assertOnlyRouteQueued(helper, host, tableRoute, 1);
                     assertSubstitutedTableBatch(
@@ -375,8 +381,14 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 .thenExecute(() -> {
                     ICraftingPlan plan = cakePlan.plan();
                     assertPlan(helper, plan, cakeRoute, AEItemKey.of(Items.CAKE), COUNTED_BATCH_SIZE);
+                    long slotRevisionBeforeDispatch = core.patternSlot(CAKE_PATTERN_SLOT).revision();
                     TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
                     activeWorker.set(worker);
+                    // A second provider call would add at least one more persistent revision.
+                    helper.assertValueEqual(
+                            core.patternSlot(CAKE_PATTERN_SLOT).revision(),
+                            slotRevisionBeforeDispatch + 2L,
+                            "A real counted cake task must enqueue through the Provider exactly once");
                     helper.assertValueEqual(core.queuedBatchCount(CAKE_PATTERN_SLOT), 1,
                             "Counted cake dispatch should enter one group in its exact physical slot");
                     TrinityCraftingBatch cakeBatch = core.queuedBatches(CAKE_PATTERN_SLOT).getFirst();

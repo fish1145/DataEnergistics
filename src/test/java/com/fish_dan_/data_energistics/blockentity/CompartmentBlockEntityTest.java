@@ -21,6 +21,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
@@ -65,6 +66,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridHelper;
@@ -324,6 +326,7 @@ public final class CompartmentBlockEntityTest {
         AtomicReference<IGrid> selectedGrid = new AtomicReference<>();
         AtomicReference<TrinityPatternCatalog.CoreMount> publishedMount = new AtomicReference<>();
         AtomicReference<PatternRoute> publishedRoute = new AtomicReference<>();
+        AtomicReference<PatternRoute> withdrawnRoute = new AtomicReference<>();
         AtomicReference<List<TrinityPatternTerminalPartition>> terminalLayoutBeforePattern = new AtomicReference<>();
         AEItemKey leaseProbe = AEItemKey.of(Items.GOLD_INGOT);
         AEItemKey patternOutput = AEItemKey.of(Items.OAK_PLANKS);
@@ -441,6 +444,88 @@ public final class CompartmentBlockEntityTest {
                     }
                 })
                 .thenExecute(() -> {
+                    TrinityPatternCatalog catalog = host.getPatternCatalog();
+                    TrinityAccessHatchBlockEntity leaseHatch = boundHatches.stream()
+                            .filter(host::isLeaseOwner)
+                            .findFirst()
+                            .orElseThrow();
+                    List<TrinityPatternTerminalPartition> partitionsBeforeReload = leaseHatch.terminalPartitions();
+                    List<IPatternDetails> patternsBeforeReload = catalog.getAvailablePatterns();
+                    RoutedCraftingPatternDetails routeBeforeReload = (RoutedCraftingPatternDetails) patternsBeforeReload.getFirst();
+                    long publicationBeforeReload = catalog.publicationRevision();
+
+                    TrinityPatternCoreReloadEpoch.advance();
+                    publishedMount.get().core().ensurePatternCachesCurrent();
+                    host.serverTick();
+
+                    helper.assertValueEqual(catalog.publicationRevision(), publicationBeforeReload,
+                            "A semantically unchanged reload must retain the host publication revision");
+                    helper.assertTrue(catalog.getAvailablePatterns() == patternsBeforeReload,
+                            "A semantically unchanged reload must retain the aggregate pattern snapshot");
+                    helper.assertTrue(catalog.getAvailablePatterns().getFirst() == routeBeforeReload,
+                            "A semantically unchanged reload must retain the routed pattern identity");
+                    assertSameTerminalPartitions(
+                            helper,
+                            partitionsBeforeReload,
+                            leaseHatch.terminalPartitions(),
+                            "A semantically unchanged reload");
+                    for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
+                        helper.assertFalse(
+                                hatch.refreshTrinityPatternPublication(),
+                                "A semantically unchanged reload must not remount its AE2 provider");
+                    }
+
+                    long publicationBeforeMove = catalog.publicationRevision();
+                    InternalInventory patterns = publishedMount.get().core().patternInventory();
+                    ItemStack moved = patterns.extractItem(0, 1, false);
+                    helper.assertTrue(!moved.isEmpty(), "The published pattern must leave its source slot");
+                    helper.assertTrue(patterns.insertItem(1, moved, false).isEmpty(),
+                            "The published pattern must enter its target slot atomically");
+                    host.serverTick();
+
+                    PatternRoute previousRoute = publishedRoute.get();
+                    PatternRoute movedRoute = new PatternRoute(
+                            host.getHostId(), publishedMount.get().core().coreId(), 1);
+                    helper.assertValueEqual(catalog.publicationRevision(), publicationBeforeMove + 1L,
+                            "Two dirty slots from one move must produce one aggregate publication revision");
+                    helper.assertValueEqual(catalog.getAvailablePatterns().size(), 1,
+                            "Moving one pattern must retain exactly one published route");
+                    RoutedCraftingPatternDetails movedDetails = (RoutedCraftingPatternDetails) catalog.getAvailablePatterns().getFirst();
+                    helper.assertValueEqual(movedDetails.route(), movedRoute,
+                            "The moved pattern must publish its exact target slot");
+                    assertSameTerminalPartitions(
+                            helper,
+                            partitionsBeforeReload,
+                            leaseHatch.terminalPartitions(),
+                            "A same-core pattern move");
+                    withdrawnRoute.set(previousRoute);
+                    publishedRoute.set(movedRoute);
+                })
+                .thenWaitUntil(() -> {
+                    helper.assertValueEqual(
+                            publishedRouteCount(selectedGrid.get(), patternOutput, withdrawnRoute.get()),
+                            0L,
+                            "The moved pattern must withdraw its source route");
+                    helper.assertValueEqual(
+                            publishedRouteCount(selectedGrid.get(), patternOutput, publishedRoute.get()),
+                            1L,
+                            "The moved pattern must publish its target route exactly once");
+                    assertSameTerminalPartitions(
+                            helper,
+                            terminalLayoutBeforePattern.get(),
+                            boundHatches.stream()
+                                    .filter(host::isLeaseOwner)
+                                    .findFirst()
+                                    .orElseThrow()
+                                    .terminalPartitions(),
+                            "A flushed same-core pattern move");
+                    for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
+                        helper.assertFalse(
+                                hatch.refreshTrinityPatternPublication(),
+                                "A flushed same-tick move must leave no duplicate provider refresh pending");
+                    }
+                })
+                .thenExecute(() -> {
                     IGrid grid = selectedGrid.get();
                     TrinityAccessHatchBlockEntity leaseHatch = boundHatches.stream()
                             .filter(host::isLeaseOwner)
@@ -449,6 +534,8 @@ public final class CompartmentBlockEntityTest {
                     IGridNode leaseNode = leaseHatch.getMainNode().getNode();
                     helper.assertTrue(leaseNode != null, "The lease owner must retain an initialized grid node");
                     List<TrinityPatternTerminalPartition> terminalLayoutBeforeStorage = leaseHatch.terminalPartitions();
+                    List<IPatternDetails> patternSnapshotBeforeStorage = host.getPatternCatalog().getAvailablePatterns();
+                    long publicationBeforeStorage = host.getPatternCatalog().publicationRevision();
                     TrinityCraftingRuntimeRegistry registry = runtimeRegistry(grid);
                     helper.assertTrue(!registry.publish(leaseNode, host.getCraftingRuntime()),
                             "The CPU publication must exist before storage feedback");
@@ -488,6 +575,12 @@ public final class CompartmentBlockEntityTest {
                             publishedRouteCount(grid, patternOutput, publishedRoute.get()),
                             routeCountBeforeStorage,
                             "Storage feedback must retain the routed pattern publication");
+                    helper.assertTrue(host.getPatternCatalog().getAvailablePatterns() == patternSnapshotBeforeStorage,
+                            "Storage feedback must retain the aggregate pattern snapshot identity");
+                    helper.assertValueEqual(
+                            host.getPatternCatalog().publicationRevision(),
+                            publicationBeforeStorage,
+                            "Storage feedback must retain the pattern publication revision");
                     for (TrinityAccessHatchBlockEntity hatch : boundHatches) {
                         helper.assertFalse(
                                 hatch.refreshTrinityPatternPublication(),
@@ -2060,6 +2153,17 @@ public final class CompartmentBlockEntityTest {
 
     private static long publishedCpuCount(IGrid grid, Collection<TrinityDataCoreVirtualCpu> cpuPartitions) {
         return grid.getCraftingService().getCpus().stream().filter(cpuPartitions::contains).count();
+    }
+
+    private static void assertSameTerminalPartitions(GameTestHelper helper,
+                                                     List<TrinityPatternTerminalPartition> expected,
+                                                     List<TrinityPatternTerminalPartition> actual,
+                                                     String operation) {
+        helper.assertValueEqual(actual.size(), expected.size(), operation + " must retain the terminal layout size");
+        for (int index = 0; index < actual.size(); index++) {
+            helper.assertTrue(actual.get(index) == expected.get(index),
+                    operation + " must retain terminal partition " + index);
+        }
     }
 
     private static long publishedRouteCount(IGrid grid, AEKey output, PatternRoute route) {
