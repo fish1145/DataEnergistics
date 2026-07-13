@@ -1,7 +1,7 @@
 {
 	"itemGroup.data_energistics": "数据能源",
 	"itemGroup.data_energistics.multiblock": "数据能源：多方块",
-	"dimension.data_energistics.data_sanctum": "数据圣所",
+	"dimension.data_energistics.meteorite_cluster": "陨石集群",
 	"block.data_energistics.me_solar_panel": "ME太阳能板",
 	"block.data_energistics.data_extractor": "数据提取仪",
 	"block.data_energistics.data_reassembler": "数据重组器",
@@ -162,7 +162,7 @@
 	"button.data_energistics.condenser_output.power": "需要 %s AE",
 	"jei.data_energistics.data_capture_ball.line1": "可在 AE2 物质聚合器中作为第四档独立产物生成。",
 	"jei.data_energistics.data_capture_ball.line2": "切换到数据捕捉球档位后，必须放入一个 16K-ME 数据流存储组件或更高级别并将其完全填满。",
-	"jei.data_energistics.data_capture_ball.line3": "右键即散数据时，每次消耗 5KAE，并向球内填充 1 个数据。",
+	"jei.data_energistics.data_capture_ball.line3": "右键即散数据时，每次消耗 1KAE，并向球内填充 1 个数据。",
 	"jei.data_energistics.data_reassembler.crafting_requirement": "合成数据重组器需要数据捕捉球内至少有 %s 个数据。合成后会返还数据捕捉球，并消耗这部分数据。",
 	"item.data_energistics.data_ripper": "数据撕裂器",
 	"workstation.data_energistics.data_reassembler": "数据重组器",

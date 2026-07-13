@@ -156,6 +156,10 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
                     "message.data_energistics.data_teleport_anchor.no_entities");
         };
         getPlayer().displayClientMessage(message, true);
+        if (result.status() == DataTeleportAnchorBlockEntity.TeleportStatus.SUCCESS) {
+            getPlayer().closeContainer();
+            return;
+        }
         broadcastChanges();
     }
 

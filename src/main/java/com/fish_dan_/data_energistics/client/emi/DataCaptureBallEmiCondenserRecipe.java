@@ -29,7 +29,7 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
     private static final int REQUIRED_POWER = 131072;
 
     DataCaptureBallEmiCondenserRecipe() {
-        super(CATEGORY, Data_Energistics.id("condenser/data_capture_ball"), 96, 48);
+        super(CATEGORY, Data_Energistics.id("/condenser/data_capture_ball"), 96, 48);
         this.outputs.add(EmiStack.of(DataCaptureBallItem.createChargedStack()));
         this.catalysts.add(EmiIngredient.of(List.of(
                 EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16K.get()),

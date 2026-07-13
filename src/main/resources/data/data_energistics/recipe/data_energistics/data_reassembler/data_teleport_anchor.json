@@ -11,13 +11,13 @@
 			"ingredient": {
 				"item": "data_energistics:data_framework"
 			},
-			"count": 1
+			"count": 4
 		},
 		{
 			"ingredient": {
 				"item": "data_energistics:data_processor"
 			},
-			"count": 8
+			"count": 28
 		},
 		{
 			"ingredient": {
@@ -35,7 +35,7 @@
 			"ingredient": {
 				"item": "ae2:quantum_entangled_singularity"
 			},
-			"count": 1
+			"count": 2
 		},
 		{
 			"ingredient": {
@@ -46,7 +46,7 @@
 	],
 	"fluid_inputs": [
 		{
-			"#": 1250,
+			"#": 4250,
 			"#t": "ae2:f",
 			"id": "data_energistics:ender"
 		}
@@ -56,5 +56,9 @@
 			"id": "data_energistics:data_teleport_anchor",
 			"count": 1
 		}
-	]
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 83700
+	}
 }

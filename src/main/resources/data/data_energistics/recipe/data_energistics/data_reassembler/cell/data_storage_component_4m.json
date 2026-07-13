@@ -3,44 +3,50 @@
 	"item_inputs": [
 		{
 			"ingredient": {
-				"tag": "c:gems/data_crystal"
+				"item": "data_energistics:data_storage_component_1m"
 			},
-			"count": 4
+			"count": 3
 		},
 		{
 			"ingredient": {
-				"item": "data_energistics:data_storage_component_1k"
+				"tag": "c:gems/data_crystal"
 			},
-			"count": 1
+			"count": 13
 		},
 		{
 			"ingredient": {
 				"item": "data_energistics:data_processor"
 			},
+			"count": 9
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:digisidian_memorize_ingot"
+			},
 			"count": 14
 		},
 		{
 			"ingredient": {
-				"item": "ae2:charger"
+				"item": "data_energistics:data_carrier"
 			},
-			"count": 1
+			"count": 4
 		}
 	],
 	"fluid_inputs": [
 		{
-			"#": 200,
+			"#": 2500,
 			"#t": "ae2:f",
 			"id": "data_energistics:data_corrosion_liquid"
 		}
 	],
 	"item_outputs": [
 		{
-			"id": "data_energistics:data_charger",
+			"id": "data_energistics:data_storage_component_4m",
 			"count": 1
 		}
 	],
 	"key_input": {
 		"#t": "data_energistics:data_flow",
-		"#": 1000
+		"#": 15600
 	}
 }

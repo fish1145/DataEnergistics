@@ -51,7 +51,7 @@ public class DataSanctumPortalLogic {
             return;
         }
 
-        ServerLevel targetLevel = sourceLevel.getServer().getLevel(DataEnergisticsDimensions.DATA_SANCTUM);
+        ServerLevel targetLevel = sourceLevel.getServer().getLevel(DataEnergisticsDimensions.METEORITE_CLUSTER);
         if (targetLevel == null) {
             return;
         }
@@ -73,7 +73,7 @@ public class DataSanctumPortalLogic {
     }
 
     private void tickReturnPortals(MinecraftServer server) {
-        ServerLevel dataSanctumLevel = server.getLevel(DataEnergisticsDimensions.DATA_SANCTUM);
+        ServerLevel dataSanctumLevel = server.getLevel(DataEnergisticsDimensions.METEORITE_CLUSTER);
         if (dataSanctumLevel == null) {
             return;
         }

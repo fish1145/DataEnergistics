@@ -3,27 +3,39 @@
 	"item_inputs": [
 		{
 			"ingredient": {
-				"item": "minecraft:purple_wool"
+				"item": "minecraft:cherry_leaves"
 			},
-			"count": 3
+			"count": 34
 		},
 		{
 			"ingredient": {
-				"item": "minecraft:magenta_wool"
+				"item": "minecraft:oak_leaves"
 			},
-			"count": 3
+			"count": 34
 		},
 		{
 			"ingredient": {
-				"tag": "c:gems/data_crystal"
+				"item": "minecraft:spruce_leaves"
 			},
-			"count": 2
+			"count": 34
 		},
 		{
 			"ingredient": {
-				"tag": "c:dusts/data_dust"
+				"item": "minecraft:birch_leaves"
 			},
-			"count": 12
+			"count": 34
+		},
+		{
+			"ingredient": {
+				"item": "minecraft:mangrove_leaves"
+			},
+			"count": 34
+		},
+		{
+			"ingredient": {
+				"item": "minecraft:flowering_azalea_leaves"
+			},
+			"count": 34
 		},
 		{
 			"ingredient": {
@@ -33,15 +45,9 @@
 		},
 		{
 			"ingredient": {
-				"item": "data_energistics:data_circuit_board"
-			},
-			"count": 1
-		},
-		{
-			"ingredient": {
 				"tag": "c:ingots/digisidian_memorize"
 			},
-			"count": 1
+			"count": 14
 		}
 	],
 	"fluid_inputs": [

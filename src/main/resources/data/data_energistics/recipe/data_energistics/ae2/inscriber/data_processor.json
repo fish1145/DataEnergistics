@@ -6,7 +6,7 @@
 			"item": "data_energistics:data_circuit_board"
 		},
 		"middle": {
-			"item": "minecraft:redstone"
+			"item": "ae2:quantum_entangled_singularity"
 		},
 		"bottom": {
 			"item": "ae2:printed_silicon"

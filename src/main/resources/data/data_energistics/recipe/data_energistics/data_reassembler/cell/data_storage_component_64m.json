@@ -3,56 +3,56 @@
 	"item_inputs": [
 		{
 			"ingredient": {
-				"tag": "c:ingots/digisidian_memorize"
+				"item": "data_energistics:data_storage_component_16m"
+			},
+			"count": 3
+		},
+		{
+			"ingredient": {
+				"item": "minecraft:amethyst_block"
 			},
 			"count": 14
 		},
 		{
 			"ingredient": {
-				"item": "ae2:drive"
+				"item": "data_energistics:data_crystal_block"
 			},
-			"count": 1
+			"count": 6
 		},
 		{
 			"ingredient": {
-				"item": "ae2:formation_core"
+				"item": "data_energistics:data_processor"
 			},
-			"count": 4
+			"count": 15
 		},
 		{
 			"ingredient": {
-				"item": "ae2:annihilation_core"
+				"item": "data_energistics:digisidian_memorize_ingot"
 			},
-			"count": 4
+			"count": 24
 		},
 		{
 			"ingredient": {
-				"item": "ae2:controller"
+				"item": "data_energistics:data_carrier"
 			},
-			"count": 7
-		},
-		{
-			"ingredient": {
-				"item": "data_energistics:data_framework"
-			},
-			"count": 8
+			"count": 16
 		}
 	],
 	"fluid_inputs": [
 		{
-			"#": 4200,
+			"#": 4500,
 			"#t": "ae2:f",
 			"id": "data_energistics:data_corrosion_liquid"
 		}
 	],
 	"item_outputs": [
 		{
-			"id": "data_energistics:data_mimetic_field",
+			"id": "data_energistics:data_storage_component_64m",
 			"count": 1
 		}
 	],
 	"key_input": {
 		"#t": "data_energistics:data_flow",
-		"#": 45000
+		"#": 37260
 	}
 }

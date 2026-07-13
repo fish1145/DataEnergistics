@@ -44,8 +44,8 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
 
     private static final double MAX_POWER = 50_000.0D;
     private static final double CHARGE_RATE = 50_000.0D;
-    private static final double INITIAL_POWER = 5_000.0D;
-    private static final double ENERGY_PER_CAPTURE = 5_000.0D;
+    private static final double INITIAL_POWER = 1_000.0D;
+    public static final double ENERGY_PER_CAPTURE = 1_000.0D;
     private static final int BYTES = 64;
     private static final int BYTES_PER_TYPE = 1;
     private static final int TOTAL_TYPES = 1;

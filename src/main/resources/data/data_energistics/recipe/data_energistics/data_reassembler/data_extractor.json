@@ -5,7 +5,7 @@
 			"ingredient": {
 				"tag": "c:ingots/obsidian"
 			},
-			"count": 8
+			"count": 12
 		},
 		{
 			"ingredient": {
@@ -23,19 +23,19 @@
 			"ingredient": {
 				"item": "data_energistics:data_meteorite_compass"
 			},
-			"count": 2
+			"count": 1
 		},
 		{
 			"ingredient": {
 				"item": "ae2:energy_acceptor"
 			},
-			"count": 1
+			"count": 2
 		},
 		{
 			"ingredient": {
 				"item": "data_energistics:data_framework"
 			},
-			"count": 1
+			"count": 8
 		}
 	],
 	"item_outputs": [
@@ -43,5 +43,9 @@
 			"id": "data_energistics:data_extractor",
 			"count": 1
 		}
-	]
+	],
+	"key_input": {
+		"#t": "data_energistics:data",
+		"#": 35
+	}
 }

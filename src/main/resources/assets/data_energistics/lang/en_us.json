@@ -1,7 +1,7 @@
 {
 	"itemGroup.data_energistics": "Data_Energistics",
 	"itemGroup.data_energistics.multiblock": "Data_Energistics Multiblocks",
-	"dimension.data_energistics.data_sanctum": "Data Sanctum",
+	"dimension.data_energistics.meteorite_cluster": "Meteorite Cluster",
 	"block.data_energistics.me_solar_panel": "ME Solar Panel",
 	"block.data_energistics.data_extractor": "Data Extractor",
 	"block.data_energistics.data_reassembler": "Data Reassembler",
@@ -162,7 +162,7 @@
 	"button.data_energistics.condenser_output.power": "Requires %s AE",
 	"jei.data_energistics.data_capture_ball.line1": "Produced as a separate fourth output mode in the AE2 Matter Condenser.",
 	"jei.data_energistics.data_capture_ball.line2": "The condenser must be switched to Data Capture Ball mode and fully fill a 16K-ME Data Storage Component or higher.",
-	"jei.data_energistics.data_capture_ball.line3": "Right-clicking Dispersing Data consumes 5K AE and stores 1 Data inside the ball.",
+	"jei.data_energistics.data_capture_ball.line3": "Right-clicking Dispersing Data consumes 1K AE and stores 1 Data inside the ball.",
 	"jei.data_energistics.data_reassembler.crafting_requirement": "Crafting a Data Reassembler requires a Data Capture Ball containing at least %s Data. The ball is returned after crafting with that Data consumed.",
 	"item.data_energistics.data_ripper": "Data Ripper",
 	"workstation.data_energistics.data_reassembler": "Data Reassembler",

@@ -3,62 +3,56 @@
 	"item_inputs": [
 		{
 			"ingredient": {
-				"item": "minecraft:cod"
+				"item": "data_energistics:data_storage_component_4m"
 			},
-			"count": 24
+			"count": 3
 		},
 		{
 			"ingredient": {
-				"item": "minecraft:salmon"
+				"tag": "c:gems/amethyst"
 			},
-			"count": 24
+			"count": 8
 		},
 		{
 			"ingredient": {
-				"item": "minecraft:tropical_fish"
+				"tag": "c:gems/data_crystal"
 			},
-			"count": 24
+			"count": 13
 		},
 		{
 			"ingredient": {
-				"item": "minecraft:pufferfish"
+				"item": "data_energistics:data_processor"
 			},
-			"count": 24
+			"count": 9
 		},
 		{
 			"ingredient": {
-				"item": "minecraft:egg"
+				"item": "data_energistics:digisidian_memorize_ingot"
 			},
-			"count": 16
+			"count": 19
 		},
 		{
 			"ingredient": {
 				"item": "data_energistics:data_carrier"
 			},
-			"count": 1
-		},
-		{
-			"ingredient": {
-				"tag": "c:ingots/digisidian_memorize"
-			},
-			"count": 14
+			"count": 8
 		}
 	],
 	"fluid_inputs": [
 		{
-			"#": 1000,
+			"#": 3200,
 			"#t": "ae2:f",
-			"id": "minecraft:water"
+			"id": "data_energistics:data_corrosion_liquid"
 		}
 	],
 	"item_outputs": [
 		{
-			"id": "data_energistics:fish_dan_",
+			"id": "data_energistics:data_storage_component_16m",
 			"count": 1
 		}
 	],
 	"key_input": {
 		"#t": "data_energistics:data_flow",
-		"#": 1600
+		"#": 21060
 	}
 }

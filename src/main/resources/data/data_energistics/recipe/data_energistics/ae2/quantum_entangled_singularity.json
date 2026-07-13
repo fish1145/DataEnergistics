@@ -11,7 +11,7 @@
 			"ingredient": {
 				"item": "ae2:singularity"
 			},
-			"count": 4
+			"count": 1
 		}
 	],
 	"fluid_inputs": [
@@ -24,7 +24,7 @@
 	"item_outputs": [
 		{
 			"id": "ae2:quantum_entangled_singularity",
-			"count": 8
+			"count": 4
 		}
 	]
 }

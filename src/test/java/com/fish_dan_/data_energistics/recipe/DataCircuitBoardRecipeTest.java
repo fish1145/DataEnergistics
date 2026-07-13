@@ -23,7 +23,7 @@ public final class DataCircuitBoardRecipeTest {
 
     @Test
     void dataCircuitBoardUsesNormalPrintedProcessorRecipeShape() {
-        JsonObject root = readJson("data/data_energistics/recipe/ae2/inscriber/data_circuit_board.json");
+        JsonObject root = readJson("data/data_energistics/recipe/data_energistics/ae2/inscriber/data_circuit_board.json");
 
         assertEquals("ae2:inscriber", string(root, "type"));
         assertEquals("inscribe", string(root, "mode"));
