@@ -739,10 +739,10 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         ICraftingSubmitResult result = craftingService.submitJob(
                 plan,
                 null,
-                reserveCpu,
+                null,
                 true,
                 fixture.host().accessActionSource());
-        helper.assertTrue(result.successful(), "AE2 should submit the job to the explicit Trinity CPU: " +
+        helper.assertTrue(result.successful(), "AE2 should auto-submit the machine job to a Trinity CPU: " +
                 result.errorCode());
         helper.assertFalse(reserveCpu.isBusy(), "Reserved Trinity CPU 0 must remain idle after job allocation");
         helper.assertTrue(reserveCpu.getJobStatus() == null,
