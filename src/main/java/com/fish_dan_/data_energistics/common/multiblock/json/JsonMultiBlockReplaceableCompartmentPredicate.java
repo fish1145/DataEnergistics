@@ -13,6 +13,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.modularmc.mdl.api.multiblock.MultiblockState;
+import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicate;
 import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicateTypes;
@@ -122,6 +123,21 @@ public record JsonMultiBlockReplaceableCompartmentPredicate(Set<CompartmentType>
             }
         }
         candidates.addAll(this.delegate.placementCandidates());
+        return List.copyOf(candidates);
+    }
+
+    @Override
+    public List<PatternCandidate> patternCandidates() {
+        ArrayList<PatternCandidate> candidates = new ArrayList<>();
+        for (CompartmentType type : this.compartmentTypes) {
+            Block block = JsonMultiBlockCompartmentPredicate.blockFor(type);
+            ItemStack stack = block.asItem().getDefaultInstance();
+            if (stack.isEmpty()) {
+                throw new IllegalStateException("Replaceable compartment does not expose a placement item: " + type);
+            }
+            candidates.add(new PatternCandidate(block.defaultBlockState(), stack));
+        }
+        candidates.addAll(this.delegate.patternCandidates());
         return List.copyOf(candidates);
     }
 

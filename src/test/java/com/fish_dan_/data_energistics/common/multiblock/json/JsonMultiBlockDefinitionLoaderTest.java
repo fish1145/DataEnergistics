@@ -34,6 +34,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
+import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.PatternMatchContext;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
@@ -1093,8 +1094,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "{\"compartments\":[\"input\",\"trinity_access\"]," +
                         "\"predicate\":{\"type\":\"mdlib:blocks\",\"block\":\"minecraft:glass\"}}")
                 .getAsJsonObject();
-        List<ItemStack> candidates = JsonMultiBlockReplaceableCompartmentPredicate.fromJson(predicateJson)
-                .placementCandidates();
+        JsonMultiBlockReplaceableCompartmentPredicate predicate = JsonMultiBlockReplaceableCompartmentPredicate.fromJson(predicateJson);
+        List<ItemStack> candidates = predicate.placementCandidates();
         helper.assertValueEqual(candidates.size(), 3, "Replacement candidates should contain two compartments and the delegate block");
         helper.assertTrue(
                 candidates.get(0).is(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
@@ -1105,6 +1106,30 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertTrue(
                 candidates.get(2).is(Items.GLASS),
                 "Original block should remain the final placement fallback");
+
+        List<PatternCandidate> pairedCandidates = predicate.patternCandidates();
+        helper.assertValueEqual(pairedCandidates.size(), 3,
+                "Replacement state and placement candidates should remain paired");
+        helper.assertValueEqual(
+                pairedCandidates.get(0).previewState(),
+                ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().defaultBlockState(),
+                "First declared compartment should remain the first preview state");
+        helper.assertTrue(
+                pairedCandidates.get(0).placementStack().is(ModBlocks.COMPOSITE_INPUT_WAREHOUSE.get().asItem()),
+                "First declared compartment state should retain its placement item");
+        helper.assertValueEqual(
+                pairedCandidates.get(1).previewState(),
+                ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(),
+                "Second declared compartment should remain the second preview state");
+        helper.assertTrue(
+                pairedCandidates.get(1).placementStack().is(ModBlocks.TRINITY_ACCESS_HATCH.get().asItem()),
+                "Second declared compartment state should retain its placement item");
+        helper.assertValueEqual(
+                pairedCandidates.get(2).previewState(),
+                Blocks.GLASS.defaultBlockState(),
+                "Original block state should remain the final preview fallback");
+        helper.assertTrue(pairedCandidates.get(2).placementStack().is(Items.GLASS),
+                "Original block state should retain its placement item");
         helper.succeed();
     }
 
