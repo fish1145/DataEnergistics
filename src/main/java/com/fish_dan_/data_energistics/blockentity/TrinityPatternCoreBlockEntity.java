@@ -90,17 +90,19 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Override
     public void setLevel(Level level) {
         boolean levelChanged = this.level != level;
+        boolean hydratedStagedState = false;
         super.setLevel(level);
         if (this.coreLoadState == CoreLoadState.STAGED) {
             if (tryLoadCoreState(this.stagedCoreState, level.registryAccess())) {
                 this.stagedCoreState = null;
                 this.coreLoadState = CoreLoadState.READY;
+                hydratedStagedState = true;
             } else {
                 this.coreLoadState = CoreLoadState.REJECTED;
             }
         }
         this.observedReloadEpoch = TrinityPatternCoreReloadEpoch.current();
-        if (isCoreStateReady() && levelChanged) {
+        if (isCoreStateReady() && levelChanged && !hydratedStagedState) {
             refreshPatternCachesWithDiagnostics();
         }
     }
@@ -137,6 +139,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         }
     }
 
+    @Override
+    public boolean runtimeBindingsCurrent() {
+        return isCoreStateReady() && this.observedReloadEpoch == TrinityPatternCoreReloadEpoch.current();
+    }
+
     /**
      * Executes batches owned by the active host. Batches and pending outputs belonging to another host remain asleep.
      *
@@ -145,10 +152,9 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * @return number of completed batches
      */
     public int executeOwnedBatches(UUID hostId, long currentTick) {
-        if (!isCoreStateReady()) {
+        if (!runtimeBindingsCurrent()) {
             return 0;
         }
-        ensurePatternCachesCurrent();
         return this.core.executeReadyBatches(
                 currentTick,
                 (slot, batch) -> hostId.equals(batch.route().hostId()) ? executeBatch(slot, batch) : BatchExecutionResult.paused());
@@ -163,10 +169,9 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * @return number of completed queue groups
      */
     public int executeOwnedSlot(UUID hostId, int slot, long currentTick) {
-        if (!isCoreStateReady()) {
+        if (!runtimeBindingsCurrent()) {
             return 0;
         }
-        ensurePatternCachesCurrent();
         return this.core.executeReadyBatches(
                 slot,
                 currentTick,
@@ -257,7 +262,6 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         if (tryLoadCoreState(data, registries)) {
             this.stagedCoreState = null;
             this.coreLoadState = CoreLoadState.READY;
-            refreshPatternCachesWithDiagnostics();
         } else if (this.coreLoadState != CoreLoadState.READY) {
             this.stagedCoreState = data.copy();
             this.coreLoadState = CoreLoadState.REJECTED;
@@ -287,6 +291,17 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Override
     public PatternCacheSnapshot patternCacheSnapshot() {
         return readyCore().patternCacheSnapshot();
+    }
+
+    @Nullable
+    @Override
+    public CachedPattern cachedPattern(int slot) {
+        return readyCore().cachedPattern(slot);
+    }
+
+    @Override
+    public List<Integer> occupiedPatternSlots() {
+        return readyCore().occupiedPatternSlots();
     }
 
     @Override
@@ -477,11 +492,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             ArrayList<ItemStack> outputs = new ArrayList<>(remainingItems.size() + 1);
             for (ItemStack remaining : remainingItems) {
                 if (!remaining.isEmpty()) {
-                    outputs.add(remaining.copy());
+                    outputs.add(remaining);
                 }
             }
-            outputs.add(output.copy());
-            return BatchExecutionResult.completed(outputs);
+            outputs.add(output);
+            return BatchExecutionResult.completed(batch, outputs);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Failed to execute Trinity pattern core {} slot {} batch at {}",
@@ -495,7 +510,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
 
     private void refreshPatternCachesWithDiagnostics() {
         this.core.refreshAllPatternCaches();
-        for (int slot = 0; slot < this.core.patternCapacity(); slot++) {
+        for (int slot : this.core.occupiedPatternSlots()) {
             logInvalidRetainedPattern(slot);
         }
     }

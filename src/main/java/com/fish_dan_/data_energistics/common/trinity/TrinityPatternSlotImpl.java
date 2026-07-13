@@ -117,10 +117,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     @Override
     public boolean trySetPattern(ItemStack pattern) {
         ItemStack normalized = normalizePattern(pattern);
+        if (ItemStack.matches(this.pattern, normalized)) {
+            return true;
+        }
         if (normalized.isEmpty()) {
-            if (this.pattern.isEmpty()) {
-                return true;
-            }
             this.pattern = ItemStack.EMPTY;
             this.installedDefinition = null;
             this.decodedPattern = null;
@@ -139,20 +139,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
             return false;
         }
         TrinityPatternDefinition definition = findOrCreateDefinition(normalized, resolved.get());
-        boolean installedChange = !ItemStack.matches(this.pattern, normalized) ||
-                this.installedDefinition == null || this.installedDefinition.id() != definition.id();
-        boolean catalogChange = installedChange || this.decodedPattern == null;
         this.pattern = normalized;
         this.installedDefinition = definition;
         this.decodedPattern = decoded;
-        boolean rebound = rebindMatchingUnresolvedDefinitions(definition);
+        rebindMatchingUnresolvedDefinitions(definition);
         collectUnusedDefinitions();
-        if (catalogChange) {
-            changed(ChangeKind.CATALOG);
-        }
-        if (installedChange || rebound) {
-            changed(ChangeKind.PERSISTENT);
-        }
+        changed(ChangeKind.CATALOG);
+        changed(ChangeKind.PERSISTENT);
         return true;
     }
 
@@ -164,8 +157,11 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
 
     @Override
     public void refreshPatternCache() {
+        if (this.pattern.isEmpty()) {
+            return;
+        }
         boolean persistentChange = false;
-        IMolecularAssemblerSupportedPattern decoded = this.pattern.isEmpty() ? null : this.decoder.decode(this.pattern);
+        IMolecularAssemblerSupportedPattern decoded = this.decoder.decode(this.pattern);
         if (decoded == null) {
             this.decodedPattern = null;
         } else {
@@ -193,7 +189,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         if (persistentChange) {
             collectUnusedDefinitions();
         }
-        changed(ChangeKind.CATALOG);
+        runtimeBindingRefreshed();
         if (persistentChange) {
             changed(ChangeKind.PERSISTENT);
         }
@@ -468,10 +464,14 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         }
         TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
                 data.getInt(SLOT_TAG), decoder, recipeIdResolvers, changeListener);
+        Map<Long, IMolecularAssemblerSupportedPattern> validatedPatterns = new HashMap<>();
         ListTag definitionList = compoundList(data, DEFINITIONS_TAG);
         for (int index = 0; index < definitionList.size(); index++) {
             TrinityPatternDefinition definition = readDefinition(definitionList.getCompound(index), registries);
-            slot.validatePersistedDefinition(definition);
+            IMolecularAssemblerSupportedPattern decoded = slot.validatePersistedDefinition(definition);
+            if (decoded != null) {
+                validatedPatterns.put(definition.id(), decoded);
+            }
             slot.retainParsedDefinition(definition);
         }
         boolean hasPattern = data.contains(PATTERN_TAG, Tag.TAG_COMPOUND);
@@ -497,6 +497,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         }
         slot.readPendingOutputs(compoundList(data, PENDING_OUTPUTS_TAG), registries);
         slot.validateDefinitionReferences();
+        if (hasPattern) {
+            if (slot.installedDefinition.resolved()) {
+                slot.bindValidatedInstalledPattern(validatedPatterns.get(slot.installedDefinition.id()));
+            } else {
+                slot.refreshPatternCache();
+            }
+        }
         slot.rebuildWorkMembership();
         return slot;
     }
@@ -531,6 +538,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
             slot.installedDefinition = slot.findOrCreateDefinition(slot.pattern, resolution.orElse(null));
         }
         slot.rebuildWorkMembership();
+        slot.refreshPatternCache();
         return slot;
     }
 
@@ -578,6 +586,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         this.pendingOutputs.putAll(copyPendingOutputs(state.pendingOutputs));
         rebuildWorkMembership();
         this.revision++;
+    }
+
+    boolean matchesWorkMembership(TrinityPatternSlotImpl state) {
+        return this.workMembership.equals(state.workMembership);
     }
 
     WorkState captureWorkState() {
@@ -704,15 +716,24 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         return rebound;
     }
 
-    private void validatePersistedDefinition(TrinityPatternDefinition definition) {
+    @Nullable
+    private IMolecularAssemblerSupportedPattern validatePersistedDefinition(TrinityPatternDefinition definition) {
         if (!definition.resolved()) {
-            return;
+            return null;
         }
         IMolecularAssemblerSupportedPattern decoded = this.decoder.decode(definition.pattern());
         Optional<TrinityPatternRecipeIdResolvers.Resolution> resolution = decoded == null ? Optional.empty() : this.recipeIdResolvers.resolve(decoded);
         if (resolution.isEmpty() || !resolution.get().equals(definition.resolution())) {
             throw new IllegalArgumentException(
                     "V2 Trinity pattern definition " + definition.id() + " does not match its encoded recipe identity");
+        }
+        return decoded;
+    }
+
+    private void bindValidatedInstalledPattern(IMolecularAssemblerSupportedPattern decoded) {
+        this.decodedPattern = decoded;
+        if (rebindMatchingUnresolvedDefinitions(this.installedDefinition)) {
+            collectUnusedDefinitions();
         }
     }
 
@@ -842,6 +863,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private void changed(ChangeKind kind) {
         this.revision = Math.incrementExact(this.revision);
         this.changeListener.onChanged(new Change(this.index, kind));
+    }
+
+    private void runtimeBindingRefreshed() {
+        this.changeListener.onChanged(new Change(this.index, ChangeKind.RUNTIME_BINDING));
     }
 
     private void rebuildWorkMembership() {

@@ -20,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 
@@ -55,10 +54,12 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private final TrinityPatternRecipeIdResolvers recipeIdResolvers;
     private final TrinityPatternSlot.ChangeListener changeListener;
     private final List<TrinityPatternSlotImpl> slots;
+    /** Constant-time slot lookup for stable occupied-directory entries. */
+    private final Map<Integer, CachedPattern> cachedPatterns = new HashMap<>();
     /**
-     * Slot-ordered decoded recipes used to publish a core snapshot without rescanning empty capacity.
+     * Slots retaining an encoded pattern, ordered for reload and persistence without a capacity scan.
      */
-    private final TreeMap<Integer, CachedPattern> cachedPatterns = new TreeMap<>();
+    private final TreeSet<Integer> occupiedPatternSlots = new TreeSet<>();
     /**
      * Slots with at least one queued group, ordered to preserve deterministic execution.
      */
@@ -81,10 +82,11 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     private long revision;
     private long stateRevision;
     /**
-     * Latest immutable publication view; replaced atomically after each catalog revision.
+     * Latest structurally immutable occupied directory; runtime bindings change through stable entries.
      */
     private PatternCacheSnapshot patternCacheSnapshot = new PatternCacheSnapshot(0L, List.of());
-    private boolean bulkRefreshing;
+    /** Latest immutable occupied-slot index, replaced only with the pattern directory. */
+    private List<Integer> occupiedPatternSlotSnapshot = List.of();
     @Nullable
     private CoreRefundTransaction activeRefundTransaction;
 
@@ -151,6 +153,18 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         return this.patternCacheSnapshot;
     }
 
+    @Nullable
+    @Override
+    public CachedPattern cachedPattern(int slot) {
+        checkSlot(slot);
+        return this.cachedPatterns.get(slot);
+    }
+
+    @Override
+    public List<Integer> occupiedPatternSlots() {
+        return this.occupiedPatternSlotSnapshot;
+    }
+
     @Override
     public InternalInventory patternInventory() {
         return this.patternInventory;
@@ -182,15 +196,9 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     @Override
     public void refreshAllPatternCaches() {
         ensureNoActiveRefundTransaction();
-        this.bulkRefreshing = true;
-        try {
-            for (TrinityPatternSlotImpl slot : this.slots) {
-                slot.refreshPatternCache();
-            }
-        } finally {
-            this.bulkRefreshing = false;
+        for (int slot : this.occupiedPatternSlots) {
+            this.slots.get(slot).refreshPatternCache();
         }
-        markCatalogChanged(0);
     }
 
     @Override
@@ -348,10 +356,8 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         data.putUUID(CORE_ID_TAG, this.coreId);
         data.putInt(PATTERN_CAPACITY_TAG, this.patternCapacity);
         ListTag slotEntries = new ListTag();
-        for (TrinityPatternSlotImpl slot : this.slots) {
-            if (slot.hasPersistentState()) {
-                slotEntries.add(slot.writeV2(registries));
-            }
+        for (int slot : persistentSlots()) {
+            slotEntries.add(this.slots.get(slot).writeV2(registries));
         }
         data.put(SLOTS_TAG, slotEntries);
         data.remove(PATTERNS_TAG);
@@ -370,7 +376,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         }
         validatePersistedCapacity(data);
         UUID loadedId = data.getUUID(CORE_ID_TAG);
-        List<TrinityPatternSlotImpl> loadedSlots;
+        Map<Integer, TrinityPatternSlotImpl> loadedSlots;
         if (data.contains(VERSION_TAG)) {
             if (!data.contains(VERSION_TAG, Tag.TAG_INT) || data.getInt(VERSION_TAG) != STATE_VERSION) {
                 throw new IllegalArgumentException("Unsupported Trinity pattern core state version");
@@ -388,29 +394,80 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                     requiredCompoundList(data, QUEUES_TAG),
                     registries,
                     loadedId);
-            List<LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> loadedOutputs = readV1PendingOutputs(
+            Map<Integer, LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> loadedOutputs = readV1PendingOutputs(
                     requiredCompoundList(data, PENDING_OUTPUTS_TAG), registries, loadedId);
-            for (int slot = 0; slot < this.patternCapacity; slot++) {
-                loadedSlots.get(slot).loadMigratedPendingOutputs(loadedOutputs.get(slot));
+            for (Map.Entry<Integer, LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> entry : loadedOutputs.entrySet()) {
+                loadedSlots.computeIfAbsent(entry.getKey(), this::newDetachedSlot)
+                        .loadMigratedPendingOutputs(entry.getValue());
             }
         }
 
-        if (this.revision == Long.MAX_VALUE || this.stateRevision == Long.MAX_VALUE) {
+        TreeSet<Integer> loadedOccupiedSlots = occupiedSlots(loadedSlots.values());
+        TreeSet<Integer> changedPatternSlots = changedPatternSlots(loadedSlots, loadedOccupiedSlots);
+        boolean patternDirectoryChanged = !changedPatternSlots.isEmpty();
+        if ((patternDirectoryChanged && this.revision == Long.MAX_VALUE) ||
+                (this.stateRevision == Long.MAX_VALUE)) {
             throw new ArithmeticException("Trinity pattern core revision overflow");
         }
-        WorkIndexes loadedIndexes = createWorkIndexes(loadedSlots);
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            this.slots.get(slot).ensureCanApplyValidatedState(loadedSlots.get(slot));
+        WorkIndexes loadedIndexes = createWorkIndexes(loadedSlots.values());
+        TreeSet<Integer> changedSlots = persistentSlots();
+        changedSlots.addAll(loadedSlots.keySet());
+        TreeSet<Integer> changedWorkSlots = new TreeSet<>();
+        for (int slot : changedSlots) {
+            TrinityPatternSlotImpl loadedSlot = loadedSlots.computeIfAbsent(slot, this::newDetachedSlot);
+            this.slots.get(slot).ensureCanApplyValidatedState(loadedSlot);
+            if (!this.slots.get(slot).matchesWorkMembership(loadedSlot)) {
+                changedWorkSlots.add(slot);
+            }
         }
         this.coreId = loadedId;
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
+        for (int slot : changedSlots) {
             this.slots.get(slot).applyValidatedState(loadedSlots.get(slot));
         }
-        this.cachedPatterns.clear();
-        this.revision++;
-        rebuildPatternCacheSnapshot();
+        TreeSet<Integer> changedRuntimeBindings = new TreeSet<>();
+        if (patternDirectoryChanged) {
+            for (int slot : changedPatternSlots) {
+                updateCachedPattern(slot);
+            }
+            this.revision++;
+            rebuildPatternCacheSnapshot();
+        }
+        for (int slot : this.occupiedPatternSlots) {
+            if (!changedPatternSlots.contains(slot)) {
+                CachedPattern cached = this.cachedPatterns.get(slot);
+                IMolecularAssemblerSupportedPattern decoded = this.slots.get(slot).decodedPattern();
+                if (cached.rebind(decoded)) {
+                    changedRuntimeBindings.add(slot);
+                }
+            }
+        }
         applyWorkIndexes(loadedIndexes);
         this.stateRevision++;
+        for (int slot : changedPatternSlots) {
+            this.changeListener.onChanged(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.CATALOG));
+        }
+        for (int slot : changedRuntimeBindings) {
+            this.changeListener.onChanged(
+                    new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.RUNTIME_BINDING));
+        }
+        for (int slot : changedWorkSlots) {
+            this.changeListener.onChanged(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.WORK));
+        }
+    }
+
+    private TreeSet<Integer> changedPatternSlots(Map<Integer, TrinityPatternSlotImpl> loadedSlots,
+                                                 Set<Integer> loadedOccupiedSlots) {
+        TreeSet<Integer> changed = new TreeSet<>(this.occupiedPatternSlots);
+        changed.addAll(loadedOccupiedSlots);
+        TreeSet<Integer> retained = new TreeSet<>(this.occupiedPatternSlots);
+        retained.retainAll(loadedOccupiedSlots);
+        changed.removeAll(retained);
+        for (int slot : retained) {
+            if (!ItemStack.matches(this.slots.get(slot).pattern(), loadedSlots.get(slot).pattern())) {
+                changed.add(slot);
+            }
+        }
+        return changed;
     }
 
     private RefundState captureRefundState(@Nullable UUID routeHostId) {
@@ -473,14 +530,19 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         rebuildWorkIndexes();
     }
 
-    private List<TrinityPatternSlotImpl> readV2Slots(ListTag entries, HolderLookup.Provider registries, UUID loadedId) {
-        ArrayList<TrinityPatternSlotImpl> loaded = emptySlotList();
-        Set<Integer> populated = new HashSet<>();
+    private Map<Integer, TrinityPatternSlotImpl> readV2Slots(
+                                                             ListTag entries,
+                                                             HolderLookup.Provider registries,
+                                                             UUID loadedId) {
+        HashMap<Integer, TrinityPatternSlotImpl> loaded = new HashMap<>();
         for (int index = 0; index < entries.size(); index++) {
             TrinityPatternSlotImpl slot = TrinityPatternSlotImpl.readV2(
                     entries.getCompound(index), this.decoder, this.recipeIdResolvers, change -> {}, registries);
             checkSlot(slot.index());
-            if (!populated.add(slot.index())) {
+            if (!slot.hasPersistentState()) {
+                throw new IllegalArgumentException("Empty V2 Trinity pattern slot " + slot.index());
+            }
+            if (loaded.putIfAbsent(slot.index(), slot) != null) {
                 throw new IllegalArgumentException("Duplicate V2 Trinity pattern slot " + slot.index());
             }
             for (TrinityCraftingBatch batch : slot.queuedBatches()) {
@@ -489,14 +551,13 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             for (PatternRoute route : slot.pendingOutputRoutes()) {
                 validatePersistedRoute(route, loadedId, slot.index(), "pending output");
             }
-            loaded.set(slot.index(), slot);
         }
         return loaded;
     }
 
-    private List<TrinityPatternSlotImpl> migrateV1Slots(ListTag patternEntries, ListTag queueEntries,
-                                                        HolderLookup.Provider registries, UUID loadedId) {
-        ArrayList<ItemStack> patterns = emptyPatternList();
+    private Map<Integer, TrinityPatternSlotImpl> migrateV1Slots(ListTag patternEntries, ListTag queueEntries,
+                                                                HolderLookup.Provider registries, UUID loadedId) {
+        HashMap<Integer, ItemStack> patterns = new HashMap<>();
         Set<Integer> populatedPatterns = new HashSet<>();
         for (int index = 0; index < patternEntries.size(); index++) {
             CompoundTag entry = patternEntries.getCompound(index);
@@ -505,10 +566,10 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             if (pattern.isEmpty()) {
                 throw new IllegalArgumentException("Persisted V1 pattern slot " + slot + " is empty");
             }
-            patterns.set(slot, pattern);
+            patterns.put(slot, pattern);
         }
 
-        ArrayList<List<TrinityCraftingBatch.V1Data>> queues = emptyV1QueueList();
+        HashMap<Integer, List<TrinityCraftingBatch.V1Data>> queues = new HashMap<>();
         Set<Integer> populatedQueues = new HashSet<>();
         for (int index = 0; index < queueEntries.size(); index++) {
             CompoundTag entry = queueEntries.getCompound(index);
@@ -524,21 +585,29 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                 validatePersistedRoute(v1.route(), loadedId, slot, "V1 queued batch");
                 migrated.add(v1);
             }
-            queues.set(slot, List.copyOf(migrated));
+            queues.put(slot, List.copyOf(migrated));
         }
 
-        ArrayList<TrinityPatternSlotImpl> loaded = new ArrayList<>(this.patternCapacity);
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            loaded.add(TrinityPatternSlotImpl.migrateV1(
-                    slot, patterns.get(slot), queues.get(slot), this.decoder, this.recipeIdResolvers,
+        TreeSet<Integer> populatedSlots = new TreeSet<>(patterns.keySet());
+        populatedSlots.addAll(queues.keySet());
+        HashMap<Integer, TrinityPatternSlotImpl> loaded = new HashMap<>();
+        for (int slot : populatedSlots) {
+            loaded.put(slot, TrinityPatternSlotImpl.migrateV1(
+                    slot,
+                    patterns.getOrDefault(slot, ItemStack.EMPTY),
+                    queues.getOrDefault(slot, List.of()),
+                    this.decoder,
+                    this.recipeIdResolvers,
                     change -> {}));
         }
         return loaded;
     }
 
-    private List<LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> readV1PendingOutputs(
-                                                                                            ListTag entries, HolderLookup.Provider registries, UUID loadedId) {
-        ArrayList<LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> loaded = emptyV1OutputList();
+    private Map<Integer, LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> readV1PendingOutputs(
+                                                                                                    ListTag entries,
+                                                                                                    HolderLookup.Provider registries,
+                                                                                                    UUID loadedId) {
+        HashMap<Integer, LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> loaded = new HashMap<>();
         Set<PatternRoute> populated = new HashSet<>();
         for (int index = 0; index < entries.size(); index++) {
             CompoundTag entry = entries.getCompound(index);
@@ -563,7 +632,8 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                 }
                 outputs.add(TrinityItemAmount.of(output));
             }
-            loaded.get(route.slot()).put(route, List.copyOf(outputs));
+            loaded.computeIfAbsent(route.slot(), ignored -> new LinkedHashMap<>())
+                    .put(route, List.copyOf(outputs));
         }
         return loaded;
     }
@@ -580,37 +650,8 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         return slot;
     }
 
-    private ArrayList<TrinityPatternSlotImpl> emptySlotList() {
-        ArrayList<TrinityPatternSlotImpl> result = new ArrayList<>(this.patternCapacity);
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            result.add(new TrinityPatternSlotImpl(
-                    slot, this.decoder, this.recipeIdResolvers, change -> {}));
-        }
-        return result;
-    }
-
-    private ArrayList<ItemStack> emptyPatternList() {
-        ArrayList<ItemStack> result = new ArrayList<>(this.patternCapacity);
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            result.add(ItemStack.EMPTY);
-        }
-        return result;
-    }
-
-    private ArrayList<List<TrinityCraftingBatch.V1Data>> emptyV1QueueList() {
-        ArrayList<List<TrinityCraftingBatch.V1Data>> result = new ArrayList<>(this.patternCapacity);
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            result.add(List.of());
-        }
-        return result;
-    }
-
-    private ArrayList<LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> emptyV1OutputList() {
-        ArrayList<LinkedHashMap<PatternRoute, List<TrinityItemAmount>>> result = new ArrayList<>(this.patternCapacity);
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            result.add(new LinkedHashMap<>());
-        }
-        return result;
+    private TrinityPatternSlotImpl newDetachedSlot(int slot) {
+        return new TrinityPatternSlotImpl(slot, this.decoder, this.recipeIdResolvers, change -> {});
     }
 
     private void validateOwnedRoute(PatternRoute route) {
@@ -702,11 +743,7 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
             if (!result.completed()) {
                 break;
             }
-            ArrayList<TrinityItemAmount> countedOutputs = new ArrayList<>();
-            for (ItemStack output : result.outputs()) {
-                countedOutputs.addAll(TrinityItemAmount.multiply(output, batch.count()));
-            }
-            slot.completeHead(batch, countedOutputs);
+            slot.completeHead(batch, result.countedOutputs());
             completedGroups = Math.incrementExact(completedGroups);
         }
         return completedGroups;
@@ -726,21 +763,37 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         switch (change.kind()) {
             case CATALOG -> {
                 updateCachedPattern(change.slot());
-                if (!this.bulkRefreshing) {
-                    markCatalogChanged(change.slot());
-                }
+                markCatalogChanged(change.slot());
             }
+            case RUNTIME_BINDING -> updateRuntimeBinding(change.slot());
             case WORK -> updateSlotWorkIndexes(change.slot());
             case PERSISTENT -> markPersistentChanged(change.slot());
         }
     }
 
     private void updateCachedPattern(int slot) {
-        IMolecularAssemblerSupportedPattern decoded = this.slots.get(slot).decodedPattern();
-        if (decoded == null) {
+        ItemStack pattern = this.slots.get(slot).pattern();
+        if (pattern.isEmpty()) {
+            this.occupiedPatternSlots.remove(slot);
             this.cachedPatterns.remove(slot);
-        } else {
-            this.cachedPatterns.put(slot, new CachedPattern(slot, decoded));
+            return;
+        }
+        this.occupiedPatternSlots.add(slot);
+        IMolecularAssemblerSupportedPattern decoded = this.slots.get(slot).decodedPattern();
+        this.cachedPatterns.put(slot, new CachedPattern(slot, decoded));
+    }
+
+    private void updateRuntimeBinding(int slot) {
+        CachedPattern cached = this.cachedPatterns.get(slot);
+        if (cached == null) {
+            throw new IllegalStateException(
+                    "Runtime binding changed for unoccupied Trinity pattern slot " + slot);
+        }
+        IMolecularAssemblerSupportedPattern decoded = this.slots.get(slot).decodedPattern();
+        boolean semanticChange = cached.rebind(decoded);
+        if (semanticChange) {
+            this.changeListener.onChanged(
+                    new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.RUNTIME_BINDING));
         }
     }
 
@@ -751,9 +804,21 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
     }
 
     private void rebuildPatternCacheSnapshot() {
+        this.occupiedPatternSlotSnapshot = List.copyOf(this.occupiedPatternSlots);
+        ArrayList<CachedPattern> orderedPatterns = new ArrayList<>(this.occupiedPatternSlotSnapshot.size());
+        for (int slot : this.occupiedPatternSlotSnapshot) {
+            orderedPatterns.add(this.cachedPatterns.get(slot));
+        }
         this.patternCacheSnapshot = new PatternCacheSnapshot(
                 this.revision,
-                new ArrayList<>(this.cachedPatterns.values()));
+                orderedPatterns);
+    }
+
+    private TreeSet<Integer> persistentSlots() {
+        TreeSet<Integer> persistent = new TreeSet<>(this.occupiedPatternSlots);
+        persistent.addAll(this.queuedSlots);
+        persistent.addAll(this.pendingOutputSlots);
+        return persistent;
     }
 
     private void updateSlotWorkIndexes(int slot) {
@@ -800,13 +865,13 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
         applyWorkIndexes(createWorkIndexes(this.slots));
     }
 
-    private WorkIndexes createWorkIndexes(List<TrinityPatternSlotImpl> sourceSlots) {
+    private WorkIndexes createWorkIndexes(Iterable<TrinityPatternSlotImpl> sourceSlots) {
         TreeSet<Integer> loadedQueuedSlots = new TreeSet<>();
         TreeSet<Integer> loadedPendingOutputSlots = new TreeSet<>();
         HashMap<UUID, TreeSet<Integer>> loadedWorkingSlotsByHost = new HashMap<>();
         HashMap<UUID, TreeSet<Integer>> loadedPendingSlotsByHost = new HashMap<>();
-        for (int slot = 0; slot < this.patternCapacity; slot++) {
-            TrinityPatternSlotImpl patternSlot = sourceSlots.get(slot);
+        for (TrinityPatternSlotImpl patternSlot : sourceSlots) {
+            int slot = patternSlot.index();
             if (patternSlot.hasQueuedWork()) {
                 loadedQueuedSlots.add(slot);
             }
@@ -827,6 +892,16 @@ public final class TrinityPatternCoreImpl implements TrinityPatternCore {
                 loadedPendingOutputSlots,
                 loadedWorkingSlotsByHost,
                 loadedPendingSlotsByHost);
+    }
+
+    private static TreeSet<Integer> occupiedSlots(Iterable<TrinityPatternSlotImpl> sourceSlots) {
+        TreeSet<Integer> occupied = new TreeSet<>();
+        for (TrinityPatternSlotImpl slot : sourceSlots) {
+            if (!slot.pattern().isEmpty()) {
+                occupied.add(slot.index());
+            }
+        }
+        return occupied;
     }
 
     private void applyWorkIndexes(WorkIndexes indexes) {
