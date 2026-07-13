@@ -64,8 +64,10 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     private CoreLoadState coreLoadState = CoreLoadState.NEW;
     @Nullable
     private CompoundTag stagedCoreState;
+    private boolean stagedInitialHydration;
     @Nullable
     private TrinityPatternCoreHost patternHost;
+    private boolean patternHostChangeFailed;
 
     /**
      * Creates a core and derives its fixed inventory size directly from the placed block metadata.
@@ -93,7 +95,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         boolean hydratedStagedState = false;
         super.setLevel(level);
         if (this.coreLoadState == CoreLoadState.STAGED) {
-            if (tryLoadCoreState(this.stagedCoreState, level.registryAccess())) {
+            if (tryLoadCoreState(this.stagedCoreState, level.registryAccess(), this.stagedInitialHydration)) {
                 this.stagedCoreState = null;
                 this.coreLoadState = CoreLoadState.READY;
                 hydratedStagedState = true;
@@ -121,6 +123,18 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * unbound, offline, or structurally invalid core cannot craft independently.
      */
     public void serverTick() {
+        if (this.patternHostChangeFailed) {
+            this.patternHostChangeFailed = false;
+            try {
+                releasePatternHost();
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to withdraw Trinity pattern core {} at {} after a host update failure",
+                        coreId(),
+                        this.worldPosition,
+                        exception);
+            }
+        }
         if (isCoreStateReady()) {
             this.coreLoadState = CoreLoadState.READY;
             ensurePatternCachesCurrent();
@@ -214,6 +228,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     public void unbindPatternHost(TrinityPatternCoreHost host) {
         if (this.patternHost == host) {
             this.patternHost = null;
+            this.patternHostChangeFailed = false;
         }
     }
 
@@ -250,16 +265,17 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        loadCoreState(data, registries);
+        loadCoreState(data, registries, this.coreLoadState != CoreLoadState.READY);
     }
 
-    private void loadCoreState(CompoundTag data, HolderLookup.Provider registries) {
+    private void loadCoreState(CompoundTag data, HolderLookup.Provider registries, boolean initialHydration) {
         if (this.level == null) {
             this.stagedCoreState = data.copy();
+            this.stagedInitialHydration = initialHydration;
             this.coreLoadState = CoreLoadState.STAGED;
             return;
         }
-        if (tryLoadCoreState(data, registries)) {
+        if (tryLoadCoreState(data, registries, initialHydration)) {
             this.stagedCoreState = null;
             this.coreLoadState = CoreLoadState.READY;
         } else if (this.coreLoadState != CoreLoadState.READY) {
@@ -340,6 +356,22 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Override
     public boolean enqueueBatch(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick) {
         return readyCore().enqueueBatch(route, patternSnapshot, inputs, queuedTick);
+    }
+
+    @Override
+    public boolean enqueueBatch(PatternRoute route,
+                                CachedPattern expectedPattern,
+                                long expectedRuntimeBindingRevision,
+                                TrinityCraftingBatch.InputSignature inputs,
+                                long queuedTick,
+                                long count) {
+        return readyCore().enqueueBatch(
+                route,
+                expectedPattern,
+                expectedRuntimeBindingRevision,
+                inputs,
+                queuedTick,
+                count);
     }
 
     @Override
@@ -431,8 +463,13 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Override
+    public void hydrateFromTag(CompoundTag data, HolderLookup.Provider registries) {
+        loadCoreState(data, registries, true);
+    }
+
+    @Override
     public void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
-        loadCoreState(data, registries);
+        loadCoreState(data, registries, false);
     }
 
     @Override
@@ -515,10 +552,16 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         }
     }
 
-    private boolean tryLoadCoreState(CompoundTag data, HolderLookup.Provider registries) {
+    private boolean tryLoadCoreState(CompoundTag data,
+                                     HolderLookup.Provider registries,
+                                     boolean initialHydration) {
         UUID previousCoreId = this.core.coreId();
         try {
-            this.core.readFromTag(data, registries);
+            if (initialHydration) {
+                this.core.hydrateFromTag(data, registries);
+            } else {
+                this.core.readFromTag(data, registries);
+            }
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Rejected Trinity pattern core state at {} because its persisted definitions are invalid",
@@ -562,17 +605,30 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     private void onCoreChanged(TrinityPatternSlot.Change change) {
-        if (change.kind() == TrinityPatternSlot.ChangeKind.PERSISTENT) {
-            setChanged();
-            return;
-        }
-        if (change.kind() == TrinityPatternSlot.ChangeKind.CATALOG &&
-                this.level != null && !this.level.isClientSide()) {
-            markForClientUpdate();
-        }
-        TrinityPatternCoreHost host = currentPatternHost();
-        if (host != null) {
-            host.onPatternCoreChanged(this, change);
+        try {
+            if (change.kind() == TrinityPatternSlot.ChangeKind.PERSISTENT) {
+                setChanged();
+                return;
+            }
+            if (change.kind() == TrinityPatternSlot.ChangeKind.CATALOG &&
+                    this.level != null && !this.level.isClientSide()) {
+                markForClientUpdate();
+            }
+            if (!this.patternHostChangeFailed) {
+                TrinityPatternCoreHost host = currentPatternHost();
+                if (host != null) {
+                    host.onPatternCoreChanged(this, change);
+                }
+            }
+        } catch (RuntimeException exception) {
+            this.patternHostChangeFailed = true;
+            Data_Energistics.LOGGER.error(
+                    "Trinity pattern core {} at {} retained committed slot {} {} state after its host callback failed",
+                    coreId(),
+                    this.worldPosition,
+                    change.slot(),
+                    change.kind(),
+                    exception);
         }
     }
 
@@ -589,6 +645,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     private void releasePatternHost() {
         TrinityPatternCoreHost current = this.patternHost;
         this.patternHost = null;
+        this.patternHostChangeFailed = false;
         if (current != null) {
             current.onPatternCoreUnavailable(this);
         }

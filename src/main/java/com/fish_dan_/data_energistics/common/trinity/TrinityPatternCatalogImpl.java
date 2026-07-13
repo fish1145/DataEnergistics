@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch.InputSignature;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore.CachedPattern;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore.PatternCacheSnapshot;
 
@@ -8,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.crafting.IPatternDetails;
-import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
@@ -289,14 +289,14 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (binding == null) {
             return false;
         }
-        TrinityPatternCore core = binding.runtime.core();
+        TrinityPatternCore core = binding.core;
         CachedPattern cachedPattern = binding.cachedPattern;
+        long runtimeBindingRevision = binding.runtimeBindingRevision;
         if (!binding.runtime.matches(binding.runtime.range.mount()) ||
                 !core.runtimeBindingsCurrent() ||
                 core.revision() != binding.runtime.directoryRevision || cachedPattern == null ||
-                cachedPattern.runtimeBindingRevision() != binding.runtimeBindingRevision ||
-                binding.routedDetails != routed ||
-                !(routed.delegate() instanceof IMolecularAssemblerSupportedPattern routedPattern)) {
+                cachedPattern.runtimeBindingRevision() != runtimeBindingRevision ||
+                binding.routedDetails != routed) {
             return false;
         }
 
@@ -304,14 +304,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (currentPattern == null) {
             return false;
         }
-        AEItemKey routedDefinition = routed.getDefinition();
-        if (!routedDefinition.equals(routedPattern.getDefinition()) ||
-                !routedDefinition.equals(currentPattern.getDefinition())) {
-            return false;
-        }
-        ItemStack patternSnapshot = binding.slot.pattern();
-        if (patternSnapshot.isEmpty() ||
-                !ItemStack.isSameItemSameComponents(patternSnapshot, routedDefinition.toStack())) {
+        if (!routed.getDefinition().equals(cachedPattern.encodedDefinition())) {
             return false;
         }
 
@@ -319,9 +312,15 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (workingInputs == null) {
             return false;
         }
-        List<ItemStack> craftingGrid = createCraftingGridSnapshot(currentPattern, workingInputs);
+        InputSignature craftingGrid = createCraftingGridSnapshot(currentPattern, workingInputs);
         if (craftingGrid == null || !allInputsConsumed(workingInputs) ||
-                !binding.slot.enqueue(binding.route, patternSnapshot, craftingGrid, queuedTick, count)) {
+                !core.enqueueBatch(
+                        binding.route,
+                        cachedPattern,
+                        runtimeBindingRevision,
+                        craftingGrid,
+                        queuedTick,
+                        count)) {
             return false;
         }
         if (!this.activeSlotsByGlobalIndex.containsKey(binding.globalIndex)) {
@@ -572,8 +571,8 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     }
 
     @Nullable
-    private static List<ItemStack> createCraftingGridSnapshot(IMolecularAssemblerSupportedPattern pattern,
-                                                              KeyCounter[] workingInputs) {
+    private static InputSignature createCraftingGridSnapshot(IMolecularAssemblerSupportedPattern pattern,
+                                                             KeyCounter[] workingInputs) {
         ArrayList<ItemStack> craftingGrid = new ArrayList<>(CRAFTING_GRID_SLOT_COUNT);
         boolean[] populated = new boolean[CRAFTING_GRID_SLOT_COUNT];
         for (int slot = 0; slot < CRAFTING_GRID_SLOT_COUNT; slot++) {
@@ -601,7 +600,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (craftingGrid.stream().allMatch(ItemStack::isEmpty)) {
             return null;
         }
-        return List.copyOf(craftingGrid);
+        return InputSignature.takeOwnership(craftingGrid);
     }
 
     private static boolean allInputsConsumed(KeyCounter[] inputs) {
@@ -741,6 +740,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     private static final class SlotBinding {
 
         private final CoreRuntime runtime;
+        private final TrinityPatternCore core;
         private final int globalIndex;
         private final PatternRoute route;
         private final TrinityPatternSlot slot;
@@ -753,6 +753,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
         private SlotBinding(CoreRuntime runtime, int globalIndex, PatternRoute route, TrinityPatternSlot slot) {
             this.runtime = runtime;
+            this.core = runtime.core();
             this.globalIndex = globalIndex;
             this.route = route;
             this.slot = slot;

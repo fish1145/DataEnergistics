@@ -48,13 +48,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private final TrinityPatternCore.PatternDecoder decoder;
     private final TrinityPatternRecipeIdResolvers recipeIdResolvers;
     private final ChangeListener changeListener;
-    private final LinkedHashMap<Long, TrinityPatternDefinition> definitions = new LinkedHashMap<>();
-    private final ArrayDeque<TrinityCraftingBatch> queue = new ArrayDeque<>();
-    private final LinkedHashMap<PatternRoute, ArrayList<TrinityItemAmount>> pendingOutputs = new LinkedHashMap<>();
+    private LinkedHashMap<Long, TrinityPatternDefinition> definitions = new LinkedHashMap<>();
+    private ArrayDeque<TrinityCraftingBatch> queue = new ArrayDeque<>();
+    private LinkedHashMap<PatternRoute, ArrayList<TrinityItemAmount>> pendingOutputs = new LinkedHashMap<>();
     /** Counts queued groups per host so ordinary mutations never rescan the FIFO. */
-    private final Map<UUID, Integer> queuedGroupsByHost = new HashMap<>();
+    private Map<UUID, Integer> queuedGroupsByHost = new HashMap<>();
     /** Counts pending routes per host so partial output consumption leaves membership untouched. */
-    private final Map<UUID, Integer> pendingRoutesByHost = new HashMap<>();
+    private Map<UUID, Integer> pendingRoutesByHost = new HashMap<>();
 
     private ItemStack pattern = ItemStack.EMPTY;
     @Nullable
@@ -155,6 +155,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         return this.decodedPattern;
     }
 
+    TrinityPatternDefinition requiredInstalledDefinition() {
+        if (this.installedDefinition == null) {
+            throw new IllegalStateException("Occupied Trinity pattern slot " + this.index + " has no definition");
+        }
+        return this.installedDefinition;
+    }
+
     @Override
     public void refreshPatternCache() {
         if (this.pattern.isEmpty()) {
@@ -201,31 +208,68 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                            List<ItemStack> inputs,
                            long queuedTick,
                            long count) {
-        if (count <= 0L) {
-            throw new IllegalArgumentException("Queued crafting count must be positive: " + count);
-        }
+        validateCount(count);
         ItemStack normalized = normalizePattern(patternSnapshot);
         if (this.pattern.isEmpty() || this.decodedPattern == null || this.installedDefinition == null ||
                 !this.installedDefinition.resolved() || !ItemStack.matches(this.pattern, normalized)) {
             return false;
         }
+        return enqueueResolved(
+                route,
+                this.installedDefinition,
+                TrinityCraftingBatch.InputSignature.copyOf(inputs),
+                queuedTick,
+                count);
+    }
 
+    boolean enqueueCached(PatternRoute route,
+                          TrinityPatternDefinition expectedDefinition,
+                          TrinityCraftingBatch.InputSignature inputs,
+                          long queuedTick,
+                          long count) {
+        validateCount(count);
+        if (this.decodedPattern == null || this.installedDefinition != expectedDefinition ||
+                !expectedDefinition.resolved()) {
+            return false;
+        }
+        return enqueueResolved(route, expectedDefinition, inputs, queuedTick, count);
+    }
+
+    private boolean enqueueResolved(PatternRoute route,
+                                    TrinityPatternDefinition definition,
+                                    TrinityCraftingBatch.InputSignature inputs,
+                                    long queuedTick,
+                                    long count) {
         TrinityCraftingBatch incoming = TrinityCraftingBatch.resolved(
                 queuedTick,
                 route,
-                this.installedDefinition,
+                definition,
                 inputs,
                 count,
                 true);
         WorkMembership previousWork = this.workMembership;
         long mergeCount = this.queue.isEmpty() ? 0L : this.queue.getLast().mergeableCount(incoming);
+        long remainingCount = count - mergeCount;
+        TrinityCraftingBatch mergedTail = mergeCount > 0L ?
+                this.queue.getLast().mergedWith(incoming, mergeCount) : null;
+        TrinityCraftingBatch remainingBatch = remainingCount > 0L && mergeCount > 0L ?
+                incoming.withCount(remainingCount) : null;
+        boolean addsQueueGroup = mergeCount == 0L || remainingBatch != null;
+        Integer currentHostGroups = this.queuedGroupsByHost.get(route.hostId());
+        if (addsQueueGroup && currentHostGroups != null && currentHostGroups == Integer.MAX_VALUE) {
+            throw new ArithmeticException("Trinity queued host-group count overflow");
+        }
+        int requiredRevisions = addsQueueGroup && currentHostGroups == null ? 2 : 1;
+        if (this.revision > Long.MAX_VALUE - requiredRevisions) {
+            throw new ArithmeticException("Trinity pattern slot revision overflow");
+        }
+
         boolean membershipChanged = false;
         if (mergeCount > 0L) {
-            TrinityCraftingBatch previousTail = this.queue.removeLast();
-            this.queue.addLast(previousTail.mergedWith(incoming, mergeCount));
-            long remainingCount = count - mergeCount;
-            if (remainingCount > 0L) {
-                this.queue.addLast(incoming.withCount(remainingCount));
+            this.queue.removeLast();
+            this.queue.addLast(mergedTail);
+            if (remainingBatch != null) {
+                this.queue.addLast(remainingBatch);
                 membershipChanged = incrementHostCount(this.queuedGroupsByHost, route.hostId());
             }
         } else {
@@ -238,6 +282,12 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         changed(ChangeKind.PERSISTENT);
         notifyWorkMembershipChanged(previousWork);
         return true;
+    }
+
+    private static void validateCount(long count) {
+        if (count <= 0L) {
+            throw new IllegalArgumentException("Queued crafting count must be positive: " + count);
+        }
     }
 
     @Override
@@ -572,19 +622,17 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     void applyValidatedState(TrinityPatternSlotImpl state) {
-        this.pattern = state.pattern.copy();
+        this.pattern = state.pattern;
         this.installedDefinition = state.installedDefinition;
         this.decodedPattern = state.decodedPattern;
         this.nextDefinitionId = state.nextDefinitionId;
-        this.definitions.clear();
-        this.definitions.putAll(state.definitions);
-        this.queue.clear();
-        for (TrinityCraftingBatch batch : state.queue) {
-            this.queue.addLast(batch.copy());
-        }
-        this.pendingOutputs.clear();
-        this.pendingOutputs.putAll(copyPendingOutputs(state.pendingOutputs));
-        rebuildWorkMembership();
+        this.definitions = state.definitions;
+        this.queue = state.queue;
+        this.pendingOutputs = state.pendingOutputs;
+        this.queuedGroupsByHost = state.queuedGroupsByHost;
+        this.pendingRoutesByHost = state.pendingRoutesByHost;
+        this.workMembership = state.workMembership;
+        this.workHostIds = state.workHostIds;
         this.revision++;
     }
 

@@ -36,7 +36,7 @@ public final class TrinityCraftingBatch {
 
     private final long count;
     private final TrinityPatternDefinition definition;
-    private final InputSnapshot inputs;
+    private final InputSignature inputs;
     private final boolean mergeable;
     private final long queuedTick;
     private final PatternRoute route;
@@ -53,11 +53,11 @@ public final class TrinityCraftingBatch {
      */
     private TrinityCraftingBatch(long queuedTick, PatternRoute route, TrinityPatternDefinition definition,
                                  List<ItemStack> inputs, long count, boolean mergeable) {
-        this(queuedTick, route, definition, new InputSnapshot(inputs), count, mergeable);
+        this(queuedTick, route, definition, InputSignature.copyOf(inputs), count, mergeable);
     }
 
     private TrinityCraftingBatch(long queuedTick, PatternRoute route, TrinityPatternDefinition definition,
-                                 InputSnapshot inputs, long count, boolean mergeable) {
+                                 InputSignature inputs, long count, boolean mergeable) {
         if (queuedTick < 0L) {
             throw new IllegalArgumentException("Queued tick must not be negative: " + queuedTick);
         }
@@ -86,6 +86,18 @@ public final class TrinityCraftingBatch {
     public static TrinityCraftingBatch resolved(long queuedTick, PatternRoute route,
                                                 TrinityPatternDefinition definition, List<ItemStack> inputs,
                                                 long count, boolean mergeable) {
+        if (!definition.resolved()) {
+            throw new IllegalArgumentException("A new queued crafting group requires a resolved definition");
+        }
+        return new TrinityCraftingBatch(queuedTick, route, definition, inputs, count, mergeable);
+    }
+
+    static TrinityCraftingBatch resolved(long queuedTick,
+                                         PatternRoute route,
+                                         TrinityPatternDefinition definition,
+                                         InputSignature inputs,
+                                         long count,
+                                         boolean mergeable) {
         if (!definition.resolved()) {
             throw new IllegalArgumentException("A new queued crafting group requires a resolved definition");
         }
@@ -379,20 +391,35 @@ public final class TrinityCraftingBatch {
     }
 
     /**
-     * Private immutable input owner shared by internal batch variants.
+     * Immutable exact input token shared by a host route binding and its queued batch.
      *
      * <p>
      * Stacks are captured once at the enqueue or persistence boundary. Public access still creates defensive copies,
      * so recipe implementations and events can never mutate queued state.
      * </p>
      */
-    private static final class InputSnapshot {
+    public static final class InputSignature {
 
         private final List<ItemStack> stacks;
 
-        private InputSnapshot(List<ItemStack> stacks) {
+        private InputSignature(List<ItemStack> stacks, boolean copyStacks) {
             validateInputs(stacks);
-            this.stacks = TrinityCraftingBatch.copyStacks(stacks);
+            this.stacks = copyStacks ? TrinityCraftingBatch.copyStacks(stacks) : List.copyOf(stacks);
+        }
+
+        /**
+         * Captures an arbitrary caller-owned crafting grid using defensive stack copies.
+         *
+         * @param stacks exactly nine row-major inputs
+         * @return immutable exact input signature
+         */
+        public static InputSignature copyOf(List<ItemStack> stacks) {
+            return new InputSignature(stacks, true);
+        }
+
+        /** Captures the catalog's already-isolated stack copies without copying every stack a second time. */
+        static InputSignature takeOwnership(List<ItemStack> stacks) {
+            return new InputSignature(stacks, false);
         }
 
         private int size() {
@@ -407,7 +434,7 @@ public final class TrinityCraftingBatch {
             return TrinityCraftingBatch.copyStacks(this.stacks);
         }
 
-        private boolean matches(InputSnapshot other) {
+        private boolean matches(InputSignature other) {
             return stackListsMatch(this.stacks, other.stacks);
         }
     }

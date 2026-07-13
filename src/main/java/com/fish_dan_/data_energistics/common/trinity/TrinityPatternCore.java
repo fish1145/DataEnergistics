@@ -5,6 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.AEItemKey;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,17 +30,23 @@ public interface TrinityPatternCore {
     final class CachedPattern {
 
         private final int slot;
+        private TrinityPatternDefinition definition;
+        private final AEItemKey encodedDefinition;
         @Nullable
         private IMolecularAssemblerSupportedPattern details;
         @Nullable
         private TrinityPatternPublicationSignature publicationSignature;
         private long runtimeBindingRevision;
 
-        public CachedPattern(int slot, @Nullable IMolecularAssemblerSupportedPattern details) {
+        public CachedPattern(int slot,
+                             TrinityPatternDefinition definition,
+                             @Nullable IMolecularAssemblerSupportedPattern details) {
             if (slot < 0) {
                 throw new IllegalArgumentException("Cached Trinity pattern slot must not be negative");
             }
             this.slot = slot;
+            this.definition = definition;
+            this.encodedDefinition = AEItemKey.of(definition.pattern());
             this.details = details;
             this.publicationSignature = details == null ? null : TrinityPatternPublicationSignature.capture(details);
         }
@@ -49,6 +56,28 @@ public interface TrinityPatternCore {
          */
         public int slot() {
             return this.slot;
+        }
+
+        /**
+         * @return immutable slot-local definition token retained by queued groups
+         */
+        public TrinityPatternDefinition definition() {
+            return this.definition;
+        }
+
+        /**
+         * @return allocation-free encoded definition key used to validate routed AE patterns
+         */
+        public AEItemKey encodedDefinition() {
+            return this.encodedDefinition;
+        }
+
+        /**
+         * @return stable resolver and recipe IDs captured by the installed definition, or {@code null} when unresolved
+         */
+        @Nullable
+        public TrinityPatternRecipeIdResolvers.Resolution recipeResolution() {
+            return this.definition.resolution();
         }
 
         /**
@@ -66,18 +95,43 @@ public interface TrinityPatternCore {
             return this.runtimeBindingRevision;
         }
 
-        boolean rebind(@Nullable IMolecularAssemblerSupportedPattern details) {
+        PreparedRebind prepareRebind(TrinityPatternDefinition definition,
+                                     @Nullable IMolecularAssemblerSupportedPattern details) {
+            if (!this.encodedDefinition.equals(AEItemKey.of(definition.pattern()))) {
+                throw new IllegalArgumentException("A cached Trinity pattern cannot rebind to another encoded definition");
+            }
+            TrinityPatternRecipeIdResolvers.Resolution currentResolution = this.definition.resolution();
+            TrinityPatternRecipeIdResolvers.Resolution nextResolution = definition.resolution();
+            boolean recipeIdentityChanged = currentResolution == null ? nextResolution != null :
+                    !currentResolution.equals(nextResolution);
             TrinityPatternPublicationSignature nextSignature = details == null ? null :
                     TrinityPatternPublicationSignature.capture(details);
-            boolean semanticChange = this.publicationSignature == null ? nextSignature != null :
-                    !this.publicationSignature.equals(nextSignature);
-            if (semanticChange) {
-                this.runtimeBindingRevision = Math.incrementExact(this.runtimeBindingRevision);
-            }
-            this.details = details;
-            this.publicationSignature = nextSignature;
-            return semanticChange;
+            boolean semanticChange = recipeIdentityChanged || (this.publicationSignature == null ? nextSignature != null :
+                    !this.publicationSignature.equals(nextSignature));
+            long nextRevision = semanticChange ? Math.incrementExact(this.runtimeBindingRevision) :
+                    this.runtimeBindingRevision;
+            return new PreparedRebind(definition, details, nextSignature, nextRevision, semanticChange);
         }
+
+        void commitRebind(PreparedRebind prepared) {
+            this.definition = prepared.definition();
+            this.details = prepared.details();
+            this.publicationSignature = prepared.publicationSignature();
+            this.runtimeBindingRevision = prepared.runtimeBindingRevision();
+        }
+
+        boolean rebind(TrinityPatternDefinition definition,
+                       @Nullable IMolecularAssemblerSupportedPattern details) {
+            PreparedRebind prepared = prepareRebind(definition, details);
+            commitRebind(prepared);
+            return prepared.semanticChange();
+        }
+
+        record PreparedRebind(TrinityPatternDefinition definition,
+                              @Nullable IMolecularAssemblerSupportedPattern details,
+                              @Nullable TrinityPatternPublicationSignature publicationSignature,
+                              long runtimeBindingRevision,
+                              boolean semanticChange) {}
     }
 
     /**
@@ -316,6 +370,24 @@ public interface TrinityPatternCore {
     boolean enqueueBatch(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick);
 
     /**
+     * Atomically appends one counted input signature through a cache token captured by the host route binding.
+     *
+     * @param route                          exact host/core/slot destination selected by the crafting plan
+     * @param expectedPattern                stable occupied-slot token that must still own the destination
+     * @param expectedRuntimeBindingRevision exact runtime recipe generation used to materialize the inputs
+     * @param inputs                         immutable nine-slot input prototype selected from the actual AE inputs
+     * @param queuedTick                     current server tick; execution starts only on a later tick
+     * @param count                          positive logical craft count represented by the input prototype
+     * @return true when the cache token and definition still matched atomically and the complete group was queued
+     */
+    boolean enqueueBatch(PatternRoute route,
+                         CachedPattern expectedPattern,
+                         long expectedRuntimeBindingRevision,
+                         TrinityCraftingBatch.InputSignature inputs,
+                         long queuedTick,
+                         long count);
+
+    /**
      * @param slot pattern slot index
      * @return immutable defensive snapshot of that slot's FIFO
      */
@@ -499,7 +571,21 @@ public interface TrinityPatternCore {
     void writeToTag(CompoundTag data, HolderLookup.Provider registries);
 
     /**
-     * Atomically restores complete movable core state from a block entity tag.
+     * Hydrates a pristine core from persisted state without emitting per-slot change events.
+     *
+     * <p>
+     * Initial block-entity loading has no mounted host to update. The implementation therefore parses and applies all
+     * sparse persisted slots atomically, builds one final directory snapshot and one set of work indexes, and leaves
+     * later catalog construction to consume that final state directly.
+     * </p>
+     *
+     * @param data       source tag
+     * @param registries registry lookup used for item components
+     */
+    void hydrateFromTag(CompoundTag data, HolderLookup.Provider registries);
+
+    /**
+     * Atomically restores complete movable core state and emits precise changes for an already-live core.
      *
      * @param data       source tag
      * @param registries registry lookup used for item components
