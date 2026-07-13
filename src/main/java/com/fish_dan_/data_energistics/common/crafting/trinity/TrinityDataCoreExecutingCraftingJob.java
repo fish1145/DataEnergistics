@@ -33,6 +33,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.function.Function;
 
+import static com.fish_dan_.data_energistics.util.LongAmountMath.saturatingMultiplyNonNegative;
+
 /**
  * Persisted job state for one Trinity Data Core virtual CPU.
  *
@@ -95,7 +97,8 @@ final class TrinityDataCoreExecutingCraftingJob {
             long craftCount = entry.getValue();
             this.scheduledTasks.add(entry.getKey(), craftCount);
             for (GenericStack output : entry.getKey().getOutputs()) {
-                long amount = output.amount() * craftCount * output.what().getAmountPerUnit();
+                long amount = saturatingMultiplyNonNegative(output.amount(), craftCount);
+                amount = saturatingMultiplyNonNegative(amount, output.what().getAmountPerUnit());
                 this.timeTracker.addMaxItems(amount, output.what().getType());
             }
         }

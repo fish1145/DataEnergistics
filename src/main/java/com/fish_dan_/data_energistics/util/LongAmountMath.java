@@ -17,4 +17,16 @@ public final class LongAmountMath {
     public static long saturatingAddNonNegative(long left, long right) {
         return left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
     }
+
+    /**
+     * Multiplies two non-negative amounts and saturates at {@link Long#MAX_VALUE} when their exact product is not
+     * representable. Callers must uphold the non-negative input contract.
+     *
+     * @param left  non-negative multiplicand
+     * @param right non-negative multiplier
+     * @return the exact product or {@link Long#MAX_VALUE} on positive overflow
+     */
+    public static long saturatingMultiplyNonNegative(long left, long right) {
+        return left != 0L && right > Long.MAX_VALUE / left ? Long.MAX_VALUE : left * right;
+    }
 }

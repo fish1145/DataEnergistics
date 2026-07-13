@@ -36,7 +36,7 @@ public final class TrinityCraftingBatch {
 
     private final long count;
     private final TrinityPatternDefinition definition;
-    private final List<ItemStack> inputs;
+    private final InputSnapshot inputs;
     private final boolean mergeable;
     private final long queuedTick;
     private final PatternRoute route;
@@ -53,17 +53,21 @@ public final class TrinityCraftingBatch {
      */
     private TrinityCraftingBatch(long queuedTick, PatternRoute route, TrinityPatternDefinition definition,
                                  List<ItemStack> inputs, long count, boolean mergeable) {
+        this(queuedTick, route, definition, new InputSnapshot(inputs), count, mergeable);
+    }
+
+    private TrinityCraftingBatch(long queuedTick, PatternRoute route, TrinityPatternDefinition definition,
+                                 InputSnapshot inputs, long count, boolean mergeable) {
         if (queuedTick < 0L) {
             throw new IllegalArgumentException("Queued tick must not be negative: " + queuedTick);
         }
         if (count <= 0L) {
             throw new IllegalArgumentException("Queued crafting count must be positive: " + count);
         }
-        validateInputs(inputs);
         this.queuedTick = queuedTick;
         this.route = route;
         this.definition = definition;
-        this.inputs = copyStacks(inputs);
+        this.inputs = inputs;
         this.count = count;
         this.mergeable = mergeable;
     }
@@ -113,7 +117,7 @@ public final class TrinityCraftingBatch {
      * @return defensive copies of all nine row-major crafting inputs
      */
     public List<ItemStack> inputs() {
-        return copyStacks(this.inputs);
+        return this.inputs.copyStacks();
     }
 
     /**
@@ -176,7 +180,7 @@ public final class TrinityCraftingBatch {
                 this.definition != later.definition) {
             return 0L;
         }
-        return stackListsMatch(this.inputs, later.inputs) ? Math.min(later.count, Long.MAX_VALUE - this.count) : 0L;
+        return this.inputs.matches(later.inputs) ? Math.min(later.count, Long.MAX_VALUE - this.count) : 0L;
     }
 
     /**
@@ -285,7 +289,7 @@ public final class TrinityCraftingBatch {
     private ListTag writeInputs(HolderLookup.Provider registries) {
         ListTag inputList = new ListTag();
         for (int slot = 0; slot < this.inputs.size(); slot++) {
-            ItemStack input = this.inputs.get(slot);
+            ItemStack input = this.inputs.stack(slot);
             if (input.isEmpty()) {
                 continue;
             }
@@ -372,5 +376,39 @@ public final class TrinityCraftingBatch {
             }
         }
         return true;
+    }
+
+    /**
+     * Private immutable input owner shared by internal batch variants.
+     *
+     * <p>
+     * Stacks are captured once at the enqueue or persistence boundary. Public access still creates defensive copies,
+     * so recipe implementations and events can never mutate queued state.
+     * </p>
+     */
+    private static final class InputSnapshot {
+
+        private final List<ItemStack> stacks;
+
+        private InputSnapshot(List<ItemStack> stacks) {
+            validateInputs(stacks);
+            this.stacks = TrinityCraftingBatch.copyStacks(stacks);
+        }
+
+        private int size() {
+            return this.stacks.size();
+        }
+
+        private ItemStack stack(int slot) {
+            return this.stacks.get(slot);
+        }
+
+        private List<ItemStack> copyStacks() {
+            return TrinityCraftingBatch.copyStacks(this.stacks);
+        }
+
+        private boolean matches(InputSnapshot other) {
+            return stackListsMatch(this.stacks, other.stacks);
+        }
     }
 }

@@ -459,6 +459,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 LongAmountMath.saturatingAddNonNegative(20L, 22L),
                 42L,
                 "Representable amounts must retain their exact sum");
+        helper.assertValueEqual(
+                LongAmountMath.saturatingMultiplyNonNegative(Long.MAX_VALUE, 2L),
+                Long.MAX_VALUE,
+                "Overflowing products must saturate");
+        helper.assertValueEqual(
+                LongAmountMath.saturatingMultiplyNonNegative(6L, 7L),
+                42L,
+                "Representable products must remain exact");
 
         AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
         OutputRuntimeFixture saturated = outputRuntime(helper, new BlockPos(1, 1, 1), 3);
@@ -1162,7 +1170,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution(
                 "counted_batch",
-                TrinityDataCoreCpuContribution.of(4096L, Math.toIntExact(COUNTED_BATCH_SIZE - 1L), 1));
+                TrinityDataCoreCpuContribution.of(4096L, 0, 1));
         seedStorage(grid.storage(), input, COUNTED_BATCH_SIZE);
 
         KeyCounter usedItems = new KeyCounter();

@@ -287,9 +287,6 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         TrinityPatternCatalog.CoreMount mount = host.getPatternCatalog().mountedCores().getFirst();
         TrinityPatternCore core = mount.core();
         helper.assertTrue(core.patternCapacity() > CAKE_PATTERN_SLOT, "Selected P core should expose both test slots");
-        helper.assertTrue(
-                host.getCpuCoProcessors() >= COUNTED_BATCH_SIZE - 1L,
-                "Real counted-batch fixture needs at least 127 co-processors for one-tick dispatch");
 
         ItemStack tablePattern = craftingTablePattern(level);
         ItemStack cakePattern = cakePattern(level);
