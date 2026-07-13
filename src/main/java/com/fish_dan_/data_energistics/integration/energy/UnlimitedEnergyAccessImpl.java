@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -101,7 +100,6 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     @Override
     public long stored(IEnergyStorage storage) {
-        Objects.requireNonNull(storage, "storage");
         Optional<DirectTarget> target = findDirectTarget(storage);
         if (target.isPresent()) {
             Snapshot snapshot = readVerifiedSnapshot(storage, target.get());
@@ -115,7 +113,6 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     @Override
     public long capacity(IEnergyStorage storage) {
-        Objects.requireNonNull(storage, "storage");
         Optional<DirectTarget> target = findDirectTarget(storage);
         if (target.isPresent()) {
             Snapshot snapshot = readVerifiedSnapshot(storage, target.get());
@@ -129,17 +126,16 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     @Override
     public boolean canReceive(IEnergyStorage storage) {
-        return readCapabilityPermission(Objects.requireNonNull(storage, "storage"), true);
+        return readCapabilityPermission(storage, true);
     }
 
     @Override
     public boolean canExtract(IEnergyStorage storage) {
-        return readCapabilityPermission(Objects.requireNonNull(storage, "storage"), false);
+        return readCapabilityPermission(storage, false);
     }
 
     @Override
     public long insert(IEnergyStorage storage, long amount, boolean simulate) {
-        Objects.requireNonNull(storage, "storage");
         validateRequestedAmount(amount);
         if (amount == 0L || !canReceive(storage)) {
             return 0L;
@@ -149,7 +145,6 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     @Override
     public long extract(IEnergyStorage storage, long amount, boolean simulate) {
-        Objects.requireNonNull(storage, "storage");
         validateRequestedAmount(amount);
         if (amount == 0L || !canExtract(storage)) {
             return 0L;
@@ -159,7 +154,6 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     @Override
     public long rollbackExtraction(IEnergyStorage storage, long amount) {
-        Objects.requireNonNull(storage, "storage");
         validateRequestedAmount(amount);
         if (amount == 0L) {
             return 0L;
@@ -200,7 +194,6 @@ public final class UnlimitedEnergyAccessImpl implements UnlimitedEnergyAccess {
 
     @Override
     public void notifyStorageChanged(IEnergyStorage storage) {
-        Objects.requireNonNull(storage, "storage");
         Set<Object> notifiedTargets = Collections.newSetFromMap(new IdentityHashMap<>());
         findDirectTarget(storage).ifPresent(target -> {
             if (target.target() instanceof UnlimitedEnergyStorage typedStorage) {

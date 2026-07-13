@@ -9,8 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.Objects;
-
 /**
  * Structured display and transfer state for one Data Distribution Tower target row.
  *
@@ -41,13 +39,7 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
      * Validates and freezes one structured target entry.
      */
     public DataDistributionTowerTargetEntry {
-        Objects.requireNonNull(itemId, "itemId");
-        Objects.requireNonNull(displayName, "displayName");
-        Objects.requireNonNull(dimensionId, "dimensionId");
-        pos = Objects.requireNonNull(pos, "pos").immutable();
-        Objects.requireNonNull(kind, "kind");
-        Objects.requireNonNull(transferMode, "transferMode");
-        Objects.requireNonNull(transferInfo, "transferInfo");
+        pos = pos.immutable();
         if (displayName.length() > MAX_DISPLAY_NAME_LENGTH) {
             throw new IllegalArgumentException("Target display name exceeds " + MAX_DISPLAY_NAME_LENGTH + " characters");
         }
@@ -70,7 +62,6 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
      * @return immutable structured network entry
      */
     public static DataDistributionTowerTargetEntry fromSummary(BoundTargetSummary summary) {
-        Objects.requireNonNull(summary, "summary");
         return new DataDistributionTowerTargetEntry(
                 summary.itemId(),
                 summary.displayName(),

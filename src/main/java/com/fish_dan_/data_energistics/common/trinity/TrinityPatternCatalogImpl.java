@@ -274,7 +274,13 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     }
 
     @Override
-    public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, long queuedTick) {
+    public boolean pushPattern(IPatternDetails patternDetails,
+                               KeyCounter[] inputHolder,
+                               long queuedTick,
+                               long count) {
+        if (count <= 0L) {
+            throw new IllegalArgumentException("Trinity pattern dispatch count must be positive: " + count);
+        }
         if (!this.layout.active() || !(patternDetails instanceof RoutedCraftingPatternDetails routed) || queuedTick < 0L) {
             return false;
         }
@@ -311,7 +317,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         }
         List<ItemStack> craftingGrid = createCraftingGridSnapshot(currentPattern, workingInputs);
         if (craftingGrid == null || !allInputsConsumed(workingInputs) ||
-                !binding.slot.enqueue(binding.route, patternSnapshot, craftingGrid, queuedTick)) {
+                !binding.slot.enqueue(binding.route, patternSnapshot, craftingGrid, queuedTick, count)) {
             return false;
         }
         if (!this.activeSlotsByGlobalIndex.containsKey(binding.globalIndex)) {

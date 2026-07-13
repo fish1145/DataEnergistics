@@ -16,6 +16,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -26,6 +27,7 @@ import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.crafting.IPatternDetails.IInput;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
@@ -68,6 +70,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private static final int RUNTIME_SCHEMA_VERSION = 2;
     private static final int LEGACY_RUNTIME_SCHEMA_VERSION = 1;
     private static final int CPU_LOGIC_SCHEMA_VERSION = 1;
+    private static final long COUNTED_BATCH_SIZE = 128L;
 
     private TrinityDataCoreCraftingRuntimeTest() {}
 
@@ -348,6 +351,71 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(provider.pushedPattern() == pattern, "The provider must receive the submitted pattern task");
         helper.assertValueEqual(provider.pushedInputSlots(), 0, "The zero-input test pattern should dispatch intact");
         helper.assertValueEqual(cpu.getWaitingFor(output), 1L, "The dispatched output must enter CPU waiting state");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_dispatches_one_counted_batch")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuDispatchesOneCountedBatch(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT);
+
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "128 logical crafts must cross the provider boundary once");
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), COUNTED_BATCH_SIZE,
+                "The single counted provider call must retain all logical crafts");
+        helper.assertValueEqual(fixture.provider().lastPrototypeAmount(), 1L,
+                "The counted provider call must receive one per-craft input prototype");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                "The accepted counted batch must transfer all planned inputs");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                "The accepted counted batch must account for every expected output");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
+                "The accepted counted batch must consume energy for every logical craft");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_limits_counted_batch_by_energy")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuLimitsCountedBatchByEnergy(GameTestHelper helper) {
+        long affordableCrafts = 8L;
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                affordableCrafts,
+                BatchPushOutcome.ACCEPT);
+
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "An exhausted energy source must stop dispatch after one reduced batch");
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), affordableCrafts,
+                "The counted batch must shrink to the number of affordable crafts");
+        helper.assertValueEqual(
+                fixture.cpu().getStored(fixture.input()),
+                COUNTED_BATCH_SIZE - affordableCrafts,
+                "Inputs outside the affordable batch must remain owned by the CPU");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), affordableCrafts,
+                "Only the affordable crafts may enter output waiting state");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
+                "The reduced batch must consume exactly the available energy");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_rolls_back_uncommitted_counted_batches")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRollsBackUncommittedCountedBatches(GameTestHelper helper) {
+        assertCountedBatchRollback(helper, new BlockPos(1, 1, 1), BatchPushOutcome.REJECT);
+        assertCountedBatchRollback(helper, new BlockPos(3, 1, 1), BatchPushOutcome.THROW);
+        assertModulatedEnergyShortfallRollback(helper, new BlockPos(1, 3, 1));
         helper.succeed();
     }
 
@@ -1078,6 +1146,115 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 Map.of());
     }
 
+    private static CountedBatchFixture countedBatchFixture(GameTestHelper helper,
+                                                           BlockPos hostPos,
+                                                           double availableEnergy,
+                                                           BatchPushOutcome outcome) {
+        AEItemKey input = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey output = AEItemKey.of(Items.DIAMOND);
+        CountedPatternDetails pattern = new CountedPatternDetails(input, output);
+        RecordingBatchCraftingProvider provider = new RecordingBatchCraftingProvider(pattern, input, outcome);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        grid.energyService().setStoredPower(availableEnergy);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(hostPos), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution(
+                "counted_batch",
+                TrinityDataCoreCpuContribution.of(4096L, Math.toIntExact(COUNTED_BATCH_SIZE - 1L), 1));
+        seedStorage(grid.storage(), input, COUNTED_BATCH_SIZE);
+
+        KeyCounter usedItems = new KeyCounter();
+        usedItems.add(input, COUNTED_BATCH_SIZE);
+        CraftingPlan plan = new CraftingPlan(
+                new GenericStack(output, COUNTED_BATCH_SIZE),
+                1L,
+                false,
+                false,
+                usedItems,
+                new KeyCounter(),
+                new KeyCounter(),
+                Map.of(pattern, COUNTED_BATCH_SIZE));
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
+        helper.assertTrue(result.successful(), "Counted batch fixture must submit its complete crafting plan");
+        return new CountedBatchFixture(
+                grid,
+                singleBusyWorker(host.getCraftingRuntime()),
+                provider,
+                input,
+                output);
+    }
+
+    private static void assertCountedBatchRollback(GameTestHelper helper,
+                                                   BlockPos hostPos,
+                                                   BatchPushOutcome failureOutcome) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                hostPos,
+                COUNTED_BATCH_SIZE,
+                failureOutcome);
+
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                failureOutcome + " provider must be attempted exactly once");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), COUNTED_BATCH_SIZE,
+                failureOutcome + " provider must return the prototype and every additional input to the CPU");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), 0L,
+                failureOutcome + " provider must not commit expected outputs");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), (double) COUNTED_BATCH_SIZE,
+                failureOutcome + " provider must not consume energy");
+        helper.assertTrue(fixture.cpu().isBusy(), failureOutcome + " provider must leave the task available for retry");
+
+        fixture.provider().setOutcome(BatchPushOutcome.ACCEPT);
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 2,
+                failureOutcome + " provider must permit one later retry");
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), COUNTED_BATCH_SIZE,
+                failureOutcome + " provider must preserve the complete logical task count for retry");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                failureOutcome + " retry must transfer every restored input");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                failureOutcome + " retry must account for every expected output");
+    }
+
+    private static void assertModulatedEnergyShortfallRollback(GameTestHelper helper, BlockPos hostPos) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                hostPos,
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT);
+        fixture.grid().energyService().setMaxModulatedExtraction(7.0D);
+
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 0,
+                "An incomplete modulated energy charge must not reach the provider");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), (double) COUNTED_BATCH_SIZE,
+                "A partial modulated energy charge must be refunded completely");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), COUNTED_BATCH_SIZE,
+                "An incomplete modulated energy charge must restore every prepared input");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), 0L,
+                "An incomplete modulated energy charge must not commit waiting outputs");
+        helper.assertTrue(fixture.cpu().isBusy(),
+                "An incomplete modulated energy charge must preserve the task for retry");
+
+        fixture.grid().energyService().setMaxModulatedExtraction(Double.MAX_VALUE);
+        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "The preserved task must reach the provider after energy recovers");
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), COUNTED_BATCH_SIZE,
+                "The energy-failed task must retain its complete logical count");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                "The successful retry must transfer every restored input");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                "The successful retry must account for every expected output");
+    }
+
     private static void seedStorage(TestStorage storage, AEKey key, long amount) {
         storage.setMaxAcceptedPerInsert(Long.MAX_VALUE);
         long inserted = storage.insert(key, amount, Actionable.MODULATE, IActionSource.empty());
@@ -1284,7 +1461,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private final TestStorage storage = new TestStorage();
         private final IStorageService storageService = new TestStorageService(this.storage);
-        private final IEnergyService energyService = new TestEnergyService();
+        private final TestEnergyService energyService = new TestEnergyService();
         private final TestCraftingService craftingService = new TestCraftingService(
                 this,
                 this.storageService,
@@ -1298,7 +1475,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             return this.storage;
         }
 
-        private IEnergyService energyService() {
+        private TestEnergyService energyService() {
             return this.energyService;
         }
 
@@ -1487,9 +1664,25 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
     private static final class TestEnergyService implements IEnergyService {
 
+        private double storedPower = Double.MAX_VALUE;
+        private double maxModulatedExtraction = Double.MAX_VALUE;
+
+        private void setStoredPower(double storedPower) {
+            this.storedPower = storedPower;
+        }
+
+        private void setMaxModulatedExtraction(double maxModulatedExtraction) {
+            this.maxModulatedExtraction = maxModulatedExtraction;
+        }
+
         @Override
         public double extractAEPower(double amount, Actionable mode, PowerMultiplier multiplier) {
-            return amount;
+            double extracted = Math.min(amount, this.storedPower);
+            if (mode == Actionable.MODULATE) {
+                extracted = Math.min(extracted, this.maxModulatedExtraction);
+                this.storedPower -= extracted;
+            }
+            return extracted;
         }
 
         @Override
@@ -1519,12 +1712,16 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         @Override
         public double injectPower(double amount, Actionable mode) {
-            return 0.0D;
+            double accepted = Math.min(amount, Double.MAX_VALUE - this.storedPower);
+            if (mode == Actionable.MODULATE) {
+                this.storedPower += accepted;
+            }
+            return amount - accepted;
         }
 
         @Override
         public double getStoredPower() {
-            return Double.MAX_VALUE;
+            return this.storedPower;
         }
 
         @Override
@@ -1574,6 +1771,66 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.pushedInputSlots = inputHolder.length;
             this.pushCount++;
             return true;
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
+        }
+    }
+
+    private static final class RecordingBatchCraftingProvider implements TrinityBatchCraftingProvider {
+
+        private final IPatternDetails pattern;
+        private final AEKey input;
+        private BatchPushOutcome outcome;
+        private int batchPushCount;
+        private long lastBatchCount;
+        private long lastPrototypeAmount;
+
+        private RecordingBatchCraftingProvider(IPatternDetails pattern,
+                                               AEKey input,
+                                               BatchPushOutcome outcome) {
+            this.pattern = pattern;
+            this.input = input;
+            this.outcome = outcome;
+        }
+
+        private void setOutcome(BatchPushOutcome outcome) {
+            this.outcome = outcome;
+        }
+
+        private int batchPushCount() {
+            return this.batchPushCount;
+        }
+
+        private long lastBatchCount() {
+            return this.lastBatchCount;
+        }
+
+        private long lastPrototypeAmount() {
+            return this.lastPrototypeAmount;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.pattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            throw new IllegalStateException("Counted batch provider must not receive a single-pattern dispatch");
+        }
+
+        @Override
+        public boolean pushPatternBatch(IPatternDetails patternDetails, KeyCounter[] inputHolder, long count) {
+            this.batchPushCount++;
+            this.lastBatchCount = count;
+            this.lastPrototypeAmount = inputHolder[0].get(this.input);
+            if (this.outcome == BatchPushOutcome.THROW) {
+                throw new IllegalStateException("Test counted batch provider failure");
+            }
+            return this.outcome == BatchPushOutcome.ACCEPT;
         }
 
         @Override
@@ -1666,4 +1923,58 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             return List.of(new GenericStack(this.output, 1L));
         }
     }
+
+    private record CountedPatternDetails(AEItemKey input, AEItemKey output) implements IPatternDetails {
+
+        @Override
+        public AEItemKey getDefinition() {
+            return AEItemKey.of(Items.CRAFTING_TABLE);
+        }
+
+        @Override
+        public IInput[] getInputs() {
+            return new IInput[] { new ExactPatternInput(this.input) };
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return List.of(new GenericStack(this.output, 1L));
+        }
+    }
+
+    private record ExactPatternInput(AEKey key) implements IInput {
+
+        @Override
+        public GenericStack[] getPossibleInputs() {
+            return new GenericStack[] { new GenericStack(this.key, 1L) };
+        }
+
+        @Override
+        public long getMultiplier() {
+            return 1L;
+        }
+
+        @Override
+        public boolean isValid(AEKey input, Level level) {
+            return this.key.equals(input);
+        }
+
+        @Nullable
+        @Override
+        public AEKey getRemainingKey(AEKey template) {
+            return null;
+        }
+    }
+
+    private enum BatchPushOutcome {
+        ACCEPT,
+        REJECT,
+        THROW
+    }
+
+    private record CountedBatchFixture(TestGrid grid,
+                                       TrinityDataCoreVirtualCpu cpu,
+                                       RecordingBatchCraftingProvider provider,
+                                       AEItemKey input,
+                                       AEItemKey output) {}
 }

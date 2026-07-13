@@ -18,13 +18,19 @@ import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 import appeng.crafting.CraftingLink;
 import appeng.crafting.inv.ListCraftingInventory;
 import appeng.me.service.CraftingService;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.AbstractMap;
+import java.util.AbstractSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -54,7 +60,8 @@ final class TrinityDataCoreExecutingCraftingJob {
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
-    final Map<IPatternDetails, TaskProgress> tasks = new HashMap<>();
+    private final ScheduledTasks scheduledTasks = new ScheduledTasks();
+    final Map<IPatternDetails, TaskProgress> tasks = this.scheduledTasks.tasks();
     final TrinityDataCoreElapsedTimeTracker timeTracker;
     GenericStack finalOutput;
     long remainingAmount;
@@ -85,9 +92,10 @@ final class TrinityDataCoreExecutingCraftingJob {
             this.timeTracker.addMaxItems(entry.getLongValue(), entry.getKey().getType());
         }
         for (Map.Entry<IPatternDetails, Long> entry : plan.patternTimes().entrySet()) {
-            this.tasks.computeIfAbsent(entry.getKey(), ignored -> new TaskProgress()).value += entry.getValue();
+            long craftCount = entry.getValue();
+            this.scheduledTasks.add(entry.getKey(), craftCount);
             for (GenericStack output : entry.getKey().getOutputs()) {
-                long amount = output.amount() * entry.getValue() * output.what().getAmountPerUnit();
+                long amount = output.amount() * craftCount * output.what().getAmountPerUnit();
                 this.timeTracker.addMaxItems(amount, output.what().getType());
             }
         }
@@ -119,9 +127,7 @@ final class TrinityDataCoreExecutingCraftingJob {
                     item,
                     taskTag -> PatternDetailsHelper.decodePattern(AEItemKey.fromTag(registries, taskTag), level));
             if (details != null) {
-                TaskProgress progress = new TaskProgress();
-                progress.value = item.getLong(CRAFTING_PROGRESS_TAG);
-                this.tasks.put(details, progress);
+                this.scheduledTasks.add(details, item.getLong(CRAFTING_PROGRESS_TAG));
             }
         }
 
@@ -170,6 +176,21 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     boolean isComplete() {
         return this.remainingAmount <= 0L && this.tasks.isEmpty() && this.waitingFor.list.isEmpty();
+    }
+
+    /** Returns the indexed amount still scheduled by undispatched tasks. */
+    long getPendingOutputs(AEKey key) {
+        return this.scheduledTasks.pendingOutputs(key);
+    }
+
+    /** Adds every indexed undispatched output to the supplied aggregate. */
+    void addScheduledOutputsTo(KeyCounter output) {
+        this.scheduledTasks.addOutputsTo(output);
+    }
+
+    /** Removes the exact counted dispatch from the derived scheduled-output index. */
+    void recordTaskDispatch(IPatternDetails pattern, long craftCount) {
+        this.scheduledTasks.recordDispatch(pattern, craftCount);
     }
 
     static CompoundTag writeTaskDetails(IPatternDetails details, HolderLookup.Provider registries) {
@@ -251,5 +272,223 @@ final class TrinityDataCoreExecutingCraftingJob {
     static final class TaskProgress {
 
         long value;
+    }
+
+    /** Authoritative remaining tasks paired with their derived scheduled-output index. */
+    static final class ScheduledTasks {
+
+        private final TaskQueue tasks = new TaskQueue();
+        private final TrinityScheduledOutputIndex outputs = new TrinityScheduledOutputIndexImpl();
+
+        Map<IPatternDetails, TaskProgress> tasks() {
+            return this.tasks;
+        }
+
+        void add(IPatternDetails pattern, long craftCount) {
+            if (craftCount <= 0L) {
+                throw new IllegalArgumentException("Scheduled task count must be positive: " + craftCount);
+            }
+            TaskProgress progress = this.tasks.computeIfAbsent(pattern, ignored -> new TaskProgress());
+            progress.value = Math.addExact(progress.value, craftCount);
+            this.outputs.add(pattern, craftCount);
+        }
+
+        long pendingOutputs(AEKey key) {
+            return this.outputs.amount(key);
+        }
+
+        void addOutputsTo(KeyCounter output) {
+            this.outputs.addTo(output);
+        }
+
+        void recordDispatch(IPatternDetails pattern, long craftCount) {
+            this.outputs.remove(pattern, craftCount);
+        }
+    }
+
+    /** Insertion-ordered task map whose bounded iterators rotate visited work to the tail. */
+    static final class TaskQueue extends AbstractMap<IPatternDetails, TaskProgress> {
+
+        private final Map<IPatternDetails, TaskNode> index = new HashMap<>();
+        private final Set<Entry<IPatternDetails, TaskProgress>> entries = new AbstractSet<>() {
+
+            @Override
+            public Iterator<Entry<IPatternDetails, TaskProgress>> iterator() {
+                return new TaskIterator();
+            }
+
+            @Override
+            public int size() {
+                return TaskQueue.this.size();
+            }
+
+            @Override
+            public void clear() {
+                TaskQueue.this.clear();
+            }
+        };
+        @Nullable
+        private TaskNode head;
+        @Nullable
+        private TaskNode tail;
+
+        @Override
+        public Set<Entry<IPatternDetails, TaskProgress>> entrySet() {
+            return this.entries;
+        }
+
+        @Override
+        public int size() {
+            return this.index.size();
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            return this.index.containsKey(key);
+        }
+
+        @Override
+        public TaskProgress get(Object key) {
+            TaskNode node = this.index.get(key);
+            return node == null ? null : node.value;
+        }
+
+        @Override
+        public TaskProgress put(IPatternDetails key, TaskProgress value) {
+            TaskNode existing = this.index.get(key);
+            if (existing != null) {
+                return existing.setValue(value);
+            }
+            TaskNode node = new TaskNode(key, value);
+            this.index.put(key, node);
+            append(node);
+            return null;
+        }
+
+        @Override
+        public TaskProgress remove(Object key) {
+            TaskNode node = this.index.get(key);
+            if (node == null) {
+                return null;
+            }
+            removeNode(node);
+            return node.value;
+        }
+
+        @Override
+        public void clear() {
+            this.index.clear();
+            this.head = null;
+            this.tail = null;
+        }
+
+        private void append(TaskNode node) {
+            node.previous = this.tail;
+            node.next = null;
+            if (this.tail == null) {
+                this.head = node;
+            } else {
+                this.tail.next = node;
+            }
+            this.tail = node;
+        }
+
+        private void moveToTail(TaskNode node) {
+            if (node == this.tail) {
+                return;
+            }
+            if (node.previous == null) {
+                this.head = node.next;
+            } else {
+                node.previous.next = node.next;
+            }
+            node.next.previous = node.previous;
+            append(node);
+        }
+
+        private void removeNode(TaskNode node) {
+            this.index.remove(node.key);
+            if (node.previous == null) {
+                this.head = node.next;
+            } else {
+                node.previous.next = node.next;
+            }
+            if (node.next == null) {
+                this.tail = node.previous;
+            } else {
+                node.next.previous = node.previous;
+            }
+            node.previous = null;
+            node.next = null;
+        }
+
+        private final class TaskIterator implements Iterator<Entry<IPatternDetails, TaskProgress>> {
+
+            private int remaining = TaskQueue.this.size();
+            @Nullable
+            private TaskNode next = TaskQueue.this.head;
+            @Nullable
+            private TaskNode current;
+            private boolean removable;
+
+            @Override
+            public boolean hasNext() {
+                return this.remaining > 0;
+            }
+
+            @Override
+            public Entry<IPatternDetails, TaskProgress> next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
+                this.current = this.next;
+                this.next = this.current.next;
+                this.remaining--;
+                this.removable = true;
+                moveToTail(this.current);
+                return this.current;
+            }
+
+            @Override
+            public void remove() {
+                if (!this.removable) {
+                    throw new IllegalStateException("Task iterator has no current entry to remove");
+                }
+                removeNode(this.current);
+                this.removable = false;
+            }
+        }
+
+        private final class TaskNode implements Entry<IPatternDetails, TaskProgress> {
+
+            private final IPatternDetails key;
+            private TaskProgress value;
+            @Nullable
+            private TaskNode previous;
+            @Nullable
+            private TaskNode next;
+
+            private TaskNode(IPatternDetails key, TaskProgress value) {
+                this.key = key;
+                this.value = value;
+            }
+
+            @Override
+            public IPatternDetails getKey() {
+                return this.key;
+            }
+
+            @Override
+            public TaskProgress getValue() {
+                return this.value;
+            }
+
+            @Override
+            public TaskProgress setValue(TaskProgress value) {
+                TaskProgress previous = this.value;
+                this.value = value;
+                return previous;
+            }
+        }
     }
 }

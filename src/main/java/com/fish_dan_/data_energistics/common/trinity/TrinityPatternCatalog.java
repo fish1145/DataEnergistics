@@ -300,7 +300,20 @@ public interface TrinityPatternCatalog {
      * @param queuedTick     server tick on which the dispatch arrived
      * @return true only when a complete 3 by 3 snapshot was enqueued in the exact routed slot
      */
-    boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, long queuedTick);
+    default boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, long queuedTick) {
+        return pushPattern(patternDetails, inputHolder, queuedTick, 1L);
+    }
+
+    /**
+     * Validates and enqueues one homogeneous counted routed dispatch without partially consuming its input counters.
+     *
+     * @param patternDetails routed pattern selected by AE2
+     * @param inputHolder    one exact per-craft input prototype
+     * @param queuedTick     server tick on which the dispatch arrived
+     * @param count          positive number of identical logical crafts in the holder
+     * @return true only when one exact 3 by 3 prototype and its complete count were enqueued
+     */
+    boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, long queuedTick, long count);
 
     /**
      * @return immutable mounted cores in stable world-position order

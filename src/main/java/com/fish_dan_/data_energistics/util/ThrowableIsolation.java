@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.util;
 
-import java.util.Objects;
-
 /**
  * Defines the process-level boundary between recoverable third-party failures and fatal JVM termination signals.
  *
@@ -28,7 +26,6 @@ public final class ThrowableIsolation {
      * @throws ThreadDeath         when {@code throwable} requests thread termination
      */
     public static Throwable rethrowIfFatal(Throwable throwable) {
-        Objects.requireNonNull(throwable, "throwable");
         if (throwable instanceof VirtualMachineError virtualMachineError) {
             throw virtualMachineError;
         }

@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.network;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * One complete, atomically publishable Data Distribution Tower target list.
@@ -20,7 +19,7 @@ public record DataDistributionTowerTargetsSnapshot(int containerId,
      * Validates that the assembled snapshot is complete and immutable.
      */
     public DataDistributionTowerTargetsSnapshot {
-        entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
+        entries = List.copyOf(entries);
         if (containerId < 0) {
             throw new IllegalArgumentException("Container id must be non-negative: " + containerId);
         }
