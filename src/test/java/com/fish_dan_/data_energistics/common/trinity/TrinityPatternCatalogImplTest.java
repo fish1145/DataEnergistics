@@ -571,12 +571,18 @@ public final class TrinityPatternCatalogImplTest {
         assertTrue(catalog.refreshChangedPatterns());
         assertEquals(firstLayout.revision(), catalog.layoutSnapshot().revision());
         assertTrue(catalog.isMountCurrent(firstLayout.revision(), smallMount));
+        TrinityPatternCatalog.LayoutSnapshot layoutBeforeUnchangedRebuild = catalog.layoutSnapshot();
+        List<IPatternDetails> patternsBeforeUnchangedRebuild = catalog.getAvailablePatterns();
+        IPatternDetails routedPatternBeforeUnchangedRebuild = patternsBeforeUnchangedRebuild.getFirst();
         TrinityPatternCatalog.RebuildResult sameLayout = catalog.rebuild(List.of(
                 extendedMount,
                 overlimitMount,
                 smallMount));
         assertFalse(sameLayout.changed());
         assertEquals(firstLayout.revision(), catalog.layoutSnapshot().revision());
+        assertSame(layoutBeforeUnchangedRebuild, catalog.layoutSnapshot());
+        assertSame(patternsBeforeUnchangedRebuild, catalog.getAvailablePatterns());
+        assertSame(routedPatternBeforeUnchangedRebuild, catalog.getAvailablePatterns().getFirst());
 
         TrinityPatternCatalog.CoreMount movedSmallMount = new TrinityPatternCatalog.CoreMount(
                 new BlockPos(4, 0, 0), 64, small);

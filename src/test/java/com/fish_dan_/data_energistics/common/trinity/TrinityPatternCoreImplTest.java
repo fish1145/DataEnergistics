@@ -96,6 +96,8 @@ public final class TrinityPatternCoreImplTest {
         assertTrue(core.patternInventory().extractItem(0, 1, true).is(Items.PAPER));
         assertEquals(1L, core.revision());
         assertTrue(installedSnapshot == core.patternCacheSnapshot());
+        assertTrue(installedCache == core.cachedPattern(0));
+        assertTrue(installedSlots == core.occupiedPatternSlots());
 
         pattern.setCount(0);
         assertTrue(core.pattern(0).is(Items.PAPER));
