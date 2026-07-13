@@ -41,7 +41,7 @@ public final class PatternProviderNameHelper {
         if (target instanceof AEBasePart || target instanceof AEBaseBlockEntity) {
             return true;
         }
-        return resolveCustomNameField(target.getClass()) != null;
+        return resolveCustomNameField(target.getClass()).isPresent();
     }
 
     public static void syncRename(Object target) {

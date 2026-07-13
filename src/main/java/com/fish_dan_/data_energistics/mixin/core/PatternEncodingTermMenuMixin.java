@@ -9,7 +9,6 @@ import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
@@ -408,7 +407,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             }
         }
 
-        dataEnergistics$renamePatternProvider(providers.getFirst(), name);
+        dataEnergistics$renamePatternProviders(providers, name);
     }
 
     @Override
@@ -766,19 +765,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$renamePatternProvider(PatternContainer provider, @Nullable String name) {
-        if (!PatternProviderSyncHelper.isRenameableProvider(provider)) {
-            return;
-        }
-
-        String sanitized = name == null ? "" : name.trim();
-        Component customName = sanitized.isEmpty() ? null : Component.literal(sanitized);
-        if (!PatternProviderNameHelper.setCustomName(provider, customName)) {
-            return;
-        }
-
-        PatternProviderNameHelper.syncRename(provider);
-
+    private void dataEnergistics$renamePatternProviders(List<PatternContainer> providers, @Nullable String name) {
+        PatternProviderSyncHelper.renamePatternProviders(providers, name);
         dataEnergistics$syncPatternProvidersFromNetwork();
     }
 

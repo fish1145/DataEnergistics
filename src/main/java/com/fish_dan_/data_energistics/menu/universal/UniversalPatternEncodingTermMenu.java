@@ -10,7 +10,6 @@ import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
-import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.core.NonNullList;
@@ -297,7 +296,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             }
         }
 
-        renamePatternProvider(providers.getFirst(), name);
+        renamePatternProviders(providers, name);
     }
 
     @Override
@@ -581,19 +580,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         } catch (NumberFormatException ignored) {}
     }
 
-    private void renamePatternProvider(PatternContainer provider, @Nullable String name) {
-        if (!PatternProviderSyncHelper.isRenameableProvider(provider)) {
-            return;
-        }
-
-        String sanitized = name == null ? "" : name.trim();
-        var customName = sanitized.isEmpty() ? null : Component.literal(sanitized);
-        if (!PatternProviderNameHelper.setCustomName(provider, customName)) {
-            return;
-        }
-
-        PatternProviderNameHelper.syncRename(provider);
-
+    private void renamePatternProviders(List<PatternContainer> providers, @Nullable String name) {
+        PatternProviderSyncHelper.renamePatternProviders(providers, name);
         syncPatternProvidersFromNetwork();
     }
 
