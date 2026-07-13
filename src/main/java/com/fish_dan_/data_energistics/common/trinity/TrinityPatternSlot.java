@@ -29,6 +29,10 @@ public interface TrinityPatternSlot {
          */
         CATALOG,
         /**
+         * Transient recipe binding changed publishable semantics without changing the installed encoded pattern.
+         */
+        RUNTIME_BINDING,
+        /**
          * This slot's queue or pending-route index changed.
          */
         WORK,

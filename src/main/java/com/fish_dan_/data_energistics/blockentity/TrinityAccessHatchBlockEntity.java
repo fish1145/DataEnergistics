@@ -72,6 +72,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private boolean terminalPartitionsDirty = true;
     private boolean terminalPartitionAttachmentCheckRequested = true;
     private boolean gridBootReevaluationPending;
+    private boolean patternPublicationRefreshRequested;
     @Nullable
     private UUID terminalPartitionHostId;
     @Nullable
@@ -234,6 +235,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         this.gridBootReevaluationPending = false;
         this.terminalPartitionAttachmentCheckRequested = true;
         this.terminalPartitionsDirty = true;
+        this.patternPublicationRefreshRequested = true;
         TrinityDataCoreBlockEntity host = boundHost(false);
         if (host != null) {
             host.requestAccessLeaseReevaluation();
@@ -435,10 +437,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         if (current == null && desired == null) {
             return false;
         }
-        if (current != null && desired != null && current.matches(desired)) {
+        if (!this.patternPublicationRefreshRequested &&
+                current != null && desired != null && current.matches(desired)) {
             return false;
         }
         this.patternPublication = desired;
+        this.patternPublicationRefreshRequested = false;
         requestCraftingProviderUpdate();
         return true;
     }
@@ -454,10 +458,11 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                 host.getHostId(),
                 node.getGrid(),
                 node,
-                host.getPatternCatalog().getAvailablePatterns());
+                host.getPatternCatalog().publicationRevision());
     }
 
     private void withdrawCraftingPatternPublication() {
+        this.patternPublicationRefreshRequested = false;
         if (this.patternPublication == null) {
             return;
         }
@@ -675,13 +680,13 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private record PatternPublication(UUID hostId,
                                       IGrid grid,
                                       IGridNode node,
-                                      List<IPatternDetails> patterns) {
+                                      long revision) {
 
         private boolean matches(PatternPublication other) {
             return this.hostId.equals(other.hostId) &&
                     this.grid == other.grid &&
                     this.node == other.node &&
-                    this.patterns == other.patterns;
+                    this.revision == other.revision;
         }
     }
 

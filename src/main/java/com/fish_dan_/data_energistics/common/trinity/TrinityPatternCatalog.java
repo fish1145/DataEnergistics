@@ -213,6 +213,18 @@ public interface TrinityPatternCatalog {
     LayoutSnapshot layoutSnapshot();
 
     /**
+     * Returns the generation of the pattern set currently visible to AE2.
+     *
+     * <p>
+     * Unlike the layout revision, this value also advances for a pattern mutation inside an unchanged core layout.
+     * Callers use it to coalesce provider updates without depending on collection object identity.
+     * </p>
+     *
+     * @return monotonically increasing AE pattern publication generation
+     */
+    long publicationRevision();
+
+    /**
      * Verifies that a previously captured mount still belongs to the exact public layout generation.
      *
      * @param expectedRevision layout generation that supplied the mount

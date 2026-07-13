@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch.InputSignature;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore.CachedPattern;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore.PatternCacheSnapshot;
 
@@ -8,14 +9,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.crafting.IPatternDetails;
-import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -23,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /** Default event-driven implementation of {@link TrinityPatternCatalog}. */
@@ -41,6 +41,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     private List<CoreRuntime> orderedRuntimes = List.of();
     private List<IPatternDetails> availablePatterns = List.of();
     private List<ActiveSlot> activeSlots = List.of();
+    private long publicationRevision;
     private boolean retainedWork;
 
     /**
@@ -60,6 +61,11 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     @Override
     public LayoutSnapshot layoutSnapshot() {
         return this.layout;
+    }
+
+    @Override
+    public long publicationRevision() {
+        return this.publicationRevision;
     }
 
     @Override
@@ -166,7 +172,6 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             CoreRuntime runtime = new CoreRuntime(range);
             PatternCacheSnapshot snapshot = range.mount().core().patternCacheSnapshot();
             PreparedPublication publication = runtime.preparePublication(snapshot);
-            runtime.applyPublication(publication);
             for (SlotBinding binding : publication.bindings()) {
                 if (nextRouteBindings.put(binding.route, binding) != null) {
                     throw new IllegalStateException("Duplicate Trinity route while rebuilding catalog: " + binding.route);
@@ -204,6 +209,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         rebuildActiveSlotSnapshot();
         this.dirtySlotsByCore.clear();
         this.retainedWork = false;
+        advancePublicationRevision();
         return new RebuildResult(true, true, null, "");
     }
 
@@ -213,12 +219,11 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             return false;
         }
 
+        Map<TrinityPatternCore, Set<Integer>> changedSlots = new IdentityHashMap<>(this.dirtySlotsByCore);
+        this.dirtySlotsByCore.clear();
         boolean publicationChanged = false;
-        for (CoreRuntime runtime : this.orderedRuntimes) {
-            Set<Integer> dirtySlots = this.dirtySlotsByCore.remove(runtime.core());
-            if (dirtySlots == null) {
-                continue;
-            }
+        for (Map.Entry<TrinityPatternCore, Set<Integer>> changedCore : changedSlots.entrySet()) {
+            CoreRuntime runtime = this.runtimesByCore.get(changedCore.getKey());
             if (!runtime.matches(runtime.range.mount())) {
                 Data_Energistics.LOGGER.warn(
                         "Invalidating Trinity catalog {} because mounted core identity changed at {}",
@@ -227,15 +232,11 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                 invalidateLayout();
                 return true;
             }
-            PatternCacheSnapshot snapshot = runtime.core().patternCacheSnapshot();
-            if (snapshot.revision() == runtime.patternRevision) {
-                continue;
-            }
-            publicationChanged |= runtime.applyChangedPublication(snapshot, dirtySlots);
+            publicationChanged |= runtime.applyChangedPublication(changedCore.getValue());
         }
-        this.dirtySlotsByCore.clear();
         if (publicationChanged) {
             rebuildAvailablePatterns();
+            advancePublicationRevision();
         }
         return publicationChanged;
     }
@@ -254,7 +255,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                     "Mounted Trinity core " + runtime.range.coreId() + " reported out-of-range slot " + change.slot());
         }
         switch (change.kind()) {
-            case CATALOG -> this.dirtySlotsByCore
+            case CATALOG, RUNTIME_BINDING -> this.dirtySlotsByCore
                     .computeIfAbsent(core, ignored -> new HashSet<>())
                     .add(change.slot());
             case WORK -> updateActiveSlot(runtime, change.slot());
@@ -288,26 +289,22 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (binding == null) {
             return false;
         }
-        TrinityPatternCore core = binding.runtime.core();
-        core.ensurePatternCachesCurrent();
-        if (core.revision() != binding.runtime.patternRevision ||
-                binding.routedDetails == null || !binding.routedDetails.equals(routed) ||
-                !(routed.delegate() instanceof IMolecularAssemblerSupportedPattern routedPattern)) {
+        TrinityPatternCore core = binding.core;
+        CachedPattern cachedPattern = binding.cachedPattern;
+        long runtimeBindingRevision = binding.runtimeBindingRevision;
+        if (!binding.runtime.matches(binding.runtime.range.mount()) ||
+                !core.runtimeBindingsCurrent() ||
+                core.revision() != binding.runtime.directoryRevision || cachedPattern == null ||
+                cachedPattern.runtimeBindingRevision() != runtimeBindingRevision ||
+                binding.routedDetails != routed) {
             return false;
         }
 
-        IMolecularAssemblerSupportedPattern currentPattern = binding.slot.decodedPattern();
+        IMolecularAssemblerSupportedPattern currentPattern = cachedPattern.details();
         if (currentPattern == null) {
             return false;
         }
-        AEItemKey routedDefinition = routed.getDefinition();
-        if (!routedDefinition.equals(routedPattern.getDefinition()) ||
-                !routedDefinition.equals(currentPattern.getDefinition())) {
-            return false;
-        }
-        ItemStack patternSnapshot = binding.slot.pattern();
-        if (patternSnapshot.isEmpty() ||
-                !ItemStack.isSameItemSameComponents(patternSnapshot, routedDefinition.toStack())) {
+        if (!routed.getDefinition().equals(cachedPattern.encodedDefinition())) {
             return false;
         }
 
@@ -315,9 +312,15 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (workingInputs == null) {
             return false;
         }
-        List<ItemStack> craftingGrid = createCraftingGridSnapshot(currentPattern, workingInputs);
+        InputSignature craftingGrid = createCraftingGridSnapshot(currentPattern, workingInputs);
         if (craftingGrid == null || !allInputsConsumed(workingInputs) ||
-                !binding.slot.enqueue(binding.route, patternSnapshot, craftingGrid, queuedTick, count)) {
+                !core.enqueueBatch(
+                        binding.route,
+                        cachedPattern,
+                        runtimeBindingRevision,
+                        craftingGrid,
+                        queuedTick,
+                        count)) {
             return false;
         }
         if (!this.activeSlotsByGlobalIndex.containsKey(binding.globalIndex)) {
@@ -410,6 +413,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                     0,
                     List.of(),
                     List.of());
+            advancePublicationRevision();
         }
         clearRuntimeIndexes();
     }
@@ -456,6 +460,10 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             patterns.addAll(runtime.patterns);
         }
         this.availablePatterns = List.copyOf(patterns);
+    }
+
+    private void advancePublicationRevision() {
+        this.publicationRevision = Math.incrementExact(this.publicationRevision);
     }
 
     private void clearRuntimeIndexes() {
@@ -563,8 +571,8 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     }
 
     @Nullable
-    private static List<ItemStack> createCraftingGridSnapshot(IMolecularAssemblerSupportedPattern pattern,
-                                                              KeyCounter[] workingInputs) {
+    private static InputSignature createCraftingGridSnapshot(IMolecularAssemblerSupportedPattern pattern,
+                                                             KeyCounter[] workingInputs) {
         ArrayList<ItemStack> craftingGrid = new ArrayList<>(CRAFTING_GRID_SLOT_COUNT);
         boolean[] populated = new boolean[CRAFTING_GRID_SLOT_COUNT];
         for (int slot = 0; slot < CRAFTING_GRID_SLOT_COUNT; slot++) {
@@ -592,7 +600,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         if (craftingGrid.stream().allMatch(ItemStack::isEmpty)) {
             return null;
         }
-        return List.copyOf(craftingGrid);
+        return InputSignature.takeOwnership(craftingGrid);
     }
 
     private static boolean allInputsConsumed(KeyCounter[] inputs) {
@@ -609,8 +617,8 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
 
         private final CoreRange range;
         private final Map<Integer, SlotBinding> bindings = new HashMap<>();
-        private long patternRevision;
-        private List<SlotBinding> publishedBindings = List.of();
+        private final TreeMap<Integer, SlotBinding> publishedBindingsBySlot = new TreeMap<>();
+        private long directoryRevision;
         private List<IPatternDetails> patterns = List.of();
 
         private CoreRuntime(CoreRange range) {
@@ -654,61 +662,45 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
             ArrayList<IPatternDetails> nextPatterns = new ArrayList<>(snapshot.patterns().size());
             for (CachedPattern cachedPattern : snapshot.patterns()) {
                 SlotBinding binding = binding(cachedPattern.slot());
-                RoutedCraftingPatternDetails routed = new RoutedCraftingPatternDetails(
-                        binding.route,
-                        cachedPattern.details());
-                binding.nextRoutedDetails = routed;
+                binding.cachedPattern = cachedPattern;
+                binding.runtimeBindingRevision = cachedPattern.runtimeBindingRevision();
+                IMolecularAssemblerSupportedPattern details = cachedPattern.details();
+                if (details == null) {
+                    continue;
+                }
+                RoutedCraftingPatternDetails routed = new RoutedCraftingPatternDetails(binding.route, details);
+                binding.routedDetails = routed;
+                this.publishedBindingsBySlot.put(cachedPattern.slot(), binding);
                 nextBindings.add(binding);
                 nextPatterns.add(routed);
             }
-            return new PreparedPublication(
-                    snapshot.revision(),
-                    List.copyOf(nextBindings),
-                    List.copyOf(nextPatterns));
+            this.directoryRevision = snapshot.revision();
+            this.patterns = List.copyOf(nextPatterns);
+            return new PreparedPublication(List.copyOf(nextBindings), this.patterns);
         }
 
-        private void applyPublication(PreparedPublication publication) {
-            Set<SlotBinding> nextBindings = Collections.newSetFromMap(new IdentityHashMap<>());
-            nextBindings.addAll(publication.bindings());
-            for (SlotBinding binding : this.publishedBindings) {
-                if (!nextBindings.contains(binding)) {
-                    binding.routedDetails = null;
-                }
-            }
-            for (SlotBinding binding : publication.bindings()) {
-                binding.routedDetails = binding.nextRoutedDetails;
-                binding.nextRoutedDetails = null;
-            }
-            this.patternRevision = publication.revision();
-            this.publishedBindings = publication.bindings();
-            this.patterns = publication.patterns();
-        }
-
-        private boolean applyChangedPublication(PatternCacheSnapshot snapshot, Set<Integer> dirtySlots) {
-            ArrayList<SlotBinding> nextBindings = new ArrayList<>(snapshot.patterns().size());
-            ArrayList<IPatternDetails> nextPatterns = new ArrayList<>(snapshot.patterns().size());
+        private boolean applyChangedPublication(Set<Integer> dirtySlots) {
             ArrayList<SlotPublication> changedPublications = new ArrayList<>(dirtySlots.size());
-            Set<SlotBinding> nextPublishedBindings = Collections.newSetFromMap(new IdentityHashMap<>());
-
-            for (CachedPattern cachedPattern : snapshot.patterns()) {
-                SlotBinding binding = binding(cachedPattern.slot());
-                RoutedCraftingPatternDetails routed = binding.routedDetails;
-                if (dirtySlots.contains(cachedPattern.slot()) ||
-                        routed == null || routed.delegate() != cachedPattern.details()) {
-                    routed = new RoutedCraftingPatternDetails(binding.route, cachedPattern.details());
-                    changedPublications.add(new SlotPublication(binding, routed));
+            for (int slot : new TreeSet<>(dirtySlots)) {
+                SlotBinding binding = binding(slot);
+                CachedPattern cachedPattern = core().cachedPattern(slot);
+                RoutedCraftingPatternDetails current = binding.routedDetails;
+                RoutedCraftingPatternDetails next = current;
+                boolean bindingChanged = cachedPattern != null &&
+                        (binding.cachedPattern != cachedPattern ||
+                                binding.runtimeBindingRevision != cachedPattern.runtimeBindingRevision());
+                if (cachedPattern == null || cachedPattern.details() == null) {
+                    next = null;
+                } else if (bindingChanged || current == null) {
+                    next = new RoutedCraftingPatternDetails(binding.route, cachedPattern.details());
                 }
-                nextBindings.add(binding);
-                nextPatterns.add(routed);
-                nextPublishedBindings.add(binding);
-            }
-
-            for (SlotBinding binding : this.publishedBindings) {
-                if (!nextPublishedBindings.contains(binding)) {
-                    changedPublications.add(new SlotPublication(binding, null));
+                binding.cachedPattern = cachedPattern;
+                binding.runtimeBindingRevision = cachedPattern == null ? -1L :
+                        cachedPattern.runtimeBindingRevision();
+                if (current != next) {
+                    changedPublications.add(new SlotPublication(binding, next));
                 }
             }
-
             for (SlotPublication publication : changedPublications) {
                 SlotBinding binding = publication.binding();
                 SlotBinding existing = routeBindings.get(binding.route);
@@ -728,14 +720,19 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                 RoutedCraftingPatternDetails details = publication.details();
                 if (details == null) {
                     routeBindings.remove(binding.route, binding);
+                    this.publishedBindingsBySlot.remove(binding.route.slot());
                 } else {
                     routeBindings.put(binding.route, binding);
+                    this.publishedBindingsBySlot.put(binding.route.slot(), binding);
                 }
                 binding.routedDetails = details;
             }
-            this.patternRevision = snapshot.revision();
-            this.publishedBindings = List.copyOf(nextBindings);
-            this.patterns = List.copyOf(nextPatterns);
+            this.directoryRevision = core().revision();
+            if (!changedPublications.isEmpty()) {
+                this.patterns = this.publishedBindingsBySlot.values().stream()
+                        .map(binding -> (IPatternDetails) binding.routedDetails)
+                        .toList();
+            }
             return !changedPublications.isEmpty();
         }
     }
@@ -743,6 +740,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
     private static final class SlotBinding {
 
         private final CoreRuntime runtime;
+        private final TrinityPatternCore core;
         private final int globalIndex;
         private final PatternRoute route;
         private final TrinityPatternSlot slot;
@@ -750,10 +748,12 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         @Nullable
         private RoutedCraftingPatternDetails routedDetails;
         @Nullable
-        private RoutedCraftingPatternDetails nextRoutedDetails;
+        private CachedPattern cachedPattern;
+        private long runtimeBindingRevision = -1L;
 
         private SlotBinding(CoreRuntime runtime, int globalIndex, PatternRoute route, TrinityPatternSlot slot) {
             this.runtime = runtime;
+            this.core = runtime.core();
             this.globalIndex = globalIndex;
             this.route = route;
             this.slot = slot;
@@ -761,8 +761,7 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
         }
     }
 
-    private record PreparedPublication(long revision,
-                                       List<SlotBinding> bindings,
+    private record PreparedPublication(List<SlotBinding> bindings,
                                        List<IPatternDetails> patterns) {}
 
     private record SlotPublication(SlotBinding binding, @Nullable RoutedCraftingPatternDetails details) {}

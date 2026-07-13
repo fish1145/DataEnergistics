@@ -42,7 +42,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.stream.StreamSupport;
 
 /**
  * Executes one virtual Trinity Data Core crafting CPU partition.
@@ -206,7 +205,7 @@ final class TrinityDataCoreCpuLogic {
      * @param craftingService AE2 crafting service
      * @param energyService   AE2 energy service
      * @param level           server level used by pattern validation
-     * @return number of pushed patterns
+     * @return number of dispatch operations consumed; one counted Trinity batch consumes one operation
      */
     int executeCrafting(int maxPatterns, CraftingService craftingService, IEnergyService energyService, Level level) {
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
@@ -238,15 +237,12 @@ final class TrinityDataCoreCpuLogic {
                 if (provider instanceof TrinityBatchCraftingProvider batchProvider) {
                     while (inputTransaction != null && !provider.isBusy() &&
                             task.getValue().value > 0L && pushedPatterns < maxPatterns) {
-                        long maximumCount = Math.min(
-                                task.getValue().value,
-                                (long) maxPatterns - pushedPatterns);
                         PreparedPatternBatch batch = preparePatternBatch(
                                 currentJob,
                                 details,
                                 task.getValue(),
                                 inputTransaction,
-                                maximumCount,
+                                task.getValue().value,
                                 energyService);
                         if (batch == null) {
                             inputTransaction.rollback();
@@ -286,7 +282,7 @@ final class TrinityDataCoreCpuLogic {
                         energyCharge.commit();
                         inputTransaction.commit();
                         commitPatternPush(currentJob, task.getValue(), batch.commit());
-                        pushedPatterns += (int) batch.commit().count();
+                        pushedPatterns++;
                         inputTransaction = null;
 
                         if (task.getValue().value <= 0L) {
@@ -375,15 +371,26 @@ final class TrinityDataCoreCpuLogic {
         if (inputHolder == null) {
             return null;
         }
-        KeyCounter ownedInputs = aggregateInputs(inputHolder);
-        if (ownedInputs == null) {
+        CapturedPatternInputs capturedInputs = capturePatternInputs(inputHolder);
+        if (capturedInputs == null) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot track overflowing extracted pattern inputs");
             CraftingCpuHelper.reinjectPatternInputs(this.inventory, inputHolder);
             return null;
         }
+        CapturedPatternResults capturedResults = capturePatternResults(expectedOutputs, expectedContainerItems);
+        if (capturedResults == null) {
+            Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot track overflowing expected pattern outputs");
+            CraftingCpuHelper.reinjectPatternInputs(this.inventory, inputHolder);
+            return null;
+        }
         return new PatternInputTransaction(
-                new ExtractedPatternInputs(inputHolder, expectedOutputs, expectedContainerItems),
-                ownedInputs);
+                new ExtractedPatternInputs(
+                        inputHolder,
+                        capturedInputs.inputsPerCraft(),
+                        capturedResults.expectedOutputs(),
+                        capturedResults.expectedContainerItems(),
+                        capturedResults.waitingPerCraft()),
+                capturedInputs.ownedInputs());
     }
 
     @Nullable
@@ -394,15 +401,8 @@ final class TrinityDataCoreCpuLogic {
                                                      long maximumCount,
                                                      IEnergyService energyService) {
         ExtractedPatternInputs extractedInputs = inputTransaction.inputs();
-        KeyCounter inputsPerCraft = aggregateInputs(extractedInputs.inputHolder());
-        KeyCounter waitingPerCraft = aggregateWaiting(extractedInputs);
-        if (inputsPerCraft == null || waitingPerCraft == null) {
-            Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot batch overflowing per-craft counters");
-            return null;
-        }
-
-        long count = limitByInputAvailability(inputsPerCraft, maximumCount);
-        count = limitByWaitingCapacity(currentJob, waitingPerCraft, count);
+        long count = limitByInputAvailability(extractedInputs.inputsPerCraft(), maximumCount);
+        count = limitByWaitingCapacity(currentJob, extractedInputs.waitingPerCraft(), count);
         double powerPerCraft = CraftingCpuHelper.calculatePatternPower(extractedInputs.inputHolder());
         count = limitByEnergy(powerPerCraft, count, energyService);
         if (count <= 0L) {
@@ -414,31 +414,54 @@ final class TrinityDataCoreCpuLogic {
                 task,
                 extractedInputs,
                 count);
-        if (commit == null || !extractAdditionalInputs(inputsPerCraft, count, inputTransaction)) {
+        if (commit == null || !extractAdditionalInputs(extractedInputs.inputsPerCraft(), count, inputTransaction)) {
             return null;
         }
         return new PreparedPatternBatch(powerPerCraft * count, commit);
     }
 
     @Nullable
-    private static KeyCounter aggregateInputs(KeyCounter[] inputHolder) {
-        KeyCounter result = new KeyCounter();
+    private static CapturedPatternInputs capturePatternInputs(KeyCounter[] inputHolder) {
+        KeyCounter ownedInputs = new KeyCounter();
         for (KeyCounter input : inputHolder) {
-            if (!addCounterChecked(result, input)) {
+            if (!addCounterChecked(ownedInputs, input)) {
                 return null;
             }
         }
-        return result;
+        return new CapturedPatternInputs(counterSnapshot(ownedInputs), ownedInputs);
     }
 
     @Nullable
-    private static KeyCounter aggregateWaiting(ExtractedPatternInputs extractedInputs) {
-        KeyCounter result = new KeyCounter();
-        if (!addCounterChecked(result, extractedInputs.expectedOutputs()) ||
-                !addCounterChecked(result, extractedInputs.expectedContainerItems())) {
+    private static CapturedPatternResults capturePatternResults(KeyCounter expectedOutputs,
+                                                                KeyCounter expectedContainerItems) {
+        KeyCounter waitingPerCraft = new KeyCounter();
+        List<GenericStack> capturedOutputs = captureCounter(expectedOutputs, waitingPerCraft);
+        if (capturedOutputs == null) {
             return null;
         }
-        return result;
+        List<GenericStack> capturedContainerItems = captureCounter(expectedContainerItems, waitingPerCraft);
+        if (capturedContainerItems == null) {
+            return null;
+        }
+        return new CapturedPatternResults(
+                capturedOutputs,
+                capturedContainerItems,
+                counterSnapshot(waitingPerCraft));
+    }
+
+    @Nullable
+    private static List<GenericStack> captureCounter(KeyCounter source, KeyCounter aggregate) {
+        ArrayList<GenericStack> captured = new ArrayList<>();
+        for (var entry : source) {
+            long amount = entry.getLongValue();
+            long existing = aggregate.get(entry.getKey());
+            if (amount <= 0L || existing > Long.MAX_VALUE - amount) {
+                return null;
+            }
+            aggregate.add(entry.getKey(), amount);
+            captured.add(new GenericStack(entry.getKey(), amount));
+        }
+        return List.copyOf(captured);
     }
 
     private static boolean addCounterChecked(KeyCounter target, KeyCounter source) {
@@ -453,11 +476,11 @@ final class TrinityDataCoreCpuLogic {
         return true;
     }
 
-    private long limitByInputAvailability(KeyCounter inputsPerCraft, long maximumCount) {
+    private long limitByInputAvailability(List<GenericStack> inputsPerCraft, long maximumCount) {
         long count = maximumCount;
-        for (var entry : inputsPerCraft) {
-            long amountPerCraft = entry.getLongValue();
-            long availableCopies = this.inventory.list.get(entry.getKey()) / amountPerCraft;
+        for (GenericStack input : inputsPerCraft) {
+            long amountPerCraft = input.amount();
+            long availableCopies = this.inventory.list.get(input.what()) / amountPerCraft;
             long availableCount = availableCopies == Long.MAX_VALUE ? Long.MAX_VALUE : availableCopies + 1L;
             count = Math.min(count, availableCount);
             count = Math.min(count, Long.MAX_VALUE / amountPerCraft);
@@ -466,12 +489,12 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private static long limitByWaitingCapacity(TrinityDataCoreExecutingCraftingJob currentJob,
-                                               KeyCounter waitingPerCraft,
+                                               List<GenericStack> waitingPerCraft,
                                                long maximumCount) {
         long count = maximumCount;
-        for (var entry : waitingPerCraft) {
-            long currentlyWaiting = currentJob.waitingFor.list.get(entry.getKey());
-            count = Math.min(count, (Long.MAX_VALUE - currentlyWaiting) / entry.getLongValue());
+        for (GenericStack waiting : waitingPerCraft) {
+            long currentlyWaiting = currentJob.waitingFor.list.get(waiting.what());
+            count = Math.min(count, (Long.MAX_VALUE - currentlyWaiting) / waiting.amount());
         }
         return count;
     }
@@ -520,14 +543,14 @@ final class TrinityDataCoreCpuLogic {
     }
 
     @Nullable
-    private boolean extractAdditionalInputs(KeyCounter inputsPerCraft,
+    private boolean extractAdditionalInputs(List<GenericStack> inputsPerCraft,
                                             long count,
                                             PatternInputTransaction inputTransaction) {
         if (count == 1L) {
             return true;
         }
         long additionalCopies = count - 1L;
-        for (GenericStack stack : snapshot(inputsPerCraft)) {
+        for (GenericStack stack : inputsPerCraft) {
             long additionalAmount = Math.multiplyExact(stack.amount(), additionalCopies);
             long extracted;
             try {
@@ -553,10 +576,12 @@ final class TrinityDataCoreCpuLogic {
         return true;
     }
 
-    private static List<GenericStack> snapshot(KeyCounter counter) {
-        return StreamSupport.stream(counter.spliterator(), false)
-                .map(entry -> new GenericStack(entry.getKey(), entry.getLongValue()))
-                .toList();
+    private static List<GenericStack> counterSnapshot(KeyCounter counter) {
+        ArrayList<GenericStack> snapshot = new ArrayList<>();
+        for (var entry : counter) {
+            snapshot.add(new GenericStack(entry.getKey(), entry.getLongValue()));
+        }
+        return List.copyOf(snapshot);
     }
 
     @Nullable
@@ -629,13 +654,12 @@ final class TrinityDataCoreCpuLogic {
                     task.value);
             return null;
         }
-        KeyCounter waitingPerCraft = aggregateWaiting(extractedInputs);
-        if (waitingPerCraft == null || limitByWaitingCapacity(currentJob, waitingPerCraft, count) < count) {
+        if (limitByWaitingCapacity(currentJob, extractedInputs.waitingPerCraft(), count) < count) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot commit overflowing waiting counters");
             return null;
         }
-        List<GenericStack> expectedOutputs = scaleCounter(extractedInputs.expectedOutputs(), count);
-        List<GenericStack> expectedContainerItems = scaleCounter(extractedInputs.expectedContainerItems(), count);
+        List<GenericStack> expectedOutputs = scaleAmounts(extractedInputs.expectedOutputs(), count);
+        List<GenericStack> expectedContainerItems = scaleAmounts(extractedInputs.expectedContainerItems(), count);
         List<GenericStack> scheduledOutputs = scaleStacks(details.getOutputs(), count);
         if (expectedOutputs == null || expectedContainerItems == null || scheduledOutputs == null) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot commit overflowing pattern outputs");
@@ -666,14 +690,14 @@ final class TrinityDataCoreCpuLogic {
     }
 
     @Nullable
-    private static List<GenericStack> scaleCounter(KeyCounter counter, long count) {
+    private static List<GenericStack> scaleAmounts(List<GenericStack> amounts, long count) {
         ArrayList<GenericStack> scaled = new ArrayList<>();
-        for (var entry : counter) {
-            long amount = entry.getLongValue();
+        for (GenericStack stack : amounts) {
+            long amount = stack.amount();
             if (amount <= 0L || amount > Long.MAX_VALUE / count) {
                 return null;
             }
-            scaled.add(new GenericStack(entry.getKey(), amount * count));
+            scaled.add(new GenericStack(stack.what(), amount * count));
         }
         return List.copyOf(scaled);
     }
@@ -693,7 +717,7 @@ final class TrinityDataCoreCpuLogic {
             }
             scaled.add(stack.what(), scaledAmount);
         }
-        return snapshot(scaled);
+        return counterSnapshot(scaled);
     }
 
     private void commitPatternPush(TrinityDataCoreExecutingCraftingJob currentJob,
@@ -719,9 +743,17 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
+    private record CapturedPatternInputs(List<GenericStack> inputsPerCraft, KeyCounter ownedInputs) {}
+
+    private record CapturedPatternResults(List<GenericStack> expectedOutputs,
+                                          List<GenericStack> expectedContainerItems,
+                                          List<GenericStack> waitingPerCraft) {}
+
     private record ExtractedPatternInputs(KeyCounter[] inputHolder,
-                                          KeyCounter expectedOutputs,
-                                          KeyCounter expectedContainerItems) {}
+                                          List<GenericStack> inputsPerCraft,
+                                          List<GenericStack> expectedOutputs,
+                                          List<GenericStack> expectedContainerItems,
+                                          List<GenericStack> waitingPerCraft) {}
 
     private record PreparedPatternCommit(long count,
                                          List<GenericStack> expectedOutputs,

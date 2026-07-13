@@ -110,11 +110,17 @@ public final class TrinityPatternCoreBlockEntityTest {
         TrinityPatternCoreBlockEntity core = helper.getBlockEntity(pos);
         assertTrue(core.trySetPattern(0, encodedOakPlanksPattern(helper)));
         long revisionBeforeReload = core.revision();
+        var directoryBeforeReload = core.patternCacheSnapshot();
+        var cachedBeforeReload = core.cachedPattern(0);
+        assertTrue(cachedBeforeReload != null);
 
         TrinityPatternCoreReloadEpoch.advance();
         core.serverTick();
 
-        assertEquals(revisionBeforeReload + 1L, core.revision());
+        assertEquals(revisionBeforeReload, core.revision());
+        assertTrue(directoryBeforeReload == core.patternCacheSnapshot());
+        assertTrue(cachedBeforeReload == core.cachedPattern(0));
+        assertEquals(0L, cachedBeforeReload.runtimeBindingRevision());
         assertTrue(core.decodedPattern(0) != null);
         helper.succeed();
     }

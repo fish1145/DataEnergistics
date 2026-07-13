@@ -5,9 +5,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.AEItemKey;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,28 +23,128 @@ import java.util.UUID;
 public interface TrinityPatternCore {
 
     /**
-     * One publishable recipe retained by a physical core's local cache.
+     * One stable occupied-slot entry retained by a physical core's local cache.
      *
-     * @param slot    stable slot that must be included in the host-created route
-     * @param details decoded AE2 crafting details owned by this cache entry
+     * Runtime recipe details may be rebound or temporarily unavailable without replacing this directory entry.
      */
-    record CachedPattern(int slot, IMolecularAssemblerSupportedPattern details) {
+    final class CachedPattern {
 
-        public CachedPattern {
+        private final int slot;
+        private TrinityPatternDefinition definition;
+        private final AEItemKey encodedDefinition;
+        @Nullable
+        private IMolecularAssemblerSupportedPattern details;
+        @Nullable
+        private TrinityPatternPublicationSignature publicationSignature;
+        private long runtimeBindingRevision;
+
+        public CachedPattern(int slot,
+                             TrinityPatternDefinition definition,
+                             @Nullable IMolecularAssemblerSupportedPattern details) {
             if (slot < 0) {
                 throw new IllegalArgumentException("Cached Trinity pattern slot must not be negative");
             }
+            this.slot = slot;
+            this.definition = definition;
+            this.encodedDefinition = AEItemKey.of(definition.pattern());
+            this.details = details;
+            this.publicationSignature = details == null ? null : TrinityPatternPublicationSignature.capture(details);
         }
+
+        /**
+         * @return stable physical slot represented by this occupied-directory entry
+         */
+        public int slot() {
+            return this.slot;
+        }
+
+        /**
+         * @return immutable slot-local definition token retained by queued groups
+         */
+        public TrinityPatternDefinition definition() {
+            return this.definition;
+        }
+
+        /**
+         * @return allocation-free encoded definition key used to validate routed AE patterns
+         */
+        public AEItemKey encodedDefinition() {
+            return this.encodedDefinition;
+        }
+
+        /**
+         * @return stable resolver and recipe IDs captured by the installed definition, or {@code null} when unresolved
+         */
+        @Nullable
+        public TrinityPatternRecipeIdResolvers.Resolution recipeResolution() {
+            return this.definition.resolution();
+        }
+
+        /**
+         * @return current runtime recipe binding, or {@code null} while the retained pattern cannot be published
+         */
+        @Nullable
+        public IMolecularAssemblerSupportedPattern details() {
+            return this.details;
+        }
+
+        /**
+         * @return revision increased only when this entry changes between distinct publishable semantics
+         */
+        public long runtimeBindingRevision() {
+            return this.runtimeBindingRevision;
+        }
+
+        PreparedRebind prepareRebind(TrinityPatternDefinition definition,
+                                     @Nullable IMolecularAssemblerSupportedPattern details) {
+            if (!this.encodedDefinition.equals(AEItemKey.of(definition.pattern()))) {
+                throw new IllegalArgumentException("A cached Trinity pattern cannot rebind to another encoded definition");
+            }
+            TrinityPatternRecipeIdResolvers.Resolution currentResolution = this.definition.resolution();
+            TrinityPatternRecipeIdResolvers.Resolution nextResolution = definition.resolution();
+            boolean recipeIdentityChanged = currentResolution == null ? nextResolution != null :
+                    !currentResolution.equals(nextResolution);
+            TrinityPatternPublicationSignature nextSignature = details == null ? null :
+                    TrinityPatternPublicationSignature.capture(details);
+            boolean semanticChange = recipeIdentityChanged || (this.publicationSignature == null ? nextSignature != null :
+                    !this.publicationSignature.equals(nextSignature));
+            long nextRevision = semanticChange ? Math.incrementExact(this.runtimeBindingRevision) :
+                    this.runtimeBindingRevision;
+            return new PreparedRebind(definition, details, nextSignature, nextRevision, semanticChange);
+        }
+
+        void commitRebind(PreparedRebind prepared) {
+            this.definition = prepared.definition();
+            this.details = prepared.details();
+            this.publicationSignature = prepared.publicationSignature();
+            this.runtimeBindingRevision = prepared.runtimeBindingRevision();
+        }
+
+        boolean rebind(TrinityPatternDefinition definition,
+                       @Nullable IMolecularAssemblerSupportedPattern details) {
+            PreparedRebind prepared = prepareRebind(definition, details);
+            commitRebind(prepared);
+            return prepared.semanticChange();
+        }
+
+        record PreparedRebind(TrinityPatternDefinition definition,
+                              @Nullable IMolecularAssemblerSupportedPattern details,
+                              @Nullable TrinityPatternPublicationSignature publicationSignature,
+                              long runtimeBindingRevision,
+                              boolean semanticChange) {}
     }
 
     /**
-     * Immutable, slot-ordered publication state for one physical pattern core.
+     * Slot-ordered occupied-pattern directory for one physical pattern core.
      *
      * <p>
-     * Hosts merge these snapshots and add their own route identity without rescanning every physical slot.
+     * The list and entry identities change only when an encoded pattern is installed, replaced, moved, or removed.
+     * Each stable entry carries a separately versioned runtime recipe binding so data reloads do not rebuild the
+     * directory.
      *
-     * @param revision core-local publication revision
-     * @param patterns publishable entries in ascending slot order
+     * @param revision core-local occupied-directory revision
+     * @param patterns occupied entries in ascending slot order, including retained patterns that are temporarily
+     *                 unavailable at runtime
      */
     record PatternCacheSnapshot(long revision, List<CachedPattern> patterns) {
 
@@ -98,21 +200,28 @@ public interface TrinityPatternCore {
         private static final BatchExecutionResult PAUSED = new BatchExecutionResult(false, List.of());
 
         private final boolean completed;
-        private final List<ItemStack> outputs;
+        private final List<TrinityItemAmount> countedOutputs;
 
-        private BatchExecutionResult(boolean completed, List<ItemStack> outputs) {
+        private BatchExecutionResult(boolean completed, List<TrinityItemAmount> countedOutputs) {
             this.completed = completed;
-            this.outputs = copyStacks(outputs);
+            this.countedOutputs = List.copyOf(countedOutputs);
         }
 
         /**
          * Creates a successful execution result.
          *
-         * @param outputs crafted output and any container remainders
+         * @param batch       counted group that produced the unit outputs
+         * @param unitOutputs one-craft output and container remainders
          * @return completed result
          */
-        public static BatchExecutionResult completed(List<ItemStack> outputs) {
-            return new BatchExecutionResult(true, outputs);
+        public static BatchExecutionResult completed(TrinityCraftingBatch batch, List<ItemStack> unitOutputs) {
+            ArrayList<TrinityItemAmount> countedOutputs = new ArrayList<>();
+            for (ItemStack output : unitOutputs) {
+                if (!output.isEmpty()) {
+                    countedOutputs.addAll(TrinityItemAmount.multiply(output, batch.count()));
+                }
+            }
+            return new BatchExecutionResult(true, countedOutputs);
         }
 
         /**
@@ -130,17 +239,10 @@ public interface TrinityPatternCore {
         }
 
         /**
-         * @return defensive copies of outputs to append when execution completed
+         * @return immutable counted outputs to append when execution completed
          */
-        public List<ItemStack> outputs() {
-            return copyStacks(this.outputs);
-        }
-
-        private static List<ItemStack> copyStacks(List<ItemStack> stacks) {
-            return stacks.stream()
-                    .filter(stack -> !stack.isEmpty())
-                    .map(ItemStack::copy)
-                    .toList();
+        public List<TrinityItemAmount> countedOutputs() {
+            return this.countedOutputs;
         }
     }
 
@@ -164,7 +266,7 @@ public interface TrinityPatternCore {
     TrinityPatternSlot patternSlot(int slot);
 
     /**
-     * @return monotonically increasing runtime revision for catalog cache invalidation
+     * @return monotonically increasing occupied-pattern directory revision for catalog cache invalidation
      */
     long revision();
 
@@ -174,6 +276,22 @@ public interface TrinityPatternCore {
      * @return stable immutable snapshot whose entries are ordered by physical slot
      */
     PatternCacheSnapshot patternCacheSnapshot();
+
+    /**
+     * Reads one stable occupied-directory entry without scanning the core snapshot.
+     *
+     * @param slot physical slot index
+     * @return cached entry, or {@code null} when no encoded pattern is installed
+     */
+    @Nullable
+    CachedPattern cachedPattern(int slot);
+
+    /**
+     * Returns the sparse occupied-slot index used by reload and host cache maintenance.
+     *
+     * @return immutable ascending slot snapshot
+     */
+    List<Integer> occupiedPatternSlots();
 
     /**
      * @return fixed-size inventory exposed to menus
@@ -216,13 +334,29 @@ public interface TrinityPatternCore {
     void refreshAllPatternCaches();
 
     /**
-     * Synchronizes externally invalidated recipe caches before a catalog publishes, dispatches, or executes them.
+     * Synchronizes externally invalidated recipe caches at the owner-controlled reload boundary.
      *
      * <p>
-     * Pure logical cores use their explicit refresh lifecycle. World-backed cores additionally compare the global
-     * data-reload epoch here so correctness does not depend on block-entity tick order.
+     * Pure logical cores use their explicit refresh lifecycle. World-backed cores compare the global data-reload epoch
+     * here during host cache maintenance; dispatch and execution use {@link #runtimeBindingsCurrent()} as an O(1)
+     * readiness guard.
      */
     void ensurePatternCachesCurrent();
+
+    /**
+     * Reports whether this core has rebound its runtime recipes for the latest external reload generation.
+     *
+     * <p>
+     * Pure logical cores are always current. World-backed implementations override this as an O(1) guard so a
+     * provider can pause dispatch between reload completion and the host's next cache flush without decoding in the
+     * dispatch path.
+     * </p>
+     *
+     * @return whether cached runtime bindings may currently accept routed input
+     */
+    default boolean runtimeBindingsCurrent() {
+        return true;
+    }
 
     /**
      * Atomically appends one complete crafting input snapshot to a slot FIFO.
@@ -234,6 +368,24 @@ public interface TrinityPatternCore {
      * @return true when the snapshot matched the current slot and was queued
      */
     boolean enqueueBatch(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick);
+
+    /**
+     * Atomically appends one counted input signature through a cache token captured by the host route binding.
+     *
+     * @param route                          exact host/core/slot destination selected by the crafting plan
+     * @param expectedPattern                stable occupied-slot token that must still own the destination
+     * @param expectedRuntimeBindingRevision exact runtime recipe generation used to materialize the inputs
+     * @param inputs                         immutable nine-slot input prototype selected from the actual AE inputs
+     * @param queuedTick                     current server tick; execution starts only on a later tick
+     * @param count                          positive logical craft count represented by the input prototype
+     * @return true when the cache token and definition still matched atomically and the complete group was queued
+     */
+    boolean enqueueBatch(PatternRoute route,
+                         CachedPattern expectedPattern,
+                         long expectedRuntimeBindingRevision,
+                         TrinityCraftingBatch.InputSignature inputs,
+                         long queuedTick,
+                         long count);
 
     /**
      * @param slot pattern slot index
@@ -419,7 +571,21 @@ public interface TrinityPatternCore {
     void writeToTag(CompoundTag data, HolderLookup.Provider registries);
 
     /**
-     * Atomically restores complete movable core state from a block entity tag.
+     * Hydrates a pristine core from persisted state without emitting per-slot change events.
+     *
+     * <p>
+     * Initial block-entity loading has no mounted host to update. The implementation therefore parses and applies all
+     * sparse persisted slots atomically, builds one final directory snapshot and one set of work indexes, and leaves
+     * later catalog construction to consume that final state directly.
+     * </p>
+     *
+     * @param data       source tag
+     * @param registries registry lookup used for item components
+     */
+    void hydrateFromTag(CompoundTag data, HolderLookup.Provider registries);
+
+    /**
+     * Atomically restores complete movable core state and emits precise changes for an already-live core.
      *
      * @param data       source tag
      * @param registries registry lookup used for item components
