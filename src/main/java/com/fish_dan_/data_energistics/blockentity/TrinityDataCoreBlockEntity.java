@@ -67,7 +67,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -94,6 +93,7 @@ import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
+import lombok.Getter;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
@@ -148,7 +148,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
 
     private UUID storageId = UUID.randomUUID();
+    /**
+     * -- GETTER --
+     * Returns the stable crafting identity, which is deliberately independent from the saved-data storage UUID.
+     */
+    @Getter
     private UUID hostId = UUID.randomUUID();
+    /**
+     * -- GETTER --
+     * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
+     */
+    @Getter
     private TrinityPatternCatalog patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
     private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouterImpl();
     /** Runtime validation gates that keep unloaded chunks distinct from structural damage. */
@@ -158,6 +168,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean patternCatalogValid;
     private boolean loaded;
     private boolean formed;
+    @Getter
     private List<BlockPos> matchedPositions = List.of();
     private TrinityDataCoreStorageProfile storageProfile = TrinityDataCoreStorageProfile.EMPTY;
     private String lastFailureReason = NO_FAILURE;
@@ -488,24 +499,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 this.structureValidation.isValid(Structure.CRAFTING) && this.craftingProfile.active() &&
                 this.patternCatalogValid &&
                 this.patternCatalog.layoutSnapshot().active();
-    }
-
-    /**
-     * Returns the stable crafting identity, which is deliberately independent from the saved-data storage UUID.
-     */
-    public UUID getHostId() {
-        return this.hostId;
-    }
-
-    /**
-     * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
-     */
-    public TrinityPatternCatalog getPatternCatalog() {
-        return this.patternCatalog;
-    }
-
-    public List<BlockPos> getMatchedPositions() {
-        return this.matchedPositions;
     }
 
     @Override
@@ -2078,19 +2071,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
-        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID));
+        return ModVerticalMultiBlocks.trinityDataCoreMainKey();
     }
 
     private static JsonMultiBlockStructureKey cpuDefinitionKey() {
-        return new JsonMultiBlockStructureKey(
-                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID),
-                CPU_STRUCTURE_NAME);
+        return ModVerticalMultiBlocks.trinityDataCoreCpuKey();
     }
 
     private static JsonMultiBlockStructureKey craftingDefinitionKey() {
-        return new JsonMultiBlockStructureKey(
-                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID),
-                CRAFTING_STRUCTURE_NAME);
+        return ModVerticalMultiBlocks.trinityDataCoreCraftingKey();
     }
 
     private static TrinityDataCoreCraftingCoreProfile readCraftingProfile(CompoundTag data) {
