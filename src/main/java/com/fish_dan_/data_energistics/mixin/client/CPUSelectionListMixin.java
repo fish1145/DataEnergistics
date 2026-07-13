@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -117,14 +117,21 @@ public abstract class CPUSelectionListMixin {
         }
     }
 
-    @Redirect(
-              method = "drawBackgroundLayer",
-              at = @At(value = "INVOKE", target = "Ljava/lang/String;valueOf(I)Ljava/lang/String;"))
-    private String dataEnergistics$formatTrinityCpuCoProcessors(int amount) {
+    @ModifyArg(
+               method = "drawBackgroundLayer",
+               at = @At(
+                        value = "INVOKE",
+                        target = "Lappeng/client/gui/widgets/InfoBar;add(Ljava/lang/String;IFII)V"),
+               slice = @Slice(
+                              from = @At(
+                                         value = "FIELD",
+                                         target = "Lappeng/client/gui/Icon;S_PROCESSOR:Lappeng/client/gui/Icon;")),
+               index = 0)
+    private String dataEnergistics$formatTrinityCpuCoProcessors(String formattedAmount) {
         if (this.dataEnergistics$currentCpu != null && dataEnergistics$isTrinityCpu(this.dataEnergistics$currentCpu)) {
-            return Ae2AmountFormatter.formatAmount(amount).text();
+            return Ae2AmountFormatter.formatAmount(this.dataEnergistics$currentCpu.coProcessors()).text();
         }
-        return String.valueOf(amount);
+        return formattedAmount;
     }
 
     @Inject(method = "drawBackgroundLayer", at = @At("TAIL"))

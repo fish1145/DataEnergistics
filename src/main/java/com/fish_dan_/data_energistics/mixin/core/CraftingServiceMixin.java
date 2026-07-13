@@ -164,16 +164,16 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
         }
     }
 
-    @Inject(method = "insertIntoCpus", at = @At("RETURN"), cancellable = true)
-    private void dataEnergistics$insertIntoTrinityDataCoreCpus(AEKey what,
+    @WrapMethod(method = "insertIntoCpus")
+    private long dataEnergistics$insertIntoTrinityDataCoreCpus(AEKey what,
                                                                long amount,
                                                                Actionable type,
-                                                               CallbackInfoReturnable<Long> cir) {
-        long inserted = cir.getReturnValue();
+                                                               Operation<Long> original) {
+        long inserted = original.call(what, amount, type);
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             inserted = runtime.insertIntoCpus(what, amount, type, inserted);
         }
-        cir.setReturnValue(inserted);
+        return inserted;
     }
 
     @WrapMethod(method = "submitJob")
@@ -240,13 +240,13 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
         dataEnergistics$addActiveTrinityDataCoreCpus(cpus);
     }
 
-    @Inject(method = "getRequestedAmount", at = @At("RETURN"), cancellable = true)
-    private void dataEnergistics$getTrinityDataCoreRequestedAmount(AEKey what, CallbackInfoReturnable<Long> cir) {
-        long requested = cir.getReturnValue();
+    @WrapMethod(method = "getRequestedAmount")
+    private long dataEnergistics$getTrinityDataCoreRequestedAmount(AEKey what, Operation<Long> original) {
+        long requested = original.call(what);
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             requested = LongAmountMath.saturatingAddNonNegative(requested, runtime.getRequestedAmount(what));
         }
-        cir.setReturnValue(requested);
+        return requested;
     }
 
     @Inject(method = "hasCpu", at = @At("HEAD"), cancellable = true)
