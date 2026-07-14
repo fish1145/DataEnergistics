@@ -6,13 +6,18 @@ import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -21,11 +26,20 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.parts.IPart;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.core.definitions.AEBlocks;
+import appeng.core.definitions.AEItems;
+import appeng.core.definitions.AEParts;
 import appeng.crafting.pattern.AEProcessingPattern;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+import appeng.parts.encoding.PatternEncodingLogic;
+import appeng.parts.encoding.PatternEncodingTerminalPart;
 import appeng.util.ConfigInventory;
 
 import java.util.List;
@@ -34,7 +48,44 @@ import java.util.List;
 @PrefixGameTestTemplate(false)
 public final class DataRipperReassemblerAe2CraftingGameTest {
 
+    private static final BlockPos TERMINAL_HOST_POS = new BlockPos(2, 2, 2);
+
     private DataRipperReassemblerAe2CraftingGameTest() {}
+
+    @TestHolder("standard_pattern_menu_encodes_direct_custom_key")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 100)
+    public static void standardPatternMenuEncodesDirectCustomKey(GameTestHelper helper) {
+        CableBusBlockEntity partHost = placeCableBus(helper);
+        IPart installedPart = partHost.addPart(
+                AEParts.PATTERN_ENCODING_TERMINAL.get(),
+                Direction.NORTH,
+                null);
+        if (!(installedPart instanceof PatternEncodingTerminalPart terminal)) {
+            throw new GameTestAssertException("Failed to install a real AE2 pattern encoding terminal part");
+        }
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(
+                        terminal.getGridNode() != null,
+                        "The AE2 pattern terminal node is not ready"))
+                .thenExecute(() -> {
+                    PatternEncodingLogic logic = terminal.getLogic();
+                    configureWrappedProcessingPattern(logic);
+
+                    PatternEncodingTermMenu menu = new PatternEncodingTermMenu(
+                            PatternEncodingTermMenu.TYPE,
+                            0,
+                            new Inventory(helper.makeMockPlayer(GameType.CREATIVE)),
+                            terminal,
+                            false);
+                    menu.setMode(EncodingMode.PROCESSING);
+                    menu.encode();
+
+                    assertMenuEncodedDirectCustomKey(helper, logic, "The standard AE2 pattern menu");
+                })
+                .thenSucceed();
+    }
 
     @TestHolder("data_reassembler_processing_pattern_normalizes_only_custom_wrappers")
     @EmptyTemplate("5")
@@ -198,6 +249,48 @@ public final class DataRipperReassemblerAe2CraftingGameTest {
 
     private static ConfigInventory configInventory(int size) {
         return ConfigInventory.configStacks(size).allowOverstacking(true).build();
+    }
+
+    private static CableBusBlockEntity placeCableBus(GameTestHelper helper) {
+        helper.setBlock(TERMINAL_HOST_POS, AEBlocks.CABLE_BUS.block().defaultBlockState());
+        BlockEntity blockEntity = helper.getBlockEntity(TERMINAL_HOST_POS);
+        if (blockEntity instanceof CableBusBlockEntity cableBus) {
+            return cableBus;
+        }
+        throw new GameTestAssertException("Placed AE cable bus has no matching block entity");
+    }
+
+    private static void configureWrappedProcessingPattern(PatternEncodingLogic logic) {
+        logic.setMode(EncodingMode.PROCESSING);
+        logic.getEncodedInputInv().setStack(
+                0,
+                new GenericStack(wrappedKey(DataFlowKey.of(), 1_200L), 2L));
+        logic.getEncodedOutputInv().setStack(
+                0,
+                new GenericStack(itemKey(ModItems.DATA_CRYSTAL.toStack()), 96L));
+        logic.getEncodedPatternInv().setItemDirect(0, AEItems.BLANK_PATTERN.stack());
+    }
+
+    private static void assertMenuEncodedDirectCustomKey(
+                                                         GameTestHelper helper,
+                                                         PatternEncodingLogic logic,
+                                                         String menuDescription) {
+        ItemStack encodedPattern = logic.getEncodedPatternInv().getStackInSlot(0);
+        AEProcessingPattern decodedPattern = requireProcessingPattern(encodedPattern, helper.getLevel());
+        assertSparseStack(
+                helper,
+                decodedPattern.getSparseInputs(),
+                0,
+                DataFlowKey.of(),
+                2_400L,
+                menuDescription + " must encode the wrapped DataFlow input as a direct key");
+        assertSparseStack(
+                helper,
+                decodedPattern.getSparseOutputs(),
+                0,
+                itemKey(ModItems.DATA_CRYSTAL.toStack()),
+                96L,
+                menuDescription + " must retain Data Crystal as the primary output");
     }
 
     private static AEItemKey wrappedKey(AEKey key, long innerAmount) {
