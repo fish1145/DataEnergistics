@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.menu.CompartmentMenu;
 import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
+import com.fish_dan_.data_energistics.menu.MePatternBufferMenu;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
@@ -31,6 +32,7 @@ public final class CompartmentHostUi {
     public static final String COMPOSITE_WAREHOUSE_ROOT_ID = "composite_warehouse_root";
     public static final String ME_INPUT_ROOT_ID = "me_input_compartment_root";
     public static final String ME_OUTPUT_ROOT_ID = "me_output_compartment_root";
+    public static final String PATTERN_BUFFER_ROOT_ID = "pattern_buffer_compartment_root";
     private static final HostLayout COMPOSITE_WAREHOUSE_LAYOUT = new HostLayout(
             COMPOSITE_WAREHOUSE_ROOT_ID,
             176,
@@ -52,6 +54,13 @@ public final class CompartmentHostUi {
             new AePlayerInventoryLayout(8, 108, 166),
             "ae2:textures/guis/me_composite_output_warehouse.png",
             "ME output compartment");
+    private static final HostLayout PATTERN_BUFFER_LAYOUT = new HostLayout(
+            PATTERN_BUFFER_ROOT_ID,
+            256,
+            226,
+            new AePlayerInventoryLayout(8, 139, 197),
+            "ae2:textures/guis/me_pattern_buffer.png",
+            "ME pattern-buffer compartment");
 
     private CompartmentHostUi() {}
 
@@ -105,6 +114,22 @@ public final class CompartmentHostUi {
      */
     static void mountMeOutput(CompartmentMenu menu, Function<AeMenuBridge, UIElement> contentFactory) {
         mount(menu, contentFactory, ME_OUTPUT_LAYOUT);
+    }
+
+    /**
+     * Mounts the fixed pattern, aggregate display, catalyst, composite-key, and player surfaces.
+     *
+     * @param menu fully constructed pattern-buffer menu
+     */
+    public static void mountPatternBuffer(MePatternBufferMenu menu) {
+        mountPatternBuffer(
+                menu,
+                bridge -> PatternBufferCompartmentPanel.create(menu, bridge));
+    }
+
+    /** Fixed pattern-buffer mount boundary used by package-level fault-injection tests. */
+    static void mountPatternBuffer(CompartmentMenu menu, Function<AeMenuBridge, UIElement> contentFactory) {
+        mount(menu, contentFactory, PATTERN_BUFFER_LAYOUT);
     }
 
     private static void mount(CompartmentMenu menu,

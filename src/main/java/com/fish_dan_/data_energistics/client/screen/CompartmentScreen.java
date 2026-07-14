@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -24,17 +23,9 @@ public class CompartmentScreen<T extends CompartmentMenu> extends AEBaseScreen<T
                        int offsetY,
                        int mouseX,
                        int mouseY,
-                       float partialTicks) {
-        if (this.menu.getCompartmentType() == CompartmentType.PATTERN_BUFFER) {
-            super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
-        }
-    }
+                       float partialTicks) {}
 
     /** Suppresses legacy title and inventory labels now supplied by the mounted LDLib2 root. */
     @Override
-    public void drawFG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY) {
-        if (this.menu.getCompartmentType() == CompartmentType.PATTERN_BUFFER) {
-            super.drawFG(guiGraphics, offsetX, offsetY, mouseX, mouseY);
-        }
-    }
+    public void drawFG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY) {}
 }
