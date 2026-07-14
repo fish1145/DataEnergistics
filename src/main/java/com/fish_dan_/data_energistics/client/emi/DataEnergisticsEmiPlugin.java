@@ -20,6 +20,7 @@ import net.minecraft.world.item.enchantment.Enchantments;
 
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiPlugin;
@@ -55,6 +56,12 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addRecipeHandler(
                 ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 new EmiEncodePatternHandler<>(UniversalPatternEncodingTermMenu.class));
+        registry.addRecipeHandler(
+                PatternEncodingTermMenu.TYPE,
+                new EmiMultiblockPatternTransferHandler<>(PatternEncodingTermMenu.class));
+        registry.addRecipeHandler(
+                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                new EmiMultiblockPatternTransferHandler<>(UniversalPatternEncodingTermMenu.class));
 
         registry.addCategory(TimeShiftEmiRecipe.CATEGORY);
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
