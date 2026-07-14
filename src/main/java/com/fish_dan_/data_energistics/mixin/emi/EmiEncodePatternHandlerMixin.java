@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.mixin.emi;
 
-import com.fish_dan_.data_energistics.client.emi.EmiEncodePatternHandlerMultiblockTransferGuard;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -15,13 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(value = EmiEncodePatternHandler.class, remap = false)
 public abstract class EmiEncodePatternHandlerMixin {
-
-    /**
-     * Overrides AE2's inherited catch-all result on the concrete encoding handler after Mixin merges this method.
-     */
-    public boolean supportsRecipe(EmiRecipe recipe) {
-        return !EmiEncodePatternHandlerMultiblockTransferGuard.shouldDefer(this, recipe);
-    }
 
     @Inject(
             method = "transferRecipe(Lappeng/menu/me/items/PatternEncodingTermMenu;Lnet/minecraft/world/item/crafting/RecipeHolder;Ldev/emi/emi/api/recipe/EmiRecipe;Z)Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;",

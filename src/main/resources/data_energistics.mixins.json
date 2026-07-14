@@ -68,6 +68,7 @@
 		"core.CondenserScreenMixin",
 		"core.PatternProviderScreenMixin",
 		"core.WidgetContainerAccessor",
+		"emi.AbstractRecipeHandlerMixin",
 		"emi.EmiEncodePatternHandlerMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin"
