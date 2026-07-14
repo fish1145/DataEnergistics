@@ -9,8 +9,13 @@ import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
+import net.minecraft.network.chat.Component;
+
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.Function;
 
@@ -20,8 +25,11 @@ import java.util.function.Function;
 public final class TrinityDataCoreHostUi {
 
     static final String ROOT_ID = "trinity_data_core_root";
+    static final String TITLE_ID = "trinity_data_core_title";
+    static final String PLAYER_INVENTORY_TITLE_ID = "trinity_data_core_player_inventory_title";
     private static final int WIDTH = 256;
     private static final int HEIGHT = 212;
+    private static final String BACKGROUND_TEXTURE = "ae2:textures/guis/trinity_data_core/gui.png";
     private static final AePlayerInventoryLayout PLAYER_INVENTORY_LAYOUT = new AePlayerInventoryLayout(48, 127, 186);
 
     private TrinityDataCoreHostUi() {}
@@ -48,10 +56,23 @@ public final class TrinityDataCoreHostUi {
         UIElement root = new UIElement();
         root.setId(ROOT_ID);
         root.layout(layout -> layout.width(WIDTH).height(HEIGHT));
+        root.style(style -> style.backgroundTexture(backgroundTexture()));
         HostUiExtension hostUi = HostUiExtension.create(root);
         HostModularUI modularUI = null;
         try {
             registerProviders(menu, hostUi);
+            root.addChild(title(
+                    TITLE_ID,
+                    Component.translatable("block.data_energistics.trinity_data_core"),
+                    15,
+                    7,
+                    226));
+            root.addChild(title(
+                    PLAYER_INVENTORY_TITLE_ID,
+                    Component.translatable("container.inventory"),
+                    PLAYER_INVENTORY_LAYOUT.slotLeft(),
+                    PLAYER_INVENTORY_LAYOUT.inventoryTop() - 11,
+                    162));
             root.addChild(TrinityDataCoreStatusPanel.create(menu));
             root.addChild(AePlayerInventoryPanel.create(menu, bridge, PLAYER_INVENTORY_LAYOUT));
             root.addChild(TrinityDataCoreHostLauncherPanel.create(hostUi));
@@ -78,6 +99,27 @@ public final class TrinityDataCoreHostUi {
             }
             throw failure;
         }
+    }
+
+    static SpriteTexture backgroundTexture() {
+        return SpriteTexture.of(BACKGROUND_TEXTURE).setSprite(0, 0, WIDTH, HEIGHT);
+    }
+
+    private static Label title(String id, Component text, int left, int top, int width) {
+        Label label = new Label();
+        label.setId(id);
+        label.setText(text);
+        label.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .textShadow(false));
+        label.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(left)
+                .top(top)
+                .width(width)
+                .height(9));
+        return label;
     }
 
     private static void registerProviders(TrinityDataCoreMenu menu, HostUiExtension hostUi) {

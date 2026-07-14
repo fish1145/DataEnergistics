@@ -204,7 +204,7 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
         private PagedPatternSlot(int slotOnPage) {
             super(RestrictedInputSlot.PlacableItemType.PROVIDER_PATTERN, new PagedPatternInventory(slotOnPage), 0);
             this.slotOnPage = slotOnPage;
-            // TrinityPatternCoreScreen draws the dedicated empty-pattern sprite.
+            // The LDLib2 page wrapper draws the dedicated empty-pattern sprite.
             setIcon(null);
         }
 

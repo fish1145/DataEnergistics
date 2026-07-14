@@ -62,6 +62,7 @@
 		"ae2lt.Ae2ltWirelessConnectorRendererMixin",
 		"client.Ae2CustomKeyGuiMixin",
 		"client.CPUSelectionListMixin",
+		"client.Ldlib2AeProtocolScreenMixin",
 		"client.TerminalSettingsScreenMixin",
 		"client.TooltipsMixin",
 		"core.CondenserScreenMixin",

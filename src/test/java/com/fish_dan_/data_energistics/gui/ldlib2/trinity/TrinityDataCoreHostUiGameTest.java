@@ -10,6 +10,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.GameType;
@@ -20,6 +21,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.menu.SlotSemantics;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
@@ -56,7 +58,20 @@ public final class TrinityDataCoreHostUiGameTest {
             assertSame(slot, wrapper.getSlot());
         }
 
-        assertElement(modularUI, TrinityDataCoreHostUi.ROOT_ID);
+        UIElement root = assertElement(modularUI, TrinityDataCoreHostUi.ROOT_ID);
+        // UIElement.style is client-only; the dedicated GameTest validates the exact factory mounted by the root.
+        SpriteTexture background = TrinityDataCoreHostUi.backgroundTexture();
+        assertEquals(
+                ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/trinity_data_core/gui.png"),
+                background.getImageLocation());
+        assertEquals(256, background.spriteSize.getWidth());
+        assertEquals(212, background.spriteSize.getHeight());
+        Label title = label(modularUI, TrinityDataCoreHostUi.TITLE_ID);
+        assertSame(root, title.getParent());
+        assertComponent(Component.translatable("block.data_energistics.trinity_data_core"), title.getText());
+        Label playerInventoryTitle = label(modularUI, TrinityDataCoreHostUi.PLAYER_INVENTORY_TITLE_ID);
+        assertSame(root, playerInventoryTitle.getParent());
+        assertComponent(Component.translatable("container.inventory"), playerInventoryTitle.getText());
         assertElement(modularUI, TrinityDataCoreStatusPanel.PANEL_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
         assertElement(modularUI, TrinityDataCoreHostLauncherPanel.PANEL_ID);
@@ -120,11 +135,12 @@ public final class TrinityDataCoreHostUiGameTest {
         throw new GameTestAssertException("Existing menu slot " + slot.index + " has no AeItemSlot wrapper");
     }
 
-    private static void assertElement(ModularUI modularUI, String id) {
+    private static UIElement assertElement(ModularUI modularUI, String id) {
         UIElement element = modularUI.getElementById(id);
         if (element == null) {
             throw new GameTestAssertException("Missing LDLib2 element " + id);
         }
+        return element;
     }
 
     private static Label label(ModularUI modularUI, String id) {
