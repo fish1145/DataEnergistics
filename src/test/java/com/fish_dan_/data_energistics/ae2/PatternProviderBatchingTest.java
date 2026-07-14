@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -103,6 +104,40 @@ public final class PatternProviderBatchingTest {
     }
 
     @Test
+    void rejectsNullImmediateArgumentsAtTheirMethodBoundaries() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+        ICraftingProvider provider = new NoopCraftingProvider();
+
+        assertIllegalArgument(
+                "Pattern provider capacity target and input prototype must not be null",
+                () -> PatternProviderBatching.simulateCapacity(null, prototype, 1L));
+        assertIllegalArgument(
+                "Pattern provider capacity target and input prototype must not be null",
+                () -> PatternProviderBatching.simulateCapacity(target, null, 1L));
+        assertIllegalArgument(
+                "Pattern details must not be null when expanding a pattern-provider batch",
+                () -> PatternProviderBatching.pushExpanded(
+                        null,
+                        prototype,
+                        1L,
+                        target,
+                        () -> {},
+                        (what, amount) -> {}));
+        assertIllegalArgument(
+                "Pattern-provider input prototype must not be null when scaling a batch",
+                () -> PatternProviderBatching.scalePrototype(null, 1L));
+        assertIllegalArgument(
+                "Pattern details and input prototype must not be null when preparing a pattern-provider batch",
+                () -> PatternProviderBatching.prepareSingle(provider, null, prototype, 1L));
+        assertIllegalArgument(
+                "Pattern details and input prototype must not be null when preparing a pattern-provider batch",
+                () -> PatternProviderBatching.prepareSingle(provider, pattern, null, 1L));
+    }
+
+    @Test
     void admissionRejectsAnotherPrototypeAndASecondCommit() {
         AEKey data = DataKey.of();
         KeyCounter[] prototype = counters(counter(data, 1L));
@@ -188,6 +223,11 @@ public final class PatternProviderBatchingTest {
         return total;
     }
 
+    private static void assertIllegalArgument(String message, Runnable action) {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, action::run);
+        assertEquals(message, exception.getMessage());
+    }
+
     private static final class RecordingTarget implements PatternProviderTarget {
 
         private final Map<AEKey, Long> simulatedCapacities;
@@ -234,6 +274,24 @@ public final class PatternProviderBatchingTest {
 
         @Override
         public boolean containsPatternInput(Set<AEKey> patternInputs) {
+            return false;
+        }
+    }
+
+    private static final class NoopCraftingProvider implements ICraftingProvider {
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of();
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            return true;
+        }
+
+        @Override
+        public boolean isBusy() {
             return false;
         }
     }

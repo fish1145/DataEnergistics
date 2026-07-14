@@ -129,8 +129,10 @@ public final class PatternProviderBatching {
     }
 
     static long simulateCapacity(PatternProviderTarget target, KeyCounter[] prototype, long requestedCount) {
-        Objects.requireNonNull(target, "target");
-        Objects.requireNonNull(prototype, "prototype");
+        if (target == null || prototype == null) {
+            throw new IllegalArgumentException(
+                    "Pattern provider capacity target and input prototype must not be null");
+        }
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("requestedCount must be positive");
         }
@@ -156,7 +158,10 @@ public final class PatternProviderBatching {
                              PatternProviderTarget target,
                              Runnable transferOwnership,
                              IPatternDetails.PatternInputSink remainderSink) {
-        Objects.requireNonNull(patternDetails, "patternDetails");
+        if (patternDetails == null) {
+            throw new IllegalArgumentException(
+                    "Pattern details must not be null when expanding a pattern-provider batch");
+        }
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(transferOwnership, "transferOwnership");
         Objects.requireNonNull(remainderSink, "remainderSink");
@@ -174,7 +179,10 @@ public final class PatternProviderBatching {
     }
 
     static KeyCounter[] scalePrototype(KeyCounter[] prototype, long count) {
-        Objects.requireNonNull(prototype, "prototype");
+        if (prototype == null) {
+            throw new IllegalArgumentException(
+                    "Pattern-provider input prototype must not be null when scaling a batch");
+        }
         if (count <= 0L) {
             throw new IllegalArgumentException("count must be positive");
         }
@@ -243,8 +251,10 @@ public final class PatternProviderBatching {
                                             KeyCounter[] prototype,
                                             long requestedCount,
                                             Runnable afterCommit) {
-        Objects.requireNonNull(patternDetails, "patternDetails");
-        Objects.requireNonNull(prototype, "prototype");
+        if (patternDetails == null || prototype == null) {
+            throw new IllegalArgumentException(
+                    "Pattern details and input prototype must not be null when preparing a pattern-provider batch");
+        }
         Objects.requireNonNull(afterCommit, "afterCommit");
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("requestedCount must be positive");
