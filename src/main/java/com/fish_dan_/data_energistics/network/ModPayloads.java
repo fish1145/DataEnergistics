@@ -42,6 +42,14 @@ public final class ModPayloads {
                 DigitalStorageDepotBucketModePayload.STREAM_CODEC,
                 DigitalStorageDepotBucketModePayload::handle);
         registrar.playToServer(
+                HostUiRequestPayload.TYPE,
+                HostUiRequestPayload.STREAM_CODEC,
+                HostUiRequestPayload::handle);
+        registrar.playToClient(
+                HostUiResponsePayload.TYPE,
+                HostUiResponsePayload.STREAM_CODEC,
+                HostUiResponsePayload::handle);
+        registrar.playToServer(
                 TrinityDataCoreAutoBuildPayload.TYPE,
                 TrinityDataCoreAutoBuildPayload.STREAM_CODEC,
                 TrinityDataCoreAutoBuildPayload::handle);
