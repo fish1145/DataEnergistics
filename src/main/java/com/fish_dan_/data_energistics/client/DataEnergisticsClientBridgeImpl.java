@@ -66,8 +66,7 @@ public final class DataEnergisticsClientBridgeImpl implements DataEnergisticsCli
 
     private static final class Ae2WtLibClientCompatHolder {
 
-        private Ae2WtLibClientCompatHolder() {
-        }
+        private Ae2WtLibClientCompatHolder() {}
 
         private static Object maybeReplaceWirelessPatternEncodingScreen(Object currentScreen, boolean applyImmediately) {
             return Ae2WtLibClientCompat.maybeReplaceWirelessPatternEncodingScreen(currentScreen, applyImmediately);

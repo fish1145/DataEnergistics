@@ -52,8 +52,7 @@ public final class StructurePreviewSceneInfrastructureGameTest {
     private static final ResourceLocation CONTROLLER_ID = ResourceLocation.parse("data_energistics:scene_infrastructure_test");
     private static final String STRUCTURE_ID = "main";
 
-    private StructurePreviewSceneInfrastructureGameTest() {
-    }
+    private StructurePreviewSceneInfrastructureGameTest() {}
 
     @TestHolder("structure_preview_render_state_maps_candidates_by_logical_layer")
     @EmptyTemplate("5")
