@@ -29,7 +29,7 @@ ECO 已验证的实践是：以 `UIElement` 作为面板边界，以 `DataBindin
 | `AeItemSlot` | 包装既有 `AppEngSlot`/`FakeSlot`，保持 AE2 展示与输入协议 |
 | `CompartmentSlotPanel` | 按 `SlotSemantic` 将已创建的菜单槽映射成 `AeItemSlot` |
 | `CompartmentUiActions` | 明确的翻页、退款、自动建造、模式切换服务端动作 |
-| `HostSubUiExtension` | 主机 UI 挂载可拖动、可开关子面板的稳定接口 |
+| `HostUiExtension` | 主机 UI 挂载多个可拖动、可开关子面板的稳定接口 |
 | `DraggableSubUi` | 用 `WindowDragHelper` 管理窗口位置和显示状态，不持有业务权威状态 |
 
 上述名称是迁移期建议；落地时应遵循项目既有包和命名风格，并为公共接口补齐动机与成员注释。
@@ -57,4 +57,4 @@ ECO 已验证的实践是：以 `UIElement` 作为面板边界，以 `DataBindin
 
 ## 主机子 UI 接口
 
-主机 UI 根元素通过扩展接口接收子面板 provider，并把 provider 创建的新元素挂到独立 overlay layer。子面板必须支持显式 open/close、标题栏拖动、点击提升 z-order、Esc 优先关闭、viewport 约束、XEI extra area 更新和关闭时释放 `Scene` 资源。`close()` 必须调用 overlay layer 的 `removeChild`，重新打开时 provider 创建全新的元素树和 `Scene`，不能只隐藏或复用旧实例。自动建造使用普通绝对定位元素配合 `WindowDragHelper` 保持非模态；`Dialog.windowMode` 只用于真正需要模态交互的窗口。每个 host UI 实例独立保存位置；拖动位置、显示层、相机和 hover 不写入结构选择、普通 XEI 配方或服务端数据。
+主机 UI 根元素通过扩展接口接收子面板 provider，并把 provider 创建的新元素挂到非全屏 overlay layer。Trinity 注册 `main`、`cpu`、`crafting` 和自动搭建四个独立 provider；四窗允许同时打开，自动搭建不嵌入任一结构窗口。每个子面板必须支持显式 open/close、标题栏拖动、点击提升 z-order、Esc 按最上层逐个关闭、viewport 约束、XEI extra area 更新和关闭时释放 `Scene` 资源。`close()` 必须调用 overlay layer 的 `removeChild`，重新打开时 provider 创建全新的元素树和 `Scene`，不能只隐藏或复用旧实例。自动建造使用普通绝对定位元素配合 `WindowDragHelper` 保持非模态；`Dialog.windowMode` 只用于真正需要模态交互的窗口。每个 host UI 实例独立保存四窗的位置和层级；拖动位置、显示层、相机和 hover 不写入结构选择、普通 XEI 配方或服务端数据。
