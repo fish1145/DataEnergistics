@@ -45,6 +45,10 @@ public final class ModPayloads {
                 HostUiRequestPayload.TYPE,
                 HostUiRequestPayload.STREAM_CODEC,
                 HostUiRequestPayload::handle);
+        registrar.playToServer(
+                MultiblockPatternTransferPayload.TYPE,
+                MultiblockPatternTransferPayload.STREAM_CODEC,
+                MultiblockPatternTransferPayload::handle);
         registrar.playToClient(
                 HostUiResponsePayload.TYPE,
                 HostUiResponsePayload.STREAM_CODEC,
