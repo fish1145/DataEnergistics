@@ -1,0 +1,123 @@
+package com.fish_dan_.data_energistics.gui.ldlib2;
+
+import net.minecraft.world.entity.player.Player;
+
+import com.lowdragmc.lowdraglib2.gui.ui.UI;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+
+/**
+ * Owns independently draggable, non-modal child UIs for one LDLib2 host element tree.
+ *
+ * <p>
+ * The extension creates a zero-size overlay layer so XEI exclusion handling sees only attached windows, not a
+ * full-screen mounting rectangle.
+ * </p>
+ */
+public interface HostUiExtension {
+
+    /**
+     * Creates one extension and attaches its private overlay layer to the supplied host root.
+     *
+     * @param hostRoot root that owns the child UI lifetime
+     * @return new empty extension
+     */
+    static HostUiExtension create(UIElement hostRoot) {
+        return HostUiExtensionImpl.create(hostRoot);
+    }
+
+    /**
+     * Creates the sole ModularUI bound to this extension's exact host root.
+     *
+     * @param ui     UI whose root must be the element supplied to {@link #create(UIElement)}
+     * @param player owning player when the UI is mounted on a menu
+     * @return ModularUI with hosted-window input and removal behavior
+     */
+    HostModularUI createModularUI(UI ui, @Nullable Player player);
+
+    /**
+     * Registers one provider identity before it is opened.
+     *
+     * @param provider provider to register
+     */
+    void register(HostSubUiProvider provider);
+
+    /**
+     * Opens a fresh instance, or only promotes an instance that is already open.
+     *
+     * @param key registered child UI identity
+     * @return {@code true} when a fresh instance was created
+     */
+    boolean open(HostUiKey key);
+
+    /**
+     * Opens a closed identity or closes an open identity.
+     *
+     * @param key registered child UI identity
+     * @return whether the identity is open after the toggle
+     */
+    boolean toggle(HostUiKey key);
+
+    /**
+     * Removes one attached window through LDLib2's element-tree lifecycle.
+     *
+     * @param key child UI identity
+     * @return whether an attached instance was closed
+     */
+    boolean close(HostUiKey key);
+
+    /**
+     * Closes the most recently promoted window.
+     *
+     * @return whether a topmost window existed
+     */
+    boolean closeTopmost();
+
+    /**
+     * Promotes one attached window without detaching or recreating its element tree.
+     *
+     * @param key child UI identity
+     * @return whether the identity is currently attached
+     */
+    boolean bringToFront(HostUiKey key);
+
+    /**
+     * Routes Screen keyboard input before AE2 or vanilla can close the host.
+     *
+     * @param keyCode   GLFW key code
+     * @param scanCode  platform scan code
+     * @param modifiers active modifier mask
+     * @return whether Escape closed one hosted window
+     */
+    boolean handleKeyPressed(int keyCode, int scanCode, int modifiers);
+
+    /**
+     * Returns whether one identity currently owns an attached instance.
+     *
+     * @param key child UI identity
+     * @return current open state
+     */
+    boolean isOpen(HostUiKey key);
+
+    /**
+     * Returns an immutable bottom-to-top identity snapshot.
+     *
+     * @return current window order
+     */
+    List<HostUiKey> openKeys();
+
+    /** Removes all attached instances while retaining providers and saved positions. */
+    void closeAll();
+
+    /** Permanently releases all instances and removes the private overlay layer. */
+    void dispose();
+
+    /**
+     * Returns whether this host lifetime has ended.
+     *
+     * @return terminal lifecycle state
+     */
+    boolean isDisposed();
+}
