@@ -138,6 +138,64 @@ public final class PatternProviderBatchingTest {
     }
 
     @Test
+    void rejectsNullExpansionCollaboratorsAtTheirMethodBoundary() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+
+        assertIllegalArgument(
+                "Pattern-provider expansion target must not be null",
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern, prototype, 1L, null, () -> {}, (what, amount) -> {}));
+        assertIllegalArgument(
+                "Pattern-provider ownership callback must not be null",
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern, prototype, 1L, target, null, (what, amount) -> {}));
+        assertIllegalArgument(
+                "Pattern-provider remainder sink must not be null",
+                () -> PatternProviderBatching.pushExpanded(pattern, prototype, 1L, target, () -> {}, null));
+    }
+
+    @Test
+    void rejectsNullAdmissionCollaboratorsAtTheirMethodBoundary() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+
+        assertIllegalArgument(
+                "Prepared pattern-provider input prototype must not be null",
+                () -> PatternProviderBatching.admission(1L, null, ignored -> true));
+        assertIllegalArgument(
+                "Pattern-provider batch commit must not be null",
+                () -> PatternProviderBatching.admission(1L, prototype, null));
+        assertIllegalArgument(
+                "Prepared pattern-provider input prototype must not be null",
+                () -> PatternProviderBatching.ownershipAwareAdmission(1L, null, (ignored, transfer) -> true));
+        assertIllegalArgument(
+                "Ownership-aware pattern-provider batch commit must not be null",
+                () -> PatternProviderBatching.ownershipAwareAdmission(1L, prototype, null));
+        assertIllegalArgument(
+                "Pattern-provider post-commit action must not be null",
+                () -> PatternProviderBatching.prepareStandardBatch(
+                        null, null, pattern, prototype, 1L, null));
+    }
+
+    @Test
+    void rejectsNullPrototypeCountersWithTheirIndex() {
+        AEKey data = DataKey.of();
+        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        KeyCounter[] malformedPrototype = new KeyCounter[] { counter(data, 1L), null };
+
+        assertIllegalArgument(
+                "Pattern-provider input prototype counter at index 1 must not be null",
+                () -> PatternProviderBatching.simulateCapacity(target, malformedPrototype, 1L));
+        assertIllegalArgument(
+                "Pattern-provider input prototype counter at index 1 must not be null",
+                () -> PatternProviderBatching.scalePrototype(malformedPrototype, 1L));
+    }
+
+    @Test
     void admissionRejectsAnotherPrototypeAndASecondCommit() {
         AEKey data = DataKey.of();
         KeyCounter[] prototype = counters(counter(data, 1L));

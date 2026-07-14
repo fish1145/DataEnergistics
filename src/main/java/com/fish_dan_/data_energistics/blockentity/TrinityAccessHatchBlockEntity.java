@@ -50,7 +50,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -710,8 +709,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         public @Nullable CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
                                                                KeyCounter[] prototype,
                                                                long requestedCount) {
-            Objects.requireNonNull(patternDetails, "patternDetails");
-            Objects.requireNonNull(prototype, "prototype");
+            if (patternDetails == null) {
+                throw new IllegalArgumentException("Trinity pattern details must not be null");
+            }
+            if (prototype == null) {
+                throw new IllegalArgumentException("Trinity input prototype must not be null");
+            }
             if (requestedCount <= 0L) {
                 throw new IllegalArgumentException("requestedCount must be positive");
             }

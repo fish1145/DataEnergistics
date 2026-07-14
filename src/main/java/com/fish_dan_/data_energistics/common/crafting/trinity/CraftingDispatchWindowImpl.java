@@ -4,7 +4,6 @@ import appeng.api.networking.crafting.ICraftingProvider;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 /** Identity-based in-memory {@link CraftingDispatchWindow} implementation for one server tick. */
 final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
@@ -14,14 +13,14 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
 
     @Override
     public boolean canAttempt(ICraftingProvider provider) {
-        Objects.requireNonNull(provider, "Crafting dispatch provider must not be null");
+        validateProvider(provider);
         ProviderState state = this.states.get(provider);
         return state == null || state.canAttempt();
     }
 
     @Override
     public boolean tryAcquire(ICraftingProvider provider) {
-        Objects.requireNonNull(provider, "Crafting dispatch provider must not be null");
+        validateProvider(provider);
         ProviderState state = this.states.computeIfAbsent(provider, ignored -> new ProviderState());
         if (!state.canAttempt()) {
             return false;
@@ -32,8 +31,14 @@ final class CraftingDispatchWindowImpl implements CraftingDispatchWindow {
 
     @Override
     public void markUnavailable(ICraftingProvider provider) {
-        Objects.requireNonNull(provider, "Crafting dispatch provider must not be null");
+        validateProvider(provider);
         this.states.computeIfAbsent(provider, ignored -> new ProviderState()).unavailable = true;
+    }
+
+    private static void validateProvider(ICraftingProvider provider) {
+        if (provider == null) {
+            throw new IllegalArgumentException("Crafting dispatch provider must not be null");
+        }
     }
 
     /** Per-provider state keeps exhaustion and no-capacity decisions independent. */

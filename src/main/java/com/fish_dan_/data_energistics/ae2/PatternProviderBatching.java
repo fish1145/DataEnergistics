@@ -18,7 +18,6 @@ import appeng.helpers.patternprovider.PatternProviderTarget;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -162,9 +161,15 @@ public final class PatternProviderBatching {
             throw new IllegalArgumentException(
                     "Pattern details must not be null when expanding a pattern-provider batch");
         }
-        Objects.requireNonNull(target, "target");
-        Objects.requireNonNull(transferOwnership, "transferOwnership");
-        Objects.requireNonNull(remainderSink, "remainderSink");
+        if (target == null) {
+            throw new IllegalArgumentException("Pattern-provider expansion target must not be null");
+        }
+        if (transferOwnership == null) {
+            throw new IllegalArgumentException("Pattern-provider ownership callback must not be null");
+        }
+        if (remainderSink == null) {
+            throw new IllegalArgumentException("Pattern-provider remainder sink must not be null");
+        }
         KeyCounter[] expanded = scalePrototype(prototype, count);
         patternDetails.pushInputsToExternalInventory(expanded, (what, amount) -> {
             transferOwnership.run();
@@ -189,7 +194,11 @@ public final class PatternProviderBatching {
 
         KeyCounter[] expanded = new KeyCounter[prototype.length];
         for (int index = 0; index < prototype.length; index++) {
-            KeyCounter source = Objects.requireNonNull(prototype[index], "prototype counter");
+            KeyCounter source = prototype[index];
+            if (source == null) {
+                throw new IllegalArgumentException(
+                        "Pattern-provider input prototype counter at index " + index + " must not be null");
+            }
             KeyCounter scaled = new KeyCounter();
             for (var entry : source) {
                 long amount = entry.getLongValue();
@@ -212,8 +221,12 @@ public final class PatternProviderBatching {
         if (count <= 0L) {
             throw new IllegalArgumentException("count must be positive");
         }
-        Objects.requireNonNull(preparedPrototype, "preparedPrototype");
-        Objects.requireNonNull(commit, "commit");
+        if (preparedPrototype == null) {
+            throw new IllegalArgumentException("Prepared pattern-provider input prototype must not be null");
+        }
+        if (commit == null) {
+            throw new IllegalArgumentException("Pattern-provider batch commit must not be null");
+        }
         return new OneShotAdmission(count, preparedPrototype, (prototype, ignored) -> commit.apply(prototype));
     }
 
@@ -224,15 +237,24 @@ public final class PatternProviderBatching {
         if (count <= 0L) {
             throw new IllegalArgumentException("count must be positive");
         }
-        Objects.requireNonNull(preparedPrototype, "preparedPrototype");
-        Objects.requireNonNull(commit, "commit");
+        if (preparedPrototype == null) {
+            throw new IllegalArgumentException("Prepared pattern-provider input prototype must not be null");
+        }
+        if (commit == null) {
+            throw new IllegalArgumentException("Ownership-aware pattern-provider batch commit must not be null");
+        }
         return new OneShotAdmission(count, preparedPrototype, commit);
     }
 
     private static KeyCounter aggregatePrototype(KeyCounter[] prototype) {
         KeyCounter aggregated = new KeyCounter();
-        for (KeyCounter counter : prototype) {
-            for (var entry : Objects.requireNonNull(counter, "prototype counter")) {
+        for (int index = 0; index < prototype.length; index++) {
+            KeyCounter counter = prototype[index];
+            if (counter == null) {
+                throw new IllegalArgumentException(
+                        "Pattern-provider input prototype counter at index " + index + " must not be null");
+            }
+            for (var entry : counter) {
                 AEKey key = entry.getKey();
                 long amount = entry.getLongValue();
                 if (amount < 0L) {
@@ -255,7 +277,9 @@ public final class PatternProviderBatching {
             throw new IllegalArgumentException(
                     "Pattern details and input prototype must not be null when preparing a pattern-provider batch");
         }
-        Objects.requireNonNull(afterCommit, "afterCommit");
+        if (afterCommit == null) {
+            throw new IllegalArgumentException("Pattern-provider post-commit action must not be null");
+        }
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("requestedCount must be positive");
         }
