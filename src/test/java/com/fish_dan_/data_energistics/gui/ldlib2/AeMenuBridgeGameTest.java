@@ -25,7 +25,6 @@ import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 
 import java.util.ArrayList;
@@ -93,9 +92,6 @@ public final class AeMenuBridgeGameTest {
 
         assertEquals(32, appEngSlot.getItem().getCount());
         assertEquals(1, itemElement.getValue().getCount());
-        UIEvent hoverEvent = UIEvent.create(UIEvents.HOVER_TOOLTIPS);
-        itemElement.onHoverTooltips(hoverEvent);
-        assertSame(null, hoverEvent.hoverTooltips);
         assertTrue(itemElement.isVisible(), "active AppEngSlot must be visible");
         assertTrue(itemElement.isAllowHitTest(), "active AppEngSlot must allow hit testing");
 

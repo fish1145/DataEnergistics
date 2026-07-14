@@ -9,10 +9,13 @@ import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.FakeSlot;
 import appeng.menu.slot.IOptionalSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.Style;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
+import com.lowdragmc.lowdraglib2.gui.util.DrawerHelper;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -82,9 +85,37 @@ public final class AeItemSlot extends ItemSlot {
         throw new IllegalStateException(message);
     }
 
-    /** Leaves item and empty-slot tooltip rendering exclusively to AEBaseScreen. */
+    /** Routes ordinary, custom, and emptying tooltips through LDLib2 while retaining AE2's precedence. */
     @Override
-    protected void onHoverTooltips(UIEvent event) {}
+    protected void onHoverTooltips(UIEvent event) {
+        ModularUI modularUI = getModularUI();
+        if (modularUI == null || modularUI.getMenu() == null) {
+            String message = "AeItemSlot cannot resolve a tooltip before its menu UI is mounted";
+            Data_Energistics.LOGGER.error(message);
+            throw new IllegalStateException(message);
+        }
+        event.hoverTooltips = createTooltip(modularUI.getMenu().getCarried());
+    }
+
+    /** Creates one LDLib2 tooltip from the wrapped slot and an explicit carried stack. */
+    @Nullable
+    public HoverTooltips createTooltip(ItemStack carried) {
+        return AeSlotTooltipResolver.resolve(getSlot(), carried, this::createOrdinaryTooltip);
+    }
+
+    /** Builds LDLib2's normal ItemStack tooltip only after AE2 supplies no higher-priority tooltip. */
+    @Nullable
+    private HoverTooltips createOrdinaryTooltip() {
+        ItemStack tooltipStack = getSlot().getItem();
+        if (tooltipStack.isEmpty()) {
+            return null;
+        }
+        return new HoverTooltips(
+                DrawerHelper.getItemToolTip(tooltipStack),
+                tooltipStack.getTooltipImage().orElse(null),
+                null,
+                tooltipStack);
+    }
 
     /** Refreshes active, optional-background, opacity, and hit-test state from the authoritative AE2 slot. */
     void refreshSlotPresentation() {
