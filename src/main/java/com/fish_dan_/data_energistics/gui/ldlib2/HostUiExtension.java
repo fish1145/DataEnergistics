@@ -29,6 +29,19 @@ public interface HostUiExtension {
     }
 
     /**
+     * Releases an extension when its owning factory fails before creating a {@link HostModularUI}.
+     *
+     * <p>
+     * This rollback entry rejects mounted extensions, so callers cannot bypass the coordinator for a live menu.
+     * </p>
+     *
+     * @param hostUi unmounted extension whose construction failed
+     */
+    static void discardUnmounted(HostUiExtension hostUi) {
+        HostUiExtensionImpl.discardUnmounted(hostUi);
+    }
+
+    /**
      * Creates the sole ModularUI bound to this extension's exact host root.
      *
      * @param ui     UI whose root must be the element supplied to {@link #create(UIElement)}
@@ -38,42 +51,49 @@ public interface HostUiExtension {
     HostModularUI createModularUI(UI ui, @Nullable Player player);
 
     /**
-     * Registers one provider identity before it is opened.
+     * Registers one provider identity before the coordinator seals the deterministic provider order.
      *
      * @param provider provider to register
      */
     void register(HostSubUiProvider provider);
 
     /**
-     * Opens a fresh instance, or only promotes an instance that is already open.
+     * Returns provider identities in their deterministic registration order.
      *
-     * @param key registered child UI identity
-     * @return {@code true} when a fresh instance was created
+     * @return immutable registration-order snapshot
      */
-    boolean open(HostUiKey key);
+    List<HostUiKey> registeredKeys();
 
     /**
-     * Opens a closed identity or closes an open identity.
+     * Requests an authoritative open without changing client membership before the server response.
      *
      * @param key registered child UI identity
-     * @return whether the identity is open after the toggle
+     * @return whether a request was emitted
      */
-    boolean toggle(HostUiKey key);
+    boolean requestOpen(HostUiKey key);
 
     /**
-     * Removes one attached window through LDLib2's element-tree lifecycle.
+     * Requests the explicit operation implied by the client's acknowledged membership.
+     *
+     * @param key registered child UI identity
+     * @return whether a request was emitted
+     */
+    boolean requestToggle(HostUiKey key);
+
+    /**
+     * Requests an authoritative close without removing the client tree before the server response.
      *
      * @param key child UI identity
-     * @return whether an attached instance was closed
+     * @return whether a request was emitted
      */
-    boolean close(HostUiKey key);
+    boolean requestClose(HostUiKey key);
 
     /**
-     * Closes the most recently promoted window.
+     * Requests authoritative closure of the most recently promoted window.
      *
-     * @return whether a topmost window existed
+     * @return whether a request was emitted
      */
-    boolean closeTopmost();
+    boolean requestCloseTopmost();
 
     /**
      * Promotes one attached window without detaching or recreating its element tree.
@@ -89,7 +109,7 @@ public interface HostUiExtension {
      * @param keyCode   GLFW key code
      * @param scanCode  platform scan code
      * @param modifiers active modifier mask
-     * @return whether Escape closed one hosted window
+     * @return whether Escape emitted a non-optimistic close request
      */
     boolean handleKeyPressed(int keyCode, int scanCode, int modifiers);
 
@@ -102,17 +122,20 @@ public interface HostUiExtension {
     boolean isOpen(HostUiKey key);
 
     /**
+     * Reports whether one fresh window generation is still the currently attached instance.
+     *
+     * @param key        registered child UI identity
+     * @param generation accepted OPEN sequence carried by a window-specific business request
+     * @return whether the exact generation remains open
+     */
+    boolean isOpen(HostUiKey key, long generation);
+
+    /**
      * Returns an immutable bottom-to-top identity snapshot.
      *
      * @return current window order
      */
     List<HostUiKey> openKeys();
-
-    /** Removes all attached instances while retaining providers and saved positions. */
-    void closeAll();
-
-    /** Permanently releases all instances and removes the private overlay layer. */
-    void dispose();
 
     /**
      * Returns whether this host lifetime has ended.

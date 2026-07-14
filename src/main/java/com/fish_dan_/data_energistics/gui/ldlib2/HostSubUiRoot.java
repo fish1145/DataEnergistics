@@ -23,6 +23,8 @@ public final class HostSubUiRoot extends UIElement {
     @Nullable
     private Consumer<Throwable> detachmentFailureCallback;
     @Nullable
+    private Runnable selfRemovalCompleteCallback;
+    @Nullable
     private Throwable removalFailure;
     private boolean removed;
     private int selfRemovalDepth;
@@ -30,18 +32,25 @@ public final class HostSubUiRoot extends UIElement {
     HostSubUiRoot() {}
 
     /** Installs host bookkeeping callbacks before this root enters the overlay tree. */
-    void setRemovalCallbacks(Runnable removalCallback, Consumer<Throwable> detachmentFailureCallback) {
+    void setRemovalCallbacks(Runnable removalCallback,
+                             Consumer<Throwable> detachmentFailureCallback,
+                             Runnable selfRemovalCompleteCallback) {
         if (removalCallback == null) {
             throw new IllegalArgumentException("Host sub UI removal callback must not be null");
         }
         if (detachmentFailureCallback == null) {
             throw new IllegalArgumentException("Host sub UI detachment failure callback must not be null");
         }
-        if (this.removed || this.removalCallback != null || this.detachmentFailureCallback != null) {
+        if (selfRemovalCompleteCallback == null) {
+            throw new IllegalArgumentException("Host sub UI self-removal callback must not be null");
+        }
+        if (this.removed || this.removalCallback != null || this.detachmentFailureCallback != null ||
+                this.selfRemovalCompleteCallback != null) {
             throw new IllegalStateException("Host sub UI removal callbacks can only be installed once");
         }
         this.removalCallback = removalCallback;
         this.detachmentFailureCallback = detachmentFailureCallback;
+        this.selfRemovalCompleteCallback = selfRemovalCompleteCallback;
     }
 
     /** Releases a tree that never transferred to LDLib2 ownership. */
@@ -68,7 +77,7 @@ public final class HostSubUiRoot extends UIElement {
             removedFromParent = super.removeSelf();
         } catch (RuntimeException | Error exception) {
             Throwable failure = mergeFailures(this.removalFailure, exception);
-            notifyDetachmentFailure(failure);
+            reportDetachmentFailure(failure);
             rethrow(failure);
             return false;
         } finally {
@@ -78,6 +87,7 @@ public final class HostSubUiRoot extends UIElement {
             }
         }
         if (removedFromParent) {
+            reportDetachmentComplete();
             rethrow(this.removalFailure);
         }
         return removedFromParent;
@@ -110,24 +120,42 @@ public final class HostSubUiRoot extends UIElement {
             }
             this.removalCallback = null;
         }
-        if (this.selfRemovalDepth == 0) {
-            this.detachmentFailureCallback = null;
-        }
         this.removalFailure = failure;
     }
 
     /** Makes an externally initiated, structurally incomplete detach terminal before preserving its root failure. */
-    private void notifyDetachmentFailure(Throwable failure) {
-        if (this.detachmentFailureCallback == null) {
+    void reportDetachmentFailure(Throwable failure) {
+        Throwable combinedFailure = mergeFailures(this.removalFailure, failure);
+        this.removalFailure = combinedFailure;
+        Consumer<Throwable> callback = this.detachmentFailureCallback;
+        this.detachmentFailureCallback = null;
+        this.selfRemovalCompleteCallback = null;
+        if (callback == null) {
             return;
         }
         try {
-            this.detachmentFailureCallback.accept(failure);
+            callback.accept(combinedFailure);
         } catch (RuntimeException | Error callbackFailure) {
             Data_Energistics.LOGGER.error("Failed to report an incomplete LDLib2 host child detachment", callbackFailure);
-            if (failure != callbackFailure) {
-                failure.addSuppressed(callbackFailure);
+            if (combinedFailure != callbackFailure) {
+                combinedFailure.addSuppressed(callbackFailure);
             }
+        }
+    }
+
+    /** Notifies the host only after the parent has fully cleared LDLib2 ownership. */
+    void reportDetachmentComplete() {
+        Runnable callback = this.selfRemovalCompleteCallback;
+        this.detachmentFailureCallback = null;
+        this.selfRemovalCompleteCallback = null;
+        if (callback == null) {
+            return;
+        }
+        try {
+            callback.run();
+        } catch (RuntimeException | Error callbackFailure) {
+            Data_Energistics.LOGGER.error("Failed to report completed LDLib2 host child self-removal", callbackFailure);
+            this.removalFailure = mergeFailures(this.removalFailure, callbackFailure);
         }
     }
 

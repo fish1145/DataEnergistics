@@ -11,6 +11,18 @@ public interface HostSubUiContext {
     HostUiKey key();
 
     /**
+     * Returns the accepted OPEN sequence that uniquely identifies this fresh instance.
+     *
+     * <p>
+     * Window-specific custom payloads must carry this generation and validate it through
+     * {@link HostUiExtension#isOpen(HostUiKey, long)} before executing business actions.
+     * </p>
+     *
+     * @return positive fresh-window generation
+     */
+    long generation();
+
+    /**
      * Creates and tracks the sole resource-owning root for this provider invocation.
      *
      * <p>
@@ -61,4 +73,16 @@ public interface HostSubUiContext {
      * @return whether the child UI is currently attached
      */
     boolean requestFront();
+
+    /**
+     * Reports whether a dynamic control may emit a custom C2S action for this still-current generation.
+     *
+     * <p>
+     * The host also capture-blocks LDLib2 interaction events while lifecycle work is pending. Custom payload
+     * buttons must additionally check this method before sending because they do not use LDLib2's RPC dispatcher.
+     * </p>
+     *
+     * @return whether no lifecycle request is pending and this exact instance remains attached
+     */
+    boolean canSendServerAction();
 }

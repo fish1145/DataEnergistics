@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 /** ModularUI variant that closes hosted windows before LDLib2 recursively releases the root tree. */
 public final class HostModularUI extends ModularUI {
 
-    private final HostUiExtension hostUi;
+    private final HostUiExtensionImpl hostUi;
     private boolean removed;
 
     /**
@@ -21,7 +21,7 @@ public final class HostModularUI extends ModularUI {
      * @param player owning player, when this UI is attached to a menu
      * @param hostUi child UI extension created for the supplied UI root
      */
-    HostModularUI(UI ui, @Nullable Player player, HostUiExtension hostUi) {
+    HostModularUI(UI ui, @Nullable Player player, HostUiExtensionImpl hostUi) {
         super(ui, player);
         this.hostUi = hostUi;
     }
@@ -56,7 +56,7 @@ public final class HostModularUI extends ModularUI {
         this.removed = true;
         Throwable failure = null;
         try {
-            this.hostUi.dispose();
+            this.hostUi.disposeFromOwner();
         } catch (RuntimeException | Error exception) {
             Data_Energistics.LOGGER.error("Failed to dispose hosted LDLib2 windows", exception);
             failure = exception;

@@ -28,18 +28,45 @@ final class HostUiExtensionImpl implements HostUiExtension {
     private static final String FAILURE_PREFIX = "LDLib2 host UI invariant failed: ";
     private static final int ESCAPE_KEY = 256;
     private static final int BASE_WINDOW_Z = 300;
+    private static final List<String> GUARDED_INTERACTION_EVENTS = List.of(
+            UIEvents.MOUSE_DOWN,
+            UIEvents.MOUSE_UP,
+            UIEvents.CLICK,
+            UIEvents.DOUBLE_CLICK,
+            UIEvents.MOUSE_MOVE,
+            UIEvents.MOUSE_ENTER,
+            UIEvents.MOUSE_LEAVE,
+            UIEvents.MOUSE_WHEEL,
+            UIEvents.DRAG_ENTER,
+            UIEvents.DRAG_LEAVE,
+            UIEvents.DRAG_UPDATE,
+            UIEvents.DRAG_SOURCE_UPDATE,
+            UIEvents.DRAG_PERFORM,
+            UIEvents.DRAG_END,
+            UIEvents.FOCUS,
+            UIEvents.BLUR,
+            UIEvents.FOCUS_IN,
+            UIEvents.FOCUS_OUT,
+            UIEvents.KEY_DOWN,
+            UIEvents.KEY_UP,
+            UIEvents.CHAR_TYPED,
+            UIEvents.VALIDATE_COMMAND,
+            UIEvents.EXECUTE_COMMAND);
 
     private final UIElement hostRoot;
-    private final UIElement overlayLayer;
+    private final HostOverlayLayer overlayLayer;
     private final Map<HostUiKey, HostSubUiProvider> providers = new LinkedHashMap<>();
     private final Map<HostUiKey, WindowEntry> openWindows = new LinkedHashMap<>();
     private final List<WindowEntry> bottomToTop = new ArrayList<>();
     private final Map<HostUiKey, WindowPosition> savedPositions = new LinkedHashMap<>();
     private final ReferenceQueue<UIElement> collectedElements = new ReferenceQueue<>();
     private final Set<WeakElementReference> seenElements = new HashSet<>();
+    @Nullable
+    private HostUiCoordinator coordinator;
     private ModularUI escapePolicyUi;
     private HostModularUI modularUI;
     private boolean previousShouldCloseOnEsc;
+    private boolean providersSealed;
     private boolean disposed;
     private boolean overlayRemoved;
 
@@ -71,6 +98,17 @@ final class HostUiExtensionImpl implements HostUiExtension {
         return new HostUiExtensionImpl(hostRoot);
     }
 
+    /** Releases only a factory result that never reached its mounted ModularUI lifetime. */
+    static void discardUnmounted(HostUiExtension hostUi) {
+        if (!(hostUi instanceof HostUiExtensionImpl implementation)) {
+            throw violation("unmounted rollback requires the host extension created by HostUiExtension.create");
+        }
+        if (implementation.modularUI != null) {
+            throw violation("a mounted host extension can only be released by its owning ModularUI");
+        }
+        implementation.disposeFromOwner();
+    }
+
     @Override
     public HostModularUI createModularUI(UI ui, @Nullable Player player) {
         ensureUsable();
@@ -87,9 +125,32 @@ final class HostUiExtensionImpl implements HostUiExtension {
         return this.modularUI;
     }
 
+    /** Seals provider registration and attaches the sole coordinator before dynamic membership begins. */
+    void attachCoordinator(HostUiCoordinator coordinator) {
+        ensureUsable();
+        if (coordinator == null) {
+            throw violation("coordinator must not be null");
+        }
+        if (coordinator.hostUi() != this) {
+            throw violation("coordinator belongs to a different host extension");
+        }
+        if (this.coordinator != null) {
+            throw violation("host extension already owns a coordinator");
+        }
+        if (!this.openWindows.isEmpty()) {
+            throw violation("coordinator must attach before the first dynamic window opens");
+        }
+        this.providersSealed = true;
+        this.coordinator = coordinator;
+        synchronizeEscapePolicy();
+    }
+
     @Override
     public void register(HostSubUiProvider provider) {
         ensureUsable();
+        if (this.providersSealed) {
+            throw violation("provider registration is sealed after coordinator attachment");
+        }
         if (provider == null) {
             throw violation("provider must not be null");
         }
@@ -103,15 +164,43 @@ final class HostUiExtensionImpl implements HostUiExtension {
     }
 
     @Override
-    public boolean open(HostUiKey key) {
+    public List<HostUiKey> registeredKeys() {
+        return List.copyOf(this.providers.keySet());
+    }
+
+    @Override
+    public boolean requestOpen(HostUiKey key) {
+        return requiredCoordinator().requestOpen(key);
+    }
+
+    @Override
+    public boolean requestToggle(HostUiKey key) {
+        return requiredCoordinator().requestToggle(key);
+    }
+
+    @Override
+    public boolean requestClose(HostUiKey key) {
+        return requiredCoordinator().requestClose(key);
+    }
+
+    @Override
+    public boolean requestCloseTopmost() {
+        return requiredCoordinator().requestCloseTopmost();
+    }
+
+    /** Applies one accepted OPEN sequence and records it as the fresh window generation. */
+    boolean openFresh(HostUiKey key, long generation) {
         ensureUsable();
+        if (generation <= 0L) {
+            throw violation("window generation must be positive: " + generation);
+        }
         HostSubUiProvider provider = registeredProvider(key);
         if (this.openWindows.containsKey(key)) {
             bringToFront(key);
             return false;
         }
 
-        OpeningContext context = new OpeningContext(key);
+        OpeningContext context = new OpeningContext(key, generation);
         WindowEntry entry = null;
         try {
             HostSubUi subUi = provider.create(context);
@@ -137,31 +226,12 @@ final class HostUiExtensionImpl implements HostUiExtension {
         }
     }
 
-    @Override
-    public boolean toggle(HostUiKey key) {
-        ensureUsable();
-        if (isOpen(key)) {
-            close(key);
-            return false;
-        }
-        open(key);
-        return true;
-    }
-
-    @Override
-    public boolean close(HostUiKey key) {
+    /** Applies one accepted CLOSE sequence through LDLib2's real element removal lifecycle. */
+    boolean closeAuthoritatively(HostUiKey key) {
         if (this.disposed) {
             return false;
         }
         return closeWindow(key);
-    }
-
-    @Override
-    public boolean closeTopmost() {
-        if (this.disposed || this.bottomToTop.isEmpty()) {
-            return false;
-        }
-        return closeWindow(this.bottomToTop.getLast().key);
     }
 
     @Override
@@ -183,21 +253,30 @@ final class HostUiExtensionImpl implements HostUiExtension {
 
     @Override
     public boolean handleKeyPressed(int keyCode, int scanCode, int modifiers) {
-        return !this.disposed && keyCode == ESCAPE_KEY && closeTopmost();
+        return !this.disposed && keyCode == ESCAPE_KEY && requiredCoordinator().handleEscape();
     }
 
     @Override
     public boolean isOpen(HostUiKey key) {
-        return key != null && this.openWindows.containsKey(key);
+        return !this.disposed && key != null && this.openWindows.containsKey(key);
+    }
+
+    @Override
+    public boolean isOpen(HostUiKey key, long generation) {
+        WindowEntry entry = key == null ? null : this.openWindows.get(key);
+        return !this.disposed && generation > 0L && entry != null && entry.context.generation() == generation;
     }
 
     @Override
     public List<HostUiKey> openKeys() {
+        if (this.disposed) {
+            return List.of();
+        }
         return this.bottomToTop.stream().map(entry -> entry.key).toList();
     }
 
-    @Override
-    public void closeAll() {
+    /** Removes every authoritative local instance in reverse z-order during host teardown. */
+    private void closeAllAuthoritatively() {
         List<WindowEntry> windows = List.copyOf(this.bottomToTop);
         Throwable failure = null;
         for (int index = windows.size() - 1; index >= 0; index--) {
@@ -210,15 +289,15 @@ final class HostUiExtensionImpl implements HostUiExtension {
         rethrow(failure);
     }
 
-    @Override
-    public void dispose() {
+    /** Permanently releases every child tree when the owning ModularUI ends or an unmounted factory rolls back. */
+    void disposeFromOwner() {
         if (this.overlayRemoved && this.bottomToTop.isEmpty()) {
             return;
         }
         this.disposed = true;
         Throwable failure = null;
         try {
-            closeAll();
+            closeAllAuthoritatively();
         } catch (RuntimeException | Error exception) {
             failure = exception;
         }
@@ -244,10 +323,17 @@ final class HostUiExtensionImpl implements HostUiExtension {
     }
 
     /** Creates a zero-size, overflow-visible layer so only its window children contribute XEI areas. */
-    private static UIElement createOverlayLayer() {
-        UIElement layer = new HostOverlayLayer();
+    private HostOverlayLayer createOverlayLayer() {
+        HostOverlayLayer layer = new HostOverlayLayer();
         layer.setId("datae-host-ui-overlay");
         layer.setAllowHitTest(false);
+        for (String eventType : GUARDED_INTERACTION_EVENTS) {
+            layer.addEventListener(eventType, event -> {
+                if (isInteractionBlocked()) {
+                    event.stopPropagation();
+                }
+            }, true);
+        }
         layer.layout(layout -> {
             layout.positionType(TaffyPosition.ABSOLUTE);
             layout.width(0);
@@ -277,8 +363,8 @@ final class HostUiExtensionImpl implements HostUiExtension {
         if (subUi.root() != context.createdRoot()) {
             throw violation("provider " + key.id() + " did not return the root created by its context");
         }
-        if (subUi.root() == this.hostRoot || subUi.root() == this.overlayLayer) {
-            throw violation("provider " + key.id() + " reused a host-owned element");
+        if (subUi.root() == this.hostRoot) {
+            throw violation("provider " + key.id() + " reused the host root");
         }
         List<UIElement> newElements = new ArrayList<>();
         newElements.add(subUi.root());
@@ -327,12 +413,32 @@ final class HostUiExtensionImpl implements HostUiExtension {
         }, true);
         root.addEventListener(UIEvents.LAYOUT_CHANGED, event -> clampAndRemember(entry));
         root.setRemovalCallbacks(
-                () -> handleWindowRemoval(entry), failure -> terminateAfterRemovalFailure(entry, failure));
+                () -> handleWindowRemoval(entry),
+                failure -> terminateAfterRemovalFailure(entry, failure),
+                () -> handleCompletedSelfRemoval(entry));
         WindowDragHelper.setDragMove(
                 entry.subUi.dragHandle(),
                 root,
                 event -> event.button == 0,
                 event -> clampAndRemember(entry));
+    }
+
+    /** Blocks every descendant interaction while its matching server-side dynamic RPC tree may be absent. */
+    private boolean isInteractionBlocked() {
+        return this.coordinator != null &&
+                (this.coordinator.pendingRequest() != null || this.coordinator.isTerminal());
+    }
+
+    /** Closes the owner only after an uncoordinated removeSelf has fully cleared LDLib2 ownership. */
+    private void handleCompletedSelfRemoval(WindowEntry entry) {
+        if (entry.removalRequestedByHost || this.coordinator == null) {
+            return;
+        }
+        if (this.coordinator instanceof HostUiCoordinatorImpl coordinatorImpl) {
+            coordinatorImpl.hostBecameTerminal(
+                    "LDLib2 host UI became terminal after external removal of " + entry.key.id(),
+                    entry.subUi.root().removalFailure());
+        }
     }
 
     /** Removes one window through LDLib2 before reporting any deferred focus or cleanup failure. */
@@ -341,6 +447,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
         if (entry == null) {
             return false;
         }
+        entry.removalRequestedByHost = true;
         rememberPosition(entry);
         Throwable failure = null;
         try {
@@ -385,6 +492,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
 
     /** Reconciles host state when LDLib2 or an external owner removes a window directly. */
     private void handleWindowRemoval(WindowEntry entry) {
+        boolean externalRemoval = !entry.removalRequestedByHost;
         Throwable failure = entry.subUi.root().removalFailure();
         try {
             moveFocusAfterClose(entry);
@@ -416,6 +524,13 @@ final class HostUiExtensionImpl implements HostUiExtension {
         }
         entry.context.release(failure);
         failure = mergeFailures(failure, entry.context.releaseFailure());
+        if (externalRemoval) {
+            this.disposed = true;
+            restoreEscapePolicy();
+            Data_Energistics.LOGGER.error(
+                    "LDLib2 host UI became terminal after external removal of {}",
+                    entry.key.id());
+        }
         if (failure != null) {
             this.disposed = true;
             restoreEscapePolicy();
@@ -432,6 +547,21 @@ final class HostUiExtensionImpl implements HostUiExtension {
         entry.context.release(failure);
         restoreEscapePolicy();
         Data_Energistics.LOGGER.error("LDLib2 host UI became terminal while removing {}", entry.key.id(), failure);
+        notifyCoordinatorAfterExternalRemoval(entry, failure);
+    }
+
+    /**
+     * Closes the owner after an external detach, while authoritative failures remain ordered by their payload handler.
+     */
+    private void notifyCoordinatorAfterExternalRemoval(WindowEntry entry, @Nullable Throwable failure) {
+        if (entry.removalRequestedByHost || this.coordinator == null) {
+            return;
+        }
+        if (this.coordinator instanceof HostUiCoordinatorImpl coordinatorImpl) {
+            coordinatorImpl.hostBecameTerminal(
+                    "LDLib2 host UI became terminal after external removal of " + entry.key.id(),
+                    failure);
+        }
     }
 
     /** Rolls back all state and resources acquired before a failed open returned to its caller. */
@@ -444,6 +574,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
             this.bottomToTop.remove(entry);
             if (this.overlayLayer.hasChild(entry.subUi.root())) {
                 try {
+                    entry.removalRequestedByHost = true;
                     this.overlayLayer.removeChild(entry.subUi.root());
                 } catch (RuntimeException | Error cleanupFailure) {
                     if (cleanupFailure != failure) {
@@ -544,7 +675,9 @@ final class HostUiExtensionImpl implements HostUiExtension {
 
     /** Suspends host-level Escape closing only while at least one child UI remains open. */
     private void synchronizeEscapePolicy() {
-        if (this.openWindows.isEmpty()) {
+        boolean coordinatorTerminal = this.coordinator != null && this.coordinator.isTerminal();
+        boolean requestPending = this.coordinator != null && this.coordinator.pendingRequest() != null;
+        if (coordinatorTerminal || this.openWindows.isEmpty() && !requestPending) {
             restoreEscapePolicy();
             return;
         }
@@ -590,6 +723,21 @@ final class HostUiExtensionImpl implements HostUiExtension {
         }
     }
 
+    /** Returns the static lifecycle endpoint required by every client-originated membership request. */
+    private HostUiCoordinator requiredCoordinator() {
+        if (this.coordinator == null) {
+            throw violation("host UI coordinator is not attached");
+        }
+        return this.coordinator;
+    }
+
+    /** Re-evaluates Escape and interaction policy whenever the client pending state changes. */
+    void coordinatorStateChanged() {
+        if (!this.overlayRemoved) {
+            synchronizeEscapePolicy();
+        }
+    }
+
     /** Logs each rejected invariant before returning its fail-fast exception. */
     private static IllegalStateException violation(String message) {
         Data_Energistics.LOGGER.error("{}{}", FAILURE_PREFIX, message);
@@ -626,6 +774,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
         private final HostUiKey key;
         private final HostSubUi subUi;
         private final OpeningContext context;
+        private boolean removalRequestedByHost;
         private boolean clamping;
         private int viewportWidth = -1;
         private int viewportHeight = -1;
@@ -637,8 +786,25 @@ final class HostUiExtensionImpl implements HostUiExtension {
         }
     }
 
-    /** Marker child that prevents two extensions from claiming the same unbound host root. */
-    private static final class HostOverlayLayer extends UIElement {}
+    /** Private ancestor that blocks pending events before provider targets and observes every direct window detach. */
+    private final class HostOverlayLayer extends UIElement {
+
+        @Override
+        public boolean removeChild(@Nullable UIElement child) {
+            try {
+                boolean removed = super.removeChild(child);
+                if (removed && child instanceof HostSubUiRoot root) {
+                    root.reportDetachmentComplete();
+                }
+                return removed;
+            } catch (RuntimeException | Error failure) {
+                if (child instanceof HostSubUiRoot root) {
+                    root.reportDetachmentFailure(failure);
+                }
+                throw failure;
+            }
+        }
+    }
 
     /** Weak identity key that detects provider reuse without retaining closed Scene trees for the whole menu. */
     private static final class WeakElementReference extends WeakReference<UIElement> {
@@ -680,6 +846,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
     private final class OpeningContext implements HostSubUiContext {
 
         private final HostUiKey key;
+        private final long generation;
         private final List<Runnable> creationRollbackActions = new ArrayList<>();
         private final List<Runnable> closeActions = new ArrayList<>();
         private HostSubUiRoot root;
@@ -689,13 +856,19 @@ final class HostUiExtensionImpl implements HostUiExtension {
         private boolean attached;
         private boolean released;
 
-        private OpeningContext(HostUiKey key) {
+        private OpeningContext(HostUiKey key, long generation) {
             this.key = key;
+            this.generation = generation;
         }
 
         @Override
         public HostUiKey key() {
             return this.key;
+        }
+
+        @Override
+        public long generation() {
+            return this.generation;
         }
 
         @Override
@@ -732,13 +905,22 @@ final class HostUiExtensionImpl implements HostUiExtension {
         @Override
         public boolean requestClose() {
             ensureAttached();
-            return HostUiExtensionImpl.this.close(this.key);
+            return requiredCoordinator().requestClose(this.key);
         }
 
         @Override
         public boolean requestFront() {
             ensureAttached();
             return HostUiExtensionImpl.this.bringToFront(this.key);
+        }
+
+        @Override
+        public boolean canSendServerAction() {
+            return this.attached && !this.released &&
+                    HostUiExtensionImpl.this.isOpen(this.key, this.generation) &&
+                    HostUiExtensionImpl.this.coordinator != null &&
+                    HostUiExtensionImpl.this.coordinator.pendingRequest() == null &&
+                    !HostUiExtensionImpl.this.coordinator.isTerminal();
         }
 
         /** Marks the point after which callbacks may mutate the attached host entry. */

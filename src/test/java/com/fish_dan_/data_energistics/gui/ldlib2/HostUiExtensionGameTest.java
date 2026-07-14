@@ -22,11 +22,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
 public final class HostUiExtensionGameTest {
+
+    private static final AtomicLong NEXT_TEST_GENERATION = new AtomicLong(1L);
 
     private HostUiExtensionGameTest() {}
 
@@ -40,10 +43,10 @@ public final class HostUiExtensionGameTest {
         CountingProvider crafting = fixture.register("crafting");
         CountingProvider autoBuild = fixture.register("auto_build");
 
-        assertTrue(fixture.extension.open(main.key()), "main must open");
-        assertTrue(fixture.extension.open(cpu.key()), "cpu must open");
-        assertTrue(fixture.extension.open(crafting.key()), "crafting must open");
-        assertTrue(fixture.extension.open(autoBuild.key()), "auto-build must open");
+        assertTrue(openLocally(fixture.extension, main.key()), "main must open");
+        assertTrue(openLocally(fixture.extension, cpu.key()), "cpu must open");
+        assertTrue(openLocally(fixture.extension, crafting.key()), "crafting must open");
+        assertTrue(openLocally(fixture.extension, autoBuild.key()), "auto-build must open");
         assertEquals(4, fixture.extension.openKeys().size());
         assertEquals(300, zIndex(main.latestRoot()));
         assertEquals(301, zIndex(cpu.latestRoot()));
@@ -55,7 +58,7 @@ public final class HostUiExtensionGameTest {
         assertDifferent(crafting.latestRoot(), autoBuild.latestRoot());
 
         UIElement firstMainRoot = main.latestRoot();
-        assertFalse(fixture.extension.open(main.key()), "opening an existing key must only promote it");
+        assertFalse(openLocally(fixture.extension, main.key()), "opening an existing key must only promote it");
         assertEquals(1, main.createCount);
         assertSame(main.key(), fixture.extension.openKeys().getLast());
         assertEquals(300, zIndex(cpu.latestRoot()));
@@ -63,16 +66,16 @@ public final class HostUiExtensionGameTest {
         assertEquals(302, zIndex(autoBuild.latestRoot()));
         assertEquals(303, zIndex(main.latestRoot()));
         assertFalse(fixture.extension.handleKeyPressed(65, 0, 0), "non-Escape input must remain with the host");
-        assertTrue(fixture.extension.handleKeyPressed(256, 0, 0), "Escape must close the topmost child UI");
+        assertTrue(closeTopmostLocally(fixture.extension), "topmost local fixture close must remove the child UI");
         assertEquals(1, main.closeCount);
-        assertFalse(fixture.extension.close(main.key()), "a repeated close must be idempotent");
+        assertFalse(closeLocally(fixture.extension, main.key()), "a repeated close must be idempotent");
 
-        assertTrue(fixture.extension.open(main.key()), "a closed key must reopen");
+        assertTrue(openLocally(fixture.extension, main.key()), "a closed key must reopen");
         assertEquals(2, main.createCount);
         assertDifferent(firstMainRoot, main.latestRoot());
         assertSame(main.key(), fixture.extension.openKeys().getLast());
 
-        fixture.extension.closeAll();
+        closeAllLocally(fixture.extension);
         assertEquals(0, fixture.extension.openKeys().size());
         assertTrue(fixture.modularUI.shouldCloseOnEsc(), "closing the last child must restore the host Escape policy");
         assertEquals(1, cpu.closeCount);
@@ -94,13 +97,13 @@ public final class HostUiExtensionGameTest {
                 return new HostSubUi(root, root);
             }
         });
-        assertIllegalArgument(() -> fixture.extension.open(invalidDragKey));
+        assertIllegalArgument(() -> openLocally(fixture.extension, invalidDragKey));
 
         CountingProvider reused = fixture.register("reused");
-        assertTrue(fixture.extension.open(reused.key()), "fresh reusable fixture must open once");
-        assertTrue(fixture.extension.close(reused.key()), "first reusable fixture instance must close");
+        assertTrue(openLocally(fixture.extension, reused.key()), "fresh reusable fixture must open once");
+        assertTrue(closeLocally(fixture.extension, reused.key()), "first reusable fixture instance must close");
         reused.reuseLatestTree = true;
-        assertThrows(() -> fixture.extension.open(reused.key()));
+        assertThrows(() -> openLocally(fixture.extension, reused.key()));
         assertEquals(2, reused.closeCount);
         assertFalse(fixture.extension.isOpen(reused.key()), "a reused tree must never be attached again");
 
@@ -122,9 +125,9 @@ public final class HostUiExtensionGameTest {
                 return new HostSubUi(root, reusedChild);
             }
         });
-        assertTrue(fixture.extension.open(reusedChildKey), "fresh child fixture must open once");
-        assertTrue(fixture.extension.close(reusedChildKey), "fresh child fixture must close once");
-        assertThrows(() -> fixture.extension.open(reusedChildKey));
+        assertTrue(openLocally(fixture.extension, reusedChildKey), "fresh child fixture must open once");
+        assertTrue(closeLocally(fixture.extension, reusedChildKey), "fresh child fixture must close once");
+        assertThrows(() -> openLocally(fixture.extension, reusedChildKey));
         assertEquals(2, reusedChildOpenCount[0]);
 
         assertThrows(() -> fixture.extension.createModularUI(UI.of(new UIElement()), fixture.player));
@@ -134,7 +137,7 @@ public final class HostUiExtensionGameTest {
         UIElement duplicateHostRoot = new UIElement();
         HostUiExtension duplicateGuard = HostUiExtension.create(duplicateHostRoot);
         assertThrows(() -> HostUiExtension.create(duplicateHostRoot));
-        duplicateGuard.dispose();
+        HostUiExtension.discardUnmounted(duplicateGuard);
 
         UIElement parentedHostRoot = new UIElement();
         new UIElement().addChild(parentedHostRoot);
@@ -161,7 +164,7 @@ public final class HostUiExtensionGameTest {
                 return new HostSubUi(boundRoot, boundDragHandle);
             }
         });
-        assertThrows(() -> fixture.extension.open(boundKey));
+        assertThrows(() -> openLocally(fixture.extension, boundKey));
         assertFalse(fixture.extension.isOpen(boundKey), "a tree owned by another ModularUI must stay detached");
         boundModularUI[0].onRemoved();
         fixture.modularUI.onRemoved();
@@ -196,7 +199,7 @@ public final class HostUiExtensionGameTest {
                 throw new IllegalStateException("Test provider creation failure");
             }
         });
-        assertThrows(() -> fixture.extension.open(creationFailureKey));
+        assertThrows(() -> openLocally(fixture.extension, creationFailureKey));
         assertEquals(1, creationFailureCleanup[0]);
         assertEquals(1, creationRollbackCleanup[0]);
         assertEquals(1, creationFailureChild.removalCount);
@@ -206,7 +209,7 @@ public final class HostUiExtensionGameTest {
         CountingProvider parented = new CountingProvider(key("parented"));
         parented.rootDecorator = externalParent::addChild;
         fixture.extension.register(parented);
-        assertThrows(() -> fixture.extension.open(parented.key()));
+        assertThrows(() -> openLocally(fixture.extension, parented.key()));
         assertEquals(1, parented.closeCount);
         assertTrue(externalParent.hasChild(parented.latestRoot()), "host must not detach another owner's tree");
 
@@ -219,21 +222,26 @@ public final class HostUiExtensionGameTest {
         });
         mountFailure.rootDecorator = mountFailure.rootDecorator.andThen(root -> root.addChild(mountFailureChild));
         fixture.extension.register(mountFailure);
-        assertThrows(() -> fixture.extension.open(mountFailure.key()));
+        assertThrows(() -> openLocally(fixture.extension, mountFailure.key()));
         assertEquals(1, mountFailure.closeCount);
         assertEquals(1, mountFailureRollback[0]);
         assertEquals(1, mountFailureChild.removalCount);
         assertSame(null, mountFailure.latestRoot().getParent());
 
-        assertTrue(fixture.extension.open(stable.key()), "stable provider must still open after isolated failures");
+        assertTrue(openLocally(fixture.extension, stable.key()), "stable provider must still open after isolated failures");
         UIElement removedRoot = stable.latestRoot();
         assertTrue(removedRoot.removeSelf(), "external removal must detach the child tree");
         assertEquals(1, stable.closeCount);
         assertFalse(fixture.extension.isOpen(stable.key()), "external removal must clear host bookkeeping");
-        assertFalse(fixture.extension.close(stable.key()), "external removal cleanup must remain idempotent");
+        assertFalse(closeLocally(fixture.extension, stable.key()), "external removal cleanup must remain idempotent");
         assertSame(null, removedRoot.getModularUI());
 
-        CountingProvider removalFailure = fixture.register("removal_failure");
+        assertTrue(fixture.extension.isDisposed(), "external removal must make a coordinated-capable host terminal");
+        fixture.modularUI.onRemoved();
+
+        HostFixture removalFixture = createFixture(helper, 12);
+
+        CountingProvider removalFailure = removalFixture.register("removal_failure");
         RemovalTrackingElement removalAfterFailure = new RemovalTrackingElement();
         IllegalStateException childRemovalFailure = new IllegalStateException("Test host child removal failure");
         IllegalStateException rootRemovalFailure = new IllegalStateException("Test host root removal failure");
@@ -248,17 +256,17 @@ public final class HostUiExtensionGameTest {
                 throw rootRemovalFailure;
             });
         };
-        assertTrue(fixture.extension.open(removalFailure.key()), "removal failure fixture must open");
+        assertTrue(openLocally(removalFixture.extension, removalFailure.key()), "removal failure fixture must open");
         assertThrowsSame(childRemovalFailure, () -> removalFailure.latestRoot().removeSelf());
         assertSuppressed(rootRemovalFailure, childRemovalFailure);
         assertEquals(1, removalFailure.closeCount);
         assertEquals(1, removalAfterFailure.removalCount);
         assertSame(null, removalFailure.latestRoot().getParent());
         assertSame(null, removalFailure.latestRoot().getModularUI());
-        assertTrue(fixture.extension.isDisposed(), "a failed LDLib2 removal callback must make its host terminal");
+        assertTrue(removalFixture.extension.isDisposed(), "a failed LDLib2 removal callback must make its host terminal");
 
-        fixture.modularUI.onRemoved();
-        fixture.modularUI.onRemoved();
+        removalFixture.modularUI.onRemoved();
+        removalFixture.modularUI.onRemoved();
         helper.succeed();
     }
 
@@ -278,7 +286,7 @@ public final class HostUiExtensionGameTest {
                 }
             });
         };
-        assertTrue(fixture.extension.open(provider.key()), "detachment failure fixture must open");
+        assertTrue(openLocally(fixture.extension, provider.key()), "detachment failure fixture must open");
 
         assertThrowsSame(detachmentFailure, () -> provider.latestRoot().removeSelf());
         assertTrue(fixture.extension.isDisposed(), "an incomplete external detach must make its host terminal");
@@ -301,7 +309,7 @@ public final class HostUiExtensionGameTest {
                 }
             });
         };
-        assertTrue(chainedFixture.extension.open(chainedProvider.key()), "chained detachment fixture must open");
+        assertTrue(openLocally(chainedFixture.extension, chainedProvider.key()), "chained detachment fixture must open");
 
         assertThrowsSame(removalFailure, () -> chainedProvider.latestRoot().removeSelf());
         assertSuppressed(chainedDetachmentFailure, removalFailure);
@@ -318,8 +326,8 @@ public final class HostUiExtensionGameTest {
         HostFixture fixture = createFixture(helper, 8);
         CountingProvider removed = fixture.register("reorder_removed");
         CountingProvider remaining = fixture.register("reorder_remaining");
-        assertTrue(fixture.extension.open(removed.key()), "bottom reorder fixture must open");
-        assertTrue(fixture.extension.open(remaining.key()), "top reorder fixture must open");
+        assertTrue(openLocally(fixture.extension, removed.key()), "bottom reorder fixture must open");
+        assertTrue(openLocally(fixture.extension, remaining.key()), "top reorder fixture must open");
         IllegalStateException reorderFailure = new IllegalStateException("Test host reorder failure");
         remaining.latestRoot().addEventListener(UIEvents.STYLE_CHANGED, event -> {
             throw reorderFailure;
@@ -351,9 +359,9 @@ public final class HostUiExtensionGameTest {
                 throw terminalFailure;
             });
         };
-        assertTrue(fixture.extension.open(stable.key()), "stable window must open before terminal rollback");
+        assertTrue(openLocally(fixture.extension, stable.key()), "stable window must open before terminal rollback");
 
-        assertThrows(() -> fixture.extension.open(rollbackFailure.key()));
+        assertThrows(() -> openLocally(fixture.extension, rollbackFailure.key()));
         assertTrue(fixture.extension.isDisposed(), "failed rollback must make the host terminal");
         assertTrue(fixture.modularUI.shouldCloseOnEsc(), "terminal rollback must restore host Escape closing");
         assertFalse(
@@ -397,7 +405,7 @@ public final class HostUiExtensionGameTest {
                 return new HostSubUi(root, dragHandle);
             }
         });
-        assertTrue(fixture.extension.open(key), "cleanup error fixture must open");
+        assertTrue(openLocally(fixture.extension, key), "cleanup error fixture must open");
 
         assertAssertionError(fixture.modularUI::onRemoved);
         assertEquals(1, cleanupCount[0]);
@@ -416,16 +424,16 @@ public final class HostUiExtensionGameTest {
         CountingProvider cpu = fixture.register("cpu");
         CountingProvider crafting = fixture.register("crafting");
         CountingProvider autoBuild = fixture.register("auto_build");
-        fixture.extension.open(main.key());
-        fixture.extension.open(cpu.key());
-        fixture.extension.open(crafting.key());
-        fixture.extension.open(autoBuild.key());
+        openLocally(fixture.extension, main.key());
+        openLocally(fixture.extension, cpu.key());
+        openLocally(fixture.extension, crafting.key());
+        openLocally(fixture.extension, autoBuild.key());
 
         assertTrue(fixture.extension.bringToFront(main.key()), "an open window must be promotable");
         assertSame(main.key(), fixture.extension.openKeys().getLast());
-        assertTrue(fixture.extension.closeTopmost(), "topmost close must remove the promoted window");
+        assertTrue(closeTopmostLocally(fixture.extension), "topmost close must remove the promoted window");
         assertEquals(1, main.closeCount);
-        assertTrue(fixture.extension.open(main.key()), "main must reopen as a fresh instance");
+        assertTrue(openLocally(fixture.extension, main.key()), "main must reopen as a fresh instance");
 
         fixture.modularUI.onRemoved();
         fixture.modularUI.onRemoved();
@@ -434,7 +442,7 @@ public final class HostUiExtensionGameTest {
         assertEquals(1, cpu.closeCount);
         assertEquals(1, crafting.closeCount);
         assertEquals(1, autoBuild.closeCount);
-        assertThrows(() -> fixture.extension.open(main.key()));
+        assertThrows(() -> openLocally(fixture.extension, main.key()));
         assertEquals(2, main.createCount);
         helper.succeed();
     }
@@ -452,6 +460,38 @@ public final class HostUiExtensionGameTest {
         HostModularUI modularUI = extension.createModularUI(UI.of(root), player);
         AeMenuBridge.create(menu).mount(modularUI);
         return new HostFixture(extension, modularUI, root, player);
+    }
+
+    /** Drives the package-private authoritative target directly for host-internal fault-injection tests. */
+    private static boolean openLocally(HostUiExtension extension, HostUiKey key) {
+        return localTarget(extension).openFresh(key, NEXT_TEST_GENERATION.getAndIncrement());
+    }
+
+    /** Drives one package-private close without exposing a client bypass in the public host API. */
+    private static boolean closeLocally(HostUiExtension extension, HostUiKey key) {
+        return localTarget(extension).closeAuthoritatively(key);
+    }
+
+    /** Closes the current local topmost test fixture window. */
+    private static boolean closeTopmostLocally(HostUiExtension extension) {
+        List<HostUiKey> openKeys = extension.openKeys();
+        return !openKeys.isEmpty() && closeLocally(extension, openKeys.getLast());
+    }
+
+    /** Releases all local test fixture windows in reverse z-order. */
+    private static void closeAllLocally(HostUiExtension extension) {
+        List<HostUiKey> openKeys = extension.openKeys();
+        for (int index = openKeys.size() - 1; index >= 0; index--) {
+            closeLocally(extension, openKeys.get(index));
+        }
+    }
+
+    /** Narrows the production factory result without reflection. */
+    private static HostUiExtensionImpl localTarget(HostUiExtension extension) {
+        if (!(extension instanceof HostUiExtensionImpl implementation)) {
+            throw new GameTestAssertException("Expected HostUiExtensionImpl test target");
+        }
+        return implementation;
     }
 
     /** Creates a namespaced test identity. */
