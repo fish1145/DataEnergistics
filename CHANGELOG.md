@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Version [v2.1.1](https://github.com/fish1145/DataEnergistics/compare/v2.1.0-1.21...v2.1.1-1.21)
+### Added
+
+- 优化高并行合成的容量合并发配 by @QiuYe-123 in [#100](https://github.com/fish1145/DataEnergistics/pull/100)
+
+ 
 ## Version [v2.1.0](https://github.com/fish1145/DataEnergistics/compare/v2.0.0-1.21...v2.1.0-1.21)
 ### Added
 
