@@ -51,8 +51,10 @@ public final class TrinityDataCoreHostUi {
         HostUiExtension hostUi = HostUiExtension.create(root);
         HostModularUI modularUI = null;
         try {
+            registerProviders(menu, hostUi);
             root.addChild(TrinityDataCoreStatusPanel.create(menu));
             root.addChild(AePlayerInventoryPanel.create(menu, bridge, PLAYER_INVENTORY_LAYOUT));
+            root.addChild(TrinityDataCoreHostLauncherPanel.create(hostUi));
             HostUiCoordinator coordinator = coordinatorFactory.apply(hostUi);
             if (coordinator == null || coordinator.hostUi() != hostUi) {
                 throw new IllegalStateException("Trinity Data Core coordinator must own the mounted host extension");
@@ -75,6 +77,22 @@ public final class TrinityDataCoreHostUi {
                 }
             }
             throw failure;
+        }
+    }
+
+    private static void registerProviders(TrinityDataCoreMenu menu, HostUiExtension hostUi) {
+        hostUi.register(TrinityDataCoreStructureProviders.main(menu));
+        hostUi.register(TrinityDataCoreStructureProviders.cpu(menu));
+        hostUi.register(TrinityDataCoreStructureProviders.crafting(
+                menu,
+                menu::sendHostedRefund,
+                generation -> menu.isHostedActionPending(TrinityDataCoreHostUiKeys.CRAFTING, generation)));
+        hostUi.register(TrinityDataCoreStructureProviders.autoBuild(
+                menu,
+                menu::sendHostedAutoBuild,
+                generation -> menu.isHostedActionPending(TrinityDataCoreHostUiKeys.AUTO_BUILD, generation)));
+        if (!hostUi.registeredKeys().equals(TrinityDataCoreHostUiKeys.registrationOrder())) {
+            throw new IllegalStateException("Trinity Data Core hosted providers were registered out of order");
         }
     }
 }

@@ -44,6 +44,9 @@ public final class TrinityDataCoreHostUiGameTest {
 
         assertSame(menu, modularUI.getMenu());
         assertSame(menu.getHostUiExtension(), hostModularUI.hostUi());
+        assertEquals(
+                TrinityDataCoreHostUiKeys.registrationOrder(),
+                menu.getHostUiExtension().registeredKeys());
         assertEquals(36, menu.slots.size());
         assertEquals(27, menu.getSlots(SlotSemantics.PLAYER_INVENTORY).size());
         assertEquals(9, menu.getSlots(SlotSemantics.PLAYER_HOTBAR).size());
@@ -56,6 +59,11 @@ public final class TrinityDataCoreHostUiGameTest {
         assertElement(modularUI, TrinityDataCoreHostUi.ROOT_ID);
         assertElement(modularUI, TrinityDataCoreStatusPanel.PANEL_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
+        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.PANEL_ID);
+        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.MAIN_ID);
+        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.CPU_ID);
+        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.CRAFTING_ID);
+        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.AUTO_BUILD_ID);
         helper.succeed();
     }
 
@@ -140,6 +148,12 @@ public final class TrinityDataCoreHostUiGameTest {
 
     private static void assertEquals(int expected, int actual) {
         if (expected != actual) {
+            throw new GameTestAssertException("Expected " + expected + ", got " + actual);
+        }
+    }
+
+    private static void assertEquals(Object expected, Object actual) {
+        if (!expected.equals(actual)) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
     }
