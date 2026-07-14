@@ -36,9 +36,6 @@ import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,17 +83,19 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         assertNoCandidateOverrides(first.controls().draft());
 
         TrinityAutoBuildSubmission beforeLayer = first.controls().draft().submission();
-        dispatch(client.modularUI(), previewId() + StructurePreviewPanel.LAYER_NEXT_SUFFIX);
+        requireButton(client.modularUI(), previewId() + StructurePreviewPanel.LAYER_NEXT_SUFFIX);
+        first.preview().nextLayer();
         assertEquals(beforeLayer, first.controls().draft().submission());
 
         TrinityAutoBuildSubmission expectedSubmission = first.controls().draft().submission();
-        dispatch(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        requireButton(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        first.controls().submit();
         assertEquals(List.of(new SubmissionRecord(1L, expectedSubmission)), submissions);
-        dispatch(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        first.controls().submit();
         assertEquals(1, submissions.size());
         pendingGenerations.clear();
         first.controls().screenTick();
-        dispatch(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        first.controls().submit();
         assertEquals(
                 List.of(new SubmissionRecord(1L, expectedSubmission), new SubmissionRecord(1L, expectedSubmission)),
                 submissions);
@@ -125,7 +124,7 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         assertEquals(2, binder.bindCount());
         assertEquals(refreshCountBeforeReopen + 1, binder.refreshCount());
         assertDefaultDraft(reopened.controls().draft());
-        dispatch(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        reopened.controls().submit();
         assertEquals(3L, submissions.getLast().generation());
         client.close();
 
@@ -158,47 +157,52 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
                 .selection(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME);
 
         TrinityAutoBuildSubmission mainBeforeTier = controls.draft().submission();
-        dispatch(modularUI, previewId() + StructurePreviewPanel.TIER_NEXT_SUFFIX);
+        requireButton(modularUI, previewId() + StructurePreviewPanel.TIER_NEXT_SUFFIX);
+        controls.preview().panel().nextTier();
         assertNotEquals(mainBeforeTier, controls.draft().submission());
         SubstructureSelection changedMain = controls.draft().previewSelection().selection("main");
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.BUILD_REQUESTED_BUTTON_ID);
+        requireButton(modularUI, TrinityDataCoreAutoBuildPanel.BUILD_REQUESTED_BUTTON_ID);
+        controls.toggleBuildRequested();
         assertTrue(!controls.draft().activeBuildRequested(), "Main build choice must toggle off");
 
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.STRUCTURE_NEXT_ID);
+        requireButton(modularUI, TrinityDataCoreAutoBuildPanel.STRUCTURE_NEXT_ID);
+        controls.selectRelativeStructure(1);
         assertEquals(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
                 controls.draft().previewSelection().activeSubstructureId());
         assertEquals(initialCpu, controls.draft().previewSelection().activeSelection());
         assertTrue(!controls.draft().activeBuildRequested(), "CPU must retain its disabled default");
         TrinityAutoBuildSubmission cpuBeforeTier = controls.draft().submission();
-        dispatch(modularUI, previewId() + StructurePreviewPanel.TIER_NEXT_SUFFIX);
+        controls.preview().panel().nextTier();
         assertNotEquals(cpuBeforeTier, controls.draft().submission());
         int cpuRepeatUnit = controls.preview().session().variableRepeatUnits().getFirst();
+        requireButton(modularUI, previewId() + StructurePreviewPanel.REPEAT_SUFFIX + cpuRepeatUnit + "_next");
         TrinityAutoBuildSubmission cpuBeforeRepeat = controls.draft().submission();
-        dispatch(modularUI, previewId() + StructurePreviewPanel.REPEAT_SUFFIX + cpuRepeatUnit + "_next");
+        controls.preview().panel().nextRepeat(cpuRepeatUnit);
         assertNotEquals(cpuBeforeRepeat, controls.draft().submission());
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.BUILD_REQUESTED_BUTTON_ID);
+        controls.toggleBuildRequested();
         SubstructureSelection changedCpu = controls.draft().previewSelection().activeSelection();
         assertTrue(controls.draft().activeBuildRequested(), "CPU build choice must toggle on");
 
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.STRUCTURE_NEXT_ID);
+        controls.selectRelativeStructure(1);
         assertEquals(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME,
                 controls.draft().previewSelection().activeSubstructureId());
         assertEquals(initialCrafting, controls.draft().previewSelection().activeSelection());
         assertTrue(!controls.draft().activeBuildRequested(), "Crafting must retain its disabled default");
-        dispatch(modularUI, previewId() + StructurePreviewPanel.TIER_NEXT_SUFFIX);
+        controls.preview().panel().nextTier();
         int craftingRepeatUnit = controls.preview().session().variableRepeatUnits().getFirst();
-        dispatch(modularUI, previewId() + StructurePreviewPanel.REPEAT_SUFFIX + craftingRepeatUnit + "_next");
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.BUILD_REQUESTED_BUTTON_ID);
+        requireButton(modularUI, previewId() + StructurePreviewPanel.REPEAT_SUFFIX + craftingRepeatUnit + "_next");
+        controls.preview().panel().nextRepeat(craftingRepeatUnit);
+        controls.toggleBuildRequested();
         SubstructureSelection changedCrafting = controls.draft().previewSelection().activeSelection();
         assertTrue(controls.draft().activeBuildRequested(), "Crafting build choice must toggle on");
 
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.STRUCTURE_NEXT_ID);
+        controls.selectRelativeStructure(1);
         assertEquals(changedMain, controls.draft().previewSelection().activeSelection());
         assertTrue(!controls.draft().activeBuildRequested(), "Main build choice must remain off");
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.STRUCTURE_NEXT_ID);
+        controls.selectRelativeStructure(1);
         assertEquals(changedCpu, controls.draft().previewSelection().activeSelection());
         assertTrue(controls.draft().activeBuildRequested(), "CPU build choice must remain on");
-        dispatch(modularUI, TrinityDataCoreAutoBuildPanel.STRUCTURE_NEXT_ID);
+        controls.selectRelativeStructure(1);
         assertEquals(changedCrafting, controls.draft().previewSelection().activeSelection());
         assertTrue(controls.draft().activeBuildRequested(), "Crafting build choice must remain on");
     }
@@ -257,17 +261,6 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         assertTrue(response.accepted(), "Expected accepted automatic-build CLOSE at " + sequence);
     }
 
-    private static void dispatch(HostModularUI modularUI, String id) {
-        UIElement element = requireElement(modularUI, id);
-        if (!(element instanceof Button button)) {
-            throw new GameTestAssertException("LDLib2 automatic-build control is not a button: " + id);
-        }
-        UIEvent event = UIEvent.create(UIEvents.MOUSE_DOWN);
-        event.target = button;
-        event.button = 0;
-        UIEventDispatcher.dispatchEvent(event);
-    }
-
     private static TrinityDataCoreAutoBuildPanel requireControls(HostModularUI modularUI) {
         UIElement element = requireElement(modularUI, TrinityDataCoreAutoBuildPanel.PANEL_ID);
         if (element instanceof TrinityDataCoreAutoBuildPanel controls) {
@@ -298,6 +291,14 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
             throw new GameTestAssertException("Missing LDLib2 automatic-build element " + id);
         }
         return element;
+    }
+
+    private static Button requireButton(HostModularUI modularUI, String id) {
+        UIElement element = requireElement(modularUI, id);
+        if (element instanceof Button button) {
+            return button;
+        }
+        throw new GameTestAssertException("LDLib2 automatic-build control is not a button: " + id);
     }
 
     private static String previewId() {
