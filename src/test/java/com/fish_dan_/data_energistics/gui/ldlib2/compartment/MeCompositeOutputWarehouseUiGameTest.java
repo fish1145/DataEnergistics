@@ -125,21 +125,26 @@ public final class MeCompositeOutputWarehouseUiGameTest {
     public static void mountFailureCleansOnce(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         TestCompartmentMenu menu = new TestCompartmentMenu(player, outputHost());
-        RemovalTrackingElement cleanupProbe = new RemovalTrackingElement();
+        MountLifecycleProbe lifecycleProbe = new MountLifecycleProbe();
 
         assertThrows(() -> CompartmentHostUi.mountMeOutput(
                 menu,
-                bridge -> failingPanel(menu, bridge, cleanupProbe)));
-        assertEquals(1, cleanupProbe.removalCount);
+                bridge -> failingPanel(menu, bridge, lifecycleProbe)));
+        assertEquals(1, lifecycleProbe.mountCount);
+        assertEquals(1, lifecycleProbe.removalCount);
         helper.succeed();
     }
 
     private static UIElement failingPanel(CompartmentMenu menu,
                                           AeMenuBridge bridge,
-                                          RemovalTrackingElement cleanupProbe) {
+                                          MountLifecycleProbe lifecycleProbe) {
         UIElement panel = MeOutputCompartmentPanel.create(menu, bridge);
-        panel.addChild(cleanupProbe);
+        panel.addChild(lifecycleProbe);
         panel.addEventListener(UIEvents.MUI_CHANGED, event -> {
+            if (panel.getModularUI() == null) {
+                return;
+            }
+            lifecycleProbe.mountCount++;
             throw new IllegalStateException("Injected compartment mount failure");
         });
         return panel;
@@ -206,8 +211,9 @@ public final class MeCompositeOutputWarehouseUiGameTest {
         }
     }
 
-    private static final class RemovalTrackingElement extends UIElement {
+    private static final class MountLifecycleProbe extends UIElement {
 
+        private int mountCount;
         private int removalCount;
 
         @Override
