@@ -114,6 +114,61 @@ public final class StructurePreviewProjectionGameTest {
                 "The ordinary recipe view must retain the active substructure id");
         helper.assertValueEqual(recipe.definitionRevision(), DEFINITION_REVISION,
                 "The ordinary recipe view must retain the projected definition revision");
+        helper.assertValueEqual(
+                recipe.registeredRecipeId(),
+                MultiblockRecipeView.registeredRecipeIdFor(CONTROLLER_ID),
+                "The registered recipe id must remain controller-level stable");
+        helper.assertValueEqual(
+                recipe.projectionFingerprint(),
+                ProjectionFingerprint.from(goldSnapshot.selection()),
+                "The recipe view must expose the current structured projection fingerprint");
+
+        PreviewViewState allLayers = PreviewViewState.initial();
+        PreviewViewState oneLayer = allLayers.showLogicalLayer(0);
+        helper.assertValueEqual(goldSnapshot.visibleLayers(allLayers), goldSnapshot.layers(),
+                "The explicit ALL view must retain every projected layer");
+        helper.assertValueEqual(goldSnapshot.visibleLayers(oneLayer), List.of(goldSnapshot.layers().getFirst()),
+                "A logical-layer view must filter only rendered layers");
+        helper.assertValueEqual(recipe.inputs(), goldSnapshot.materials(),
+                "Changing visible layers must not rebuild or filter recipe materials");
+        helper.assertValueEqual(recipe.projectionFingerprint(), ProjectionFingerprint.from(goldSnapshot.selection()),
+                "Visible layer state must not enter the projection fingerprint");
+        helper.succeed();
+    }
+
+    @TestHolder("structure_preview_projection_selects_variant_definition")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void selectsVariantDefinition(GameTestHelper helper) {
+        ResolvedJsonMultiBlockDefinition stoneVariant = definition(
+                oneMaterialPattern(Predicates.blocks(Blocks.STONE)));
+        ResolvedJsonMultiBlockDefinition goldVariant = definition(
+                oneMaterialPattern(Predicates.blocks(Blocks.GOLD_BLOCK)));
+        SubstructurePreviewSpec substructure = new SubstructurePreviewSpec(
+                List.of(stoneVariant, goldVariant),
+                Component.literal("Main"),
+                List.of(),
+                new SubstructureSelection(0, List.of(1), Map.of(), Map.of()));
+        MultiblockPreviewSpec spec = new MultiblockPreviewSpec(
+                CONTROLLER_ID,
+                Component.literal("Projection test"),
+                itemKey(Blocks.DIAMOND_BLOCK),
+                DEFINITION_REVISION,
+                List.of(substructure));
+        StructurePreviewProjection projection = new StructurePreviewProjectionImpl();
+        PreviewSelection stoneSelection = PreviewSelection.initial(spec);
+        PreviewSelection goldSelection = stoneSelection.withVariantIndex(1);
+
+        StructurePreviewSnapshot stone = projection.project(spec, stoneSelection);
+        StructurePreviewSnapshot gold = projection.project(spec, goldSelection);
+
+        helper.assertValueEqual(stone.materials(), List.of(new PreviewMaterial(itemKey(Blocks.STONE), 1L)),
+                "Variant zero must project its own shape materials");
+        helper.assertValueEqual(gold.materials(), List.of(new PreviewMaterial(itemKey(Blocks.GOLD_BLOCK), 1L)),
+                "Variant one must project its own shape materials");
+        helper.assertFalse(
+                ProjectionFingerprint.from(stoneSelection).equals(ProjectionFingerprint.from(goldSelection)),
+                "Changing shape variant must change the projection fingerprint");
         helper.succeed();
     }
 
@@ -245,6 +300,12 @@ public final class StructurePreviewProjectionGameTest {
                 ownerKey,
                 DEFINITION_REVISION,
                 List.of(substructure));
+    }
+
+    private static ResolvedJsonMultiBlockDefinition definition(BlockPattern pattern) {
+        return new ResolvedJsonMultiBlockDefinition(
+                new JsonMultiBlockStructureKey(CONTROLLER_ID, SUBSTRUCTURE_ID),
+                pattern);
     }
 
     private static BlockPattern repeatAndTierPattern() {

@@ -7,13 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Immutable repeat, tier, and predicate-candidate choices for one named substructure.
+ * Immutable variant, repeat, tier, and predicate-candidate choices for one named substructure.
  *
+ * @param variantIndex        zero-based shape variant inside the named structure
  * @param repeatCounts        one positive repeat count per MDLib pattern unit
  * @param tierSelections      positive values keyed by stable tier-domain id
  * @param candidateSelections non-negative candidate indexes keyed by unexpanded predicate coordinate
  */
-public record SubstructureSelection(List<Integer> repeatCounts,
+public record SubstructureSelection(int variantIndex,
+                                    List<Integer> repeatCounts,
                                     Map<String, Integer> tierSelections,
                                     Map<PreviewPredicateKey, Integer> candidateSelections) {
 
@@ -21,6 +23,9 @@ public record SubstructureSelection(List<Integer> repeatCounts,
      * Copies all collections while validating values that do not require a structure definition.
      */
     public SubstructureSelection {
+        if (variantIndex < 0) {
+            throw new IllegalArgumentException("Preview variant index cannot be negative: " + variantIndex);
+        }
         if (repeatCounts == null || tierSelections == null || candidateSelections == null) {
             throw new IllegalArgumentException("Substructure selection collections cannot be null");
         }
@@ -32,6 +37,29 @@ public record SubstructureSelection(List<Integer> repeatCounts,
         }
         tierSelections = immutableTierSelections(tierSelections);
         candidateSelections = immutableCandidateSelections(candidateSelections);
+    }
+
+    /**
+     * Creates a selection for the default single-shape variant.
+     */
+    public SubstructureSelection(List<Integer> repeatCounts,
+                                 Map<String, Integer> tierSelections,
+                                 Map<PreviewPredicateKey, Integer> candidateSelections) {
+        this(0, repeatCounts, tierSelections, candidateSelections);
+    }
+
+    /**
+     * Replaces the shape variant without changing repeat, tier, or candidate choices.
+     *
+     * @param variantIndex zero-based shape variant inside the named structure
+     * @return updated immutable selection
+     */
+    public SubstructureSelection withVariantIndex(int variantIndex) {
+        return new SubstructureSelection(
+                variantIndex,
+                this.repeatCounts,
+                this.tierSelections,
+                this.candidateSelections);
     }
 
     /**
@@ -50,7 +78,7 @@ public record SubstructureSelection(List<Integer> repeatCounts,
         }
         List<Integer> updated = new ArrayList<>(this.repeatCounts);
         updated.set(unitIndex, repeatCount);
-        return new SubstructureSelection(updated, this.tierSelections, this.candidateSelections);
+        return new SubstructureSelection(this.variantIndex, updated, this.tierSelections, this.candidateSelections);
     }
 
     /**
@@ -72,7 +100,7 @@ public record SubstructureSelection(List<Integer> repeatCounts,
         }
         Map<String, Integer> updated = new LinkedHashMap<>(this.tierSelections);
         updated.put(domainId, value);
-        return new SubstructureSelection(this.repeatCounts, updated, this.candidateSelections);
+        return new SubstructureSelection(this.variantIndex, this.repeatCounts, updated, this.candidateSelections);
     }
 
     /**
@@ -91,7 +119,7 @@ public record SubstructureSelection(List<Integer> repeatCounts,
         }
         Map<PreviewPredicateKey, Integer> updated = new LinkedHashMap<>(this.candidateSelections);
         updated.put(predicateKey, candidateIndex);
-        return new SubstructureSelection(this.repeatCounts, this.tierSelections, updated);
+        return new SubstructureSelection(this.variantIndex, this.repeatCounts, this.tierSelections, updated);
     }
 
     private static Map<String, Integer> immutableTierSelections(Map<String, Integer> selections) {

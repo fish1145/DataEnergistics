@@ -77,6 +77,12 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
         SubstructurePreviewSpec mainSpec = spec.substructure("main");
         SubstructurePreviewSpec cpuSpec = spec.substructure("cpu");
         SubstructurePreviewSpec craftingSpec = spec.substructure("crafting");
+        for (SubstructurePreviewSpec substructure : spec.substructures()) {
+            helper.assertValueEqual(substructure.variantIndexes(), List.of(0),
+                    "Each current Trinity structure must expose only explicit variant zero");
+            helper.assertValueEqual(substructure.defaults().variantIndex(), 0,
+                    "Each current Trinity structure must default to explicit variant zero");
+        }
         helper.assertTrue(
                 mainSpec.repeatRanges().stream().allMatch(range -> range.min() == range.max()),
                 "Trinity main structure must not expose a variable repeat unit");

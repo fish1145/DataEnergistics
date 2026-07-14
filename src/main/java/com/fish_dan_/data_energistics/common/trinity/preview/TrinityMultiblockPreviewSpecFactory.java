@@ -82,10 +82,11 @@ public final class TrinityMultiblockPreviewSpecFactory implements MultiblockPrev
                 .map(RepeatRange::min)
                 .toList();
         return new SubstructurePreviewSpec(
-                definition,
+                List.of(definition),
                 Component.translatable(titleTranslationKey),
                 List.of(tierDomain),
                 new SubstructureSelection(
+                        0,
                         repeatCounts,
                         Map.of(tierCategory, tierDomain.defaultValue()),
                         Map.of()));

@@ -55,6 +55,10 @@ public final class MultiblockPreviewModelGameTest {
                 defaults);
 
         helper.assertValueEqual(spec.id(), "main", "The structure id must come from the definition key");
+        helper.assertValueEqual(spec.variantIndexes(), List.of(0),
+                "A single-shape structure must still expose the explicit variant-zero domain");
+        helper.assertValueEqual(spec.defaults().variantIndex(), 0,
+                "A single-shape structure must explicitly default to variant zero");
         helper.assertValueEqual(
                 List.copyOf(spec.defaults().tierSelections().keySet()),
                 List.of("casing", "core"),
@@ -79,6 +83,12 @@ public final class MultiblockPreviewModelGameTest {
         PreviewTierDomain domain = tierDomain("core", 1);
         ResolvedJsonMultiBlockDefinition definition = definition(CONTROLLER_ID, "main");
 
+        assertIllegalArgument(helper, () -> new SubstructurePreviewSpec(
+                definition,
+                Component.literal("Main"),
+                List.of(domain),
+                new SubstructureSelection(1, List.of(1, 1, 1), Map.of("core", 1), Map.of())),
+                "Variant defaults must stay within the declared domain");
         assertIllegalArgument(helper, () -> new SubstructurePreviewSpec(
                 definition,
                 Component.literal("Main"),
@@ -211,14 +221,16 @@ public final class MultiblockPreviewModelGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void updatesCopyOnlyTheActiveSubstructureAndSwitchingRetainsIndependentState(GameTestHelper helper) {
-        MultiblockPreviewSpec spec = spec(CONTROLLER_ID, 4L, List.of("main", "cpu"));
+        MultiblockPreviewSpec spec = variantSpec(CONTROLLER_ID, 4L, List.of("main", "cpu"));
         PreviewSelection initial = PreviewSelection.initial(spec);
 
         PreviewSelection updatedCpu = initial.select("cpu")
+                .withVariantIndex(1)
                 .withRepeat(1, 3)
                 .withTier("core", 2)
                 .withCandidate(REPEATED_PREDICATE, 1);
         PreviewSelection updatedMain = updatedCpu.select("main")
+                .withVariantIndex(1)
                 .withTier("core", 2);
         PreviewSelection returnedCpu = updatedMain.select("cpu");
 
@@ -237,6 +249,10 @@ public final class MultiblockPreviewModelGameTest {
                 1,
                 "Initial CPU tier must remain unchanged");
         helper.assertValueEqual(
+                returnedCpu.activeSelection().variantIndex(),
+                1,
+                "Switching away and back must retain the CPU shape variant");
+        helper.assertValueEqual(
                 returnedCpu.activeSelection().repeatCounts(),
                 List.of(1, 3, 1),
                 "Switching away and back must retain CPU repeats");
@@ -249,9 +265,50 @@ public final class MultiblockPreviewModelGameTest {
                 1,
                 "Switching away and back must retain CPU candidate overrides");
         helper.assertValueEqual(
+                returnedCpu.selection("main").variantIndex(),
+                1,
+                "Main must retain its independent shape variant");
+        helper.assertValueEqual(
                 returnedCpu.selection("main").tierSelections().get("core"),
                 2,
                 "Main must retain its independent tier update");
+        helper.succeed();
+    }
+
+    @TestHolder("preview_selection_migrates_repeats_across_different_variant_layouts")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void migratesRepeatsAcrossDifferentVariantLayouts(GameTestHelper helper) {
+        PreviewSelection initial = PreviewSelection.initial(variantMigrationSpec());
+        PreviewSelection target = initial.withVariantIndex(1);
+        PreviewSelection returned = target.withVariantIndex(0);
+
+        helper.assertValueEqual(initial.activeSelection().repeatCounts(), List.of(1, 3, 1),
+                "Variant zero must start with its three-unit repeat selection");
+        helper.assertValueEqual(target.activeSelection().repeatCounts(), List.of(1, 2),
+                "An incompatible target repeat must fall back to its minimum and removed units must be dropped");
+        helper.assertValueEqual(returned.activeSelection().repeatCounts(), List.of(1, 2, 1),
+                "Returning to a longer layout must preserve legal repeats and initialize new units from their minimum");
+        helper.succeed();
+    }
+
+    @TestHolder("preview_selection_clears_shape_local_candidates_when_switching_variant")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void clearsShapeLocalCandidatesAndPreservesTier(GameTestHelper helper) {
+        PreviewSelection configured = PreviewSelection.initial(variantMigrationSpec())
+                .withTier("core", 2)
+                .withCandidate(REPEATED_PREDICATE, 0);
+        PreviewSelection target = configured.withVariantIndex(1);
+
+        helper.assertValueEqual(configured.activeSelection().candidateSelections().get(REPEATED_PREDICATE), 0,
+                "The source variant must retain its explicit candidate override before switching");
+        helper.assertValueEqual(target.activeSelection().candidateSelections(), Map.of(),
+                "Candidate coordinates and indexes from another shape must not leak into the target variant");
+        helper.assertValueEqual(target.activeSelection().tierSelections().get("core"), 2,
+                "Variant migration must preserve independent tier selection");
+        helper.assertTrue(target.withVariantIndex(1) == target,
+                "Selecting the active variant again must be an idempotent no-op");
         helper.succeed();
     }
 
@@ -262,6 +319,10 @@ public final class MultiblockPreviewModelGameTest {
         PreviewSelection selection = PreviewSelection.initial(spec(CONTROLLER_ID, 4L, List.of("main", "cpu")));
 
         assertIllegalArgument(helper, () -> selection.select("missing"), "Unknown active structures must be rejected");
+        assertIllegalArgument(helper, () -> selection.withVariantIndex(-1),
+                "Negative variant indexes must be rejected");
+        assertIllegalArgument(helper, () -> selection.withVariantIndex(1),
+                "Out-of-range variant indexes must be rejected");
         assertIllegalArgument(helper, () -> selection.withRepeat(-1, 1), "Negative repeat indexes must be rejected");
         assertIllegalArgument(helper, () -> selection.withRepeat(3, 1), "Out-of-range repeat indexes must be rejected");
         assertIllegalArgument(helper, () -> selection.withRepeat(1, 4), "Out-of-range repeat counts must be rejected");
@@ -324,6 +385,49 @@ public final class MultiblockPreviewModelGameTest {
                 substructures);
     }
 
+    private static MultiblockPreviewSpec variantSpec(ResourceLocation controllerId,
+                                                     long revision,
+                                                     List<String> substructureIds) {
+        List<SubstructurePreviewSpec> substructures = new ArrayList<>();
+        for (String id : substructureIds) {
+            int defaultRepeat = "cpu".equals(id) ? 2 : 1;
+            SubstructurePreviewSpec base = substructure(controllerId, id, defaultRepeat);
+            substructures.add(new SubstructurePreviewSpec(
+                    List.of(base.definition(), base.definition()),
+                    base.title(),
+                    base.tierDomains(),
+                    base.defaults()));
+        }
+        return new MultiblockPreviewSpec(
+                controllerId,
+                Component.literal("Controller"),
+                AEItemKey.of(Items.CRAFTING_TABLE),
+                revision,
+                substructures);
+    }
+
+    private static MultiblockPreviewSpec variantMigrationSpec() {
+        PreviewTierDomain core = tierDomain("core", 1);
+        JsonMultiBlockStructureKey key = new JsonMultiBlockStructureKey(CONTROLLER_ID, "main");
+        SubstructurePreviewSpec substructure = new SubstructurePreviewSpec(
+                List.of(
+                        new ResolvedJsonMultiBlockDefinition(key, repeatedPattern()),
+                        new ResolvedJsonMultiBlockDefinition(key, shorterVariantPattern())),
+                Component.literal("main"),
+                List.of(core),
+                new SubstructureSelection(
+                        0,
+                        List.of(1, 3, 1),
+                        Map.of("core", core.defaultValue()),
+                        Map.of()));
+        return new MultiblockPreviewSpec(
+                CONTROLLER_ID,
+                Component.literal("Controller"),
+                AEItemKey.of(Items.CRAFTING_TABLE),
+                4L,
+                List.of(substructure));
+    }
+
     private static SubstructurePreviewSpec substructure(ResourceLocation controllerId,
                                                         String id,
                                                         int defaultRepeat) {
@@ -368,6 +472,17 @@ public final class MultiblockPreviewModelGameTest {
                 .where('~', Predicates.any())
                 .where('X', Predicates.blocks(Blocks.IRON_BLOCK))
                 .where('Y', Predicates.blocks(Blocks.GOLD_BLOCK))
+                .build();
+    }
+
+    private static BlockPattern shorterVariantPattern() {
+        return FactoryBlockPattern.start()
+                .aisle("~Z")
+                .beginRepeatable()
+                .aisle("XX")
+                .endRepeatable(2, 2)
+                .where('Z', Predicates.blocks(Blocks.GOLD_BLOCK))
+                .where('X', Predicates.blocks(Blocks.IRON_BLOCK))
                 .build();
     }
 

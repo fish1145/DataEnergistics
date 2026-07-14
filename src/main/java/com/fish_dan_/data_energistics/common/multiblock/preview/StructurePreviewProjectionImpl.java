@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockDefinition;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
@@ -59,7 +61,8 @@ public final class StructurePreviewProjectionImpl implements StructurePreviewPro
         }
         selection.validateAgainst(spec);
         SubstructurePreviewSpec substructure = spec.substructure(selection.activeSubstructureId());
-        BlockPattern pattern = substructure.definition().pattern();
+        JsonMultiBlockDefinition definition = substructure.definition(selection.activeSelection().variantIndex());
+        BlockPattern pattern = definition.pattern();
         PatternLayout layout = pattern.getLayout();
         PatternRepeatSelection repeatSelection = PatternRepeatSelection.of(
                 layout,
@@ -100,7 +103,7 @@ public final class StructurePreviewProjectionImpl implements StructurePreviewPro
         List<PreviewMaterial> materials = this.materialAggregator.aggregate(cells);
         return new StructurePreviewSnapshot(
                 selection,
-                substructure.definition().key(),
+                definition.key(),
                 layers,
                 cells,
                 expanded.bounds(),

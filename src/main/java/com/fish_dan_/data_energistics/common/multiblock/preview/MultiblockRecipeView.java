@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+
 import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.stacks.AEItemKey;
@@ -11,17 +13,19 @@ import java.util.Set;
 /**
  * Ordinary dynamic XEI recipe view containing only material inputs and one controller or owner output.
  *
- * @param recipeId           stable controller-level wrapper id
- * @param controllerId       owning multiblock controller id
- * @param substructureId     active substructure for visible diagnostics only
- * @param definitionRevision generation used to compute the inputs
- * @param inputs             selected aggregate material inputs
- * @param output             controller or owner output with amount one
+ * @param registeredRecipeId    stable controller-level wrapper id
+ * @param controllerId          owning multiblock controller id
+ * @param substructureId        active substructure for visible diagnostics only
+ * @param definitionRevision    generation used to compute the inputs
+ * @param projectionFingerprint dynamic identity of every recipe-affecting preview choice
+ * @param inputs                selected aggregate material inputs
+ * @param output                controller or owner output with amount one
  */
-public record MultiblockRecipeView(ResourceLocation recipeId,
+public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
                                    ResourceLocation controllerId,
                                    String substructureId,
                                    long definitionRevision,
+                                   ProjectionFingerprint projectionFingerprint,
                                    List<PreviewMaterial> inputs,
                                    PreviewMaterial output) {
 
@@ -29,12 +33,22 @@ public record MultiblockRecipeView(ResourceLocation recipeId,
      * Copies inputs and rejects state that cannot form a current ordinary recipe view.
      */
     public MultiblockRecipeView {
-        if (recipeId == null || controllerId == null || substructureId == null || substructureId.isBlank() ||
-                inputs == null || output == null) {
+        if (registeredRecipeId == null || controllerId == null || substructureId == null || substructureId.isBlank() ||
+                projectionFingerprint == null || inputs == null || output == null) {
             throw new IllegalArgumentException("Multiblock recipe view arguments cannot be null or blank");
         }
         if (definitionRevision < 0L) {
             throw new IllegalArgumentException("Multiblock recipe revision cannot be negative: " + definitionRevision);
+        }
+        ResourceLocation expectedRecipeId = registeredRecipeIdFor(controllerId);
+        if (!registeredRecipeId.equals(expectedRecipeId)) {
+            throw new IllegalArgumentException("Multiblock registered recipe id must be controller-level: expected " +
+                    expectedRecipeId + ", got " + registeredRecipeId);
+        }
+        if (!projectionFingerprint.controllerId().equals(controllerId) ||
+                projectionFingerprint.definitionRevision() != definitionRevision ||
+                !projectionFingerprint.structureKey().structureName().equals(substructureId)) {
+            throw new IllegalArgumentException("Multiblock recipe projection fingerprint does not match its view");
         }
         inputs = List.copyOf(inputs);
         if (inputs.isEmpty()) {
@@ -52,6 +66,20 @@ public record MultiblockRecipeView(ResourceLocation recipeId,
     }
 
     /**
+     * Compatibility alias for callers written before the registered and projected identities were separated.
+     */
+    public ResourceLocation recipeId() {
+        return this.registeredRecipeId;
+    }
+
+    /**
+     * Returns the controller-qualified active structure identity.
+     */
+    public JsonMultiBlockStructureKey structureKey() {
+        return this.projectionFingerprint.structureKey();
+    }
+
+    /**
      * Maps one current snapshot without serializing tier, repeat, layer, orientation, or block states.
      *
      * @param spec     revision-bound preview definition
@@ -66,15 +94,28 @@ public record MultiblockRecipeView(ResourceLocation recipeId,
         if (!snapshot.definitionKey().structureName().equals(snapshot.selection().activeSubstructureId())) {
             throw new IllegalArgumentException("Multiblock recipe snapshot is not the active substructure");
         }
-        ResourceLocation recipeId = ResourceLocation.fromNamespaceAndPath(
-                spec.controllerId().getNamespace(),
-                "multiblock/" + spec.controllerId().getPath());
         return new MultiblockRecipeView(
-                recipeId,
+                registeredRecipeIdFor(spec.controllerId()),
                 spec.controllerId(),
                 snapshot.definitionKey().structureName(),
                 snapshot.definitionRevision(),
+                ProjectionFingerprint.from(snapshot.selection()),
                 snapshot.materials(),
                 new PreviewMaterial(spec.ownerOutput(), 1L));
+    }
+
+    /**
+     * Derives the one stable XEI registration id owned by a controller.
+     *
+     * @param controllerId controller-level preview identity
+     * @return stable recipe registration id independent of page selection
+     */
+    public static ResourceLocation registeredRecipeIdFor(ResourceLocation controllerId) {
+        if (controllerId == null) {
+            throw new IllegalArgumentException("Multiblock registered recipe id requires a controller");
+        }
+        return ResourceLocation.fromNamespaceAndPath(
+                controllerId.getNamespace(),
+                "multiblock/" + controllerId.getPath());
     }
 }

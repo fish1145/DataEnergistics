@@ -1,7 +1,12 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview;
 
+import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
+
 import net.minecraft.resources.ResourceLocation;
 
+import com.modularmc.mdl.api.multiblock.RepeatRange;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,6 +74,15 @@ public final class PreviewSelection {
     }
 
     /**
+     * Returns the stable controller-qualified key of the active named structure.
+     */
+    public JsonMultiBlockStructureKey activeStructureKey() {
+        return this.spec.substructure(this.activeSubstructureId)
+                .definition(activeSelection().variantIndex())
+                .key();
+    }
+
+    /**
      * Returns the definition revision that must remain current for projection or transfer.
      */
     public long definitionRevision() {
@@ -117,6 +131,35 @@ public final class PreviewSelection {
                 substructureId,
                 this.definitionRevision,
                 this.substructureSelections);
+    }
+
+    /**
+     * Changes the shape variant inside the active named structure. Repeat counts survive only where the same unit
+     * index remains legal in the target variant; new or incompatible units use the target minimum. Candidate
+     * overrides are shape-local and are therefore cleared, while tier selections remain unchanged.
+     *
+     * @param variantIndex zero-based variant index declared by the active structure
+     * @return updated immutable session selection
+     */
+    public PreviewSelection withVariantIndex(int variantIndex) {
+        SubstructurePreviewSpec substructure = this.spec.substructure(this.activeSubstructureId);
+        SubstructureSelection active = activeSelection();
+        if (active.variantIndex() == variantIndex) {
+            return this;
+        }
+        List<RepeatRange> targetRanges = substructure.repeatRanges(variantIndex);
+        List<Integer> targetRepeats = new ArrayList<>(targetRanges.size());
+        for (int unitIndex = 0; unitIndex < targetRanges.size(); unitIndex++) {
+            RepeatRange range = targetRanges.get(unitIndex);
+            int repeatCount = unitIndex < active.repeatCounts().size() ? active.repeatCounts().get(unitIndex) : range.min();
+            targetRepeats.add(repeatCount >= range.min() && repeatCount <= range.max() ? repeatCount : range.min());
+        }
+        SubstructureSelection updated = substructure.validateSelection(new SubstructureSelection(
+                variantIndex,
+                targetRepeats,
+                active.tierSelections(),
+                Map.of()));
+        return withActiveSelection(updated);
     }
 
     /**

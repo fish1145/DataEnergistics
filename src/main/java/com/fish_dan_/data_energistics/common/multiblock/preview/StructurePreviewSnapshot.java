@@ -59,6 +59,28 @@ public record StructurePreviewSnapshot(PreviewSelection selection,
         return this.selection.definitionRevision();
     }
 
+    /**
+     * Selects layers for rendering without rebuilding cells, materials, bounds, or recipe identity.
+     *
+     * @param viewState view-only logical layer selection
+     * @return all layers or one existing logical layer
+     */
+    public List<PreviewLayerSnapshot> visibleLayers(PreviewViewState viewState) {
+        if (viewState == null) {
+            throw new IllegalArgumentException("Structure preview visible layers require view state");
+        }
+        PreviewVisibleLayer visibleLayer = viewState.visibleLayer();
+        if (visibleLayer instanceof PreviewVisibleLayer.All) {
+            return this.layers;
+        }
+        int layerIndex = ((PreviewVisibleLayer.LogicalLayer) visibleLayer).layerIndex();
+        if (layerIndex >= this.layers.size()) {
+            throw new IllegalArgumentException("Preview logical layer index " + layerIndex + " is outside 0.." +
+                    (this.layers.size() - 1));
+        }
+        return List.of(this.layers.get(layerIndex));
+    }
+
     private static void validateContents(List<PreviewLayerSnapshot> layers,
                                          List<PreviewCellSnapshot> cells,
                                          PatternBounds bounds) {
