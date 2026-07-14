@@ -5,14 +5,19 @@ import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryLayout;
 import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
+import com.fish_dan_.data_energistics.menu.CompositeWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeInputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.MeCompositeOutputWarehouseMenu;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.Function;
 
@@ -21,22 +26,50 @@ import java.util.function.Function;
  */
 public final class CompartmentHostUi {
 
+    public static final String TITLE_ID = "compartment_title";
+    public static final String PLAYER_INVENTORY_TITLE_ID = "compartment_player_inventory_title";
+    public static final String COMPOSITE_WAREHOUSE_ROOT_ID = "composite_warehouse_root";
     public static final String ME_INPUT_ROOT_ID = "me_input_compartment_root";
     public static final String ME_OUTPUT_ROOT_ID = "me_output_compartment_root";
+    private static final HostLayout COMPOSITE_WAREHOUSE_LAYOUT = new HostLayout(
+            COMPOSITE_WAREHOUSE_ROOT_ID,
+            176,
+            253,
+            new AePlayerInventoryLayout(8, 169, 227),
+            "ae2:textures/guis/composite_warehouse.png",
+            "plain composite warehouse");
     private static final HostLayout ME_INPUT_LAYOUT = new HostLayout(
             ME_INPUT_ROOT_ID,
             208,
             208,
             new AePlayerInventoryLayout(24, 124, 182),
+            "ae2:textures/guis/me_composite_input_warehouse.png",
             "ME input compartment");
     private static final HostLayout ME_OUTPUT_LAYOUT = new HostLayout(
             ME_OUTPUT_ROOT_ID,
             176,
             192,
             new AePlayerInventoryLayout(8, 108, 166),
+            "ae2:textures/guis/me_composite_output_warehouse.png",
             "ME output compartment");
 
     private CompartmentHostUi() {}
+
+    /**
+     * Mounts all plain input/output warehouse slots while retaining the original AE2 menu protocol.
+     *
+     * @param menu fully constructed plain composite warehouse menu
+     */
+    public static void mountCompositeWarehouse(CompositeWarehouseMenu menu) {
+        mountCompositeWarehouse(
+                menu,
+                bridge -> CompositeWarehousePanel.create(menu, bridge));
+    }
+
+    /** Fixed plain warehouse mount boundary used by package-level fault-injection tests. */
+    static void mountCompositeWarehouse(CompartmentMenu menu, Function<AeMenuBridge, UIElement> contentFactory) {
+        mount(menu, contentFactory, COMPOSITE_WAREHOUSE_LAYOUT);
+    }
 
     /**
      * Mounts the paired ME input configuration and buffer grids with the original player slots.
@@ -88,6 +121,16 @@ public final class CompartmentHostUi {
             UIElement root = new UIElement();
             root.setId(hostLayout.rootId());
             root.layout(layout -> layout.width(hostLayout.width()).height(hostLayout.height()));
+            root.style(style -> style.backgroundTexture(SpriteTexture
+                    .of(hostLayout.backgroundTexture())
+                    .setSprite(0, 0, hostLayout.width(), hostLayout.height())));
+            root.addChild(title(TITLE_ID, compartmentTitle(menu), 8, 5, hostLayout.width() - 16));
+            root.addChild(title(
+                    PLAYER_INVENTORY_TITLE_ID,
+                    Component.translatable("container.inventory"),
+                    hostLayout.playerLayout().slotLeft(),
+                    hostLayout.playerLayout().inventoryTop() - 11,
+                    162));
             root.addChild(content);
             root.addChild(AePlayerInventoryPanel.create(menu, bridge, hostLayout.playerLayout()));
             modularUI = new CompartmentModularUI(UI.of(root), menu.getPlayer());
@@ -118,6 +161,35 @@ public final class CompartmentHostUi {
         }
     }
 
+    private static UIElement title(String id, Component text, int left, int top, int width) {
+        Label label = new Label();
+        label.setId(id);
+        label.setText(text);
+        label.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .textShadow(false));
+        label.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(left)
+                .top(top)
+                .width(width)
+                .height(9));
+        return label;
+    }
+
+    private static Component compartmentTitle(CompartmentMenu menu) {
+        String titleKey = switch (menu.getCompartmentType()) {
+            case INPUT -> "block.data_energistics.composite_input_warehouse";
+            case OUTPUT -> "block.data_energistics.composite_output_warehouse";
+            case ME_INPUT -> "block.data_energistics.me_composite_input_warehouse";
+            case ME_OUTPUT -> "block.data_energistics.me_composite_output_warehouse";
+            case PATTERN_BUFFER -> "block.data_energistics.me_pattern_buffer";
+            case TRINITY_ACCESS -> throw invalid("Trinity access does not use the compartment host UI");
+        };
+        return Component.translatable(titleKey);
+    }
+
     private static IllegalStateException invalid(String message) {
         Data_Energistics.LOGGER.error("Compartment LDLib2 host invariant failed: {}", message);
         return new IllegalStateException(message);
@@ -127,6 +199,7 @@ public final class CompartmentHostUi {
                               int width,
                               int height,
                               AePlayerInventoryLayout playerLayout,
+                              String backgroundTexture,
                               String logName) {}
 
     /**
