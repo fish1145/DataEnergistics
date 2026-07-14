@@ -12,6 +12,7 @@ import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -68,8 +69,96 @@ public final class CompartmentSlotPanel {
             throw invalid(semantic.id() + " must contain " + expectedSlotCount + " slots, found " + slots.size());
         }
         validateSlotOrder(slots, semantic, firstMenuIndex);
+        return createGridPanel(
+                bridge,
+                slots,
+                columns,
+                slotLeft,
+                slotTop,
+                panelId,
+                slotIdPrefix);
+    }
 
-        int rows = expectedSlotCount / columns;
+    /**
+     * Wraps row-specific semantic groups whose menu indices advance by a fixed stride.
+     *
+     * @param menu            menu that already owns every row slot
+     * @param bridge          bridge responsible for the existing-slot mappings
+     * @param rowSemantics    semantic group for each visual row
+     * @param firstMenuIndex  menu index of the first visual slot
+     * @param menuIndexStride index distance between adjacent visual slots
+     * @param columns         number of slots in each row
+     * @param slotLeft        content X coordinate of the first slot
+     * @param slotTop         content Y coordinate of the first slot
+     * @param panelId         stable element id of the grid root
+     * @param slotIdPrefix    stable element id prefix for individual slots
+     * @return a fresh grid ordered by row and column without changing menu slot order
+     */
+    public static UIElement createStridedRowGrid(AEBaseMenu menu,
+                                                 AeMenuBridge bridge,
+                                                 List<SlotSemantic> rowSemantics,
+                                                 int firstMenuIndex,
+                                                 int menuIndexStride,
+                                                 int columns,
+                                                 int slotLeft,
+                                                 int slotTop,
+                                                 String panelId,
+                                                 String slotIdPrefix) {
+        validateStridedArguments(
+                menu,
+                bridge,
+                rowSemantics,
+                firstMenuIndex,
+                menuIndexStride,
+                columns,
+                slotLeft,
+                slotTop,
+                panelId,
+                slotIdPrefix);
+        List<Slot> orderedSlots = new ArrayList<>(rowSemantics.size() * columns);
+        Set<SlotSemantic> distinctSemantics = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<Slot> distinctSlots = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (int row = 0; row < rowSemantics.size(); row++) {
+            SlotSemantic semantic = rowSemantics.get(row);
+            if (semantic == null || !distinctSemantics.add(semantic)) {
+                throw invalid("row semantics must be present and distinct");
+            }
+            List<Slot> rowSlots = menu.getSlots(semantic);
+            if (rowSlots.size() != columns) {
+                throw invalid(semantic.id() + " must contain " + columns + " slots, found " + rowSlots.size());
+            }
+            for (int column = 0; column < columns; column++) {
+                Slot slot = rowSlots.get(column);
+                if (!distinctSlots.add(slot)) {
+                    throw invalid(semantic.id() + " overlaps another row at column " + column);
+                }
+                int visualIndex = row * columns + column;
+                int expectedMenuIndex = firstMenuIndex + visualIndex * menuIndexStride;
+                if (slot.index != expectedMenuIndex) {
+                    throw invalid(semantic.id() + " slot " + column + " has menu index " + slot.index +
+                            ", expected " + expectedMenuIndex);
+                }
+                orderedSlots.add(slot);
+            }
+        }
+        return createGridPanel(
+                bridge,
+                orderedSlots,
+                columns,
+                slotLeft,
+                slotTop,
+                panelId,
+                slotIdPrefix);
+    }
+
+    private static UIElement createGridPanel(AeMenuBridge bridge,
+                                             List<Slot> slots,
+                                             int columns,
+                                             int slotLeft,
+                                             int slotTop,
+                                             String panelId,
+                                             String slotIdPrefix) {
+        int rows = slots.size() / columns;
         UIElement panel = new UIElement();
         panel.setId(panelId);
         panel.layout(layout -> layout
@@ -94,6 +183,25 @@ public final class CompartmentSlotPanel {
         return panel;
     }
 
+    private static void validateStridedArguments(AEBaseMenu menu,
+                                                 AeMenuBridge bridge,
+                                                 List<SlotSemantic> rowSemantics,
+                                                 int firstMenuIndex,
+                                                 int menuIndexStride,
+                                                 int columns,
+                                                 int slotLeft,
+                                                 int slotTop,
+                                                 String panelId,
+                                                 String slotIdPrefix) {
+        if (menu == null || bridge == null || rowSemantics == null || rowSemantics.isEmpty()) {
+            throw invalid("menu, bridge, and row semantics must all be present");
+        }
+        if (firstMenuIndex < 0 || menuIndexStride <= 0 || columns <= 0) {
+            throw invalid("slot index, stride, and column constraints are invalid");
+        }
+        validatePanelArguments(slotLeft, slotTop, panelId, slotIdPrefix);
+    }
+
     private static void validateArguments(AEBaseMenu menu,
                                           AeMenuBridge bridge,
                                           SlotSemantic semantic,
@@ -113,6 +221,13 @@ public final class CompartmentSlotPanel {
         if (expectedSlotCount % columns != 0) {
             throw invalid("slot count must form a complete rectangular grid");
         }
+        validatePanelArguments(slotLeft, slotTop, panelId, slotIdPrefix);
+    }
+
+    private static void validatePanelArguments(int slotLeft,
+                                               int slotTop,
+                                               String panelId,
+                                               String slotIdPrefix) {
         if (slotLeft < SLOT_BORDER || slotTop < SLOT_BORDER) {
             throw invalid("slot content coordinates must leave room for their border");
         }
