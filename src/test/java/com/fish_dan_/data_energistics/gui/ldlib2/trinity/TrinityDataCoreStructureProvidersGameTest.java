@@ -34,9 +34,6 @@ import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -88,9 +85,9 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         Map<HostUiKey, WindowIdentity> firstWindows = captureWindows(client.modularUI());
         assertCompleteControls(client.modularUI());
         assertIndependentSessions(firstWindows);
-        dispatchRefund(client.modularUI());
+        requestRefund(client.modularUI());
         assertEquals(List.of(3L), refundGenerations);
-        dispatchRefund(client.modularUI());
+        requestRefund(client.modularUI());
         assertEquals(List.of(3L), refundGenerations);
         pendingRefundGenerations.clear();
 
@@ -109,7 +106,7 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         }
         assertEquals(6, binder.bindCount());
         assertEquals(6, binder.refreshCount());
-        dispatchRefund(client.modularUI());
+        requestRefund(client.modularUI());
         assertEquals(List.of(3L, 9L), refundGenerations);
         client.close();
 
@@ -253,15 +250,15 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         assertNotSame(cpu.scene(), crafting.scene());
     }
 
-    private static void dispatchRefund(HostModularUI modularUI) {
+    private static void requestRefund(HostModularUI modularUI) {
         UIElement element = requireElement(modularUI, TrinityDataCoreStructureStatusPanel.REFUND_BUTTON_ID);
-        if (!(element instanceof Button button)) {
+        if (!(element instanceof Button)) {
             throw new GameTestAssertException("Hosted refund element is not a button");
         }
-        UIEvent event = UIEvent.create(UIEvents.MOUSE_DOWN);
-        event.target = button;
-        event.button = 0;
-        UIEventDispatcher.dispatchEvent(event);
+        if (!(element.getParent() instanceof TrinityDataCoreStructureStatusPanel statusPanel)) {
+            throw new GameTestAssertException("Hosted refund button must belong to the crafting status panel");
+        }
+        statusPanel.requestRefund();
     }
 
     private static void open(Endpoint endpoint, HostUiKey key, long sequence) {
