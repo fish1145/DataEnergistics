@@ -104,6 +104,12 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         this.preview.panel().selectStructure(structureKey);
     }
 
+    void toggleBuildRequested() {
+        if (this.buildRequestedToggle.isActive()) {
+            this.buildRequestedToggle.setOn(!this.buildRequestedToggle.isOn(), true);
+        }
+    }
+
     private UIElement structureSelector() {
         UIElement row = new UIElement();
         row.layout(layout -> layout
@@ -185,7 +191,7 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         return button;
     }
 
-    private void selectRelativeStructure(int direction) {
+    void selectRelativeStructure(int direction) {
         List<String> structureKeys = this.draft.structureKeys();
         int current = structureKeys.indexOf(this.draft.previewSelection().activeSubstructureId());
         if (current < 0) {
@@ -219,7 +225,7 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         this.buildRequestedToggle.setOn(this.draft.activeBuildRequested(), false);
     }
 
-    private void submit() {
+    void submit() {
         long generation = this.context.generation();
         if (!this.context.canSendServerAction() || this.hostedAutoBuildPending.test(generation)) {
             return;

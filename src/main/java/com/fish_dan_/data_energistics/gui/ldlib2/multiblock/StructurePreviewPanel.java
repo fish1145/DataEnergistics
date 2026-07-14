@@ -159,6 +159,27 @@ public final class StructurePreviewPanel extends UIElement {
         changeSelection(() -> this.session.selectStructure(structureKey));
     }
 
+    /**
+     * Selects the next tier through the same refresh path used by the visible control.
+     */
+    public void nextTier() {
+        changeSelection(this.session::nextTier);
+    }
+
+    /**
+     * Increments one repeat unit through the same refresh path used by the visible control.
+     */
+    public void nextRepeat(int unitIndex) {
+        changeSelection(() -> this.session.nextRepeat(unitIndex));
+    }
+
+    /**
+     * Selects the next logical layer through the same refresh path used by the visible control.
+     */
+    public void nextLayer() {
+        changeLayer(this.session::nextLayer);
+    }
+
     void bindScene(StructurePreviewSceneBinding binding) {
         if (binding == null) {
             throw new IllegalArgumentException("Structure preview scene binding cannot be null");
@@ -221,7 +242,7 @@ public final class StructurePreviewPanel extends UIElement {
                                 this.idPrefix + TIER_NEXT_SUFFIX,
                                 Icons.RIGHT_ARROW_NO_BAR,
                                 Component.literal("Next tier"),
-                                () -> changeSelection(this.session::nextTier))),
+                                this::nextTier)),
                 this.repeatControls,
                 layerControls());
         return controls;
@@ -281,7 +302,7 @@ public final class StructurePreviewPanel extends UIElement {
                                 this.idPrefix + LAYER_NEXT_SUFFIX,
                                 Icons.RIGHT_ARROW_NO_BAR,
                                 Component.literal("Next logical layer"),
-                                () -> changeLayer(this.session::nextLayer))));
+                                this::nextLayer)));
         return controls;
     }
 
@@ -473,7 +494,7 @@ public final class StructurePreviewPanel extends UIElement {
                             this.idPrefix + REPEAT_SUFFIX + unitIndex + "_next",
                             Icons.RIGHT_ARROW_NO_BAR,
                             Component.literal("Next repeat count"),
-                            () -> changeSelection(() -> this.session.nextRepeat(unitIndex)))));
+                            () -> nextRepeat(unitIndex))));
         }
     }
 
