@@ -32,22 +32,31 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.menu.locator.MenuLocators;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.mojang.authlib.GameProfile;
+import io.netty.channel.embedded.EmbeddedChannel;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -130,15 +139,18 @@ public final class TrinityHostedActionGameTest {
         TrinityHostedActionPayloadHandler.handleRefund(valid, fixture.player(), responses::add);
         assertEquals(1, fixture.executor().refundCount);
         assertStatus(responses.getLast(), TrinityHostedActionStatus.COMPLETED);
+        assertEquals(1, fixture.player().clientMessages.size());
         TrinityHostedActionPayloadHandler.handleRefund(valid, fixture.player(), responses::add);
         assertEquals(1, fixture.executor().refundCount);
         assertStatus(responses.getLast(), TrinityHostedActionStatus.REJECTED);
+        assertEquals(1, fixture.player().clientMessages.size());
 
         TrinityHostedActionPayloadHandler.handleRefund(
                 new TrinityHostedRefundPayload(81, 3L, 3L),
                 fixture.player(),
                 responses::add);
         assertEquals(2, fixture.executor().refundCount);
+        assertEquals(2, fixture.player().clientMessages.size());
         TrinityHostedActionPayloadHandler.handleRefund(
                 new TrinityHostedRefundPayload(81, 3L, 2L),
                 fixture.player(),
@@ -243,10 +255,15 @@ public final class TrinityHostedActionGameTest {
     private static Fixture fixture(GameTestHelper helper, BlockPos position, int containerId) {
         helper.setBlock(position, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         TrinityDataCoreBlockEntity host = helper.getBlockEntity(position);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        if (!(player instanceof ServerPlayer serverPlayer)) {
-            throw new GameTestAssertException("Expected mock server player");
-        }
+        UUID playerId = UUID.randomUUID();
+        TestServerPlayer serverPlayer = new TestServerPlayer(
+                helper,
+                new GameProfile(playerId, "hosted-" + playerId.toString().substring(0, 8)));
+        BlockPos hostPosition = host.getBlockPos();
+        serverPlayer.setPos(
+                hostPosition.getX() + 0.5D,
+                hostPosition.getY() + 0.5D,
+                hostPosition.getZ() + 0.5D);
         CountingExecutor executor = new CountingExecutor();
         List<CustomPacketPayload> outbound = new ArrayList<>();
         TrinityDataCoreMenu menu = new TrinityDataCoreMenu(
@@ -416,15 +433,47 @@ public final class TrinityHostedActionGameTest {
         }
     }
 
-    private record Fixture(ServerPlayer player,
+    private record Fixture(TestServerPlayer player,
                            TrinityDataCoreMenu menu,
                            CountingExecutor executor,
                            List<CustomPacketPayload> outbound) {
 
         private void close() {
             if (this.player.containerMenu == this.menu) {
-                this.player.closeContainer();
+                this.player.doCloseContainer();
             }
+            this.player.closeTestConnection();
+        }
+    }
+
+    private static final class TestServerPlayer extends ServerPlayer {
+
+        private final List<Component> clientMessages = new ArrayList<>();
+        private final EmbeddedChannel testChannel;
+
+        private TestServerPlayer(GameTestHelper helper, GameProfile profile) {
+            super(
+                    helper.getLevel().getServer(),
+                    helper.getLevel(),
+                    profile,
+                    ClientInformation.createDefault());
+            Connection connection = new Connection(PacketFlow.SERVERBOUND);
+            this.testChannel = new EmbeddedChannel(connection);
+            NetworkRegistry.configureMockConnection(connection);
+            this.connection = new ServerGamePacketListenerImpl(
+                    helper.getLevel().getServer(),
+                    connection,
+                    this,
+                    CommonListenerCookie.createInitial(profile, false));
+        }
+
+        @Override
+        public void displayClientMessage(Component message, boolean actionBar) {
+            this.clientMessages.add(message);
+        }
+
+        private void closeTestConnection() {
+            this.testChannel.finishAndReleaseAll();
         }
     }
 
