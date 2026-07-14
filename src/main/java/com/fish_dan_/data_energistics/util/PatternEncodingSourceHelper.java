@@ -379,6 +379,9 @@ public final class PatternEncodingSourceHelper {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             return;
         }
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(readPendingPatternSource(menu.getPlayer()))) {
+            return;
+        }
         if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
             return;
         }
@@ -1054,6 +1057,13 @@ public final class PatternEncodingSourceHelper {
         }
     }
 
+    /**
+     * Returns a defensive copy of the Data Ripper fluid inputs awaiting the next encode.
+     */
+    public static List<GenericStack> readPendingTransferFluidInputs(Player player) {
+        return copyGenericStacks(PatternEncodingSessionState.getPendingTransferFluidInputs(player.getUUID()));
+    }
+
     public static void writePendingTransferFluidOutputs(Player player, @Nullable List<GenericStack> fluidOutputs) {
         if (player.level().isClientSide()) {
             return;
@@ -1065,6 +1075,13 @@ public final class PatternEncodingSourceHelper {
         } else {
             PatternEncodingSessionState.setPendingTransferFluidOutputs(player.getUUID(), copy);
         }
+    }
+
+    /**
+     * Returns a defensive copy of the Data Ripper fluid outputs awaiting the next encode.
+     */
+    public static List<GenericStack> readPendingTransferFluidOutputs(Player player) {
+        return copyGenericStacks(PatternEncodingSessionState.getPendingTransferFluidOutputs(player.getUUID()));
     }
 
     private static List<GenericStack> copyGenericStacks(@Nullable List<GenericStack> stacks) {
