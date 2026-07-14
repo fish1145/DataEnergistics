@@ -34,6 +34,8 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
     private final HostSubUiContext context;
     @Nullable
     private final Button refundButton;
+    @Nullable
+    private final LongConsumer hostedRefundAction;
     private final LongPredicate hostedRefundPending;
 
     TrinityDataCoreStructureStatusPanel(TrinityDataCoreStructureDescriptor descriptor,
@@ -51,9 +53,10 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
         }
         this.descriptor = descriptor;
         this.context = context;
+        this.hostedRefundAction = hostedRefundAction;
         this.hostedRefundPending = hostedRefundPending == null ? generation -> false : hostedRefundPending;
         this.refundButton = hostedRefundAction == null ?
-                null : refundButton(hostedRefundAction, this.hostedRefundPending);
+                null : refundButton();
 
         setId(TrinityDataCoreStructureProviders.windowId(descriptor.structureKey()) + "_status");
         layout(layout -> layout
@@ -76,6 +79,18 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
                             !this.hostedRefundPending.test(generation));
         }
         super.screenTick();
+    }
+
+    void requestRefund() {
+        if (this.hostedRefundAction == null) {
+            throw new IllegalStateException("Structure status panel does not expose a hosted refund action");
+        }
+        long generation = this.context.generation();
+        if (this.descriptor.refundAvailable().getAsBoolean() &&
+                this.context.canSendServerAction() &&
+                !this.hostedRefundPending.test(generation)) {
+            this.hostedRefundAction.accept(generation);
+        }
     }
 
     private ScrollerView statusScroller(int height) {
@@ -109,17 +124,12 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
         return scroller;
     }
 
-    private Button refundButton(LongConsumer hostedRefundAction, LongPredicate hostedRefundPending) {
+    private Button refundButton() {
         Button button = new Button();
         button.setId(REFUND_BUTTON_ID);
         button.setText(Component.translatable("button.data_energistics.trinity_pattern_core.refund"));
         button.addPreIcon(Icons.REPLAY);
-        button.setOnClick(event -> {
-            long generation = this.context.generation();
-            if (this.context.canSendServerAction() && !hostedRefundPending.test(generation)) {
-                hostedRefundAction.accept(generation);
-            }
-        });
+        button.setOnClick(event -> requestRefund());
         button.style(style -> style.tooltips(
                 Component.translatable("button.data_energistics.trinity_pattern_core.refund"),
                 Component.translatable("button.data_energistics.trinity_pattern_core.refund.hint")));
