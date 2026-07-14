@@ -41,7 +41,6 @@ import java.util.function.Function;
 public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinatorHolder {
 
     private static final String NO_FAILURE = "";
-    private static final String ACTION_REFUND_ALL = "refund_all";
 
     @Nullable
     private final TrinityDataCoreMenuHost host;
@@ -142,7 +141,6 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
         this.host = host;
         this.hostedActionSink = hostedActionSink;
         this.hostedActionExecutor = hostedActionExecutor;
-        registerClientAction(ACTION_REFUND_ALL, this::refundAll);
         createPlayerInventorySlots(playerInventory);
         this.hostUiCoordinator = TrinityDataCoreHostUi.mount(this, hostUi -> playerInventory.player.level().isClientSide ?
                 createClientCoordinator(hostUi, playerInventory, additionalProviderRegistrar) :
@@ -219,11 +217,6 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
 
     public boolean hasCraftingTarget() {
         return this.craftingTarget.hasTarget();
-    }
-
-    /** Requests one atomic refund of every P core in the current host aggregate. */
-    public void sendRefundAll() {
-        sendClientAction(ACTION_REFUND_ALL);
     }
 
     /**
@@ -337,10 +330,6 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
     /** Runs the existing atomic builder entry exactly once after submission reconstruction and ticket claim. */
     public void executeHostedAutoBuild(Player player, TrinityAutoBuildRequest request) {
         this.hostedActionExecutor.autoBuild(player, request);
-    }
-
-    void refundAll() {
-        performRefund();
     }
 
     private void performRefund() {
