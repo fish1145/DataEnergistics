@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUi;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -11,6 +13,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.guisync.PacketWritable;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 public class TrinityDataCoreMenu extends AEBaseMenu {
@@ -20,6 +23,9 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
 
     @Nullable
     private final TrinityDataCoreMenuHost host;
+    /** Child-window interface owned by this menu's mounted LDLib2 root. */
+    @Getter
+    private final HostUiExtension hostUiExtension;
 
     @GuiSync(930)
     public boolean online;
@@ -79,6 +85,7 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
         this.host = host;
         registerClientAction(ACTION_REFUND_ALL, this::refundAll);
         createPlayerInventorySlots(playerInventory);
+        this.hostUiExtension = TrinityDataCoreHostUi.mount(this);
     }
 
     @Override

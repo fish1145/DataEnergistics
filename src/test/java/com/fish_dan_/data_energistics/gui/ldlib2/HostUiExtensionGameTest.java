@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
@@ -14,6 +13,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -156,7 +156,7 @@ public final class HostUiExtensionGameTest {
                 boundRoot.addChild(boundDragHandle);
                 HostUiExtension boundExtension = HostUiExtension.create(boundRoot);
                 boundModularUI[0] = boundExtension.createModularUI(UI.of(boundRoot), fixture.player);
-                TrinityDataCoreMenu boundMenu = new TrinityDataCoreMenu(5, fixture.player.getInventory(), null);
+                TestMenu boundMenu = new TestMenu(fixture.player, 5);
                 AeMenuBridge.create(boundMenu).mount(boundModularUI[0]);
                 return new HostSubUi(boundRoot, boundDragHandle);
             }
@@ -447,7 +447,7 @@ public final class HostUiExtensionGameTest {
     /** Creates and mounts a host tree using a caller-supplied root for direct removal verification. */
     private static HostFixture createFixture(GameTestHelper helper, int containerId, UIElement root) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        TrinityDataCoreMenu menu = new TrinityDataCoreMenu(containerId, player.getInventory(), null);
+        TestMenu menu = new TestMenu(player, containerId);
         HostUiExtension extension = HostUiExtension.create(root);
         HostModularUI modularUI = extension.createModularUI(UI.of(root), player);
         AeMenuBridge.create(menu).mount(modularUI);
@@ -551,6 +551,14 @@ public final class HostUiExtensionGameTest {
     private static void assertFalse(boolean condition, String message) {
         if (condition) {
             throw new GameTestAssertException(message);
+        }
+    }
+
+    /** Unmounted AE menu used to isolate host lifecycle behavior from production UI construction. */
+    private static final class TestMenu extends AEBaseMenu {
+
+        private TestMenu(Player player, int containerId) {
+            super(null, containerId, player.getInventory(), null);
         }
     }
 

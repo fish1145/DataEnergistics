@@ -68,7 +68,7 @@ public final class TrinityDataCoreResourceTest {
         assertEquals(
                 Set.of("dialog_title", "player_inventory_title"),
                 text.keySet(),
-                "Dynamic host status text should be drawn by TrinityDataCoreScreen");
+                "Dynamic host status text should be drawn by the mounted LDLib2 status panel");
 
         assertResourceExists(
                 GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png",
