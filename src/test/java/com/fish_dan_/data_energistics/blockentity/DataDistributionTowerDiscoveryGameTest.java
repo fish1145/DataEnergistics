@@ -37,7 +37,11 @@ import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.energy.IAEPowerStorage;
+import appeng.api.parts.IPart;
 import appeng.api.util.AECableType;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.core.definitions.AEBlocks;
+import appeng.core.definitions.AEParts;
 import appeng.util.SettingsFrom;
 
 import java.util.List;
@@ -52,6 +56,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos CONNECTED_REGULAR_CHARGER_POS = new BlockPos(16, 4, 25);
     private static final BlockPos CONNECTED_EXTENDED_CHARGER_POS = new BlockPos(18, 4, 25);
+    private static final BlockPos STANDALONE_PART_HOST_POS = new BlockPos(16, 4, 25);
     private static final BlockPos SANCTUM_MAIN_POS = new BlockPos(25, 4, 25);
     private static final Direction SANCTUM_FACING = Direction.NORTH;
     private static final long BUFFERED_TRANSFER_ENERGY = (long) Integer.MAX_VALUE + 4_096L;
@@ -134,6 +139,80 @@ public final class DataDistributionTowerDiscoveryGameTest {
                             discovered.get(0) == firstNode, "Discovery must preserve the first node's direction order");
                     helper.assertTrue(
                             discovered.get(1) == secondNode, "Discovery must retain the second unique managed node");
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("data_distribution_tower_connects_standalone_ae_parts")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 200)
+    public static void connectsStandaloneAeParts(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
+        CableBusBlockEntity partHost = placeCableBus(helper, STANDALONE_PART_HOST_POS);
+        IPart patternProvider = partHost.addPart(AEParts.PATTERN_PROVIDER.get(), Direction.NORTH, null);
+        IPart storageBus = partHost.addPart(AEParts.STORAGE_BUS.get(), Direction.SOUTH, null);
+        helper.assertTrue(patternProvider != null, "The standalone pattern provider must be installed");
+        helper.assertTrue(storageBus != null, "The standalone storage bus must be installed");
+        helper.assertTrue(partHost.getPart(null) == null, "The regression requires a host without a center cable");
+        GridPower power = new GridPower(helper);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    assertTowerNodeReady(helper, tower);
+                    helper.assertTrue(patternProvider.getGridNode() != null, "The pattern provider node must be ready");
+                    helper.assertTrue(storageBus.getGridNode() != null, "The storage bus node must be ready");
+                })
+                .thenExecute(() -> {
+                    power.connect(requireNode(tower));
+                    assertAeBindSuccess(helper, tower, partHost.getBlockPos(), "Standalone AE parts");
+                })
+                .thenWaitUntil(() -> {
+                    List<IGridNode> discovered = DataDistributionTowerBlockEntity.getConnectableNodes(
+                            helper.getLevel(), partHost.getBlockPos());
+                    helper.assertValueEqual(discovered.size(), 2, "Both standalone AE part nodes must be discovered");
+                    helper.assertTrue(
+                            discovered.stream().anyMatch(node -> node == patternProvider.getGridNode()),
+                            "The pattern provider node must be retained");
+                    helper.assertTrue(
+                            discovered.stream().anyMatch(node -> node == storageBus.getGridNode()),
+                            "The storage bus node must be retained");
+                    helper.assertValueEqual(
+                            tower.getTargetTransferInfo(partHost.getBlockPos()).channelConnections(),
+                            2,
+                            "The tower must connect every standalone AE part node");
+                    IGridNode towerNode = requireNode(tower);
+                    helper.assertTrue(
+                            patternProvider.getGridNode().getGrid() == towerNode.getGrid(),
+                            "The pattern provider must join the tower grid");
+                    helper.assertTrue(
+                            storageBus.getGridNode().getGrid() == towerNode.getGrid(),
+                            "The storage bus must join the tower grid");
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("data_distribution_tower_preserves_ae_part_external_node")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 100)
+    public static void preservesAePartExternalNode(GameTestHelper helper) {
+        CableBusBlockEntity partHost = placeCableBus(helper, REGULAR_CHARGER_POS);
+        IPart quartzFiber = partHost.addPart(AEParts.QUARTZ_FIBER.get(), Direction.EAST, null);
+        helper.assertTrue(quartzFiber != null, "The quartz fiber must be installed");
+        helper.assertTrue(partHost.getPart(null) == null, "The quartz fiber host must not contain a center cable");
+
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    IGridNode internalNode = quartzFiber.getGridNode();
+                    IGridNode externalNode = partHost.getGridNode(Direction.EAST);
+                    helper.assertTrue(internalNode != null, "The quartz fiber internal node must be ready");
+                    helper.assertTrue(externalNode != null, "The quartz fiber external node must be ready");
+                    helper.assertTrue(internalNode != externalNode, "The quartz fiber nodes must remain distinct");
+
+                    List<IGridNode> discovered = DataDistributionTowerBlockEntity.getConnectableNodes(
+                            helper.getLevel(), partHost.getBlockPos());
+                    helper.assertValueEqual(discovered.size(), 2, "Both quartz fiber nodes must be discovered");
+                    helper.assertTrue(discovered.get(0) == internalNode, "The internal node must retain first priority");
+                    helper.assertTrue(discovered.get(1) == externalNode, "The external node must remain connectable");
                 })
                 .thenSucceed();
     }
@@ -323,6 +402,16 @@ public final class DataDistributionTowerDiscoveryGameTest {
         }
         helper.fail("Expected a data charger block entity", localPos);
         throw new IllegalStateException("Placed data charger has no matching block entity");
+    }
+
+    private static CableBusBlockEntity placeCableBus(GameTestHelper helper, BlockPos localPos) {
+        helper.setBlock(localPos, AEBlocks.CABLE_BUS.block().defaultBlockState());
+        BlockEntity blockEntity = helper.getBlockEntity(localPos);
+        if (blockEntity instanceof CableBusBlockEntity cableBus) {
+            return cableBus;
+        }
+        helper.fail("Expected an AE cable bus block entity", localPos);
+        throw new IllegalStateException("Placed AE cable bus has no matching block entity");
     }
 
     private static void assertTowerNodeReady(GameTestHelper helper, DataDistributionTowerBlockEntity tower) {
