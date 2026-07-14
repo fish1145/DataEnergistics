@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.DataKeyType;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
@@ -18,6 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
@@ -136,6 +139,70 @@ public final class PatternEncodingSourceHelper {
             "机器", "装配", "工作站", "处理站", "处理器", "压印", "充能", "切石", "锻造", "编译", "合成");
 
     private PatternEncodingSourceHelper() {}
+
+    @Nullable
+    public static ItemStack encodeProcessingPattern(ConfigInventory inputs, ConfigInventory outputs) {
+        List<GenericStack> normalizedInputs = normalizeProcessingPatternInventory(inputs, "input");
+        if (normalizedInputs == null || normalizedInputs.stream().noneMatch(stack -> stack != null)) {
+            return null;
+        }
+
+        List<GenericStack> normalizedOutputs = normalizeProcessingPatternInventory(outputs, "output");
+        if (normalizedOutputs == null || normalizedOutputs.isEmpty() || normalizedOutputs.getFirst() == null) {
+            return null;
+        }
+
+        return PatternDetailsHelper.encodeProcessingPattern(normalizedInputs, normalizedOutputs);
+    }
+
+    @Nullable
+    private static List<GenericStack> normalizeProcessingPatternInventory(
+                                                                          ConfigInventory inventory,
+                                                                          String inventoryKind) {
+        List<GenericStack> normalized = new ArrayList<>(inventory.size());
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            GenericStack stack = inventory.getStack(slot);
+            if (stack == null || !(stack.what() instanceof AEItemKey itemKey)) {
+                normalized.add(stack);
+                continue;
+            }
+
+            GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
+            if (wrapped == null ||
+                    (wrapped.what().getType() != DataFlowKeyType.TYPE && wrapped.what().getType() != DataKeyType.TYPE)) {
+                normalized.add(stack);
+                continue;
+            }
+
+            if (stack.amount() <= 0L || wrapped.amount() <= 0L) {
+                LOGGER.error(
+                        "Cannot encode processing pattern: wrapped custom key amount must be positive, inventory={}, slot={}, outerAmount={}, innerAmount={}, key={}",
+                        inventoryKind,
+                        slot,
+                        stack.amount(),
+                        wrapped.amount(),
+                        wrapped.what());
+                return null;
+            }
+
+            try {
+                normalized.add(new GenericStack(
+                        wrapped.what(),
+                        Math.multiplyExact(stack.amount(), wrapped.amount())));
+            } catch (ArithmeticException exception) {
+                LOGGER.error(
+                        "Cannot encode processing pattern: wrapped custom key amount overflow, inventory={}, slot={}, outerAmount={}, innerAmount={}, key={}",
+                        inventoryKind,
+                        slot,
+                        stack.amount(),
+                        wrapped.amount(),
+                        wrapped.what(),
+                        exception);
+                return null;
+            }
+        }
+        return normalized;
+    }
 
     @Nullable
     public static ResourceLocation resolveWorkstationForTransfer(@Nullable Object recipe, @Nullable Object transferContext) {
