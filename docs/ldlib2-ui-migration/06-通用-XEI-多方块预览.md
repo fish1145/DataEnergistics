@@ -63,6 +63,18 @@ JEI 参考 GT/ECO 继承 `ModularUIRecipeCategory`，EMI 继承 `ModularUIEMIRec
 
 REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引用 JEI/EMI 专有类型，以便后续薄适配。
 
+## 当前实现状态
+
+截至 `b5724470`：
+
+1. common preview selection/snapshot/material/`MultiblockRecipeView`、Trinity catalog、preview session、交互面板、纯 UI factory、Scene 绑定和客户端资源隔离均已提交。
+2. `main`、`cpu`、`crafting` 三个具名结构共享 controller 级注册身份；页面可独立切换 `structureKey`、结构内 `variantIndex`、tier/repeat、candidate 和逻辑层/显示层。第四个 `auto_build` 是 host 子 UI，不是 XEI 子结构或 variant。
+3. JEI `ModularUIRecipeCategory` 与 EMI `ModularUIEMIRecipe` 页面已经按同一 composition/factory 接入，并完成 recipe role 隔离与适配逻辑测试。
+4. `b5724470` 后工作区已实现 JEI/EMI typed transfer handler。两端都绕过 XEI 固化的 ingredient cache，在点击瞬间读取唯一 `currentRecipeView()`。JEI 在发请求前处理 source/identity 异常并检查真实 slot filter 与 `maxAmount`；EMI 只响应显式 `FILL_BUTTON`，避免 craft/其他上下文误触发。JEI 与 EMI 定向 JUnit 均为 7/7，尚待按功能提交和全量集成验收。
+5. 可选 `ae2jeiintegration` 的直接 handler 类型放在独立注册类中，只在确认 mod id 已加载后调用，不用反射，也不让缺失的可选类型污染基础 JEI 插件路径。EMI mixin 在具体 `EmiEncodePatternHandler` 上提供 `supportsRecipe`，修复父类 catch-all，使 AE2 handler 只对 DataE typed multiblock recipe defer。
+
+客户端 GameTest 尚不能作为完成证据：当前启动阶段因 Oritech 缺少 Athena 运行时依赖而阻塞。禁止修改生产依赖规避；服务端 GameTest 和 plain JUnit 通过只证明模型、协议或 handler 逻辑，不证明 JEI/EMI 页面非空渲染、旋转缩放、选择控件、transfer 按钮、错误提示、extra area 和资源释放。外部运行环境修复后必须补跑客户端验证。
+
 ## 验收表
 
 | 场景 | 预期 |
@@ -74,3 +86,8 @@ REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引
 | 检查方块候选 | 辅助槽保持 recipe role NONE，transfer 输入只来自规范汇总槽 |
 | 资源重载 | 旧缓存释放，新 revision 生成新快照 |
 | 关闭页面 | Scene 渲染资源和 dummy world 引用被释放 |
+| JEI/EMI transfer | 点击时读取当前 typed recipe view；不使用旧 ingredient cache，不直接编码样板或搬运物料 |
+| JEI 预检 | source/identity、slot filter、maxAmount 或菜单访问异常均在发请求前返回可见错误 |
+| 可选 JEI 集成缺失 | 基础插件仍可加载；不反射、不解析或调用 `ae2jeiintegration` 的类型 |
+| EMI 动作类型 | 只有 `FILL_BUTTON` 可以 transfer；AE2 catch-all 对 DataE typed recipe defer，其他 recipe 行为不变 |
+| 客户端启动 | Athena 依赖可用后，JEI 与 EMI 实际渲染和按钮交互均通过；不能用服务端/JUnit 代替 |

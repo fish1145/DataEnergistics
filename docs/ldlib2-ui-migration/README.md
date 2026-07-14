@@ -6,16 +6,26 @@
 
 当前范围：
 
-| 范围 | 现有入口 | 迁移目标 |
+| 范围 | 迁移前入口 | 迁移目标 |
 | --- | --- | --- |
 | 多方块主界面 | `TrinityDataCoreScreen`、`TrinityPatternCoreScreen` | LDLib2 `ModularUI` 面板、状态与操作控件 |
 | 多方块自动建造 | `MultiBlockAutoBuildOverlay` | 与 `main`/`cpu`/`crafting` 并列的第四个 LDLib2 可拖动子 UI |
 | 舱室 | `CompartmentMenu`、`CompartmentScreen` 及各专用 Screen | LDLib2 槽位网格、容量状态、升级与分页控件 |
-| XEI 多方块预览 | 当前尚未注册多方块类别 | JEI/EMI 共用的 LDLib2 `ModularUI` 预览页 |
+| XEI 多方块预览 | 原先没有多方块类别 | JEI/EMI 共用的 LDLib2 `ModularUI` 预览页 |
 | 子结构配置 | Trinity 的 main/cpu/crafting 定义及自动建造选项 | 子结构切换、等级、重复层数和显示切片控制 |
-| AE 样板 | 当前不存在多方块 XEI recipe transfer | 把材料输入/控制器输出的普通 XEI 配方传入 AE Processing 编码界面 |
+| AE 样板 | 原先没有多方块 XEI recipe transfer | 把材料输入/控制器输出的普通 XEI 配方传入 AE Processing 编码界面 |
 
 不在本次范围：通用终端、模式编码终端、数据萃取器、数据神殿、太阳能板和非舱室单方块机器 UI。
+
+## 当前状态
+
+当前分支为 `qy/ldlib2-ui-migration`，Draft PR 为 [#99](https://github.com/fish1145/DataEnergistics/pull/99)，已提交锚点为 `b5724470`。多方块 Data/Pattern Core、`main/cpu/crafting/auto_build` 四个可拖动子 UI、全部目标舱室、共用预览模型/工厂、JEI 页面和 EMI 页面已经按功能提交；`auto_build` 是独立第四窗口，不是结构页签。
+
+`b5724470` 后工作区已实现 common/network 原子 typed transfer、JEI handler 和 EMI handler。它们只把服务端可信的普通 input/output 填入 AE Processing 配置，不编码、不碰 `encodedPatternSlot`、不搬物料；用户点击 AE 自带编码按钮时才生成普通 Processing Pattern。transfer 同时原子清空并在失败时回滚 pending/last source、Data Ripper key/fluid 和 display fallback，避免普通多方块样板受旧状态污染。
+
+JEI 已补充 source/identity、slot filter、`maxAmount` 异常预检，并以独立条件类无反射隔离可选 `ae2jeiintegration`；EMI 仅响应 `FILL_BUTTON`，且具体 handler 的 `supportsRecipe` 修复父类 catch-all。完整服务端 GameTest 为 356/356，JEI 与 EMI 定向 JUnit 均为 7/7；这些变更仍未提交，尚待统一格式/集成验收、功能拆分提交和 Draft PR 更新。
+
+客户端 GameTest 因 Oritech 的 Athena 运行时依赖缺失而在启动阶段阻塞。该问题不得通过修改生产依赖规避，且服务端/JUnit 通过不能替代 JEI/EMI 客户端渲染与按钮交互验收。
 
 ## 文档导航
 
@@ -34,4 +44,4 @@
 
 ## 结论
 
-采用“纯预览模型 + 共用 LDLib2 UI factory + XEI 薄适配器 + 服务端动作”的架构。方块 UI 与 XEI 页面只共享纯模型和元素工厂，各自创建 provider、元素树、`Scene` 与虚拟世界；XEI 页面不得直接改世界、库存或样板。实施已在 `qy/ldlib2-ui-migration` 分支和 Draft PR [#99](https://github.com/fish1145/DataEnergistics/pull/99) 启动；中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，并已将验证后的 jar 接入本项目。Data Energistics 的 atomic definition snapshot、common preview 模型、Trinity `main/cpu/crafting` catalog、AE menu bridge、既有槽包装、四窗 `HostUiExtension` 与 P2A 双端权威 lifecycle coordinator 已完成。P2A 按 `8eb22095`、`7fc43b88`、`faecf369`、`e524687d` 拆分并通过 317/317 GameTest；下一步是 Pattern Core 与 `main`、`cpu`、`crafting`、`auto_build` 四个真实业务 provider。每个工作包按功能独立提交，未通过对应验收前保留旧入口。
+采用“纯预览模型 + 共用 LDLib2 UI factory + XEI 薄适配器 + 服务端权威动作”的架构。方块 UI 与 XEI 页面只共享纯模型和元素工厂，各自创建 provider、元素树、`Scene` 与虚拟世界；XEI 页面不得直接改世界、库存或样板。中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，后续仅在确认新的中立 API 缺口时修改该库。当前后续工作是 P8 集成、按 common/network、JEI、EMI、文档拆分小提交，以及 P9 全量质量和客户端/多人发布验收。
