@@ -61,6 +61,11 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()));
+        registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
+        registry.addRecipe(new TrinityMultiblockEmiRecipe());
+        registry.addWorkstation(
+                TrinityMultiblockEmiRecipe.CATEGORY,
+                EmiStack.of(ModBlocks.TRINITY_DATA_CORE.get()));
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
                 .map(DataCaptureBallRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
