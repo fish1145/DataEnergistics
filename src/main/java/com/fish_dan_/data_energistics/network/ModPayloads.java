@@ -54,6 +54,18 @@ public final class ModPayloads {
                 TrinityDataCoreAutoBuildPayload.STREAM_CODEC,
                 TrinityDataCoreAutoBuildPayload::handle);
         registrar.playToServer(
+                TrinityHostedRefundPayload.TYPE,
+                TrinityHostedRefundPayload.STREAM_CODEC,
+                TrinityHostedRefundPayload::handle);
+        registrar.playToServer(
+                TrinityHostedAutoBuildPayload.TYPE,
+                TrinityHostedAutoBuildPayload.STREAM_CODEC,
+                TrinityHostedAutoBuildPayload::handle);
+        registrar.playToClient(
+                TrinityHostedActionResponsePayload.TYPE,
+                TrinityHostedActionResponsePayload.STREAM_CODEC,
+                TrinityHostedActionResponsePayload::handle);
+        registrar.playToServer(
                 DataMeteoriteCompassRequestPayload.TYPE,
                 DataMeteoriteCompassRequestPayload.STREAM_CODEC,
                 DataMeteoriteCompassRequestPayload::handle);
