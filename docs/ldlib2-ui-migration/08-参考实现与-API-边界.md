@@ -4,26 +4,38 @@
 
 | 文件 | 可借鉴点 | 不可直接照搬点 |
 | --- | --- | --- |
-| `PatternPreviewWidget` | `Scene` 预览、形状分页、逐层过滤、材料和候选展示 | 预览只面向 GT definition，未实现具名子结构 selector |
+| `PatternPreviewWidget` | `Scene` 预览、shape variant 分页、逐层过滤、材料和候选展示 | `P` 是 shape variant、`L` 才是 visible layer，不是具名子结构；材料汇总槽和候选检查槽都标成 input，会污染 transfer；静态 dummy world/cache 与共享 fake controller 不适合四个并行 Scene |
 | `MultiblockInfoCategory` | JEI 的 `ModularUIRecipeCategory` 薄适配 | 不能让类别类承担结构计算 |
-| `MultiblockInfoEmiRecipe` | EMI 的 `ModularUIEMIRecipe` 薄适配 | 当前 GT 分支的 EMI 多方块注册存在未启用代码，不能当作完整生产验证 |
-| `MultiblockMachineDefinition` | 具名 structure 和匹配 shape 入口 | GT 的 shape DFS 可能产生组合爆炸，不适合直接预注册每个 Trinity 组合 |
+| `MultiblockInfoEmiRecipe` | EMI 的 `ModularUIEMIRecipe` 薄适配和 controller output 思路 | 当前 GT 分支的 EMI 多方块注册存在未启用代码，不能当作完整生产验证 |
+| `MultiblockMachineDefinition` | 具名 structure 和匹配 shape 入口 | XEI `getMatchingShapes()` 只展开默认结构；shape DFS 可能组合爆炸，不适合预注册每个 Trinity 组合 |
+| `AutoBuildRequest` / `MultiblockAutoBuild` | structure name/options 的独立服务端请求、分阶段规划、材料 reservation、验证后提交 | 请求不能序列化进 AE 样板；客户端快照不能成为权威，方向与精确 `BlockState` 只在真实放置阶段应用 |
+| `MEAutoBuildSource` | simulate/reserve/commit 的材料事务顺序 | 不照搬其玩家无线终端上下文发现；DataE 使用当前菜单、host 与明确材料入口 |
+| `MultiblockInWorldPreviewRenderer` | 世界内分层投影的交互参考 | 只取第一个 shape 且使用全局静态状态，不适合具名子结构、XEI session 或四窗口 |
+
+GT 没有“从多方块页面写入 AE Processing 样板”的专用实现。其 Pattern Buffer 只消费已有 encoded pattern，JEI 多方块页没有完整 controller output，EMI 注册又未启用。因此 DataE 的普通 recipe projection、role 隔离与 typed transfer 是本项目新增契约，不能写成 GT 已验证的 AE writer。
 
 ## NeoECOAEExtension
 
 | 文件 | 可借鉴点 | 不可直接照搬点 |
 | --- | --- | --- |
-| `MultiBlockInfoWrapper` | JEI/EMI 共用 UI、`TrackedDummyWorld`、expand、显示层、formed、材料 ingredient | 同时持有模型、UI 状态和虚拟世界，通用实现需拆层；没有子结构模型 |
+| `MultiBlockInfoWrapper` | JEI/EMI 共用 UI factory、`TrackedDummyWorld`、expand、显示层、formed、材料 ingredient | 同时持有模型、UI 状态和虚拟世界，通用实现需拆层；没有具名子结构/variant 模型，层级固定使用 Y；`RequiredItem.count()` 被传给 chance 参数而不是材料数量 |
 | `MultiBlockContext.DummyDelegated` | 将结构投影到虚拟世界并聚合材料 | 是 ECO 私有 definition 的投影器 |
 | `MultiBlockPlacementPlan` | all/missing/conflict/required/reused 的不可变计划边界 | 世界坐标建造计划不应直接用作 XEI 预览快照 |
-| `MultiblockBuilderUI` | Supplier/回调配置、S2C 状态和 server click | 是方块内服务端 UI，不可直接放入纯客户端 XEI 页面 |
-| `PatternEncodingTermMenuMixin` | 展示既有 AE 菜单动作边界 | ECO upload 与本需求不同；本需求走普通 recipe transfer |
+| `MultiblockBuilderUI` | Config/Supplier/回调工厂、S2C 状态和 server click | 窗口在 host 构造时预挂载并以 `display: none` 隐藏，close 只隐藏；不 remove/release/recreate，也没有通用四窗 z-order/Esc 生命周期 |
+| `MultiBlockInfoCategory` / `MultiblockEmiRecipe` | JEI 普通 wrapper 的材料 input 与 invisible owner output、EMI 薄适配 | owner output 只在 JEI category 补充，EMI wrapper 未补等价 output；两端 recipe role 不完整一致 |
+| `PatternEncodingTermMenuMixin` | 展示既有 AE 菜单动作边界 | `EncodingMode.PROCESSING` 时明确拒绝 upload；它上传已编码 crafting pattern，不负责普通多方块 recipe transfer |
+
+ECO 的浮窗策略通过预先注册隐藏树保持 sync/RPC ID 稳定，适合解释其 S2C/server-click 为什么能工作，但与 DataE “关闭 removeChild、释放资源、重开新实例”的要求直接冲突。DataE 只复用 factory/config/binding 模式，动态 membership 必须走始终挂载的 coordinator。
 
 ## LDLib2
 
-已确认的公共能力包括 `Scene`、`TrackedDummyWorld`、`ModularUIRecipeCategory`、`ModularUIEMIRecipe`、`IngredientIO`、`ItemSlot`、`ScrollerView`、`DataBindingBuilder` 与服务端点击。正常生命周期下，首轮业务 UI 不需要修改 LDLib2。
+Data Energistics 实际解析 LDLib2 `2.2.8`，ECO 使用 `2.2.1`，而 `F:/mc/ldlib/LDLib2` 当前源码是 `2.2.28`。已确认 `2.2.8` 公共能力包括 `Scene`、`TrackedDummyWorld`、`ModularUIRecipeCategory`、`ModularUIEMIRecipe`、`IngredientIO`、`ItemSlot`、`ScrollerView`、`DataBindingBuilder` 与服务端点击；所有实现结论必须以 `2.2.8` source jar 为准，不能用工作区新版本 API 替代。正常生命周期下，首轮业务 UI 不需要修改 LDLib2。
 
-已知上游边界：LDLib2 2.2.8 的 `UIElement.removeChild` 在 `REMOVED` 或 `MUI_CHANGED` listener 抛错时，会在清除 `parent`、后代 `ModularUI` 和结构缓存前退出；这些字段没有公开恢复入口。Data Energistics 的 `HostSubUiRoot` 已实现 post-order sibling continuation、异常聚合、外部 `removeSelf()` terminal 通知和资源 exactly-once 防护，但不能修复已经残留的 LDLib2 私有结构状态。完整上游修复需要让 `UIElement.onRemoved`、`_setModularUIInternal`、`removeChild`、lifecycle event dispatcher、`Scene` 与 `ModularUI` 在异常下继续清理并最后重抛首异常；未取得针对 LDLib2 仓库的明确 Git 授权前只记录该边界，不在本任务分支伪造反射或重复释放补偿。
+`MenuTypeBuilder` 会在服务端和客户端分别调用同一菜单 factory，`AbstractContainerMenuMixin#setModularUI` 把整树注册到 `UISyncManager`；初始数据随菜单打开包写入并在客户端菜单创建后读取。sync value 与 RPC 使用按注册顺序增长、移除不复用的 ID，因此动态树必须在两端按同一 sequence open/close/reopen。
+
+`Button#setOnServerClick` 最终注册元素 RPC；`UIEventDispatcher` 在目标元素的本地 listener 之后才发送 server event。关闭按钮若同时本地 `requestClose()` 并注册 server click，本地移除会先清掉元素的 MUI/RPC，导致服务端事件无法发送。正确边界是在静态 root coordinator 上 request/ack，服务端先改权威树，客户端收到 ack 后再改镜像树；Esc 和外部 close 使用相同入口。
+
+已知上游边界：LDLib2 2.2.8 的 `UIElement.removeChild` 在 `REMOVED` 或 `MUI_CHANGED` listener 抛错时，会在清除 `parent`、后代 `ModularUI` 和结构缓存前退出；这些字段没有公开恢复入口。Data Energistics 的 `HostSubUiRoot` 已实现 post-order sibling continuation、异常聚合、外部 `removeSelf()` terminal 通知和资源 exactly-once 防护，但不能修复已经残留的 LDLib2 私有结构状态。异常后 host 必须转为 terminal 并禁止复用残留树。完整上游修复需要让 `UIElement.onRemoved`、`_setModularUIInternal`、`removeChild`、lifecycle event dispatcher、`Scene` 与 `ModularUI` 在异常下继续清理并最后重抛首异常；未取得针对 LDLib2 仓库的明确 Git 授权前只记录并测试该边界，不在本任务分支伪造反射或重复释放补偿。
 
 ## Modular Data Lib 边界
 
