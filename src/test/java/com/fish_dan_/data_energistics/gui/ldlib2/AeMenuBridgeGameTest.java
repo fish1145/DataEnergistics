@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
@@ -43,7 +42,7 @@ public final class AeMenuBridgeGameTest {
     @GameTest(template = "empty_5x5")
     public static void mapsExistingSlotsWithoutDuplicates(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        TrinityDataCoreMenu menu = new TrinityDataCoreMenu(1, player.getInventory(), null);
+        TestAeMenu menu = playerInventoryMenu(player);
         List<Slot> originalSlots = List.copyOf(menu.slots);
         AeMenuBridge bridge = AeMenuBridge.create(menu);
         UIElement root = new UIElement();
@@ -121,7 +120,7 @@ public final class AeMenuBridgeGameTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsForeignAndDuplicateSlots(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        TrinityDataCoreMenu menu = new TrinityDataCoreMenu(1, player.getInventory(), null);
+        TestAeMenu menu = playerInventoryMenu(player);
         AeMenuBridge bridge = AeMenuBridge.create(menu);
         Slot firstSlot = menu.slots.getFirst();
 
@@ -138,16 +137,19 @@ public final class AeMenuBridgeGameTest {
     @GameTest(template = "empty_5x5")
     public static void failedMountIsTerminal(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        TrinityDataCoreMenu menu = new TrinityDataCoreMenu(1, player.getInventory(), null);
+        TestAeMenu menu = playerInventoryMenu(player);
         AeMenuBridge bridge = AeMenuBridge.create(menu);
         Slot slot = menu.slots.getFirst();
         AeItemSlot wrapper = bridge.wrap(slot);
         UIElement root = new UIElement().addChild(wrapper);
+        RemovalTrackingElement cleanupProbe = new RemovalTrackingElement();
+        root.addChild(cleanupProbe);
         root.addEventListener(UIEvents.MUI_CHANGED, event -> {
             throw new IllegalStateException("Test mount listener failure");
         });
 
         assertThrows(() -> bridge.mount(ModularUI.of(UI.of(root), player)));
+        assertEquals(1, cleanupProbe.removalCount);
         assertThrows(() -> bridge.wrap(menu.slots.get(1)));
         assertThrows(() -> bridge.mount(ModularUI.of(UI.of(new UIElement()), player)));
         assertSame(null, holder(menu).getItemSlot(slot));
@@ -159,12 +161,12 @@ public final class AeMenuBridgeGameTest {
     @GameTest(template = "empty_5x5")
     public static void rejectsIncompleteAndRepeatedMounts(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        TrinityDataCoreMenu incompleteMenu = new TrinityDataCoreMenu(1, player.getInventory(), null);
+        TestAeMenu incompleteMenu = playerInventoryMenu(player);
         AeMenuBridge incompleteBridge = AeMenuBridge.create(incompleteMenu);
         incompleteBridge.wrap(incompleteMenu.slots.getFirst());
         assertThrows(() -> incompleteBridge.mount(ModularUI.of(UI.of(new UIElement()), player)));
 
-        TrinityDataCoreMenu mountedMenu = new TrinityDataCoreMenu(2, player.getInventory(), null);
+        TestAeMenu mountedMenu = playerInventoryMenu(player);
         AeMenuBridge mountedBridge = AeMenuBridge.create(mountedMenu);
         ModularUI firstUi = ModularUI.of(UI.of(new UIElement()), player);
         mountedBridge.mount(firstUi);
@@ -179,6 +181,13 @@ public final class AeMenuBridgeGameTest {
             return holder;
         }
         throw new GameTestAssertException("LDLib2 did not enhance the AE menu");
+    }
+
+    /** Creates an unmounted bridge fixture with AE2's normal 27 plus 9 player semantic groups. */
+    private static TestAeMenu playerInventoryMenu(Player player) {
+        TestAeMenu menu = new TestAeMenu(player);
+        menu.addPlayerInventory();
+        return menu;
     }
 
     /** Requires the supplied action to reject its invalid bridge operation. */
@@ -234,6 +243,22 @@ public final class AeMenuBridgeGameTest {
             for (Slot slot : slots) {
                 addSlot(slot, SlotSemantics.STORAGE);
             }
+        }
+
+        private void addPlayerInventory() {
+            createPlayerInventorySlots(getPlayer().getInventory());
+        }
+    }
+
+    /** Element whose callback proves that a failed mount still releases the complete ModularUI tree. */
+    private static final class RemovalTrackingElement extends UIElement {
+
+        private int removalCount;
+
+        @Override
+        protected void onRemoved() {
+            this.removalCount++;
+            super.onRemoved();
         }
     }
 

@@ -84,12 +84,23 @@ final class AeMenuBridgeImpl implements AeMenuBridge {
                 }
             }
             this.mountState = MountState.MOUNTED;
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | Error exception) {
             this.mountState = MountState.FAILED;
             Data_Energistics.LOGGER.error(
                     "Failed to mount LDLib2 UI on AE menu {}; discard this menu and UI instance",
                     this.menu.getClass().getName(),
                     exception);
+            try {
+                modularUI.onRemoved();
+            } catch (RuntimeException | Error cleanupFailure) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to release the incomplete LDLib2 UI mounted on AE menu {}",
+                        this.menu.getClass().getName(),
+                        cleanupFailure);
+                if (cleanupFailure != exception) {
+                    exception.addSuppressed(cleanupFailure);
+                }
+            }
             throw exception;
         }
     }
@@ -200,7 +211,7 @@ final class AeMenuBridgeImpl implements AeMenuBridge {
 
     /** Logs each rejected invariant before returning its fail-fast exception. */
     private static IllegalStateException violation(String message) {
-        Data_Energistics.LOGGER.error(FAILURE_PREFIX + message);
+        Data_Energistics.LOGGER.error("{}{}", FAILURE_PREFIX, message);
         return new IllegalStateException(message);
     }
 

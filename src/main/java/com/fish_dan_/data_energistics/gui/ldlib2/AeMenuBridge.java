@@ -36,8 +36,9 @@ public interface AeMenuBridge {
      * Attaches a completed UI and registers all wrapped slots without adding them to the menu again.
      *
      * <p>
-     * An exception raised after LDLib2 starts attaching the tree leaves this bridge terminal. The caller must abort
-     * opening and discard both the menu and UI instead of attempting to reuse their partially initialized state.
+     * An exception raised after LDLib2 starts attaching the tree leaves this bridge terminal. The bridge invokes the
+     * complete ModularUI removal lifecycle before preserving that failure; the caller must still abort opening and
+     * discard both the menu and UI instead of attempting to reuse their partially initialized ownership references.
      *
      * @param modularUI completed UI created for the bridged menu player
      */
