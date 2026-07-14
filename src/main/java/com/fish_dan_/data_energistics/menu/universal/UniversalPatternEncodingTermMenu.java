@@ -33,7 +33,6 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.patternprovider.PatternContainer;
@@ -46,7 +45,6 @@ import appeng.util.ConfigInventory;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.invoke.VarHandle;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -763,37 +761,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Nullable
     private ItemStack encodeProcessingPatternVirtual() {
-        ConfigInventory encodedInputsInv = this.host.getLogic().getEncodedInputInv();
-        ConfigInventory encodedOutputsInv = this.host.getLogic().getEncodedOutputInv();
-
-        var inputs = new GenericStack[encodedInputsInv.size()];
-        boolean valid = false;
-        for (int slot = 0; slot < encodedInputsInv.size(); slot++) {
-            inputs[slot] = encodedInputsInv.getStack(slot);
-            if (inputs[slot] != null) {
-                valid = true;
-            }
-        }
-        if (!valid) {
-            return null;
-        }
-
-        var outputs = new GenericStack[encodedOutputsInv.size()];
-        for (int slot = 0; slot < encodedOutputsInv.size(); slot++) {
-            outputs[slot] = encodedOutputsInv.getStack(slot);
-        }
-        boolean hasOutput = false;
-        for (GenericStack output : outputs) {
-            if (output != null) {
-                hasOutput = true;
-                break;
-            }
-        }
-        if (!hasOutput) {
-            return null;
-        }
-
-        return PatternDetailsHelper.encodeProcessingPattern(Arrays.asList(inputs), Arrays.asList(outputs));
+        return PatternEncodingSourceHelper.encodeProcessingPattern(
+                this.host.getLogic().getEncodedInputInv(),
+                this.host.getLogic().getEncodedOutputInv());
     }
 
     @Nullable
