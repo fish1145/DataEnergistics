@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
+import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -85,7 +86,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
-                new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
+                new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
+                new TrinityMultiblockJeiCategory(registration.getJeiHelpers()));
     }
 
     @Override
@@ -95,6 +97,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(ModBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(ModBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
+        registration.addRecipeCatalyst(ModBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
         registerDataChargerCatalysts(registration, DataChargerRecipeCategory.RECIPE_TYPE);
     }
 
@@ -116,6 +119,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
+        registration.addRecipes(TrinityMultiblockJeiCategory.RECIPE_TYPE, List.of(MultiblockXeiRecipe.trinity()));
         var level = Minecraft.getInstance().level;
         if (level != null) {
             List<WorldInteractionJeiRecipe> worldInteractionRecipes = new ArrayList<>();
