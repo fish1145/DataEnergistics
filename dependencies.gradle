@@ -45,6 +45,7 @@ dependencies {
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
+    testCompileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
     testCompileOnly(forge.emi)
 
