@@ -63,6 +63,8 @@ public final class TrinityDataCoreCraftingRuntime {
     private long lastModifiedOnTick;
     /** Allocation cursor always identifies the smallest free positive worker number. */
     private int nextAvailableWorkerNumber = 1;
+    /** Transient execution cursor identifies the preferred first worker for the next grid tick. */
+    private int nextWorkerTickStartNumber = 1;
     private boolean mainStructureFormed;
     private boolean paused;
 
@@ -223,21 +225,41 @@ public final class TrinityDataCoreCraftingRuntime {
         }
     }
 
-    /** Ticks retained workers and releases workers only after both job and inventory are empty. */
-    public void tick(IEnergyService energyService, CraftingService craftingService) {
+    /**
+     * Ticks retained workers through one grid-shared dispatch window and releases workers only after both job and
+     * inventory are empty.
+     *
+     * @param energyService   AE2 energy service shared by this runtime's grid
+     * @param craftingService AE2 crafting service used to resolve pattern providers
+     * @param dispatchWindow  physical provider-attempt budget shared across the complete grid tick
+     */
+    public void tick(IEnergyService energyService,
+                     CraftingService craftingService,
+                     CraftingDispatchWindow dispatchWindow) {
         if (this.paused) {
             return;
         }
-        var iterator = this.retainedWorkers.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry = iterator.next();
-            TrinityDataCoreVirtualCpu worker = entry.getValue();
-            worker.tick(energyService, craftingService);
-            if (!this.pendingWorkerLogic.containsKey(entry.getKey()) && worker.isReleasable()) {
-                this.waitingIndex.removeWorker(entry.getKey());
-                makeWorkerNumberAvailable(entry.getKey());
-                iterator.remove();
+        if (this.retainedWorkers.isEmpty()) {
+            return;
+        }
+
+        Integer startNumber = this.retainedWorkers.ceilingKey(this.nextWorkerTickStartNumber);
+        if (startNumber == null) {
+            startNumber = this.retainedWorkers.firstKey();
+        }
+        Integer followingNumber = this.retainedWorkers.higherKey(startNumber);
+        this.nextWorkerTickStartNumber = followingNumber != null ? followingNumber : this.retainedWorkers.firstKey();
+
+        List<TrinityDataCoreVirtualCpu> workers = new ArrayList<>(this.retainedWorkers.size());
+        workers.addAll(this.retainedWorkers.tailMap(startNumber, true).values());
+        workers.addAll(this.retainedWorkers.headMap(startNumber, false).values());
+        for (TrinityDataCoreVirtualCpu worker : workers) {
+            int workerNumber = worker.number();
+            if (this.retainedWorkers.get(workerNumber) != worker) {
+                continue;
             }
+            worker.tick(energyService, craftingService, dispatchWindow);
+            removeWorkerIfReleasable(workerNumber, worker);
         }
     }
 
@@ -673,6 +695,7 @@ public final class TrinityDataCoreCraftingRuntime {
         this.publishedCpus = List.of();
         this.lastModifiedOnTick = 0L;
         this.nextAvailableWorkerNumber = 1;
+        this.nextWorkerTickStartNumber = 1;
     }
 
     private static void writeContribution(CompoundTag data, TrinityDataCoreCpuContribution contribution) {

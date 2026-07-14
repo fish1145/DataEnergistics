@@ -92,10 +92,13 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      *
      * @param energyService   AE2 energy service
      * @param craftingService AE2 crafting service
+     * @param dispatchWindow  grid-shared physical dispatch budget for this tick
      */
-    public void tick(IEnergyService energyService, CraftingService craftingService) {
+    public void tick(IEnergyService energyService,
+                     CraftingService craftingService,
+                     CraftingDispatchWindow dispatchWindow) {
         boolean wasBusy = isBusy();
-        this.logic.tickCraftingLogic(energyService, craftingService);
+        this.logic.tickCraftingLogic(energyService, craftingService, dispatchWindow);
         this.runtime.workerOperationCompleted(this, wasBusy);
     }
 

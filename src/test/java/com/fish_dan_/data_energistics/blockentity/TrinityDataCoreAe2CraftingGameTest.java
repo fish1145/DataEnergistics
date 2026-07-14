@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
@@ -60,6 +61,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class TrinityDataCoreAe2CraftingGameTest {
 
     private static final long COUNTED_BATCH_SIZE = 128L;
+    private static final long LARGE_COUNTED_BATCH_SIZE = 10_000L;
     private static final int TABLE_PATTERN_SLOT = 37;
     private static final int CAKE_PATTERN_SLOT = 38;
     private static final int REMOVAL_PATTERN_SLOT = 39;
@@ -299,7 +301,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         PendingCraftingPlan cakePlan = new PendingCraftingPlan(
                 level,
                 AEItemKey.of(Items.CAKE),
-                COUNTED_BATCH_SIZE);
+                LARGE_COUNTED_BATCH_SIZE);
         AtomicReference<TrinityDataCoreVirtualCpu> activeWorker = new AtomicReference<>();
 
         helper.startSequence()
@@ -371,16 +373,28 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRAFTING_TABLE), COUNTED_BATCH_SIZE);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.CRIMSON_PLANKS), 0L);
 
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.MILK_BUCKET), 384L);
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.SUGAR), 256L);
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.EGG), COUNTED_BATCH_SIZE);
-                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.WHEAT), 384L);
+                    insertIntoNetwork(
+                            helper,
+                            fixture,
+                            AEItemKey.of(Items.MILK_BUCKET),
+                            Math.multiplyExact(3L, LARGE_COUNTED_BATCH_SIZE));
+                    insertIntoNetwork(
+                            helper,
+                            fixture,
+                            AEItemKey.of(Items.SUGAR),
+                            Math.multiplyExact(2L, LARGE_COUNTED_BATCH_SIZE));
+                    insertIntoNetwork(helper, fixture, AEItemKey.of(Items.EGG), LARGE_COUNTED_BATCH_SIZE);
+                    insertIntoNetwork(
+                            helper,
+                            fixture,
+                            AEItemKey.of(Items.WHEAT),
+                            Math.multiplyExact(3L, LARGE_COUNTED_BATCH_SIZE));
                     cakePlan.start(fixture.grid(), host.accessActionSource());
                 })
                 .thenWaitUntil(cakePlan::await)
                 .thenExecute(() -> {
                     ICraftingPlan plan = cakePlan.plan();
-                    assertPlan(helper, plan, cakeRoute, AEItemKey.of(Items.CAKE), COUNTED_BATCH_SIZE);
+                    assertPlan(helper, plan, cakeRoute, AEItemKey.of(Items.CAKE), LARGE_COUNTED_BATCH_SIZE);
                     long slotRevisionBeforeDispatch = core.patternSlot(CAKE_PATTERN_SLOT).revision();
                     TrinityDataCoreVirtualCpu worker = submitAndDispatch(helper, fixture, plan);
                     activeWorker.set(worker);
@@ -394,16 +408,16 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     TrinityCraftingBatch cakeBatch = core.queuedBatches(CAKE_PATTERN_SLOT).getFirst();
                     helper.assertValueEqual(
                             cakeBatch.count(),
-                            COUNTED_BATCH_SIZE,
+                            LARGE_COUNTED_BATCH_SIZE,
                             "One cake queue group should retain all counted logical crafts");
                     helper.assertValueEqual(cakeBatch.route(), cakeRoute, "Counted cake group should retain its route");
                     helper.assertValueEqual(
                             worker.getWaitingFor(AEItemKey.of(Items.CAKE)),
-                            COUNTED_BATCH_SIZE,
+                            LARGE_COUNTED_BATCH_SIZE,
                             "Trinity CPU should wait for every counted cake output");
                     helper.assertValueEqual(
                             worker.getWaitingFor(AEItemKey.of(Items.BUCKET)),
-                            384L,
+                            Math.multiplyExact(3L, LARGE_COUNTED_BATCH_SIZE),
                             "Trinity CPU should scale all three container remainders by the counted batch");
 
                     host.serverTick();
@@ -419,8 +433,12 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Cake and buckets should leave the P core after CPU routing");
                     helper.assertFalse(activeWorker.get().isBusy(),
                             "Trinity worker should finish after cake and buckets return");
-                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CAKE), COUNTED_BATCH_SIZE);
-                    assertHostStorage(helper, fixture, AEItemKey.of(Items.BUCKET), 384L);
+                    assertHostStorage(helper, fixture, AEItemKey.of(Items.CAKE), LARGE_COUNTED_BATCH_SIZE);
+                    assertHostStorage(
+                            helper,
+                            fixture,
+                            AEItemKey.of(Items.BUCKET),
+                            Math.multiplyExact(3L, LARGE_COUNTED_BATCH_SIZE));
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.MILK_BUCKET), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.SUGAR), 0L);
                     assertHostStorage(helper, fixture, AEItemKey.of(Items.EGG), 0L);
@@ -754,7 +772,10 @@ public final class TrinityDataCoreAe2CraftingGameTest {
         if (!(craftingService instanceof CraftingService concreteService)) {
             throw new IllegalStateException("Trinity CPU requires AE2 CraftingService for dispatch");
         }
-        fixture.host().getCraftingRuntime().tick(grid.getEnergyService(), concreteService);
+        fixture.host().getCraftingRuntime().tick(
+                grid.getEnergyService(),
+                concreteService,
+                CraftingDispatchWindow.create());
         return worker;
     }
 
