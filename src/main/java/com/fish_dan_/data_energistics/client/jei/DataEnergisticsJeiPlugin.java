@@ -3,14 +3,12 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
-import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.HolderLookup;
@@ -18,10 +16,8 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -29,20 +25,17 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 import appeng.core.definitions.AEBlocks;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.recipes.handlers.ChargerRecipe;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.recipe.RecipeType;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
-import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
-import mezz.jei.api.runtime.IIngredientVisibility;
 import mezz.jei.api.runtime.IJeiRuntime;
 
 import java.util.ArrayList;
@@ -52,27 +45,9 @@ import java.util.function.Function;
 @JeiPlugin
 public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
-    private static final String AE2_JEI_TRANSFER_PACKAGE = String.join(
-            ".",
-            "tamaized",
-            "ae2jeiintegration",
-            "integration",
-            "modules",
-            "jei",
-            "transfer");
-    private static final String CRAFTING_HANDLER_CLASS = AE2_JEI_TRANSFER_PACKAGE + ".UseCraftingRecipeTransfer";
-    private static final String ENCODING_HANDLER_CLASS = AE2_JEI_TRANSFER_PACKAGE + ".EncodePatternTransferHandler";
+    private static final String AE2_JEI_INTEGRATION_MOD_ID = "ae2jeiintegration";
     private static final ResourceLocation AE2_CHARGER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final RecipeType<RecipeHolder<ChargerRecipe>> AE2_CHARGER_RECIPE_TYPE = RecipeType.createRecipeHolderType(AE2_CHARGER_RECIPE_ID);
-    private static final Class<?>[] CRAFTING_HANDLER_PARAMETERS = {
-            Class.class,
-            MenuType.class,
-            IRecipeTransferHandlerHelper.class };
-    private static final Class<?>[] ENCODING_HANDLER_PARAMETERS = {
-            MenuType.class,
-            Class.class,
-            IRecipeTransferHandlerHelper.class,
-            IIngredientVisibility.class };
     private IJeiRuntime jeiRuntime;
 
     @Override
@@ -103,16 +78,24 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
-        var craftingHandler = createCraftingHandler(registration.getTransferHelper());
-        if (craftingHandler != null) {
-            registration.addRecipeTransferHandler(craftingHandler, RecipeTypes.CRAFTING);
-        }
+        var transferHelper = registration.getTransferHelper();
+        registration.addRecipeTransferHandler(
+                new MultiblockPatternJeiTransferHandler<>(
+                        PatternEncodingTermMenu.class,
+                        PatternEncodingTermMenu.TYPE,
+                        TrinityMultiblockJeiCategory.RECIPE_TYPE,
+                        transferHelper),
+                TrinityMultiblockJeiCategory.RECIPE_TYPE);
+        registration.addRecipeTransferHandler(
+                new MultiblockPatternJeiTransferHandler<>(
+                        UniversalPatternEncodingTermMenu.class,
+                        ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                        TrinityMultiblockJeiCategory.RECIPE_TYPE,
+                        transferHelper),
+                TrinityMultiblockJeiCategory.RECIPE_TYPE);
 
-        var encodingHandler = createEncodingHandler(
-                registration.getTransferHelper(),
-                registration.getJeiHelpers().getIngredientVisibility());
-        if (encodingHandler != null) {
-            registration.addUniversalRecipeTransferHandler(encodingHandler);
+        if (Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            Ae2JeiTransferRegistration.register(registration);
         }
     }
 
@@ -228,36 +211,5 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (!craftingRepairRecipes.isEmpty()) {
             recipeManager.hideRecipes(RecipeTypes.CRAFTING, craftingRepairRecipes);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static IRecipeTransferHandler<UniversalCraftingTermMenu, RecipeHolder<CraftingRecipe>> createCraftingHandler(IRecipeTransferHandlerHelper transferHelper) {
-        Object handler = ReflectionAccess.newInstance(
-                CRAFTING_HANDLER_CLASS,
-                CRAFTING_HANDLER_PARAMETERS,
-                UniversalCraftingTermMenu.class,
-                ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
-                transferHelper);
-        if (handler instanceof IRecipeTransferHandler<?, ?> recipeTransferHandler) {
-            return (IRecipeTransferHandler<UniversalCraftingTermMenu, RecipeHolder<CraftingRecipe>>) recipeTransferHandler;
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu> createEncodingHandler(
-                                                                                                           IRecipeTransferHandlerHelper transferHelper,
-                                                                                                           IIngredientVisibility ingredientVisibility) {
-        Object handler = ReflectionAccess.newInstance(
-                ENCODING_HANDLER_CLASS,
-                ENCODING_HANDLER_PARAMETERS,
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
-                UniversalPatternEncodingTermMenu.class,
-                transferHelper,
-                ingredientVisibility);
-        if (handler instanceof IUniversalRecipeTransferHandler<?> recipeTransferHandler) {
-            return (IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu>) recipeTransferHandler;
-        }
-        return null;
     }
 }
