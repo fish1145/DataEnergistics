@@ -72,6 +72,8 @@ import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartHost;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.definitions.AEItems;
@@ -1840,7 +1842,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return List.of();
         }
 
-        return collectConnectableNodes(nodeHost);
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        IPartHost partHost = blockEntity instanceof IPartHost host ? host : null;
+        return collectConnectableNodes(partHost, nodeHost);
     }
 
     /**
@@ -1850,16 +1854,40 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
      * @return immutable nodes in AE direction iteration order, de-duplicated by node identity
      */
     static List<IGridNode> collectConnectableNodes(IInWorldGridNodeHost nodeHost) {
+        return collectConnectableNodes(null, nodeHost);
+    }
+
+    private static List<IGridNode> collectConnectableNodes(@Nullable IPartHost partHost,
+                                                           IInWorldGridNodeHost nodeHost) {
         Set<IGridNode> nodes = Collections.newSetFromMap(new IdentityHashMap<>());
         ArrayList<IGridNode> orderedNodes = new ArrayList<>();
-        for (Direction direction : Direction.values()) {
-            IGridNode node = nodeHost.getGridNode(direction);
-            if (node != null && nodes.add(node)) {
-                orderedNodes.add(node);
+
+        if (partHost != null) {
+            addConnectableNode(partHost.getPart(null), nodes, orderedNodes);
+            for (Direction direction : Direction.values()) {
+                addConnectableNode(partHost.getPart(direction), nodes, orderedNodes);
             }
         }
 
+        for (Direction direction : Direction.values()) {
+            addConnectableNode(nodeHost.getGridNode(direction), nodes, orderedNodes);
+        }
+
         return List.copyOf(orderedNodes);
+    }
+
+    private static void addConnectableNode(@Nullable IPart part, Set<IGridNode> nodes,
+                                           List<IGridNode> orderedNodes) {
+        if (part != null) {
+            addConnectableNode(part.getGridNode(), nodes, orderedNodes);
+        }
+    }
+
+    private static void addConnectableNode(@Nullable IGridNode node, Set<IGridNode> nodes,
+                                           List<IGridNode> orderedNodes) {
+        if (node != null && nodes.add(node)) {
+            orderedNodes.add(node);
+        }
     }
 
     private static void invalidateNearbyCaches(Level level, BlockPos changedPos) {
