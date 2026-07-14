@@ -1,9 +1,14 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
+import com.fish_dan_.data_energistics.accessor.PatternProviderBatchBridge;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
+import com.fish_dan_.data_energistics.ae2.PatternProviderBatching;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
 
 import net.minecraft.server.level.ServerLevel;
 
@@ -14,6 +19,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -26,7 +32,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
 @Mixin(PatternProviderLogic.class)
-public abstract class PatternProviderLogicMixin implements PatternProviderLogicAccessor {
+public abstract class PatternProviderLogicMixin
+                                                implements PatternProviderLogicAccessor, PatternProviderBatchBridge, CountedCraftingProvider {
 
     @Shadow
     @Final
@@ -52,6 +59,39 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
     @Unique
     private boolean dataEnergistics$dispatchPulsePending;
 
+    @Override
+    @Nullable
+    public CountedCraftingAdmission prepareBatch(
+                                                 IPatternDetails patternDetails,
+                                                 KeyCounter[] prototype,
+                                                 long requestedCount) {
+        PatternProviderLogic logic = (PatternProviderLogic) (Object) this;
+        if (logic.getClass() != PatternProviderLogic.class) {
+            return PatternProviderBatching.prepareSingle(logic, patternDetails, prototype, requestedCount);
+        }
+        return this.dataEnergistics$prepareStandardBatch(
+                patternDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterCountedPush);
+    }
+
+    @Override
+    @Nullable
+    public CountedCraftingAdmission dataEnergistics$prepareStandardBatch(
+                                                                         IPatternDetails patternDetails,
+                                                                         KeyCounter[] prototype,
+                                                                         long requestedCount,
+                                                                         Runnable afterCommit) {
+        return PatternProviderBatching.prepareStandardBatch(
+                (PatternProviderLogic) (Object) this,
+                (PatternProviderBatchAccess) this,
+                patternDetails,
+                prototype,
+                requestedCount,
+                afterCommit);
+    }
+
     @Inject(method = "pushPattern", at = @At("RETURN"))
     private void dataEnergistics$afterPushPattern(IPatternDetails patternDetails,
                                                   KeyCounter[] inputHolder,
@@ -59,6 +99,12 @@ public abstract class PatternProviderLogicMixin implements PatternProviderLogicA
         if (!cir.getReturnValueZ()) {
             return;
         }
+        this.dataEnergistics$dispatchPulsePending = true;
+        this.dataEnergistics$tryFinishDispatchPulse();
+    }
+
+    @Unique
+    private void dataEnergistics$afterCountedPush() {
         this.dataEnergistics$dispatchPulsePending = true;
         this.dataEnergistics$tryFinishDispatchPulse();
     }

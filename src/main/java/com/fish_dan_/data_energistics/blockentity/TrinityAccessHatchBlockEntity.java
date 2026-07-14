@@ -7,7 +7,8 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
-import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityBatchCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
@@ -49,6 +50,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -690,7 +692,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    private final class HatchCraftingProvider implements TrinityBatchCraftingProvider {
+    private final class HatchCraftingProvider implements CountedCraftingProvider {
 
         @Override
         public List<IPatternDetails> getAvailablePatterns() {
@@ -700,21 +702,78 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
         @Override
         public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
-            return pushPatternBatch(patternDetails, inputHolder, 1L);
+            CountedCraftingAdmission admission = prepareBatch(patternDetails, inputHolder, 1L);
+            return admission != null && admission.commit(inputHolder);
         }
 
         @Override
-        public boolean pushPatternBatch(IPatternDetails patternDetails, KeyCounter[] inputHolder, long count) {
+        public @Nullable CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
+                                                               KeyCounter[] prototype,
+                                                               long requestedCount) {
+            Objects.requireNonNull(patternDetails, "patternDetails");
+            Objects.requireNonNull(prototype, "prototype");
+            if (requestedCount <= 0L) {
+                throw new IllegalArgumentException("requestedCount must be positive");
+            }
             TrinityDataCoreBlockEntity host = patternProviderHost();
             if (host == null || level == null || level.isClientSide()) {
-                return false;
+                return null;
             }
-            return host.getPatternCatalog().pushPattern(patternDetails, inputHolder, level.getGameTime(), count);
+            return new HatchCraftingAdmission(
+                    host,
+                    patternDetails,
+                    level.getGameTime(),
+                    requestedCount,
+                    prototype);
         }
 
         @Override
         public boolean isBusy() {
             return false;
+        }
+    }
+
+    /** Commits the full logical batch to the exact Trinity catalog selected during admission. */
+    private static final class HatchCraftingAdmission implements CountedCraftingAdmission {
+
+        private final TrinityDataCoreBlockEntity host;
+        private final IPatternDetails patternDetails;
+        private final long queuedTick;
+        private final long count;
+        private final KeyCounter[] preparedPrototype;
+        private boolean attempted;
+
+        private HatchCraftingAdmission(TrinityDataCoreBlockEntity host,
+                                       IPatternDetails patternDetails,
+                                       long queuedTick,
+                                       long count,
+                                       KeyCounter[] preparedPrototype) {
+            this.host = host;
+            this.patternDetails = patternDetails;
+            this.queuedTick = queuedTick;
+            this.count = count;
+            this.preparedPrototype = preparedPrototype;
+        }
+
+        @Override
+        public long count() {
+            return this.count;
+        }
+
+        @Override
+        public boolean commit(KeyCounter[] prototype) {
+            if (prototype != this.preparedPrototype) {
+                throw new IllegalArgumentException("Admission must be committed with its prepared prototype");
+            }
+            if (this.attempted) {
+                throw new IllegalStateException("Admission has already been committed");
+            }
+            this.attempted = true;
+            return this.host.getPatternCatalog().pushPattern(
+                    this.patternDetails,
+                    prototype,
+                    this.queuedTick,
+                    this.count);
         }
     }
 

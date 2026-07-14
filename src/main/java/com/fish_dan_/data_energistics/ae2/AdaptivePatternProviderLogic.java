@@ -1,9 +1,12 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.accessor.PatternProviderBatchBridge;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
 import com.fish_dan_.data_energistics.accessor.PatternProviderLogicFieldAccess;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtRuntimeBridge;
@@ -82,7 +85,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class AdaptivePatternProviderLogic extends PatternProviderLogic implements PatternProviderLogicAccessor {
+public class AdaptivePatternProviderLogic extends PatternProviderLogic
+                                          implements PatternProviderLogicAccessor, CountedCraftingProvider {
 
     private static final String RESONATING_PATTERN_DETAILS_CLASS = "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
     private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE = "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
@@ -257,6 +261,29 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         this.ae2ltAllowedOutputFilter = null;
         this.ae2ltOutputFilterDirty = true;
         invalidateAe2LtConnectionCache();
+    }
+
+    @Override
+    @Nullable
+    public CountedCraftingAdmission prepareBatch(
+                                                 IPatternDetails patternDetails,
+                                                 KeyCounter[] prototype,
+                                                 long requestedCount) {
+        if (usesSpecialBatchRoute(patternDetails)) {
+            return PatternProviderBatching.prepareSingle(this, patternDetails, prototype, requestedCount);
+        }
+        return ((PatternProviderBatchBridge) this).dataEnergistics$prepareStandardBatch(
+                patternDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterPushPattern);
+    }
+
+    private boolean usesSpecialBatchRoute(IPatternDetails patternDetails) {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptiveHost)) {
+            return true;
+        }
+        return adaptiveHost.isAe2LtPackagedProviderSelected() || adaptiveHost.isAe2LightningTechOverloadedProviderSelected() || adaptiveHost.isAdvancedAeProviderSelected() || adaptiveHost.isAppliedCreateMechanicalProviderSelected() || adaptiveHost.isMeteoriteProviderSelected() || adaptiveHost.isResonatingProviderSelected() || isResonatingPatternDetails(patternDetails);
     }
 
     @Override

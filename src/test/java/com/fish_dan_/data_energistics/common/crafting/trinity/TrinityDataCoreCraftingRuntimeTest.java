@@ -55,6 +55,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -229,6 +230,35 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_cpu_runtime_releases_all_workers_after_rotated_tick")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimeReleasesAllWorkersAfterRotatedTick(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 3));
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        for (int workerNumber = 1; workerNumber <= 3; workerNumber++) {
+            helper.assertTrue(
+                    reserveCpu.submitJob(grid, emptyJobPlan(), IActionSource.empty(), null).successful(),
+                    "Release test should allocate worker " + workerNumber);
+        }
+        List<TrinityDataCoreVirtualCpu> workers = host.getCpuPartitions().subList(1, 4);
+        TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
+        runtime.cancelAllJobs();
+
+        runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
+
+        for (TrinityDataCoreVirtualCpu worker : workers) {
+            helper.assertFalse(
+                    runtime.hasCpu(worker),
+                    "One rotated tick must release worker " + worker.number() + " exactly once");
+        }
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_pool_supports_worker_256_boundary")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -306,7 +336,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertFalse(logic.contains("job"), "Canceled inventory worker must not persist a completed job");
 
         grid.storage().setMaxAcceptedPerInsert(Long.MAX_VALUE);
-        host.getCraftingRuntime().tick(grid.energyService(), grid.craftingService());
+        host.getCraftingRuntime().tick(
+                grid.energyService(),
+                grid.craftingService(),
+                CraftingDispatchWindow.create());
         helper.assertValueEqual(worker.getStored(iron), 0L, "Hidden worker should retry inventory return while online");
         helper.succeed();
     }
@@ -345,12 +378,71 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 Integer.MAX_VALUE,
                 "The dispatch test must exercise the full co-processor profile");
 
-        cpu.tick(grid.energyService(), grid.craftingService());
+        cpu.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
 
         helper.assertValueEqual(provider.pushCount(), 1, "Maximum CPU profile must push at least one pattern");
         helper.assertTrue(provider.pushedPattern() == pattern, "The provider must receive the submitted pattern task");
         helper.assertValueEqual(provider.pushedInputSlots(), 0, "The zero-input test pattern should dispatch intact");
         helper.assertValueEqual(cpu.getWaitingFor(output), 1L, "The dispatched output must enter CPU waiting state");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_runtime_rotates_worker_dispatch_priority")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRuntimeRotatesWorkerDispatchPriority(GameTestHelper helper) {
+        long taskCount = CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER * 2L;
+        PendingPatternDetails firstPattern = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
+        PendingPatternDetails secondPattern = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
+        SequencedCraftingProvider provider = new SequencedCraftingProvider(List.of(firstPattern, secondPattern));
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution(
+                "fairness",
+                TrinityDataCoreCpuContribution.of(4096L, Integer.MAX_VALUE, 2));
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+
+        helper.assertTrue(
+                reserveCpu.submitJob(
+                        grid,
+                        patternPlan(firstPattern, taskCount),
+                        IActionSource.empty(),
+                        null)
+                        .successful(),
+                "First fairness worker job should be accepted");
+        helper.assertTrue(
+                reserveCpu.submitJob(
+                        grid,
+                        patternPlan(secondPattern, taskCount),
+                        IActionSource.empty(),
+                        null)
+                        .successful(),
+                "Second fairness worker job should be accepted");
+
+        TrinityDataCoreCraftingRuntime runtime = host.getCraftingRuntime();
+        runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
+        helper.assertValueEqual(
+                provider.pushCount(firstPattern),
+                (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                "First tick should give worker 1 the shared provider window");
+        helper.assertValueEqual(
+                provider.pushCount(secondPattern),
+                0L,
+                "First tick should leave worker 2 behind the exhausted shared provider window");
+
+        runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
+        helper.assertValueEqual(
+                provider.pushCount(firstPattern),
+                (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                "Second tick must not let worker 1 take the new provider window again");
+        helper.assertValueEqual(
+                provider.pushCount(secondPattern),
+                (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                "Second tick should rotate the new provider window to worker 2");
+        runtime.cancelAllJobs();
         helper.succeed();
     }
 
@@ -364,7 +456,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 COUNTED_BATCH_SIZE,
                 BatchPushOutcome.ACCEPT);
 
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 "128 logical crafts must cross the provider boundary once");
@@ -381,6 +476,84 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_cpu_limits_counted_batch_by_provider_capacity")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuLimitsCountedBatchByProviderCapacity(GameTestHelper helper) {
+        long providerCapacity = 32L;
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT);
+        fixture.provider().setMaximumAdmissionCount(providerCapacity);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "A capacity-limited provider must receive one physical submission");
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), providerCapacity,
+                "The admission must reduce the logical batch to target capacity");
+        helper.assertValueEqual(
+                fixture.cpu().getStored(fixture.input()),
+                COUNTED_BATCH_SIZE - providerCapacity,
+                "Inputs beyond provider capacity must remain owned by the CPU");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), providerCapacity,
+                "Only admitted crafts may enter output waiting state");
+        helper.assertValueEqual(
+                fixture.grid().energyService().getStoredPower(),
+                (double) (COUNTED_BATCH_SIZE - providerCapacity),
+                "Only admitted crafts may consume energy");
+        helper.assertTrue(fixture.cpu().isBusy(), "The capacity-limited task remainder must stay available");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_rejects_zero_capacity_and_invalid_admissions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRejectsZeroCapacityAndInvalidAdmissions(GameTestHelper helper) {
+        CountedBatchFixture noCapacity = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT);
+        noCapacity.provider().setNoCapacity(true);
+        CraftingDispatchWindow sharedWindow = CraftingDispatchWindow.create();
+
+        noCapacity.cpu().tick(
+                noCapacity.grid().energyService(),
+                noCapacity.grid().craftingService(),
+                sharedWindow);
+        noCapacity.cpu().tick(
+                noCapacity.grid().energyService(),
+                noCapacity.grid().craftingService(),
+                sharedWindow);
+
+        assertUncommittedAdmissionState(helper, noCapacity, "Zero-capacity");
+        helper.assertValueEqual(noCapacity.provider().prepareCount(), 1,
+                "A zero-capacity provider must be prepared only once in one dispatch window");
+
+        CountedBatchFixture invalid = countedBatchFixture(
+                helper,
+                new BlockPos(3, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT);
+        invalid.provider().setInvalidAdmissionCount(0L);
+
+        invalid.cpu().tick(
+                invalid.grid().energyService(),
+                invalid.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        assertUncommittedAdmissionState(helper, invalid, "Invalid-count");
+        helper.assertValueEqual(invalid.provider().prepareCount(), 1,
+                "An invalid admission must fail on its first preparation");
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_limits_counted_batch_by_energy")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -392,7 +565,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 affordableCrafts,
                 BatchPushOutcome.ACCEPT);
 
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 "An exhausted energy source must stop dispatch after one reduced batch");
@@ -409,6 +585,41 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_cpu_falls_back_after_counted_provider_rejection")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuFallsBackAfterCountedProviderRejection(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.REJECT);
+        RecordingBatchCraftingProvider fallback = new RecordingBatchCraftingProvider(
+                fixture.provider().pattern(),
+                fixture.input(),
+                BatchPushOutcome.ACCEPT);
+        fixture.grid().setCraftingProviders(List.of(fixture.provider(), fallback));
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "The first provider must receive one rejected physical attempt");
+        helper.assertValueEqual(fallback.batchPushCount(), 1,
+                "The second provider must receive the same logical batch in the same tick");
+        helper.assertValueEqual(fallback.lastBatchCount(), COUNTED_BATCH_SIZE,
+                "Fallback dispatch must preserve the complete logical batch");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                "Fallback acceptance must transfer every prepared input exactly once");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                "Fallback acceptance must record every expected output exactly once");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
+                "Fallback acceptance must retain one complete batch energy charge");
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_rolls_back_uncommitted_counted_batches")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -416,6 +627,25 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         assertCountedBatchRollback(helper, new BlockPos(1, 1, 1), BatchPushOutcome.REJECT);
         assertCountedBatchRollback(helper, new BlockPos(3, 1, 1), BatchPushOutcome.THROW);
         assertModulatedEnergyShortfallRollback(helper, new BlockPos(1, 3, 1));
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_preserves_transferred_counted_batch_ownership")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuPreservesTransferredCountedBatchOwnership(GameTestHelper helper) {
+        assertTransferredCountedBatchOwnership(
+                helper,
+                new BlockPos(1, 1, 1),
+                BatchPushOutcome.CONSUME_AND_REJECT);
+        assertTransferredCountedBatchOwnership(
+                helper,
+                new BlockPos(3, 1, 1),
+                BatchPushOutcome.CONSUME_AND_THROW);
+        assertTransferredCountedBatchOwnership(
+                helper,
+                new BlockPos(1, 3, 1),
+                BatchPushOutcome.TRANSFER_AND_THROW);
         helper.succeed();
     }
 
@@ -432,12 +662,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         link.cancel();
         fixture.runtime().setPaused(true);
-        fixture.runtime().tick(null, null);
+        fixture.runtime().tick(null, null, CraftingDispatchWindow.create());
 
         helper.assertTrue(fixture.runtime().hasBusyJobs(), "Paused runtime must not process or discard the canceled job");
 
         fixture.runtime().setPaused(false);
-        fixture.runtime().tick(null, null);
+        fixture.runtime().tick(null, null, CraftingDispatchWindow.create());
 
         helper.assertFalse(fixture.runtime().hasBusyJobs(), "Resumed runtime should process the canceled job on its next tick");
         helper.succeed();
@@ -728,7 +958,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Network remainder must stay in CPU inventory for retry");
 
         fixture.grid().storage().setMaxAcceptedPerInsert(Long.MAX_VALUE);
-        cpu.tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        cpu.tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
         helper.assertValueEqual(cpu.getStored(diamond), 0L, "Idle CPU should retry returning retained output");
         helper.assertValueEqual(
                 fixture.grid().storage().getStored(diamond),
@@ -1204,7 +1437,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 COUNTED_BATCH_SIZE,
                 failureOutcome);
 
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 failureOutcome + " provider must be attempted exactly once");
@@ -1217,7 +1453,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(fixture.cpu().isBusy(), failureOutcome + " provider must leave the task available for retry");
 
         fixture.provider().setOutcome(BatchPushOutcome.ACCEPT);
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 2,
                 failureOutcome + " provider must permit one later retry");
@@ -1237,7 +1476,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 BatchPushOutcome.ACCEPT);
         fixture.grid().energyService().setMaxModulatedExtraction(7.0D);
 
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 0,
                 "An incomplete modulated energy charge must not reach the provider");
@@ -1251,7 +1493,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "An incomplete modulated energy charge must preserve the task for retry");
 
         fixture.grid().energyService().setMaxModulatedExtraction(Double.MAX_VALUE);
-        fixture.cpu().tick(fixture.grid().energyService(), fixture.grid().craftingService());
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 "The preserved task must reach the provider after energy recovers");
@@ -1263,12 +1508,66 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "The successful retry must account for every expected output");
     }
 
+    private static void assertUncommittedAdmissionState(GameTestHelper helper,
+                                                        CountedBatchFixture fixture,
+                                                        String scenario) {
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 0,
+                scenario + " admission must not reach commit");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), COUNTED_BATCH_SIZE,
+                scenario + " admission must preserve every CPU input");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), 0L,
+                scenario + " admission must not add waiting outputs");
+        helper.assertValueEqual(
+                fixture.grid().energyService().getStoredPower(),
+                (double) COUNTED_BATCH_SIZE,
+                scenario + " admission must not consume energy");
+        helper.assertTrue(fixture.cpu().isBusy(), scenario + " admission must preserve the logical task");
+    }
+
+    private static void assertTransferredCountedBatchOwnership(GameTestHelper helper,
+                                                               BlockPos hostPos,
+                                                               BatchPushOutcome outcome) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                hostPos,
+                COUNTED_BATCH_SIZE,
+                outcome);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                outcome + " provider must be attempted exactly once");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                outcome + " provider must not duplicate inputs back into the CPU");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                outcome + " provider ownership transfer must retain complete output accounting");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
+                outcome + " provider ownership transfer must retain the complete energy charge");
+        helper.assertTrue(fixture.cpu().isBusy(),
+                outcome + " provider ownership transfer must leave the CPU waiting for outputs");
+    }
+
     private static void seedStorage(TestStorage storage, AEKey key, long amount) {
         storage.setMaxAcceptedPerInsert(Long.MAX_VALUE);
         long inserted = storage.insert(key, amount, Actionable.MODULATE, IActionSource.empty());
         if (inserted != amount) {
             throw new IllegalStateException("Test storage rejected seeded amount for " + key);
         }
+    }
+
+    private static CraftingPlan patternPlan(PendingPatternDetails pattern, long taskCount) {
+        return new CraftingPlan(
+                new GenericStack(pattern.output(), taskCount),
+                1L,
+                false,
+                false,
+                new KeyCounter(),
+                new KeyCounter(),
+                new KeyCounter(),
+                Map.of(pattern, taskCount));
     }
 
     private static void assertOfflineWithoutExtraction(GameTestHelper helper,
@@ -1479,6 +1778,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.craftingService.setProvider(provider);
         }
 
+        private void setCraftingProviders(List<ICraftingProvider> providers) {
+            this.craftingService.setProviders(providers);
+        }
+
         private TestStorage storage() {
             return this.storage;
         }
@@ -1559,25 +1862,26 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
     private static final class TestCraftingService extends CraftingService {
 
-        @Nullable
-        private ICraftingProvider provider;
+        private List<ICraftingProvider> providers = List.of();
 
         private TestCraftingService(IGrid grid, IStorageService storageService, IEnergyService energyService) {
             super(grid, storageService, energyService);
         }
 
         private void setProvider(ICraftingProvider provider) {
-            this.provider = provider;
+            setProviders(List.of(provider));
+        }
+
+        private void setProviders(List<ICraftingProvider> providers) {
+            this.providers = List.copyOf(providers);
         }
 
         @Override
         public Iterable<ICraftingProvider> getProviders(IPatternDetails pattern) {
-            ICraftingProvider currentProvider = this.provider;
-            if (currentProvider == null || currentProvider.getAvailablePatterns().stream()
-                    .noneMatch(candidate -> candidate == pattern)) {
-                return List.of();
-            }
-            return List.of(currentProvider);
+            return this.providers.stream()
+                    .filter(provider -> provider.getAvailablePatterns().stream()
+                            .anyMatch(candidate -> candidate == pattern))
+                    .toList();
         }
     }
 
@@ -1787,11 +2091,46 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
     }
 
-    private static final class RecordingBatchCraftingProvider implements TrinityBatchCraftingProvider {
+    private static final class SequencedCraftingProvider implements ICraftingProvider {
+
+        private final List<IPatternDetails> patterns;
+        private final List<IPatternDetails> pushedPatterns = new ArrayList<>();
+
+        private SequencedCraftingProvider(List<IPatternDetails> patterns) {
+            this.patterns = List.copyOf(patterns);
+        }
+
+        private long pushCount(IPatternDetails pattern) {
+            return this.pushedPatterns.stream().filter(pushed -> pushed == pattern).count();
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return this.patterns;
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            this.pushedPatterns.add(patternDetails);
+            return true;
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
+        }
+    }
+
+    private static final class RecordingBatchCraftingProvider implements CountedCraftingProvider {
 
         private final IPatternDetails pattern;
         private final AEKey input;
         private BatchPushOutcome outcome;
+        private long maximumAdmissionCount = Long.MAX_VALUE;
+        @Nullable
+        private Long invalidAdmissionCount;
+        private boolean noCapacity;
+        private int prepareCount;
         private int batchPushCount;
         private long lastBatchCount;
         private long lastPrototypeAmount;
@@ -1808,6 +2147,22 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.outcome = outcome;
         }
 
+        private void setMaximumAdmissionCount(long maximumAdmissionCount) {
+            this.maximumAdmissionCount = maximumAdmissionCount;
+        }
+
+        private void setInvalidAdmissionCount(long invalidAdmissionCount) {
+            this.invalidAdmissionCount = invalidAdmissionCount;
+        }
+
+        private void setNoCapacity(boolean noCapacity) {
+            this.noCapacity = noCapacity;
+        }
+
+        private int prepareCount() {
+            return this.prepareCount;
+        }
+
         private int batchPushCount() {
             return this.batchPushCount;
         }
@@ -1818,6 +2173,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private long lastPrototypeAmount() {
             return this.lastPrototypeAmount;
+        }
+
+        private IPatternDetails pattern() {
+            return this.pattern;
         }
 
         @Override
@@ -1831,14 +2190,42 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
 
         @Override
-        public boolean pushPatternBatch(IPatternDetails patternDetails, KeyCounter[] inputHolder, long count) {
-            this.batchPushCount++;
-            this.lastBatchCount = count;
-            this.lastPrototypeAmount = inputHolder[0].get(this.input);
-            if (this.outcome == BatchPushOutcome.THROW) {
-                throw new IllegalStateException("Test counted batch provider failure");
+        public CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCount) {
+            this.prepareCount++;
+            if (this.noCapacity) {
+                return null;
             }
-            return this.outcome == BatchPushOutcome.ACCEPT;
+            long admittedCount = this.invalidAdmissionCount != null ? this.invalidAdmissionCount : Math.min(requestedCount, this.maximumAdmissionCount);
+            return new CountedCraftingAdmission() {
+
+                @Override
+                public long count() {
+                    return admittedCount;
+                }
+
+                @Override
+                public boolean hasTransferredInputOwnership() {
+                    return outcome == BatchPushOutcome.TRANSFER_AND_THROW;
+                }
+
+                @Override
+                public boolean commit(KeyCounter[] inputHolder) {
+                    batchPushCount++;
+                    lastBatchCount = admittedCount;
+                    lastPrototypeAmount = inputHolder[0].get(input);
+                    if (outcome == BatchPushOutcome.CONSUME_AND_REJECT || outcome == BatchPushOutcome.CONSUME_AND_THROW) {
+                        for (KeyCounter counter : inputHolder) {
+                            counter.clear();
+                        }
+                    }
+                    if (outcome == BatchPushOutcome.THROW || outcome == BatchPushOutcome.CONSUME_AND_THROW || outcome == BatchPushOutcome.TRANSFER_AND_THROW) {
+                        throw new IllegalStateException("Test counted batch provider failure");
+                    }
+                    return outcome == BatchPushOutcome.ACCEPT;
+                }
+            };
         }
 
         @Override
@@ -1977,7 +2364,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private enum BatchPushOutcome {
         ACCEPT,
         REJECT,
-        THROW
+        THROW,
+        CONSUME_AND_REJECT,
+        CONSUME_AND_THROW,
+        TRANSFER_AND_THROW
     }
 
     private record CountedBatchFixture(TestGrid grid,

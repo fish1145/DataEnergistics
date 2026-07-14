@@ -323,11 +323,11 @@ public final class TrinityPatternCatalogImpl implements TrinityPatternCatalog {
                         count)) {
             return false;
         }
-        if (!this.activeSlotsByGlobalIndex.containsKey(binding.globalIndex)) {
-            updateActiveSlot(binding.runtime, binding.route.slot());
-        }
         for (KeyCounter counter : inputHolder) {
             counter.clear();
+        }
+        if (!this.activeSlotsByGlobalIndex.containsKey(binding.globalIndex)) {
+            updateActiveSlot(binding.runtime, binding.route.slot());
         }
         return true;
     }

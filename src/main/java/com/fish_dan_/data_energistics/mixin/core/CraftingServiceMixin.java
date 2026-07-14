@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
@@ -65,6 +66,10 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Unique
     private long dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick;
+
+    /** Transient cursor rotates which published Trinity runtime receives the first dispatch opportunity. */
+    @Unique
+    private int dataEnergistics$nextTrinityRuntimeTickStart;
 
     @Shadow
     @Final
@@ -140,10 +145,17 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     @Inject(method = "onServerEndTick", at = @At("HEAD"))
     private void dataEnergistics$tickTrinityDataCoreCpuClusters(CallbackInfo ci) {
         CraftingService service = (CraftingService) (Object) this;
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
+        List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
         long latestChange = 0L;
-        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
-            runtime.tick(this.energyGrid, service);
-            latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
+        if (!runtimes.isEmpty()) {
+            int start = Math.floorMod(this.dataEnergistics$nextTrinityRuntimeTickStart, runtimes.size());
+            this.dataEnergistics$nextTrinityRuntimeTickStart = (start + 1) % runtimes.size();
+            for (int offset = 0; offset < runtimes.size(); offset++) {
+                TrinityDataCoreCraftingRuntime runtime = runtimes.get((start + offset) % runtimes.size());
+                runtime.tick(this.energyGrid, service, dispatchWindow);
+                latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
+            }
         }
         if (latestChange != this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick) {
             this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick = latestChange;
