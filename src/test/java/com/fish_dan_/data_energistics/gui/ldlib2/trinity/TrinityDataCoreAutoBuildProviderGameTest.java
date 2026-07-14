@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
+import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildDraft;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildSubmission;
@@ -106,6 +108,7 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         assertTrue(first.root().getModularUI() == null, "Closed automatic-build root must release its ModularUI");
         assertTrue(!first.scene().hasParent(), "Closed automatic-build scene must leave the released element tree");
         assertTrue(first.scene().getModularUI() == null, "Closed automatic-build scene must release its ModularUI");
+        assertEquals(1, binder.releaseCount());
 
         pendingGenerations.clear();
         open(client, 3L);
@@ -127,6 +130,7 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         reopened.controls().submit();
         assertEquals(3L, submissions.getLast().generation());
         client.close();
+        assertEquals(2, binder.releaseCount());
 
         int bindCountBeforeServer = binder.bindCount();
         HostSubUiProvider serverProvider = TrinityDataCoreStructureProviders.autoBuildForTesting(
@@ -142,8 +146,8 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         open(server, 1L);
         AutoBuildWindow serverWindow = captureWindow(server.modularUI());
         assertEquals(bindCountBeforeServer, binder.bindCount());
-        assertTrue(serverWindow.scene().getDummyWorld() == null,
-                "Logical server automatic-build scene must retain a null dummy world");
+        assertTrue(serverWindow.scene().getChildren().isEmpty(),
+                "Logical server automatic-build shell must not contain a physical-client scene");
         server.close();
         helper.succeed();
     }
@@ -358,12 +362,24 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
 
         private final List<StructurePreviewSceneElement> scenes = new ArrayList<>();
         private int refreshCount;
+        private int releaseCount;
 
         @Override
         public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
                                                  BiConsumer<BlockPos, Direction> selectionConsumer) {
             this.scenes.add(scene);
-            return (snapshot, viewState) -> this.refreshCount++;
+            return new StructurePreviewSceneBinding() {
+
+                @Override
+                public void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState) {
+                    refreshCount++;
+                }
+
+                @Override
+                public void release() {
+                    releaseCount++;
+                }
+            };
         }
 
         private int bindCount() {
@@ -372,6 +388,10 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
 
         private int refreshCount() {
             return this.refreshCount;
+        }
+
+        private int releaseCount() {
+            return this.releaseCount;
         }
     }
 

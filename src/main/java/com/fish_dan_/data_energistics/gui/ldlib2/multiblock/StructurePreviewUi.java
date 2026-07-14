@@ -5,7 +5,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
  *
  * @param panel   independently owned element tree
  * @param session independently owned selection and projection state
- * @param scene   independently owned scene shell contained by {@code panel}
+ * @param scene   independently owned physical-side-neutral scene shell contained by {@code panel}
  */
 public record StructurePreviewUi(StructurePreviewPanel panel,
                                  StructurePreviewSession session,

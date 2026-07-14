@@ -16,8 +16,10 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -55,7 +57,8 @@ public final class StructurePreviewSessionGameTest {
         assertNotSame(first.recipeView(), second.recipeView());
         assertEquals(ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME, first.structureKey());
         assertEquals(first.structureKey(), first.selection().activeSubstructureId());
-        assertTrue(firstUi.scene().getDummyWorld() == null, "Server scene shell must not own a dummy world");
+        assertTrue(firstUi.scene().getChildren().isEmpty(),
+                "Server scene shell must not contain a physical-client scene");
 
         PreviewSelection untouchedSelection = second.selection();
         StructurePreviewSnapshot untouchedSnapshot = second.snapshot();
@@ -100,6 +103,76 @@ public final class StructurePreviewSessionGameTest {
         helper.succeed();
     }
 
+    @TestHolder("structure_preview_panel_aggregates_binding_and_tree_release_failures")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void panelAggregatesBindingAndTreeReleaseFailures(GameTestHelper helper) {
+        RuntimeException bindingFailure = new RuntimeException("binding release");
+        RuntimeException treeFailure = new RuntimeException("tree release");
+        AtomicInteger releaseAttempts = new AtomicInteger();
+        StructurePreviewUiFactory factory = StructurePreviewUiFactory.create((scene, selected) -> new StructurePreviewSceneBinding() {
+
+            @Override
+            public void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState) {}
+
+            @Override
+            public void release() {
+                releaseAttempts.incrementAndGet();
+                throw bindingFailure;
+            }
+        });
+        StructurePreviewUi preview = factory.create(
+                ModVerticalMultiBlocks.trinityDataCoreId(),
+                ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
+                "session_release_failure",
+                true);
+        UIElement owner = new UIElement();
+        owner.addChild(preview.panel());
+        preview.panel().addEventListener(UIEvents.REMOVED, event -> {
+            throw treeFailure;
+        });
+
+        RuntimeException thrown = captureRuntimeFailure(() -> owner.removeChild(preview.panel()));
+
+        assertSame(bindingFailure, thrown);
+        assertEquals(1, thrown.getSuppressed().length);
+        assertSame(treeFailure, thrown.getSuppressed()[0]);
+        assertEquals(1, releaseAttempts.get());
+        helper.succeed();
+    }
+
+    @TestHolder("structure_preview_factory_preserves_same_bind_and_release_failure")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void factoryPreservesSameBindAndReleaseFailure(GameTestHelper helper) {
+        RuntimeException sharedFailure = new RuntimeException("shared bind and release failure");
+        AtomicInteger releaseAttempts = new AtomicInteger();
+        StructurePreviewUiFactory factory = StructurePreviewUiFactory.create((scene, selected) -> new StructurePreviewSceneBinding() {
+
+            @Override
+            public void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState) {
+                throw sharedFailure;
+            }
+
+            @Override
+            public void release() {
+                releaseAttempts.incrementAndGet();
+                throw sharedFailure;
+            }
+        });
+
+        RuntimeException thrown = captureRuntimeFailure(() -> factory.create(
+                ModVerticalMultiBlocks.trinityDataCoreId(),
+                ModVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME,
+                "session_same_release_failure",
+                true));
+
+        assertSame(sharedFailure, thrown);
+        assertEquals(0, thrown.getSuppressed().length);
+        assertEquals(1, releaseAttempts.get());
+        helper.succeed();
+    }
+
     private static void assertTrue(boolean condition, String message) {
         if (!condition) {
             throw new GameTestAssertException(message);
@@ -140,5 +213,14 @@ public final class StructurePreviewSessionGameTest {
         if (expected != actual) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
+    }
+
+    private static RuntimeException captureRuntimeFailure(Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException failure) {
+            return failure;
+        }
+        throw new GameTestAssertException("Expected RuntimeException");
     }
 }

@@ -15,4 +15,10 @@ public interface StructurePreviewSceneBinding {
      * @param viewState client-local logical-layer view
      */
     void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState);
+
+    /**
+     * Attempts every resource cleanup owned by this exact scene binding once. Repeated calls are no-ops, including
+     * after the first call reports an aggregated cleanup failure.
+     */
+    void release();
 }

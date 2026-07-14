@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
+import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostSubUiProvider;
@@ -104,11 +106,13 @@ public final class TrinityDataCoreStructureProvidersGameTest {
             assertNotSame(first.panel().session(), reopened.panel().session());
             assertNotSame(first.scene(), reopened.scene());
         }
+        assertEquals(3, binder.releaseCount());
         assertEquals(6, binder.bindCount());
         assertEquals(6, binder.refreshCount());
         requestRefund(client.modularUI());
         assertEquals(List.of(3L, 9L), refundGenerations);
         client.close();
+        assertEquals(6, binder.releaseCount());
 
         int bindCountBeforeServer = binder.bindCount();
         List<HostSubUiProvider> serverProviders = TrinityDataCoreStructureProviders.createForTesting(
@@ -126,8 +130,8 @@ public final class TrinityDataCoreStructureProvidersGameTest {
                 TrinityDataCoreHostUiKeys.CPU,
                 TrinityDataCoreHostUiKeys.CRAFTING)) {
             open(server, key, sequence++);
-            assertTrue(captureWindow(server.modularUI(), key).scene().getDummyWorld() == null,
-                    "Logical server scene must retain a null dummy world");
+            assertTrue(captureWindow(server.modularUI(), key).scene().getChildren().isEmpty(),
+                    "Logical server shell must not contain a physical-client scene");
         }
         assertEquals(bindCountBeforeServer, binder.bindCount());
         server.close();
@@ -345,12 +349,24 @@ public final class TrinityDataCoreStructureProvidersGameTest {
 
         private final List<StructurePreviewSceneElement> scenes = new ArrayList<>();
         private int refreshCount;
+        private int releaseCount;
 
         @Override
         public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
                                                  BiConsumer<BlockPos, Direction> selectionConsumer) {
             this.scenes.add(scene);
-            return (snapshot, viewState) -> this.refreshCount++;
+            return new StructurePreviewSceneBinding() {
+
+                @Override
+                public void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState) {
+                    refreshCount++;
+                }
+
+                @Override
+                public void release() {
+                    releaseCount++;
+                }
+            };
         }
 
         private int bindCount() {
@@ -359,6 +375,10 @@ public final class TrinityDataCoreStructureProvidersGameTest {
 
         private int refreshCount() {
             return this.refreshCount;
+        }
+
+        private int releaseCount() {
+            return this.releaseCount;
         }
     }
 

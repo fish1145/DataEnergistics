@@ -18,13 +18,11 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePrev
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -34,7 +32,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.stacks.AEItemKey;
-import com.lowdragmc.lowdraglib2.utils.data.BlockPosFace;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
 import com.modularmc.mdl.api.multiblock.PatternBounds;
 import com.modularmc.mdl.api.multiblock.PatternCellSource;
@@ -117,19 +115,29 @@ public final class StructurePreviewSceneInfrastructureGameTest {
         helper.succeed();
     }
 
-    @TestHolder("structure_preview_scene_shell_clears_interaction_without_client_world")
+    @TestHolder("structure_preview_scene_shell_closes_without_client_classes")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void sceneShellClearsInteractionWithoutCreatingClientWorld(GameTestHelper helper) {
-        SceneProbe scene = new SceneProbe();
-        helper.assertTrue(scene.getDummyWorld() == null,
-                "Constructing the double-sided scene shell must not create a client dummy world");
-        scene.seedInteraction();
+    public static void sceneShellClosesWithoutClientClasses(GameTestHelper helper) {
+        UIElement root = new UIElement();
+        StructurePreviewSceneElement scene = new StructurePreviewSceneElement();
+        helper.assertTrue(scene.getChildren().isEmpty(),
+                "Fresh common scene shell must not contain physical-client state");
+        UIElement clientScene = new UIElement();
+        clientScene.markAsInternal();
+        scene.attachClientScene(clientScene);
+        root.addChild(scene);
+        helper.assertTrue(scene.hasChild(clientScene), "Fixture must model one physical-client scene child");
 
-        scene.clearSelection();
-
-        helper.assertFalse(scene.isDragging(), "Clearing selection must cancel scene dragging");
-        helper.assertTrue(scene.interactionCleared(), "Clearing selection must drop every transient target and item");
+        helper.assertTrue(scene.removeChild(clientScene),
+                "Guarded host cleanup must remove the client scene before its common shell");
+        UIElement replacement = new UIElement();
+        replacement.markAsInternal();
+        scene.attachClientScene(replacement);
+        helper.assertTrue(scene.removeChild(replacement),
+                "Post-order removal must clear shell ownership for the released client scene");
+        helper.assertTrue(root.removeChild(scene), "Dedicated-server scene shell must close normally");
+        helper.assertFalse(scene.hasParent(), "Closed dedicated-server scene shell must leave its common tree");
         helper.succeed();
     }
 
@@ -149,7 +157,7 @@ public final class StructurePreviewSceneInfrastructureGameTest {
                 definition,
                 Component.literal("Scene infrastructure"),
                 List.of(),
-                new SubstructureSelection(List.of(1), Map.of(), Map.of()));
+                new SubstructureSelection(List.of(1, 1), Map.of(), Map.of()));
         MultiblockPreviewSpec spec = new MultiblockPreviewSpec(
                 CONTROLLER_ID,
                 Component.literal("Scene infrastructure"),
@@ -200,25 +208,5 @@ public final class StructurePreviewSceneInfrastructureGameTest {
             return;
         }
         throw new GameTestAssertException("Expected UnsupportedOperationException");
-    }
-
-    /**
-     * Test-only direct state setup through the same protected Scene API used by clearSelection.
-     */
-    private static final class SceneProbe extends StructurePreviewSceneElement {
-
-        private void seedInteraction() {
-            BlockPosFace face = new BlockPosFace(BlockPos.ZERO, Direction.NORTH);
-            this.dragging = true;
-            this.lastClickPosFace = face;
-            this.lastHoverPosFace = face;
-            this.lastSelectedPosFace = face;
-            this.lastHoverItem = new ItemStack(Blocks.STONE);
-        }
-
-        private boolean interactionCleared() {
-            return this.lastClickPosFace == null && this.lastHoverPosFace == null &&
-                    this.lastSelectedPosFace == null && this.lastHoverItem == null;
-        }
     }
 }

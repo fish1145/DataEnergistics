@@ -102,6 +102,7 @@ public final class StructurePreviewPanel extends UIElement {
     private boolean selectionChangeListenerRegistered;
     @Nullable
     private StructurePreviewSceneBinding sceneBinding;
+    private boolean sceneBindingReleased;
 
     StructurePreviewPanel(String idPrefix, StructurePreviewSession session) {
         if (idPrefix == null || idPrefix.isBlank() || session == null) {
@@ -187,8 +188,32 @@ public final class StructurePreviewPanel extends UIElement {
         if (this.sceneBinding != null) {
             throw new IllegalStateException("Structure preview scene can only be bound once");
         }
+        if (this.sceneBindingReleased) {
+            throw new IllegalStateException("Released structure preview scene cannot be rebound");
+        }
         this.sceneBinding = binding;
         refreshScene();
+    }
+
+    @Override
+    protected void onRemoved() {
+        Throwable failure = null;
+        if (this.sceneBinding != null) {
+            StructurePreviewSceneBinding binding = this.sceneBinding;
+            this.sceneBinding = null;
+            this.sceneBindingReleased = true;
+            try {
+                binding.release();
+            } catch (RuntimeException | Error releaseFailure) {
+                failure = mergeFailures(failure, releaseFailure);
+            }
+        }
+        try {
+            super.onRemoved();
+        } catch (RuntimeException | Error removalFailure) {
+            failure = mergeFailures(failure, removalFailure);
+        }
+        rethrow(failure);
     }
 
     void selectBlock(BlockPos position) {
@@ -535,5 +560,24 @@ public final class StructurePreviewPanel extends UIElement {
             }
         }
         return List.copyOf(tooltip);
+    }
+
+    private static Throwable mergeFailures(@Nullable Throwable first, Throwable next) {
+        if (first == null) {
+            return next;
+        }
+        if (first != next) {
+            first.addSuppressed(next);
+        }
+        return first;
+    }
+
+    private static void rethrow(@Nullable Throwable failure) {
+        if (failure instanceof RuntimeException exception) {
+            throw exception;
+        }
+        if (failure instanceof Error error) {
+            throw error;
+        }
     }
 }

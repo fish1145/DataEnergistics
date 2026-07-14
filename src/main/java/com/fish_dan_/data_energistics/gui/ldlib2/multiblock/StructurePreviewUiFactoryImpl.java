@@ -98,7 +98,18 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
             StructurePreviewSceneBinding binding = this.sceneBinder.get().bind(
                     panel.scene(),
                     (position, direction) -> panel.selectBlock(position));
-            panel.bindScene(binding);
+            try {
+                panel.bindScene(binding);
+            } catch (RuntimeException | Error failure) {
+                try {
+                    binding.release();
+                } catch (RuntimeException | Error releaseFailure) {
+                    if (failure != releaseFailure) {
+                        failure.addSuppressed(releaseFailure);
+                    }
+                }
+                throw failure;
+            }
         }
         return new StructurePreviewUi(panel, session, panel.scene());
     }
