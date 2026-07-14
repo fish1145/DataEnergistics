@@ -21,7 +21,9 @@
 
 ## LDLib2
 
-已确认的公共能力包括 `Scene`、`TrackedDummyWorld`、`ModularUIRecipeCategory`、`ModularUIEMIRecipe`、`IngredientIO`、`ItemSlot`、`ScrollerView`、`DataBindingBuilder` 与服务端点击。首轮方案不需要修改 LDLib2。
+已确认的公共能力包括 `Scene`、`TrackedDummyWorld`、`ModularUIRecipeCategory`、`ModularUIEMIRecipe`、`IngredientIO`、`ItemSlot`、`ScrollerView`、`DataBindingBuilder` 与服务端点击。正常生命周期下，首轮业务 UI 不需要修改 LDLib2。
+
+已知上游边界：LDLib2 2.2.8 的 `UIElement.removeChild` 在 `REMOVED` 或 `MUI_CHANGED` listener 抛错时，会在清除 `parent`、后代 `ModularUI` 和结构缓存前退出；这些字段没有公开恢复入口。Data Energistics 的 `HostSubUiRoot` 已实现 post-order sibling continuation、异常聚合、外部 `removeSelf()` terminal 通知和资源 exactly-once 防护，但不能修复已经残留的 LDLib2 私有结构状态。完整上游修复需要让 `UIElement.onRemoved`、`_setModularUIInternal`、`removeChild`、lifecycle event dispatcher、`Scene` 与 `ModularUI` 在异常下继续清理并最后重抛首异常；未取得针对 LDLib2 仓库的明确 Git 授权前只记录该边界，不在本任务分支伪造反射或重复释放补偿。
 
 ## Modular Data Lib 边界
 

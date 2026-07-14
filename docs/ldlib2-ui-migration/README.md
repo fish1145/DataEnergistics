@@ -34,4 +34,4 @@
 
 ## 结论
 
-采用“纯预览模型 + 共用 LDLib2 UI + XEI 薄适配器 + 服务端动作”的架构。方块 UI 与 XEI 页面共享展示组件，但 XEI 页面不得直接改世界、库存或样板。实施已在 `qy/ldlib2-ui-migration` 分支和 Draft PR [#99](https://github.com/fish1145/DataEnergistics/pull/99) 启动；中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，并已将验证后的 jar 接入本项目。Data Energistics 的 atomic definition snapshot、common preview 模型、Trinity `main/cpu/crafting` catalog、AE menu bridge 与既有槽包装已完成并通过 295/295 GameTest。下一步为实现支持 `main`、`cpu`、`crafting` 和自动搭建四个独立窗口的主机非模态子 UI，再完成 Trinity Data Core 首个垂直切片。每个工作包按功能独立提交，未通过对应验收前保留旧入口。
+采用“纯预览模型 + 共用 LDLib2 UI + XEI 薄适配器 + 服务端动作”的架构。方块 UI 与 XEI 页面共享展示组件，但 XEI 页面不得直接改世界、库存或样板。实施已在 `qy/ldlib2-ui-migration` 分支和 Draft PR [#99](https://github.com/fish1145/DataEnergistics/pull/99) 启动；中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，并已将验证后的 jar 接入本项目。Data Energistics 的 atomic definition snapshot、common preview 模型、Trinity `main/cpu/crafting` catalog、AE menu bridge、既有槽包装与四窗 HostUiExtension 已完成并通过 302/302 GameTest。下一步为完成 Trinity Data Core 首个 LDLib2 垂直切片，再依次接入四个业务 provider。每个工作包按功能独立提交，未通过对应验收前保留旧入口。
