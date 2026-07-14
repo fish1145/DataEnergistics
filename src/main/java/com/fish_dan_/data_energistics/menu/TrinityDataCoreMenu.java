@@ -1,13 +1,18 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinator;
+import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinatorHolder;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUi;
+import com.fish_dan_.data_energistics.network.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.stacks.GenericStack;
 import appeng.menu.AEBaseMenu;
@@ -16,16 +21,16 @@ import appeng.menu.guisync.PacketWritable;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
-public class TrinityDataCoreMenu extends AEBaseMenu {
+public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinatorHolder {
 
     private static final String NO_FAILURE = "";
     private static final String ACTION_REFUND_ALL = "refund_all";
 
     @Nullable
     private final TrinityDataCoreMenuHost host;
-    /** Child-window interface owned by this menu's mounted LDLib2 root. */
+    /** Double-sided child-window endpoint owned by this menu's mounted LDLib2 root. */
     @Getter
-    private final HostUiExtension hostUiExtension;
+    private final HostUiCoordinator hostUiCoordinator;
 
     @GuiSync(930)
     public boolean online;
@@ -85,7 +90,35 @@ public class TrinityDataCoreMenu extends AEBaseMenu {
         this.host = host;
         registerClientAction(ACTION_REFUND_ALL, this::refundAll);
         createPlayerInventorySlots(playerInventory);
-        this.hostUiExtension = TrinityDataCoreHostUi.mount(this);
+        this.hostUiCoordinator = TrinityDataCoreHostUi.mount(this, hostUi -> playerInventory.player.level().isClientSide ?
+                HostUiCoordinator.createClient(
+                        hostUi,
+                        request -> PacketDistributor.sendToServer(
+                                new HostUiRequestPayload(this.containerId, request)),
+                        playerInventory.player::closeContainer) :
+                HostUiCoordinator.createServer(hostUi, playerInventory.player::closeContainer));
+    }
+
+    /**
+     * Returns the sealed draggable host API retained for Screen input and registered-window lifecycle requests.
+     *
+     * @return extension owned by this menu's coordinator
+     */
+    public HostUiExtension getHostUiExtension() {
+        return this.hostUiCoordinator.hostUi();
+    }
+
+    /**
+     * Revalidates the exact server player, current menu, holder, and business host before changing membership.
+     *
+     * @param player player who sent the lifecycle request
+     * @return whether the current server menu may mutate its LDLib2 tree
+     */
+    @Override
+    public boolean isHostUiAvailable(Player player) {
+        return this.host != null && player == getPlayer() && player.containerMenu == this && isValidMenu() &&
+                stillValid(player) && getLocator() != null &&
+                getLocator().locate(player, TrinityDataCoreMenuHost.class) == this.host;
     }
 
     @Override

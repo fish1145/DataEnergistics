@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
@@ -30,6 +31,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.menu.locator.MenuLocators;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +41,36 @@ import java.util.UUID;
 public final class TrinityDataCoreMenuTest {
 
     private TrinityDataCoreMenuTest() {}
+
+    @TestHolder("trinity_data_core_host_ui_request_requires_exact_current_host")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void hostUiRequestRequiresExactCurrentHost(GameTestHelper helper) {
+        BlockPos hostPosition = new BlockPos(2, 1, 2);
+        helper.setBlock(hostPosition, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
+        TrinityDataCoreBlockEntity host = helper.getBlockEntity(hostPosition);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        TrinityDataCoreMenu menu = new TrinityDataCoreMenu(70, player.getInventory(), host);
+        menu.setLocator(MenuLocators.forBlockEntity(host));
+        player.containerMenu = menu;
+
+        assertTrue(menu.isHostUiAvailable(player));
+        Player otherPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
+        assertFalse(menu.isHostUiAvailable(otherPlayer));
+        player.containerMenu = player.inventoryMenu;
+        assertFalse(menu.isHostUiAvailable(player));
+        player.containerMenu = menu;
+        assertTrue(menu.isHostUiAvailable(player));
+
+        helper.destroyBlock(hostPosition);
+        assertFalse(menu.isHostUiAvailable(player));
+        helper.setBlock(hostPosition, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
+        TrinityDataCoreBlockEntity replacementHost = helper.getBlockEntity(hostPosition);
+        assertTrue(replacementHost != host);
+        assertFalse(menu.isHostUiAvailable(player));
+        player.closeContainer();
+        helper.succeed();
+    }
 
     @TestHolder("trinity_data_core_refund_full_inventory_drops_queued_aggregate")
     @EmptyTemplate("5")
