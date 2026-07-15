@@ -9,6 +9,12 @@
 		},
 		{
 			"ingredient": {
+				"item": "ae2:spatial_cell_component_2"
+			},
+			"count": 12
+		},
+		{
+			"ingredient": {
 				"tag": "c:dusts/data_dust"
 			},
 			"count": 19

@@ -55,9 +55,12 @@ item_ids:
 
   <IsometricCamera yaw="150" pitch="25" />
 </GameScene>
-一颗来自于未知空间的陨石，拥有撕破维度的力量。你不知道他为何来到了这，只知道他与平常的陨石截然不同  
-他将作为你本模组的开端  
-陨石内部有27%的概率拥有1~2个充盈数据水晶母岩
+一种基于AE陨石的特殊变种，陨石坑以及陨石都会比正常的AE陨石要大  
+陨石内部有27%的概率拥有1~2个充盈数据水晶母岩(至少我见到大部分玩家实际上挺难找到他的)  
+陨石内能出现的方块在它的这个总览结构上面已经显示了(如上图)  
+
+>⚠他将作为你本模组的开端
+>
 
 ---
 
@@ -69,3 +72,56 @@ item_ids:
 | <ItemImage id="data_energistics:data_meteorite_0" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 10% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> | 5% + 时运每级 +3%：生成 1 个即散数据实体 |
 | <ItemImage id="data_energistics:data_meteorite_1" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 20% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> 10% + 时运每级 +3% <ItemImage id="ae2:sky_dust" /> | 10% + 时运每级 +3%：生成 1 个即散数据实体 |
 | <ItemImage id="data_energistics:data_meteorite_2" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 25% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> 15% + 时运每级 +3% <ItemImage id="ae2:sky_dust" /> | 15% + 时运每级 +3%：生成 1~2 个即散数据实体 15%：6³空间随机传送|
+
+---
+
+## 即散数据
+
+<GameScene zoom="6" background="transparent">
+  <Entity id="data_energistics:dispersing_data" data="{TextureVariant:0}" x="0" y="0" z="0" />
+  <Entity id="data_energistics:dispersing_data" data="{TextureVariant:1}" x="1" y="0" z="0" />
+  <Entity id="data_energistics:dispersing_data" data="{TextureVariant:2}" x="2" y="0" z="0" />
+  <Entity id="data_energistics:dispersing_data" data="{TextureVariant:3}" x="3" y="0" z="0" />
+  <IsometricCamera yaw="0" pitch="25" />
+</GameScene>
+
+即散数据是挖掘数位陨石（掉落概率如上图表格）与挖掘残存数据矿（必定掉落1～3个）  
+>⚠当你一分钟置之不理时，它将会消散  
+> 
+当他出现于世界中，你需要使用
+<Row> 
+    <ItemLink id="data_energistics:data_capture_ball" />
+    <ItemImage id="data_energistics:data_capture_ball" />
+</Row>  
+    <RecipeFor id="data_energistics:data_capture_ball" />
+进行捕捉,当能量耗空时它会被销毁里面的数据也会被销毁
+  
+
+你也可以制作一个
+<Row>
+    <ItemLink id="data_energistics:me_vacuum" />
+    <ItemImage id="data_energistics:me_vacuum" />
+</Row>  
+    <RecipeFor id="data_energistics:me_vacuum" />
+将数据捕捉球放入其中进行范围性捕捉
+
+---
+
+## 数蚀液
+<GameScene zoom="3" background="transparent">
+    <Block id="data_energistics:guide_data_corrosion_liquid_display" x="3" y="0" z="4" />
+  <IsometricCamera yaw="150" pitch="25" />
+</GameScene>
+
+伴随变种陨石而来，但一般只生成在砸向平原的陨石  
+  
+
+你也可以制作一个
+<Row>
+    <ItemLink id="data_energistics:me_vacuum" />
+    <ItemImage id="data_energistics:me_vacuum" />
+</Row>  
+    <RecipeFor id="data_energistics:me_vacuum" />
+将装载流体磁盘进行范围性吸取  
+>⚠它有约等于两倍龙息的伤害，请小心行事
+> 

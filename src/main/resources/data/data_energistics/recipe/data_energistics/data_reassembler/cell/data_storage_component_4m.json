@@ -9,6 +9,12 @@
 		},
 		{
 			"ingredient": {
+				"item": "ae2:spatial_cell_component_16"
+			},
+			"count": 5
+		},
+		{
+			"ingredient": {
 				"tag": "c:gems/data_crystal"
 			},
 			"count": 13

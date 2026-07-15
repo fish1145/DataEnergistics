@@ -3,8 +3,8 @@
 	"parent": "block/cube_all",
 	"render_type": "minecraft:cutout",
 	"textures": {
-		"1": "data_energistics:block/tedxenon",
-		"particle": "data_energistics:block/tedxenon"
+		"1": "data_energistics:block/fufu/tedxenon",
+		"particle": "data_energistics:block/fufu/tedxenon"
 	},
 	"elements": [
 		{

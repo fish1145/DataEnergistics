@@ -1,42 +1,75 @@
 package com.fish_dan_.data_energistics.block.decor;
 
+import com.fish_dan_.data_energistics.blockentity.DollBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.EnumMap;
 
-public class DollBlock extends Block {
+public class DollBlock extends Block implements EntityBlock {
 
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final IntegerProperty VARIANT = IntegerProperty.create("variant", 0, 4);
     private static final VoxelShape SHAPE = Block.box(3.3428D, 0.0D, 4.40219D, 12.6572D, 13.5D, 14.7D);
     private static final EnumMap<Direction, VoxelShape> SHAPES = createHorizontalFacingShapes(SHAPE);
+    private final boolean hasVariants;
 
     public DollBlock(BlockBehaviour.Properties properties) {
+        this(properties, false);
+    }
+
+    public DollBlock(BlockBehaviour.Properties properties, boolean hasVariants) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
+        this.hasVariants = hasVariants;
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(VARIANT, 0));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
+        builder.add(VARIANT);
     }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+        BlockState state = this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+        return hasVariants ? state.setValue(VARIANT, DollVariant.fromStack(context.getItemInHand())) : state;
+    }
+
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return hasVariants ? new DollBlockEntity(pos, state) : null;
+    }
+
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (hasVariants && level.getBlockEntity(pos) instanceof DollBlockEntity blockEntity) {
+            blockEntity.setCustomName(stack.get(DataComponents.CUSTOM_NAME));
+        }
     }
 
     @Override

@@ -27,21 +27,33 @@
 		},
 		{
 			"ingredient": {
-				"tag": "ae2:smart_cable"
+				"item": "ae2:me_p2p_tunnel"
 			},
-			"count": 4
+			"count": 15
+		},
+		{
+			"ingredient": {
+				"item": "ae2:fe_p2p_tunnel"
+			},
+			"count": 15
 		},
 		{
 			"ingredient": {
 				"item": "ae2:controller"
 			},
-			"count": 1
+			"count": 12
 		},
 		{
 			"ingredient": {
 				"item": "data_energistics:data_framework"
 			},
-			"count": 3
+			"count": 17
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_storage_component_16m"
+			},
+			"count": 4
 		}
 	],
 	"item_outputs": [
@@ -52,6 +64,6 @@
 	],
 	"key_input": {
 		"#t": "data_energistics:data",
-		"#": 4
+		"#": 114
 	}
 }

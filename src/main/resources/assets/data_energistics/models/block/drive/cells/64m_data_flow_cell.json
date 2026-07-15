@@ -1,3 +1,22 @@
 {
-	"parent": "data_energistics:block/drive/cells/1m_data_flow_cell"
+	"format_version": "1.21.11",
+	"credit": "Generated for Data Energistics",
+	"ambientocclusion": false,
+	"textures": {
+		"particle": "data_energistics:block/drive/data_flow_cells",
+		"cell": "data_energistics:block/drive/data_flow_cells"
+	},
+	"elements": [
+		{
+			"name": "Cell Backdrop",
+			"from": [0, 0, 0],
+			"to": [6, 2, 2],
+			"rotation": { "angle": 0, "axis": "y", "origin": [9, 8, 8] },
+			"faces": {
+				"north": { "uv": [6, 6, 12, 8], "texture": "#cell" },
+				"up": { "uv": [12, 6, 6, 8], "texture": "#cell" },
+				"down": { "uv": [12, 6, 6, 8], "texture": "#cell" }
+			}
+		}
+	]
 }

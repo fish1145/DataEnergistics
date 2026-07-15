@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DataSanctumInterfaceUpgradeItem;
 import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.DollBlockItem;
 import com.fish_dan_.data_energistics.item.InfiniteDataCellItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.MeVacuumItem;
@@ -290,7 +291,9 @@ public final class ModItems {
             () -> new MatterConvergingCrossbowItem(new Item.Properties()));
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));
-    public static final DeferredItem<BlockItem> FISH_DAN = ITEMS.registerSimpleBlockItem(ModBlocks.FISH_DAN);
+    public static final DeferredItem<BlockItem> FISH_DAN = ITEMS.register(
+            "fish_dan_",
+            () -> new DollBlockItem(ModBlocks.FISH_DAN.get(), new Item.Properties()));
     public static final DeferredItem<BlockItem> QIUYEQAQ2024 = ITEMS.registerSimpleBlockItem(ModBlocks.QIUYEQAQ2024);
     public static final DeferredItem<BlockItem> TED_XENON = ITEMS.registerSimpleBlockItem(ModBlocks.TED_XENON);
 
