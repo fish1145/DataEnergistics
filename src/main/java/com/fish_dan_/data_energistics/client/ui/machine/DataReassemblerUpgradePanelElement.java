@@ -1,11 +1,10 @@
 package com.fish_dan_.data_energistics.client.ui.machine;
 
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.client.gui.Icon;
 import appeng.client.gui.style.Blitter;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -106,7 +105,7 @@ final class DataReassemblerUpgradePanelElement extends UIElement {
         BACKGROUND.copy().src(sourceX, sourceY, sourceWidth, sourceHeight).dest(x, y).blit(guiContext.graphics);
     }
 
-    /** Item slot variant that retains the machine's empty-upgrade placement icon. */
+    /** Item slot variant that retains AE2's standard empty-upgrade placement icon. */
     static final class UpgradeSlot extends ItemSlot {
 
         UpgradeSlot(Slot slot) {
@@ -117,7 +116,7 @@ final class DataReassemblerUpgradePanelElement extends UIElement {
         @Override
         public void drawBackgroundAdditional(GUIContext guiContext) {
             if (getValue().isEmpty()) {
-                DataEnergisticsIcon.getBlitter("PLACEMENT_TOOLBOX")
+                Icon.BACKGROUND_UPGRADE.getBlitter()
                         .dest(Math.round(getContentX()), Math.round(getContentY()))
                         .blit(guiContext.graphics);
             }
