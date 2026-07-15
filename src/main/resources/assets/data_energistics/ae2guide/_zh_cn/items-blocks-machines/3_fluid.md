@@ -1,9 +1,9 @@
 ---
 navigation:
-  parent: data_energistics:items-blocks-machines/data_energistics.md
+  parent: data_energistics:items-blocks-machines/0_data_energistics.md
   title: 流体
   icon: data_energistics:ender_bucket
-  position: 15
+  position: 3
 item_ids:
 - data_energistics:ender_bucket
 - data_energistics:data_corrosion_liquid_bucket

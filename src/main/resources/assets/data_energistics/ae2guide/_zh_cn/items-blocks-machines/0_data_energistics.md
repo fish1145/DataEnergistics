@@ -1,13 +1,13 @@
 ---
 navigation:
-  title: Data_Energistics
+  title: 数据能源
   icon: data_crystal
   position: 114514
 categories:
 - devices
 ---
 
-# Data_Energistics
+# 数据能源
 
 ![Data Energistics Logo](/assets/logo.png)
 
@@ -17,4 +17,4 @@ categories:
   <ItemImage id="data_storage_component_1k" scale="6" />
 </Row>
 
-This page serves as the main entrance of Data Energistics in the AE2 Guide system.
+这一页作为 Data Energistics 在 AE2 Guide 体系中的总入口。

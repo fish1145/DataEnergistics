@@ -1,16 +1,16 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: 单方块机器
+  title: Single Block Machine
   icon: data_energistics:me_solar_panel
   position: 6
 ---
 
-# 数据能源:单方块机器
+# Data_Energistics: Single block machine
 
 ![Data Energistics Logo](/assets/logo.png)
 
-这一页作为 Data Energistics 在 AE2 Guide 体系中的单方块机器入口。
+This page serves as the single-block machine entry point for Data Energistics within the AE2 Guide system.
 
->⚠本分页面包含所有的单方块机器
+> ⚠ sub-page contains all single-block machines
 > 

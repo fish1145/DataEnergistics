@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: 玩偶
+  title: Dolls
   icon: data_energistics:fish_dan_
   position: 8
 item_ids:
@@ -10,20 +10,20 @@ item_ids:
 - data_energistics:tedxenon
 ---
 
-# 玩偶
+# Dolls
 
-玩偶可以作为装饰方块放置。安装 Curios 时，也可以将它们装备在头部、左肩或右肩饰品栏中。
+Dolls can be placed as decorative blocks. When installing Curios, you can also equip them in the head, left shoulder, or right shoulder accessory slot.
 
-## Fish_Dan_ 玩偶
+## Fish Dan Doll
 
-> 作为项目发起者，吃白饭者，天马行空思想者
+> As project initiators, freeloaders, and imaginative thinkers
 
 <Row>
     <ItemImage id="data_energistics:fish_dan_" scale="6" />
     <RecipeFor id="data_energistics:fish_dan_" />
 </Row>
 
-Fish_Dan_ 玩偶共有 5 种外观。基础玩偶通过数据重组器制作，其余外观由基础玩偶改名获得。
+Fish Dan Doll has a total of 5 appearances. The base doll is crafted through Data Reassembler, while the rest of the appearance is obtained by renaming the base doll.
 
 <Row>
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="0" />
@@ -33,37 +33,35 @@ Fish_Dan_ 玩偶共有 5 种外观。基础玩偶通过数据重组器制作，�
     <BlockImage id="data_energistics:fish_dan_" scale="3" p:variant="4" />
 </Row>
 
-从左到右依次为：Fish_Dan_ 玩偶、Fish_Dan_新年 玩偶、Fish_Dan_修女 玩偶、Fish_Dan_和服 玩偶、Fish_Dan_泳装 玩偶。
+From left to right: Fish Dan Doll, Fish_Dan_New Year Doll, Fish_Dan_Nun Doll, Fish_Dan_Kimono Doll, Fish_Dan_Swimsuit Doll.
 
-在铁砧中将基础玩偶改成以下名称，即可切换对应外观：
+Change the base doll to the following name in the anvil to switch the corresponding appearance:
 
-| 外观 | 铁砧名称 |
+| Appearance | Anvil Name |
 |---|---|
-| 新年 | Fish_Dan_新年 |
-| 修女 | Fish_Dan_修女 |
-| 和服 | Fish_Dan_和服 |
-| 泳装 | Fish_Dan_泳装 |
+| New Year | Fish_Dan_New Year |
+| Nun | Fish_Dan_Nun |
+| Kimono | Fish_Dan_Kimono |
+| Swimsuit | Fish_Dan_Swimsuit |
 
-改回 `Fish_Dan_` 或不包含上述外观关键词的名称，即会使用基础外观。
+Rename it to `Fish_Dan_`, or use a name without one of the appearance keywords above, to restore the base appearance.
 
-## QiuYeQAQ2024 玩偶
+## QiuYeQAQ2024 Doll
 
-> 作为主要代码支持
+> as the main code support
 
 <Row>
     <BlockImage id="data_energistics:qiuyeqaq2024" scale="4" />
     <RecipeFor id="data_energistics:qiuyeqaq2024" />
 </Row>
 
-通过数据重组器制作，可作为方块放置或装备到 Curios 玩偶支持的饰品栏。
+Through Data Reassembler crafting, you can place them as blocks or equip them in the accessory slots supported by Curios dolls.
 
-## TedXenon 玩偶
-
-> 作为主要美术支持
+## TedXenon Doll
 
 <Row>
     <BlockImage id="data_energistics:tedxenon" scale="4" />
     <RecipeFor id="data_energistics:tedxenon" />
 </Row>
 
-通过数据重组器制作，可作为方块放置或装备到 Curios 玩偶支持的饰品栏。
+Through Data Reassembler crafting, you can place them as blocks or equip them in the accessory slots supported by Curios dolls.

@@ -1,12 +1,12 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: Partial Materials
+  title: 部分材料
   icon: data_energistics:obsidian_dust
   position: 5
 ---
-# Some materials  
+# 部分材料  
 
 ![Data Energistics Logo](/assets/logo.png)
 
-This page serves as part of the material entry point for Data Energistics within the AE2 Guide system.
+这一页作为 Data Energistics 在 AE2 Guide 体系中的部分材料入口。

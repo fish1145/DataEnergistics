@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: 升级
+  title: Upgrades
   icon: data_energistics:card_saber_energy
   position: 4
 item_ids:
@@ -9,27 +9,27 @@ item_ids:
 - data_energistics:redstone_tuning_card
 ---
 
-# 升级
+# Upgrades
 
-## 聚能卡
+## Saber Energy Card
 <Row>
     <ItemLink id="data_energistics:card_saber_energy"/>  
     <ItemImage id="data_energistics:card_saber_energy" />
     <RecipeFor id="data_energistics:card_saber_energy" />
 </Row>
-聚能卡:  
-<ItemImage id="data_energistics:matter_converging_crossbow" /> : 最终伤害 = 基础伤害 × (聚能卡数量 × 2) × 当前速度(3.15) [暴击再 × 1.5]  当<ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />为弹药时增加5%最大百分比真实伤害  
-<ItemImage id="data_energistics:data_light_saber" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加40ae额外耗能（总耗电 50ae）, <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />左键攻击可以发射出光刃,<ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" />的体型会比原本大一倍  
-<ItemImage id="data_energistics:data_crystal_cutting_knife" /> : 扩大传送范围  
-以下工具还会增加一个数据流存储槽  
-<ItemImage id="data_energistics:data_crystal_sword" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加40ae额外耗能（总耗电 50ae），攻击时消耗20数据流剥夺实体20Tick AI  
-<ItemImage id="data_energistics:data_crystal_axe" /> : 消耗20数据能连锁一整棵树，增加40ae额外耗能（总耗电 50ae）   
-<ItemImage id="data_energistics:data_crystal_pickaxe" /> : 消耗20数据连锁周边矿石，并将其复制一份，增加40ae额外耗能（总耗电 50ae）   
-<ItemImage id="data_energistics:data_crystal_hoe" /> : 消耗20数据耕地永不失水，增加40ae额外耗能（总耗电 50ae）   
-<ItemImage id="data_energistics:data_crystal_shovel" /> : 可以潜行右键调整3×3或5×5的破坏范围，增加40ae额外耗能（总耗电 50ae），破坏时消耗20数据  
+Saber Energy Card:  
+<ItemImage id="data_energistics:matter_converging_crossbow" /> : Final damage = base damage × (Saber Energy Card quantity × 2) × Current speed (3.15) [critical hit × 1.5] when <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> increases the maximum percentage true damage by 5% when ammo  
+<ItemImage id="data_energistics:data_light_saber" /> : Max damage = base damage × (Saber Energy Cards × 2). Adds 40 AE to the action cost (50 AE total). A powered <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> can fire a light blade on left-click, while <ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" /> becomes twice its normal size.  
+<ItemImage id="data_energistics:data_crystal_cutting_knife" /> : Expand the transmission range  
+The following tools will also add a Data Flow storage slot  
+<ItemImage id="data_energistics:data_crystal_sword" /> : Max damage = base damage × (Saber Energy Card quantity × 2) Increases 40ae extra energy cost (total power cost 50ae), consumes 20Data Flow on attack to strip entities of 20 Tick AI  
+<ItemImage id="data_energistics:data_crystal_axe" /> : Consumes 20 data to chain an entire tree, increasing additional energy consumption by 40ae (total power consumption 50ae)   
+<ItemImage id="data_energistics:data_crystal_pickaxe" /> : Consumes 20 Data Chain Peripheral Ore and copies it, increases additional energy cost by 40 ae (total power consumption 50 ae)   
+<ItemImage id="data_energistics:data_crystal_hoe" />: Consumes 20 data to farmland that never loses water, increases extra energy consumption by 40ae (total power consumption 50ae)   
+<ItemImage id="data_energistics:data_crystal_shovel" /> : You can right-click stealth to adjust the destruction range of 3×3 or 5×5, increasing the extra energy cost by 40ae (total power cost 50ae), and consuming 20 data during destruction  
 
 
-## 红石调整卡
+## Redstone Tuning Card
 
 <Row>
     <ItemLink id="data_energistics:redstone_tuning_card" />
@@ -37,9 +37,9 @@ item_ids:
     <RecipeFor id="data_energistics:redstone_tuning_card" />
 </Row>
 
-红石调整卡用于给样板供应器和物质聚合弩增加红石联动能力，每台设备最多安装 1 张。
+The Redstone Tuning Card adds redstone-controlled behavior to pattern providers and the Matter Converging Crossbow. Each device supports at most one card.
 
-### 样板供应器
+### Pattern Providers
 
 <Row>
     <ItemImage id="ae2:pattern_provider" />
@@ -47,15 +47,15 @@ item_ids:
     <ItemImage id="data_energistics:adaptive_pattern_provider_part" />
 </Row>
 
-支持 AE2 样板供应器、自适应样板供应器及已兼容的其他样板供应器。安装后可在界面中切换两种模式：
+It supports the AE2 Pattern Provider, Adaptive Pattern Provider, and other compatible pattern providers. After installation, the interface offers two modes:
 
-- 发出模式：供应器分发合成内容时，对外发出一次短暂红石脉冲。
-- 接收模式：供应器接收到红石脉冲后，对内部每个当前可合成的样板各请求一次主产物。
+- Emit mode: The provider emits a short redstone pulse whenever it dispatches crafting ingredients.
+- Receive mode: When the provider receives a redstone pulse, it requests the primary output of every pattern that can currently be crafted.
 
-### 物质聚合弩
+### Matter Converging Crossbow
 
 <Row>
     <ItemImage id="data_energistics:matter_converging_crossbow" />
 </Row>
 
-安装后，普通弹药的单发耗能变为基础耗能的 5 倍，同时弹射物会追踪距离最近的非玩家活体。
+After installation, the energy consumption per round of regular ammo becomes five times the base energy consumption, and the projectile tracks the nearest non-player living entity.
