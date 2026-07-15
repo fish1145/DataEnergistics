@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMobEffects;
 import com.fish_dan_.data_energistics.registry.ModParticles;
@@ -28,6 +29,7 @@ final class ClientTickHandler {
 
     static void onClientTickPost(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
+        XeiLayoutRefreshQueue.drain();
         if (minecraft.isPaused() || minecraft.level == null || minecraft.player == null) {
             return;
         }

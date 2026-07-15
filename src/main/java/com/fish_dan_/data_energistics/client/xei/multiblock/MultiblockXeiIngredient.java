@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.client.xei.multiblock;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
 
+import net.minecraft.world.item.ItemStack;
+
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 
 import java.util.ArrayList;
@@ -41,5 +43,20 @@ public record MultiblockXeiIngredient(IngredientIO io, PreviewMaterial material)
         }
         ingredients.add(new MultiblockXeiIngredient(IngredientIO.OUTPUT, view.output()));
         return List.copyOf(ingredients);
+    }
+
+    /**
+     * Converts the material to JEI and ItemSlot's exact int-count representation.
+     */
+    public ItemStack toItemStack() {
+        int amount;
+        try {
+            amount = Math.toIntExact(this.material.amount());
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException(
+                    "XEI material amount exceeds the ItemStack int range: " + this.material.amount(),
+                    exception);
+        }
+        return this.material.key().toStack(amount);
     }
 }

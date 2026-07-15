@@ -1,17 +1,30 @@
 package com.fish_dan_.data_energistics.client.emi;
 
+import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeViewSource;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.ResourceLocation;
 
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
+import com.lowdragmc.lowdraglib2.integration.xei.emi.EMIUIEvents;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.ModularUIEMIRecipe;
+import com.lowdragmc.lowdraglib2.integration.xei.emi.handler.EMIRecipeIngredientHandler;
+import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
+import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 /**
  * EMI adapter for the shared live Trinity multiblock composition.
@@ -26,6 +39,10 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
             EmiStack.of(ModBlocks.TRINITY_DATA_CORE.get()));
 
     private final MultiblockXeiRecipe recipe;
+    private final Object widgetRefreshKey = new Object();
+    @Nullable
+    private MultiblockXeiComposition activeComposition;
+    private boolean widgetRefreshInProgress;
 
     /**
      * Creates the production Trinity recipe registered by the EMI plugin.
@@ -49,7 +66,12 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
      * Creates and publishes a fresh composition through the same neutral source used by JEI.
      */
     public MultiblockXeiComposition createComposition(String idPrefix) {
-        return this.recipe.createComposition(idPrefix);
+        MultiblockXeiComposition composition = this.recipe.createComposition(
+                idPrefix,
+                this::requestWidgetRefresh);
+        bindRecipeIngredients(composition);
+        this.activeComposition = composition;
+        return composition;
     }
 
     @Override
@@ -82,10 +104,91 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
         return this.recipe.currentRecipeView();
     }
 
+    @Override
+    public List<EmiIngredient> getInputs() {
+        return List.copyOf(collectRecipeIngredients().inputs);
+    }
+
+    @Override
+    public List<EmiIngredient> getCatalysts() {
+        return List.copyOf(collectRecipeIngredients().catalysts);
+    }
+
+    @Override
+    public List<EmiStack> getOutputs() {
+        return List.copyOf(collectRecipeIngredients().outputs);
+    }
+
+    private EMIRecipeIngredientHandler collectRecipeIngredients() {
+        EMIRecipeIngredientHandler ingredients = new EMIRecipeIngredientHandler();
+        MultiblockXeiComposition composition = this.activeComposition;
+        if (composition == null) {
+            getModularUI();
+            composition = this.activeComposition;
+        }
+        if (composition == null) {
+            throw new IllegalStateException("EMI multiblock recipe did not create an active composition");
+        }
+        UIEvent event = UIEvent.create(EMIUIEvents.RECIPE_INGREDIENT);
+        event.target = composition.modularUI().ui.rootElement;
+        event.customData = ingredients;
+        UIEventDispatcher.dispatchAllChildren(event);
+        return ingredients;
+    }
+
+    private static void bindRecipeIngredients(MultiblockXeiComposition composition) {
+        composition.modularUI().ui.rootElement.addEventListener(
+                EMIUIEvents.RECIPE_INGREDIENT,
+                event -> publishRecipeIngredients(event, composition));
+    }
+
+    private static void publishRecipeIngredients(UIEvent event, MultiblockXeiComposition composition) {
+        if (!(event.customData instanceof EMIRecipeIngredientHandler ingredients)) {
+            return;
+        }
+        MultiblockRecipeView view = composition.currentRecipeView();
+        List<EmiIngredient> inputs = view.inputs().stream()
+                .map(TrinityMultiblockEmiRecipe::emiStack)
+                .map(stack -> (EmiIngredient) stack)
+                .toList();
+        ingredients.addInput(inputs);
+        ingredients.addOutput(List.of(emiStack(view.output())));
+    }
+
+    private static EmiStack emiStack(PreviewMaterial material) {
+        return EmiStack.of(material.key().toStack(1), material.amount());
+    }
+
+    private void requestWidgetRefresh(MultiblockXeiComposition composition,
+                                      MultiblockXeiComposition.RecipeChange change) {
+        if (!change.widgetPoolGrew() || this.widgetRefreshInProgress) {
+            return;
+        }
+        Screen screen = Minecraft.getInstance().screen;
+        if (screen == null) {
+            return;
+        }
+        XeiLayoutRefreshQueue.enqueue(
+                this.widgetRefreshKey,
+                screen,
+                () -> !this.widgetRefreshInProgress &&
+                        this.recipe.isActiveComposition(composition),
+                this::refreshWidgets);
+    }
+
+    private void refreshWidgets() {
+        this.widgetRefreshInProgress = true;
+        try {
+            EmiApi.focusRecipe(this);
+        } finally {
+            this.widgetRefreshInProgress = false;
+        }
+    }
+
     private static ModularUI createModularUI(ModularUIEMIRecipe recipe) {
         if (!(recipe instanceof TrinityMultiblockEmiRecipe trinityRecipe)) {
             throw new IllegalArgumentException("Trinity EMI UI provider received another recipe type");
         }
-        return trinityRecipe.recipe.createModularUI("trinity_multiblock_emi");
+        return trinityRecipe.createComposition("trinity_multiblock_emi").modularUI();
     }
 }

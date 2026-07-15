@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
+import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
+import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -11,6 +13,7 @@ import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -37,6 +40,7 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +52,12 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     private static final String AE2_JEI_INTEGRATION_MOD_ID = "ae2jeiintegration";
     private static final ResourceLocation AE2_CHARGER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final RecipeType<RecipeHolder<ChargerRecipe>> AE2_CHARGER_RECIPE_TYPE = RecipeType.createRecipeHolderType(AE2_CHARGER_RECIPE_ID);
+    private static final Object MULTIBLOCK_REFRESH_KEY = new Object();
+    @Nullable
     private IJeiRuntime jeiRuntime;
+    @Nullable
+    private TrinityMultiblockJeiCategory trinityMultiblockCategory;
+    private boolean multiblockRefreshInProgress;
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -57,12 +66,16 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
+        TrinityMultiblockJeiCategory multiblockCategory = installTrinityMultiblockCategory(
+                new TrinityMultiblockJeiCategory(
+                        registration.getJeiHelpers(),
+                        this::requestMultiblockRefresh));
         registration.addRecipeCategories(
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
-                new TrinityMultiblockJeiCategory(registration.getJeiHelpers()));
+                multiblockCategory);
     }
 
     @Override
@@ -185,7 +198,80 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
+        XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
         this.jeiRuntime = null;
+        this.multiblockRefreshInProgress = false;
+        releaseTrinityMultiblockCategory();
+    }
+
+    /**
+     * Releases and detaches the category owned by the completed JEI runtime cycle.
+     */
+    void releaseTrinityMultiblockCategory() {
+        TrinityMultiblockJeiCategory multiblockCategory = this.trinityMultiblockCategory;
+        this.trinityMultiblockCategory = null;
+        if (multiblockCategory != null) {
+            multiblockCategory.releaseCachedUis();
+        }
+    }
+
+    /**
+     * Installs the sole category owned by the current JEI runtime registration cycle.
+     */
+    TrinityMultiblockJeiCategory installTrinityMultiblockCategory(
+                                                                  TrinityMultiblockJeiCategory category) {
+        if (category == null) {
+            throw new IllegalArgumentException("Trinity multiblock JEI category cannot be null");
+        }
+        if (this.trinityMultiblockCategory != null) {
+            throw new IllegalStateException("Trinity multiblock JEI category was already registered");
+        }
+        this.trinityMultiblockCategory = category;
+        return category;
+    }
+
+    /**
+     * Returns the category retained by the current JEI runtime registration cycle.
+     */
+    @Nullable
+    TrinityMultiblockJeiCategory currentTrinityMultiblockCategory() {
+        return this.trinityMultiblockCategory;
+    }
+
+    private void requestMultiblockRefresh(
+                                          MultiblockXeiRecipe recipe,
+                                          MultiblockXeiComposition composition,
+                                          MultiblockXeiComposition.RecipeChange change) {
+        IJeiRuntime runtime = this.jeiRuntime;
+        TrinityMultiblockJeiCategory category = currentTrinityMultiblockCategory();
+        if (runtime == null || category == null || this.multiblockRefreshInProgress) {
+            return;
+        }
+        Screen screen = Minecraft.getInstance().screen;
+        if (screen == null || screen != runtime.getRecipesGui()) {
+            return;
+        }
+        XeiLayoutRefreshQueue.enqueue(
+                MULTIBLOCK_REFRESH_KEY,
+                screen,
+                () -> this.jeiRuntime == runtime &&
+                        this.trinityMultiblockCategory == category &&
+                        !this.multiblockRefreshInProgress &&
+                        recipe.isActiveComposition(composition) &&
+                        composition.currentRecipeView().projectionFingerprint().equals(change.projectionFingerprint()),
+                () -> refreshMultiblockRecipe(runtime, category, recipe));
+    }
+
+    private void refreshMultiblockRecipe(IJeiRuntime runtime,
+                                         TrinityMultiblockJeiCategory category,
+                                         MultiblockXeiRecipe recipe) {
+        this.multiblockRefreshInProgress = true;
+        try {
+            // JEI exposes navigation, but no in-place formal-slot invalidation API.
+            runtime.getRecipesGui().showRecipes(category, List.of(recipe), List.of());
+        } finally {
+            this.multiblockRefreshInProgress = false;
+        }
     }
 
     private void hidePoweredRepairRecipes() {
