@@ -26,17 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public final class TrinityHostedActionPayloadCodecTest {
 
     @Test
-    void allPayloadsRoundTripAndConsumeTheirCompleteBuffers() {
-        TrinityHostedRefundPayload refund = new TrinityHostedRefundPayload(41, 7L, 3L);
-        RegistryFriendlyByteBuf refundBuffer = buffer();
-        try {
-            TrinityHostedRefundPayload.STREAM_CODEC.encode(refundBuffer, refund);
-            assertEquals(refund, TrinityHostedRefundPayload.STREAM_CODEC.decode(refundBuffer));
-            assertEquals(0, refundBuffer.readableBytes());
-        } finally {
-            refundBuffer.release();
-        }
-
+    void autoBuildAndResponsePayloadsRoundTripAndConsumeTheirCompleteBuffers() {
         TrinityHostedAutoBuildPayload autoBuild = new TrinityHostedAutoBuildPayload(
                 42,
                 9L,
@@ -70,28 +60,30 @@ public final class TrinityHostedActionPayloadCodecTest {
 
     @Test
     void decodersRejectInvalidBoundsAndTrailingBytes() {
+        TrinityAutoBuildSubmission submission = submission(Map.of(), true);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TrinityHostedRefundPayload(1, 0L, 1L));
+                () -> new TrinityHostedAutoBuildPayload(1, 0L, 1L, submission));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TrinityHostedRefundPayload(1, 1L, 0L));
+                () -> new TrinityHostedAutoBuildPayload(1, 1L, 0L, submission));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TrinityHostedRefundPayload(
+                () -> new TrinityHostedAutoBuildPayload(
                         TrinityHostedActionPayloadCodec.MAX_CONTAINER_ID + 1,
                         1L,
-                        1L));
+                        1L,
+                        submission));
 
         RegistryFriendlyByteBuf trailing = buffer();
         try {
-            TrinityHostedRefundPayload.STREAM_CODEC.encode(
+            TrinityHostedAutoBuildPayload.STREAM_CODEC.encode(
                     trailing,
-                    new TrinityHostedRefundPayload(1, 1L, 1L));
+                    new TrinityHostedAutoBuildPayload(1, 1L, 1L, submission));
             trailing.writeByte(99);
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> TrinityHostedRefundPayload.STREAM_CODEC.decode(trailing));
+                    () -> TrinityHostedAutoBuildPayload.STREAM_CODEC.decode(trailing));
         } finally {
             trailing.release();
         }

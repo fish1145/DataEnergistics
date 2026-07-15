@@ -27,6 +27,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -37,7 +38,17 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.layout.LayoutProperties;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
+import dev.vfyjxf.taffy.style.TaffyDimension;
+import org.appliedenergistics.yoga.YogaOverflow;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +57,8 @@ import java.util.function.BiConsumer;
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
 public final class TrinityDataCoreAutoBuildProviderGameTest {
+
+    private static final int ACTION_TEXT_WIDTH = 62;
 
     private TrinityDataCoreAutoBuildProviderGameTest() {}
 
@@ -149,6 +162,53 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
         assertTrue(serverWindow.scene().getChildren().isEmpty(),
                 "Logical server automatic-build shell must not contain a physical-client scene");
         server.close();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_auto_build_actions_keep_long_text_bounded_and_toggle_from_label")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void actionsKeepLongTextBoundedAndToggleFromLabel(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        RecordingSceneBinder binder = new RecordingSceneBinder();
+        HostSubUiProvider provider = TrinityDataCoreStructureProviders.autoBuildForTesting(
+                () -> ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                        .require(ModVerticalMultiBlocks.trinityDataCoreId()),
+                StructurePreviewUiFactory.create(binder),
+                () -> true,
+                (generation, submission) -> {
+                    throw new GameTestAssertException("Text interaction must not submit an automatic build");
+                },
+                generation -> false);
+        Endpoint client = createEndpoint(player, 95, provider);
+        open(client, 1L);
+
+        TrinityDataCoreAutoBuildPanel panel = requireControls(client.modularUI());
+        Toggle buildRequested = requireToggle(
+                client.modularUI(), TrinityDataCoreAutoBuildPanel.BUILD_REQUESTED_TOGGLE_ID);
+        Button confirm = requireButton(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        Component longText = Component.literal(
+                "Automatic structure construction with an intentionally long localized action label");
+        buildRequested.setText(longText);
+        confirm.setText(longText);
+
+        assertBoundedRollingText(buildRequested.toggleLabel, ACTION_TEXT_WIDTH);
+        assertBoundedRollingText(confirm.text, ACTION_TEXT_WIDTH);
+        assertEquals(YogaOverflow.HIDDEN, confirm.getStyle().getInline(LayoutProperties.OVERFLOW));
+
+        boolean initiallyRequested = buildRequested.isOn();
+        assertTrue(
+                panel.draft().activeBuildRequested() == initiallyRequested,
+                "Automatic-build draft and toggle must start synchronized");
+        dispatchClick(buildRequested.toggleLabel, 1);
+        assertTrue(buildRequested.isOn() == initiallyRequested, "Right-clicking the label must not toggle it");
+        dispatchClick(buildRequested.toggleLabel, 0);
+        assertTrue(buildRequested.isOn() != initiallyRequested, "Left-clicking the label must toggle exactly once");
+        assertTrue(
+                panel.draft().activeBuildRequested() == buildRequested.isOn(),
+                "Label interaction must update the production automatic-build draft");
+
+        client.close();
         helper.succeed();
     }
 
@@ -303,6 +363,28 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
             return button;
         }
         throw new GameTestAssertException("LDLib2 automatic-build control is not a button: " + id);
+    }
+
+    private static Toggle requireToggle(HostModularUI modularUI, String id) {
+        UIElement element = requireElement(modularUI, id);
+        if (element instanceof Toggle toggle) {
+            return toggle;
+        }
+        throw new GameTestAssertException("LDLib2 automatic-build control is not a toggle: " + id);
+    }
+
+    private static void assertBoundedRollingText(TextElement text, int width) {
+        assertEquals(Boolean.FALSE, text.getTextStyle().getInline(PropertyRegistry.ADAPTIVE_WIDTH));
+        assertEquals(TextWrap.HOVER_ROLL, text.getTextStyle().getInline(PropertyRegistry.TEXT_WRAP));
+        assertEquals(TaffyDimension.length(width), text.getLayout().getInline(LayoutProperties.WIDTH));
+        assertEquals(YogaOverflow.HIDDEN, text.getStyle().getInline(LayoutProperties.OVERFLOW));
+    }
+
+    private static void dispatchClick(UIElement target, int button) {
+        UIEvent event = UIEvent.create(UIEvents.CLICK);
+        event.target = target;
+        event.button = button;
+        UIEventDispatcher.dispatchEvent(event, true, true, false);
     }
 
     private static String previewId() {

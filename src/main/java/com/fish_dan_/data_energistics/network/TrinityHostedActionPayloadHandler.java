@@ -20,44 +20,12 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
 
-/** Main-thread router shared by both generation-aware Trinity business actions. */
+/** Main-thread router for the generation-aware Trinity auto-build action. */
 public final class TrinityHostedActionPayloadHandler {
 
     private static final TrinityAutoBuildSubmissionResolver AUTO_BUILD_RESOLVER = new TrinityAutoBuildSubmissionResolverImpl();
 
     private TrinityHostedActionPayloadHandler() {}
-
-    /** Validates, claims, and invokes the existing refund entry once. */
-    static void handleRefund(TrinityHostedRefundPayload payload, Player player) {
-        handleRefund(payload, player, responseSink(player));
-    }
-
-    /** Test seam retaining the complete production routing and business order. */
-    public static void handleRefund(TrinityHostedRefundPayload payload,
-                                    Player player,
-                                    Consumer<TrinityHostedActionResponsePayload> responseSink) {
-        RoutedAction routed = route(payload.containerId(), payload.ticket(), player, responseSink);
-        if (routed == null) {
-            return;
-        }
-        try {
-            routed.menu().executeHostedRefund();
-            respond(
-                    routed.player(),
-                    payload.containerId(),
-                    payload.ticket(),
-                    TrinityHostedActionStatus.COMPLETED,
-                    responseSink);
-        } catch (RuntimeException | Error failure) {
-            logFailure("refund business entry failed", routed.player(), routed.menu(), payload.ticket(), failure);
-            respond(
-                    routed.player(),
-                    payload.containerId(),
-                    payload.ticket(),
-                    TrinityHostedActionStatus.REJECTED,
-                    responseSink);
-        }
-    }
 
     /** Validates, claims, reconstructs, and invokes the existing atomic auto-build entry once. */
     static void handleAutoBuild(TrinityHostedAutoBuildPayload payload, Player player) {

@@ -54,10 +54,6 @@ public final class ModPayloads {
                 HostUiResponsePayload.STREAM_CODEC,
                 HostUiResponsePayload::handle);
         registrar.playToServer(
-                TrinityHostedRefundPayload.TYPE,
-                TrinityHostedRefundPayload.STREAM_CODEC,
-                TrinityHostedRefundPayload::handle);
-        registrar.playToServer(
                 TrinityHostedAutoBuildPayload.TYPE,
                 TrinityHostedAutoBuildPayload.STREAM_CODEC,
                 TrinityHostedAutoBuildPayload::handle);

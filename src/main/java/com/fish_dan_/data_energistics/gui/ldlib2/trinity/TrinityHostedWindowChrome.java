@@ -15,7 +15,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
-/** Shared geometry and controls for the four draggable Trinity hosted windows. */
+/**
+ * Shared geometry and controls for the draggable Trinity automatic-build window.
+ */
 final class TrinityHostedWindowChrome {
 
     static final int WINDOW_WIDTH = 292;
@@ -37,7 +39,9 @@ final class TrinityHostedWindowChrome {
 
     private TrinityHostedWindowChrome() {}
 
-    /** Applies the fresh window's default placement; the host later overrides it with any saved position. */
+    /**
+     * Applies the fresh window's default placement; the host later overrides it with any saved position.
+     */
     static void configureRoot(HostSubUiRoot root, HostUiKey key) {
         WindowOffset offset = defaultOffset(key);
         root.layout(layout -> layout
@@ -49,7 +53,9 @@ final class TrinityHostedWindowChrome {
         root.style(style -> style.backgroundTexture(Sprites.BORDER));
     }
 
-    /** Creates the common draggable title surface and close command without duplicating chrome coordinates. */
+    /**
+     * Creates the common draggable title surface and close command without duplicating chrome coordinates.
+     */
     static Chrome create(String windowId, Component title, HostSubUiContext context) {
         if (windowId == null || title == null || context == null) {
             throw new IllegalArgumentException("Trinity hosted window chrome arguments cannot be null");
@@ -98,7 +104,9 @@ final class TrinityHostedWindowChrome {
         return new Chrome(dragHandle, close);
     }
 
-    /** Pins the large scene-first preview to the left content region. */
+    /**
+     * Pins the large scene-first preview to the left content region.
+     */
     static void layoutPreview(UIElement preview) {
         preview.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
@@ -108,7 +116,9 @@ final class TrinityHostedWindowChrome {
                 .height(CONTENT_HEIGHT));
     }
 
-    /** Pins status or automatic-build actions to the compact right content region. */
+    /**
+     * Pins status or automatic-build actions to the compact right content region.
+     */
     static void layoutSidePanel(UIElement sidePanel) {
         sidePanel.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
@@ -119,17 +129,11 @@ final class TrinityHostedWindowChrome {
     }
 
     static WindowOffset defaultOffset(HostUiKey key) {
-        if (TrinityDataCoreHostUiKeys.MAIN.equals(key)) {
-            return new WindowOffset(-104, -24);
-        }
-        if (TrinityDataCoreHostUiKeys.CPU.equals(key)) {
-            return new WindowOffset(-72, -16);
-        }
-        if (TrinityDataCoreHostUiKeys.CRAFTING.equals(key)) {
-            return new WindowOffset(-40, -8);
-        }
         if (TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key)) {
             return new WindowOffset(-8, 0);
+        }
+        if (key == null) {
+            throw new IllegalArgumentException("Trinity hosted window key cannot be null");
         }
         throw new IllegalArgumentException("Unknown Trinity hosted window key " + key.id());
     }

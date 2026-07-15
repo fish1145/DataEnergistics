@@ -24,7 +24,6 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKe
 import com.fish_dan_.data_energistics.network.TrinityHostedActionPayloadHandler;
 import com.fish_dan_.data_energistics.network.TrinityHostedActionResponsePayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
-import com.fish_dan_.data_energistics.network.TrinityHostedRefundPayload;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
@@ -33,7 +32,6 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.Connection;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ClientInformation;
@@ -69,110 +67,47 @@ public final class TrinityHostedActionGameTest {
     @GameTest(template = "empty_5x5")
     public static void clientTracksExactPendingAck(GameTestHelper helper) {
         Fixture fixture = fixture(helper, new BlockPos(1, 1, 1), 80);
-        open(fixture.menu(), TrinityDataCoreHostUiKeys.CRAFTING, 1L);
+        TrinityAutoBuildSubmission submission = validSubmission();
+        open(fixture.menu(), TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L);
 
-        assertTrue(fixture.menu().sendHostedRefund(1L));
-        assertTrue(fixture.menu().isHostedActionPending(TrinityDataCoreHostUiKeys.CRAFTING, 1L));
+        assertTrue(fixture.menu().sendHostedAutoBuild(1L, submission));
+        assertTrue(fixture.menu().isHostedActionPending(TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L));
         assertEquals(1, fixture.outbound().size());
-        TrinityHostedRefundPayload firstPayload = requireRefund(fixture.outbound().getFirst());
+        TrinityHostedAutoBuildPayload firstPayload = requireAutoBuild(fixture.outbound().getFirst());
         assertEquals(1L, firstPayload.actionSequence());
+        assertEquals(submission, firstPayload.submission());
 
         TrinityHostedActionResult wrongSequence = result(
-                TrinityDataCoreHostUiKeys.CRAFTING,
+                TrinityDataCoreHostUiKeys.AUTO_BUILD,
                 1L,
                 2L,
                 TrinityHostedActionStatus.COMPLETED);
         assertFalse(fixture.menu().handleHostedActionResponse(wrongSequence));
-        assertTrue(fixture.menu().isHostedActionPending(TrinityDataCoreHostUiKeys.CRAFTING, 1L));
+        assertTrue(fixture.menu().isHostedActionPending(TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L));
 
         TrinityHostedActionResult exact = result(
-                TrinityDataCoreHostUiKeys.CRAFTING,
+                TrinityDataCoreHostUiKeys.AUTO_BUILD,
                 1L,
                 1L,
                 TrinityHostedActionStatus.REJECTED);
         assertTrue(fixture.menu().handleHostedActionResponse(exact));
-        assertFalse(fixture.menu().isHostedActionPending(TrinityDataCoreHostUiKeys.CRAFTING, 1L));
-        assertEquals(exact, fixture.menu().consumeHostedActionResult(TrinityDataCoreHostUiKeys.CRAFTING, 1L));
-        assertNull(fixture.menu().consumeHostedActionResult(TrinityDataCoreHostUiKeys.CRAFTING, 1L));
+        assertFalse(fixture.menu().isHostedActionPending(TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L));
+        assertEquals(exact, fixture.menu().consumeHostedActionResult(TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L));
+        assertNull(fixture.menu().consumeHostedActionResult(TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L));
         assertFalse(fixture.menu().handleHostedActionResponse(exact));
 
-        assertTrue(fixture.menu().sendHostedRefund(1L));
-        assertEquals(2L, requireRefund(fixture.outbound().getLast()).actionSequence());
+        assertTrue(fixture.menu().sendHostedAutoBuild(1L, submission));
+        assertEquals(2L, requireAutoBuild(fixture.outbound().getLast()).actionSequence());
         fixture.menu().handleHostedActionResponse(result(
-                TrinityDataCoreHostUiKeys.CRAFTING,
+                TrinityDataCoreHostUiKeys.AUTO_BUILD,
                 1L,
                 2L,
                 TrinityHostedActionStatus.COMPLETED));
-        close(fixture.menu(), TrinityDataCoreHostUiKeys.CRAFTING, 2L);
-        open(fixture.menu(), TrinityDataCoreHostUiKeys.CRAFTING, 3L);
-        assertFalse(fixture.menu().sendHostedRefund(1L));
-        assertTrue(fixture.menu().sendHostedRefund(3L));
-        assertEquals(1L, requireRefund(fixture.outbound().getLast()).actionSequence());
-        fixture.close();
-        helper.succeed();
-    }
-
-    @TestHolder("trinity_hosted_refund_rejects_stale_replayed_and_replaced_contexts")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void refundRejectsStaleReplayedAndReplacedContexts(GameTestHelper helper) {
-        Fixture fixture = fixture(helper, new BlockPos(1, 1, 1), 81);
-        open(fixture.menu(), TrinityDataCoreHostUiKeys.CRAFTING, 1L);
-        List<TrinityHostedActionResponsePayload> responses = new ArrayList<>();
-
-        TrinityHostedActionPayloadHandler.handleRefund(
-                new TrinityHostedRefundPayload(999, 1L, 1L),
-                fixture.player(),
-                responses::add);
-        assertEquals(0, fixture.executor().refundCount);
-        assertStatus(responses.getLast(), TrinityHostedActionStatus.REJECTED);
-
-        close(fixture.menu(), TrinityDataCoreHostUiKeys.CRAFTING, 2L);
-        TrinityHostedActionPayloadHandler.handleRefund(
-                new TrinityHostedRefundPayload(81, 1L, 1L),
-                fixture.player(),
-                responses::add);
-        assertEquals(0, fixture.executor().refundCount);
-        open(fixture.menu(), TrinityDataCoreHostUiKeys.CRAFTING, 3L);
-
-        TrinityHostedRefundPayload valid = new TrinityHostedRefundPayload(81, 3L, 1L);
-        TrinityHostedActionPayloadHandler.handleRefund(valid, fixture.player(), responses::add);
-        assertEquals(1, fixture.executor().refundCount);
-        assertStatus(responses.getLast(), TrinityHostedActionStatus.COMPLETED);
-        assertEquals(1, fixture.player().clientMessages.size());
-        TrinityHostedActionPayloadHandler.handleRefund(valid, fixture.player(), responses::add);
-        assertEquals(1, fixture.executor().refundCount);
-        assertStatus(responses.getLast(), TrinityHostedActionStatus.REJECTED);
-        assertEquals(1, fixture.player().clientMessages.size());
-
-        TrinityHostedActionPayloadHandler.handleRefund(
-                new TrinityHostedRefundPayload(81, 3L, 3L),
-                fixture.player(),
-                responses::add);
-        assertEquals(2, fixture.executor().refundCount);
-        assertEquals(2, fixture.player().clientMessages.size());
-        TrinityHostedActionPayloadHandler.handleRefund(
-                new TrinityHostedRefundPayload(81, 3L, 2L),
-                fixture.player(),
-                responses::add);
-        assertEquals(2, fixture.executor().refundCount);
-        assertStatus(responses.getLast(), TrinityHostedActionStatus.REJECTED);
-
-        fixture.player().containerMenu = fixture.player().inventoryMenu;
-        TrinityHostedActionPayloadHandler.handleRefund(
-                new TrinityHostedRefundPayload(81, 3L, 4L),
-                fixture.player(),
-                responses::add);
-        assertEquals(2, fixture.executor().refundCount);
-        fixture.player().containerMenu = fixture.menu();
-
-        helper.destroyBlock(new BlockPos(1, 1, 1));
-        helper.setBlock(new BlockPos(1, 1, 1), ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
-        TrinityHostedActionPayloadHandler.handleRefund(
-                new TrinityHostedRefundPayload(81, 3L, 4L),
-                fixture.player(),
-                responses::add);
-        assertEquals(2, fixture.executor().refundCount);
+        close(fixture.menu(), TrinityDataCoreHostUiKeys.AUTO_BUILD, 2L);
+        open(fixture.menu(), TrinityDataCoreHostUiKeys.AUTO_BUILD, 3L);
+        assertFalse(fixture.menu().sendHostedAutoBuild(1L, submission));
+        assertTrue(fixture.menu().sendHostedAutoBuild(3L, submission));
+        assertEquals(1L, requireAutoBuild(fixture.outbound().getLast()).actionSequence());
         fixture.close();
         helper.succeed();
     }
@@ -305,11 +240,17 @@ public final class TrinityHostedActionGameTest {
         assertFalse(menu.getHostUiExtension().isOpen(key));
     }
 
-    private static TrinityHostedRefundPayload requireRefund(CustomPacketPayload payload) {
-        if (payload instanceof TrinityHostedRefundPayload refund) {
-            return refund;
+    private static TrinityHostedAutoBuildPayload requireAutoBuild(CustomPacketPayload payload) {
+        if (payload instanceof TrinityHostedAutoBuildPayload autoBuild) {
+            return autoBuild;
         }
-        throw new GameTestAssertException("Expected Trinity hosted refund payload, got " + payload);
+        throw new GameTestAssertException("Expected Trinity hosted auto-build payload, got " + payload);
+    }
+
+    private static TrinityAutoBuildSubmission validSubmission() {
+        MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                .require(ModVerticalMultiBlocks.trinityDataCoreId());
+        return TrinityAutoBuildDraft.initial(spec).submission();
     }
 
     private static void assertStatus(TrinityHostedActionResponsePayload response,
@@ -448,7 +389,6 @@ public final class TrinityHostedActionGameTest {
 
     private static final class TestServerPlayer extends ServerPlayer {
 
-        private final List<Component> clientMessages = new ArrayList<>();
         private final EmbeddedChannel testChannel;
 
         private TestServerPlayer(GameTestHelper helper, GameProfile profile) {
@@ -465,11 +405,6 @@ public final class TrinityHostedActionGameTest {
                     connection,
                     this,
                     CommonListenerCookie.createInitial(profile, false));
-        }
-
-        @Override
-        public void displayClientMessage(Component message, boolean actionBar) {
-            this.clientMessages.add(message);
         }
 
         private void closeTestConnection() {
@@ -490,15 +425,8 @@ public final class TrinityHostedActionGameTest {
 
     private static final class CountingExecutor implements TrinityDataCoreMenu.TrinityHostedActionExecutor {
 
-        private int refundCount;
         private int autoBuildCount;
         private TrinityAutoBuildRequest lastAutoBuild;
-
-        @Override
-        public boolean refund(Player player) {
-            this.refundCount++;
-            return true;
-        }
 
         @Override
         public void autoBuild(Player player, TrinityAutoBuildRequest request) {

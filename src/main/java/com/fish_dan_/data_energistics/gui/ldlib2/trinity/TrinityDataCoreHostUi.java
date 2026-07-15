@@ -13,12 +13,12 @@ import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.chat.Component;
 
+import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
-import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
@@ -175,12 +175,6 @@ public final class TrinityDataCoreHostUi {
     }
 
     private static void registerProviders(TrinityDataCoreMenu menu, HostUiExtension hostUi) {
-        hostUi.register(TrinityDataCoreStructureProviders.main(menu));
-        hostUi.register(TrinityDataCoreStructureProviders.cpu(menu));
-        hostUi.register(TrinityDataCoreStructureProviders.crafting(
-                menu,
-                menu::sendHostedRefund,
-                generation -> menu.isHostedActionPending(TrinityDataCoreHostUiKeys.CRAFTING, generation)));
         hostUi.register(TrinityDataCoreStructureProviders.autoBuild(
                 menu,
                 menu::sendHostedAutoBuild,

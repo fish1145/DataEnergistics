@@ -30,6 +30,8 @@ import dev.vfyjxf.taffy.style.LengthPercentageAuto;
 import dev.vfyjxf.taffy.style.TaffyDimension;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
+import java.util.List;
+
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
 public final class TrinityDataCoreHostUiGameTest {
@@ -50,6 +52,7 @@ public final class TrinityDataCoreHostUiGameTest {
 
         assertSame(menu, modularUI.getMenu());
         assertSame(menu.getHostUiExtension(), hostModularUI.hostUi());
+        assertEquals(List.of(TrinityDataCoreHostUiKeys.AUTO_BUILD), TrinityDataCoreHostUiKeys.registrationOrder());
         assertEquals(
                 TrinityDataCoreHostUiKeys.registrationOrder(),
                 menu.getHostUiExtension().registeredKeys());
@@ -125,13 +128,14 @@ public final class TrinityDataCoreHostUiGameTest {
         assertAbsolutePosition(firstHotbarSlot, 0, 58);
 
         UIElement launcherPanel = assertElement(modularUI, TrinityDataCoreHostLauncherPanel.PANEL_ID);
+        assertSame(root, launcherPanel.getParent());
+        assertAbsoluteBox(launcherPanel, 238, 1, 14, 14);
         assertEquals(
                 Integer.valueOf(TrinityDataCoreHostLauncherPanel.PANEL_Z_INDEX),
                 launcherPanel.getStyle().getImportant(PropertyRegistry.Z_INDEX));
-        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.MAIN_ID);
-        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.CPU_ID);
-        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.CRAFTING_ID);
-        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.AUTO_BUILD_ID);
+        UIElement autoBuildLauncher = assertElement(modularUI, TrinityDataCoreHostLauncherPanel.AUTO_BUILD_ID);
+        assertSame(launcherPanel, autoBuildLauncher.getParent());
+        assertAbsoluteBox(autoBuildLauncher, 0, 0, 14, 14);
         helper.succeed();
     }
 
