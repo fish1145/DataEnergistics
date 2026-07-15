@@ -1,13 +1,14 @@
 ---
 navigation:
-  parent: data_energistics:items-blocks-machines/data_energistics.md
+  parent: data_energistics:items-blocks-machines/0_data_energistics.md
   title: 数位化陨石
   icon: data_energistics:data_meteorite_0
-  position: 0
+  position: 1
 item_ids:
 - data_energistics:data_meteorite_0
 - data_energistics:data_meteorite_1
 - data_energistics:data_meteorite_2
+- data_energistics:data_meteorite_compass
 ---
 
 # 数位化陨石
@@ -124,4 +125,14 @@ item_ids:
     <RecipeFor id="data_energistics:me_vacuum" />
 将装载流体磁盘进行范围性吸取  
 >⚠它有约等于两倍龙息的伤害，请小心行事
-> 
+>
+
+## 数位化陨石罗盘  
+
+>经过特殊化处理(合成)过后的陨石罗盘，专门用于寻找本模组陨石
+> 使用方法与普通的陨石罗盘一致
+
+<Row>
+    <ItemImage id="data_energistics:data_meteorite_compass" />
+    <RecipeFor id="data_energistics:data_meteorite_compass" />
+</Row> 
