@@ -25,6 +25,7 @@ import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -74,7 +75,10 @@ public final class TrinityDataCoreHostUiGameTest {
         assertComponent(Component.translatable("container.inventory"), playerInventoryTitle.getText());
         assertElement(modularUI, TrinityDataCoreStatusPanel.PANEL_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
-        assertElement(modularUI, TrinityDataCoreHostLauncherPanel.PANEL_ID);
+        UIElement launcherPanel = assertElement(modularUI, TrinityDataCoreHostLauncherPanel.PANEL_ID);
+        assertEquals(
+                Integer.valueOf(TrinityDataCoreHostLauncherPanel.PANEL_Z_INDEX),
+                launcherPanel.getStyle().getImportant(PropertyRegistry.Z_INDEX));
         assertElement(modularUI, TrinityDataCoreHostLauncherPanel.MAIN_ID);
         assertElement(modularUI, TrinityDataCoreHostLauncherPanel.CPU_ID);
         assertElement(modularUI, TrinityDataCoreHostLauncherPanel.CRAFTING_ID);

@@ -10,9 +10,11 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,9 +28,12 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
 
     static final String REFUND_BUTTON_ID = "trinity_crafting_hosted_refund";
 
-    private static final int WIDTH = 88;
-    private static final int HEIGHT = 208;
-    private static final int ACTION_HEIGHT = 16;
+    private static final int WIDTH = TrinityHostedWindowChrome.SIDE_WIDTH;
+    private static final int HEIGHT = TrinityHostedWindowChrome.CONTENT_HEIGHT;
+    private static final int ROW_WIDTH = 80;
+    private static final int ROW_HEIGHT = 18;
+    private static final int ROW_GAP = 2;
+    private static final int ACTION_HEIGHT = 18;
 
     private final TrinityDataCoreStructureDescriptor descriptor;
     private final HostSubUiContext context;
@@ -63,7 +68,7 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
                 .positionType(TaffyPosition.ABSOLUTE)
                 .width(WIDTH)
                 .height(HEIGHT));
-        addChild(statusScroller(this.refundButton == null ? HEIGHT : HEIGHT - ACTION_HEIGHT - 2));
+        addChild(statusScroller(this.refundButton == null ? HEIGHT : HEIGHT - ACTION_HEIGHT - ROW_GAP));
         if (this.refundButton != null) {
             addChild(this.refundButton);
         }
@@ -107,7 +112,7 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
                 .horizontalScrollDisplay(ScrollDisplay.NEVER)
                 .verticalScrollDisplay(ScrollDisplay.AUTO)
                 .scrollerViewStyle(0));
-        scroller.viewPort(viewPort -> viewPort.layout(layout -> layout.paddingAll(1)));
+        scroller.viewPort(viewPort -> viewPort.layout(layout -> layout.paddingAll(2)));
         for (TrinityDataCoreStructureDescriptor.StatusLine line : this.descriptor.statusLines()) {
             Label label = new Label();
             label.setId(TrinityDataCoreStructureProviders.windowId(this.descriptor.structureKey()) + "_" + line.id());
@@ -116,9 +121,16 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
                     .adaptiveWidth(false)
                     .adaptiveHeight(false)
                     .fontSize(7.5f)
-                    .textWrap(TextWrap.WRAP)
+                    .textAlignVertical(Vertical.CENTER)
+                    .textWrap(TextWrap.HOVER_ROLL)
                     .textShadow(false));
-            label.layout(layout -> layout.width(WIDTH - 4).height(24));
+            label.setOverflowVisible(false);
+            label.style(style -> style.backgroundTexture(Sprites.RECT_DARK));
+            label.layout(layout -> layout
+                    .width(ROW_WIDTH)
+                    .height(ROW_HEIGHT)
+                    .marginBottom(ROW_GAP)
+                    .paddingHorizontal(3));
             scroller.addScrollViewChild(label);
         }
         return scroller;
@@ -127,7 +139,7 @@ final class TrinityDataCoreStructureStatusPanel extends UIElement {
     private Button refundButton() {
         Button button = new Button();
         button.setId(REFUND_BUTTON_ID);
-        button.setText(Component.translatable("button.data_energistics.trinity_pattern_core.refund"));
+        button.noText();
         button.addPreIcon(Icons.REPLAY);
         button.setOnClick(event -> requestRefund());
         button.style(style -> style.tooltips(

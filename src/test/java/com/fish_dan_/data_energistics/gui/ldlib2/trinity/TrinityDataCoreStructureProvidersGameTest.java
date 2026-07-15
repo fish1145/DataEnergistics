@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewScen
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneElement;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -35,7 +36,18 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.layout.LayoutProperties;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
+import dev.vfyjxf.taffy.style.TaffyDimension;
+import org.appliedenergistics.yoga.YogaOverflow;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -47,12 +59,15 @@ import java.util.function.BiConsumer;
 @GameTestHolder(Data_Energistics.MODID)
 public final class TrinityDataCoreStructureProvidersGameTest {
 
+    private static final int AUTO_BUILD_ACTION_TEXT_WIDTH = 62;
+
     private TrinityDataCoreStructureProvidersGameTest() {}
 
     @TestHolder("trinity_structure_providers_create_fresh_isolated_preview_windows")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void providersCreateFreshIsolatedPreviewWindows(GameTestHelper helper) {
+        assertDefaultWindowOffsets();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         TrinityDataCoreMenu stateMenu = new TrinityDataCoreMenu(90, player.getInventory(), null);
         seedDistinctStatus(stateMenu);
@@ -62,7 +77,7 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         StructurePreviewUiFactory previewFactory = StructurePreviewUiFactory.create(binder);
         List<Long> refundGenerations = new ArrayList<>();
         List<Long> pendingRefundGenerations = new ArrayList<>();
-        List<HostSubUiProvider> clientProviders = TrinityDataCoreStructureProviders.createForTesting(
+        List<HostSubUiProvider> clientProviders = new ArrayList<>(TrinityDataCoreStructureProviders.createForTesting(
                 stateMenu,
                 previewFactory,
                 () -> true,
@@ -70,19 +85,26 @@ public final class TrinityDataCoreStructureProvidersGameTest {
                     refundGenerations.add(generation);
                     pendingRefundGenerations.add(generation);
                 },
-                pendingRefundGenerations::contains);
+                pendingRefundGenerations::contains));
+        clientProviders.add(TrinityDataCoreStructureProviders.autoBuildForTesting(
+                () -> ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                        .require(ModVerticalMultiBlocks.trinityDataCoreId()),
+                previewFactory,
+                () -> true,
+                (generation, submission) -> {
+                    throw new GameTestAssertException("Window isolation must not submit an automatic build");
+                },
+                generation -> false));
         Endpoint client = createEndpoint(player, 91, clientProviders);
 
         long sequence = 1L;
-        for (HostUiKey key : TrinityDataCoreHostUiKeys.registrationOrder().subList(0, 3)) {
+        for (HostUiKey key : TrinityDataCoreHostUiKeys.registrationOrder()) {
             open(client, key, sequence++);
         }
-        assertEquals(3, binder.bindCount());
-        assertEquals(3, binder.refreshCount());
-        assertEquals(
-                List.of(TrinityDataCoreHostUiKeys.MAIN, TrinityDataCoreHostUiKeys.CPU,
-                        TrinityDataCoreHostUiKeys.CRAFTING),
-                client.extension().registeredKeys());
+        assertEquals(4, binder.bindCount());
+        assertEquals(4, binder.refreshCount());
+        assertStatusTextBehavior(client.modularUI());
+        assertEquals(TrinityDataCoreHostUiKeys.registrationOrder(), client.extension().registeredKeys());
 
         Map<HostUiKey, WindowIdentity> firstWindows = captureWindows(client.modularUI());
         assertCompleteControls(client.modularUI());
@@ -107,12 +129,12 @@ public final class TrinityDataCoreStructureProvidersGameTest {
             assertNotSame(first.scene(), reopened.scene());
         }
         assertEquals(3, binder.releaseCount());
-        assertEquals(6, binder.bindCount());
-        assertEquals(6, binder.refreshCount());
+        assertEquals(7, binder.bindCount());
+        assertEquals(7, binder.refreshCount());
         requestRefund(client.modularUI());
-        assertEquals(List.of(3L, 9L), refundGenerations);
+        assertEquals(List.of(3L, 10L), refundGenerations);
         client.close();
-        assertEquals(6, binder.releaseCount());
+        assertEquals(7, binder.releaseCount());
 
         int bindCountBeforeServer = binder.bindCount();
         List<HostSubUiProvider> serverProviders = TrinityDataCoreStructureProviders.createForTesting(
@@ -136,6 +158,71 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         assertEquals(bindCountBeforeServer, binder.bindCount());
         server.close();
         helper.succeed();
+    }
+
+    @TestHolder("trinity_auto_build_actions_keep_long_text_bounded_and_toggle_from_label")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void autoBuildActionsKeepLongTextBoundedAndToggleFromLabel(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        RecordingSceneBinder binder = new RecordingSceneBinder();
+        HostSubUiProvider provider = TrinityDataCoreStructureProviders.autoBuildForTesting(
+                () -> ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
+                        .require(ModVerticalMultiBlocks.trinityDataCoreId()),
+                StructurePreviewUiFactory.create(binder),
+                () -> true,
+                (generation, submission) -> {
+                    throw new GameTestAssertException("Text interaction must not submit an automatic build");
+                },
+                generation -> false);
+        Endpoint client = createEndpoint(player, 95, List.of(provider));
+        open(client, TrinityDataCoreHostUiKeys.AUTO_BUILD, 1L);
+
+        UIElement panelElement = requireElement(client.modularUI(), TrinityDataCoreAutoBuildPanel.PANEL_ID);
+        if (!(panelElement instanceof TrinityDataCoreAutoBuildPanel panel)) {
+            throw new GameTestAssertException("Automatic-build controls are not the production panel");
+        }
+        Toggle buildRequested = requireToggle(
+                client.modularUI(), TrinityDataCoreAutoBuildPanel.BUILD_REQUESTED_TOGGLE_ID);
+        Button confirm = requireButton(client.modularUI(), TrinityDataCoreAutoBuildPanel.CONFIRM_BUTTON_ID);
+        Component longText = Component.literal(
+                "Automatic structure construction with an intentionally long localized action label");
+        buildRequested.setText(longText);
+        confirm.setText(longText);
+
+        assertBoundedRollingText(buildRequested.toggleLabel, AUTO_BUILD_ACTION_TEXT_WIDTH);
+        assertBoundedRollingText(confirm.text, AUTO_BUILD_ACTION_TEXT_WIDTH);
+        assertEquals(YogaOverflow.HIDDEN, confirm.getStyle().getInline(LayoutProperties.OVERFLOW));
+
+        boolean initiallyRequested = buildRequested.isOn();
+        assertTrue(
+                panel.draft().activeBuildRequested() == initiallyRequested,
+                "Automatic-build draft and toggle must start synchronized");
+        dispatchClick(buildRequested.toggleLabel, 1);
+        assertTrue(buildRequested.isOn() == initiallyRequested, "Right-clicking the label must not toggle it");
+        dispatchClick(buildRequested.toggleLabel, 0);
+        assertTrue(buildRequested.isOn() != initiallyRequested, "Left-clicking the label must toggle exactly once");
+        assertTrue(
+                panel.draft().activeBuildRequested() == buildRequested.isOn(),
+                "Label interaction must update the production automatic-build draft");
+
+        client.close();
+        helper.succeed();
+    }
+
+    private static void assertDefaultWindowOffsets() {
+        assertEquals(
+                new TrinityHostedWindowChrome.WindowOffset(-104, -24),
+                TrinityHostedWindowChrome.defaultOffset(TrinityDataCoreHostUiKeys.MAIN));
+        assertEquals(
+                new TrinityHostedWindowChrome.WindowOffset(-72, -16),
+                TrinityHostedWindowChrome.defaultOffset(TrinityDataCoreHostUiKeys.CPU));
+        assertEquals(
+                new TrinityHostedWindowChrome.WindowOffset(-40, -8),
+                TrinityHostedWindowChrome.defaultOffset(TrinityDataCoreHostUiKeys.CRAFTING));
+        assertEquals(
+                new TrinityHostedWindowChrome.WindowOffset(-8, 0),
+                TrinityHostedWindowChrome.defaultOffset(TrinityDataCoreHostUiKeys.AUTO_BUILD));
     }
 
     private static Endpoint createEndpoint(Player player, int containerId, List<HostSubUiProvider> providers) {
@@ -208,6 +295,8 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         result.put(TrinityDataCoreHostUiKeys.MAIN, captureWindow(modularUI, TrinityDataCoreHostUiKeys.MAIN));
         result.put(TrinityDataCoreHostUiKeys.CPU, captureWindow(modularUI, TrinityDataCoreHostUiKeys.CPU));
         result.put(TrinityDataCoreHostUiKeys.CRAFTING, captureWindow(modularUI, TrinityDataCoreHostUiKeys.CRAFTING));
+        result.put(TrinityDataCoreHostUiKeys.AUTO_BUILD, captureWindow(
+                modularUI, TrinityDataCoreHostUiKeys.AUTO_BUILD));
         return Map.copyOf(result);
     }
 
@@ -221,7 +310,9 @@ public final class TrinityDataCoreStructureProvidersGameTest {
                 modularUI,
                 TrinityDataCoreStructureProviders.windowId(structureKey) + "_preview" +
                         StructurePreviewPanel.SCENE_SUFFIX);
-        assertEquals(structureKey, panel.session().structureKey());
+        assertEquals(
+                key.equals(TrinityDataCoreHostUiKeys.AUTO_BUILD) ? "main" : structureKey,
+                panel.session().structureKey());
         return new WindowIdentity(root, panel, scene);
     }
 
@@ -243,15 +334,39 @@ public final class TrinityDataCoreStructureProvidersGameTest {
     }
 
     private static void assertIndependentSessions(Map<HostUiKey, WindowIdentity> windows) {
-        WindowIdentity main = windows.get(TrinityDataCoreHostUiKeys.MAIN);
-        WindowIdentity cpu = windows.get(TrinityDataCoreHostUiKeys.CPU);
-        WindowIdentity crafting = windows.get(TrinityDataCoreHostUiKeys.CRAFTING);
-        assertNotSame(main.panel().session(), cpu.panel().session());
-        assertNotSame(main.panel().session(), crafting.panel().session());
-        assertNotSame(cpu.panel().session(), crafting.panel().session());
-        assertNotSame(main.scene(), cpu.scene());
-        assertNotSame(main.scene(), crafting.scene());
-        assertNotSame(cpu.scene(), crafting.scene());
+        List<WindowIdentity> identities = TrinityDataCoreHostUiKeys.registrationOrder().stream()
+                .map(windows::get)
+                .toList();
+        for (int first = 0; first < identities.size(); first++) {
+            for (int second = first + 1; second < identities.size(); second++) {
+                assertNotSame(identities.get(first).panel().session(), identities.get(second).panel().session());
+                assertNotSame(identities.get(first).scene(), identities.get(second).scene());
+            }
+        }
+    }
+
+    private static void assertStatusTextBehavior(HostModularUI modularUI) {
+        String statusId = TrinityDataCoreStructureProviders.windowId("main") + "_main_failure";
+        UIElement element = requireElement(modularUI, statusId);
+        if (!(element instanceof Label label)) {
+            throw new GameTestAssertException("Hosted structure status row is not a label: " + statusId);
+        }
+        assertEquals(TextWrap.HOVER_ROLL, label.getTextStyle().getInline(PropertyRegistry.TEXT_WRAP));
+        assertEquals(YogaOverflow.HIDDEN, label.getStyle().getInline(LayoutProperties.OVERFLOW));
+    }
+
+    private static void assertBoundedRollingText(TextElement text, int width) {
+        assertEquals(Boolean.FALSE, text.getTextStyle().getInline(PropertyRegistry.ADAPTIVE_WIDTH));
+        assertEquals(TextWrap.HOVER_ROLL, text.getTextStyle().getInline(PropertyRegistry.TEXT_WRAP));
+        assertEquals(TaffyDimension.length(width), text.getLayout().getInline(LayoutProperties.WIDTH));
+        assertEquals(YogaOverflow.HIDDEN, text.getStyle().getInline(LayoutProperties.OVERFLOW));
+    }
+
+    private static void dispatchClick(UIElement target, int button) {
+        UIEvent event = UIEvent.create(UIEvents.CLICK);
+        event.target = target;
+        event.button = button;
+        UIEventDispatcher.dispatchEvent(event, true, true, false);
     }
 
     private static void requestRefund(HostModularUI modularUI) {
@@ -289,6 +404,9 @@ public final class TrinityDataCoreStructureProvidersGameTest {
         if (key.equals(TrinityDataCoreHostUiKeys.CRAFTING)) {
             return "crafting";
         }
+        if (key.equals(TrinityDataCoreHostUiKeys.AUTO_BUILD)) {
+            return "auto_build";
+        }
         throw new GameTestAssertException("Unknown structure provider key " + key.id());
     }
 
@@ -298,6 +416,20 @@ public final class TrinityDataCoreStructureProvidersGameTest {
             throw new GameTestAssertException("Missing LDLib2 element " + id);
         }
         return element;
+    }
+
+    private static Button requireButton(HostModularUI modularUI, String id) {
+        if (requireElement(modularUI, id) instanceof Button button) {
+            return button;
+        }
+        throw new GameTestAssertException("Element is not a button: " + id);
+    }
+
+    private static Toggle requireToggle(HostModularUI modularUI, String id) {
+        if (requireElement(modularUI, id) instanceof Toggle toggle) {
+            return toggle;
+        }
+        throw new GameTestAssertException("Element is not a toggle: " + id);
     }
 
     private static StructurePreviewPanel requirePanel(HostModularUI modularUI, String id) {

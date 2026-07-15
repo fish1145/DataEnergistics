@@ -20,6 +20,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.List;
@@ -38,14 +40,19 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
     static final String BUILD_REQUESTED_BUTTON_ID = BUILD_REQUESTED_TOGGLE_ID + "_button";
     static final String CONFIRM_BUTTON_ID = PANEL_ID + "_confirm";
 
-    private static final int WIDTH = 88;
-    private static final int HEIGHT = 208;
-    private static final int CONTROL_HEIGHT = 16;
+    private static final int WIDTH = TrinityHostedWindowChrome.SIDE_WIDTH;
+    private static final int HEIGHT = TrinityHostedWindowChrome.CONTENT_HEIGHT;
+    private static final int CONTROL_SIZE = 18;
+    private static final int ACTION_TEXT_WIDTH = WIDTH - CONTROL_SIZE - 4;
+    private static final int SELECTOR_HEIGHT = 38;
+    private static final int SELECTOR_BUTTON_TOP = 10;
 
     private final StructurePreviewUi preview;
     private final HostSubUiContext context;
     private final BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction;
     private final LongPredicate hostedAutoBuildPending;
+    private final Button previousStructureButton;
+    private final Button nextStructureButton;
     private final Toggle buildRequestedToggle;
     private final Button confirmButton;
     private TrinityAutoBuildDraft draft;
@@ -71,9 +78,18 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         this.context = context;
         this.hostedAutoBuildAction = hostedAutoBuildAction;
         this.hostedAutoBuildPending = hostedAutoBuildPending;
+        this.previousStructureButton = iconButton(
+                STRUCTURE_PREVIOUS_ID,
+                Icons.LEFT_ARROW_NO_BAR,
+                () -> selectRelativeStructure(-1));
+        this.nextStructureButton = iconButton(
+                STRUCTURE_NEXT_ID,
+                Icons.RIGHT_ARROW_NO_BAR,
+                () -> selectRelativeStructure(1));
         this.buildRequestedToggle = buildRequestedToggle();
         this.confirmButton = confirmButton();
         this.preview.panel().setSelectionChangeListener(this::replacePreviewSelection);
+        refreshStructureNavigationTooltips();
 
         setId(PANEL_ID);
         layout(layout -> layout
@@ -117,18 +133,14 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
                 .left(0)
                 .top(0)
                 .width(WIDTH)
-                .height(34));
-        Button previous = iconButton(
-                STRUCTURE_PREVIOUS_ID,
-                Icons.LEFT_ARROW_NO_BAR,
-                Component.literal("Previous structure"),
-                () -> selectRelativeStructure(-1));
-        previous.layout(layout -> layout
+                .height(SELECTOR_HEIGHT));
+        row.style(style -> style.backgroundTexture(Sprites.RECT_DARK));
+        this.previousStructureButton.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
-                .top(0)
-                .width(CONTROL_HEIGHT)
-                .height(CONTROL_HEIGHT));
+                .top(SELECTOR_BUTTON_TOP)
+                .width(CONTROL_SIZE)
+                .height(CONTROL_SIZE));
         Label structure = new Label();
         structure.bindDataSource(SupplierDataSource.of(this::structureTitle));
         structure.textStyle(style -> style
@@ -139,24 +151,20 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
                 .textAlignVertical(Vertical.CENTER)
                 .textWrap(TextWrap.WRAP)
                 .textShadow(false));
+        structure.setOverflowVisible(false);
         structure.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTROL_HEIGHT)
+                .left(CONTROL_SIZE + 2)
                 .top(0)
-                .width(WIDTH - CONTROL_HEIGHT * 2)
-                .height(34));
-        Button next = iconButton(
-                STRUCTURE_NEXT_ID,
-                Icons.RIGHT_ARROW_NO_BAR,
-                Component.literal("Next structure"),
-                () -> selectRelativeStructure(1));
-        next.layout(layout -> layout
+                .width(WIDTH - CONTROL_SIZE * 2 - 4)
+                .height(SELECTOR_HEIGHT));
+        this.nextStructureButton.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(WIDTH - CONTROL_HEIGHT)
-                .top(0)
-                .width(CONTROL_HEIGHT)
-                .height(CONTROL_HEIGHT));
-        row.addChildren(previous, structure, next);
+                .left(WIDTH - CONTROL_SIZE)
+                .top(SELECTOR_BUTTON_TOP)
+                .width(CONTROL_SIZE)
+                .height(CONTROL_SIZE));
+        row.addChildren(this.previousStructureButton, structure, this.nextStructureButton);
         return row;
     }
 
@@ -167,12 +175,25 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         toggle.setText(Component.translatable("screen.data_energistics.multiblock_auto_build.build_requested"));
         toggle.setOn(this.draft.activeBuildRequested(), false);
         toggle.setOnToggleChanged(buildRequested -> this.draft = this.draft.withBuildRequested(buildRequested));
+        toggle.toggleLabel.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .textWrap(TextWrap.HOVER_ROLL));
+        toggle.toggleLabel.setOverflowVisible(false);
+        toggle.toggleLabel.getLayout()
+                .flex(0)
+                .width(ACTION_TEXT_WIDTH);
+        toggle.toggleLabel.addEventListener(UIEvents.CLICK, event -> {
+            if (event.button == 0 && toggle.isActive()) {
+                toggle.setOn(!toggle.isOn(), true);
+            }
+        });
         toggle.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
-                .top(40)
+                .top(44)
                 .width(WIDTH)
-                .height(18));
+                .height(20));
         return toggle;
     }
 
@@ -181,23 +202,27 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         button.setId(CONFIRM_BUTTON_ID);
         button.setText(Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
         button.addPreIcon(Icons.CHECK);
+        button.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .textWrap(TextWrap.HOVER_ROLL));
+        button.text.setOverflowVisible(false);
+        button.text.getLayout()
+                .flex(0)
+                .width(ACTION_TEXT_WIDTH);
+        button.setOverflowVisible(false);
         button.setOnClick(event -> submit());
         button.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
-                .top(HEIGHT - CONTROL_HEIGHT)
+                .top(HEIGHT - CONTROL_SIZE)
                 .width(WIDTH)
-                .height(CONTROL_HEIGHT));
+                .height(CONTROL_SIZE));
         return button;
     }
 
     void selectRelativeStructure(int direction) {
-        List<String> structureKeys = this.draft.structureKeys();
-        int current = structureKeys.indexOf(this.draft.previewSelection().activeSubstructureId());
-        if (current < 0) {
-            throw new IllegalStateException("Active Trinity automatic-build structure is absent from its draft");
-        }
-        selectStructure(structureKeys.get(Math.floorMod(current + direction, structureKeys.size())));
+        selectStructure(relativeStructureKey(direction));
     }
 
     private void replacePreviewSelection(PreviewSelection selection) {
@@ -223,6 +248,7 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         }
         this.draft = updated;
         this.buildRequestedToggle.setOn(this.draft.activeBuildRequested(), false);
+        refreshStructureNavigationTooltips();
     }
 
     void submit() {
@@ -238,18 +264,38 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
     }
 
     private Component structureTitle() {
-        return Component.translatable(
-                "screen.data_energistics.trinity_data_core.auto_build.structure." +
-                        this.draft.previewSelection().activeSubstructureId());
+        return structureTitle(this.draft.previewSelection().activeSubstructureId());
     }
 
-    private static Button iconButton(String id, IGuiTexture icon, Component tooltip, Runnable action) {
+    private void refreshStructureNavigationTooltips() {
+        this.previousStructureButton.style(style -> style.tooltips(Component.translatable(
+                "screen.data_energistics.multiblock_preview.previous",
+                structureTitle(relativeStructureKey(-1)))));
+        this.nextStructureButton.style(style -> style.tooltips(Component.translatable(
+                "screen.data_energistics.multiblock_preview.next",
+                structureTitle(relativeStructureKey(1)))));
+    }
+
+    private String relativeStructureKey(int direction) {
+        List<String> structureKeys = this.draft.structureKeys();
+        int current = structureKeys.indexOf(this.draft.previewSelection().activeSubstructureId());
+        if (current < 0) {
+            throw new IllegalStateException("Active Trinity automatic-build structure is absent from its draft");
+        }
+        return structureKeys.get(Math.floorMod(current + direction, structureKeys.size()));
+    }
+
+    private static Component structureTitle(String structureKey) {
+        return Component.translatable(
+                "screen.data_energistics.trinity_data_core.auto_build.structure." + structureKey);
+    }
+
+    private static Button iconButton(String id, IGuiTexture icon, Runnable action) {
         Button button = new Button();
         button.setId(id);
         button.noText();
         button.addPreIcon(icon);
         button.setOnClick(event -> action.run());
-        button.style(style -> style.tooltips(tooltip));
         return button;
     }
 

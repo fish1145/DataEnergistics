@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
+import com.lowdragmc.lowdraglib2.gui.ui.Style;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import dev.vfyjxf.taffy.style.TaffyPosition;
@@ -19,6 +20,7 @@ final class TrinityDataCoreHostLauncherPanel {
     static final String CPU_ID = "trinity_data_core_open_cpu";
     static final String CRAFTING_ID = "trinity_data_core_open_crafting";
     static final String AUTO_BUILD_ID = "trinity_data_core_open_auto_build";
+    static final int PANEL_Z_INDEX = 400;
 
     private static final int BUTTON_SIZE = 14;
     private static final int BUTTON_GAP = 2;
@@ -43,6 +45,7 @@ final class TrinityDataCoreHostLauncherPanel {
                 .top(19)
                 .width(BUTTON_SIZE)
                 .height(BUTTON_SIZE * 4 + BUTTON_GAP * 3));
+        Style.importantPipeline(panel.getStyle(), style -> style.zIndex(PANEL_Z_INDEX));
         panel.addChildren(
                 launcher(
                         MAIN_ID,
