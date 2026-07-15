@@ -5,7 +5,7 @@
 ```text
 目标
 
-在 F:/mc/Fish_Dan_/DataEnergistics 的 qy/ldlib2-ui-migration 分支和现有 Draft PR #99 中，完成并发布 Data Energistics 全部多方块 UI 与全部舱室 UI 向 LDLib2 的迁移，以及通用 JEI/EMI XEI 多方块预览、可配置子结构投影和普通多方块配方到 AE Processing 配置的 typed transfer。P0-P8 的生产实现已经完成并按功能提交，后续不得退回规划或重复实现；当前重点是文档、最终自动化、质量审计、推送/PR CI 和受外部依赖阻塞的真实客户端验收。
+在 F:/mc/Fish_Dan_/DataEnergistics 的 qy/ldlib2-ui-migration 分支和现有 Draft PR #99 中，完成并发布 Data Energistics 全部多方块 UI 与全部舱室 UI 向 LDLib2 的迁移，以及通用 JEI/EMI XEI 多方块预览、可配置子结构投影和普通多方块配方到 AE Processing 配置的 typed transfer。P0-P8 的生产实现已经完成并按功能提交，后续不得退回规划或重复实现；客户端测试运行依赖和 DataE 自身 EMI 注册告警也已收口，当前重点是文档、最终质量审计、推送/PR CI 以及尚未完成的真实客户端 UI 与多人验收。
 
 发生上下文压缩或任务转交时，先完整阅读 F:/mc/Fish_Dan_/DataEnergistics/docs/ldlib2-ui-migration 下全部 11 份 Markdown，以 00-需求基线与上下文恢复.md 和本 Goal 为权威入口；随后读取当前分支、HEAD、远端和工作区，不依赖记忆补全状态。
 
@@ -25,7 +25,7 @@
 5. 通用模型明确区分 controller、稳定 structureKey、结构内 variantIndex、每个子结构独立 tier/repeat/candidate selection、definition revision、projectionFingerprint，以及只影响显示的 visibleLayer/相机/hover/formed。不可变快照包含坐标、BlockState、predicate/候选、材料、bounds 和逻辑层；显示层与 repeat 永不共用状态。
 6. 共用 LDLib2 预览 UI 支持 Scene 旋转、缩放和选中方块，通用多子结构横向 scroller（按钮最小宽度 64px），variant/tier/repeat/candidate，全部/上一层/下一层/指定层，以及规范材料 scroller。控件不得硬编码 Trinity 三项，host 与 XEI 只共享纯模型/factory，不共享元素树、Scene 或视图状态。
 7. JEI 使用 ModularUIRecipeCategory，EMI 使用 ModularUIEMIRecipe；两者复用同一 composition、候选栏、规范 input 与 owner output。动态选择后 JEI 合并延迟刷新请求并调用公开 showRecipes 重建页面/formal slots，接受导航历史增加；runtime stop 必须释放 category uiCache 并允许同一插件实例重新注册。EMI 的 getInputs/getOutputs 返回 live ingredients，slot pool 扩容后延迟 focusRecipe 刷新。JEI 公共 API 没有原位 formal-slot invalidation，禁止反射或调用私有实现绕过。
-8. 多方块以普通 XEI 配方表达：当前展开投影聚合的 ItemStack/amount 为 INPUT，controller/owner 为 OUTPUT。Scene、候选检查器、谓词详情、hover、层级和 formed 控件均为 recipe role NONE。registeredRecipeId 保持 controller 级稳定，动态选择使用完整 projectionFingerprint 校验。
+8. 多方块以普通 XEI 配方表达：当前展开投影聚合的 ItemStack/amount 为 INPUT，controller/owner 为 OUTPUT。Scene、候选检查器、谓词详情、hover、层级和 formed 控件均为 recipe role NONE。canonical registeredRecipeId 保持 controller 级稳定，动态选择使用完整 projectionFingerprint 校验；EMI 对合成 recipe 的 `getId()` 使用 slash-prefixed synthetic id，但 typed source、JEI 和服务端请求继续使用 canonical id，二者不得混用。
 9. JEI/EMI transfer 在点击瞬间只读取一次 session.currentRecipeView()，不信任展示缓存或客户端材料。服务端按当前 catalog、revision、selection 和 fingerprint 权威重建普通 input/output，再使用目标终端真实 ConfigInventory.size()、isAllowedIn() 和 getMaxAmount() 预检。
 10. transfer 只原子填入 AE Pattern Encoding Terminal 的 Processing 配置并切换 Processing 模式；不得调用 encode、写 encodedPatternSlot、消耗空白样板或搬运玩家/网络物料。只有用户随后点击 AE 自带编码按钮，才由现有流程生成普通 Processing Pattern。
 11. AE 样板必须保持通用，只保存普通 stack/amount。structureKey、variantIndex、tier/repeat、candidate selection、visibleLayer、方向、镜像和精确 BlockState 不得作为 metadata/custom pattern details 写入样板。只有实际自动搭建时，独立且经服务端校验的 build request 才携带结构与搭建参数，并从权威定义自动补全放置状态；不得从 Processing Pattern 反推结构。
@@ -53,7 +53,7 @@ Gradle 与 Git 约束
 
 当前状态锚点（2026-07-15；实际 Git/PR 优先）
 
-1. 分支为 qy/ldlib2-ui-migration。当前发布批次以 d546ae7c 为基线，最后一个实现提交为 b5780774，两者之间有以下 8 个提交；本 Goal 所在文档提交位于其后。恢复时必须重新读取 HEAD、tracking ref 和 PR #99，不能把发布前基线当成当前远端：
+1. 分支为 qy/ldlib2-ui-migration。当前发布批次以 d546ae7c 为基线，最后一个 UI 实现锚点为 b5780774，两者之间有以下 8 个提交；其后还有 24f35593 文档提交、39b37fe6 客户端 GameTest 运行依赖提交和 1b332d0e EMI 多方块注册修复提交，本 Goal 所在的后续文档提交位于这些提交之后。恢复时必须重新读取 HEAD、tracking ref 和 PR #99，不能把发布前基线当成当前远端：
    36620546 完善 LDLib2 主机浮窗层级交互
    e1027e0a 重构多方块预览交互布局
    186bff09 重构通用 XEI 多方块预览布局
@@ -64,16 +64,16 @@ Gradle 与 Git 约束
    b5780774 补充 LDLib2 UI 本地化文本
 2. P8 common/network、JEI 和 EMI typed transfer 已在 d546ae7c 之前按多个生产/测试小提交完成；不得再把 P8 描述为工作区待拆分。LDLib2 已由 cfa49f8d/d546ae7c 升级并适配至 2.2.28。
 3. 最新代码已通过 IDEA MCP 定向 build/inspection，以及使用系统 GRADLE_USER_HOME=E:/.gradle 的 `spotlessCheck compileJava compileTestJava test runGameTestServer build --no-daemon`；required GameTest 为 367/367，Gradle `BUILD SUCCESSFUL`。
-4. 本地质量审计已通过：`git diff --check`；1677 个 tracked 文本文件严格 UTF-8、无 BOM；11 份文档链接有效；语言 JSON 可解析且英文键均有中文对应；d546ae7c..b5780774 的 43 个 Java 文件新增代码无 FQN、反射、`Objects.requireNonNull`、空 catch、TODO/FIXME、占位或源码 contain 测试，全仓 `Objects.requireNonNull` 为 0。恢复时只需检查文档提交、推送和 PR #99 CI 是否已完成，不得重复修改已验证代码。
-5. 客户端运行仍因 Oritech 缺少 Athena 运行时依赖而在启动阶段阻塞。禁止修改生产依赖规避；服务端 GameTest、plain JUnit 和 IDEA build 不能被写成客户端 JEI/EMI、Scene、舱室布局或多人交互已经验收。
+4. 本地质量审计已再次通过：`git diff --check`；1732 个 tracked 文本严格 UTF-8、无 BOM；文档相对链接 13/13 有效；语言 JSON 可解析且英文键均有中文对应；`d546ae7c..HEAD` 的 47 个 Java 文件无 FQN、反射、`Objects.requireNonNull`、空 catch、TODO/FIXME、占位或源码 contain 测试，全仓 `Objects.requireNonNull` 为 0。恢复时只需检查文档提交、推送和 PR #99 CI 是否已完成，不得重复修改已验证代码。
+5. 39b37fe6 已新增隔离 `clientTest` source set，并只在 `clientTestRuntimeOnly` 加入 Athena；生产 runtime 和服务端 test runtime 均不含 Athena。可复现 clientTest run 已发现 Athena 4.0.6、LDLib2 2.2.28、Oritech 1.2.8，进入 `Test` 世界并完成 JEI/EMI reload。1b332d0e 修复 EMI synthetic recipe id 与 category 翻译，后续 bake 未再报告对应两条 DataE 告警。当前 run 没有客户端测试执行/通过汇总，也没有真实打开 JEI/EMI 页面、四窗、舱室或执行 transfer/多人交互，因此这些验收仍未完成。若当前 IDEA Gradle model 仍把 `Game Tests (Client)` 指向 `data_energistics.test`，先执行 Reload All Gradle Projects，并确认客户端模块变为 `data_energistics.clientTest`、服务端模块保持 `data_energistics.test`。
 
 继续执行顺序
 
-阶段 A（已完成）：审阅本目录全部文档和当前 diff，固化 LDLib2 2.2.28、367/367、P8 已提交、8 个实现提交、JEI/EMI 动态刷新、四窗级联、Trinity/舱室布局和 Athena 阻塞。
+阶段 A（已完成）：审阅本目录全部文档和当前 diff，固化 LDLib2 2.2.28、367/367、P8 已提交、8 个 UI 实现提交、JEI/EMI 动态刷新、四窗级联、Trinity/舱室布局、隔离的客户端运行依赖和 EMI 注册修复。
 阶段 B（已完成）：确认 GRADLE_USER_HOME 位于 E:/，执行 `./gradlew.bat spotlessCheck compileJava compileTestJava test runGameTestServer build --no-daemon`，不使用 -g；结果为 BUILD SUCCESSFUL 和 367/367。
 阶段 C（已完成）：执行 diff、JSON、UTF-8/BOM、Java FQN/反射/Objects/空 catch/占位/源码 contain 测试和旧视觉入口审计；保留的 Screen 已确认只是 AE2 输入协议薄壳。
 阶段 D：先读取实际 Git/PR 状态。若本 Goal 所在的 11 份文档尚未提交，则逐文件暂存并检查 staged diff，使用独立中文文档提交；若分支尚未推送，则确认 logs/、wenli/ 未暂存后推送 qy/ldlib2-ui-migration，更新/检查 Draft PR #99 和 CI，禁止强推。已经完成的子步骤不得重复。
-阶段 E：Athena 环境可用后，在真实客户端分别验证 JEI/EMI 页面、原生与 Universal Pattern Encoding Terminal、四窗、舱室和多人场景。外部依赖未修复时明确保留阻塞，不伪造通过，也不修改生产依赖绕过。
+阶段 E：在现已可启动的真实客户端分别打开并验证 JEI/EMI 页面、原生与 Universal Pattern Encoding Terminal、四窗、舱室和多人场景。启动、进入世界和插件 reload 只能作为环境前置证据；没有页面操作、渲染/bounds 检查和双端记录时不得标记通过。
 
 客户端验收矩阵
 
@@ -91,9 +91,9 @@ Gradle 与 Git 约束
 3. 不让 transfer 执行自动搭建、世界写入、库存搬运或样板编码。
 4. 不把 JEI/EMI、LDLib2 UI、AE2 或 DataE 业务依赖加入 MDLib。
 5. REI 不是首轮交付，但 common 模型和 factory 必须保持薄适配边界。
-6. 不为绕过 Athena 客户端启动问题修改生产依赖。
+6. Athena 只允许存在于隔离的 `clientTest` runtime；不加入生产依赖、发布产物或服务端测试 runtime。
 
 完成规则
 
-只有代码、文档、最终自动化和质量审计通过，分支已推送且 PR #99 CI 无未处理失败，并且真实客户端/多人验收完成，或用户明确接受 Athena 为外部未完成项时，才可结束 Goal。预算接近耗尽、服务端测试通过或文档完成都不能单独作为完成条件。
+只有代码、文档、最终自动化和质量审计通过，分支已推送且 PR #99 CI 无未处理失败，并且真实客户端/多人验收完成，或用户明确接受剩余客户端/多人验收未执行时，才可结束 Goal。预算接近耗尽、服务端测试通过、可进入世界、插件 reload 或文档完成都不能单独作为完成条件。
 ```

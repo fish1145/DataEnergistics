@@ -39,6 +39,8 @@ Data Energistics 当前实际解析并构建于 LDLib2 `2.2.28`，`F:/mc/ldlib/L
 
 JEI 公共 API 没有对已经建立的 formal slots 做原位 invalidation 的入口。Data Energistics 先合并并延迟刷新请求，再调用公开 `showRecipes` 重建页面/formal slots，并接受导航历史增加；runtime stop 时释放 category `uiCache`，下一次 start 可重新注册。不得通过反射、访问 JEI 私有实现或依赖内部缓存规避这一边界。EMI 可以通过 live `getInputs()`/`getOutputs()` 暴露新材料，并在槽池扩容后延迟 `focusRecipe`，但两端展示状态都不能替代点击瞬间的 typed `currentRecipeView()`。
 
+EMI 的开发模式还会校验 recipe id 是否来自 Minecraft `RecipeManager`。DataE 的多方块 wrapper 是合成 recipe，因此 `EmiRecipe#getId()` 使用 slash-prefixed `namespace:/multiblock/...`；typed source、JEI 与服务端 transfer 则继续使用不带前导 slash 的 canonical `registeredRecipeId`。两者由 DataE EMI adapter 显式映射并分别校验。这是 XEI adapter 的身份边界，不是 LDLib2 或 MDLib API 缺口，也不得把 EMI synthetic id 发送到服务端代替 canonical identity。
+
 ## Modular Data Lib 边界
 
 Data Energistics 当前通过 MDLib `BlockPattern` 表达可重复结构。所需中立 API 已在隔离 worktree `F:/mc/Fish_Dan_/Modular-Data-lib-preview-api` 的 `qy/multiblock-preview-api` 实现、推送并创建 Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2)。原始 `F:/mc/Fish_Dan_/Modular-Data-lib` 含用户改动，禁止用于本任务写入。

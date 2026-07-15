@@ -51,7 +51,7 @@ variant、等级和重复层数必须由定义提供合法域。XEI 客户端可
 
 JEI 参考 GT/ECO 继承 `ModularUIRecipeCategory`，EMI 继承 `ModularUIEMIRecipe`。两者使用同一个纯 UI factory，不复制按钮逻辑。每个 controller 只注册一个稳定 `registeredRecipeId`；子结构和参数是页面内部选择，不为每个组合预注册 recipe，避免组合爆炸。
 
-当前选择改变后，session 计算 `projectionFingerprint = definitionRevision + structureKey + variantIndex + tier/repeat + candidateSelections` 并刷新规范 recipe ingredient；`registeredRecipeId` 不改变。该对象是普通 XEI 配方视图，不注册 AE 专属 RecipeType，也不携带编码后的样板 ItemStack。两端页面共用同一套 composition、横向子结构栏、候选栏、规范 input 槽和 controller/owner output 槽；XEI adapter 只处理各自生命周期与 ingredient API。
+当前选择改变后，session 计算 `projectionFingerprint = definitionRevision + structureKey + variantIndex + tier/repeat + candidateSelections` 并刷新规范 recipe ingredient；canonical `registeredRecipeId` 不改变。该对象是普通 XEI 配方视图，不注册 AE 专属 RecipeType，也不携带编码后的样板 ItemStack。两端页面共用同一套 composition、横向子结构栏、候选栏、规范 input 槽和 controller/owner output 槽；XEI adapter 只处理各自生命周期与 ingredient API。EMI 对不在 Minecraft RecipeManager 中的合成 recipe 要求 slash-prefixed id，因此 `EmiRecipe#getId()` 使用 `namespace:/multiblock/...`，而 typed source、JEI 与服务端 transfer 继续使用不带前导 slash 的 canonical `registeredRecipeId`；两种身份必须显式映射，不能混用。
 
 动态展示已经接入刷新，但展示 ingredient 仍不能作为 transfer 权威来源：typed handler 必须在用户点击瞬间读取 session 的 `currentRecipeView()` 并校验 revision/fingerprint。
 
@@ -82,8 +82,9 @@ REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引
 5. JEI 延迟合并动态 ingredient 刷新，并在 runtime stop 时释放 category `uiCache` 以支持重新注册；EMI 使用 live `getInputs()`/`getOutputs()`，槽池扩容后延迟 `focusRecipe`。JEI lifecycle 与 EMI live ingredient 均有定向逻辑测试。
 6. 可选 `ae2jeiintegration` 的直接 handler 类型放在独立注册类中，只在确认 mod id 已加载后调用，不用反射，也不让缺失的可选类型污染基础 JEI 插件路径。EMI mixin 在具体 `EmiEncodePatternHandler` 上提供 `supportsRecipe`，修复父类 catch-all，使 AE2 handler 只对 DataE typed multiblock recipe defer。
 7. 最终 `spotlessCheck compileJava compileTestJava test runGameTestServer build` 已通过，服务端 GameTest 为 367/367，本地质量审计也已完成；文档提交/推送、Draft PR CI 和客户端验收仍按 P9 实际状态继续。
+8. `39b37fe6` 已用隔离的 `clientTest` runtime 补齐 Athena；可复现客户端 run 加载了 Athena 4.0.6、LDLib2 2.2.28 和 Oritech 1.2.8，进入世界并完成 JEI/EMI reload。`1b332d0e` 修复了 EMI synthetic recipe id 和 `emi.category.data_energistics.multiblock_preview` 翻译，后续 bake 未再报告这两条 DataE 告警。
 
-客户端 GameTest 尚不能作为完成证据：当前启动阶段因 Oritech 缺少 Athena 运行时依赖而阻塞。禁止修改生产依赖规避；服务端 GameTest 和 plain JUnit 通过只证明模型、协议或 handler 逻辑，不证明 JEI/EMI 页面非空渲染、旋转缩放、选择控件、transfer 按钮、错误提示、extra area 和资源释放。外部运行环境修复后必须补跑客户端验证。
+客户端启动依赖已解决，但当前 run 没有客户端测试执行/汇总，也没有实际打开 JEI/EMI 页面。服务端 GameTest 和 plain JUnit 通过只证明模型、协议或 handler 逻辑；进入世界和完成插件 reload 也不证明页面非空渲染、旋转缩放、选择控件、transfer 按钮、错误提示、extra area 和资源释放。上述功能仍必须通过真实客户端操作验证。
 
 ## 验收表
 
@@ -103,4 +104,5 @@ REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引
 | JEI 预检 | source/identity、slot filter、maxAmount 或菜单访问异常均在发请求前返回可见错误 |
 | 可选 JEI 集成缺失 | 基础插件仍可加载；不反射、不解析或调用 `ae2jeiintegration` 的类型 |
 | EMI 动作类型 | 只有 `FILL_BUTTON` 可以 transfer；AE2 catch-all 对 DataE typed recipe defer，其他 recipe 行为不变 |
-| 客户端启动 | Athena 依赖可用后，JEI 与 EMI 实际渲染和按钮交互均通过；不能用服务端/JUnit 代替 |
+| 客户端运行环境 | `clientTest` run 可复现加载 Athena/LDLib2/Oritech、进入世界并完成 JEI/EMI reload，且 DataE synthetic id/category 告警不再出现 |
+| JEI/EMI 客户端功能 | 实际打开两种页面并验证非空 Scene、控件和按钮交互；不能用启动、插件 reload、服务端 GameTest 或 JUnit 代替 |
