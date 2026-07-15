@@ -51,12 +51,9 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     @Override
     public void initialize(EmiInitRegistry registry) {
         registry.addIngredientSerializer(DataResourceEmiStack.class, DataResourceEmiStackSerializer.INSTANCE);
-        registry.addIngredientSerializer(GenericAeKeyEmiStack.class, GenericAeKeyEmiStackSerializer.INSTANCE);
         try {
-            CONVERTER_REGISTRATION.registerDataOnce(
+            CONVERTER_REGISTRATION.registerOnce(
                     () -> EmiStackConverters.register(DataResourceEmiStackConverter.INSTANCE));
-            CONVERTER_REGISTRATION.registerGenericOnce(
-                    () -> EmiStackConverters.register(GenericAeKeyEmiStackConverter.INSTANCE));
         } catch (IllegalStateException exception) {
             LOGGER.error(exception.getMessage());
             throw exception;
@@ -192,39 +189,23 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
     static final class ConverterRegistration {
 
-        private boolean dataRegistered;
-        private boolean genericRegistered;
+        private boolean registered;
 
-        synchronized void registerDataOnce(BooleanSupplier registrar) {
-            if (dataRegistered) {
+        synchronized void registerOnce(BooleanSupplier registrar) {
+            if (registered) {
                 return;
             }
             if (!registrar.getAsBoolean()) {
                 throw new IllegalStateException(
                         "An AE2 EMI stack converter is already registered for Data Energistics resources");
             }
-            dataRegistered = true;
-        }
-
-        synchronized void registerGenericOnce(BooleanSupplier registrar) {
-            if (genericRegistered) {
-                return;
-            }
-            if (!dataRegistered) {
-                throw new IllegalStateException(
-                        "The Data resource EMI stack converter must be registered before the generic AE key converter");
-            }
-            if (!registrar.getAsBoolean()) {
-                throw new IllegalStateException(
-                        "An AE2 EMI stack converter is already registered for generic custom AE keys");
-            }
-            genericRegistered = true;
+            registered = true;
         }
 
         synchronized void requireRegistered() {
-            if (!dataRegistered || !genericRegistered) {
+            if (!registered) {
                 throw new IllegalStateException(
-                        "Both AE2 EMI stack converters must be initialized before Data Energistics EMI registration");
+                        "The Data resource EMI stack converter must be initialized before Data Energistics EMI registration");
             }
         }
     }

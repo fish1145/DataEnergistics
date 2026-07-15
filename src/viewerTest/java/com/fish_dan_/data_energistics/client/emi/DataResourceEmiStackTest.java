@@ -4,13 +4,16 @@ import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.ae2.DataKeyType;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
+import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentPatch;
@@ -23,13 +26,13 @@ import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.LoadingModList;
 
 import appeng.api.client.AEKeyRenderHandler;
 import appeng.api.client.AEKeyRendering;
-import appeng.api.ids.AEComponents;
 import appeng.api.integrations.emi.EmiStackConverter;
 import appeng.api.integrations.emi.EmiStackConverters;
 import appeng.api.stacks.AEFluidKey;
@@ -37,13 +40,16 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
-import appeng.integration.modules.emi.EmiStackHelper;
+import appeng.client.gui.StackWithBounds;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import dev.emi.emi.api.stack.Comparison;
 import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.api.stack.EmiStackInteraction;
 import dev.emi.emi.screen.tooltip.RemainderTooltipComponent;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -64,7 +70,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class DataResourceEmiStackTest {
 
     private static final AEKeyRenderHandler<DataKey> TEST_DATA_KEY_RENDERER = new TestDataKeyRendererImpl();
-    private static final AEKeyRenderHandler<TestCustomKey> TEST_CUSTOM_KEY_RENDERER = new TestCustomKeyRendererImpl();
 
     @BeforeAll
     static void bootstrapMinecraftRegistries() {
@@ -77,9 +82,7 @@ public final class DataResourceEmiStackTest {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
         AEKeyRendering.register(DataKeyType.TYPE, DataKey.class, TEST_DATA_KEY_RENDERER);
-        AEKeyRendering.register(TestCustomKeyType.INSTANCE, TestCustomKey.class, TEST_CUSTOM_KEY_RENDERER);
         assertTrue(EmiStackConverters.register(DataResourceEmiStackConverter.INSTANCE));
-        assertTrue(EmiStackConverters.register(GenericAeKeyEmiStackConverter.INSTANCE));
         assertTrue(EmiStackConverters.register(new TestSpecializedConverterImpl()));
     }
 
@@ -108,35 +111,6 @@ public final class DataResourceEmiStackTest {
 
         @Override
         public List<Component> getTooltip(DataKey key) {
-            return List.of(getDisplayName(key));
-        }
-    }
-
-    private static final class TestCustomKeyRendererImpl implements AEKeyRenderHandler<TestCustomKey> {
-
-        @Override
-        public void drawInGui(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, TestCustomKey key) {
-            throw new UnsupportedOperationException("The tooltip test must not render custom keys");
-        }
-
-        @Override
-        public void drawOnBlockFace(
-                                    PoseStack poseStack,
-                                    MultiBufferSource buffers,
-                                    TestCustomKey key,
-                                    float scale,
-                                    int combinedLight,
-                                    Level level) {
-            throw new UnsupportedOperationException("The tooltip test must not render custom keys");
-        }
-
-        @Override
-        public Component getDisplayName(TestCustomKey key) {
-            return key.getDisplayName();
-        }
-
-        @Override
-        public List<Component> getTooltip(TestCustomKey key) {
             return List.of(getDisplayName(key));
         }
     }
@@ -208,164 +182,55 @@ public final class DataResourceEmiStackTest {
     }
 
     @Test
-    void genericStackUsesTheAeKeyAsIdentityAndPersistsItInOneComponent() {
-        GenericAeKeyEmiStack first = new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, 17L);
-        GenericAeKeyEmiStack second = new GenericAeKeyEmiStack(TestCustomKey.ALTERNATE, 17L);
+    void recipeAdapterAcceptsOnlyFluidAndDataResources() {
+        EmiStack fluid = DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(
+                new GenericStack(AEFluidKey.of(Fluids.WATER), Long.MAX_VALUE));
+        DataResourceEmiStack data = assertInstanceOf(
+                DataResourceEmiStack.class,
+                DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(new GenericStack(DataKey.of(), 64L)));
+        DataResourceEmiStack dataFlow = assertInstanceOf(
+                DataResourceEmiStack.class,
+                DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(new GenericStack(DataFlowKey.of(), 65L)));
 
-        assertInstanceOf(GenericAeKeyEmiKey.class, first.getKey());
-        assertSame(TestCustomKey.FALLBACK, first.aeKey());
-        assertEquals(TestCustomKey.FALLBACK.getId(), first.getId());
-        assertEquals(1, first.getComponentChanges().size());
-        assertEquals(
-                new GenericStack(TestCustomKey.FALLBACK, 1L),
-                first.getComponentChanges().get(AEComponents.WRAPPED_STACK).orElseThrow());
-        assertFalse(first.isEmpty());
-        assertTrue(first.isEqual(new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, 1L)));
-        assertFalse(first.isEqual(second));
-        assertThrows(IllegalArgumentException.class, () -> new GenericAeKeyEmiStack(AEItemKey.of(Items.STONE), 1L));
-        assertThrows(IllegalArgumentException.class, () -> new GenericAeKeyEmiStack(AEFluidKey.of(Fluids.WATER), 1L));
-        assertThrows(IllegalArgumentException.class, () -> new GenericAeKeyEmiStack(DataKey.of(), 1L));
-        assertThrows(IllegalArgumentException.class, () -> new GenericAeKeyEmiStack(DataFlowKey.of(), 1L));
-        assertThrows(IllegalArgumentException.class, () -> new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, 0L));
-        assertThrows(IllegalArgumentException.class, () -> new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, -1L));
-    }
-
-    @Test
-    void genericCopyAndTooltipPreserveTheFullIngredientContract() {
-        Comparison neverEqual = Comparison.of((first, second) -> false);
-        GenericAeKeyEmiStack remainder = new GenericAeKeyEmiStack(TestCustomKey.ALTERNATE, 5L);
-        GenericAeKeyEmiStack original = new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, Long.MAX_VALUE);
-        original.setChance(0.25F);
-        original.setRemainder(remainder);
-        original.comparison(neverEqual);
-
-        GenericAeKeyEmiStack copy = original.copy();
-        List<Component> tooltipText = original.getTooltipText();
-
-        assertNotSame(original, copy);
-        assertSame(TestCustomKey.FALLBACK, copy.aeKey());
-        assertEquals(Long.MAX_VALUE, copy.getAmount());
-        assertEquals(0.25F, copy.getChance());
-        assertNotSame(remainder, copy.getRemainder());
-        assertEquals(5L, copy.getRemainder().getAmount());
-        assertFalse(copy.isEqual(new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, 1L)));
-        assertEquals(TestCustomKey.FALLBACK.getDisplayName(), original.getName());
-        assertEquals(TestCustomKey.FALLBACK.getDisplayName(), tooltipText.getFirst());
-        assertEquals(
-                GenericStackDisplayHelper.createAmountTooltip(new GenericStack(TestCustomKey.FALLBACK, Long.MAX_VALUE)),
-                tooltipText.getLast());
-    }
-
-    @Test
-    void genericSerializerRebuildsIdentityAndRejectsMalformedStacks() {
-        GenericAeKeyEmiStackSerializer serializer = GenericAeKeyEmiStackSerializer.INSTANCE;
-        GenericAeKeyEmiStack original = new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, Long.MAX_VALUE);
-        GenericAeKeyEmiStack restored = assertInstanceOf(
-                GenericAeKeyEmiStack.class,
-                serializer.create(original.getId(), original.getComponentChanges(), original.getAmount()));
-
-        assertEquals("data_energistics_ae_key", serializer.getType());
-        assertSame(TestCustomKey.FALLBACK, restored.aeKey());
-        assertEquals(Long.MAX_VALUE, restored.getAmount());
-        assertEquals(original.getComponentChanges(), restored.getComponentChanges());
-
-        DataComponentPatch valid = original.getComponentChanges();
-        DataComponentPatch wrongIdentityAmount = DataComponentPatch.builder()
-                .set(AEComponents.WRAPPED_STACK, new GenericStack(TestCustomKey.FALLBACK, 2L))
-                .build();
-        DataComponentPatch itemIdentity = DataComponentPatch.builder()
-                .set(AEComponents.WRAPPED_STACK, new GenericStack(AEItemKey.of(Items.STONE), 1L))
-                .build();
-        DataComponentPatch removedIdentity = DataComponentPatch.builder()
-                .remove(AEComponents.WRAPPED_STACK)
-                .build();
-        DataComponentType<String> extraType = DataComponentType.<String>builder()
-                .persistent(Codec.STRING)
-                .build();
-        DataComponentPatch extraComponent = DataComponentPatch.builder()
-                .set(AEComponents.WRAPPED_STACK, new GenericStack(TestCustomKey.FALLBACK, 1L))
-                .set(extraType, "unexpected")
-                .build();
-        DataComponentPatch dataIdentity = DataComponentPatch.builder()
-                .set(AEComponents.WRAPPED_STACK, new GenericStack(DataKey.of(), 1L))
-                .build();
-        DataComponentPatch dataFlowIdentity = DataComponentPatch.builder()
-                .set(AEComponents.WRAPPED_STACK, new GenericStack(DataFlowKey.of(), 1L))
-                .build();
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> serializer.create(TestCustomKey.ALTERNATE.getId(), valid, 1L));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> serializer.create(TestCustomKey.FALLBACK.getId(), DataComponentPatch.EMPTY, 1L));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> serializer.create(TestCustomKey.FALLBACK.getId(), wrongIdentityAmount, 1L));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> serializer.create(ResourceLocation.withDefaultNamespace("stone"), itemIdentity, 1L));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> serializer.create(TestCustomKey.FALLBACK.getId(), removedIdentity, 1L));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> serializer.create(TestCustomKey.FALLBACK.getId(), extraComponent, 1L));
-        assertThrows(IllegalArgumentException.class, () -> serializer.create(DataKey.ID, dataIdentity, 1L));
-        assertThrows(IllegalArgumentException.class, () -> serializer.create(DataFlowKey.ID, dataFlowIdentity, 1L));
-        assertThrows(IllegalArgumentException.class, () -> serializer.create(TestCustomKey.FALLBACK.getId(), valid, 0L));
-        assertThrows(IllegalArgumentException.class, () -> serializer.create(TestCustomKey.FALLBACK.getId(), valid, -1L));
-    }
-
-    @Test
-    void genericConverterIsReverseOnlyAndPreservesCustomKeysAndLongAmounts() {
-        GenericAeKeyEmiStackConverter converter = GenericAeKeyEmiStackConverter.INSTANCE;
-        GenericAeKeyEmiStack emiStack = new GenericAeKeyEmiStack(TestCustomKey.FALLBACK, Long.MAX_VALUE);
-        GenericStack restored = converter.toGenericStack(emiStack);
-
-        assertEquals(GenericAeKeyEmiKey.class, converter.getKeyType());
-        assertNull(converter.toEmiStack(new GenericStack(TestCustomKey.FALLBACK, Long.MAX_VALUE)));
-        assertSame(TestCustomKey.FALLBACK, restored.what());
-        assertEquals(Long.MAX_VALUE, restored.amount());
-        assertNull(converter.toGenericStack(EmiStack.EMPTY));
-        assertNull(converter.toEmiStack(new GenericStack(AEItemKey.of(Items.STONE), 1L)));
-        assertNull(converter.toEmiStack(new GenericStack(AEFluidKey.of(Fluids.WATER), 1L)));
-        assertNull(converter.toGenericStack(EmiStack.of(Items.STONE)));
-        assertNull(converter.toGenericStack(EmiStack.of(Fluids.WATER)));
-    }
-
-    @Test
-    void recipeAdapterAcceptsDataResourcesAndRejectsUnsupportedCustomKeys() {
-        GenericStack stack = new GenericStack(DataKey.of(), 64L);
-
-        assertInstanceOf(DataResourceEmiStack.class, EmiStackHelper.toEmiStack(stack));
-        assertInstanceOf(DataResourceEmiStack.class, DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(stack));
+        assertSame(Fluids.WATER, fluid.getKeyOfType(Fluid.class));
+        assertEquals(Long.MAX_VALUE, fluid.getAmount());
+        assertEquals(DataResourceEmiKey.DATA, data.getKey());
+        assertEquals(64L, data.getAmount());
+        assertEquals(DataResourceEmiKey.DATA_FLOW, dataFlow.getKey());
+        assertEquals(65L, dataFlow.getAmount());
         assertThrows(
                 IllegalArgumentException.class,
                 () -> DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(
-                        new GenericStack(TestCustomKey.FALLBACK, 65L)));
+                        new GenericStack(AEItemKey.of(Items.STONE), 1L)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(
+                        new GenericStack(TestCustomKey.FALLBACK, 1L)));
     }
 
     @Test
-    void localFallbackPrefersLateSpecializedConvertersAndHandlesOtherwiseUnknownKeys() {
-        EmiStack converted = GenericAeKeyEmiStacks.toEmiStack(
-                new GenericStack(TestCustomKey.SPECIALIZED, 73L));
-        GenericAeKeyEmiStack fallback = assertInstanceOf(
-                GenericAeKeyEmiStack.class,
-                GenericAeKeyEmiStacks.toEmiStack(new GenericStack(TestCustomKey.FALLBACK, 74L)));
-        GenericAeKeyEmiStack zeroAmount = assertInstanceOf(
-                GenericAeKeyEmiStack.class,
-                GenericAeKeyEmiStacks.toEmiStack(new GenericStack(TestCustomKey.FALLBACK, 0L)));
+    void genericStackProviderUsesOnlyRegisteredAe2Converters() {
+        var provider = new PatternEncodingGenericStackEmiProvider();
 
-        TestSpecializedEmiStack specialized = assertInstanceOf(TestSpecializedEmiStack.class, converted);
-        assertSame(TestCustomKey.SPECIALIZED, specialized.aeKey());
-        assertEquals(73L, specialized.getAmount());
-        assertSame(TestCustomKey.FALLBACK, fallback.aeKey());
-        assertEquals(74L, fallback.getAmount());
-        assertEquals(1L, zeroAmount.getAmount());
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> GenericAeKeyEmiStacks.toEmiStack(new GenericStack(TestCustomKey.FALLBACK, -1L)));
+        EmiStackInteraction data = provider.getStackAt(
+                new TestGenericStackLookupScreen(new GenericStack(DataKey.of(), 64L)), 0, 0);
+        EmiStackInteraction specialized = provider.getStackAt(
+                new TestGenericStackLookupScreen(new GenericStack(TestCustomKey.SPECIALIZED, 73L)), 0, 0);
+        EmiStackInteraction unsupported = provider.getStackAt(
+                new TestGenericStackLookupScreen(new GenericStack(TestCustomKey.FALLBACK, 74L)), 0, 0);
+
+        DataResourceEmiStack dataStack = assertInstanceOf(DataResourceEmiStack.class, data.getStack());
+        TestSpecializedEmiStack specializedStack = assertInstanceOf(
+                TestSpecializedEmiStack.class,
+                specialized.getStack());
+
+        assertEquals(DataResourceEmiKey.DATA, dataStack.getKey());
+        assertEquals(64L, dataStack.getAmount());
+        assertTrue(data.isClickable());
+        assertSame(TestCustomKey.SPECIALIZED, specializedStack.aeKey());
+        assertEquals(73L, specializedStack.getAmount());
+        assertTrue(specialized.isClickable());
+        assertSame(EmiStackInteraction.EMPTY, unsupported);
     }
 
     @Test
@@ -382,6 +247,9 @@ public final class DataResourceEmiStackTest {
         assertEquals(
                 "data_energistics_key:data_energistics:data",
                 serializer.serialize(new DataResourceEmiStack(DataResourceEmiKey.DATA, 1L)).getAsString());
+        assertEquals(
+                "data_energistics_key:data_energistics:data_flow",
+                serializer.serialize(new DataResourceEmiStack(DataResourceEmiKey.DATA_FLOW, 1L)).getAsString());
 
         DataComponentType<String> testComponent = DataComponentType.<String>builder()
                 .persistent(Codec.STRING)
@@ -413,6 +281,20 @@ public final class DataResourceEmiStackTest {
     }
 
     @Test
+    void damagedSerializedStacksRestoreAsEmpty() {
+        DataResourceEmiStackSerializer serializer = DataResourceEmiStackSerializer.INSTANCE;
+        JsonObject zeroAmount = new JsonObject();
+        zeroAmount.addProperty("type", serializer.getType());
+        zeroAmount.addProperty("id", DataKey.ID.toString());
+        zeroAmount.addProperty("amount", 0L);
+
+        assertSame(
+                EmiStack.EMPTY,
+                serializer.deserialize(new JsonPrimitive("data_energistics_key:data_energistics:unknown")));
+        assertSame(EmiStack.EMPTY, serializer.deserialize(zeroAmount));
+    }
+
+    @Test
     void converterRoundTripsBothKeysAndPreservesLongAmounts() {
         DataResourceEmiStackConverter converter = DataResourceEmiStackConverter.INSTANCE;
 
@@ -435,40 +317,25 @@ public final class DataResourceEmiStackTest {
     }
 
     @Test
-    void converterRegistrationIsOrderedAndEachRegistrarRunsOnlyOnce() {
+    void converterRegistrationRunsOnceAndFailsOnConflict() {
         DataEnergisticsEmiPlugin.ConverterRegistration registration = new DataEnergisticsEmiPlugin.ConverterRegistration();
-        AtomicInteger dataInvocationCount = new AtomicInteger();
-        AtomicInteger genericInvocationCount = new AtomicInteger();
+        AtomicInteger invocationCount = new AtomicInteger();
 
         assertThrows(IllegalStateException.class, registration::requireRegistered);
-        assertThrows(IllegalStateException.class, () -> registration.registerGenericOnce(() -> true));
-        registration.registerDataOnce(() -> {
-            dataInvocationCount.incrementAndGet();
-            return true;
-        });
-        assertThrows(IllegalStateException.class, registration::requireRegistered);
-        registration.registerGenericOnce(() -> {
-            genericInvocationCount.incrementAndGet();
+        registration.registerOnce(() -> {
+            invocationCount.incrementAndGet();
             return true;
         });
         registration.requireRegistered();
-        registration.registerDataOnce(() -> {
-            dataInvocationCount.incrementAndGet();
-            return false;
-        });
-        registration.registerGenericOnce(() -> {
-            genericInvocationCount.incrementAndGet();
+        registration.registerOnce(() -> {
+            invocationCount.incrementAndGet();
             return false;
         });
 
-        assertEquals(1, dataInvocationCount.get());
-        assertEquals(1, genericInvocationCount.get());
+        assertEquals(1, invocationCount.get());
         assertThrows(
                 IllegalStateException.class,
-                () -> new DataEnergisticsEmiPlugin.ConverterRegistration().registerDataOnce(() -> false));
-        DataEnergisticsEmiPlugin.ConverterRegistration genericConflict = new DataEnergisticsEmiPlugin.ConverterRegistration();
-        genericConflict.registerDataOnce(() -> true);
-        assertThrows(IllegalStateException.class, () -> genericConflict.registerGenericOnce(() -> false));
+                () -> new DataEnergisticsEmiPlugin.ConverterRegistration().registerOnce(() -> false));
     }
 
     private static void assertConverted(DataResourceEmiStackConverter converter, AEKey key) {
@@ -484,6 +351,21 @@ public final class DataResourceEmiStackTest {
     }
 
     private record TestSpecializedIdentity(AEKey aeKey) {}
+
+    private static final class TestGenericStackLookupScreen extends Screen implements GenericStackLookupScreen {
+
+        private final GenericStack stack;
+
+        private TestGenericStackLookupScreen(GenericStack stack) {
+            super(Component.empty());
+            this.stack = stack;
+        }
+
+        @Override
+        public StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
+            return new StackWithBounds(stack, new Rect2i(0, 0, 16, 16));
+        }
+    }
 
     private static final class TestSpecializedEmiStack extends EmiStack {
 
@@ -597,9 +479,6 @@ public final class DataResourceEmiStackTest {
                 ResourceLocation.fromNamespaceAndPath("data_energistics", "viewer_test_fallback"));
         private static final TestCustomKey SPECIALIZED = new TestCustomKey(
                 ResourceLocation.fromNamespaceAndPath("data_energistics", "viewer_test_specialized"));
-        private static final TestCustomKey ALTERNATE = new TestCustomKey(
-                ResourceLocation.fromNamespaceAndPath("data_energistics", "viewer_test_alternate"));
-
         private final ResourceLocation id;
 
         private TestCustomKey(ResourceLocation id) {
