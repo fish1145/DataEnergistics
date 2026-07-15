@@ -18,6 +18,12 @@ import java.util.List;
  */
 public interface HostUiExtension {
 
+    /** Marker applied to root-mounted transient popup elements that consume Escape before a hosted window. */
+    String TRANSIENT_POPUP_CLASS = "data_energistics_host_transient_popup";
+
+    /** Root z-index reserved for transient popup content above every hosted window. */
+    int TRANSIENT_POPUP_Z = 1000;
+
     /**
      * Creates one extension and attaches its private overlay layer to the supplied host root.
      *
@@ -109,7 +115,7 @@ public interface HostUiExtension {
      * @param keyCode   GLFW key code
      * @param scanCode  platform scan code
      * @param modifiers active modifier mask
-     * @return whether Escape emitted a non-optimistic close request
+     * @return whether Escape closed a transient popup or emitted a non-optimistic window close request
      */
     boolean handleKeyPressed(int keyCode, int scanCode, int modifiers);
 

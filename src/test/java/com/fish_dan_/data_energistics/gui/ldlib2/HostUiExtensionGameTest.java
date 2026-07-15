@@ -14,10 +14,12 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.menu.AEBaseMenu;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -52,10 +54,23 @@ public final class HostUiExtensionGameTest {
         assertEquals(301, zIndex(cpu.latestRoot()));
         assertEquals(302, zIndex(crafting.latestRoot()));
         assertEquals(303, zIndex(autoBuild.latestRoot()));
+        assertSame(Sprites.RECT_DARK, background(main.latestDragHandle()));
+        assertSame(Sprites.RECT_DARK, background(cpu.latestDragHandle()));
+        assertSame(Sprites.RECT_DARK, background(crafting.latestDragHandle()));
+        assertSame(Sprites.RECT, background(autoBuild.latestDragHandle()));
         assertFalse(fixture.modularUI.shouldCloseOnEsc(), "host Escape close must pause while a child UI is open");
         assertDifferent(main.latestRoot(), cpu.latestRoot());
         assertDifferent(cpu.latestRoot(), crafting.latestRoot());
         assertDifferent(crafting.latestRoot(), autoBuild.latestRoot());
+
+        UIElement transientPopup = new UIElement().addClass(HostUiExtension.TRANSIENT_POPUP_CLASS);
+        fixture.root.addChild(transientPopup);
+        assertTrue(
+                fixture.extension.handleKeyPressed(256, 0, 0),
+                "Escape must close a root transient popup before a hosted window");
+        assertSame(null, transientPopup.getParent());
+        assertEquals(4, fixture.extension.openKeys().size());
+        assertEquals(0, autoBuild.closeCount);
 
         UIElement firstMainRoot = main.latestRoot();
         assertFalse(openLocally(fixture.extension, main.key()), "opening an existing key must only promote it");
@@ -65,9 +80,12 @@ public final class HostUiExtensionGameTest {
         assertEquals(301, zIndex(crafting.latestRoot()));
         assertEquals(302, zIndex(autoBuild.latestRoot()));
         assertEquals(303, zIndex(main.latestRoot()));
+        assertSame(Sprites.RECT_DARK, background(autoBuild.latestDragHandle()));
+        assertSame(Sprites.RECT, background(main.latestDragHandle()));
         assertFalse(fixture.extension.handleKeyPressed(65, 0, 0), "non-Escape input must remain with the host");
         assertTrue(closeTopmostLocally(fixture.extension), "topmost local fixture close must remove the child UI");
         assertEquals(1, main.closeCount);
+        assertSame(Sprites.RECT, background(autoBuild.latestDragHandle()));
         assertFalse(closeLocally(fixture.extension, main.key()), "a repeated close must be idempotent");
 
         assertTrue(openLocally(fixture.extension, main.key()), "a closed key must reopen");
@@ -580,6 +598,15 @@ public final class HostUiExtensionGameTest {
         return zIndex;
     }
 
+    /** Reads the explicit active/inactive title background written by host ordering. */
+    private static IGuiTexture background(UIElement element) {
+        IGuiTexture background = element.getStyle().getImportant(PropertyRegistry.BACKGROUND);
+        if (background == null) {
+            throw new GameTestAssertException("Expected an important title background candidate");
+        }
+        return background;
+    }
+
     /** Requires a true condition. */
     private static void assertTrue(boolean condition, String message) {
         if (!condition) {
@@ -661,6 +688,14 @@ public final class HostUiExtensionGameTest {
         /** Returns the root created by the latest provider invocation. */
         private UIElement latestRoot() {
             return this.roots.getLast();
+        }
+
+        /** Returns the drag handle belonging to the latest fresh hosted tree. */
+        private UIElement latestDragHandle() {
+            if (this.latestSubUi == null) {
+                throw new GameTestAssertException("Provider has not created a hosted tree");
+            }
+            return this.latestSubUi.dragHandle();
         }
     }
 

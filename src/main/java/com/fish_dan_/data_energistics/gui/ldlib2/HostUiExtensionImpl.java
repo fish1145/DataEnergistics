@@ -9,6 +9,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.Style;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.gui.util.WindowDragHelper;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.Nullable;
@@ -253,7 +254,33 @@ final class HostUiExtensionImpl implements HostUiExtension {
 
     @Override
     public boolean handleKeyPressed(int keyCode, int scanCode, int modifiers) {
-        return !this.disposed && keyCode == ESCAPE_KEY && requiredCoordinator().handleEscape();
+        if (this.disposed || keyCode != ESCAPE_KEY) {
+            return false;
+        }
+        if (closeTopmostTransientPopup()) {
+            return true;
+        }
+        return requiredCoordinator().handleEscape();
+    }
+
+    /** Removes the most recently mounted root popup before Escape reaches hosted-window membership. */
+    private boolean closeTopmostTransientPopup() {
+        List<UIElement> rootChildren = List.copyOf(this.hostRoot.getChildren());
+        for (int index = rootChildren.size() - 1; index >= 0; index--) {
+            UIElement popup = rootChildren.get(index);
+            if (!popup.hasClass(TRANSIENT_POPUP_CLASS)) {
+                continue;
+            }
+            ModularUI popupUi = popup.getModularUI();
+            if (!this.hostRoot.removeChild(popup)) {
+                throw violation("transient popup disappeared before Escape removal");
+            }
+            if (popupUi != null && Data_Energistics.isClientSide()) {
+                popupUi.clearFocus();
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -616,10 +643,15 @@ final class HostUiExtensionImpl implements HostUiExtension {
     /** Reassigns bounded, consecutive z-index values without detaching any resource-owning tree. */
     private void applyWindowOrder() {
         for (int index = 0; index < this.bottomToTop.size(); index++) {
+            WindowEntry entry = this.bottomToTop.get(index);
             int zIndex = BASE_WINDOW_Z + index;
             Style.importantPipeline(
-                    this.bottomToTop.get(index).subUi.root().getStyle(),
+                    entry.subUi.root().getStyle(),
                     style -> style.zIndex(zIndex));
+            boolean topmost = index == this.bottomToTop.size() - 1;
+            Style.importantPipeline(
+                    entry.subUi.dragHandle().getStyle(),
+                    style -> style.backgroundTexture(topmost ? Sprites.RECT : Sprites.RECT_DARK));
         }
     }
 
