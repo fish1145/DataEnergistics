@@ -1,11 +1,14 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 
 import org.jetbrains.annotations.Nullable;
+
+import java.util.UUID;
 
 /**
  * Exposes the Trinity Data Core host state required by its status GUI.
@@ -14,6 +17,11 @@ public interface TrinityDataCoreMenuHost {
 
     /** Sentinel displayed when the formed main storage core structure has no finite capacity limit. */
     String UNLIMITED_STORAGE_CAPACITY = "MAX";
+
+    /**
+     * Returns the persistent identity used to bind CPU status requests to this exact host.
+     */
+    UUID getHostId();
 
     /**
      * Reports whether the host has an active Trinity access hatch.
@@ -115,6 +123,11 @@ public interface TrinityDataCoreMenuHost {
      * Returns the authoritative storage contents and capacity profile as one immutable state.
      */
     TrinityDataCoreStorageStatus getStorageStatus();
+
+    /**
+     * Returns the exact ordered CPUs currently published by this structure to AE2.
+     */
+    TrinityCpuListStatus getCpuListStatus();
 
     /**
      * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.

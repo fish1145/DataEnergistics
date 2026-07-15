@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuProfile;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
@@ -848,6 +849,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
+    public TrinityCpuListStatus getCpuListStatus() {
+        return TrinityCpuListStatus.from(this.craftingRuntime);
+    }
+
+    @Override
     public int getCpuPartitionCount() {
         return this.craftingRuntime.profile().partitionCount();
     }
@@ -952,6 +958,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     public boolean hasActiveAccessHatch() {
         reevaluateAccessLease();
         return isStorageAvailable() && activeLeaseHatch() != null;
+    }
+
+    /**
+     * Returns the exact live lease owner used as the AE crafting-status terminal host.
+     */
+    public @Nullable TrinityAccessHatchBlockEntity getActiveAccessHatch() {
+        reevaluateAccessLease();
+        if (!isStorageAvailable() || !isCpuProviderAvailable()) {
+            return null;
+        }
+        return activeLeaseHatch();
     }
 
     public @Nullable IGrid accessGrid() {
