@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.block.decor.DollVariant;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
@@ -24,6 +25,7 @@ final class ClientItemModelPropertyRegistrar {
         registerMatterConvergingCrossbowProperties();
         registerDataCaptureBallProperties();
         registerLightSaberProperties();
+        registerDollProperties();
     }
 
     private static void registerMatterConvergingCrossbowProperties() {
@@ -85,6 +87,11 @@ final class ClientItemModelPropertyRegistrar {
                 (stack, level, entity, seed) -> LightSaberColorData.getModelValue(stack));
         ItemProperties.register(ModItems.DATA_SANCTIFIER.get(), Data_Energistics.id("powered"),
                 (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
+    }
+
+    private static void registerDollProperties() {
+        ItemProperties.register(ModItems.FISH_DAN.get(), Data_Energistics.id("doll_variant"),
+                (stack, level, entity, seed) -> DollVariant.fromStack(stack));
     }
 
     private static boolean isPowered(ItemStack stack) {

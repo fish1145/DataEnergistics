@@ -1,8 +1,19 @@
 {
 	"variants": {
-		"facing=north": { "model": "data_energistics:block/tedxenon" },
-		"facing=east": { "model": "data_energistics:block/tedxenon", "y": 90 },
-		"facing=south": { "model": "data_energistics:block/tedxenon", "y": 180 },
-		"facing=west": { "model": "data_energistics:block/tedxenon", "y": 270 }
+		"facing=north,variant=0": {
+			"model": "data_energistics:block/tedxenon"
+		},
+		"facing=east,variant=0": {
+			"model": "data_energistics:block/tedxenon",
+			"y": 90
+		},
+		"facing=south,variant=0": {
+			"model": "data_energistics:block/tedxenon",
+			"y": 180
+		},
+		"facing=west,variant=0": {
+			"model": "data_energistics:block/tedxenon",
+			"y": 270
+		}
 	}
 }

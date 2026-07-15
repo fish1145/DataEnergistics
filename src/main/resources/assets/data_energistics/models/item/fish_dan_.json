@@ -1,3 +1,29 @@
 {
-	"parent": "data_energistics:block/fish_dan_"
+	"parent": "data_energistics:block/fish_dan_0",
+	"overrides": [
+		{
+			"predicate": {
+				"data_energistics:doll_variant": 1
+			},
+			"model": "data_energistics:item/fish_dan_1"
+		},
+		{
+			"predicate": {
+				"data_energistics:doll_variant": 2
+			},
+			"model": "data_energistics:item/fish_dan_2"
+		},
+		{
+			"predicate": {
+				"data_energistics:doll_variant": 3
+			},
+			"model": "data_energistics:item/fish_dan_3"
+		},
+		{
+			"predicate": {
+				"data_energistics:doll_variant": 4
+			},
+			"model": "data_energistics:item/fish_dan_4"
+		}
+	]
 }

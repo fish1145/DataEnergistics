@@ -1,0 +1,81 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"item_inputs": [
+		{
+			"ingredient": {
+				"item": "data_energistics:data_reassembler"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"tag": "data_energistics:interface"
+			},
+			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 23
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_processor"
+			},
+			"count": 48
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:budding_data_crystal_2"
+			},
+			"count": 4
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_crystal_cluster"
+			},
+			"count": 24
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_storage_component_64m"
+			},
+			"count": 17
+		},
+		{
+			"ingredient": {
+				"tag": "c:ingots/digisidian_memorize"
+			},
+			"count": 41
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:time_core"
+			},
+			"count": 7
+		}
+	],
+	"fluid_inputs": [
+		{
+			"#": 13250,
+			"#t": "ae2:f",
+			"id": "data_energistics:ender"
+		},
+		{
+			"#": 14500,
+			"#t": "ae2:f",
+			"id": "data_energistics:data_corrosion_liquid"
+		}
+	],
+	"item_outputs": [
+		{
+			"id": "data_energistics:data_sanctum",
+			"count": 1
+		}
+	],
+	"key_input": {
+		"#t": "data_energistics:data_flow",
+		"#": 204700
+	}
+}

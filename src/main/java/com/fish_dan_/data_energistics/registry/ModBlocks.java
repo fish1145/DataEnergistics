@@ -283,7 +283,7 @@ public final class ModBlocks {
 
     public static final DeferredBlock<Block> FISH_DAN = BLOCKS.registerBlock(
             "fish_dan_",
-            DollBlock::new,
+            properties -> new DollBlock(properties, true),
             BlockBehaviour.Properties.ofFullCopy(Blocks.WHITE_WOOL).noOcclusion());
     public static final DeferredBlock<Block> QIUYEQAQ2024 = BLOCKS.registerBlock(
             "qiuyeqaq2024",

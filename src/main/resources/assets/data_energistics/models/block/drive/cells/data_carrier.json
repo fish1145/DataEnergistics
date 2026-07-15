@@ -2,8 +2,8 @@
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
 	"textures": {
-		"0": "data_energistics:block/drive/data_carriers",
-		"particle": "data_energistics:block/drive/data_carriers"
+		"0": "data_energistics:block/drive/data_flow_cells",
+		"particle": "data_energistics:block/drive/data_flow_cells"
 	},
 	"elements": [
 		{
@@ -12,10 +12,10 @@
 			"to": [5, 12, 2],
 			"rotation": { "angle": 0, "axis": "y", "origin": [3, 8, 0] },
 			"faces": {
-				"north": { "uv": [0, 0, 2, 4], "texture": "#0" },
-				"east": { "uv": [0, 0, 2, 4], "texture": "#0" },
-				"south": { "uv": [0, 0, 2, 4], "texture": "#0" },
-				"west": { "uv": [0, 0, 2, 4], "texture": "#0" }
+				"north": { "uv": [16, 0, 12, 2], "rotation": 90, "texture": "#0" },
+				"east": { "uv": [16, 0, 12, 2], "rotation": 90, "texture": "#0" },
+				"south": { "uv": [16, 0, 12, 2], "rotation": 90, "texture": "#0" },
+				"west": { "uv": [16, 0, 12, 2], "rotation": 90, "texture": "#0" }
 			}
 		}
 	]

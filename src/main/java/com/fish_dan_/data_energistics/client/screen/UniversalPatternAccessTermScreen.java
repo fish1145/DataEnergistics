@@ -8,7 +8,8 @@ import net.minecraft.world.entity.player.Inventory;
 import appeng.client.gui.me.patternaccess.PatternAccessTermScreen;
 import appeng.client.gui.style.ScreenStyle;
 
-public class UniversalPatternAccessTermScreen extends PatternAccessTermScreen<UniversalPatternAccessTermMenu> {
+public class UniversalPatternAccessTermScreen extends PatternAccessTermScreen<UniversalPatternAccessTermMenu>
+                                              implements Ae2NativeSlotHighlight {
 
     public UniversalPatternAccessTermScreen(UniversalPatternAccessTermMenu menu, Inventory playerInventory,
                                             Component title, ScreenStyle style) {

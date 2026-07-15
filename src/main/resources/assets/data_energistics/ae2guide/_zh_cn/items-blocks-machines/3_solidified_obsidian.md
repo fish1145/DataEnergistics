@@ -1,6 +1,6 @@
 ---
 navigation:
-  parent: data_energistics:items-blocks-machines/data_energistics.md
+  parent: data_energistics:items-blocks-machines/0_data_energistics.md
   title: 部分材料
   icon: data_energistics:obsidian_dust
   position: 3
@@ -10,7 +10,6 @@ item_ids:
 - data_energistics:digisidian_memorize_ingot
 - data_energistics:data_framework
 - data_energistics:residual_data_ore
-- data_energistics:data_capture_ball
 ---
 
 # 材料/框架
