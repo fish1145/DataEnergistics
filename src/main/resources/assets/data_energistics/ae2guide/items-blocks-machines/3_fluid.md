@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: 流体
+  title: Fluid
   icon: data_energistics:ender_bucket
   position: 3
 item_ids:
@@ -9,7 +9,7 @@ item_ids:
 - data_energistics:data_corrosion_liquid_bucket
 ---
 
-# 流体
+# Fluid
 
 <Row>
   <ItemImage id="data_energistics:ender_bucket" scale="6" />
@@ -18,9 +18,9 @@ item_ids:
 
 ---
 
-## 末影桶
+## Ender Bucket
 
-当活体接触到末影流体时，会在附近区域内随机传送。
+When a living creature comes into contact with Ender Fluid, it will randomly teleport within a nearby area.
 
 <Row>
     <ItemImage id="data_energistics:ender_bucket" scale="3" />
@@ -32,13 +32,13 @@ item_ids:
   <IsometricCamera yaw="25" pitch="25" />
 </GameScene>
 
-这种流体本身不会持续造成伤害，但会不断扰乱站在其中生物的位置。
+This fluid itself does not continuously cause damage, but it constantly disrupts the position of creatures standing within it.
 
 ---
 
-## 数据腐蚀液桶
+## Data Corrosion Liquid Bucket
 
-数据腐蚀液拥有极强的腐蚀性，接触到它的活体会持续受到极高伤害。它也可能生成在数位化陨石周围。
+Data Corrosive Liquid is highly corrosive; living beings exposed to it will suffer extremely high damage. It may also form around digital fossil meteorites.
 
 <Column>
   <Row>
@@ -51,4 +51,4 @@ item_ids:
   <IsometricCamera yaw="25" pitch="25" />
 </GameScene>
 
-它还会发出微弱光照，适合用在危险区域与特殊陷阱中。
+It also emits a faint light, making it suitable for hazardous areas and special traps.

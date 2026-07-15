@@ -1,15 +1,15 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: 工具/武器
+  title: Tools/Weapons
   icon: data_energistics:data_sanctifier
   position: 7
 ---
 
-# 工具/武器
+# Tools/Weapons
 
 ![Data Energistics Logo](/assets/logo.png)
 
-这一页作为 Data Energistics 在 AE2 Guide 体系中的数据工具/武器入口。
+This page serves as Data Energistics as the entry point for data tools/weapons within the AE2 Guide system.
 
->本页包含数据工具/武器内容。
+> This page contains data tools/weapon content.
