@@ -16,23 +16,23 @@
 
 ECO 已验证的实践是：以 `UIElement` 作为面板边界，以 `DataBindingBuilder` 将服务端 Supplier 绑定到 `Label`、`ProgressBar` 和可见性元素，并以 `setOnServerClick` 执行会改动服务端状态的按钮操作。
 
-## 推荐模块结构
+## 已落地模块结构
 
-同步/RPC-bearing 的 host 树、provider 接口和服务端动作放在非 client 包，使菜单 factory 能在 client/server 构造相同注册拓扑；`Scene`、`TrackedDummyWorld` 填充及纯渲染装饰放在 `client.ldlibui`。纯客户端视觉节点不得改变双方 sync value/RPC 的数量与注册顺序，也不得把专用客户端类泄漏到方块实体。
+同步/RPC-bearing 的 host 树、provider 接口、`StructurePreviewSceneElement` common shell 和服务端动作放在非 client 包，使菜单 factory 能在 client/server 构造相同注册拓扑；实际 `Scene`、`TrackedDummyWorld` 与渲染生命周期由 `client.gui.ldlib2.multiblock.StructurePreviewSceneBinderImpl` 挂到无 id 的 internal child。纯客户端视觉节点不得改变双方 sync value/RPC 的数量与注册顺序，也不得把专用客户端类泄漏到方块实体。
 
-| 建议组件 | 职责 |
+| 已落地组件 | 职责 |
 | --- | --- |
-| `MultiblockUiFactory` | 选择对应核心的 `ModularUI` 根树 |
-| `MultiblockStatusPanel` | 共用结构状态、失败提示与 tooltip |
-| `AutoBuildPanel` | 将 `MultiBlockAutoBuildOverlayDescription` 映射为 LDLib2 非模态子面板 |
-| `CompartmentUiFactory` | 按 `CompartmentType` 创建页面 |
-| `AeItemSlot` | 包装既有 `AppEngSlot`/`FakeSlot`，保持 AE2 展示与输入协议 |
-| `CompartmentSlotPanel` | 按 `SlotSemantic` 将已创建的菜单槽映射成 `AeItemSlot` |
-| `CompartmentUiActions` | 明确的翻页、退款、自动建造、模式切换服务端动作 |
-| `HostUiExtension` | 主机 UI 挂载多个可拖动、可开关子面板的稳定接口 |
-| `DraggableSubUi` | 用 `WindowDragHelper` 管理窗口位置和显示状态，不持有业务权威状态 |
+| `AeMenuBridge` / `AeMenuBridgeImpl`、`AeItemSlot` | 将既有 AE2 菜单槽登记到 LDLib2，保持 fake-slot、wrapped stack、tooltip 与菜单索引协议 |
+| `HostUiExtension` / `HostUiExtensionImpl` | 注册、打开、关闭、置顶与约束多个 hosted window，并保存每个 host 实例的客户端窗口状态 |
+| `HostUiCoordinator` / `HostUiCoordinatorImpl` | 以单调 sequence 协调两端动态树 membership，拒绝过期、重复和无效 provider 请求 |
+| `HostSubUiProvider`、`HostSubUiRoot`、`HostWindowPlacement` | 每次打开创建新树，聚合清理资源，并把窗口位置约束到真实 screen bounds；仅对首次默认位置做碰撞级联 |
+| `StructurePreviewUiFactory` / `StructurePreviewUiFactoryImpl` | 从纯预览 spec/selection 创建新的 `StructurePreviewSession`、panel 与 `Scene` 绑定；host 与 XEI 不共享实例 |
+| `TrinityDataCoreStructureProvider`、`TrinityDataCoreAutoBuildProvider` | 实现 `main`、`cpu`、`crafting` 与 `auto_build` 四个真实 provider |
+| `TrinityHostedWindowChrome`、`TrinityDataCoreHostLauncherPanel` | 统一四窗几何、拖动标题栏、关闭按钮与始终可达的四按钮 launcher rail |
+| `CompartmentHostUi`、`CompartmentSlotPanel`、四类 compartment panel | 按 `CompartmentType` 挂载独立容器根树，并按 `SlotSemantic` 包装既有菜单槽 |
+| `MultiblockXeiUiFactory`、`TrinityMultiblockJeiCategory`、`TrinityMultiblockEmiRecipe` | 让 JEI/EMI 消费同一份普通多方块配方视图和 UI composition，同时各自持有运行时 UI/Scene |
 
-上述名称是迁移期建议；落地时应遵循项目既有包和命名风格，并为公共接口补齐动机与成员注释。
+公共逻辑继续面向接口；实现类只在各自 factory/入口内部使用。上述名称均来自当前生产代码，不再保留迁移期的占位命名。
 
 ## 容器策略
 
@@ -44,16 +44,16 @@ ECO 已验证的实践是：以 `UIElement` 作为面板边界，以 `DataBindin
 
 ## 依赖接入工作项
 
-1. 在项目仓库声明 FirstDark snapshots 仓库和 LDLib2 NeoForge all artifact；Data Energistics 的权威版本固定为 `2.2.8`。ECO 使用的 `2.2.1` 和 `F:/mc/ldlib/LDLib2` 当前 `2.2.28` 只能作版本差异参考，不能用它们的 API 推断本项目行为。
+1. 项目已升级并适配 LDLib2 NeoForge all artifact `2.2.28`；实现和审查必须以 Gradle 实际解析的 `2.2.28` source/binary 为准。ECO 与本地 LDLib2 仓库只用于设计和源码对照，不能覆盖本项目解析到的 API 契约。
 2. 执行前读取系统环境变量 `GRADLE_USER_HOME`；只在其已设置且解析路径位于 `E:/` 盘时解析依赖。不得自行创建、重定向或通过 `-g` 覆盖 Gradle 缓存目录。
-3. 添加 `ILDLibPlugin` 实现，集中注册项目 LSS、纹理和可选 XEI 集成。
-4. 以 Trinity Data Core 作为首个垂直切片，在现有 AE2 菜单上验证 LDLib2 挂载、既有玩家槽映射、单次渲染和网络初始化顺序。
+3. Trinity Data Core、Pattern Core 与五类舱室已在现有 AE2 菜单上完成 LDLib2 挂载；既有玩家槽和机器槽均通过 bridge 映射，不创建第二套菜单槽。
+4. JEI/EMI 集成保持可选加载边界，XEI 页面与方块 host 只共享纯 spec/selection 和无宿主状态的 factory，不共享 provider、元素树、`Scene` 或 lifecycle RPC。
 
-实现和审查以 Gradle 已解析的 LDLib2 `2.2.8` source jar 为准；若未来升级版本，必须作为独立工作包重新审计生命周期、sync/RPC、XEI 与 mixin 行为，不能在本迁移中顺带采用 `2.2.28` 新 API。
+后续若再次升级 LDLib2，仍须独立审计生命周期、sync/RPC、XEI、Taffy 布局与 mixin 行为；当前迁移的权威基线是 `2.2.28`。
 
 ## 双端同构与动态窗口协议
 
-LDLib2 `2.2.8` 的 `UISyncManager` 按注册顺序为 sync value 与 RPC 分配整数 ID，移除后 ID 不复用。因此“同构”至少要求两端所有会注册 sync/RPC 的元素及其注册顺序完全一致；纯客户端 `Scene` 装饰可以通过受控 client factory 创建，但不得插入额外 binding/RPC 或改变动态 provider 的注册顺序。
+LDLib2 `2.2.28` 的 `UISyncManager` 按注册顺序为 sync value 与 RPC 分配整数 ID，移除后 ID 不复用。因此“同构”至少要求两端所有会注册 sync/RPC 的元素及其注册顺序完全一致；纯客户端 `Scene` 装饰可以通过受控 client factory 创建，但不得插入额外 binding/RPC 或改变动态 provider 的注册顺序。
 
 1. 菜单构造器先建立 AE 槽和 client action，再构造静态 host root、生命周期 coordinator、状态面板与槽 wrapper，最后由 `AeMenuBridge` 挂载。静态 root 在菜单整个生命周期中保持附着。
 2. coordinator 在静态 root 上只注册一次 message/RPC，并维护单调 `sequence`。客户端提交 `{operation, providerKey, sequence}`；服务端验证菜单、host、provider key 和当前 membership，先 open/close 服务端树，再返回 ack；客户端只处理与 pending request 匹配且顺序合法的 ack。
@@ -62,7 +62,7 @@ LDLib2 `2.2.8` 的 `UISyncManager` 按注册顺序为 sync value 与 RPC 分配�
 5. 第一个动态切片只允许 S2C binding 或在 open ack 前禁用所有动态 C2S 控件，避免服务端尚未注册对应 RPC 时客户端提前发送动作。拒绝、超时或乱序响应只清理 pending 状态，不得乐观改变 membership。
 6. 拖动位置、z-order、相机、hover、选中位置和 `visibleLayer` 是客户端 view state，不参与 coordinator membership、sync ID 或普通配方。禁止使用 ECO 的预挂载隐藏窗口模式来固定 ID。
 
-Screen 继续继承 `AEBaseScreen` 以保留 AE fake-slot 点击包、wrapped stack 与 tooltip 协议。LDLib2 在 `ScreenEvent.Init.Pre` 自动把 `ModularUI` widget 加入 Screen；`render()` 只调用一次 `super.render()`，不得手动再次绘制 MUI。完整迁移后 `drawBG`/`drawFG`、旧 overlay、toolbar 和旧 style text 都必须移除或改为空的协议适配内容。`1aeb1cf8` 已迁移状态面板与 36 个玩家槽，旧自动搭建入口留到其独立 provider 工作包移除。
+Screen 继续继承 `AEBaseScreen` 以保留 AE fake-slot 点击包、wrapped stack 与 tooltip 协议。LDLib2 在 `ScreenEvent.Init.Pre` 自动把 `ModularUI` widget 加入 Screen；`render()` 只调用一次 `super.render()`，不得手动再次绘制 MUI。Data Core、Pattern Core、舱室和自动搭建的旧手工绘制生产入口均已切换；保留的 Screen 只承担尺寸和 AE2 输入协议适配，不得再次绘制同一 MUI。
 
 ## 通用预览分层
 
@@ -81,8 +81,12 @@ Screen 继续继承 `AEBaseScreen` 以保留 AE fake-slot 点击包、wrapped st
 
 四窗允许同时打开，自动搭建不嵌入任一结构窗口。每个子面板必须支持显式 open/close、标题栏拖动、点击提升 z-order、Esc 按最上层逐个关闭、viewport 约束、XEI extra area 更新和关闭时释放 `Scene` 资源。`close()` 必须调用 overlay layer 的 `removeChild`，重新打开时 provider 创建全新的元素树和 `Scene`，不能只隐藏或复用旧实例。自动建造使用普通绝对定位元素配合 `WindowDragHelper` 保持非模态；`Dialog.windowMode` 只用于真正需要模态交互的窗口。每个 host UI 实例独立保存四窗的位置和层级；拖动位置、显示层、相机和 hover 不写入结构选择、普通 XEI 配方或服务端数据。
 
+`TrinityHostedWindowChrome` 已把四窗统一为 `292x210`：标题和关闭控件占顶部，左侧 `196px` 预览区持有各自的 `StructurePreviewPanel`/`Scene`，右侧 `84px` 区域承载状态滚动列表或自动搭建动作。`TrinityDataCoreHostLauncherPanel` 使用 important `z-index: 400`，始终高于 `HostUiExtensionImpl` 从 300 开始分配的 hosted window 层级，避免四窗遮住重新打开入口。
+
+首次打开且没有已保存/拖动位置时，host 使用真实 screen bounds 检测窗口是否会完全遮住下层标题，并按 `7px` 步长级联；在最小 `320x240` GUI 中，四个 `292x210` 窗口依次落在 `(4,4)`、`(11,11)`、`(18,18)`、`(24,25)`。已保存位置和用户拖动位置优先，不参与默认碰撞级联；互不重叠的默认位置也不应被移动。
+
 host provider 与 XEI recipe adapter 不共享 provider 实例。两者只委托同一个无宿主状态的纯 UI factory；factory 每次接收纯 selection/snapshot 和明确动作接口并返回新树。XEI 版本不注册 host lifecycle RPC，host 版本也不能持有 XEI session。
 
-## LDLib2 2.2.8 清理边界
+## LDLib2 2.2.28 清理边界
 
 `UIElement.removeChild` 会先从父 `children` 删除目标，再依次调用 `onRemoved()`、清除 `ModularUI`、清除 parent 与结构缓存；任一 `REMOVED`/`MUI_CHANGED` listener 抛错都会使后续清理中断。`HostSubUiRoot` 的 post-order 清理、异常聚合和 exactly-once 资源回调只能继续释放可达同级资源，不能恢复 LDLib2 已残留的私有 parent/MUI/cache 状态。出现该异常后 host 必须转为 terminal、记录完整日志并禁止树复用；发布验收必须注入 listener 失败，验证后续资源仍被尝试释放且不会反射修补或二次释放。

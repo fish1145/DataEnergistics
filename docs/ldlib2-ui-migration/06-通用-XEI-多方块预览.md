@@ -29,14 +29,14 @@ XEI 页面、主机 UI 中的可拖动子面板、方块内自动建造面板和
 
 | 控件 | 行为 |
 | --- | --- |
-| 子结构 selector | 在 main/cpu/crafting 等成员之间切换；保留各成员自己的 tier/repeat 选择 |
+| 子结构 selector | 在 main/cpu/crafting 等成员之间切换；使用横向 `ScrollerView` 容纳任意数量子结构，按钮最小宽度为 64px，并保留各成员自己的 tier/repeat 选择 |
 | variant selector | 切换当前具名子结构内部的 shape/variant；不与 repeat 或显示层共用索引 |
 | tier selector | 只修改当前子结构的替换部件档位，并重建快照 |
 | repeat stepper | 按定义的 min/max 修改重复段次数，并重建快照 |
 | 显示层控制 | 支持全部、上一层、下一层、指定层；只过滤渲染坐标 |
 | formed toggle | 可选显示 formed 模型，仅影响渲染态，不改变材料和样板 |
 | 材料 scroller | 只展示 `MultiblockRecipeView.inputs()` 的规范化材料及数量，并标记为 XEI input |
-| 方块选中 | 显示该位置允许的候选、谓词提示和所属逻辑层；检查控件本身不注册 recipe role |
+| 候选栏/方块选中 | 共用 composition 中显示该位置允许的候选、谓词提示和所属逻辑层；检查控件本身不注册 recipe role |
 | 样板按钮 | 对当前 `MultiblockRecipeView` 发起标准 JEI/EMI transfer；最终编码仍由 AE 菜单完成 |
 
 主机 UI 嵌入时，以上控件放入可拖动、可关闭的非模态子窗口。子窗口 provider 只能接收纯模型和明确动作接口，不得引用具体主机 Screen。host provider 与 XEI adapter 分别委托同一个无宿主状态的纯 UI factory；不得复用 provider、元素实例或运行时资源。关闭必须从 host overlay `removeChild` 并释放 `Scene`/dummy world，重开由 provider 创建全新实例。
@@ -51,7 +51,15 @@ variant、等级和重复层数必须由定义提供合法域。XEI 客户端可
 
 JEI 参考 GT/ECO 继承 `ModularUIRecipeCategory`，EMI 继承 `ModularUIEMIRecipe`。两者使用同一个纯 UI factory，不复制按钮逻辑。每个 controller 只注册一个稳定 `registeredRecipeId`；子结构和参数是页面内部选择，不为每个组合预注册 recipe，避免组合爆炸。
 
-当前选择改变后，session 计算 `projectionFingerprint = definitionRevision + structureKey + variantIndex + tier/repeat + candidateSelections` 并刷新规范 recipe ingredient；`registeredRecipeId` 不改变。该对象是普通 XEI 配方视图，不注册 AE 专属 RecipeType，也不携带编码后的样板 ItemStack。JEI setup 会固化 ingredient，EMI 也会缓存 inputs/outputs，因此展示缓存不能作为 transfer 权威来源；typed handler 必须在点击瞬间读取 session 的 `currentRecipeView()` 并校验 revision/fingerprint。
+当前选择改变后，session 计算 `projectionFingerprint = definitionRevision + structureKey + variantIndex + tier/repeat + candidateSelections` 并刷新规范 recipe ingredient；`registeredRecipeId` 不改变。该对象是普通 XEI 配方视图，不注册 AE 专属 RecipeType，也不携带编码后的样板 ItemStack。两端页面共用同一套 composition、横向子结构栏、候选栏、规范 input 槽和 controller/owner output 槽；XEI adapter 只处理各自生命周期与 ingredient API。
+
+动态展示已经接入刷新，但展示 ingredient 仍不能作为 transfer 权威来源：typed handler 必须在用户点击瞬间读取 session 的 `currentRecipeView()` 并校验 revision/fingerprint。
+
+### 动态 ingredient 生命周期
+
+JEI 的 recipe layout setup 会固化 formal slots，公共 API 没有针对既有 formal slots 的原位 invalidation。当前实现把 session 变化合并为一次延迟刷新，随后调用公开 `showRecipes` 重建页面/formal slots，并接受导航历史增加这一可见副作用；JEI runtime stop 时释放 category `uiCache`，后续 runtime start 可以重新注册。禁止通过反射、强转 JEI 私有实现或访问私有缓存绕过该边界。
+
+EMI recipe wrapper 的 `getInputs()`/`getOutputs()` 直接读取 live `MultiblockRecipeView`。当新选择需要更多规范槽时，先扩容复用槽池，再延迟调用 `focusRecipe` 让页面重建布局；收缩时隐藏多余槽，不把旧材料继续暴露为 recipe role。该展示刷新只服务于页面一致性，transfer 仍从点击瞬间的 `currentRecipeView()` 建立请求。
 
 ## Recipe Role 隔离
 
@@ -65,13 +73,15 @@ REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引
 
 ## 当前实现状态
 
-截至 `b5724470`：
+截至实现锚点 `b5780774`（文档提交位于其后）：
 
 1. common preview selection/snapshot/material/`MultiblockRecipeView`、Trinity catalog、preview session、交互面板、纯 UI factory、Scene 绑定和客户端资源隔离均已提交。
-2. `main`、`cpu`、`crafting` 三个具名结构共享 controller 级注册身份；页面可独立切换 `structureKey`、结构内 `variantIndex`、tier/repeat、candidate 和逻辑层/显示层。第四个 `auto_build` 是 host 子 UI，不是 XEI 子结构或 variant。
-3. JEI `ModularUIRecipeCategory` 与 EMI `ModularUIEMIRecipe` 页面已经按同一 composition/factory 接入，并完成 recipe role 隔离与适配逻辑测试。
-4. `b5724470` 后工作区已实现 JEI/EMI typed transfer handler。两端都绕过 XEI 固化的 ingredient cache，在点击瞬间读取唯一 `currentRecipeView()`。JEI 在发请求前处理 source/identity 异常并检查真实 slot filter 与 `maxAmount`；EMI 只响应显式 `FILL_BUTTON`，避免 craft/其他上下文误触发。JEI 与 EMI 定向 JUnit 均为 7/7，尚待按功能提交和全量集成验收。
-5. 可选 `ae2jeiintegration` 的直接 handler 类型放在独立注册类中，只在确认 mod id 已加载后调用，不用反射，也不让缺失的可选类型污染基础 JEI 插件路径。EMI mixin 在具体 `EmiEncodePatternHandler` 上提供 `supportsRecipe`，修复父类 catch-all，使 AE2 handler 只对 DataE typed multiblock recipe defer。
+2. `main`、`cpu`、`crafting` 三个具名结构共享 controller 级注册身份；通用横向 scroller 支持更多子结构，页面可独立切换 `structureKey`、结构内 `variantIndex`、tier/repeat、candidate 和逻辑层/显示层。第四个 `auto_build` 是 host 子 UI，不是 XEI 子结构或 variant。
+3. JEI `ModularUIRecipeCategory` 与 EMI `ModularUIEMIRecipe` 页面已经按同一 composition/factory 接入，共用候选栏、规范 input 与 owner output，并完成 recipe role 隔离与适配逻辑测试。
+4. JEI/EMI typed transfer handler 已提交。两端都在点击瞬间读取唯一 `currentRecipeView()`。JEI 在发请求前处理 source/identity 异常并检查真实 slot filter 与 `maxAmount`；EMI 只响应显式 `FILL_BUTTON`，避免 craft/其他上下文误触发。
+5. JEI 延迟合并动态 ingredient 刷新，并在 runtime stop 时释放 category `uiCache` 以支持重新注册；EMI 使用 live `getInputs()`/`getOutputs()`，槽池扩容后延迟 `focusRecipe`。JEI lifecycle 与 EMI live ingredient 均有定向逻辑测试。
+6. 可选 `ae2jeiintegration` 的直接 handler 类型放在独立注册类中，只在确认 mod id 已加载后调用，不用反射，也不让缺失的可选类型污染基础 JEI 插件路径。EMI mixin 在具体 `EmiEncodePatternHandler` 上提供 `supportsRecipe`，修复父类 catch-all，使 AE2 handler 只对 DataE typed multiblock recipe defer。
+7. 最终 `spotlessCheck compileJava compileTestJava test runGameTestServer build` 已通过，服务端 GameTest 为 367/367，本地质量审计也已完成；文档提交/推送、Draft PR CI 和客户端验收仍按 P9 实际状态继续。
 
 客户端 GameTest 尚不能作为完成证据：当前启动阶段因 Oritech 缺少 Athena 运行时依赖而阻塞。禁止修改生产依赖规避；服务端 GameTest 和 plain JUnit 通过只证明模型、协议或 handler 逻辑，不证明 JEI/EMI 页面非空渲染、旋转缩放、选择控件、transfer 按钮、错误提示、extra area 和资源释放。外部运行环境修复后必须补跑客户端验证。
 
@@ -86,6 +96,9 @@ REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引
 | 检查方块候选 | 辅助槽保持 recipe role NONE，transfer 输入只来自规范汇总槽 |
 | 资源重载 | 旧缓存释放，新 revision 生成新快照 |
 | 关闭页面 | Scene 渲染资源和 dummy world 引用被释放 |
+| JEI 动态刷新 | session 变化被延迟合并；runtime stop 释放 `uiCache`，再次 start 可重新注册；不使用反射或私有 formal slot 实现 |
+| JEI formal slots 刷新 | session 变化先合并延迟请求，再调用公开 `showRecipes` 重建页面/formal slots，并接受导航历史增加的可见副作用 |
+| EMI 动态刷新 | `getInputs()`/`getOutputs()` 返回当前材料；材料种类增长时槽池扩容并延迟 `focusRecipe`，旧槽不残留 recipe role |
 | JEI/EMI transfer | 点击时读取当前 typed recipe view；不使用旧 ingredient cache，不直接编码样板或搬运物料 |
 | JEI 预检 | source/identity、slot filter、maxAmount 或菜单访问异常均在发请求前返回可见错误 |
 | 可选 JEI 集成缺失 | 基础插件仍可加载；不反射、不解析或调用 `ae2jeiintegration` 的类型 |

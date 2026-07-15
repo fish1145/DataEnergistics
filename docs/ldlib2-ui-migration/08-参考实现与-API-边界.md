@@ -29,13 +29,15 @@ ECO 的浮窗策略通过预先注册隐藏树保持 sync/RPC ID 稳定，适合
 
 ## LDLib2
 
-Data Energistics 实际解析 LDLib2 `2.2.8`，ECO 使用 `2.2.1`，而 `F:/mc/ldlib/LDLib2` 当前源码是 `2.2.28`。已确认 `2.2.8` 公共能力包括 `Scene`、`TrackedDummyWorld`、`ModularUIRecipeCategory`、`ModularUIEMIRecipe`、`IngredientIO`、`ItemSlot`、`ScrollerView`、`DataBindingBuilder` 与服务端点击；所有实现结论必须以 `2.2.8` source jar 为准，不能用工作区新版本 API 替代。正常生命周期下，首轮业务 UI 不需要修改 LDLib2。
+Data Energistics 当前实际解析并构建于 LDLib2 `2.2.28`，`F:/mc/ldlib/LDLib2` 工作区源码也是 `2.2.28`；ECO 使用的 `2.2.1` 仅作旧版实现参考。已按 `2.2.28` source jar 核对 `Scene`、`TrackedDummyWorld`、`ModularUIRecipeCategory`、`ModularUIEMIRecipe`、`IngredientIO`、`ItemSlot`、`ScrollerView`、`DataBindingBuilder` 与服务端点击等公共能力，所有生命周期、sync/RPC 和 XEI 结论都以该版本为权威。正常生命周期下，本轮业务 UI 不需要修改 LDLib2。
 
 `MenuTypeBuilder` 会在服务端和客户端分别调用同一菜单 factory，`AbstractContainerMenuMixin#setModularUI` 把整树注册到 `UISyncManager`；初始数据随菜单打开包写入并在客户端菜单创建后读取。sync value 与 RPC 使用按注册顺序增长、移除不复用的 ID，因此动态树必须在两端按同一 sequence open/close/reopen。
 
 `Button#setOnServerClick` 最终注册元素 RPC；`UIEventDispatcher` 在目标元素的本地 listener 之后才发送 server event。关闭按钮若同时本地 `requestClose()` 并注册 server click，本地移除会先清掉元素的 MUI/RPC，导致服务端事件无法发送。正确边界是在静态 root coordinator 上 request/ack，服务端先改权威树，客户端收到 ack 后再改镜像树；Esc 和外部 close 使用相同入口。
 
-已知上游边界：LDLib2 2.2.8 的 `UIElement.removeChild` 在 `REMOVED` 或 `MUI_CHANGED` listener 抛错时，会在清除 `parent`、后代 `ModularUI` 和结构缓存前退出；这些字段没有公开恢复入口。Data Energistics 的 `HostSubUiRoot` 已实现 post-order sibling continuation、异常聚合、外部 `removeSelf()` terminal 通知和资源 exactly-once 防护，但不能修复已经残留的 LDLib2 私有结构状态。异常后 host 必须转为 terminal 并禁止复用残留树。完整上游修复需要让 `UIElement.onRemoved`、`_setModularUIInternal`、`removeChild`、lifecycle event dispatcher、`Scene` 与 `ModularUI` 在异常下继续清理并最后重抛首异常；未取得针对 LDLib2 仓库的明确 Git 授权前只记录并测试该边界，不在本任务分支伪造反射或重复释放补偿。
+已知上游边界：LDLib2 `2.2.28` 的 `UIElement.removeChild` 在 `REMOVED` 或 `MUI_CHANGED` listener 抛错时，会在清除 `parent`、后代 `ModularUI` 和结构缓存前退出；这些字段没有公开恢复入口。Data Energistics 的 `HostSubUiRoot` 已实现 post-order sibling continuation、异常聚合、外部 `removeSelf()` terminal 通知和资源 exactly-once 防护，但不能修复已经残留的 LDLib2 私有结构状态。异常后 host 必须转为 terminal 并禁止复用残留树。完整上游修复需要让 `UIElement.onRemoved`、`_setModularUIInternal`、`removeChild`、lifecycle event dispatcher、`Scene` 与 `ModularUI` 在异常下继续清理并最后重抛首异常；未取得针对 LDLib2 仓库的明确 Git 授权前只记录并测试该边界，不在本任务分支伪造反射或重复释放补偿。
+
+JEI 公共 API 没有对已经建立的 formal slots 做原位 invalidation 的入口。Data Energistics 先合并并延迟刷新请求，再调用公开 `showRecipes` 重建页面/formal slots，并接受导航历史增加；runtime stop 时释放 category `uiCache`，下一次 start 可重新注册。不得通过反射、访问 JEI 私有实现或依赖内部缓存规避这一边界。EMI 可以通过 live `getInputs()`/`getOutputs()` 暴露新材料，并在槽池扩容后延迟 `focusRecipe`，但两端展示状态都不能替代点击瞬间的 typed `currentRecipeView()`。
 
 ## Modular Data Lib 边界
 
