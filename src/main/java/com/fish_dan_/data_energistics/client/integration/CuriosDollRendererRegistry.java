@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.client.integration;
 
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
+import com.fish_dan_.data_energistics.block.decor.DollVariant;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -98,6 +100,10 @@ public final class CuriosDollRendererRegistry {
             BlockState state = blockItem.getBlock().defaultBlockState();
             if (state.hasProperty(DollBlock.FACING)) {
                 state = state.setValue(DollBlock.FACING, Direction.NORTH);
+            }
+            if (state.hasProperty(DollBlock.VARIANT)) {
+                int variant = stack.is(ModItems.FISH_DAN.get()) ? DollVariant.fromStack(stack) : 0;
+                state = state.setValue(DollBlock.VARIANT, variant);
             }
 
             poseStack.translate(-BLOCK_CENTER, 0.0D, -BLOCK_CENTER);

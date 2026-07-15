@@ -60,6 +60,7 @@
 		"advancedae.AdvancedAeSmallPatternProviderScreenMixin",
 		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
 		"ae2lt.Ae2ltWirelessConnectorRendererMixin",
+		"client.AEBaseScreenSlotHighlightMixin",
 		"client.Ae2CustomKeyGuiMixin",
 		"client.CompartmentOptionalSlotLabelMixin",
 		"client.CPUSelectionListMixin",
@@ -69,6 +70,8 @@
 		"core.PatternProviderScreenMixin",
 		"core.WidgetContainerAccessor",
 		"emi.EmiEncodePatternHandlerMixin",
+		"guideme.GuideNavBarMixin",
+		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin"
 	],

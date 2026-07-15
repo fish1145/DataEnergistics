@@ -9,6 +9,12 @@
 		},
 		{
 			"ingredient": {
+				"item": "ae2:spatial_cell_component_16"
+			},
+			"count": 17
+		},
+		{
+			"ingredient": {
 				"tag": "c:gems/amethyst"
 			},
 			"count": 8

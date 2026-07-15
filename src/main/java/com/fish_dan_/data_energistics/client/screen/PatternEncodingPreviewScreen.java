@@ -51,7 +51,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T> {
+public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T>
+                                         implements Ae2NativeSlotHighlight {
 
     private static final Optional<VarHandle> WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");

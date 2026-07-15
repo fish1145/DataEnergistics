@@ -11,23 +11,17 @@
 			"ingredient": {
 				"item": "ae2:speed_card"
 			},
-			"count": 16
+			"count": 46
 		},
 		{
 			"ingredient": {
 				"item": "data_energistics:data_dust"
 			},
-			"count": 8
+			"count": 27
 		},
 		{
 			"ingredient": {
-				"item": "data_energistics:data_storage_component_64k"
-			},
-			"count": 1
-		},
-		{
-			"ingredient": {
-				"item": "ae2:spatial_cell_component_128"
+				"item": "data_energistics:data_storage_component_256m"
 			},
 			"count": 4
 		},
@@ -36,6 +30,12 @@
 				"tag": "ae2:interface"
 			},
 			"count": 1
+		},
+		{
+			"ingredient": {
+				"item": "data_energistics:data_framework"
+			},
+			"count": 8
 		}
 	],
 	"item_outputs": [
@@ -46,6 +46,6 @@
 	],
 	"key_input": {
 		"#t": "data_energistics:data_flow",
-		"#": 120000
+		"#": 120400
 	}
 }

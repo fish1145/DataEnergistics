@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.blockentity.DataSanctumReturnPortalBlockEn
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DollBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.MePatternBufferBlockEntity;
@@ -119,6 +120,10 @@ public final class ModBlockEntities {
                     ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
                     ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
                     ModBlocks.OVERLIMIT_ME_DIGITAL_PATTERN_PROCESSING_CORE.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DollBlockEntity>> FISH_DAN_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "fish_dan_",
+            () -> BlockEntityType.Builder.of(DollBlockEntity::new, ModBlocks.FISH_DAN.get()).build(null));
 
     private ModBlockEntities() {}
 

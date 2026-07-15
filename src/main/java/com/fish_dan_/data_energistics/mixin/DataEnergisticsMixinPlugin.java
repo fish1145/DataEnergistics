@@ -27,6 +27,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
         addModCompatMixin("extendedae", "extendedae.");
         addModCompatMixin("jei", "jei.");
         addModCompatMixin("emi", "emi.");
+        addModCompatMixin("guideme", "guideme.");
         addModCompatMixin("neoecoae", "neoecoae.");
         addModCompatMixin("useless_mod", "useless.");
     }

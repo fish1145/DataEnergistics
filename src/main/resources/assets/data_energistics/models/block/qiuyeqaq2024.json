@@ -3,8 +3,8 @@
 	"credit": "Made with Blockbench",
 	"render_type": "cutout",
 	"textures": {
-		"1": "data_energistics:block/qiuye_fumo",
-		"particle": "data_energistics:block/qiuye_fumo"
+		"1": "data_energistics:block/fufu/qiuye_fumo",
+		"particle": "data_energistics:block/fufu/qiuye_fumo"
 	},
 	"elements": [
 		{

@@ -5,8 +5,6 @@ navigation:
   icon: ae2:advanced_card
   position: 16
 item_ids:
-- data_energistics:card_saber_energy
-- data_energistics:redstone_tuning_card
 ---
 
 # 升级

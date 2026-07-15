@@ -9,6 +9,12 @@
 		},
 		{
 			"ingredient": {
+				"item": "ae2:spatial_cell_component_128"
+			},
+			"count": 8
+		},
+		{
+			"ingredient": {
 				"item": "minecraft:amethyst_block"
 			},
 			"count": 14
