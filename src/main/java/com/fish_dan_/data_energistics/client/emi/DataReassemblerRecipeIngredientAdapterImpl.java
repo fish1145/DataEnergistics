@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.emi;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.DataReassemblerRecipeIngredientAdapter;
 
 import net.minecraft.world.item.ItemStack;
@@ -17,7 +18,7 @@ import dev.emi.emi.api.stack.EmiStack;
 import java.util.List;
 
 /**
- * Gives the shared recipe UI native EMI identities, including a codec-backed fallback for custom AE keys.
+ * Gives the shared recipe UI native EMI identities for fluids, Data, and DataFlow.
  */
 public final class DataReassemblerRecipeIngredientAdapterImpl
                                                               implements DataReassemblerRecipeIngredientAdapter {
@@ -48,6 +49,13 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
                     stack.amount());
         }
 
-        return GenericAeKeyEmiStacks.toEmiStack(stack);
+        EmiStack dataStack = DataResourceEmiStackConverter.INSTANCE.toEmiStack(stack);
+        if (dataStack != null) {
+            return dataStack;
+        }
+
+        String message = "Data reassembler EMI recipes only support fluid, Data, and DataFlow generic stacks: " + stack.what();
+        Data_Energistics.LOGGER.error(message);
+        throw new IllegalArgumentException(message);
     }
 }

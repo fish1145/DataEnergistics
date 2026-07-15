@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.client.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 
@@ -9,7 +11,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -151,9 +152,9 @@ public final class DataRipperReassemblerRecipeView {
             return null;
         }
         validatePositiveStack(stack, description);
-        if (stack.what() instanceof AEItemKey || stack.what() instanceof AEFluidKey) {
+        if (!(stack.what() instanceof DataKey) && !(stack.what() instanceof DataFlowKey)) {
             throw validationError(
-                    "Data reassembler " + description + " only accepts custom AE keys: " + stack.what());
+                    "Data reassembler " + description + " only accepts Data or DataFlow keys: " + stack.what());
         }
         return stack;
     }

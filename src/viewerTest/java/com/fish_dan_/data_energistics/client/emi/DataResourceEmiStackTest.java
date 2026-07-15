@@ -335,14 +335,14 @@ public final class DataResourceEmiStackTest {
     }
 
     @Test
-    void dataConverterPrecedesTheGenericFallbackAndTheRecipeAdapterUsesAe2Converters() {
+    void recipeAdapterAcceptsDataResourcesAndRejectsUnsupportedCustomKeys() {
         GenericStack stack = new GenericStack(DataKey.of(), 64L);
 
         assertInstanceOf(DataResourceEmiStack.class, EmiStackHelper.toEmiStack(stack));
         assertInstanceOf(DataResourceEmiStack.class, DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(stack));
-        assertInstanceOf(
-                GenericAeKeyEmiStack.class,
-                DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> DataReassemblerRecipeIngredientAdapterImpl.toEmiStack(
                         new GenericStack(TestCustomKey.FALLBACK, 65L)));
     }
 
