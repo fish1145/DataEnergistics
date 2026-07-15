@@ -81,7 +81,7 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
 
     @Override
     public ResourceLocation getId() {
-        return registeredRecipeId();
+        return EmiMultiblockRecipeId.synthetic(registeredRecipeId());
     }
 
     @Override

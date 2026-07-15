@@ -47,11 +47,12 @@ final class EmiMultiblockPatternTransfer {
                 return LiveView.rejected(Component.literal("The multiblock preview identity changed"));
             }
             ResourceLocation emiRecipeId = recipe.getId();
-            if (emiRecipeId != null && !registeredRecipeId.equals(emiRecipeId)) {
+            ResourceLocation expectedEmiRecipeId = EmiMultiblockRecipeId.synthetic(registeredRecipeId);
+            if (emiRecipeId != null && !expectedEmiRecipeId.equals(emiRecipeId)) {
                 Data_Energistics.LOGGER.debug(
-                        "EMI multiblock wrapper id {} does not match live source {}",
+                        "EMI multiblock wrapper id {} does not match synthetic source id {}",
                         emiRecipeId,
-                        registeredRecipeId);
+                        expectedEmiRecipeId);
                 return LiveView.rejected(Component.literal("The multiblock recipe identity is stale"));
             }
             return LiveView.ready(view);

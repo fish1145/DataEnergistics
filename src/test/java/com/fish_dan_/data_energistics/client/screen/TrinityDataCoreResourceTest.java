@@ -31,6 +31,7 @@ public final class TrinityDataCoreResourceTest {
     private static final String GUI_TEXTURE_ROOT = "assets/ae2/textures/";
     private static final String MULTIBLOCK_ROOT = "data/data_energistics/multiblock/";
     private static final String TRINITY_DATA_CORE_TEXTURE_PREFIX = "data_energistics:block/trinity_data_core/";
+    private static final String EMI_MULTIBLOCK_CATEGORY_KEY = "emi.category.data_energistics.multiblock_preview";
     private static final Set<String> MODEL_TEXTURE_KEYS = Set.of("2", "3", "top_light", "5", "screen");
 
     @Test
@@ -164,6 +165,10 @@ public final class TrinityDataCoreResourceTest {
                 "结构方块不匹配",
                 string(zhCn, "text.data_energistics.multiblock.failure.block_predicate"),
                 "Known MDLib predicate diagnostics should be localized for Jade and the host screen");
+        assertEquals(
+                "多方块预览",
+                string(zhCn, EMI_MULTIBLOCK_CATEGORY_KEY),
+                "EMI multiblock category should have a Chinese display name");
 
         JsonObject enUs = readJson(LANG_ROOT + "en_us.json");
         assertEquals(
@@ -174,6 +179,10 @@ public final class TrinityDataCoreResourceTest {
                 "Structure block did not match",
                 string(enUs, "text.data_energistics.multiblock.failure.block_predicate"),
                 "English predicate diagnostic should avoid exposing the raw MDLib message");
+        assertEquals(
+                "Multiblock Preview",
+                string(enUs, EMI_MULTIBLOCK_CATEGORY_KEY),
+                "EMI multiblock category should have an English display name");
         assertAutoBuildStructureLabels(zhCn);
         assertAutoBuildStructureLabels(enUs);
     }

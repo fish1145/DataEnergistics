@@ -43,6 +43,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -76,6 +77,7 @@ public final class EmiMultiblockPatternTransferHandlerTest {
 
     private static final ResourceLocation CONTROLLER_ID = ResourceLocation.parse("data_energistics:emi_transfer_test");
     private static final ResourceLocation REGISTERED_RECIPE_ID = MultiblockRecipeView.registeredRecipeIdFor(CONTROLLER_ID);
+    private static final ResourceLocation EMI_RECIPE_ID = EmiMultiblockRecipeId.synthetic(REGISTERED_RECIPE_ID);
 
     @Test
     void everyHandlerEntryPointSamplesTheCurrentTypedViewExactlyOnce() {
@@ -138,6 +140,25 @@ public final class EmiMultiblockPatternTransferHandlerTest {
         assertEquals(0, recipe.cachedInputReads);
         assertEquals(0, recipe.cachedOutputReads);
         assertEquals(3, recipe.liveViewReads);
+    }
+
+    @Test
+    void syntheticRecipeIdKeepsCanonicalTransferIdentityAndRejectsUnexpectedWrapperIdentity() {
+        TrackingTypedRecipe recipe = new TrackingTypedRecipe(recipe(3L, 1));
+
+        assertNotEquals(recipe.registeredRecipeId(), recipe.getId());
+        assertEquals(recipe.registeredRecipeId().getNamespace(), recipe.getId().getNamespace());
+        assertEquals("/" + recipe.registeredRecipeId().getPath(), recipe.getId().getPath());
+        assertTrue(EmiMultiblockPatternTransfer.resolve(recipe).ready());
+
+        recipe.publishEmiRecipeId(ResourceLocation.fromNamespaceAndPath(
+                REGISTERED_RECIPE_ID.getNamespace(),
+                "/multiblock/stale_emi_wrapper"));
+        EmiMultiblockPatternTransfer.LiveView stale = EmiMultiblockPatternTransfer.resolve(recipe);
+
+        assertTrue(stale.applicable());
+        assertFalse(stale.ready());
+        assertTrue(stale.error().getString().contains("stale"));
     }
 
     @Test
@@ -360,6 +381,7 @@ public final class EmiMultiblockPatternTransferHandlerTest {
     private static final class TrackingTypedRecipe implements EmiRecipe, MultiblockRecipeViewSource {
 
         private MultiblockRecipeView currentView;
+        private ResourceLocation emiRecipeId = EMI_RECIPE_ID;
         private Throwable liveFailure;
         private MultiblockRecipeView lastReadView;
         private int liveViewReads;
@@ -380,6 +402,10 @@ public final class EmiMultiblockPatternTransferHandlerTest {
                 throw new IllegalArgumentException("Live test failure must be unchecked");
             }
             this.liveFailure = liveFailure;
+        }
+
+        private void publishEmiRecipeId(ResourceLocation emiRecipeId) {
+            this.emiRecipeId = emiRecipeId;
         }
 
         @Override
@@ -407,7 +433,7 @@ public final class EmiMultiblockPatternTransferHandlerTest {
 
         @Override
         public ResourceLocation getId() {
-            return REGISTERED_RECIPE_ID;
+            return this.emiRecipeId;
         }
 
         @Override

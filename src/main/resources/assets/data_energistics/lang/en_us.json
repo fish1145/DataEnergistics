@@ -518,6 +518,7 @@
 	"block.data_energistics.overlimit_me_digital_pattern_processing_core": "Overlimit ME Digital Pattern Processing Core",
 	"button.data_energistics.trinity_data_core.auto_build": "Open Structure Builder",
 	"message.data_energistics.trinity_data_core.auto_build": "Auto-build %s: placed %s, missing %s, blocked %s, unloaded %s, failed %s",
+	"emi.category.data_energistics.multiblock_preview": "Multiblock Preview",
 	"screen.data_energistics.multiblock_preview.variant": "Shape",
 	"screen.data_energistics.multiblock_preview.variant.value": "%s / %s",
 	"screen.data_energistics.multiblock_preview.repeat": "Repeat %s",

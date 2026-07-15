@@ -117,7 +117,10 @@ public final class MultiblockXeiAdapterGameTest {
 
         assertEquals(initial, emiRecipe.currentRecipeView());
         assertEquals(initial.registeredRecipeId(), jeiRecipe.registeredRecipeId());
-        assertEquals(initial.registeredRecipeId(), emiRecipe.getId());
+        assertEquals(initial.registeredRecipeId(), emiRecipe.registeredRecipeId());
+        assertNotEquals(initial.registeredRecipeId(), emiRecipe.getId());
+        assertEquals(initial.registeredRecipeId().getNamespace(), emiRecipe.getId().getNamespace());
+        assertEquals("/" + initial.registeredRecipeId().getPath(), emiRecipe.getId().getPath());
         assertNotSame(jei.previewUi().session(), emi.previewUi().session());
         assertNotSame(jei.previewUi().scene(), emi.previewUi().scene());
         assertEquals(2, sceneBinder.bindCount.get());

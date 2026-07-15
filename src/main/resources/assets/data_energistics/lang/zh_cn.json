@@ -523,6 +523,7 @@
 	"block.data_energistics.overlimit_me_digital_pattern_processing_core": "超限 ME 数位样板处理核心",
 	"button.data_energistics.trinity_data_core.auto_build": "打开结构搭建器",
 	"message.data_energistics.trinity_data_core.auto_build": "自动搭建 %s：放置 %s 个，缺少 %s 个，阻挡 %s 个，未加载 %s 个，失败 %s 个",
+	"emi.category.data_energistics.multiblock_preview": "多方块预览",
 	"screen.data_energistics.multiblock_preview.variant": "形态",
 	"screen.data_energistics.multiblock_preview.variant.value": "%s / %s",
 	"screen.data_energistics.multiblock_preview.repeat": "重复段 %s",
