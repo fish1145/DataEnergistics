@@ -18,10 +18,12 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
+import appeng.api.integrations.emi.EmiStackConverters;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiEntrypoint;
+import dev.emi.emi.api.EmiInitRegistry;
 import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiCraftingRecipe;
@@ -36,6 +38,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 @EmiEntrypoint
@@ -43,9 +46,34 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ResourceLocation AE2_CHARGER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ConverterRegistration CONVERTER_REGISTRATION = new ConverterRegistration();
+
+    @Override
+    public void initialize(EmiInitRegistry registry) {
+        registry.addIngredientSerializer(DataResourceEmiStack.class, DataResourceEmiStackSerializer.INSTANCE);
+        registry.addIngredientSerializer(GenericAeKeyEmiStack.class, GenericAeKeyEmiStackSerializer.INSTANCE);
+        try {
+            CONVERTER_REGISTRATION.registerDataOnce(
+                    () -> EmiStackConverters.register(DataResourceEmiStackConverter.INSTANCE));
+            CONVERTER_REGISTRATION.registerGenericOnce(
+                    () -> EmiStackConverters.register(GenericAeKeyEmiStackConverter.INSTANCE));
+        } catch (IllegalStateException exception) {
+            LOGGER.error(exception.getMessage());
+            throw exception;
+        }
+    }
 
     @Override
     public void register(EmiRegistry registry) {
+        try {
+            CONVERTER_REGISTRATION.requireRegistered();
+        } catch (IllegalStateException exception) {
+            LOGGER.error(exception.getMessage());
+            throw exception;
+        }
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceEmiKey.DATA, 1L));
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceEmiKey.DATA_FLOW, 1L));
+        registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
         registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
 
@@ -66,9 +94,10 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .forEach(registry::addRecipe);
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()));
-        registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
+        registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
+                .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)
-                .forEach(registry::addRecipe);
+                .forEach(consumer));
         registerRecipeCategory(
                 registry,
                 DataChargerEmiRecipe.CATEGORY,
@@ -159,5 +188,44 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .filter(category -> category.getId().equals(categoryId))
                 .findFirst()
                 .orElse(null);
+    }
+
+    static final class ConverterRegistration {
+
+        private boolean dataRegistered;
+        private boolean genericRegistered;
+
+        synchronized void registerDataOnce(BooleanSupplier registrar) {
+            if (dataRegistered) {
+                return;
+            }
+            if (!registrar.getAsBoolean()) {
+                throw new IllegalStateException(
+                        "An AE2 EMI stack converter is already registered for Data Energistics resources");
+            }
+            dataRegistered = true;
+        }
+
+        synchronized void registerGenericOnce(BooleanSupplier registrar) {
+            if (genericRegistered) {
+                return;
+            }
+            if (!dataRegistered) {
+                throw new IllegalStateException(
+                        "The Data resource EMI stack converter must be registered before the generic AE key converter");
+            }
+            if (!registrar.getAsBoolean()) {
+                throw new IllegalStateException(
+                        "An AE2 EMI stack converter is already registered for generic custom AE keys");
+            }
+            genericRegistered = true;
+        }
+
+        synchronized void requireRegistered() {
+            if (!dataRegistered || !genericRegistered) {
+                throw new IllegalStateException(
+                        "Both AE2 EMI stack converters must be initialized before Data Energistics EMI registration");
+            }
+        }
     }
 }

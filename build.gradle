@@ -38,6 +38,11 @@ sourceSets {
         runtimeClasspath += main.output + main.runtimeClasspath
     }
 
+    viewerTest {
+        compileClasspath += main.output
+        runtimeClasspath += main.output + main.runtimeClasspath
+    }
+
     extra {
         compileClasspath += main.output
         runtimeClasspath += main.output + main.runtimeClasspath
@@ -56,6 +61,12 @@ configurations {
     clientExtraRuntimeOnly.canBeResolved = false
     testImplementation.canBeResolved = false
     testRuntimeOnly.canBeResolved = false
+    viewerTestImplementation.canBeResolved = false
+    viewerTestRuntimeOnly.canBeResolved = false
+
+    viewerTestImplementation.extendsFrom testImplementation
+    viewerTestCompileOnly.extendsFrom testCompileOnly
+    viewerTestRuntimeOnly.extendsFrom testRuntimeOnly
 
     runtimeClasspath.extendsFrom localRuntime
     extraRuntimeClasspath.extendsFrom extraLocalRuntime
@@ -83,6 +94,18 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     failOnNoDiscoveredTests = false
+}
+
+tasks.register('viewerTest', Test) {
+    group = 'verification'
+    description = 'Runs recipe-viewer integration unit tests outside the GameTest runtime.'
+    testClassesDirs = sourceSets.viewerTest.output.classesDirs
+    classpath = sourceSets.viewerTest.runtimeClasspath
+    shouldRunAfter tasks.named('test')
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('viewerTest')
 }
 
 lombok {

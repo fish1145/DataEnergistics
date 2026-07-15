@@ -45,6 +45,11 @@ dependencies {
     // Recipe viewers
     compileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
+    viewerTestImplementation(forge.emi)
+
+    // UI framework
+    compileOnly(forge.ldlib)
+    testImplementation(forge.ldlib)
 
     // WAILA-likes
     compileOnly(forge.jade)
@@ -73,7 +78,7 @@ dependencies {
     extraLocalRuntime(forge.sut)
 
     // Runtime AE2 addons
-    extraLocalRuntime(forge.ae2ji)
+    clientExtraLocalRuntime(forge.ae2ji)
     extraLocalRuntime(forge.aeltpp)
     extraLocalRuntime(forge.actually.additions)
     extraLocalRuntime(forge.ae2wt)
@@ -88,11 +93,9 @@ dependencies {
     extraLocalRuntime(forge.mega.cells)
     extraLocalRuntime(forge.amek)
 
-    // Runtime recipe viewers
-    localRuntime(forge.emi)
-    localRuntime(forge.jei.neoforge.impl)
-
     // Client-only runtime mods
+    clientLocalRuntime(forge.emi)
+    clientLocalRuntime(forge.jei.neoforge.impl)
     clientLocalRuntime(forge.jech)
     clientLocalRuntime(forge.ctm)
     clientLocalRuntime(forge.worldedit.cui.forge)
