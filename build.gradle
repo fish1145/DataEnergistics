@@ -47,6 +47,11 @@ sourceSets {
         compileClasspath += client.output + extra.compileClasspath
         runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath
     }
+
+    clientTest {
+        compileClasspath += test.output + test.compileClasspath
+        runtimeClasspath += test.output + test.runtimeClasspath
+    }
 }
 
 configurations {
@@ -54,6 +59,7 @@ configurations {
     clientRuntimeOnly.canBeResolved = false
     extraRuntimeOnly.canBeResolved = false
     clientExtraRuntimeOnly.canBeResolved = false
+    clientTestRuntimeOnly.canBeResolved = false
     testImplementation.canBeResolved = false
     testRuntimeOnly.canBeResolved = false
 

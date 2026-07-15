@@ -42,6 +42,7 @@ dependencies {
     // Energy integrations
     compileOnly(forge.oritech)
     testImplementation(forge.oritech)
+    clientTestRuntimeOnly(forge.athena)
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
