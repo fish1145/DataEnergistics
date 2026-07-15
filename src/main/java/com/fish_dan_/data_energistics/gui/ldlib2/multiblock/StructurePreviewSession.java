@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
@@ -62,6 +63,16 @@ public interface StructurePreviewSession {
      * Activates an allowed named structure while retaining every structure-local selection.
      */
     void selectStructure(String structureKey);
+
+    /**
+     * Selects one exact zero-based shape variant declared by the active structure.
+     */
+    void selectVariant(int variantIndex);
+
+    /**
+     * Selects one exact candidate of a predicate present in the current projected snapshot.
+     */
+    void selectCandidate(PreviewPredicateKey predicateKey, int candidateIndex);
 
     /**
      * Selects the preceding shape variant, wrapping within the declared variant domain.

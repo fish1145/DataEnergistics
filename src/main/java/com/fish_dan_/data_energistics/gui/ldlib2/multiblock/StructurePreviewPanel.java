@@ -2,102 +2,80 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
-import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewVisibleLayer;
+import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
-import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
-import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
-import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
- * Host-neutral LDLib2 preview surface containing one scene, complete selection controls, and material diagnostics.
+ * Host-neutral LDLib2 preview surface containing one large scene and compact, clearly separated controls.
  */
 public final class StructurePreviewPanel extends UIElement {
 
-    /**
-     * Suffix used by the independently owned scene element.
-     */
+    /** Suffix used by the independently owned scene element. */
     public static final String SCENE_SUFFIX = "_scene";
-    /**
-     * Suffix used by the previous-variant control.
-     */
+    /** Suffix used by the previous-variant control. */
     public static final String VARIANT_PREVIOUS_SUFFIX = "_variant_previous";
-    /**
-     * Suffix used by the next-variant control.
-     */
+    /** Suffix used by the next-variant control. */
     public static final String VARIANT_NEXT_SUFFIX = "_variant_next";
-    /**
-     * Suffix used by the previous-tier control.
-     */
+    /** Suffix used by the previous-tier control. */
     public static final String TIER_PREVIOUS_SUFFIX = "_tier_previous";
-    /**
-     * Suffix used by the next-tier control.
-     */
+    /** Suffix used by the next-tier control. */
     public static final String TIER_NEXT_SUFFIX = "_tier_next";
-    /**
-     * Suffix prefix used by repeat-unit controls, followed by the unit index and direction.
-     */
+    /** Suffix prefix used by repeat-unit controls, followed by the unit index and direction. */
     public static final String REPEAT_SUFFIX = "_repeat_";
-    /**
-     * Suffix used by the explicit all-layers control.
-     */
+    /** Suffix used by the explicit all-layers control. */
     public static final String LAYER_ALL_SUFFIX = "_layer_all";
-    /**
-     * Suffix used by the previous-layer control.
-     */
+    /** Suffix used by the previous-layer control. */
     public static final String LAYER_PREVIOUS_SUFFIX = "_layer_previous";
-    /**
-     * Suffix used by the next-layer control.
-     */
+    /** Suffix used by the next-layer control. */
     public static final String LAYER_NEXT_SUFFIX = "_layer_next";
-    /**
-     * Suffix used by the selected-block detail label.
-     */
+    /** Suffix used by the selector that exposes ALL and every exact logical layer. */
+    public static final String LAYER_SELECTOR_SUFFIX = "_layer_selector";
+    /** Suffix used by the selected-block display slot. */
     public static final String SELECTED_BLOCK_SUFFIX = "_selected_block";
-    /**
-     * Suffix used by the canonical material scroller.
-     */
+    /** Suffix used by the canonical material scroller. */
     public static final String MATERIALS_SUFFIX = "_materials";
 
-    private static final int WIDTH = 180;
-    private static final int HEIGHT = 208;
-    private static final int SCENE_WIDTH = 124;
-    private static final int SCENE_HEIGHT = 140;
-    private static final int CONTROLS_LEFT = 126;
-    private static final int CONTROLS_WIDTH = 54;
-    private static final int CONTROL_HEIGHT = 14;
+    private static final String TRANSLATION_PREFIX = "screen.data_energistics.multiblock_preview.";
+    private static final int VARIANT_WIDTH = 56;
+    private static final int TIER_LEFT = 58;
+    private static final int TIER_WIDTH = 76;
+    private static final int REPEAT_LEFT = 136;
+    private static final int REPEAT_WIDTH = 60;
+    private static final int LAYER_WIDTH = 92;
 
     private final String idPrefix;
     private final StructurePreviewSession session;
+    private final StructurePreviewPresentation presentation;
     private final StructurePreviewSceneElement scene;
+    private final ItemSlot selectedBlockSlot;
+    private final PreviewLayerSelector layerSelector;
     private final ScrollerView repeatControls;
-    private final ScrollerView materials;
+    @Nullable
+    private final PreviewMaterialStrip materials;
     private Consumer<PreviewSelection> selectionChangeListener = selection -> {};
     private boolean selectionChangeListenerRegistered;
     @Nullable
@@ -105,43 +83,55 @@ public final class StructurePreviewPanel extends UIElement {
     private boolean sceneBindingReleased;
 
     StructurePreviewPanel(String idPrefix, StructurePreviewSession session) {
-        if (idPrefix == null || idPrefix.isBlank() || session == null) {
+        this(idPrefix, session, StructurePreviewPresentation.HOSTED);
+    }
+
+    StructurePreviewPanel(String idPrefix,
+                          StructurePreviewSession session,
+                          StructurePreviewPresentation presentation) {
+        if (idPrefix == null || idPrefix.isBlank() || session == null || presentation == null) {
             throw new IllegalArgumentException("Structure preview panel arguments cannot be null or blank");
         }
         this.idPrefix = idPrefix;
         this.session = session;
+        this.presentation = presentation;
         this.scene = createScene();
+        this.selectedBlockSlot = createSelectedBlockSlot();
+        this.layerSelector = createLayerSelector();
         this.repeatControls = createRepeatControls();
-        this.materials = createMaterials();
+        this.materials = presentation.hasMaterialStrip() ? createMaterials() : null;
 
         setId(idPrefix);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .width(WIDTH)
-                .height(HEIGHT));
+                .width(StructurePreviewPresentation.WIDTH)
+                .height(presentation.height()));
         style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        addChildren(this.scene, createControls(), selectedBlockLabel(), this.materials);
+        addChildren(this.scene, this.selectedBlockSlot, this.layerSelector, createRecipeControls());
+        if (this.materials != null) {
+            addChild(this.materials);
+        }
         refreshRepeatControls();
         refreshMaterials();
+        refreshSelectedBlockSlot();
     }
 
-    /**
-     * Returns the independently owned model session backing this exact panel.
-     */
+    /** Returns the independently owned model session backing this exact panel. */
     public StructurePreviewSession session() {
         return this.session;
     }
 
-    /**
-     * Returns the independently owned double-sided scene shell contained by this panel.
-     */
+    /** Returns the independently owned double-sided scene shell contained by this panel. */
     public StructurePreviewSceneElement scene() {
         return this.scene;
     }
 
-    /**
-     * Installs the sole listener notified after recipe-affecting controls replace the retained selection.
-     */
+    /** Returns the immutable composition that determines panel height and material ownership. */
+    public StructurePreviewPresentation presentation() {
+        return this.presentation;
+    }
+
+    /** Installs the sole listener notified after recipe-affecting controls replace the retained selection. */
     public void setSelectionChangeListener(Consumer<PreviewSelection> selectionChangeListener) {
         if (selectionChangeListener == null) {
             throw new IllegalArgumentException("Structure preview selection listener cannot be null");
@@ -153,32 +143,39 @@ public final class StructurePreviewPanel extends UIElement {
         this.selectionChangeListenerRegistered = true;
     }
 
-    /**
-     * Activates another allowed named structure through the same refresh and listener path as visible controls.
-     */
+    /** Activates another allowed named structure through the visible-control refresh path. */
     public void selectStructure(String structureKey) {
         changeSelection(() -> this.session.selectStructure(structureKey));
     }
 
-    /**
-     * Selects the next tier through the same refresh path used by the visible control.
-     */
+    /** Selects one exact active-structure variant without replacing this panel, session, or Scene. */
+    public void selectVariant(int variantIndex) {
+        changeSelection(() -> this.session.selectVariant(variantIndex));
+    }
+
+    /** Selects one exact predicate candidate without replacing this panel, session, or Scene. */
+    public void selectCandidate(PreviewPredicateKey predicateKey, int candidateIndex) {
+        changeSelection(() -> this.session.selectCandidate(predicateKey, candidateIndex));
+    }
+
+    /** Selects the next tier through the same refresh path used by the visible control. */
     public void nextTier() {
         changeSelection(this.session::nextTier);
     }
 
-    /**
-     * Increments one repeat unit through the same refresh path used by the visible control.
-     */
+    /** Increments one repeat unit through the same refresh path used by the visible control. */
     public void nextRepeat(int unitIndex) {
         changeSelection(() -> this.session.nextRepeat(unitIndex));
     }
 
-    /**
-     * Selects the next logical layer through the same refresh path used by the visible control.
-     */
+    /** Selects the next logical layer through the same refresh path used by the visible control. */
     public void nextLayer() {
-        changeLayer(this.session::nextLayer);
+        this.layerSelector.nextLayer();
+    }
+
+    /** Selects one exact zero-based logical layer through the visible selector state. */
+    public void showLayer(int layerIndex) {
+        this.layerSelector.showLayer(layerIndex);
     }
 
     void bindScene(StructurePreviewSceneBinding binding) {
@@ -218,6 +215,7 @@ public final class StructurePreviewPanel extends UIElement {
 
     void selectBlock(BlockPos position) {
         this.session.selectBlock(position);
+        refreshSelectedBlockSlot();
     }
 
     private StructurePreviewSceneElement createScene() {
@@ -227,144 +225,94 @@ public final class StructurePreviewPanel extends UIElement {
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
                 .top(0)
-                .width(SCENE_WIDTH)
-                .height(SCENE_HEIGHT));
+                .width(StructurePreviewPresentation.WIDTH)
+                .height(StructurePreviewPresentation.SCENE_HEIGHT));
         return element;
     }
 
-    private UIElement createControls() {
-        UIElement controls = new UIElement();
-        controls.setId(this.idPrefix + "_controls");
-        controls.layout(layout -> layout
+    private ItemSlot createSelectedBlockSlot() {
+        ItemSlot slot = new ItemSlot();
+        slot.setId(this.idPrefix + SELECTED_BLOCK_SUFFIX);
+        slot.setItem(ItemStack.EMPTY);
+        slot.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTROLS_LEFT)
-                .top(0)
-                .width(CONTROLS_WIDTH)
-                .height(SCENE_HEIGHT));
-        controls.addChildren(
-                selectorRow(
-                        0,
-                        iconButton(
-                                this.idPrefix + VARIANT_PREVIOUS_SUFFIX,
-                                Icons.LEFT_ARROW_NO_BAR,
-                                Component.literal("Previous variant"),
-                                () -> changeSelection(this.session::previousVariant)),
-                        valueLabel(() -> "P:" + this.session.selection().activeSelection().variantIndex()),
-                        iconButton(
-                                this.idPrefix + VARIANT_NEXT_SUFFIX,
-                                Icons.RIGHT_ARROW_NO_BAR,
-                                Component.literal("Next variant"),
-                                () -> changeSelection(this.session::nextVariant))),
-                selectorRow(
-                        17,
-                        iconButton(
-                                this.idPrefix + TIER_PREVIOUS_SUFFIX,
-                                Icons.LEFT_ARROW_NO_BAR,
-                                Component.literal("Previous tier"),
-                                () -> changeSelection(this.session::previousTier)),
-                        valueLabel(this::tierText),
-                        iconButton(
-                                this.idPrefix + TIER_NEXT_SUFFIX,
-                                Icons.RIGHT_ARROW_NO_BAR,
-                                Component.literal("Next tier"),
-                                this::nextTier)),
-                this.repeatControls,
-                layerControls());
-        return controls;
-    }
-
-    private ScrollerView createRepeatControls() {
-        ScrollerView repeatControls = new ScrollerView();
-        repeatControls.setId(this.idPrefix + "_repeat_controls");
-        repeatControls.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(34)
-                .width(CONTROLS_WIDTH)
-                .height(52));
-        repeatControls.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        repeatControls.scrollerStyle(style -> style
-                .mode(ScrollerMode.VERTICAL)
-                .horizontalScrollDisplay(ScrollDisplay.NEVER)
-                .verticalScrollDisplay(ScrollDisplay.AUTO)
-                .scrollerViewStyle(0));
-        repeatControls.viewPort(viewPort -> viewPort
-                .layout(layout -> layout.paddingAll(0))
-                .style(style -> style.backgroundTexture(IGuiTexture.EMPTY)));
-        return repeatControls;
-    }
-
-    private UIElement layerControls() {
-        UIElement controls = new UIElement();
-        controls.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(88)
-                .width(CONTROLS_WIDTH)
-                .height(50));
-        Button all = new Button();
-        all.setId(this.idPrefix + LAYER_ALL_SUFFIX);
-        all.setText("ALL");
-        all.setOnClick(event -> changeLayer(this.session::showAllLayers));
-        all.style(style -> style.tooltips(Component.literal("Show all logical layers")));
-        all.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(CONTROLS_WIDTH)
-                .height(CONTROL_HEIGHT));
-        controls.addChildren(
-                all,
-                selectorRow(
-                        17,
-                        iconButton(
-                                this.idPrefix + LAYER_PREVIOUS_SUFFIX,
-                                Icons.LEFT_ARROW_NO_BAR,
-                                Component.literal("Previous logical layer"),
-                                () -> changeLayer(this.session::previousLayer)),
-                        valueLabel(this::layerText),
-                        iconButton(
-                                this.idPrefix + LAYER_NEXT_SUFFIX,
-                                Icons.RIGHT_ARROW_NO_BAR,
-                                Component.literal("Next logical layer"),
-                                this::nextLayer)));
-        return controls;
-    }
-
-    private Label selectedBlockLabel() {
-        Label label = new Label();
-        label.setId(this.idPrefix + SELECTED_BLOCK_SUFFIX);
-        label.bindDataSource(SupplierDataSource.of(this::selectedBlockText));
-        label.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .fontSize(7.5f)
-                .textWrap(TextWrap.WRAP)
-                .textShadow(false));
-        label.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(142)
-                .width(WIDTH)
-                .height(22));
-        label.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
+                .left(4)
+                .top(4)
+                .width(18)
+                .height(18));
+        slot.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
             List<Component> tooltip = selectedBlockTooltip();
             if (!tooltip.isEmpty()) {
                 event.hoverTooltips = new HoverTooltips(tooltip, null, null, null);
             }
         });
-        return label;
+        return slot;
     }
 
-    private ScrollerView createMaterials() {
-        ScrollerView scroller = new ScrollerView();
-        scroller.setId(this.idPrefix + MATERIALS_SUFFIX);
-        scroller.layout(layout -> layout
+    private PreviewLayerSelector createLayerSelector() {
+        PreviewLayerSelector selector = new PreviewLayerSelector(
+                this.idPrefix,
+                this.session,
+                this::onLayerChanged,
+                LAYER_WIDTH);
+        selector.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(StructurePreviewPresentation.WIDTH - LAYER_WIDTH - 4)
+                .top(4));
+        return selector;
+    }
+
+    private UIElement createRecipeControls() {
+        UIElement controls = new UIElement();
+        controls.setId(this.idPrefix + "_controls");
+        controls.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
-                .top(166)
-                .width(WIDTH)
-                .height(42));
+                .top(StructurePreviewPresentation.CONTROL_RAIL_TOP)
+                .width(StructurePreviewPresentation.WIDTH)
+                .height(StructurePreviewPresentation.CONTROL_RAIL_HEIGHT));
+        controls.style(style -> style.backgroundTexture(Sprites.BORDER));
+
+        PreviewStepper variant = new PreviewStepper(
+                this.idPrefix + "_variant",
+                this.idPrefix + VARIANT_PREVIOUS_SUFFIX,
+                this.idPrefix + VARIANT_NEXT_SUFFIX,
+                () -> Component.translatable(TRANSLATION_PREFIX + "variant"),
+                this::variantText,
+                () -> changeSelection(this.session::previousVariant),
+                () -> changeSelection(this.session::nextVariant),
+                VARIANT_WIDTH);
+        variant.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(0));
+
+        PreviewStepper tier = new PreviewStepper(
+                this.idPrefix + "_tier",
+                this.idPrefix + TIER_PREVIOUS_SUFFIX,
+                this.idPrefix + TIER_NEXT_SUFFIX,
+                this::tierTitle,
+                this::tierText,
+                () -> changeSelection(this.session::previousTier),
+                this::nextTier,
+                TIER_WIDTH);
+        tier.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(TIER_LEFT)
+                .top(0));
+        controls.addChildren(variant, tier, this.repeatControls);
+        return controls;
+    }
+
+    private ScrollerView createRepeatControls() {
+        ScrollerView scroller = new ScrollerView();
+        scroller.setId(this.idPrefix + "_repeat_controls");
+        scroller.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(REPEAT_LEFT)
+                .top(0)
+                .width(REPEAT_WIDTH)
+                .height(StructurePreviewPresentation.CONTROL_RAIL_HEIGHT));
         scroller.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         scroller.scrollerStyle(style -> style
                 .mode(ScrollerMode.HORIZONTAL)
@@ -372,95 +320,23 @@ public final class StructurePreviewPanel extends UIElement {
                 .verticalScrollDisplay(ScrollDisplay.NEVER)
                 .scrollerViewStyle(0));
         scroller.viewPort(viewPort -> viewPort
-                .layout(layout -> layout.paddingAll(1).paddingBottom(3))
+                .layout(layout -> layout.paddingAll(0))
                 .style(style -> style.backgroundTexture(IGuiTexture.EMPTY)));
         scroller.viewContainer(viewContainer -> viewContainer.layout(layout -> layout
                 .flexDirection(FlexDirection.ROW)
-                .height(20)));
+                .height(StructurePreviewPresentation.CONTROL_CONTENT_HEIGHT)));
         return scroller;
     }
 
-    private UIElement materialEntry(PreviewMaterial material, int index) {
-        UIElement entry = new UIElement();
-        entry.setId(this.idPrefix + "_material_" + index);
-        entry.layout(layout -> layout.width(48).height(20));
-        ItemStack displayStack = material.key().toStack(1);
-        ItemSlot slot = new ItemSlot();
-        slot.setItem(displayStack);
-        slot.layout(layout -> layout
+    private PreviewMaterialStrip createMaterials() {
+        PreviewMaterialStrip strip = new PreviewMaterialStrip(this.idPrefix);
+        strip.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
-                .top(0));
-        Label amount = new Label();
-        amount.setText(Component.literal("x" + material.amount()));
-        amount.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .fontSize(7.5f)
-                .textAlignHorizontal(Horizontal.LEFT)
-                .textAlignVertical(Vertical.CENTER)
-                .textShadow(false));
-        amount.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(19)
-                .top(0)
-                .width(29)
-                .height(18));
-        entry.addChildren(slot, amount);
-        return entry;
-    }
-
-    private UIElement selectorRow(int top, Button previous, Label value, Button next) {
-        UIElement row = new UIElement();
-        row.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(top)
-                .width(CONTROLS_WIDTH)
-                .height(CONTROL_HEIGHT));
-        previous.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(CONTROL_HEIGHT)
-                .height(CONTROL_HEIGHT));
-        value.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTROL_HEIGHT)
-                .top(0)
-                .width(CONTROLS_WIDTH - CONTROL_HEIGHT * 2)
-                .height(CONTROL_HEIGHT));
-        next.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(CONTROLS_WIDTH - CONTROL_HEIGHT)
-                .top(0)
-                .width(CONTROL_HEIGHT)
-                .height(CONTROL_HEIGHT));
-        row.addChildren(previous, value, next);
-        return row;
-    }
-
-    private static Button iconButton(String id, IGuiTexture icon, Component tooltip, Runnable action) {
-        Button button = new Button();
-        button.setId(id);
-        button.noText();
-        button.addPreIcon(icon);
-        button.setOnClick(event -> action.run());
-        button.style(style -> style.tooltips(tooltip));
-        return button;
-    }
-
-    private static Label valueLabel(Supplier<String> text) {
-        Label label = new Label();
-        label.bindDataSource(SupplierDataSource.of(() -> Component.literal(text.get())));
-        label.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .fontSize(7.5f)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER)
-                .textShadow(false));
-        return label;
+                .top(StructurePreviewPresentation.MATERIAL_STRIP_TOP)
+                .width(StructurePreviewPresentation.WIDTH)
+                .height(StructurePreviewPresentation.MATERIAL_STRIP_HEIGHT));
+        return strip;
     }
 
     private void changeSelection(Runnable change) {
@@ -475,12 +351,14 @@ public final class StructurePreviewPanel extends UIElement {
             refreshRepeatControls();
         }
         refreshMaterials();
+        refreshSelectedBlockSlot();
+        this.layerSelector.refresh();
         refreshScene();
         this.selectionChangeListener.accept(current);
     }
 
-    private void changeLayer(Runnable change) {
-        change.run();
+    private void onLayerChanged() {
+        refreshSelectedBlockSlot();
         refreshScene();
     }
 
@@ -491,75 +369,91 @@ public final class StructurePreviewPanel extends UIElement {
     }
 
     private void refreshMaterials() {
-        this.materials.clearAllScrollViewChildren();
-        List<PreviewMaterial> inputs = this.session.recipeView().inputs();
-        for (int index = 0; index < inputs.size(); index++) {
-            this.materials.addScrollViewChild(materialEntry(inputs.get(index), index));
+        if (this.materials != null) {
+            this.materials.setMaterials(this.session.recipeView().inputs());
         }
     }
 
     private void refreshRepeatControls() {
         this.repeatControls.clearAllScrollViewChildren();
-        List<Integer> variableUnits = this.session.variableRepeatUnits();
-        if (variableUnits.isEmpty()) {
-            this.repeatControls.addScrollViewChild(valueLabel(() -> "R:-"));
-            return;
-        }
-        for (int unitIndex : variableUnits) {
-            this.repeatControls.addScrollViewChild(selectorRow(
-                    0,
-                    iconButton(
-                            this.idPrefix + REPEAT_SUFFIX + unitIndex + "_previous",
-                            Icons.LEFT_ARROW_NO_BAR,
-                            Component.literal("Previous repeat count"),
-                            () -> changeSelection(() -> this.session.previousRepeat(unitIndex))),
-                    valueLabel(() -> "R" + unitIndex + ":" +
+        for (int unitIndex : this.session.variableRepeatUnits()) {
+            PreviewStepper repeat = new PreviewStepper(
+                    this.idPrefix + REPEAT_SUFFIX + unitIndex,
+                    this.idPrefix + REPEAT_SUFFIX + unitIndex + "_previous",
+                    this.idPrefix + REPEAT_SUFFIX + unitIndex + "_next",
+                    () -> Component.translatable(TRANSLATION_PREFIX + "repeat", unitIndex + 1),
+                    () -> Component.translatable(
+                            TRANSLATION_PREFIX + "repeat.value",
                             this.session.selection().activeSelection().repeatCounts().get(unitIndex)),
-                    iconButton(
-                            this.idPrefix + REPEAT_SUFFIX + unitIndex + "_next",
-                            Icons.RIGHT_ARROW_NO_BAR,
-                            Component.literal("Next repeat count"),
-                            () -> nextRepeat(unitIndex))));
+                    () -> changeSelection(() -> this.session.previousRepeat(unitIndex)),
+                    () -> nextRepeat(unitIndex),
+                    REPEAT_WIDTH);
+            this.repeatControls.addScrollViewChild(repeat);
         }
     }
 
-    private String tierText() {
-        PreviewTierDomain domain = this.session.spec().substructure(this.session.structureKey()).tierDomains().getFirst();
-        return "T:" + this.session.selection().activeSelection().tierSelections().get(domain.id());
-    }
-
-    private String layerText() {
-        PreviewVisibleLayer visibleLayer = this.session.viewState().visibleLayer();
-        if (visibleLayer instanceof PreviewVisibleLayer.All) {
-            return "ALL";
-        }
-        return "L:" + ((PreviewVisibleLayer.LogicalLayer) visibleLayer).layerIndex();
-    }
-
-    private Component selectedBlockText() {
+    private void refreshSelectedBlockSlot() {
         PreviewCellSnapshot selected = this.session.selectedCell();
         if (selected == null) {
-            return Component.literal("Block: -");
+            this.selectedBlockSlot.setItem(ItemStack.EMPTY);
+            return;
         }
-        return Component.literal(selected.relativePosition().toShortString() + " L:" +
-                this.session.selectedCellLayer() + " " + selected.predicate().role().name());
+        PreviewCandidate candidate = selected.predicate().selectedCandidate().orElse(null);
+        if (candidate == null || !candidate.concrete()) {
+            this.selectedBlockSlot.setItem(ItemStack.EMPTY);
+            return;
+        }
+        this.selectedBlockSlot.setItem(candidate.placementKey().orElseThrow().toStack(1));
+    }
+
+    private Component variantText() {
+        SubstructurePreviewSpec substructure = activeSubstructure();
+        return Component.translatable(
+                TRANSLATION_PREFIX + "variant.value",
+                this.session.selection().activeSelection().variantIndex() + 1,
+                substructure.variantCount());
+    }
+
+    private Component tierTitle() {
+        return tierDomain().label();
+    }
+
+    private Component tierText() {
+        PreviewTierDomain domain = tierDomain();
+        int value = this.session.selection().activeSelection().tierSelections().get(domain.id());
+        return domain.option(value).label();
     }
 
     private List<Component> selectedBlockTooltip() {
         PreviewCellSnapshot selected = this.session.selectedCell();
         if (selected == null) {
-            return List.of();
+            return List.of(Component.translatable(TRANSLATION_PREFIX + "selected_block.none"));
         }
         List<Component> tooltip = new ArrayList<>();
-        tooltip.add(selectedBlockText());
+        tooltip.add(Component.translatable(
+                TRANSLATION_PREFIX + "selected_block.position",
+                selected.relativePosition().toShortString()));
+        tooltip.add(Component.translatable(
+                TRANSLATION_PREFIX + "selected_block.layer",
+                this.session.selectedCellLayer() + 1));
+        tooltip.add(Component.translatable(
+                TRANSLATION_PREFIX + "selected_block.role",
+                Component.translatable(TRANSLATION_PREFIX + "role." +
+                        selected.predicate().role().name().toLowerCase(Locale.ROOT))));
         for (PreviewCandidate candidate : selected.predicate().candidates()) {
-            if (candidate.concrete()) {
-                tooltip.add(candidate.placementKey().orElseThrow().getDisplayName());
-            } else {
-                tooltip.add(Component.literal("Air"));
-            }
+            tooltip.add(candidate.placementKey()
+                    .<Component>map(key -> key.getDisplayName().copy())
+                    .orElseGet(() -> Component.translatable("block.minecraft.air")));
         }
         return List.copyOf(tooltip);
+    }
+
+    private SubstructurePreviewSpec activeSubstructure() {
+        return this.session.spec().substructure(this.session.structureKey());
+    }
+
+    private PreviewTierDomain tierDomain() {
+        return activeSubstructure().tierDomains().getFirst();
     }
 
     private static Throwable mergeFailures(@Nullable Throwable first, Throwable next) {

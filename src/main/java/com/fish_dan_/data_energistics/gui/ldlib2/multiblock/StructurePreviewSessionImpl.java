@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPrevie
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewCellSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewLayerSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
@@ -108,17 +110,56 @@ final class StructurePreviewSessionImpl implements StructurePreviewSession {
     }
 
     @Override
+    public void selectVariant(int variantIndex) {
+        int variantCount = activeSubstructure().variantCount();
+        if (variantIndex < 0 || variantIndex >= variantCount) {
+            throw new IllegalArgumentException("Structure preview variant " + variantIndex + " is outside 0.." +
+                    (variantCount - 1));
+        }
+        replaceSelection(this.selection.withVariantIndex(variantIndex));
+    }
+
+    @Override
+    public void selectCandidate(PreviewPredicateKey predicateKey, int candidateIndex) {
+        if (predicateKey == null) {
+            throw new IllegalArgumentException("Structure preview predicate key cannot be null");
+        }
+        PreviewPredicateSnapshot selectedPredicate = null;
+        for (PreviewCellSnapshot cell : this.snapshot.cells()) {
+            PreviewPredicateSnapshot predicate = cell.predicate();
+            if (!predicate.key().equals(predicateKey)) {
+                continue;
+            }
+            if (selectedPredicate != null && !selectedPredicate.equals(predicate)) {
+                throw new IllegalStateException("Repeated preview predicate resolved inconsistently: " + predicateKey);
+            }
+            selectedPredicate = predicate;
+        }
+        if (selectedPredicate == null) {
+            throw new IllegalArgumentException("Unknown selectable structure preview predicate: " + predicateKey);
+        }
+        if (candidateIndex < 0 || candidateIndex >= selectedPredicate.candidates().size()) {
+            throw new IllegalArgumentException("Candidate index " + candidateIndex + " is outside 0.." +
+                    (selectedPredicate.candidates().size() - 1) + " for " + predicateKey);
+        }
+        if (selectedPredicate.selectedCandidateIndex() == candidateIndex) {
+            return;
+        }
+        replaceSelection(this.selection.withCandidate(predicateKey, candidateIndex));
+    }
+
+    @Override
     public void previousVariant() {
         int count = activeSubstructure().variantCount();
         int current = this.selection.activeSelection().variantIndex();
-        replaceSelection(this.selection.withVariantIndex((current + count - 1) % count));
+        selectVariant((current + count - 1) % count);
     }
 
     @Override
     public void nextVariant() {
         int count = activeSubstructure().variantCount();
         int current = this.selection.activeSelection().variantIndex();
-        replaceSelection(this.selection.withVariantIndex((current + 1) % count));
+        selectVariant((current + 1) % count);
     }
 
     @Override
@@ -256,12 +297,24 @@ final class StructurePreviewSessionImpl implements StructurePreviewSession {
         }
         StructurePreviewSnapshot updatedSnapshot = this.projection.project(this.spec, updated);
         MultiblockRecipeView updatedRecipe = MultiblockRecipeView.from(this.spec, updatedSnapshot);
+        PreviewViewState updatedViewState = retainedViewState(updatedSnapshot);
         this.selection = updated;
         this.snapshot = updatedSnapshot;
         this.recipeView = updatedRecipe;
-        this.viewState = PreviewViewState.initial();
+        this.viewState = updatedViewState;
         this.selectedCell = null;
         this.selectedCellLayer = -1;
+    }
+
+    private PreviewViewState retainedViewState(StructurePreviewSnapshot updatedSnapshot) {
+        PreviewVisibleLayer visibleLayer = this.viewState.visibleLayer();
+        PreviewViewState retained = this.viewState;
+        if (visibleLayer instanceof PreviewVisibleLayer.LogicalLayer logicalLayer &&
+                logicalLayer.layerIndex() >= updatedSnapshot.layers().size()) {
+            retained = PreviewViewState.initial();
+        }
+        updatedSnapshot.visibleLayers(retained);
+        return retained;
     }
 
     private void replaceViewState(PreviewViewState updated) {

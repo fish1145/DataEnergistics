@@ -42,15 +42,16 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
     public StructurePreviewUi create(ResourceLocation controllerId,
                                      String structureKey,
                                      String idPrefix,
-                                     boolean logicalClient) {
+                                     boolean logicalClient,
+                                     StructurePreviewPresentation presentation) {
         if (controllerId == null || structureKey == null || structureKey.isBlank() ||
-                idPrefix == null || idPrefix.isBlank()) {
+                idPrefix == null || idPrefix.isBlank() || presentation == null) {
             throw new IllegalArgumentException("Structure preview UI factory arguments cannot be null or blank");
         }
         try {
             MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot().require(controllerId);
             PreviewSelection selection = PreviewSelection.initial(spec).select(structureKey);
-            return createResolved(spec, selection, List.of(structureKey), idPrefix, logicalClient);
+            return createResolved(spec, selection, List.of(structureKey), idPrefix, logicalClient, presentation);
         } catch (RuntimeException | Error failure) {
             Data_Energistics.LOGGER.error(
                     "Failed to create structure preview UI for {} structure {}",
@@ -66,13 +67,20 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
                                      PreviewSelection initialSelection,
                                      List<String> allowedStructureKeys,
                                      String idPrefix,
-                                     boolean logicalClient) {
+                                     boolean logicalClient,
+                                     StructurePreviewPresentation presentation) {
         if (spec == null || initialSelection == null || allowedStructureKeys == null ||
-                idPrefix == null || idPrefix.isBlank()) {
+                idPrefix == null || idPrefix.isBlank() || presentation == null) {
             throw new IllegalArgumentException("Structure preview UI factory arguments cannot be null or blank");
         }
         try {
-            return createResolved(spec, initialSelection, allowedStructureKeys, idPrefix, logicalClient);
+            return createResolved(
+                    spec,
+                    initialSelection,
+                    allowedStructureKeys,
+                    idPrefix,
+                    logicalClient,
+                    presentation);
         } catch (RuntimeException | Error failure) {
             Data_Energistics.LOGGER.error(
                     "Failed to create structure preview UI for {} structure {}",
@@ -87,13 +95,14 @@ final class StructurePreviewUiFactoryImpl implements StructurePreviewUiFactory {
                                               PreviewSelection initialSelection,
                                               List<String> allowedStructureKeys,
                                               String idPrefix,
-                                              boolean logicalClient) {
+                                              boolean logicalClient,
+                                              StructurePreviewPresentation presentation) {
         StructurePreviewSession session = new StructurePreviewSessionImpl(
                 spec,
                 initialSelection,
                 allowedStructureKeys,
                 new StructurePreviewProjectionImpl());
-        StructurePreviewPanel panel = new StructurePreviewPanel(idPrefix, session);
+        StructurePreviewPanel panel = new StructurePreviewPanel(idPrefix, session, presentation);
         if (logicalClient) {
             StructurePreviewSceneBinding binding = this.sceneBinder.get().bind(
                     panel.scene(),
