@@ -7,13 +7,13 @@
 	},
 	"slots": {
 		"PLAYER_INVENTORY": {
-			"left": 48,
-			"bottom": 85,
+			"left": 6,
+			"bottom": 82,
 			"grid": "BREAK_AFTER_9COLS"
 		},
 		"PLAYER_HOTBAR": {
-			"left": 48,
-			"bottom": 26,
+			"left": 6,
+			"bottom": 24,
 			"grid": "HORIZONTAL"
 		}
 	},
@@ -23,15 +23,15 @@
 				"left": 15,
 				"top": 7
 			},
-			"maxWidth": 226
+			"maxWidth": 218
 		},
 		"player_inventory_title": {
 			"text": {
 				"translate": "container.inventory"
 			},
 			"position": {
-				"left": 48,
-				"bottom": 95
+				"left": 6,
+				"bottom": 93
 			}
 		}
 	}

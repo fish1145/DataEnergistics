@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKe
 import com.fish_dan_.data_energistics.network.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedRefundPayload;
+import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -35,6 +36,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -213,6 +215,33 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
 
     public @Nullable TrinityDataCoreMenuHost getHost() {
         return this.host;
+    }
+
+    /** Sends one stable CPU selection with the host identity received through the LDLib2 status channel. */
+    public boolean sendOpenCpuStatus(UUID syncedHostId, int cpuNumber) {
+        if (syncedHostId == null) {
+            throw new IllegalArgumentException("Synchronized Trinity host ID is required");
+        }
+        if (this.host == null || !getPlayer().level().isClientSide() || getPlayer().containerMenu != this ||
+                !isValidMenu()) {
+            return false;
+        }
+        try {
+            this.hostedActionSink.accept(new TrinityOpenCpuStatusPayload(
+                    this.containerId,
+                    syncedHostId,
+                    cpuNumber));
+            return true;
+        } catch (RuntimeException failure) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to request Trinity CPU status: player={}, container={}, host={}, cpu={}",
+                    getPlayer().getName().getString(),
+                    this.containerId,
+                    syncedHostId,
+                    cpuNumber,
+                    failure);
+            return false;
+        }
     }
 
     public boolean hasCraftingTarget() {

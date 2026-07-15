@@ -48,8 +48,24 @@ public final class AePlayerInventoryPanel {
      * @return fresh panel containing 36 wrapped slots
      */
     public static UIElement create(AEBaseMenu menu, AeMenuBridge bridge, AePlayerInventoryLayout layout) {
-        if (menu == null || bridge == null || layout == null) {
-            throw invalid("menu, bridge, and layout must all be present");
+        return create(menu, bridge, layout, IGuiTexture.EMPTY);
+    }
+
+    /**
+     * Creates one player inventory panel with a caller-owned modular slot surface.
+     *
+     * @param menu           menu that owns the existing player slots
+     * @param bridge         bridge responsible for preserving every slot identity
+     * @param layout         slot-content coordinates relative to the mounted root
+     * @param slotBackground texture drawn behind each 16x16 slot content area
+     * @return fresh panel containing 36 wrapped slots
+     */
+    public static UIElement create(AEBaseMenu menu,
+                                   AeMenuBridge bridge,
+                                   AePlayerInventoryLayout layout,
+                                   IGuiTexture slotBackground) {
+        if (menu == null || bridge == null || layout == null || slotBackground == null) {
+            throw invalid("menu, bridge, layout, and slot background must all be present");
         }
         List<Slot> inventory = menu.getSlots(SlotSemantics.PLAYER_INVENTORY);
         List<Slot> hotbar = menu.getSlots(SlotSemantics.PLAYER_HOTBAR);
@@ -67,8 +83,8 @@ public final class AePlayerInventoryPanel {
                 .width(COLUMN_COUNT * SLOT_PITCH)
                 .height(hotbarOffset + SLOT_PITCH));
 
-        addGrid(panel, bridge, inventory, INVENTORY_SLOT_ID_PREFIX, 0, true);
-        addGrid(panel, bridge, hotbar, HOTBAR_SLOT_ID_PREFIX, hotbarOffset, false);
+        addGrid(panel, bridge, inventory, INVENTORY_SLOT_ID_PREFIX, 0, true, slotBackground);
+        addGrid(panel, bridge, hotbar, HOTBAR_SLOT_ID_PREFIX, hotbarOffset, false, slotBackground);
         return panel;
     }
 
@@ -77,13 +93,14 @@ public final class AePlayerInventoryPanel {
                                 List<Slot> slots,
                                 String idPrefix,
                                 int top,
-                                boolean wrapRows) {
+                                boolean wrapRows,
+                                IGuiTexture slotBackground) {
         for (int index = 0; index < slots.size(); index++) {
             int column = index % COLUMN_COUNT;
             int row = wrapRows ? index / COLUMN_COUNT : 0;
             AeItemSlot wrapper = bridge.wrap(slots.get(index));
             wrapper.setId(idPrefix + index);
-            wrapper.getStyle().backgroundTexture(IGuiTexture.EMPTY);
+            wrapper.getStyle().backgroundTexture(slotBackground);
             wrapper.layout(slotLayout -> slotLayout
                     .positionType(TaffyPosition.ABSOLUTE)
                     .left(column * SLOT_PITCH)
