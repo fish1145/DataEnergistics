@@ -5,7 +5,7 @@ ae2wt = "19.5.0"
 jei = "19.25.1.328"
 emi = "1.1.22+1.21.1"
 
-ldlib = "2.2.8"
+ldlib = "2.2.28"
 mekanism = "1.21.1-10.7.19.85"
 pneumaticcraft = "8.2.9+mc1.21.1"
 kotlinforforge = "5.7.0"
