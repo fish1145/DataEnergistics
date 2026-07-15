@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.world;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -11,6 +12,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import appeng.api.config.Actionable;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -143,6 +146,24 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
         return hostState == null ? StorageSummary.EMPTY : hostState.summary();
     }
 
+    /**
+     * Combines the exact stored contents with the host's current capacity profile for state consumers.
+     */
+    public TrinityDataCoreStorageStatus storageStatus(UUID hostId, TrinityDataCoreStorageProfile profile) {
+        if (profile == null) {
+            throw new NullPointerException("Storage profile must not be null");
+        }
+        StorageSummary summary = summary(hostId);
+        return new TrinityDataCoreStorageStatus(
+                summary.typeCount(),
+                profile.typeCapacity(),
+                summary.itemAmount(),
+                summary.fluidAmount(),
+                summary.otherKeyAmount(),
+                profile.totalCapacity(),
+                profile.unlimited());
+    }
+
     private long acceptedInsertAmount(UUID hostId, AEKey key, long amount, TrinityDataCoreStorageProfile profile) {
         if (profile.unlimited()) {
             return amount;
@@ -246,39 +267,34 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
     private static final class HostState {
 
         private final Object2ObjectOpenHashMap<AEKey, BigInteger> entries = new Object2ObjectOpenHashMap<>();
-        private int typeCount;
-        private BigInteger totalAmount = BigInteger.ZERO;
+        private BigInteger itemAmount = BigInteger.ZERO;
+        private BigInteger fluidAmount = BigInteger.ZERO;
+        private BigInteger otherKeyAmount = BigInteger.ZERO;
 
         private void insert(AEKey key, long amount) {
             BigInteger insertedAmount = BigInteger.valueOf(amount);
-            BigInteger current = this.entries.put(
+            this.entries.put(
                     key,
                     this.entries.getOrDefault(key, BigInteger.ZERO).add(insertedAmount));
-            if (current == null) {
-                this.typeCount++;
-            }
-            this.totalAmount = this.totalAmount.add(insertedAmount);
+            addCategoryAmount(key, insertedAmount);
         }
 
         private void extract(AEKey key, BigInteger currentAmount, BigInteger extractedAmount) {
             BigInteger remaining = currentAmount.subtract(extractedAmount);
             if (remaining.signum() <= 0) {
                 this.entries.remove(key);
-                this.typeCount--;
             } else {
                 this.entries.put(key, remaining);
             }
-            this.totalAmount = this.totalAmount.subtract(extractedAmount);
+            subtractCategoryAmount(key, extractedAmount);
         }
 
         private void putLoaded(AEKey key, BigInteger amount) {
             BigInteger previous = this.entries.put(key, amount);
-            if (previous == null) {
-                this.typeCount++;
-            } else {
-                this.totalAmount = this.totalAmount.subtract(previous);
+            if (previous != null) {
+                subtractCategoryAmount(key, previous);
             }
-            this.totalAmount = this.totalAmount.add(amount);
+            addCategoryAmount(key, amount);
         }
 
         private BigInteger amount(AEKey key) {
@@ -286,11 +302,15 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
         }
 
         private StorageSummary summary() {
-            return new StorageSummary(this.typeCount, this.totalAmount.toString());
+            return new StorageSummary(
+                    this.entries.size(),
+                    this.itemAmount,
+                    this.fluidAmount,
+                    this.otherKeyAmount);
         }
 
         private boolean isEmpty() {
-            return this.typeCount == 0;
+            return this.entries.isEmpty();
         }
 
         private Object2ObjectOpenHashMap<AEKey, BigInteger> entries() {
@@ -298,16 +318,47 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
         }
 
         private int typeCount() {
-            return this.typeCount;
+            return this.entries.size();
         }
 
         private BigInteger totalAmount() {
-            return this.totalAmount;
+            return this.itemAmount.add(this.fluidAmount).add(this.otherKeyAmount);
+        }
+
+        private void addCategoryAmount(AEKey key, BigInteger amount) {
+            if (key instanceof AEItemKey) {
+                this.itemAmount = this.itemAmount.add(amount);
+            } else if (key instanceof AEFluidKey) {
+                this.fluidAmount = this.fluidAmount.add(amount);
+            } else {
+                this.otherKeyAmount = this.otherKeyAmount.add(amount);
+            }
+        }
+
+        private void subtractCategoryAmount(AEKey key, BigInteger amount) {
+            if (key instanceof AEItemKey) {
+                this.itemAmount = this.itemAmount.subtract(amount);
+            } else if (key instanceof AEFluidKey) {
+                this.fluidAmount = this.fluidAmount.subtract(amount);
+            } else {
+                this.otherKeyAmount = this.otherKeyAmount.subtract(amount);
+            }
         }
     }
 
-    public record StorageSummary(int typeCount, String totalAmount) {
+    public record StorageSummary(int typeCount,
+                                 BigInteger itemAmount,
+                                 BigInteger fluidAmount,
+                                 BigInteger otherKeyAmount) {
 
-        public static final StorageSummary EMPTY = new StorageSummary(0, "0");
+        public static final StorageSummary EMPTY = new StorageSummary(
+                0,
+                BigInteger.ZERO,
+                BigInteger.ZERO,
+                BigInteger.ZERO);
+
+        public BigInteger totalAmount() {
+            return this.itemAmount.add(this.fluidAmount).add(this.otherKeyAmount);
+        }
     }
 }

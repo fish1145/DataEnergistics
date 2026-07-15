@@ -36,6 +36,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCraftingCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
@@ -59,7 +60,6 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
-import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData.StorageSummary;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -839,23 +839,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public int getStoredTypeCount() {
-        return storageSummary().typeCount();
-    }
-
-    @Override
-    public String getStoredAmountText() {
-        return storageSummary().totalAmount();
-    }
-
-    @Override
-    public String getStoredTypeCapacityText() {
-        return storageCapacityText(Integer.toString(this.storageProfile.typeCapacity()));
-    }
-
-    @Override
-    public String getStoredAmountCapacityText() {
-        return storageCapacityText(this.storageProfile.totalCapacity().toString());
+    public TrinityDataCoreStorageStatus getStorageStatus() {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return TrinityDataCoreStorageStatus.EMPTY;
+        }
+        return TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
+                .storageStatus(this.storageId, this.storageProfile);
     }
 
     @Override
@@ -958,17 +947,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private static boolean hasCraftingTarget(@Nullable GenericStack stack) {
         return stack != null && stack.amount() > 0;
-    }
-
-    private StorageSummary storageSummary() {
-        if (!(this.level instanceof ServerLevel serverLevel)) {
-            return StorageSummary.EMPTY;
-        }
-        return TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
-    }
-
-    private String storageCapacityText(String finiteCapacity) {
-        return this.storageProfile.unlimited() ? TrinityDataCoreMenuHost.UNLIMITED_STORAGE_CAPACITY : finiteCapacity;
     }
 
     public boolean hasActiveAccessHatch() {

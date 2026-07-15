@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 
@@ -110,24 +112,39 @@ public interface TrinityDataCoreMenuHost {
     TrinityDataCoreCraftingStatus getCraftingStatus();
 
     /**
-     * Returns how many AE key types are stored in the host UUID storage.
+     * Returns the authoritative storage contents and capacity profile as one immutable state.
      */
-    int getStoredTypeCount();
+    TrinityDataCoreStorageStatus getStorageStatus();
 
     /**
-     * Returns the total host UUID storage amount as a decimal string because it may exceed {@code long}.
+     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
      */
-    String getStoredAmountText();
+    default int getStoredTypeCount() {
+        return getStorageStatus().typeCount();
+    }
 
     /**
-     * Returns the current AE key type capacity as a decimal string, or {@link #UNLIMITED_STORAGE_CAPACITY}.
+     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
      */
-    String getStoredTypeCapacityText();
+    default String getStoredAmountText() {
+        return getStorageStatus().totalAmount().toString();
+    }
 
     /**
-     * Returns the current total host UUID storage capacity as a decimal string, or {@link #UNLIMITED_STORAGE_CAPACITY}.
+     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
      */
-    String getStoredAmountCapacityText();
+    default String getStoredTypeCapacityText() {
+        TrinityDataCoreStorageStatus status = getStorageStatus();
+        return status.unlimited() ? UNLIMITED_STORAGE_CAPACITY : Integer.toString(status.typeCapacity());
+    }
+
+    /**
+     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
+     */
+    default String getStoredAmountCapacityText() {
+        TrinityDataCoreStorageStatus status = getStorageStatus();
+        return status.unlimited() ? UNLIMITED_STORAGE_CAPACITY : status.amountCapacity().toString();
+    }
 
     /**
      * Returns active virtual CPU partitions contributed by the formed trinity structure.

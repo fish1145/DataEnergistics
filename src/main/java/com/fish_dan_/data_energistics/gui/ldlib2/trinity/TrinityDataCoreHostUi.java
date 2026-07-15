@@ -53,6 +53,7 @@ public final class TrinityDataCoreHostUi {
         }
 
         AeMenuBridge bridge = AeMenuBridge.create(menu);
+        TrinityDataCoreUiSync sync = TrinityDataCoreUiSync.create(menu);
         UIElement root = new UIElement();
         root.setId(ROOT_ID);
         root.layout(layout -> layout.width(WIDTH).height(HEIGHT));
@@ -81,6 +82,7 @@ public final class TrinityDataCoreHostUi {
                 throw new IllegalStateException("Trinity Data Core coordinator must own the mounted host extension");
             }
             modularUI = hostUi.createModularUI(UI.of(root), menu.getPlayer());
+            sync.register(modularUI);
             bridge.mount(modularUI);
             return coordinator;
         } catch (RuntimeException | Error failure) {
