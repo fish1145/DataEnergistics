@@ -10,12 +10,16 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPrevie
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierDomain;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewTierOption;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewViewState;
 import com.fish_dan_.data_energistics.common.multiblock.preview.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructureSelection;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.PreviewMaterialStrip;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewPanel;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewPresentation;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinding;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneElement;
@@ -35,12 +39,20 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.stacks.AEItemKey;
+import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
+import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
 import com.modularmc.mdl.api.multiblock.PatternUnit;
 import com.modularmc.mdl.api.multiblock.Predicates;
 import com.modularmc.mdl.api.multiblock.RepeatRange;
+import dev.vfyjxf.taffy.style.TaffyDimension;
 
 import java.util.List;
 import java.util.Map;
@@ -73,6 +85,36 @@ public final class MultiblockXeiAdapterGameTest {
         MultiblockXeiComposition emi = emiRecipe.createComposition("xei_adapter_emi");
         MultiblockRecipeView initial = jeiRecipe.currentRecipeView();
 
+        assertEquals(196, MultiblockXeiComposition.WIDTH);
+        assertEquals(232, MultiblockXeiComposition.HEIGHT);
+        assertEquals(StructurePreviewPresentation.XEI, jei.previewUi().panel().presentation());
+        assertTrue(jei.modularUI().getElementById(
+                "xei_adapter_jei_preview" + StructurePreviewPanel.MATERIALS_SUFFIX) == null);
+        assertTrue(jei.modularUI().getElementById(
+                "xei_adapter_jei" + MultiblockXeiComposition.RECIPE_INPUTS_SUFFIX +
+                        StructurePreviewPanel.MATERIALS_SUFFIX) instanceof PreviewMaterialStrip);
+        assertTrue(jei.modularUI().getElementById(
+                "xei_adapter_jei" + MultiblockXeiComposition.CANDIDATES_SUFFIX) != null);
+        assertTrue(jei.modularUI().getElementById(
+                "xei_adapter_jei" + MultiblockXeiComposition.OWNER_OUTPUT_SUFFIX) instanceof ItemSlot);
+        ScrollerView structures = requireScroller(jei, "xei_adapter_jei_structures");
+        assertSame(
+                ScrollerMode.HORIZONTAL,
+                structures.getScrollerViewStyle().getInline(PropertyRegistry.SCROLLER_VIEW_MODE));
+        assertSame(
+                ScrollDisplay.AUTO,
+                structures.getScrollerViewStyle().getInline(PropertyRegistry.SCROLLER_HORIZONTAL_DISPLAY));
+        assertEquals(4, structures.viewContainer.getChildren().size());
+        for (var structureButton : structures.viewContainer.getChildren()) {
+            assertEquals(
+                    TaffyDimension.length(MultiblockXeiComposition.STRUCTURE_BUTTON_MIN_WIDTH),
+                    structureButton.getLayout().getWidth());
+        }
+        Button mainStructureButton = requireButton(jei, "xei_adapter_jei_structure_main");
+        Button childStructureButton = requireButton(jei, "xei_adapter_jei_structure_child");
+        assertSame(Sprites.RECT_LIGHT, mainStructureButton.getButtonStyle().baseTexture());
+        assertSame(Sprites.RECT_DARK, childStructureButton.getButtonStyle().baseTexture());
+
         assertEquals(initial, emiRecipe.currentRecipeView());
         assertEquals(initial.registeredRecipeId(), jeiRecipe.registeredRecipeId());
         assertEquals(initial.registeredRecipeId(), emiRecipe.getId());
@@ -84,6 +126,8 @@ public final class MultiblockXeiAdapterGameTest {
         jei.selectStructure("child");
         assertRecipeChanged(beforeStructure, jei.currentRecipeView());
         assertEquals(beforeStructure.registeredRecipeId(), jei.registeredRecipeId());
+        assertSame(Sprites.RECT_DARK, mainStructureButton.getButtonStyle().baseTexture());
+        assertSame(Sprites.RECT_LIGHT, childStructureButton.getButtonStyle().baseTexture());
         jei.selectStructure("main");
 
         MultiblockRecipeView beforeVariant = jei.currentRecipeView();
@@ -145,39 +189,15 @@ public final class MultiblockXeiAdapterGameTest {
         MultiblockXeiComposition composition = recipe.createComposition("xei_stale_revision");
         ResourceLocation registeredId = recipe.registeredRecipeId();
 
-        catalog.publish(spec(12L));
+        MultiblockPreviewSpec reloadedSpec = spec(12L);
+        catalog.publish(reloadedSpec);
 
         assertIllegalState(recipe::currentRecipeView);
         assertEquals(registeredId, recipe.registeredRecipeId());
         composition.modularUI().onRemoved();
-        helper.succeed();
-    }
-
-    @TestHolder(value = "multiblock_xei_replacement_failure_is_terminal", side = Dist.CLIENT)
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void replacementFailureIsTerminal(GameTestHelper helper) {
-        MultiblockPreviewSpec spec = spec(13L);
-        MutableCatalog catalog = new MutableCatalog(spec);
-        FailingFirstReleaseSceneBinder sceneBinder = new FailingFirstReleaseSceneBinder();
-        MultiblockXeiRecipe recipe = MultiblockXeiRecipe.create(
-                CONTROLLER_ID,
-                MultiblockXeiUiFactory.create(
-                        catalog,
-                        StructurePreviewUiFactory.create(sceneBinder),
-                        true));
-        MultiblockXeiComposition composition = recipe.createComposition("xei_replacement_failure");
-        PreviewPredicateSnapshot selectable = firstSelectableCandidate(composition);
-        int nextCandidate = (selectable.selectedCandidateIndex() + 1) % selectable.candidates().size();
-
-        RuntimeException failure = captureRuntimeFailure(() -> composition.selectCandidate(selectable.key(), nextCandidate));
-
-        assertSame(sceneBinder.firstReleaseFailure, failure);
-        assertIllegalState(composition::currentRecipeView);
-        assertEquals(2, sceneBinder.bindCount.get());
-        assertEquals(2, sceneBinder.releaseCount.get());
-        composition.modularUI().onRemoved();
-        assertEquals(2, sceneBinder.releaseCount.get());
+        MultiblockXeiComposition recreated = recipe.createComposition("xei_reloaded_revision");
+        assertEquals(PreviewSelection.initial(reloadedSpec), recreated.previewUi().session().selection());
+        recreated.modularUI().onRemoved();
         helper.succeed();
     }
 
@@ -191,6 +211,20 @@ public final class MultiblockXeiAdapterGameTest {
                         .count() > 1)
                 .findFirst()
                 .orElseThrow(() -> new GameTestAssertException("Fixture requires a material-changing candidate"));
+    }
+
+    private static Button requireButton(MultiblockXeiComposition composition, String id) {
+        if (composition.modularUI().getElementById(id) instanceof Button button) {
+            return button;
+        }
+        throw new GameTestAssertException("Expected XEI button " + id);
+    }
+
+    private static ScrollerView requireScroller(MultiblockXeiComposition composition, String id) {
+        if (composition.modularUI().getElementById(id) instanceof ScrollerView scroller) {
+            return scroller;
+        }
+        throw new GameTestAssertException("Expected XEI scroller " + id);
     }
 
     private static void assertRecipeChanged(MultiblockRecipeView before, MultiblockRecipeView after) {
@@ -207,7 +241,9 @@ public final class MultiblockXeiAdapterGameTest {
                 revision,
                 List.of(
                         substructure("main", Blocks.COBBLESTONE, Blocks.BRICKS, Blocks.OBSIDIAN),
-                        substructure("child", Blocks.DEEPSLATE, Blocks.POLISHED_DEEPSLATE, Blocks.NETHER_BRICKS)));
+                        substructure("child", Blocks.DEEPSLATE, Blocks.POLISHED_DEEPSLATE, Blocks.NETHER_BRICKS),
+                        substructure("auxiliary_a", Blocks.ANDESITE, Blocks.POLISHED_ANDESITE, Blocks.CALCITE),
+                        substructure("auxiliary_b", Blocks.GRANITE, Blocks.POLISHED_GRANITE, Blocks.TUFF)));
     }
 
     private static SubstructurePreviewSpec substructure(String id,
@@ -298,15 +334,6 @@ public final class MultiblockXeiAdapterGameTest {
         throw new GameTestAssertException("Expected IllegalStateException");
     }
 
-    private static RuntimeException captureRuntimeFailure(Runnable action) {
-        try {
-            action.run();
-        } catch (RuntimeException failure) {
-            return failure;
-        }
-        throw new GameTestAssertException("Expected RuntimeException");
-    }
-
     private static final class MutableCatalog implements MultiblockPreviewCatalog {
 
         private MultiblockPreviewCatalogSnapshot snapshot;
@@ -351,46 +378,11 @@ public final class MultiblockXeiAdapterGameTest {
 
                 @Override
                 public void release() {
-                    if (!this.released) {
-                        this.released = true;
-                        releaseCount.incrementAndGet();
-                    }
-                }
-            };
-        }
-    }
-
-    private static final class FailingFirstReleaseSceneBinder implements StructurePreviewSceneBinder {
-
-        private final RuntimeException firstReleaseFailure = new RuntimeException("First Scene release failed");
-        private final AtomicInteger bindCount = new AtomicInteger();
-        private final AtomicInteger releaseCount = new AtomicInteger();
-
-        @Override
-        public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
-                                                 BiConsumer<BlockPos, Direction> selectionConsumer) {
-            int bindingIndex = this.bindCount.incrementAndGet();
-            return new StructurePreviewSceneBinding() {
-
-                private boolean released;
-
-                @Override
-                public void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState) {
                     if (this.released) {
-                        throw new GameTestAssertException("Released replacement fixture cannot be refreshed");
-                    }
-                }
-
-                @Override
-                public void release() {
-                    if (this.released) {
-                        return;
+                        throw new GameTestAssertException("Test Scene binding was released more than once");
                     }
                     this.released = true;
                     releaseCount.incrementAndGet();
-                    if (bindingIndex == 1) {
-                        throw firstReleaseFailure;
-                    }
                 }
             };
         }

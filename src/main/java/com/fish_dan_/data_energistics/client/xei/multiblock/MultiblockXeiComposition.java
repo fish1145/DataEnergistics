@@ -11,7 +11,10 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewMaterial;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateKey;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewPredicateSnapshot;
 import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
+import com.fish_dan_.data_energistics.common.multiblock.preview.ProjectionFingerprint;
 import com.fish_dan_.data_energistics.common.multiblock.preview.SubstructurePreviewSpec;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.PreviewMaterialStrip;
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewPresentation;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUi;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
 
@@ -20,17 +23,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.Icons;
+import com.lowdragmc.lowdraglib2.gui.texture.ItemStackTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
+import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
@@ -38,15 +46,14 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
+import java.util.function.Consumer;
 
 /**
  * One independently owned, viewer-neutral Trinity preview composition.
  *
  * <p>
- * Recipe-affecting controls update the live typed view. Logical-layer controls remain view-only, while a
- * candidate change recreates the shared preview through its factory so the old Scene follows normal LDLib2 removal
- * and resource release.
+ * Recipe-affecting controls update the retained session and Scene. Logical-layer controls remain view-only and do
+ * not publish recipe changes.
  * </p>
  */
 public final class MultiblockXeiComposition implements MultiblockRecipeViewSource {
@@ -54,18 +61,35 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
     /**
      * Width shared by JEI and EMI adapters.
      */
-    public static final int WIDTH = 180;
+    public static final int WIDTH = StructurePreviewPresentation.WIDTH;
     /**
      * Height shared by JEI and EMI adapters.
      */
-    public static final int HEIGHT = 272;
+    public static final int HEIGHT = 232;
+    /** Suffix used by the horizontal candidate rail. */
+    public static final String CANDIDATES_SUFFIX = "_candidates";
+    /** Prefix used by the canonical recipe-input material strip. */
+    public static final String RECIPE_INPUTS_SUFFIX = "_recipe_inputs";
+    /** Suffix used by the sole controller/owner output slot. */
+    public static final String OWNER_OUTPUT_SUFFIX = "_owner_output";
+    /** Minimum clickable width retained before named structures overflow into horizontal scrolling. */
+    static final int STRUCTURE_BUTTON_MIN_WIDTH = 64;
 
-    private static final int STRUCTURE_SELECTOR_HEIGHT = 18;
-    private static final int PREVIEW_HEIGHT = 208;
-    private static final int CANDIDATE_TOP = STRUCTURE_SELECTOR_HEIGHT + PREVIEW_HEIGHT;
-    private static final int CANDIDATE_HEIGHT = 20;
+    private static final String TRANSLATION_PREFIX = "screen.data_energistics.multiblock_preview.";
+    private static final int STRUCTURE_SELECTOR_HEIGHT = 20;
+    private static final int STRUCTURE_SELECTOR_CONTENT_HEIGHT = 15;
+    private static final int PREVIEW_TOP = STRUCTURE_SELECTOR_HEIGHT + 2;
+    private static final int PREVIEW_HEIGHT = 158;
+    private static final int CANDIDATE_TOP = PREVIEW_TOP + PREVIEW_HEIGHT + 2;
+    private static final int CANDIDATE_HEIGHT = 24;
+    private static final int CANDIDATE_CONTENT_HEIGHT = 19;
     private static final int RECIPE_TOP = CANDIDATE_TOP + CANDIDATE_HEIGHT + 2;
-    private static final int RECIPE_HEIGHT = 24;
+    private static final int RECIPE_HEIGHT = HEIGHT - RECIPE_TOP;
+    private static final int RECIPE_INPUT_WIDTH = 158;
+    private static final int RECIPE_ARROW_LEFT = 161;
+    private static final int OWNER_OUTPUT_LEFT = WIDTH - 18;
+    private static final int ACTIVE_TEXT_COLOR = 0xFF111820;
+    private static final int INACTIVE_TEXT_COLOR = 0xFFE5EDF4;
 
     private final MultiblockPreviewCatalog catalog;
     private final MultiblockPreviewSpec spec;
@@ -73,12 +97,17 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
     private final boolean logicalClient;
     private final String idPrefix;
     private final List<String> structureKeys;
+    private final Map<String, Button> structureButtons = new LinkedHashMap<>();
     private final CompositionRoot root;
     private final UIElement previewHost;
     private final ScrollerView candidateControls;
-    private final ScrollerView recipeSlots;
+    private final PreviewMaterialStrip recipeInputs;
+    private final PreviewMaterial ownerOutputMaterial;
+    private final ItemSlot ownerOutput;
     private final ModularUI modularUI;
     private StructurePreviewUi previewUi;
+    private Consumer<RecipeChange> recipeChangeListener = change -> {};
+    private boolean recipeChangeListenerRegistered;
     private boolean removed;
 
     MultiblockXeiComposition(MultiblockPreviewCatalog catalog,
@@ -105,14 +134,24 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         this.root.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
 
         this.previewHost = createPreviewHost();
-        this.candidateControls = createHorizontalScroller(idPrefix + "_candidates", CANDIDATE_TOP, CANDIDATE_HEIGHT);
-        this.recipeSlots = createHorizontalScroller(idPrefix + "_recipe_slots", RECIPE_TOP, RECIPE_HEIGHT);
-        this.root.addChildren(createStructureSelector(), this.previewHost, this.candidateControls, this.recipeSlots);
-
+        this.candidateControls = createHorizontalScroller(
+                idPrefix + CANDIDATES_SUFFIX,
+                CANDIDATE_TOP,
+                CANDIDATE_HEIGHT,
+                CANDIDATE_CONTENT_HEIGHT);
         this.previewUi = createPreview(initialSelection);
+        this.recipeInputs = createRecipeInputs();
+        this.ownerOutputMaterial = this.previewUi.session().recipeView().output();
+        this.ownerOutput = createOwnerOutput();
+        this.root.addChildren(
+                createStructureSelector(),
+                this.previewHost,
+                this.candidateControls,
+                createRecipeStrip());
         this.previewHost.addChild(this.previewUi.panel());
+        refreshStructureSelector();
         refreshCandidateControls();
-        refreshRecipeSlots();
+        refreshRecipeInputs();
         this.modularUI = ModularUI.of(UI.of(this.root));
     }
 
@@ -132,6 +171,28 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
     }
 
     /**
+     * Installs the sole listener notified after a recipe-affecting selection refresh completes.
+     */
+    public void setRecipeChangeListener(Consumer<RecipeChange> recipeChangeListener) {
+        requireActive();
+        if (recipeChangeListener == null) {
+            throw new IllegalArgumentException("Multiblock XEI recipe change listener cannot be null");
+        }
+        if (this.recipeChangeListenerRegistered) {
+            throw new IllegalStateException("Multiblock XEI recipe change listener can only be registered once");
+        }
+        this.recipeChangeListener = recipeChangeListener;
+        this.recipeChangeListenerRegistered = true;
+    }
+
+    /**
+     * Returns whether this composition still owns a live UI/session tree.
+     */
+    public boolean isActive() {
+        return !this.removed;
+    }
+
+    /**
      * Activates a named child structure through the shared panel refresh/listener path.
      */
     public void selectStructure(String structureKey) {
@@ -144,8 +205,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
      */
     public void selectVariant(int variantIndex) {
         requireActive();
-        PreviewSelection updated = this.previewUi.session().selection().withVariantIndex(variantIndex);
-        replacePreview(updated);
+        this.previewUi.panel().selectVariant(variantIndex);
     }
 
     /**
@@ -161,8 +221,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
             throw new IllegalArgumentException("Candidate index " + candidateIndex + " is outside 0.." +
                     (predicate.candidates().size() - 1) + " for " + predicateKey);
         }
-        PreviewSelection updated = this.previewUi.session().selection().withCandidate(predicateKey, candidateIndex);
-        replacePreview(updated);
+        this.previewUi.panel().selectCandidate(predicateKey, candidateIndex);
     }
 
     @Override
@@ -187,31 +246,37 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         return view;
     }
 
-    private UIElement createStructureSelector() {
-        UIElement selector = new UIElement();
-        selector.setId(this.idPrefix + "_structures");
-        selector.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0)
-                .width(WIDTH)
-                .height(STRUCTURE_SELECTOR_HEIGHT));
+    private ScrollerView createStructureSelector() {
+        ScrollerView selector = createHorizontalScroller(
+                this.idPrefix + "_structures",
+                0,
+                STRUCTURE_SELECTOR_HEIGHT,
+                STRUCTURE_SELECTOR_CONTENT_HEIGHT);
         int count = this.spec.substructures().size();
+        boolean fillViewport = count <= WIDTH / STRUCTURE_BUTTON_MIN_WIDTH;
         for (int index = 0; index < count; index++) {
             SubstructurePreviewSpec substructure = this.spec.substructures().get(index);
-            int left = index * WIDTH / count;
-            int right = (index + 1) * WIDTH / count;
+            int buttonWidth = fillViewport ?
+                    (index + 1) * WIDTH / count - index * WIDTH / count :
+                    STRUCTURE_BUTTON_MIN_WIDTH;
             Button button = new Button();
             button.setId(this.idPrefix + "_structure_" + substructure.id());
             button.setText(substructure.title());
+            button.textStyle(style -> style
+                    .adaptiveWidth(false)
+                    .adaptiveHeight(false)
+                    .fontSize(8.0f)
+                    .textWrap(TextWrap.HOVER_ROLL)
+                    .textAlignHorizontal(Horizontal.CENTER)
+                    .textAlignVertical(Vertical.CENTER)
+                    .textShadow(false));
+            button.setOverflowVisible(false);
             button.setOnClick(event -> selectStructure(substructure.id()));
-            button.layout(layout -> layout
-                    .positionType(TaffyPosition.ABSOLUTE)
-                    .left(left)
-                    .top(0)
-                    .width(right - left)
-                    .height(STRUCTURE_SELECTOR_HEIGHT));
-            selector.addChild(button);
+            button.layout(layout -> layout.width(buttonWidth).height(STRUCTURE_SELECTOR_CONTENT_HEIGHT));
+            if (this.structureButtons.putIfAbsent(substructure.id(), button) != null) {
+                throw new IllegalStateException("Repeated multiblock structure selector id " + substructure.id());
+            }
+            selector.addScrollViewChild(button);
         }
         return selector;
     }
@@ -222,14 +287,14 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         host.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
-                .top(STRUCTURE_SELECTOR_HEIGHT)
+                .top(PREVIEW_TOP)
                 .width(WIDTH)
                 .height(PREVIEW_HEIGHT));
         host.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         return host;
     }
 
-    private ScrollerView createHorizontalScroller(String id, int top, int height) {
+    private ScrollerView createHorizontalScroller(String id, int top, int height, int contentHeight) {
         ScrollerView scroller = new ScrollerView();
         scroller.setId(id);
         scroller.layout(layout -> layout
@@ -238,7 +303,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                 .top(top)
                 .width(WIDTH)
                 .height(height));
-        scroller.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        scroller.style(style -> style.backgroundTexture(Sprites.BORDER));
         scroller.scrollerStyle(style -> style
                 .mode(ScrollerMode.HORIZONTAL)
                 .horizontalScrollDisplay(ScrollDisplay.AUTO)
@@ -249,8 +314,64 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                 .style(style -> style.backgroundTexture(IGuiTexture.EMPTY)));
         scroller.viewContainer(viewContainer -> viewContainer.layout(layout -> layout
                 .flexDirection(FlexDirection.ROW)
-                .height(height)));
+                .height(contentHeight)));
         return scroller;
+    }
+
+    private PreviewMaterialStrip createRecipeInputs() {
+        PreviewMaterialStrip inputs = new PreviewMaterialStrip(
+                this.idPrefix + RECIPE_INPUTS_SUFFIX,
+                IngredientIO.INPUT);
+        inputs.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(0)
+                .width(RECIPE_INPUT_WIDTH)
+                .height(RECIPE_HEIGHT));
+        return inputs;
+    }
+
+    private ItemSlot createOwnerOutput() {
+        int amount = xeiAmount(this.ownerOutputMaterial);
+        ItemStack displayStack = this.ownerOutputMaterial.key().toStack(amount);
+        ItemSlot slot = new ItemSlot();
+        slot.setId(this.idPrefix + OWNER_OUTPUT_SUFFIX);
+        slot.setItem(displayStack);
+        slot.xeiRecipeSlot(IngredientIO.OUTPUT, 1.0f);
+        slot.style(style -> style.tooltips(
+                Component.translatable(TRANSLATION_PREFIX + "owner_output"),
+                Component.translatable(TRANSLATION_PREFIX + "owner_output.hint")));
+        slot.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(OWNER_OUTPUT_LEFT)
+                .top(2)
+                .width(18)
+                .height(18));
+        return slot;
+    }
+
+    private UIElement createRecipeStrip() {
+        UIElement strip = new UIElement();
+        strip.setId(this.idPrefix + "_recipe_strip");
+        strip.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(0)
+                .top(RECIPE_TOP)
+                .width(WIDTH)
+                .height(RECIPE_HEIGHT));
+        strip.style(style -> style.backgroundTexture(Sprites.BORDER));
+
+        UIElement arrow = new UIElement();
+        arrow.setId(this.idPrefix + "_recipe_arrow");
+        arrow.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(RECIPE_ARROW_LEFT)
+                .top(5)
+                .width(12)
+                .height(12));
+        arrow.style(style -> style.backgroundTexture(Icons.RIGHT_ARROW_NO_BAR));
+        strip.addChildren(this.recipeInputs, arrow, this.ownerOutput);
+        return strip;
     }
 
     private StructurePreviewUi createPreview(PreviewSelection selection) {
@@ -259,7 +380,8 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                 selection,
                 this.structureKeys,
                 this.idPrefix + "_preview",
-                this.logicalClient);
+                this.logicalClient,
+                StructurePreviewPresentation.XEI);
         created.panel().setSelectionChangeListener(this::onSelectionChanged);
         return created;
     }
@@ -268,105 +390,89 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         if (!selection.equals(this.previewUi.session().selection())) {
             throw new IllegalStateException("Multiblock XEI panel published a selection other than its session state");
         }
+        refreshStructureSelector();
         refreshCandidateControls();
-        refreshRecipeSlots();
+        boolean widgetPoolGrew = refreshRecipeInputs();
+        MultiblockRecipeView view = currentRecipeView();
+        this.recipeChangeListener.accept(new RecipeChange(view.projectionFingerprint(), widgetPoolGrew));
     }
 
-    private void replacePreview(PreviewSelection selection) {
-        StructurePreviewUi next = createPreview(selection);
-        StructurePreviewUi previous = this.previewUi;
-        try {
-            if (!this.previewHost.removeChild(previous.panel())) {
-                throw new IllegalStateException("Multiblock XEI preview panel disappeared before replacement");
-            }
-        } catch (RuntimeException | Error failure) {
-            markRemoved();
-            releaseUnattached(next.panel(), failure);
-            throw failure;
-        }
-        try {
-            this.previewHost.addChild(next.panel());
-            this.previewUi = next;
-            refreshCandidateControls();
-            refreshRecipeSlots();
-        } catch (RuntimeException | Error failure) {
-            markRemoved();
-            if (next.panel().getParent() == this.previewHost) {
-                try {
-                    this.previewHost.removeChild(next.panel());
-                } catch (RuntimeException | Error removalFailure) {
-                    if (failure != removalFailure) {
-                        failure.addSuppressed(removalFailure);
-                    }
+    private void refreshStructureSelector() {
+        String activeStructure = this.previewUi.session().structureKey();
+        for (Map.Entry<String, Button> entry : this.structureButtons.entrySet()) {
+            boolean selected = entry.getKey().equals(activeStructure);
+            Button button = entry.getValue();
+            button.buttonStyle(style -> {
+                if (selected) {
+                    style.baseTexture(Sprites.RECT_LIGHT)
+                            .hoverTexture(Sprites.RECT_LIGHT)
+                            .pressedTexture(Sprites.RECT);
+                } else {
+                    style.baseTexture(Sprites.RECT_DARK)
+                            .hoverTexture(Sprites.RECT)
+                            .pressedTexture(Sprites.RECT_LIGHT);
                 }
-            } else {
-                releaseUnattached(next.panel(), failure);
-            }
-            throw failure;
+            });
+            button.textStyle(style -> style.textColor(selected ? ACTIVE_TEXT_COLOR : INACTIVE_TEXT_COLOR));
         }
     }
 
     private void refreshCandidateControls() {
         this.candidateControls.clearAllScrollViewChildren();
-        int ordinal = 0;
-        for (PreviewPredicateSnapshot predicate : candidatePredicates().values()) {
-            int candidateOrdinal = ordinal++;
+        Map<PreviewPredicateKey, PreviewPredicateSnapshot> predicates = candidatePredicates();
+        if (predicates.isEmpty()) {
+            this.candidateControls.addScrollViewChild(emptyCandidateLabel());
+            return;
+        }
+        for (PreviewPredicateSnapshot predicate : predicates.values()) {
+            PreviewCandidate selected = predicate.selectedCandidate().orElseThrow();
+            ItemStack displayStack = selected.placementKey()
+                    .map(key -> key.toStack(1))
+                    .orElse(ItemStack.EMPTY);
             Button button = new Button();
             button.setId(this.idPrefix + "_candidate_" + predicate.key().sourceLayer() + "_" +
                     predicate.key().y() + "_" + predicate.key().x());
-            button.setText("C" + candidateOrdinal + ":" + predicate.selectedCandidateIndex());
+            button.setText(Component.translatable(
+                    TRANSLATION_PREFIX + "candidate.value",
+                    predicate.selectedCandidateIndex() + 1,
+                    predicate.candidates().size()));
+            button.addPreIcon(new ItemStackTexture(displayStack));
+            button.textStyle(style -> style
+                    .adaptiveWidth(false)
+                    .adaptiveHeight(false)
+                    .fontSize(7.5f)
+                    .textAlignHorizontal(Horizontal.CENTER)
+                    .textAlignVertical(Vertical.CENTER)
+                    .textShadow(false));
             button.style(style -> style.tooltips(candidateTooltip(predicate)));
             button.setOnClick(event -> selectCandidate(
                     predicate.key(),
                     (predicate.selectedCandidateIndex() + 1) % predicate.candidates().size()));
-            button.layout(layout -> layout.width(58).height(CANDIDATE_HEIGHT));
+            button.layout(layout -> layout.width(54).height(CANDIDATE_CONTENT_HEIGHT));
             this.candidateControls.addScrollViewChild(button);
         }
     }
 
-    private void refreshRecipeSlots() {
-        this.recipeSlots.clearAllScrollViewChildren();
-        List<MultiblockXeiIngredient> ingredients = MultiblockXeiIngredient.from(this.previewUi.session().recipeView());
-        for (int index = 0; index < ingredients.size(); index++) {
-            this.recipeSlots.addScrollViewChild(recipeEntry(ingredients.get(index), index));
-        }
-    }
-
-    private UIElement recipeEntry(MultiblockXeiIngredient ingredient, int index) {
-        PreviewMaterial material = ingredient.material();
-        int amount = Math.toIntExact(material.amount());
-        ItemStack displayStack = material.key().toStack(1);
-
-        UIElement entry = new UIElement();
-        entry.setId(this.idPrefix + "_recipe_" + ingredient.io().name().toLowerCase() + "_" + index);
-        entry.layout(layout -> layout.width(52).height(20));
-
-        ItemSlot slot = new ItemSlot();
-        slot.setItem(displayStack);
-        slot.xeiRecipeIngredient(ingredient.io());
-        slot.xeiRecipeSlot(ingredient.io(), 1.0f, amount, () -> Stream.of(displayStack.copy()));
-        slot.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(0));
-
-        Label amountLabel = new Label();
-        amountLabel.setText(Component.literal("x" + material.amount()));
-        amountLabel.textStyle(style -> style
+    private Label emptyCandidateLabel() {
+        Label label = new Label();
+        label.setText(Component.translatable(TRANSLATION_PREFIX + "candidate.none"));
+        label.textStyle(style -> style
                 .adaptiveWidth(false)
                 .adaptiveHeight(false)
                 .fontSize(7.5f)
-                .textAlignHorizontal(Horizontal.LEFT)
+                .textAlignHorizontal(Horizontal.CENTER)
                 .textAlignVertical(Vertical.CENTER)
                 .textShadow(false));
-        amountLabel.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(19)
-                .top(0)
-                .width(33)
-                .height(18));
-        entry.addChildren(slot, amountLabel);
-        return entry;
+        label.layout(layout -> layout.width(WIDTH).height(CANDIDATE_CONTENT_HEIGHT));
+        return label;
+    }
+
+    private boolean refreshRecipeInputs() {
+        MultiblockRecipeView view = this.previewUi.session().recipeView();
+        if (!this.ownerOutputMaterial.equals(view.output())) {
+            throw new IllegalStateException("Multiblock XEI owner output changed within one controller recipe");
+        }
+        return this.recipeInputs.setRecipeInputs(view.inputs());
     }
 
     private Map<PreviewPredicateKey, PreviewPredicateSnapshot> candidatePredicates() {
@@ -390,9 +496,20 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                 .<Component>map(key -> key.getDisplayName().copy())
                 .orElseGet(() -> Component.translatable("block.minecraft.air"));
         return new Component[] {
-                Component.literal(predicate.key().sourceLayer() + "/" + predicate.key().y() + "/" +
-                        predicate.key().x()),
-                selectedName };
+                Component.translatable(TRANSLATION_PREFIX + "candidate", selectedName),
+                Component.translatable(
+                        TRANSLATION_PREFIX + "candidate.position",
+                        predicate.key().sourceLayer(),
+                        predicate.key().y(),
+                        predicate.key().x()) };
+    }
+
+    private static int xeiAmount(PreviewMaterial material) {
+        if (material.amount() > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "XEI material amount exceeds the supported int range: " + material.amount());
+        }
+        return (int) material.amount();
     }
 
     private void requireActive() {
@@ -405,14 +522,17 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         this.removed = true;
     }
 
-    private static void releaseUnattached(UIElement element, Throwable firstFailure) {
-        UIElement disposalRoot = new UIElement();
-        try {
-            disposalRoot.addChild(element);
-            disposalRoot.removeChild(element);
-        } catch (RuntimeException | Error releaseFailure) {
-            if (firstFailure != releaseFailure) {
-                firstFailure.addSuppressed(releaseFailure);
+    /**
+     * Immutable viewer-refresh event produced after one valid recipe-affecting selection.
+     *
+     * @param projectionFingerprint identity of the newly active recipe projection
+     * @param widgetPoolGrew        whether the stable XEI input slot pool gained entries
+     */
+    public record RecipeChange(ProjectionFingerprint projectionFingerprint, boolean widgetPoolGrew) {
+
+        public RecipeChange {
+            if (projectionFingerprint == null) {
+                throw new IllegalArgumentException("Multiblock XEI recipe change fingerprint cannot be null");
             }
         }
     }

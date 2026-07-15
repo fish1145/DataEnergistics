@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.client.xei.multiblock;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockPreviewCatalog;
+import com.fish_dan_.data_energistics.common.multiblock.preview.PreviewSelection;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewUiFactory;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
 import net.minecraft.resources.ResourceLocation;
+
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Creates independent XEI compositions without exposing JEI, EMI, or REI types to shared preview logic.
@@ -40,5 +43,19 @@ public interface MultiblockXeiUiFactory {
      * @param controllerId stable multiblock controller id
      * @param idPrefix     unique element-id prefix for the returned UI tree
      */
-    MultiblockXeiComposition create(ResourceLocation controllerId, String idPrefix);
+    default MultiblockXeiComposition create(ResourceLocation controllerId, String idPrefix) {
+        return create(controllerId, null, idPrefix);
+    }
+
+    /**
+     * Resolves one current catalog revision and restores a compatible recipe-affecting selection.
+     * A selection from an older definition revision is intentionally reset to the current defaults.
+     *
+     * @param controllerId      stable multiblock controller id
+     * @param retainedSelection last selection retained by the controller-level recipe wrapper, if any
+     * @param idPrefix          unique element-id prefix for the returned UI tree
+     */
+    MultiblockXeiComposition create(ResourceLocation controllerId,
+                                    @Nullable PreviewSelection retainedSelection,
+                                    String idPrefix);
 }
