@@ -36,9 +36,12 @@ import appeng.menu.slot.FakeSlot;
 import appeng.menu.slot.IOptionalSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -105,9 +108,18 @@ public final class CompositeWarehouseUiGameTest {
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             CompositeWarehouseMenu menu = new CompositeWarehouseMenu(3, player.getInventory(), host);
             IModularUIHolderMenu holder = holder(menu);
+            Label unlockedRows = CompartmentUiTestAssertions.assertStyledTranslation(
+                    holder.getModularUI(),
+                    CompartmentHostUi.HEADER_STATUS_ID,
+                    "screen.data_energistics.compartment.unlocked_rows");
 
             assertRowState(menu, holder, 2, false);
             assertRowState(menu, holder, 3, false);
+            CompartmentUiTestAssertions.assertTranslationArgument(unlockedRows, 0, 2);
+            CompartmentUiTestAssertions.assertTranslationArgument(
+                    unlockedRows,
+                    1,
+                    CompartmentMenu.COMPOSITE_WAREHOUSE_ROW_COUNT);
             Slot upgradeSlot = menu.getSlots(SlotSemantics.UPGRADE).getFirst();
             ItemStack remainder = upgradeSlot.safeInsert(AEItems.CAPACITY_CARD.stack());
             assertTrue(remainder.isEmpty(), "Capacity card must enter the original protected upgrade slot");
@@ -115,6 +127,12 @@ public final class CompositeWarehouseUiGameTest {
             menu.broadcastChanges();
             assertEquals(3, menu.unlockedRowCount);
             assertEquals(27, menu.unlockedSlotCount);
+            unlockedRows.screenTick();
+            CompartmentUiTestAssertions.assertTranslationArgument(unlockedRows, 0, 3);
+            CompartmentUiTestAssertions.assertTranslationArgument(
+                    unlockedRows,
+                    1,
+                    CompartmentMenu.COMPOSITE_WAREHOUSE_ROW_COUNT);
             assertRowState(menu, holder, 2, true);
             assertRowState(menu, holder, 3, false);
         }
@@ -227,13 +245,79 @@ public final class CompositeWarehouseUiGameTest {
         assertEquals(TOTAL_SLOT_COUNT, wrappers.size());
         assertElement(modularUI, CompartmentHostUi.COMPOSITE_WAREHOUSE_ROOT_ID);
         assertElement(modularUI, CompartmentHostUi.TITLE_ID);
+        assertElement(modularUI, CompartmentHostUi.HEADER_STATUS_ID);
         assertElement(modularUI, CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID);
         assertElement(modularUI, CompositeWarehousePanel.PANEL_ID);
         assertElement(modularUI, CompositeWarehousePanel.STORAGE_PANEL_ID);
         assertElement(modularUI, CompositeWarehousePanel.FLUID_PANEL_ID);
         assertElement(modularUI, CompositeWarehousePanel.KEY_PANEL_ID);
         assertElement(modularUI, CompositeWarehousePanel.UPGRADE_PANEL_ID);
+        assertElement(modularUI, CompositeWarehousePanel.UPGRADE_SIDEBAR_ID);
+        assertElement(modularUI, CompositeWarehousePanel.UPGRADE_SIDEBAR_TITLE_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
+        assertHeader(modularUI, menu, expectedType);
+        assertUpgradeSidebar(modularUI, upgradeSlots);
+    }
+
+    private static void assertHeader(ModularUI modularUI,
+                                     CompositeWarehouseMenu menu,
+                                     CompartmentType expectedType) {
+        String titleKey = switch (expectedType) {
+            case INPUT -> "screen.data_energistics.compartment.title.input";
+            case OUTPUT -> "screen.data_energistics.compartment.title.output";
+            default -> throw new GameTestAssertException("Unexpected plain warehouse type " + expectedType);
+        };
+        CompartmentUiTestAssertions.assertStyledTranslation(modularUI, CompartmentHostUi.TITLE_ID, titleKey);
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID,
+                "container.inventory");
+        Label status = CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.HEADER_STATUS_ID,
+                "screen.data_energistics.compartment.unlocked_rows");
+        CompartmentUiTestAssertions.assertTranslationArgument(status, 0, menu.unlockedRowCount);
+        CompartmentUiTestAssertions.assertTranslationArgument(
+                status,
+                1,
+                CompartmentMenu.COMPOSITE_WAREHOUSE_ROW_COUNT);
+        CompartmentUiTestAssertions.assertHeaderGeometry(expectedType, 28, 176);
+        CompartmentUiTestAssertions.assertExplicitOverflowVisible(CompartmentUiTestAssertions.requireElement(
+                modularUI,
+                CompartmentHostUi.COMPOSITE_WAREHOUSE_ROOT_ID));
+    }
+
+    private static void assertUpgradeSidebar(ModularUI modularUI, List<Slot> upgradeSlots) {
+        UIElement panel = CompartmentUiTestAssertions.requireElement(modularUI, CompositeWarehousePanel.PANEL_ID);
+        UIElement sidebar = CompartmentUiTestAssertions.requireElement(
+                modularUI,
+                CompositeWarehousePanel.UPGRADE_SIDEBAR_ID);
+        UIElement sidebarTitle = CompartmentUiTestAssertions.requireElement(
+                modularUI,
+                CompositeWarehousePanel.UPGRADE_SIDEBAR_TITLE_ID);
+        assertSame(sidebar, panel.getChildren().getFirst());
+        assertTrue(sidebar.getChildren().contains(sidebarTitle), "Upgrade title must belong to the sidebar tree");
+        assertTrue(!sidebar.isAllowHitTest(), "Upgrade sidebar background must not intercept slot hit testing");
+        IGuiTexture sidebarBackground = sidebar.getStyle().getInline(PropertyRegistry.BACKGROUND);
+        assertTrue(
+                sidebarBackground != null && sidebarBackground != IGuiTexture.EMPTY,
+                "Upgrade sidebar must provide an LDLib2 background outside the AE2 texture");
+        CompartmentUiTestAssertions.assertExplicitOverflowVisible(panel);
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompositeWarehousePanel.UPGRADE_SIDEBAR_TITLE_ID,
+                "screen.data_energistics.compartment.upgrades");
+
+        CompositeWarehousePanel.UpgradeSidebarGeometry geometry = CompositeWarehousePanel.upgradeSidebarGeometry(upgradeSlots.size());
+        assertEquals(172, geometry.left());
+        assertEquals(0, geometry.top());
+        assertEquals(22, geometry.width());
+        assertEquals(103, geometry.height());
+        assertEquals(92, geometry.titleTop());
+        assertTrue(
+                geometry.contains(174, 0, 18, upgradeSlots.size() * 18),
+                "Upgrade sidebar must fully contain the unchanged LDLib2 slot-wrapper column");
+        assertTrue(geometry.right() > 176, "Upgrade sidebar must extend beyond the centered 176-pixel root");
     }
 
     private static void assertRowState(CompartmentMenu menu,

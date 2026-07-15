@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeInputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.gui.ldlib2.AeItemSlot;
 import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
@@ -92,12 +93,28 @@ public final class MeCompositeInputWarehouseUiGameTest {
         }
         assertEquals(86, distinctWrappers.size());
         assertElement(modularUI, CompartmentHostUi.ME_INPUT_ROOT_ID);
+        assertElement(modularUI, CompartmentHostUi.TITLE_ID);
+        assertElement(modularUI, CompartmentHostUi.HEADER_STATUS_ID);
+        assertElement(modularUI, CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID);
         assertElement(modularUI, MeInputCompartmentPanel.PANEL_ID);
         assertElement(modularUI, MeInputCompartmentPanel.CONFIG_PANEL_ID);
         assertElement(modularUI, MeInputCompartmentPanel.BUFFER_PANEL_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
         assertElement(modularUI, MeInputCompartmentPanel.CONFIG_SLOT_ID_PREFIX + "0");
         assertElement(modularUI, MeInputCompartmentPanel.BUFFER_SLOT_ID_PREFIX + "0");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.TITLE_ID,
+                "screen.data_energistics.compartment.title.me_input");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.HEADER_STATUS_ID,
+                "screen.data_energistics.compartment.config_to_buffer");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID,
+                "container.inventory");
+        CompartmentUiTestAssertions.assertHeaderGeometry(CompartmentType.ME_INPUT, 20, 208);
         helper.succeed();
     }
 

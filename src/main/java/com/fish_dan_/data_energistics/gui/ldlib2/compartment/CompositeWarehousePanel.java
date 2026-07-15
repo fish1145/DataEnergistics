@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
 import com.fish_dan_.data_energistics.menu.CompartmentMenu;
 import com.fish_dan_.data_energistics.menu.CompartmentSlotLabel;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 
 import appeng.menu.SlotSemantic;
@@ -15,6 +16,9 @@ import appeng.menu.SlotSemantics;
 import appeng.menu.slot.FakeSlot;
 import appeng.menu.slot.IOptionalSlot;
 import appeng.menu.slot.RestrictedInputSlot;
+import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -33,6 +37,8 @@ public final class CompositeWarehousePanel {
     public static final String FLUID_PANEL_ID = "composite_warehouse_fluids";
     public static final String KEY_PANEL_ID = "composite_warehouse_keys";
     public static final String UPGRADE_PANEL_ID = "composite_warehouse_upgrades";
+    public static final String UPGRADE_SIDEBAR_ID = "composite_warehouse_upgrade_sidebar";
+    public static final String UPGRADE_SIDEBAR_TITLE_ID = "composite_warehouse_upgrade_sidebar_title";
     static final String STORAGE_SLOT_ID_PREFIX = "composite_warehouse_storage_slot_";
     static final String FLUID_SLOT_ID_PREFIX = "composite_warehouse_fluid_slot_";
     static final String KEY_SLOT_ID_PREFIX = "composite_warehouse_key_slot_";
@@ -46,6 +52,10 @@ public final class CompositeWarehousePanel {
     private static final int MACHINE_SLOT_TOP = 29;
     private static final int UPGRADE_SLOT_LEFT = 175;
     private static final int UPGRADE_SLOT_TOP = 1;
+    private static final int UPGRADE_SIDEBAR_LEFT = 172;
+    private static final int UPGRADE_SIDEBAR_WIDTH = 22;
+    private static final int UPGRADE_SIDEBAR_FOOTER_HEIGHT = 13;
+    private static final int UPGRADE_SIDEBAR_TITLE_GAP = 2;
     private static final int PANEL_WIDTH = 194;
     private static final int PANEL_HEIGHT = 155;
     private static final IGuiTexture OPTIONAL_FLUID_TEXTURE = SpriteTexture
@@ -117,8 +127,51 @@ public final class CompositeWarehousePanel {
         UIElement panel = new UIElement();
         panel.setId(PANEL_ID);
         panel.layout(layout -> layout.width(PANEL_WIDTH).height(PANEL_HEIGHT));
-        panel.addChildren(storage, fluid, key, createUpgradePanel(bridge, upgrades));
+        panel.setOverflowVisible(true);
+        panel.addChildren(
+                createUpgradeSidebar(upgrades.size()),
+                storage,
+                fluid,
+                key,
+                createUpgradePanel(bridge, upgrades));
         return panel;
+    }
+
+    private static UIElement createUpgradeSidebar(int slotCount) {
+        UpgradeSidebarGeometry geometry = upgradeSidebarGeometry(slotCount);
+        UIElement sidebar = new UIElement();
+        sidebar.setId(UPGRADE_SIDEBAR_ID);
+        sidebar.setAllowHitTest(false);
+        sidebar.getStyle().backgroundTexture(GuiTextureGroup.of(
+                new ColorRectTexture(0xFFE3E3EA),
+                new ColorBorderTexture(-1, 0xFF777784)));
+        sidebar.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(geometry.left())
+                .top(geometry.top())
+                .width(geometry.width())
+                .height(geometry.height()));
+        sidebar.addChild(CompartmentHostUi.title(
+                UPGRADE_SIDEBAR_TITLE_ID,
+                Component.translatable("screen.data_energistics.compartment.upgrades"),
+                1,
+                geometry.titleTop() - geometry.top(),
+                geometry.width() - 2));
+        return sidebar;
+    }
+
+    static UpgradeSidebarGeometry upgradeSidebarGeometry(int slotCount) {
+        if (slotCount <= 0) {
+            throw invalid("upgrade sidebar requires at least one slot");
+        }
+        int slotPanelTop = UPGRADE_SLOT_TOP - SLOT_BORDER;
+        int slotPanelHeight = slotCount * SLOT_PITCH;
+        return new UpgradeSidebarGeometry(
+                UPGRADE_SIDEBAR_LEFT,
+                slotPanelTop,
+                UPGRADE_SIDEBAR_WIDTH,
+                slotPanelHeight + UPGRADE_SIDEBAR_FOOTER_HEIGHT,
+                slotPanelTop + slotPanelHeight + UPGRADE_SIDEBAR_TITLE_GAP);
     }
 
     private static UIElement createFakeColumn(CompartmentMenu menu,
@@ -257,5 +310,21 @@ public final class CompositeWarehousePanel {
     private static IllegalStateException invalid(String message) {
         Data_Energistics.LOGGER.error("Composite warehouse LDLib2 panel invariant failed: {}", message);
         return new IllegalStateException(message);
+    }
+
+    record UpgradeSidebarGeometry(int left, int top, int width, int height, int titleTop) {
+
+        int right() {
+            return left + width;
+        }
+
+        int bottom() {
+            return top + height;
+        }
+
+        boolean contains(int childLeft, int childTop, int childWidth, int childHeight) {
+            return childLeft >= left && childTop >= top &&
+                    childLeft + childWidth <= right() && childTop + childHeight <= bottom();
+        }
     }
 }

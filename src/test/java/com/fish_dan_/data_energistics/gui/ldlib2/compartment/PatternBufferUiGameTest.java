@@ -173,6 +173,7 @@ public final class PatternBufferUiGameTest {
         assertEquals(TOTAL_SLOT_COUNT, wrappers.size());
         assertElement(modularUI, CompartmentHostUi.PATTERN_BUFFER_ROOT_ID);
         assertElement(modularUI, CompartmentHostUi.TITLE_ID);
+        assertElement(modularUI, CompartmentHostUi.HEADER_STATUS_ID);
         assertElement(modularUI, CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID);
         assertElement(modularUI, PatternBufferCompartmentPanel.PANEL_ID);
         assertElement(modularUI, PatternBufferCompartmentPanel.PATTERN_PANEL_ID);
@@ -180,6 +181,19 @@ public final class PatternBufferUiGameTest {
         assertElement(modularUI, PatternBufferCompartmentPanel.CATALYST_PANEL_ID);
         assertElement(modularUI, PatternBufferCompartmentPanel.COMPOSITE_PANEL_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.TITLE_ID,
+                "screen.data_energistics.compartment.title.pattern_buffer");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.HEADER_STATUS_ID,
+                "screen.data_energistics.compartment.aggregation_read_only");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID,
+                "container.inventory");
+        CompartmentUiTestAssertions.assertHeaderGeometry(CompartmentType.PATTERN_BUFFER, 14, 256);
     }
 
     private static void assertAppEngRange(List<Slot> slots, int firstIndex, int expectedCount) {

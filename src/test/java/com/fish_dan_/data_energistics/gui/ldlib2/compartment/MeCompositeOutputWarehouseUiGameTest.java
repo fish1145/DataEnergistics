@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.gui.ldlib2.compartment;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.MeCompositeOutputWarehouseBlockEntity;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.gui.ldlib2.AeItemSlot;
 import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
 import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
@@ -64,8 +65,24 @@ public final class MeCompositeOutputWarehouseUiGameTest {
             assertSame(slot, requireAeSlot(holder, slot).getSlot());
         }
         assertElement(modularUI, CompartmentHostUi.ME_OUTPUT_ROOT_ID);
+        assertElement(modularUI, CompartmentHostUi.TITLE_ID);
+        assertElement(modularUI, CompartmentHostUi.HEADER_STATUS_ID);
+        assertElement(modularUI, CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID);
         assertElement(modularUI, MeOutputCompartmentPanel.PANEL_ID);
         assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.TITLE_ID,
+                "screen.data_energistics.compartment.title.me_output");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.HEADER_STATUS_ID,
+                "screen.data_energistics.compartment.read_only");
+        CompartmentUiTestAssertions.assertStyledTranslation(
+                modularUI,
+                CompartmentHostUi.PLAYER_INVENTORY_TITLE_ID,
+                "container.inventory");
+        CompartmentUiTestAssertions.assertHeaderGeometry(CompartmentType.ME_OUTPUT, 20, 176);
         helper.succeed();
     }
 
