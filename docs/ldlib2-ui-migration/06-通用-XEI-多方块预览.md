@@ -84,7 +84,7 @@ REI 暂不作为首轮完成条件，但 common preview 与 UI factory 不得引
 7. 最终 `spotlessCheck compileJava compileTestJava test runGameTestServer build` 已通过，服务端 GameTest 为 367/367，本地质量审计也已完成；文档提交/推送、Draft PR CI 和客户端验收仍按 P9 实际状态继续。
 8. `39b37fe6` 已用隔离的 `clientTest` runtime 补齐 Athena；可复现客户端 run 加载了 Athena 4.0.6、LDLib2 2.2.28 和 Oritech 1.2.8，进入世界并完成 JEI/EMI reload。`1b332d0e` 修复了 EMI synthetic recipe id 和 `emi.category.data_energistics.multiblock_preview` 翻译，后续 bake 未再报告这两条 DataE 告警。
 
-客户端启动依赖已解决，但当前 run 没有客户端测试执行/汇总，也没有实际打开 JEI/EMI 页面。服务端 GameTest 和 plain JUnit 通过只证明模型、协议或 handler 逻辑；进入世界和完成插件 reload 也不证明页面非空渲染、旋转缩放、选择控件、transfer 按钮、错误提示、extra area 和资源释放。上述功能仍必须通过真实客户端操作验证。
+客户端启动依赖已解决，用户已确认不新增客户端自动测试；当前仍没有实际打开 JEI/EMI 页面的证据。服务端 GameTest 和 plain JUnit 通过只证明模型、协议或 handler 逻辑；进入世界和完成插件 reload 也不证明页面非空渲染、旋转缩放、选择控件、transfer 按钮、错误提示、extra area 和资源释放。上述功能按 [手工验收表](09-客户端与多人手工验收.md) 由真实客户端操作验证。
 
 ## 验收表
 

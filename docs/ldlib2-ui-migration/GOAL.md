@@ -7,7 +7,7 @@
 
 在 F:/mc/Fish_Dan_/DataEnergistics 的 qy/ldlib2-ui-migration 分支和现有 Draft PR #99 中，完成并发布 Data Energistics 全部多方块 UI 与全部舱室 UI 向 LDLib2 的迁移，以及通用 JEI/EMI XEI 多方块预览、可配置子结构投影和普通多方块配方到 AE Processing 配置的 typed transfer。P0-P8 的生产实现已经完成并按功能提交，后续不得退回规划或重复实现；客户端测试运行依赖和 DataE 自身 EMI 注册告警也已收口，当前重点是文档、最终质量审计、推送/PR CI 以及尚未完成的真实客户端 UI 与多人验收。
 
-发生上下文压缩或任务转交时，先完整阅读 F:/mc/Fish_Dan_/DataEnergistics/docs/ldlib2-ui-migration 下全部 11 份 Markdown，以 00-需求基线与上下文恢复.md 和本 Goal 为权威入口；随后读取当前分支、HEAD、远端和工作区，不依赖记忆补全状态。
+发生上下文压缩或任务转交时，先完整阅读 F:/mc/Fish_Dan_/DataEnergistics/docs/ldlib2-ui-migration 下全部 12 份 Markdown，以 00-需求基线与上下文恢复.md、本 Goal 和 09-客户端与多人手工验收.md 为权威入口；随后读取当前分支、HEAD、远端和工作区，不依赖记忆补全状态。
 
 参考仓库与 API 基线
 
@@ -32,7 +32,7 @@
 12. transfer 把 mode、input/output 与 pending/last source、pending key input/output、pending fluid input/output、key display fallback 纳入同一快照、清理、读回验证和回滚事务。81 input 成功，82 input 或实际容量更小必须在菜单零变更下失败；前向写入、模式切换、状态清理、batch publication 或 endBatch 失败均精确回滚。不完整回滚使菜单失效/关闭，并保留 primary failure 与 suppressed rollback failure。
 13. Data Ripper resolver 只接受明确的 DataRipperReassemblerRecipe 或其 RecipeHolder；编码前自动 key 解析还要求 pending source 明确指向 Data Ripper。普通多方块配方不得继承历史 source/key/fluid/display 状态。
 14. 舱室是各自独立的容器屏幕，不属于 Trinity 可拖动四窗。INPUT/OUTPUT 保持 7 行、fake fluid/key、容量门控和受保护升级槽；ME_INPUT 保持 25 对配置/缓冲槽；ME_OUTPUT 保持 36 个只读槽；PATTERN_BUFFER 保持 pattern、聚合、催化剂和 fake slot 语义。标题、状态、玩家背包标签和升级侧栏不得改变底层菜单协议。
-15. 服务端 GameTest/JUnit 不能替代真实客户端验收。客户端 JEI/EMI 页面、Scene、Taffy 最终 bounds、根节点外命中、tooltip、拖拽、z-order、XEI extra area、Shift-click、fake slot 和多人交互仍需实际运行验证。
+15. 服务端 GameTest/JUnit 不能替代真实客户端验收。用户已确认不新增客户端自动测试；客户端 JEI/EMI 页面、Scene、Taffy 最终 bounds、根节点外命中、tooltip、拖拽、z-order、XEI extra area、Shift-click、fake slot 和多人交互按 09-客户端与多人手工验收.md 实际运行并记录证据。
 
 代码质量约束
 
@@ -65,15 +65,15 @@ Gradle 与 Git 约束
 2. P8 common/network、JEI 和 EMI typed transfer 已在 d546ae7c 之前按多个生产/测试小提交完成；不得再把 P8 描述为工作区待拆分。LDLib2 已由 cfa49f8d/d546ae7c 升级并适配至 2.2.28。
 3. 最新代码已通过 IDEA MCP 定向 build/inspection，以及使用系统 GRADLE_USER_HOME=E:/.gradle 的 `spotlessCheck compileJava compileTestJava test runGameTestServer build --no-daemon`；required GameTest 为 367/367，Gradle `BUILD SUCCESSFUL`。
 4. 本地质量审计已再次通过：`git diff --check`；1732 个 tracked 文本严格 UTF-8、无 BOM；文档相对链接 13/13 有效；语言 JSON 可解析且英文键均有中文对应；`d546ae7c..HEAD` 的 47 个 Java 文件无 FQN、反射、`Objects.requireNonNull`、空 catch、TODO/FIXME、占位或源码 contain 测试，全仓 `Objects.requireNonNull` 为 0。恢复时只需检查文档提交、推送和 PR #99 CI 是否已完成，不得重复修改已验证代码。
-5. 39b37fe6 已新增隔离 `clientTest` source set，并只在 `clientTestRuntimeOnly` 加入 Athena；生产 runtime 和服务端 test runtime 均不含 Athena。可复现 clientTest run 已发现 Athena 4.0.6、LDLib2 2.2.28、Oritech 1.2.8，进入 `Test` 世界并完成 JEI/EMI reload。1b332d0e 修复 EMI synthetic recipe id 与 category 翻译，后续 bake 未再报告对应两条 DataE 告警。当前 run 没有客户端测试执行/通过汇总，也没有真实打开 JEI/EMI 页面、四窗、舱室或执行 transfer/多人交互，因此这些验收仍未完成。若当前 IDEA Gradle model 仍把 `Game Tests (Client)` 指向 `data_energistics.test`，先执行 Reload All Gradle Projects，并确认客户端模块变为 `data_energistics.clientTest`、服务端模块保持 `data_energistics.test`。
+5. 39b37fe6 已新增隔离 `clientTest` source set，并只在 `clientTestRuntimeOnly` 加入 Athena；生产 runtime 和服务端 test runtime 均不含 Athena。可复现 clientTest run 已发现 Athena 4.0.6、LDLib2 2.2.28、Oritech 1.2.8，进入 `Test` 世界并完成 JEI/EMI reload。1b332d0e 修复 EMI synthetic recipe id 与 category 翻译，后续 bake 未再报告对应两条 DataE 告警。用户已确认不新增客户端自动测试；当前仍没有真实打开 JEI/EMI 页面、四窗、舱室或执行 transfer/多人交互的证据，因此按 09-客户端与多人手工验收.md 继续。若 IDEA Gradle model 仍把 `Game Tests (Client)` 指向 `data_energistics.test`，先执行 Reload All Gradle Projects；客户端模块优先应为 `data_energistics.clientTest`，服务端保持 `data_energistics.test`。若空 source set 仍被折叠，不手改 `.idea` XML，以实际加载 Gradle Athena 4.0.6 作为 clientTest classpath 判据。
 
 继续执行顺序
 
 阶段 A（已完成）：审阅本目录全部文档和当前 diff，固化 LDLib2 2.2.28、367/367、P8 已提交、8 个 UI 实现提交、JEI/EMI 动态刷新、四窗级联、Trinity/舱室布局、隔离的客户端运行依赖和 EMI 注册修复。
 阶段 B（已完成）：确认 GRADLE_USER_HOME 位于 E:/，执行 `./gradlew.bat spotlessCheck compileJava compileTestJava test runGameTestServer build --no-daemon`，不使用 -g；结果为 BUILD SUCCESSFUL 和 367/367。
 阶段 C（已完成）：执行 diff、JSON、UTF-8/BOM、Java FQN/反射/Objects/空 catch/占位/源码 contain 测试和旧视觉入口审计；保留的 Screen 已确认只是 AE2 输入协议薄壳。
-阶段 D：先读取实际 Git/PR 状态。若本 Goal 所在的 11 份文档尚未提交，则逐文件暂存并检查 staged diff，使用独立中文文档提交；若分支尚未推送，则确认 logs/、wenli/ 未暂存后推送 qy/ldlib2-ui-migration，更新/检查 Draft PR #99 和 CI，禁止强推。已经完成的子步骤不得重复。
-阶段 E：在现已可启动的真实客户端分别打开并验证 JEI/EMI 页面、原生与 Universal Pattern Encoding Terminal、四窗、舱室和多人场景。启动、进入世界和插件 reload 只能作为环境前置证据；没有页面操作、渲染/bounds 检查和双端记录时不得标记通过。
+阶段 D：先读取实际 Git/PR 状态。若本 Goal 所在的 12 份文档尚未提交，则逐文件暂存并检查 staged diff，使用独立中文文档提交；若分支尚未推送，则确认 logs/、wenli/ 未暂存后推送 qy/ldlib2-ui-migration，更新/检查 Draft PR #99 和 CI，禁止强推。已经完成的子步骤不得重复。
+阶段 E：用户在现已可启动的真实客户端按 09-客户端与多人手工验收.md 分别打开并验证 JEI/EMI 页面、原生与 Universal Pattern Encoding Terminal、四窗、舱室和多人场景。无需新增客户端自动测试；启动、进入世界和插件 reload 只能作为环境前置证据，没有页面操作、渲染/bounds 检查和双端记录时不得标记通过。
 
 客户端验收矩阵
 
@@ -95,5 +95,5 @@ Gradle 与 Git 约束
 
 完成规则
 
-只有代码、文档、最终自动化和质量审计通过，分支已推送且 PR #99 CI 无未处理失败，并且真实客户端/多人验收完成，或用户明确接受剩余客户端/多人验收未执行时，才可结束 Goal。预算接近耗尽、服务端测试通过、可进入世界、插件 reload 或文档完成都不能单独作为完成条件。
+只有代码、文档、最终服务端/逻辑自动化和质量审计通过，分支已推送且 PR #99 CI 无未处理失败，并且用户按 09-客户端与多人手工验收.md 完成真实客户端/多人验收，或明确接受具体未执行项及其风险时，才可结束 Goal。预算接近耗尽、服务端测试通过、可进入世界、插件 reload 或文档完成都不能单独作为完成条件。
 ```

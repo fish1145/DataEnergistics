@@ -46,7 +46,7 @@ P8 common/network、JEI 和 EMI 已在远端锚点之前按小提交完成，不
 
 多方块 host 支持 `main/cpu/crafting/auto_build` 四个独立、可拖动且可同时打开的子 UI；首次默认位置碰撞时级联，保存位置和拖动位置优先。Trinity 四窗统一为 `292x210`，包含 196px `Scene`、84px 状态/动作侧栏和 z-index 400 的 launcher rail。全部目标舱室已迁移并优化信息布局，同时保留既有菜单槽、容量、升级和分页语义。
 
-最终 `spotlessCheck compileJava compileTestJava test runGameTestServer build` 已再次成功，GameTest 为 367/367；1732 个 tracked 文本的 UTF-8/BOM、文档链接、语言 JSON 和 47 个任务 Java 文件的质量审计也已通过。恢复时只需按实际状态确认文档提交、分支推送和 Draft PR CI。隔离的 `clientTest` runtime 已可加载 Athena 4.0.6、LDLib2 2.2.28 与 Oritech 1.2.8，进入世界并完成 JEI/EMI reload；EMI synthetic id/category 修复后的 bake 也不再报告对应 DataE 告警。但当前没有客户端测试执行汇总或真实 UI 操作证据，服务端/JUnit/启动结果不能替代 JEI/EMI 渲染、按钮、真实 `Scene`、槽位 bounds 和多人交互验收。
+最终 `spotlessCheck compileJava compileTestJava test runGameTestServer build` 已再次成功，GameTest 为 367/367；1732 个 tracked 文本的 UTF-8/BOM、文档链接、语言 JSON 和 47 个任务 Java 文件的质量审计也已通过。恢复时只需按实际状态确认文档提交、分支推送和 Draft PR CI。隔离的 `clientTest` runtime 已可加载 Athena 4.0.6、LDLib2 2.2.28 与 Oritech 1.2.8，进入世界并完成 JEI/EMI reload；EMI synthetic id/category 修复后的 bake 也不再报告对应 DataE 告警。用户已确认客户端 UI 采用手工验收，不要求新增自动客户端测试；服务端/JUnit/启动结果仍不能替代 [客户端与多人手工验收](09-客户端与多人手工验收.md) 中的真实页面、按钮、`Scene`、槽位 bounds 和多人操作。
 
 ## 文档导航
 
@@ -61,8 +61,9 @@ P8 common/network、JEI 和 EMI 已在远端锚点之前按小提交完成，不
 | [06-通用-XEI-多方块预览.md](06-通用-XEI-多方块预览.md) | 通用预览模型、XEI 适配和子结构控件 |
 | [07-AE-样板写入设计.md](07-AE-样板写入设计.md) | 样板语义决策、事务边界和安全校验 |
 | [08-参考实现与-API-边界.md](08-参考实现与-API-边界.md) | GT、ECO、LDLib2 与 MDLib 的参考结论 |
+| [09-客户端与多人手工验收.md](09-客户端与多人手工验收.md) | 可逐项执行并记录证据的真实客户端/多人验收表 |
 | [GOAL.md](GOAL.md) | 可直接粘贴使用的后续实施 Goal 文本 |
 
 ## 结论
 
-采用“纯预览模型 + 共用 LDLib2 UI factory + XEI 薄适配器 + 服务端权威动作”的架构。方块 UI 与 XEI 页面只共享纯模型和元素工厂，各自创建 provider、元素树、`Scene` 与虚拟世界；XEI 页面不得直接改世界、库存或样板。中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，后续仅在确认新的中立 API 缺口时修改该库。P8、最终本地构建、客户端启动前置和 DataE 自身 EMI 注册告警均已收口；当前只需按实际状态确认文档提交、分支推送和 Draft PR #99 CI，并补齐真实客户端 UI 与多人发布验收。
+采用“纯预览模型 + 共用 LDLib2 UI factory + XEI 薄适配器 + 服务端权威动作”的架构。方块 UI 与 XEI 页面只共享纯模型和元素工厂，各自创建 provider、元素树、`Scene` 与虚拟世界；XEI 页面不得直接改世界、库存或样板。中立结构投影与 paired-candidate API 已在 MDLib Draft PR [#2](https://github.com/ModularMCLib/Modular-Data-lib/pull/2) 完成，后续仅在确认新的中立 API 缺口时修改该库。P8、最终本地构建、客户端启动前置和 DataE 自身 EMI 注册告警均已收口；当前只需按实际状态确认文档提交、分支推送和 Draft PR #99 CI，并由用户按独立手工验收表补齐真实客户端 UI 与多人发布验收。
