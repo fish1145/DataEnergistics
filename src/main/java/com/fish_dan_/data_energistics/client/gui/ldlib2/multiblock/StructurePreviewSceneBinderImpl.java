@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
- * LDLib2 2.2.8 client adapter that gives every bound scene its own synthetic world and camera state.
+ * LDLib2 client adapter that gives every bound scene its own synthetic world and camera state.
  */
 @OnlyIn(Dist.CLIENT)
 public final class StructurePreviewSceneBinderImpl implements StructurePreviewSceneBinder {
@@ -196,7 +196,7 @@ public final class StructurePreviewSceneBinderImpl implements StructurePreviewSc
         }
 
         /**
-         * Works around 2.2.8 changing Scene.center even when automatic camera fitting is disabled.
+         * Preserves the camera because Scene changes its center even when automatic fitting is disabled.
          */
         private void replaceRenderedCorePreservingCamera(List<BlockPos> renderedCore) {
             Vector3f center = new Vector3f(this.scene.getCenter());

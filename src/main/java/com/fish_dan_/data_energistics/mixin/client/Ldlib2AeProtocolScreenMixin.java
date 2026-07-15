@@ -33,7 +33,7 @@ public abstract class Ldlib2AeProtocolScreenMixin {
         }
     }
 
-    /** Draws special carried-stack tooltips that LDLib2 2.2.8 intentionally skips in container screens. */
+    /** Draws special carried-stack tooltips that LDLib2 intentionally skips in container screens. */
     @Unique
     private void dataEnergistics$drawCarriedTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         AEBaseScreen<?> screen = (AEBaseScreen<?>) (Object) this;

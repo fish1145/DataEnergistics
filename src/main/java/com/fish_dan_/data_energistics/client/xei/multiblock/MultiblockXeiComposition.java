@@ -344,7 +344,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         ItemSlot slot = new ItemSlot();
         slot.setItem(displayStack);
         slot.xeiRecipeIngredient(ingredient.io());
-        slot.xeiRecipeSlot(ingredient.io(), 1.0f, amount, Stream.of(displayStack.copy()));
+        slot.xeiRecipeSlot(ingredient.io(), 1.0f, amount, () -> Stream.of(displayStack.copy()));
         slot.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)

@@ -9,7 +9,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
  * Mounts an LDLib2 UI on an existing AE2 menu without rebuilding or reindexing its slots.
  *
  * <p>
- * The bridge owns the exceptional existing-slot registration path required by LDLib2 2.2.8. Callers create every
+ * The bridge owns LDLib2's exceptional existing-slot registration path. Callers create every
  * wrapper through {@link #wrap(Slot)}, add those wrappers to the UI tree, and mount the completed tree exactly once.
  */
 public interface AeMenuBridge {
