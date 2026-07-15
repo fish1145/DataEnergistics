@@ -3,12 +3,13 @@ package com.fish_dan_.data_energistics.client.recipe;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
-import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.ui.DataReassemblerProgressElement;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 
 import net.minecraft.SharedConstants;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.ItemStack;
@@ -42,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class DataRipperReassemblerRecipeUiTest {
 
+    private static final int RECIPE_WIDTH = 162;
+    private static final int RECIPE_HEIGHT = 58;
     private static final ResourceLocation RECIPE_ID = Data_Energistics.id("test/data_reassembler_ui");
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/data_reassembler.png");
 
@@ -66,58 +69,39 @@ public final class DataRipperReassemblerRecipeUiTest {
 
         ModularUI first = provider.createModularUI(recipe);
         ModularUI second = provider.createModularUI(recipe);
-        first.init(DataReassemblerLayout.RECIPE_WIDTH, DataReassemblerLayout.RECIPE_HEIGHT);
-        second.init(DataReassemblerLayout.RECIPE_WIDTH, DataReassemblerLayout.RECIPE_HEIGHT);
+        first.init(RECIPE_WIDTH, RECIPE_HEIGHT);
+        second.init(RECIPE_WIDTH, RECIPE_HEIGHT);
 
         assertNotSame(first, second, "Provider should create a fresh ModularUI");
         assertNotSame(first.ui.rootElement, second.ui.rootElement, "Provider should create a fresh UI tree");
         assertEquals(
-                DataReassemblerLayout.RECIPE_WIDTH,
+                RECIPE_WIDTH,
                 Math.round(first.ui.rootElement.getSizeWidth()),
                 "Recipe root width");
         assertEquals(
-                DataReassemblerLayout.RECIPE_HEIGHT,
+                RECIPE_HEIGHT,
                 Math.round(first.ui.rootElement.getSizeHeight()),
                 "Recipe root height");
 
-        for (int index = 0; index < recipe.itemInputs().size(); index++) {
-            assertStableSlotBounds(
-                    first,
-                    second,
-                    "item-input-" + index,
-                    DataReassemblerLayout.recipeItemInput(index));
-        }
-        for (int index = 0; index < recipe.fluidInputs().size(); index++) {
-            assertStableSlotBounds(
-                    first,
-                    second,
-                    "fluid-input-" + index,
-                    DataReassemblerLayout.recipeFluidInput(index));
-        }
-        assertStableSlotBounds(first, second, "key-input", DataReassemblerLayout.recipeKeyInput());
-        for (int index = 0; index < recipe.itemOutputs().size(); index++) {
-            assertStableSlotBounds(
-                    first,
-                    second,
-                    "item-output-" + index,
-                    DataReassemblerLayout.recipeItemOutput(index));
-        }
-        for (int index = 0; index < recipe.fluidOutputs().size(); index++) {
-            assertStableSlotBounds(
-                    first,
-                    second,
-                    "fluid-output-" + index,
-                    DataReassemblerLayout.recipeFluidOutput(index));
-        }
-        assertStableSlotBounds(first, second, "key-output", DataReassemblerLayout.recipeKeyOutput());
-        assertStableBounds(
-                first,
-                second,
-                "progress",
-                DataReassemblerLayout.PROGRESS_X,
-                DataReassemblerLayout.PROGRESS_Y,
-                DataReassemblerLayout.PROGRESS_WIDTH,
-                DataReassemblerLayout.PROGRESS_HEIGHT);
+        assertStableBounds(first, second, "item-input-0", 8, 3, 18, 18);
+        assertStableBounds(first, second, "item-input-1", 26, 3, 18, 18);
+        assertStableBounds(first, second, "item-input-2", 44, 3, 18, 18);
+        assertStableBounds(first, second, "item-input-3", 8, 21, 18, 18);
+        assertStableBounds(first, second, "item-input-4", 26, 21, 18, 18);
+        assertStableBounds(first, second, "item-input-5", 44, 21, 18, 18);
+        assertStableBounds(first, second, "item-input-6", 8, 39, 18, 18);
+        assertStableBounds(first, second, "item-input-7", 26, 39, 18, 18);
+        assertStableBounds(first, second, "item-input-8", 44, 39, 18, 18);
+        assertStableBounds(first, second, "fluid-input-0", 63, 3, 18, 18);
+        assertStableBounds(first, second, "key-input", 63, 21, 18, 18);
+        assertStableBounds(first, second, "fluid-input-1", 63, 39, 18, 18);
+        assertStableBounds(first, second, "item-output-0", 114, 3, 18, 18);
+        assertStableBounds(first, second, "item-output-1", 114, 21, 18, 18);
+        assertStableBounds(first, second, "item-output-2", 114, 39, 18, 18);
+        assertStableBounds(first, second, "fluid-output-0", 132, 3, 18, 18);
+        assertStableBounds(first, second, "key-output", 132, 21, 18, 18);
+        assertStableBounds(first, second, "fluid-output-1", 132, 39, 18, 18);
+        assertStableBounds(first, second, "progress", 153, 20, 6, 18);
 
         assertInstanceOf(ItemSlot.class, element(first, "item-input-0"));
         assertInstanceOf(DataReassemblerGenericStackSlot.class, element(first, "fluid-input-0"));
@@ -138,12 +122,16 @@ public final class DataRipperReassemblerRecipeUiTest {
             DataRipperReassemblerIngredient expected = recipe.itemInputs().get(index);
             Registration registration = adapter.registration("item-input-" + index);
             assertEquals(IngredientIO.INPUT, registration.role(), "Item input " + index + " role");
+            ItemStack[] expectedCandidates = expected.ingredient().getItems();
             assertEquals(
-                    expected.ingredient().getItems().length,
+                    expectedCandidates.length,
                     registration.items().size(),
                     "Item input " + index + " candidate count");
-            for (ItemStack candidate : registration.items()) {
-                assertEquals(expected.count(), candidate.getCount(), "Item input " + index + " amount");
+            for (int candidateIndex = 0; candidateIndex < expectedCandidates.length; candidateIndex++) {
+                assertItemStack(
+                        expectedCandidates[candidateIndex].copyWithCount(expected.count()),
+                        registration.items().get(candidateIndex),
+                        "Item input " + index + " candidate " + candidateIndex);
             }
         }
 
@@ -152,28 +140,25 @@ public final class DataRipperReassemblerRecipeUiTest {
                     adapter,
                     "fluid-input-" + index,
                     IngredientIO.INPUT,
-                    recipe.fluidInputs().get(index).amount());
+                    recipe.fluidInputs().get(index));
         }
-        assertGeneric(adapter, "key-input", IngredientIO.INPUT, recipe.keyInput().amount());
+        assertGeneric(adapter, "key-input", IngredientIO.INPUT, recipe.keyInput());
 
         List<ItemStack> outputs = recipe.itemOutputs();
         for (int index = 0; index < outputs.size(); index++) {
             Registration registration = adapter.registration("item-output-" + index);
             assertEquals(IngredientIO.OUTPUT, registration.role(), "Item output " + index + " role");
             assertEquals(1, registration.items().size(), "Item output " + index + " candidate count");
-            assertEquals(
-                    outputs.get(index).getCount(),
-                    registration.items().getFirst().getCount(),
-                    "Item output " + index + " amount");
+            assertItemStack(outputs.get(index), registration.items().getFirst(), "Item output " + index);
         }
         for (int index = 0; index < recipe.fluidOutputs().size(); index++) {
             assertGeneric(
                     adapter,
                     "fluid-output-" + index,
                     IngredientIO.OUTPUT,
-                    recipe.fluidOutputs().get(index).amount());
+                    recipe.fluidOutputs().get(index));
         }
-        assertGeneric(adapter, "key-output", IngredientIO.OUTPUT, recipe.keyOutput().amount());
+        assertGeneric(adapter, "key-output", IngredientIO.OUTPUT, recipe.keyOutput());
     }
 
     @Test
@@ -223,10 +208,16 @@ public final class DataRipperReassemblerRecipeUiTest {
     private static void assertGeneric(RecordingAdapterImpl adapter,
                                       String id,
                                       IngredientIO role,
-                                      long amount) {
+                                      GenericStack expected) {
         Registration registration = adapter.registration(id);
         assertEquals(role, registration.role(), id + " role");
-        assertEquals(amount, registration.genericStack().amount(), id + " amount");
+        assertEquals(expected.what(), registration.genericStack().what(), id + " key");
+        assertEquals(expected.amount(), registration.genericStack().amount(), id + " amount");
+    }
+
+    private static void assertItemStack(ItemStack expected, ItemStack actual, String message) {
+        assertTrue(ItemStack.isSameItemSameComponents(expected, actual), message + " identity and components");
+        assertEquals(expected.getCount(), actual.getCount(), message + " amount");
     }
 
     private static void assertBounds(ModularUI ui,
@@ -240,13 +231,6 @@ public final class DataRipperReassemblerRecipeUiTest {
         assertEquals(y, Math.round(element.getLayoutY()), id + " y");
         assertEquals(width, Math.round(element.getSizeWidth()), id + " width");
         assertEquals(height, Math.round(element.getSizeHeight()), id + " height");
-    }
-
-    private static void assertStableSlotBounds(ModularUI first,
-                                               ModularUI second,
-                                               String id,
-                                               DataReassemblerLayout.SlotPos pos) {
-        assertStableBounds(first, second, id, pos.x(), pos.y(), 18, 18);
     }
 
     private static void assertStableBounds(ModularUI first,
@@ -284,7 +268,7 @@ public final class DataRipperReassemblerRecipeUiTest {
                         new GenericStack(AEFluidKey.of(Fluids.WATER), 1_000L),
                         new GenericStack(AEFluidKey.of(Fluids.LAVA), 2_000L)),
                 List.of(
-                        new ItemStack(Items.DIAMOND, 3),
+                        namedDiamondOutput(),
                         new ItemStack(Items.EMERALD, 2),
                         new ItemStack(Items.NETHERITE_INGOT)),
                 List.of(
@@ -297,6 +281,12 @@ public final class DataRipperReassemblerRecipeUiTest {
 
     private static DataRipperReassemblerIngredient itemInput() {
         return new DataRipperReassemblerIngredient(Ingredient.of(Items.STONE), 1);
+    }
+
+    private static ItemStack namedDiamondOutput() {
+        ItemStack stack = new ItemStack(Items.DIAMOND, 3);
+        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Viewer test component"));
+        return stack;
     }
 
     private static DataRipperReassemblerRecipe recipe(List<DataRipperReassemblerIngredient> itemInputs,
