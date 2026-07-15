@@ -42,7 +42,6 @@ dependencies {
     // Energy integrations
     compileOnly(forge.oritech)
     testImplementation(forge.oritech)
-    clientTestRuntimeOnly(forge.athena)
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
@@ -74,6 +73,7 @@ dependencies {
     localRuntime(forge.pneumaticcraft)
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.mek)
+    localRuntime(forge.oritech)
     localRuntime(forge.create) {
         // Needed to prevent game-test crashes
         exclude group: "maven.modrinth", module: "journeymap"
@@ -106,6 +106,7 @@ dependencies {
     // Client-only runtime mods
     clientLocalRuntime(forge.jech)
     clientLocalRuntime(forge.ctm)
+    clientLocalRuntime(forge.athena)
     clientLocalRuntime(forge.worldedit.cui.forge)
     jarJar(forge.ctm.get())
     clientLocalRuntime(forge.sodium)

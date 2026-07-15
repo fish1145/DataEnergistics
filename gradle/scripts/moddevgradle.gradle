@@ -16,7 +16,6 @@ neoForge {
 //    validateAccessTransformers = true
 
     addModdingDependenciesTo(sourceSets.test)
-    addModdingDependenciesTo(sourceSets.clientTest)
     addModdingDependenciesTo(sourceSets.extra)
 
     mods {
@@ -105,7 +104,7 @@ neoForge {
 
         gameTestClient {
             client()
-            sourceSet = sourceSets.clientTest
+            sourceSet = sourceSets.clientExtra
             ideName = "Game Tests (Client)"
 
             gameDirectory.set(file('run/gametest/client'))
