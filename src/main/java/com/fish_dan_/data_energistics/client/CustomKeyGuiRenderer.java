@@ -9,11 +9,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.neoforged.neoforge.fluids.FluidStack;
 
 import appeng.api.client.AEKeyRendering;
-import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.client.gui.style.Blitter;
 
@@ -25,16 +22,12 @@ public final class CustomKeyGuiRenderer {
     private CustomKeyGuiRenderer() {}
 
     public static void draw(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, AEKey key) {
-        if (!drawCustom(minecraft, guiGraphics, x, y, key)) {
+        if (!drawCustom(guiGraphics, x, y, key)) {
             AEKeyRendering.drawInGui(minecraft, guiGraphics, x, y, key);
         }
     }
 
-    public static boolean drawCustom(Minecraft minecraft, GuiGraphics guiGraphics, int x, int y, AEKey key) {
-        if (key instanceof AEFluidKey fluidKey) {
-            drawFluid(guiGraphics, x, y, fluidKey);
-            return true;
-        }
+    public static boolean drawCustom(GuiGraphics guiGraphics, int x, int y, AEKey key) {
         if (key instanceof DataFlowKey) {
             drawSprite(guiGraphics, x, y, dataFlowSprite());
             return true;
@@ -57,23 +50,6 @@ public final class CustomKeyGuiRenderer {
     private static void drawSprite(GuiGraphics guiGraphics, int x, int y, TextureAtlasSprite sprite) {
         Blitter.sprite(sprite)
                 .dest(x, y, 16, 16)
-                .blit(guiGraphics);
-    }
-
-    private static void drawFluid(GuiGraphics guiGraphics, int x, int y, AEFluidKey fluidKey) {
-        FluidStack fluidStack = fluidKey.toStack(1);
-        IClientFluidTypeExtensions fluidExtensions = IClientFluidTypeExtensions.of(fluidStack.getFluid());
-        ResourceLocation stillTexture = fluidExtensions.getStillTexture(fluidStack);
-        if (stillTexture == null) {
-            AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, x, y, fluidKey);
-            return;
-        }
-
-        TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(stillTexture);
-        int tint = fluidExtensions.getTintColor(fluidStack);
-        Blitter.sprite(sprite)
-                .dest(x, y, 16, 16)
-                .colorArgb(tint == -1 ? 0xFFFFFFFF : tint)
                 .blit(guiGraphics);
     }
 }
