@@ -26,6 +26,7 @@ dependencies {
     compileOnly(forge.actually.additions)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
+    compileOnly(forge.create)
     compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
     compileOnly(forge.sut)
@@ -69,12 +70,6 @@ dependencies {
     localRuntime(forge.pneumaticcraft)
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.mek)
-    localRuntime(forge.create) {
-        // Needed to prevent game-test crashes
-        exclude group: "maven.modrinth", module: "journeymap"
-        exclude group: "info.journeymap", module: "journeymap-api-neoforge"
-    }
-
     extraLocalRuntime(forge.sut)
 
     // Runtime AE2 addons
@@ -86,7 +81,6 @@ dependencies {
     extraLocalRuntime(forge.aecs)
     extraLocalRuntime(forge.aelt)
     extraLocalRuntime(forge.applied.flux)
-    extraLocalRuntime(forge.applied.create)
     extraLocalRuntime(forge.aae)
     extraLocalRuntime(forge.eco)
     extraLocalRuntime(forge.extendedae.plus)

@@ -1,11 +1,11 @@
 [versions]
-ae2 = "19.2.8"
+ae2 = "19.2.17"
 ae2wt = "19.5.0"
 
 jei = "19.25.1.328"
 emi = "1.1.22+1.21.1"
 
-ldlib = "2.2.8"
+ldlib = "2.2.28"
 mekanism = "1.21.1-10.7.19.85"
 pneumaticcraft = "8.2.9+mc1.21.1"
 kotlinforforge = "5.7.0"
@@ -37,7 +37,7 @@ aecs = "8036407"
 aelt = "8235417"
 aeltpp = "8235153"
 actually-additions = "8281896"
-eco = "7884362"
+eco = "8438281"
 extendedae-plus = "7960385"
 applied-flux = "7429565"
 applied-pneumatics = "7723695"
