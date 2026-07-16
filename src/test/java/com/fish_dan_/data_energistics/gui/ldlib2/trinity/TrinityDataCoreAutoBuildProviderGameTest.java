@@ -38,6 +38,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
@@ -194,6 +195,7 @@ public final class TrinityDataCoreAutoBuildProviderGameTest {
 
         assertBoundedRollingText(buildRequested.toggleLabel, ACTION_TEXT_WIDTH);
         assertBoundedRollingText(confirm.text, ACTION_TEXT_WIDTH);
+        assertEquals(Horizontal.LEFT, confirm.text.getTextStyle().getInline(PropertyRegistry.HORIZONTAL_ALIGN));
         assertEquals(YogaOverflow.HIDDEN, confirm.getStyle().getInline(LayoutProperties.OVERFLOW));
 
         boolean initiallyRequested = buildRequested.isOn();

@@ -205,6 +205,7 @@ final class TrinityDataCoreAutoBuildPanel extends UIElement {
         button.textStyle(style -> style
                 .adaptiveWidth(false)
                 .adaptiveHeight(false)
+                .textAlignHorizontal(Horizontal.LEFT)
                 .textWrap(TextWrap.HOVER_ROLL));
         button.text.setOverflowVisible(false);
         button.text.getLayout()
