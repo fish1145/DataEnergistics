@@ -148,8 +148,8 @@ public final class TrinityCraftingStatusMenuGameTest {
     }
 
     private static CraftingStatusMenu openSelectedMenu(TrackingServerPlayer player,
-                                                        TrinityAccessHatchBlockEntity hatch,
-                                                        Target target) {
+                                                       TrinityAccessHatchBlockEntity hatch,
+                                                       Target target) {
         CraftingStatusMenu[] openedMenu = new CraftingStatusMenu[1];
         boolean opened = TrinityCraftingStatusSelection.open(player, hatch, target, () -> {
             CraftingStatusMenu menu = new CraftingStatusMenu(91, player.getInventory(), hatch);
@@ -253,8 +253,8 @@ public final class TrinityCraftingStatusMenuGameTest {
     private static final class DiscardingPacketListener extends ServerGamePacketListenerImpl {
 
         private DiscardingPacketListener(MinecraftServer server,
-                                          ServerPlayer player,
-                                          GameProfile profile) {
+                                         ServerPlayer player,
+                                         GameProfile profile) {
             super(
                     server,
                     new Connection(PacketFlow.SERVERBOUND),

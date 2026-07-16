@@ -119,13 +119,13 @@ public final class TrinityCraftingStatusSelectionTest {
     }
 
     private static TrinityCraftingStatusSelection.TargetState classify(Object expectedRuntime,
-                                                                        Cpu expectedCpu,
-                                                                        Grid expectedGrid,
-                                                                        UUID currentHostId,
-                                                                        Object currentRuntime,
-                                                                        List<Cpu> publishedCpus,
-                                                                        Grid currentGrid,
-                                                                        boolean retiredWorker) {
+                                                                       Cpu expectedCpu,
+                                                                       Grid expectedGrid,
+                                                                       UUID currentHostId,
+                                                                       Object currentRuntime,
+                                                                       List<Cpu> publishedCpus,
+                                                                       Grid currentGrid,
+                                                                       boolean retiredWorker) {
         return TrinityCraftingStatusSelection.classifyCurrentState(
                 HOST_ID,
                 expectedRuntime,

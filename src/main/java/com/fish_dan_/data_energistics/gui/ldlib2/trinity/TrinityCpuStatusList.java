@@ -254,8 +254,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         switch (cpu.mode()) {
             case PLAYER_ONLY -> row.addChild(statusIcon(cpu, "mode", TERMINAL_ICON_TEXTURE, MODE_ICON_LEFT));
             case MACHINE_ONLY -> row.addChild(statusIcon(cpu, "mode", MACHINE_ICON_TEXTURE, MODE_ICON_LEFT));
-            case ANY -> {
-            }
+            case ANY -> {}
         }
     }
 
