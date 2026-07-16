@@ -47,7 +47,7 @@ public final class DataRipperReassemblerMachineUiStateImpl implements DataRipper
     private final DataRipperReassemblerBlockEntity host;
     private final PageAnchor helpTopic;
 
-    /** Creates state for one open menu and validates that its client-side host is available. */
+    /** Creates state for one open menu and binds its synchronized fields to the machine UI. */
     public DataRipperReassemblerMachineUiStateImpl(
                                                    DataRipperReassemblerMenu menu,
                                                    Inventory playerInventory,
@@ -55,10 +55,6 @@ public final class DataRipperReassemblerMachineUiStateImpl implements DataRipper
         this.menu = menu;
         this.playerInventory = playerInventory;
         this.title = title;
-        if (menu.getHost() == null) {
-            Data_Energistics.LOGGER.error("Cannot create data reassembler ModularUI without a menu host");
-            throw new IllegalStateException("Data reassembler menu host is missing");
-        }
         this.host = menu.getHost();
         this.helpTopic = findHelpTopic(this.host);
     }
