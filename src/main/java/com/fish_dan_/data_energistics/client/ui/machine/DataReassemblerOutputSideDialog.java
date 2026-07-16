@@ -17,6 +17,7 @@ import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Presents the existing six-direction configuration as a modal LDLib2 dialog on the machine UI root.
@@ -55,7 +56,7 @@ final class DataReassemblerOutputSideDialog extends Dialog {
                 false,
                 this::close), 69, -5, 16, 16));
 
-        this.overlay.addChild(position(new DataReassemblerIconButtonElement(
+        var clearButton = new DataReassemblerIconButtonElement(
                 Icon.S_CLEAR::getBlitter,
                 () -> ItemStack.EMPTY,
                 () -> List.of(Component.translatable("gui.data_energistics.set_output_sides.clear")),
@@ -66,13 +67,15 @@ final class DataReassemblerOutputSideDialog extends Dialog {
                         this.selectedSides.put(side, false);
                         state.setOutputSideEnabled(side, false);
                     }
-                }), 74, 72, 8, 8));
+                });
+        clearButton.setId("output-side-clear");
+        this.overlay.addChild(position(clearButton, 74, 72, 8, 8));
 
         for (RelativeSide relativeSide : RelativeSide.values()) {
             var absoluteSide = state.resolveSide(relativeSide);
             this.selectedSides.put(absoluteSide, state.isOutputSideEnabled(absoluteSide));
             int[] position = position(relativeSide);
-            this.overlay.addChild(position(new DataReassemblerIconButtonElement(
+            var sideButton = new DataReassemblerIconButtonElement(
                     () -> null,
                     () -> state.outputSideIcon(absoluteSide),
                     () -> List.of(Component.translatable(this.selectedSides.get(absoluteSide) ? "gui.data_energistics.set_output_sides.on" : "gui.data_energistics.set_output_sides.off")),
@@ -82,7 +85,9 @@ final class DataReassemblerOutputSideDialog extends Dialog {
                         boolean enabled = !this.selectedSides.get(absoluteSide);
                         this.selectedSides.put(absoluteSide, enabled);
                         state.setOutputSideEnabled(absoluteSide, enabled);
-                    }),
+                    });
+            sideButton.setId("output-side-" + relativeSide.name().toLowerCase(Locale.ROOT));
+            this.overlay.addChild(position(sideButton,
                     position[0],
                     position[1],
                     16,

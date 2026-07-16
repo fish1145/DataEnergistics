@@ -7,9 +7,11 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.style.Blitter;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -81,6 +83,14 @@ final class DataReassemblerIconButtonElement extends Button {
             return Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS;
         }
         return Icon.TOOLBAR_BUTTON_BACKGROUND;
+    }
+
+    @Override
+    protected void onMouseDown(UIEvent event) {
+        if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            event.button = GLFW.GLFW_MOUSE_BUTTON_LEFT;
+        }
+        super.onMouseDown(event);
     }
 
     int contentYOffset() {

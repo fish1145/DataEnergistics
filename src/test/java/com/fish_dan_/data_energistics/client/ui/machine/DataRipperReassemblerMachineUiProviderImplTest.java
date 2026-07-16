@@ -260,6 +260,27 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     @Test
+    void iconButtonsTreatRightClickAsLeftClickAndIgnoreOtherButtons() {
+        int[] clicks = { 0 };
+        var button = new DataReassemblerIconButtonElement(
+                Icon.HELP::getBlitter,
+                () -> ItemStack.EMPTY,
+                List::of,
+                () -> false,
+                false,
+                () -> clicks[0]++);
+
+        dispatchMouse(button, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        assertEquals(1, clicks[0]);
+
+        dispatchMouse(button, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+        assertEquals(2, clicks[0]);
+
+        dispatchMouse(button, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_MIDDLE);
+        assertEquals(2, clicks[0]);
+    }
+
+    @Test
     void repeatedAutoExportClicksUseTheLatestLocalValue() {
         FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
         var provider = new DataRipperReassemblerMachineUiProviderImpl();
@@ -282,6 +303,71 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         assertArrayEquals(new int[] { 54, 38 }, DataReassemblerOutputSideDialog.position(RelativeSide.RIGHT));
         assertArrayEquals(new int[] { 54, 60 }, DataReassemblerOutputSideDialog.position(RelativeSide.BACK));
         assertArrayEquals(new int[] { 34, 60 }, DataReassemblerOutputSideDialog.position(RelativeSide.BOTTOM));
+    }
+
+    @Test
+    void outputDialogEntryAcceptsRightClick() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        state.autoExportEnabled = true;
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
+
+        dispatchMouse(
+                element(modularUI, "toolbar-output-sides"),
+                UIEvents.MOUSE_DOWN,
+                GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+
+        assertTrue(provider.isOutputDialogOpen());
+    }
+
+    @Test
+    void outputDirectionButtonsToggleOnceForEitherPrimaryMouseButton() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
+        provider.openOutputDialog();
+        modularUI.init(176, 183);
+        Direction side = state.resolveSide(RelativeSide.FRONT);
+        UIElement button = element(modularUI, "output-side-front");
+
+        dispatchMouse(button, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        assertEquals(List.of(Map.entry(side, true)), state.outputSideRequests);
+
+        dispatchMouse(button, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+        assertEquals(
+                List.of(Map.entry(side, true), Map.entry(side, false)),
+                state.outputSideRequests);
+    }
+
+    @Test
+    void outputSideClearSendsEveryDirectionForEitherPrimaryMouseButton() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
+        provider.openOutputDialog();
+        modularUI.init(176, 183);
+        UIElement clearButton = element(modularUI, "output-side-clear");
+        List<Map.Entry<Direction, Boolean>> expected = List.of(
+                Map.entry(Direction.DOWN, false),
+                Map.entry(Direction.UP, false),
+                Map.entry(Direction.NORTH, false),
+                Map.entry(Direction.SOUTH, false),
+                Map.entry(Direction.WEST, false),
+                Map.entry(Direction.EAST, false));
+
+        dispatchMouse(clearButton, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        assertEquals(expected, state.outputSideRequests);
+
+        dispatchMouse(clearButton, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+        List<Map.Entry<Direction, Boolean>> bothClicks = new ArrayList<>(expected);
+        bothClicks.addAll(expected);
+        assertEquals(bothClicks, state.outputSideRequests);
     }
 
     @Test
@@ -404,6 +490,7 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         private final EnumMap<SlotGroup, List<Slot>> slots = new EnumMap<>(SlotGroup.class);
         private final EnumMap<Direction, Boolean> outputSides = new EnumMap<>(Direction.class);
         private final List<Boolean> autoExportRequests = new ArrayList<>();
+        private final List<Map.Entry<Direction, Boolean>> outputSideRequests = new ArrayList<>();
         private int nextContainerSlot;
         private boolean autoExportEnabled;
         private boolean hasHelp;
@@ -507,6 +594,7 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         @Override
         public void setOutputSideEnabled(Direction side, boolean enabled) {
             this.outputSides.put(side, enabled);
+            this.outputSideRequests.add(Map.entry(side, enabled));
         }
 
         @Override
@@ -583,7 +671,12 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     private static void dispatchMouse(UIElement target, String eventType) {
+        dispatchMouse(target, eventType, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+    }
+
+    private static void dispatchMouse(UIElement target, String eventType, int button) {
         UIEvent event = UIEvent.create(eventType);
+        event.button = button;
         event.target = target;
         UIEventDispatcher.dispatchEvent(event, false, false, false);
     }
