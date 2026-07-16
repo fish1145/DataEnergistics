@@ -18,6 +18,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.IModularUIProvider;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import dev.vfyjxf.taffy.style.TaffyPosition;
@@ -46,7 +47,7 @@ public final class DataRipperReassemblerRecipeUiProviderImpl
 
     @Override
     public ModularUI createModularUI(DataRipperReassemblerRecipeView recipe) {
-        UIElement root = new UIElement();
+        UIElement root = new RecipeRootElement();
         root.setId("data-reassembler-recipe");
         root.getLayout().width(DataReassemblerLayout.RECIPE_WIDTH);
         root.getLayout().height(DataReassemblerLayout.RECIPE_HEIGHT);
@@ -162,5 +163,15 @@ public final class DataRipperReassemblerRecipeUiProviderImpl
         element.getLayout().positionType(TaffyPosition.ABSOLUTE);
         element.getLayout().left(x);
         element.getLayout().top(y);
+    }
+
+    /** Commits LDLib2's buffered background before immediate child renderers draw into the framebuffer. */
+    private static final class RecipeRootElement extends UIElement {
+
+        @Override
+        public void drawBackgroundTexture(GUIContext guiContext) {
+            super.drawBackgroundTexture(guiContext);
+            guiContext.graphics.flush();
+        }
     }
 }
