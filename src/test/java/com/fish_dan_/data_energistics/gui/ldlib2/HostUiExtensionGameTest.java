@@ -40,6 +40,12 @@ public final class HostUiExtensionGameTest {
     @GameTest(template = "empty_5x5")
     public static void supportsFourIndependentWindows(GameTestHelper helper) {
         HostFixture fixture = createFixture(helper, 1);
+        UIElement overlay = fixture.modularUI.getElementById(HostUiExtension.HOSTED_OVERLAY_ID);
+        if (overlay == null) {
+            throw new GameTestAssertException("Expected the hosted overlay stacking layer");
+        }
+        assertSame(fixture.root, overlay.getParent());
+        assertEquals(HostUiExtension.HOSTED_OVERLAY_Z, zIndex(overlay));
         CountingProvider main = fixture.register("main");
         CountingProvider cpu = fixture.register("cpu");
         CountingProvider crafting = fixture.register("crafting");

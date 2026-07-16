@@ -353,7 +353,7 @@ final class HostUiExtensionImpl implements HostUiExtension {
     /** Creates a zero-size, overflow-visible layer so only its window children contribute XEI areas. */
     private HostOverlayLayer createOverlayLayer() {
         HostOverlayLayer layer = new HostOverlayLayer();
-        layer.setId("datae-host-ui-overlay");
+        layer.setId(HOSTED_OVERLAY_ID);
         layer.setAllowHitTest(false);
         for (String eventType : GUARDED_INTERACTION_EVENTS) {
             layer.addEventListener(eventType, event -> {
@@ -367,7 +367,9 @@ final class HostUiExtensionImpl implements HostUiExtension {
             layout.width(0);
             layout.height(0);
         });
-        Style.importantPipeline(layer.getStyle(), style -> style.overflowVisible(true));
+        Style.importantPipeline(layer.getStyle(), style -> style
+                .overflowVisible(true)
+                .zIndex(HOSTED_OVERLAY_Z));
         return layer;
     }
 

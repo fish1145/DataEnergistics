@@ -18,6 +18,12 @@ import java.util.List;
  */
 public interface HostUiExtension {
 
+    /** Stable identity of the root stacking layer that owns every hosted window. */
+    String HOSTED_OVERLAY_ID = "datae-host-ui-overlay";
+
+    /** Root z-index above static host controls while remaining below transient popup content. */
+    int HOSTED_OVERLAY_Z = 1;
+
     /** Marker applied to root-mounted transient popup elements that consume Escape before a hosted window. */
     String TRANSIENT_POPUP_CLASS = "data_energistics_host_transient_popup";
 
