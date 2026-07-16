@@ -270,6 +270,8 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                     .textAlignHorizontal(Horizontal.CENTER)
                     .textAlignVertical(Vertical.CENTER)
                     .textShadow(false));
+            button.text.setOverflowVisible(false);
+            button.text.getLayout().flex(1);
             button.setOverflowVisible(false);
             button.setOnClick(event -> selectStructure(substructure.id()));
             button.layout(layout -> layout.width(buttonWidth).height(STRUCTURE_SELECTOR_CONTENT_HEIGHT));
@@ -303,15 +305,16 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                 .top(top)
                 .width(WIDTH)
                 .height(height));
-        scroller.style(style -> style.backgroundTexture(Sprites.BORDER));
+        scroller.getStyle().backgroundTexture(IGuiTexture.EMPTY);
         scroller.scrollerStyle(style -> style
                 .mode(ScrollerMode.HORIZONTAL)
                 .horizontalScrollDisplay(ScrollDisplay.AUTO)
                 .verticalScrollDisplay(ScrollDisplay.NEVER)
                 .scrollerViewStyle(0));
-        scroller.viewPort(viewPort -> viewPort
-                .layout(layout -> layout.paddingAll(0))
-                .style(style -> style.backgroundTexture(IGuiTexture.EMPTY)));
+        scroller.viewPort(viewPort -> {
+            viewPort.layout(layout -> layout.paddingAll(0));
+            viewPort.getStyle().backgroundTexture(Sprites.BORDER);
+        });
         scroller.viewContainer(viewContainer -> viewContainer.layout(layout -> layout
                 .flexDirection(FlexDirection.ROW)
                 .height(contentHeight)));
@@ -359,7 +362,7 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                 .top(RECIPE_TOP)
                 .width(WIDTH)
                 .height(RECIPE_HEIGHT));
-        strip.style(style -> style.backgroundTexture(Sprites.BORDER));
+        strip.getStyle().backgroundTexture(Sprites.BORDER);
 
         UIElement arrow = new UIElement();
         arrow.setId(this.idPrefix + "_recipe_arrow");
@@ -404,13 +407,13 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
             Button button = entry.getValue();
             button.buttonStyle(style -> {
                 if (selected) {
-                    style.baseTexture(Sprites.RECT_LIGHT)
-                            .hoverTexture(Sprites.RECT_LIGHT)
-                            .pressedTexture(Sprites.RECT);
+                    style.baseTexture(Sprites.RECT_RD_LIGHT)
+                            .hoverTexture(Sprites.RECT_RD_LIGHT)
+                            .pressedTexture(Sprites.RECT_RD);
                 } else {
-                    style.baseTexture(Sprites.RECT_DARK)
-                            .hoverTexture(Sprites.RECT)
-                            .pressedTexture(Sprites.RECT_LIGHT);
+                    style.baseTexture(Sprites.RECT_RD_DARK)
+                            .hoverTexture(Sprites.RECT_RD)
+                            .pressedTexture(Sprites.RECT_RD_DARK);
                 }
             });
             button.textStyle(style -> style.textColor(selected ? ACTIVE_TEXT_COLOR : INACTIVE_TEXT_COLOR));
@@ -444,6 +447,8 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
                     .textAlignHorizontal(Horizontal.CENTER)
                     .textAlignVertical(Vertical.CENTER)
                     .textShadow(false));
+            button.text.setOverflowVisible(false);
+            button.text.getLayout().flex(1);
             button.style(style -> style.tooltips(candidateTooltip(predicate)));
             button.setOnClick(event -> selectCandidate(
                     predicate.key(),

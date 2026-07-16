@@ -39,11 +39,15 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.stacks.AEItemKey;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
+import com.lowdragmc.lowdraglib2.gui.ui.layout.LayoutProperties;
 import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
@@ -53,6 +57,8 @@ import com.modularmc.mdl.api.multiblock.PatternUnit;
 import com.modularmc.mdl.api.multiblock.Predicates;
 import com.modularmc.mdl.api.multiblock.RepeatRange;
 import dev.vfyjxf.taffy.style.TaffyDimension;
+import org.appliedenergistics.yoga.YogaOverflow;
+import org.appliedenergistics.yoga.numeric.FloatOptional;
 
 import java.util.List;
 import java.util.Map;
@@ -104,6 +110,7 @@ public final class MultiblockXeiAdapterGameTest {
         assertSame(
                 ScrollDisplay.AUTO,
                 structures.getScrollerViewStyle().getInline(PropertyRegistry.SCROLLER_HORIZONTAL_DISPLAY));
+        assertScrollerTextures(structures);
         assertEquals(4, structures.viewContainer.getChildren().size());
         for (var structureButton : structures.viewContainer.getChildren()) {
             assertEquals(
@@ -112,8 +119,29 @@ public final class MultiblockXeiAdapterGameTest {
         }
         Button mainStructureButton = requireButton(jei, "xei_adapter_jei_structure_main");
         Button childStructureButton = requireButton(jei, "xei_adapter_jei_structure_child");
-        assertSame(Sprites.RECT_LIGHT, mainStructureButton.getButtonStyle().baseTexture());
-        assertSame(Sprites.RECT_DARK, childStructureButton.getButtonStyle().baseTexture());
+        assertFlexibleClippedText(mainStructureButton);
+        assertSame(TextWrap.HOVER_ROLL,
+                mainStructureButton.text.getTextStyle().getInline(PropertyRegistry.TEXT_WRAP));
+        assertButtonTextures(
+                mainStructureButton,
+                Sprites.RECT_RD_LIGHT,
+                Sprites.RECT_RD_LIGHT,
+                Sprites.RECT_RD);
+        assertButtonTextures(
+                childStructureButton,
+                Sprites.RECT_RD_DARK,
+                Sprites.RECT_RD,
+                Sprites.RECT_RD_DARK);
+        ScrollerView candidates = requireScroller(
+                jei,
+                "xei_adapter_jei" + MultiblockXeiComposition.CANDIDATES_SUFFIX);
+        assertScrollerTextures(candidates);
+        assertFlexibleClippedText(requireFirstButton(candidates));
+        assertSame(
+                Sprites.BORDER,
+                requireElement(jei, "xei_adapter_jei_recipe_strip")
+                        .getStyle()
+                        .getInline(PropertyRegistry.BACKGROUND));
 
         assertEquals(initial, emiRecipe.currentRecipeView());
         assertEquals(initial.registeredRecipeId(), jeiRecipe.registeredRecipeId());
@@ -129,9 +157,27 @@ public final class MultiblockXeiAdapterGameTest {
         jei.selectStructure("child");
         assertRecipeChanged(beforeStructure, jei.currentRecipeView());
         assertEquals(beforeStructure.registeredRecipeId(), jei.registeredRecipeId());
-        assertSame(Sprites.RECT_DARK, mainStructureButton.getButtonStyle().baseTexture());
-        assertSame(Sprites.RECT_LIGHT, childStructureButton.getButtonStyle().baseTexture());
+        assertButtonTextures(
+                mainStructureButton,
+                Sprites.RECT_RD_DARK,
+                Sprites.RECT_RD,
+                Sprites.RECT_RD_DARK);
+        assertButtonTextures(
+                childStructureButton,
+                Sprites.RECT_RD_LIGHT,
+                Sprites.RECT_RD_LIGHT,
+                Sprites.RECT_RD);
         jei.selectStructure("main");
+        assertButtonTextures(
+                mainStructureButton,
+                Sprites.RECT_RD_LIGHT,
+                Sprites.RECT_RD_LIGHT,
+                Sprites.RECT_RD);
+        assertButtonTextures(
+                childStructureButton,
+                Sprites.RECT_RD_DARK,
+                Sprites.RECT_RD,
+                Sprites.RECT_RD_DARK);
 
         MultiblockRecipeView beforeVariant = jei.currentRecipeView();
         jei.selectVariant(1);
@@ -217,17 +263,54 @@ public final class MultiblockXeiAdapterGameTest {
     }
 
     private static Button requireButton(MultiblockXeiComposition composition, String id) {
-        if (composition.modularUI().getElementById(id) instanceof Button button) {
+        if (requireElement(composition, id) instanceof Button button) {
             return button;
         }
         throw new GameTestAssertException("Expected XEI button " + id);
     }
 
     private static ScrollerView requireScroller(MultiblockXeiComposition composition, String id) {
-        if (composition.modularUI().getElementById(id) instanceof ScrollerView scroller) {
+        if (requireElement(composition, id) instanceof ScrollerView scroller) {
             return scroller;
         }
         throw new GameTestAssertException("Expected XEI scroller " + id);
+    }
+
+    private static UIElement requireElement(MultiblockXeiComposition composition, String id) {
+        UIElement element = composition.modularUI().getElementById(id);
+        if (element == null) {
+            throw new GameTestAssertException("Missing XEI element " + id);
+        }
+        return element;
+    }
+
+    private static Button requireFirstButton(ScrollerView scroller) {
+        for (UIElement child : scroller.viewContainer.getChildren()) {
+            if (child instanceof Button button) {
+                return button;
+            }
+        }
+        throw new GameTestAssertException("Expected XEI scroller to contain a button");
+    }
+
+    private static void assertFlexibleClippedText(Button button) {
+        assertEquals(Boolean.FALSE, button.text.getTextStyle().getInline(PropertyRegistry.ADAPTIVE_WIDTH));
+        assertEquals(FloatOptional.of(1.0f), button.text.getLayout().getInline(LayoutProperties.FLEX));
+        assertEquals(YogaOverflow.HIDDEN, button.text.getStyle().getInline(LayoutProperties.OVERFLOW));
+    }
+
+    private static void assertScrollerTextures(ScrollerView scroller) {
+        assertSame(IGuiTexture.EMPTY, scroller.getStyle().getInline(PropertyRegistry.BACKGROUND));
+        assertSame(Sprites.BORDER, scroller.viewPort.getStyle().getInline(PropertyRegistry.BACKGROUND));
+    }
+
+    private static void assertButtonTextures(Button button,
+                                             IGuiTexture base,
+                                             IGuiTexture hover,
+                                             IGuiTexture pressed) {
+        assertSame(base, button.getButtonStyle().baseTexture());
+        assertSame(hover, button.getButtonStyle().hoverTexture());
+        assertSame(pressed, button.getButtonStyle().pressedTexture());
     }
 
     private static void assertRecipeChanged(MultiblockRecipeView before, MultiblockRecipeView after) {
