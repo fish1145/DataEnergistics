@@ -18,11 +18,15 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture.WrapMode;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
+import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
 
 import java.util.List;
 
@@ -92,6 +96,9 @@ public final class TrinityDataCoreHostUiGameTest {
         assertSame(
                 capacityBar,
                 assertElement(modularUI, TrinityStorageCapacityBar.TRACK_ID).getParent());
+        assertRepeatingFillTexture(modularUI, TrinityStorageCapacityBar.ITEM_SEGMENT_ID);
+        assertRepeatingFillTexture(modularUI, TrinityStorageCapacityBar.FLUID_SEGMENT_ID);
+        assertRepeatingFillTexture(modularUI, TrinityStorageCapacityBar.OTHER_SEGMENT_ID);
 
         TrinityCpuStatusList cpuList = singleElement(modularUI, TrinityCpuStatusList.class);
         assertSame(root, cpuList.getParent());
@@ -175,6 +182,16 @@ public final class TrinityDataCoreHostUiGameTest {
             throw new GameTestAssertException("Missing LDLib2 element " + id);
         }
         return element;
+    }
+
+    private static void assertRepeatingFillTexture(ModularUI modularUI, String id) {
+        IGuiTexture texture = assertElement(modularUI, id).getStyle().getDefault(PropertyRegistry.BACKGROUND);
+        if (!(texture instanceof SpriteTexture spriteTexture)) {
+            throw new GameTestAssertException("Capacity segment " + id + " must use a SpriteTexture");
+        }
+        assertEquals(WrapMode.REPEAT, spriteTexture.wrapMode);
+        assertEquals(2, spriteTexture.spriteSize.getWidth());
+        assertEquals(4, spriteTexture.spriteSize.getHeight());
     }
 
     private static <T extends UIElement> T singleElement(ModularUI modularUI, Class<T> elementType) {

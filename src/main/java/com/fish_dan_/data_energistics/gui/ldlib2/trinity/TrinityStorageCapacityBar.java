@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture.WrapMode;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
@@ -168,6 +169,7 @@ public final class TrinityStorageCapacityBar extends BindableUIElement<TrinityDa
 
     private static SpriteTexture fillTexture(String fileName) {
         return SpriteTexture.of("data_energistics:textures/guis/trinity_data_core/" + fileName)
-                .setSprite(0, 0, 2, FILL_HEIGHT);
+                .setSprite(0, 0, 2, FILL_HEIGHT)
+                .setWrapMode(WrapMode.REPEAT);
     }
 }
