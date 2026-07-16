@@ -371,6 +371,102 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     @Test
+    void outputDialogReturnUsesTheFullTabButtonHitBounds() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
+        provider.openOutputDialog();
+        modularUI.init(176, 183);
+        Dialog dialog = outputDialog(modularUI);
+        DataReassemblerTabButtonElement returnButton = assertInstanceOf(
+                DataReassemblerTabButtonElement.class,
+                element(modularUI, "output-side-return"));
+        double x = returnButton.getPositionX();
+        double y = returnButton.getPositionY();
+
+        assertElementBounds(
+                returnButton,
+                Math.round(dialog.overlay.getPositionX() + 69),
+                Math.round(dialog.overlay.getPositionY() - 5),
+                22,
+                22);
+        assertSame(returnButton, modularUI.ui.rootElement.hitTest(x + 21.5D, y + 21.5D).getA());
+        assertFalse(hits(modularUI, returnButton, x + 22.0D, y + 11));
+        assertFalse(hits(modularUI, returnButton, x + 11, y + 22.0D));
+        assertEquals(2, returnButton.iconXOffset());
+        assertEquals(1, returnButton.iconYOffset());
+        assertSame(Icon.TAB_BUTTON_BACKGROUND, returnButton.backgroundIcon());
+
+        dispatchMouse(returnButton, UIEvents.MOUSE_ENTER);
+        assertSame(Icon.TAB_BUTTON_BACKGROUND, returnButton.backgroundIcon());
+
+        modularUI.requestFocus(returnButton);
+        assertSame(Icon.TAB_BUTTON_BACKGROUND_FOCUS, returnButton.backgroundIcon());
+
+        UIEvent tooltipEvent = UIEvent.create(UIEvents.HOVER_TOOLTIPS);
+        tooltipEvent.target = returnButton;
+        UIEventDispatcher.dispatchEvent(tooltipEvent, false, false, false);
+        assertNotNull(tooltipEvent.hoverTooltips);
+        assertEquals(List.of(state.machineName()), tooltipEvent.hoverTooltips.tooltipTexts());
+    }
+
+    @Test
+    void outputDialogReturnAcceptsEitherPrimaryMouseButton() {
+        for (int button : new int[] { GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOUSE_BUTTON_RIGHT }) {
+            FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+            var provider = new DataRipperReassemblerMachineUiProviderImpl();
+            ModularUI modularUI = provider.createModularUI(state);
+            state.menu.setModularUI(modularUI);
+            modularUI.init(176, 183);
+            provider.openOutputDialog();
+            modularUI.init(176, 183);
+
+            dispatchMouse(element(modularUI, "output-side-return"), UIEvents.MOUSE_DOWN, button);
+
+            assertFalse(provider.isOutputDialogOpen());
+            assertSame(modularUI.ui.rootElement, modularUI.getFocusedElement());
+            assertTrue(state.outputSideRequests.isEmpty());
+        }
+    }
+
+    @Test
+    void tabButtonBackgroundIgnoresHoverAndPressedState() {
+        var button = new DataReassemblerTabButtonElement(
+                () -> Component.literal("Data Reassembler"),
+                () -> {});
+
+        assertSame(Icon.TAB_BUTTON_BACKGROUND, button.backgroundIcon());
+        dispatchMouse(button, UIEvents.MOUSE_ENTER);
+        assertSame(Icon.TAB_BUTTON_BACKGROUND, button.backgroundIcon());
+        dispatchMouse(button, UIEvents.MOUSE_DOWN, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+        assertSame(Icon.TAB_BUTTON_BACKGROUND, button.backgroundIcon());
+    }
+
+    @Test
+    void outputDialogReturnSupportsVanillaButtonActivationKeys() {
+        for (int key : new int[] { GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER }) {
+            FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+            var provider = new DataRipperReassemblerMachineUiProviderImpl();
+            ModularUI modularUI = provider.createModularUI(state);
+            state.menu.setModularUI(modularUI);
+            modularUI.init(176, 183);
+            provider.openOutputDialog();
+            modularUI.init(176, 183);
+            UIElement returnButton = element(modularUI, "output-side-return");
+            modularUI.requestFocus(returnButton);
+
+            assertTrue(modularUI.getWidget().keyPressed(GLFW.GLFW_KEY_G, 0, 0));
+            assertTrue(provider.isOutputDialogOpen());
+            assertTrue(modularUI.getWidget().keyPressed(key, 0, 0));
+            assertFalse(provider.isOutputDialogOpen());
+            assertSame(modularUI.ui.rootElement, modularUI.getFocusedElement());
+            assertTrue(state.outputSideRequests.isEmpty());
+        }
+    }
+
+    @Test
     void genericSlotKeepsTheFullAeKeyTooltipBeforeCapacity() {
         GenericStack stack = new GenericStack(DataKey.of(), 42L);
         var slot = new DataReassemblerGenericSlotElement(
@@ -654,6 +750,10 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         return modularUI.ui.selectId(id).findFirst().orElseThrow();
     }
 
+    private static Dialog outputDialog(ModularUI modularUI) {
+        return assertInstanceOf(Dialog.class, modularUI.ui.rootElement.getChildren().getLast());
+    }
+
     private static void assertToolbarBounds(ModularUI modularUI, int toolbarHeight, int backgroundHeight) {
         var toolbar = assertInstanceOf(
                 DataRipperReassemblerMachineUiProviderImpl.ToolbarElement.class,
@@ -715,9 +815,9 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         assertFalse(hits(modularUI, slot, x + 8, y + 16.0D));
     }
 
-    private static boolean hits(ModularUI modularUI, ItemSlot slot, double x, double y) {
+    private static boolean hits(ModularUI modularUI, UIElement element, double x, double y) {
         var hit = modularUI.ui.rootElement.hitTest(x, y);
-        return hit != null && hit.getA() == slot;
+        return hit != null && hit.getA() == element;
     }
 
     private static final class TestSlotImpl extends Slot implements SlotAccessor {

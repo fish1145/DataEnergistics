@@ -48,13 +48,9 @@ final class DataReassemblerOutputSideDialog extends Dialog {
                 .setText(Component.translatable("gui.data_energistics.set_output_sides"))
                 .textStyle(style -> style.textColor(0x404040).textShadow(false)), 8, 6, 78, 9));
 
-        this.overlay.addChild(position(new DataReassemblerIconButtonElement(
-                Icon.BACK::getBlitter,
-                () -> ItemStack.EMPTY,
-                () -> List.of(state.machineName()),
-                () -> false,
-                false,
-                this::close), 69, -5, 16, 16));
+        var returnButton = new DataReassemblerTabButtonElement(state::machineName, this::close);
+        returnButton.setId("output-side-return");
+        this.overlay.addChild(position(returnButton, 69, -5, 22, 22));
 
         var clearButton = new DataReassemblerIconButtonElement(
                 Icon.S_CLEAR::getBlitter,
