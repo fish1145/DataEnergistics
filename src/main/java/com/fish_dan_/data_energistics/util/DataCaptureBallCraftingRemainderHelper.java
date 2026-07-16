@@ -17,10 +17,6 @@ public final class DataCaptureBallCraftingRemainderHelper {
 
     private DataCaptureBallCraftingRemainderHelper() {}
 
-    public static boolean hasRequiredData(CraftingInput input) {
-        return findDataCaptureBallSlot(input) >= 0;
-    }
-
     public static void applyDataReassemblerRemainder(CraftingInput input, NonNullList<ItemStack> remainders) {
         int slot = findDataCaptureBallSlot(input);
         if (slot < 0 || slot >= remainders.size()) {

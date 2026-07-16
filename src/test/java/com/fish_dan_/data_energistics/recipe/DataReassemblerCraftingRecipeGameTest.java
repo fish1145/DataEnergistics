@@ -55,7 +55,7 @@ public final class DataReassemblerCraftingRecipeGameTest {
         CraftingInput mirroredInput = dataReassemblerInput(16L, true);
         assertReturnedBall(helper, requireDataReassemblerRecipe(helper, mirroredInput).value(), mirroredInput, 8L);
 
-        assertInsufficientDataDoesNotCraft(helper);
+        assertInsufficientDataConsumesBall(helper);
         assertDifferentRecipeDoesNotReturnBall(helper);
         helper.succeed();
     }
@@ -150,18 +150,20 @@ public final class DataReassemblerCraftingRecipeGameTest {
                 "AE2 autocrafting must not return an insufficient Data Capture Ball as a valid remainder");
     }
 
-    private static void assertInsufficientDataDoesNotCraft(GameTestHelper helper) {
-        CraftingInput input = dataReassemblerInput(7L, false);
+    private static void assertInsufficientDataConsumesBall(GameTestHelper helper) {
+        for (long dataAmount : new long[] { 0L, 7L }) {
+            CraftingInput input = dataReassemblerInput(dataAmount, false);
+            CraftingRecipe recipe = requireDataReassemblerRecipe(helper, input).value();
+            int captureBallSlot = findCaptureBallSlot(input);
 
-        helper.assertTrue(
-                helper.getLevel().getRecipeManager()
-                        .getRecipeFor(RecipeType.CRAFTING, input, helper.getLevel())
-                        .isEmpty(),
-                "A Data Capture Ball with fewer than eight data must not craft a Data Reassembler");
-        helper.assertValueEqual(
-                DataCaptureBallItem.getStoredDataAmount(input.getItem(findCaptureBallSlot(input))),
-                7L,
-                "A rejected Data Capture Ball must keep its data");
+            helper.assertTrue(
+                    recipe.getRemainingItems(input).get(captureBallSlot).isEmpty(),
+                    "A Data Capture Ball with fewer than eight data must be consumed as a normal ingredient");
+            helper.assertValueEqual(
+                    DataCaptureBallItem.getStoredDataAmount(input.getItem(captureBallSlot)),
+                    dataAmount,
+                    "Consuming an insufficient Data Capture Ball must not mutate the crafting input");
+        }
     }
 
     private static void assertDifferentRecipeDoesNotReturnBall(GameTestHelper helper) {

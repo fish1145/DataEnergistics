@@ -22,7 +22,7 @@ public final class DataReassemblerCraftingRecipe extends ShapedRecipe {
 
     @Override
     public boolean matches(CraftingInput input, Level level) {
-        return this.wrapped.matches(input, level) && DataCaptureBallCraftingRemainderHelper.hasRequiredData(input);
+        return this.wrapped.matches(input, level);
     }
 
     @Override
