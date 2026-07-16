@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataChargerRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.DataReassemblerCraftingRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
@@ -69,6 +70,9 @@ public final class ModRecipes {
             DataCaptureBallCondenserRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataChargerRecipeSerializer> DATA_CHARGER_SERIALIZER = RECIPE_SERIALIZERS.register("data_charger",
             DataChargerRecipeSerializer::new);
+    public static final DeferredHolder<RecipeSerializer<?>, DataReassemblerCraftingRecipeSerializer> DATA_REASSEMBLER_CRAFTING_SERIALIZER = RECIPE_SERIALIZERS.register(
+            "data_reassembler_crafting",
+            DataReassemblerCraftingRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataCaptureBallRightClickRecipeSerializer> DATA_CAPTURE_BALL_RIGHT_CLICK_LEGACY_SERIALIZER = RECIPE_SERIALIZERS.register("data_capture_ball_right_click",
             DataCaptureBallRightClickRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<UniversalTerminalCombineRecipe>> UNIVERSAL_TERMINAL_COMBINE_SERIALIZER = RECIPE_SERIALIZERS.register(

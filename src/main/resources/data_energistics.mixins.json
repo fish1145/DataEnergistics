@@ -29,8 +29,6 @@
 		"core.CraftingCPUMenuMixin",
 		"core.CraftingServiceMixin",
 		"core.CraftingStatusMenuMixin",
-		"core.CraftingMenuMixin",
-		"core.CraftingTermMenuMixin",
 		"core.CraftingTermSlotMixin",
 		"core.EncodedPatternItemMixin",
 		"core.ExportBusPartWrappedKeyMixin",
