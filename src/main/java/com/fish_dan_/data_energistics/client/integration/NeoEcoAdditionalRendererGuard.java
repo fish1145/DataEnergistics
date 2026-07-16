@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.neoecoae;
+package com.fish_dan_.data_energistics.client.integration;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Isolates NeoECOAE section renderer failures without replacing its renderer registration logic.
  */
-final class NeoEcoAdditionalRendererGuard {
+public final class NeoEcoAdditionalRendererGuard {
 
     private static final int MAX_WARNINGS = 5;
     private static final AtomicInteger SAFE_RENDER_FAILURES = new AtomicInteger();
@@ -24,7 +24,7 @@ final class NeoEcoAdditionalRendererGuard {
      * @param sectionOrigin section origin used to identify failures in the log
      * @return guarded renderer that preserves the original invocation
      */
-    static AdditionalSectionRenderer guard(AdditionalSectionRenderer renderer, BlockPos sectionOrigin) {
+    public static AdditionalSectionRenderer guard(AdditionalSectionRenderer renderer, BlockPos sectionOrigin) {
         return context -> {
             try {
                 renderer.render(context);

@@ -45,6 +45,8 @@ import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.orientation.BlockOrientation;
+import appeng.api.orientation.RelativeSide;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -147,7 +149,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_RIPPER_REASSEMBLER.get())
-                .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -163,22 +164,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public AECableType getCableConnectionType(Direction dir) {
-        if (!isCableSideExposed(dir)) {
-            return AECableType.NONE;
-        }
-        return AECableType.COVERED;
+        return getGridConnectableSides(getOrientation()).contains(dir) ? AECableType.COVERED : AECableType.NONE;
     }
 
-    private boolean isCableSideExposed(Direction dir) {
-        Direction front = this.getBlockState().getValue(DataRipperReassemblerBlock.FACING);
-        return dir != Direction.UP && dir != front;
-    }
-
-    private static Set<Direction> getCableExposedSides(BlockState blockState) {
-        Direction front = blockState.getValue(DataRipperReassemblerBlock.FACING);
+    @Override
+    public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
         EnumSet<Direction> sides = EnumSet.allOf(Direction.class);
-        sides.remove(Direction.UP);
-        sides.remove(front);
+        sides.remove(orientation.getSide(RelativeSide.FRONT));
+        sides.remove(orientation.getSide(RelativeSide.TOP));
         return sides;
     }
 

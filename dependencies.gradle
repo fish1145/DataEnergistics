@@ -46,6 +46,10 @@ dependencies {
     compileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
 
+    // UI framework
+    compileOnly(forge.ldlib)
+    testImplementation(forge.ldlib)
+
     // WAILA-likes
     compileOnly(forge.jade)
 
