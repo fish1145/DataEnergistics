@@ -16,7 +16,6 @@ neoForge {
 //    validateAccessTransformers = true
 
     addModdingDependenciesTo(sourceSets.test)
-    addModdingDependenciesTo(sourceSets.viewerTest)
     addModdingDependenciesTo(sourceSets.extra)
 
     mods {

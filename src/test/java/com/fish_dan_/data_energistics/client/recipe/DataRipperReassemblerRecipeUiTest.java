@@ -289,7 +289,7 @@ public final class DataRipperReassemblerRecipeUiTest {
 
     private static ItemStack namedDiamondOutput() {
         ItemStack stack = new ItemStack(Items.DIAMOND, 3);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Viewer test component"));
+        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Recipe UI test component"));
         return stack;
     }
 
