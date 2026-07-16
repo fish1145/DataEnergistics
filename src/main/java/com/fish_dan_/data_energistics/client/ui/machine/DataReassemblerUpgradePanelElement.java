@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.client.ui.machine;
 
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.client.gui.Icon;
 import appeng.client.gui.style.Blitter;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -31,13 +32,23 @@ final class DataReassemblerUpgradePanelElement extends UIElement {
 
     DataReassemblerUpgradePanelElement(int slotCount, Supplier<List<Component>> tooltipSupplier) {
         this.slotCount = slotCount;
-        int columns = (slotCount + MAX_ROWS - 1) / MAX_ROWS;
-        getLayout().width(PADDING * 2 + columns * SLOT_SIZE);
-        getLayout().height(PADDING * 2 + Math.min(MAX_ROWS, slotCount) * SLOT_SIZE);
+        getLayout().width(widthForSlots(slotCount));
+        getLayout().height(heightForSlots(slotCount));
         addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
             List<Component> tooltip = tooltipSupplier.get();
             event.hoverTooltips = new HoverTooltips(List.copyOf(tooltip), null, null, ItemStack.EMPTY);
         });
+    }
+
+    /** Calculates the visual panel width so the external viewer margin follows every upgrade column. */
+    static int widthForSlots(int slotCount) {
+        int columns = (slotCount + MAX_ROWS - 1) / MAX_ROWS;
+        return PADDING * 2 + columns * SLOT_SIZE;
+    }
+
+    /** Calculates the visual panel height so the external viewer margin follows the populated rows. */
+    static int heightForSlots(int slotCount) {
+        return PADDING * 2 + Math.min(MAX_ROWS, slotCount) * SLOT_SIZE;
     }
 
     @Override
@@ -105,7 +116,7 @@ final class DataReassemblerUpgradePanelElement extends UIElement {
         BACKGROUND.copy().src(sourceX, sourceY, sourceWidth, sourceHeight).dest(x, y).blit(guiContext.graphics);
     }
 
-    /** Item slot variant that retains AE2's standard empty-upgrade placement icon. */
+    /** Item slot variant that restores the reassembler's placement-toolbox empty-slot icon. */
     static final class UpgradeSlot extends ItemSlot {
 
         UpgradeSlot(Slot slot) {
@@ -116,7 +127,7 @@ final class DataReassemblerUpgradePanelElement extends UIElement {
         @Override
         public void drawBackgroundAdditional(GUIContext guiContext) {
             if (getValue().isEmpty()) {
-                Icon.BACKGROUND_UPGRADE.getBlitter()
+                DataEnergisticsIcon.getBlitter("PLACEMENT_TOOLBOX")
                         .dest(Math.round(getContentX()), Math.round(getContentY()))
                         .blit(guiContext.graphics);
             }

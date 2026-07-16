@@ -43,6 +43,9 @@ public final class DataRipperReassemblerMachineUiProviderImpl
 
     private static final int WIDTH = 176;
     private static final int HEIGHT = 183;
+    private static final int UPGRADE_PANEL_X = 174;
+    private static final int UPGRADE_PANEL_Y = 0;
+    private static final int VIEWER_EXCLUSION_MARGIN = 2;
     private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(
             "ae2",
             "textures/guis/data_reassembler.png");
@@ -163,14 +166,23 @@ public final class DataRipperReassemblerMachineUiProviderImpl
             return;
         }
         var panel = new DataReassemblerUpgradePanelElement(upgrades.size(), this.state::compatibleUpgradeTooltip);
-        position(panel, 174, 0);
+        var exclusion = new UIElement();
+        exclusion.setAllowHitTest(false);
+        position(
+                exclusion,
+                UPGRADE_PANEL_X - VIEWER_EXCLUSION_MARGIN,
+                UPGRADE_PANEL_Y - VIEWER_EXCLUSION_MARGIN,
+                DataReassemblerUpgradePanelElement.widthForSlots(upgrades.size()) + VIEWER_EXCLUSION_MARGIN * 2,
+                DataReassemblerUpgradePanelElement.heightForSlots(upgrades.size()) + VIEWER_EXCLUSION_MARGIN * 2);
+        position(panel, VIEWER_EXCLUSION_MARGIN, VIEWER_EXCLUSION_MARGIN);
         for (int i = 0; i < upgrades.size(); i++) {
             var itemSlot = new DataReassemblerUpgradePanelElement.UpgradeSlot(upgrades.get(i));
-            position(itemSlot, 4 + i / 8 * 18, 4 + i % 8 * 18, 18, 18);
+            position(itemSlot, i / 8 * 18, 5 + i % 8 * 18, 18, 18);
             panel.addChild(itemSlot);
             this.mappedSlots.add(itemSlot);
         }
-        this.root.addChild(panel);
+        exclusion.addChild(panel);
+        this.root.addChild(exclusion);
     }
 
     private void addToolboxPanel() {

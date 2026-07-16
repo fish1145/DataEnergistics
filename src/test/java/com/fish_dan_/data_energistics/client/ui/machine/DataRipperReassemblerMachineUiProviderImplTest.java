@@ -52,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,18 +112,22 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         assertSlotPosition(state.single(SlotGroup.ITEM_INPUT), 19, 22);
         assertSlotPosition(state.single(SlotGroup.FLUID_INPUT_A), 74, 22);
         assertSlotPosition(state.single(SlotGroup.PLAYER_INVENTORY), 8, 99);
-        assertSlotPosition(state.single(SlotGroup.UPGRADE), 179, 5);
+        assertSlotPosition(state.single(SlotGroup.UPGRADE), 175, 6);
         assertSlotPosition(state.single(SlotGroup.TOOLBOX), 175, 99);
     }
 
     @Test
     void ldlibViewerExclusionsTrackExternalPanelsWithAndWithoutToolbox() {
         ModularUI withToolbox = initializedUi(new FakeMachineUiStateImpl(true));
-        assertTrue(hasArea(withToolbox.getGuiExtraAreas(), 174, 0, 28, 82));
+        assertTrue(hasArea(withToolbox.getGuiExtraAreas(), 172, -2, 32, 86));
         assertTrue(hasArea(withToolbox.getGuiExtraAreas(), 174, 93, 59, 66));
+        assertNull(withToolbox.ui.rootElement.hitTest(173, -1));
+        var panelHit = withToolbox.ui.rootElement.hitTest(174, 0);
+        assertNotNull(panelHit);
+        assertInstanceOf(DataReassemblerUpgradePanelElement.class, panelHit.getA());
 
         ModularUI withoutToolbox = initializedUi(new FakeMachineUiStateImpl(false));
-        assertTrue(hasArea(withoutToolbox.getGuiExtraAreas(), 174, 0, 28, 82));
+        assertTrue(hasArea(withoutToolbox.getGuiExtraAreas(), 172, -2, 32, 86));
         assertFalse(hasArea(withoutToolbox.getGuiExtraAreas(), 174, 93, 59, 66));
     }
 
