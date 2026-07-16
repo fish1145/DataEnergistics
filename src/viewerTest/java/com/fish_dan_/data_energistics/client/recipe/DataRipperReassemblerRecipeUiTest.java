@@ -186,6 +186,10 @@ public final class DataRipperReassemblerRecipeUiTest {
         assertEquals(0.0D, element(() -> 0.0D).progress(), "Zero progress");
         assertEquals(1.0D, element(() -> 1.0D).progress(), "Full progress");
         assertEquals(0.375D, element(() -> 0.375D).progress(), "Partial progress");
+        assertEquals(0, element(() -> 0.0D).filledPixels(), "Zero filled pixels");
+        assertEquals(8, element(() -> 0.49D).filledPixels(), "Partial filled pixels use floor");
+        assertEquals(9, element(() -> 0.5D).filledPixels(), "Half filled pixels");
+        assertEquals(18, element(() -> 1.0D).filledPixels(), "Full filled pixels");
 
         assertThrows(IllegalStateException.class, () -> element(() -> -0.01D).progress(), "Negative progress");
         assertThrows(IllegalStateException.class, () -> element(() -> 1.01D).progress(), "Excess progress");

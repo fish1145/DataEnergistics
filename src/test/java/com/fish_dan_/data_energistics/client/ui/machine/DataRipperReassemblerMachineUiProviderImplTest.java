@@ -33,8 +33,12 @@ import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.layout.LayoutProperties;
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.jetbrains.annotations.Nullable;
@@ -196,6 +200,29 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     @Test
+    void progressTooltipKeepsTheExpandedAe2Bounds() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        state.hasProgressRange = true;
+        state.progressFraction = 0.49D;
+        state.progressPercent = 49;
+        ModularUI modularUI = initializedUi(state);
+        UIElement tooltipArea = modularUI.ui.selectId("progress-tooltip").findFirst().orElseThrow();
+        UIElement progress = modularUI.ui.selectId("progress").findFirst().orElseThrow();
+
+        assertElementBounds(tooltipArea, 162, 37, 10, 22);
+        assertElementBounds(progress, 164, 39, 6, 18);
+        var hit = modularUI.ui.rootElement.hitTest(162, 37);
+        assertNotNull(hit);
+        assertSame(tooltipArea, hit.getA());
+
+        UIEvent event = UIEvent.create(UIEvents.HOVER_TOOLTIPS);
+        event.target = tooltipArea;
+        UIEventDispatcher.dispatchEvent(event, false, false, false);
+        assertNotNull(event.hoverTooltips);
+        assertEquals(List.of(Component.literal("49%")), event.hoverTooltips.tooltipTexts());
+    }
+
+    @Test
     void outputDialogTracksItsModalLifetimeForEscapeRouting() {
         FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
         var provider = new DataRipperReassemblerMachineUiProviderImpl();
@@ -221,6 +248,9 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         private final List<Boolean> autoExportRequests = new ArrayList<>();
         private int nextContainerSlot;
         private boolean autoExportEnabled;
+        private boolean hasProgressRange;
+        private double progressFraction;
+        private int progressPercent;
 
         private FakeMachineUiStateImpl() {
             this(true);
@@ -286,17 +316,17 @@ class DataRipperReassemblerMachineUiProviderImplTest {
 
         @Override
         public boolean hasProgressRange() {
-            return false;
+            return this.hasProgressRange;
         }
 
         @Override
         public double progressFraction() {
-            return 0.0D;
+            return this.progressFraction;
         }
 
         @Override
         public int progressPercent() {
-            return 0;
+            return this.progressPercent;
         }
 
         @Override
@@ -371,6 +401,13 @@ class DataRipperReassemblerMachineUiProviderImplTest {
 
     private static boolean hasArea(List<Rect2i> areas, int x, int y, int width, int height) {
         return areas.stream().anyMatch(area -> area.getX() == x && area.getY() == y && area.getWidth() == width && area.getHeight() == height);
+    }
+
+    private static void assertElementBounds(UIElement element, int x, int y, int width, int height) {
+        assertEquals(x, Math.round(element.getPositionX()));
+        assertEquals(y, Math.round(element.getPositionY()));
+        assertEquals(width, Math.round(element.getSizeWidth()));
+        assertEquals(height, Math.round(element.getSizeHeight()));
     }
 
     private static void assertSlotHitBounds(ModularUI modularUI, ItemSlot slot, int x, int y) {

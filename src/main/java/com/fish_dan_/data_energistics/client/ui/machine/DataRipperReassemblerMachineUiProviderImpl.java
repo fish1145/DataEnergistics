@@ -209,6 +209,9 @@ public final class DataRipperReassemblerMachineUiProviderImpl
     }
 
     private void addProgress() {
+        var tooltipArea = new UIElement();
+        tooltipArea.setId("progress-tooltip");
+        position(tooltipArea, 162, 37, 10, 22);
         var progress = new DataReassemblerProgressElement(
                 BACKGROUND,
                 176,
@@ -218,15 +221,17 @@ public final class DataRipperReassemblerMachineUiProviderImpl
                 256,
                 256,
                 () -> this.state.hasProgressRange() ? this.state.progressFraction() : 0.0D);
-        position(progress, 164, 39, 6, 18);
-        progress.setDisplay(this.state.hasProgressRange());
-        progress.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> event.hoverTooltips = new HoverTooltips(
+        progress.setId("progress");
+        position(progress, 2, 2, 6, 18);
+        tooltipArea.setDisplay(this.state.hasProgressRange());
+        tooltipArea.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> event.hoverTooltips = new HoverTooltips(
                 List.of(Component.literal(this.state.progressPercent() + "%")),
                 null,
                 null,
                 ItemStack.EMPTY));
-        this.root.addEventListener(UIEvents.TICK, event -> progress.setDisplay(this.state.hasProgressRange()));
-        this.root.addChild(progress);
+        tooltipArea.addChild(progress);
+        this.root.addEventListener(UIEvents.TICK, event -> tooltipArea.setDisplay(this.state.hasProgressRange()));
+        this.root.addChild(tooltipArea);
     }
 
     private void addToolbar() {

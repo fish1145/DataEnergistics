@@ -66,9 +66,14 @@ public final class DataReassemblerProgressElement extends UIElement {
         return progress;
     }
 
+    /** Returns the bottom-up fill height using the same truncation as AE2's integer progress calculation. */
+    public int filledPixels() {
+        return (int) Math.floor(progress() * this.regionHeight);
+    }
+
     @Override
     public void drawBackgroundAdditional(GUIContext guiContext) {
-        int filled = (int) Math.round(progress() * this.regionHeight);
+        int filled = filledPixels();
         if (filled == 0) {
             return;
         }
