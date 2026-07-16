@@ -26,6 +26,7 @@ import appeng.api.client.AEKeyRendering;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.orientation.RelativeSide;
 import appeng.api.stacks.GenericStack;
+import appeng.client.gui.Icon;
 import appeng.core.localization.Tooltips;
 import com.lowdragmc.lowdraglib2.core.mixins.accessor.SlotAccessor;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
@@ -143,6 +144,13 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         assertSlotHitBounds(modularUI, keyInput, 74, 40);
         assertSlotHitBounds(modularUI, upgrade, 175, 6);
         assertSlotHitBounds(modularUI, toolbox, 175, 99);
+    }
+
+    @Test
+    void upgradeSlotsUseTheAe2UpgradeBackground() {
+        assertSame(
+                Icon.BACKGROUND_UPGRADE,
+                DataReassemblerUpgradePanelElement.UpgradeSlot.emptyBackgroundIcon());
     }
 
     @Test
