@@ -55,16 +55,7 @@ public final class TrinityDataCoreResourceTest {
     }
 
     @Test
-    void trinityDataCoreScreenUsesRenamedGuiTextureFolder() {
-        JsonObject root = readJson(SCREEN_ROOT + "trinity_data_core.json");
-        assertNoAbsolutePaths(root, "trinity_data_core screen");
-
-        JsonObject background = object(root, "background");
-        String backgroundTexture = string(background, "texture");
-        assertEquals(
-                "data_energistics:textures/guis/trinity_data_core/host_layout_reference.png",
-                backgroundTexture);
-        assertSourceRect(background, 256, 212);
+    void trinityDataCoreLdlib2TexturesUseLocalNamespace() {
         assertResourceExists(
                 DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/host_layout_reference.png",
                 "Trinity Data Core layout reference should exist");
@@ -72,21 +63,15 @@ public final class TrinityDataCoreResourceTest {
                 DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/host_layout_reference.png",
                 256,
                 256);
-
-        JsonObject text = object(root, "text");
-        assertEquals(
-                Set.of("dialog_title", "player_inventory_title"),
-                text.keySet(),
-                "Dynamic host status text should be drawn by the mounted LDLib2 status panel");
-
-        assertResourceExists(
-                DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png",
-                "Trinity CPU list idle overlay should exist");
-        assertResourceExists(
-                DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png",
-                "Trinity CPU list task overlay should exist");
-        assertPngDimensions(DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png", 67, 22);
-        assertPngDimensions(DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png", 67, 22);
+        assertGuiTexture("cpu_idle.png", 67, 22);
+        assertGuiTexture("cpu_panel.png", 84, 76);
+        assertGuiTexture("cpu_task_overlay.png", 67, 22);
+        assertGuiTexture("inventory_slot.png", 16, 16);
+        assertGuiTexture("status_panel.png", 128, 99);
+        assertGuiTexture("storage_capacity_track.png", 116, 6);
+        assertGuiTexture("storage_fluid_fill.png", 2, 4);
+        assertGuiTexture("storage_item_fill.png", 2, 4);
+        assertGuiTexture("storage_other_fill.png", 2, 4);
         assertResourceExists(
                 DATA_TEXTURE_ROOT + "guis/list.png",
                 "Trinity auto-build overlay texture should exist in the formal data_energistics namespace");
@@ -290,6 +275,12 @@ public final class TrinityDataCoreResourceTest {
         } catch (IOException exception) {
             throw new IllegalStateException("Could not read PNG resource " + path, exception);
         }
+    }
+
+    private static void assertGuiTexture(String fileName, int expectedWidth, int expectedHeight) {
+        String path = DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/" + fileName;
+        assertResourceExists(path, "Trinity LDLib2 GUI texture should exist");
+        assertPngDimensions(path, expectedWidth, expectedHeight);
     }
 
     private static void assertNoAbsolutePaths(JsonElement element, String owner) {
