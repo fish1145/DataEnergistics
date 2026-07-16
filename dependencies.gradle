@@ -6,8 +6,6 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
 
     jarJar(api(forge.mdlib.get()))
-    compileOnly(forge.ldlib)
-    testCompileOnly(forge.ldlib)
 
     // Misc libraries
     compileOnly(forge.jech)
@@ -28,6 +26,7 @@ dependencies {
     compileOnly(forge.actually.additions)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
+    compileOnly(forge.create)
     compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
     compileOnly(forge.sut)
@@ -48,6 +47,10 @@ dependencies {
     testCompileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
     testCompileOnly(forge.emi)
+
+    // UI framework
+    compileOnly(forge.ldlib)
+    testImplementation(forge.ldlib)
 
     // WAILA-likes
     compileOnly(forge.jade)
@@ -91,7 +94,6 @@ dependencies {
     extraLocalRuntime(forge.aecs)
     extraLocalRuntime(forge.aelt)
     extraLocalRuntime(forge.applied.flux)
-    extraLocalRuntime(forge.applied.create)
     extraLocalRuntime(forge.aae)
     extraLocalRuntime(forge.eco)
     extraLocalRuntime(forge.extendedae.plus)

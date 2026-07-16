@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
@@ -77,26 +78,28 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
 
     @Override
     public void broadcastChanges() {
-        if (this.isServerSide() && this.getHost() != null) {
+        if (this.isServerSide()) {
             var host = this.getHost();
             this.online = host.isOnline();
             syncFluid(host.getFluidInputA(), 0);
             syncFluid(host.getFluidInputB(), 1);
             syncFluid(host.getFluidOutputA(), 2);
             syncFluid(host.getFluidOutputB(), 3);
-            if (host.getKeyInputStack() == null || host.getKeyInputStack().what() == null) {
+            var keyInput = host.getKeyInputStack();
+            if (keyInput == null) {
                 this.keyInputLabel = "";
                 this.keyInputAmount = 0;
             } else {
-                this.keyInputLabel = host.getKeyInputStack().what().getDisplayName().getString();
-                this.keyInputAmount = host.getKeyInputStack().amount();
+                this.keyInputLabel = keyInput.what().getDisplayName().getString();
+                this.keyInputAmount = keyInput.amount();
             }
-            if (host.getKeyOutputStack() == null || host.getKeyOutputStack().what() == null) {
+            var keyOutput = host.getKeyOutputStack();
+            if (keyOutput == null) {
                 this.keyOutputLabel = "";
                 this.keyOutputAmount = 0;
             } else {
-                this.keyOutputLabel = host.getKeyOutputStack().what().getDisplayName().getString();
-                this.keyOutputAmount = host.getKeyOutputStack().amount();
+                this.keyOutputLabel = keyOutput.what().getDisplayName().getString();
+                this.keyOutputAmount = keyOutput.amount();
             }
             this.progress = host.getProgress();
             this.maxProgress = host.getMaxProgress();
@@ -198,7 +201,10 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     }
 
     private void setAutoExportEnabled(Boolean enabled) {
-        if (enabled == null || this.getHost() == null) {
+        if (enabled == null) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Reassembler auto-export client action without a boolean payload at {}",
+                    this.getHost().getBlockPos());
             return;
         }
 
@@ -208,21 +214,42 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     }
 
     private void setOutputSide(String payload) {
-        if (payload == null || this.getHost() == null) {
+        if (payload == null) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Reassembler output-side client action without a payload at {}",
+                    this.getHost().getBlockPos());
             return;
         }
 
         int separator = payload.indexOf(':');
-        if (separator <= 0 || separator >= payload.length() - 1) {
+        if (separator <= 0 || separator >= payload.length() - 1 || separator != payload.lastIndexOf(':')) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected malformed Data Reassembler output-side client action at {}",
+                    this.getHost().getBlockPos());
             return;
         }
 
         Direction side = Direction.byName(payload.substring(0, separator));
         if (side == null) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Reassembler output-side client action with an unknown direction at {}",
+                    this.getHost().getBlockPos());
             return;
         }
 
-        boolean enabled = Boolean.parseBoolean(payload.substring(separator + 1));
+        String enabledValue = payload.substring(separator + 1);
+        boolean enabled;
+        if ("true".equals(enabledValue)) {
+            enabled = true;
+        } else if ("false".equals(enabledValue)) {
+            enabled = false;
+        } else {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Reassembler output-side client action with a non-boolean value for {} at {}",
+                    side,
+                    this.getHost().getBlockPos());
+            return;
+        }
         this.getHost().setOutputSideEnabled(side, enabled);
         this.outputSidesMask = encodeOutputSides(this.getHost().getOutputSides());
         broadcastChanges();

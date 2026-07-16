@@ -34,9 +34,23 @@ side = "BOTH"
 [[dependencies.${mod_id}]]
 modId = "ldlib2"
 type = "required"
-versionRange = "[2.2.28,)"
-ordering = "AFTER"
+versionRange = "[${ldlib_version},)"
+ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "emi"
+type = "optional"
+versionRange = "[${emi_version},)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${mod_id}]]
+modId = "jei"
+type = "optional"
+versionRange = "[${jei_version},)"
+ordering = "AFTER"
+side = "CLIENT"
 
 [[dependencies.${mod_id}]]
 modId = "curios"

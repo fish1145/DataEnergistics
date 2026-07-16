@@ -1,205 +1,235 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.ui.machine.DataRipperReassemblerMachineUiProviderImpl;
+import com.fish_dan_.data_energistics.client.ui.machine.DataRipperReassemblerMachineUiState;
+import com.fish_dan_.data_energistics.client.ui.machine.DataRipperReassemblerMachineUiStateImpl;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.fluids.FluidStack;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.api.config.Settings;
-import appeng.api.config.YesNo;
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEKey;
+import appeng.api.behaviors.ContainerItemStrategies;
+import appeng.api.behaviors.EmptyingAction;
 import appeng.api.stacks.GenericStack;
-import appeng.client.gui.implementations.UpgradeableScreen;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.client.gui.widgets.ProgressBar;
-import appeng.client.gui.widgets.ServerSettingToggleButton;
+import appeng.client.gui.StackWithBounds;
+import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.Tooltips;
-import appeng.menu.SlotSemantic;
-import appeng.menu.SlotSemantics;
+import appeng.core.network.ServerboundPacket;
+import appeng.core.network.serverbound.InventoryActionPacket;
+import appeng.core.network.serverbound.SwapSlotsPacket;
+import appeng.helpers.InventoryAction;
+import appeng.menu.slot.AppEngSlot;
+import appeng.menu.slot.DisabledSlot;
+import appeng.util.ConfigMenuInventory;
+import com.google.common.base.Stopwatch;
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperReassemblerMenu> {
+/**
+ * Thin vanilla container bridge that mounts the data reassembler's LDLib2 ModularUI on its existing menu.
+ */
+public final class DataRipperReassemblerScreen extends AbstractContainerScreen<DataRipperReassemblerMenu>
+                                               implements GenericStackLookupScreen {
 
-    private final ProgressBar progressBar;
-    private final ServerSettingToggleButton<YesNo> autoExportButton;
-    private final OutputSideActionButton outputSideButton;
+    private static final int IMAGE_WIDTH = 176;
+    private static final int IMAGE_HEIGHT = 183;
 
-    public DataRipperReassemblerScreen(DataRipperReassemblerMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
-        super(menu, playerInventory, title, style);
-        this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
-        this.addToLeftToolbar(this.autoExportButton);
-        this.outputSideButton = new OutputSideActionButton(button -> openOutputConfig());
-        this.addToLeftToolbar(this.outputSideButton);
-        this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
-        widgets.add("progressBar", this.progressBar);
-    }
+    private final DataRipperReassemblerMachineUiProviderImpl uiProvider;
+    private final ModularUI modularUI;
+    private Stopwatch doubleClickTimer = Stopwatch.createStarted();
+    private ItemStack doubleClickItem = ItemStack.EMPTY;
+    private Slot doubleClickedSlot;
+    private boolean handlingShiftClick;
 
-    private void openOutputConfig() {
-        if (this.menu.getHost() == null) {
-            return;
+    public DataRipperReassemblerScreen(
+                                       DataRipperReassemblerMenu menu,
+                                       Inventory playerInventory,
+                                       Component title) {
+        super(menu, playerInventory, title);
+        this.imageWidth = IMAGE_WIDTH;
+        this.imageHeight = IMAGE_HEIGHT;
+
+        if (!(menu instanceof IModularUIHolderMenu holder)) {
+            Data_Energistics.LOGGER.error("LDLib2 did not attach IModularUIHolderMenu to the data reassembler menu");
+            throw new IllegalStateException("Data reassembler menu is missing its LDLib2 holder");
         }
-        this.switchToScreen(new DataRipperReassemblerOutputSideScreen(
-                this,
-                this.menu.getHost(),
-                this.menu.getOutputSides(),
-                this.menu::sendSetOutputSide));
+
+        DataRipperReassemblerMachineUiState state = new DataRipperReassemblerMachineUiStateImpl(
+                menu,
+                playerInventory,
+                title);
+        this.uiProvider = new DataRipperReassemblerMachineUiProviderImpl();
+        this.modularUI = this.uiProvider.createModularUI(state);
+        holder.setModularUI(this.modularUI);
+        this.uiProvider.mapExistingSlots(holder);
     }
 
     @Override
-    protected void updateBeforeRender() {
-        super.updateBeforeRender();
-        this.progressBar.visible = this.menu.getMaxProgress() > 0;
-        if (this.progressBar.visible) {
-            int percent = this.menu.getCurrentProgress() * 100 / Math.max(1, this.menu.getMaxProgress());
-            this.progressBar.setFullMsg(Component.literal(percent + "%"));
-        }
-        this.autoExportButton.set(this.menu.getAutoExport());
-        this.outputSideButton.setVisibility(this.autoExportButton.getCurrentValue() == YesNo.YES);
+    protected void init() {
+        super.init();
+        setFocused(this.modularUI.getWidget());
+        this.uiProvider.updateMappedSlotPositions();
     }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return !this.uiProvider.isOutputDialogOpen();
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {}
+
+    @Override
+    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {}
 
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        if (this.menu.getCarried().isEmpty() && isEmptyGenericSlot(this.hoveredSlot)) {
-            var semantic = this.menu.getSlotSemantic(this.hoveredSlot);
-            List<Component> tooltip = new ArrayList<>();
-            tooltip.add(getEmptySlotTooltip(semantic));
-            tooltip.add(getAmountTooltip(semantic, 0));
-            this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
-            return;
+        EmptyingAction emptyingAction = getEmptyingAction(this.hoveredSlot, this.menu.getCarried());
+        if (emptyingAction != null) {
+            guiGraphics.renderTooltip(
+                    this.font,
+                    Tooltips.getEmptyingTooltip(
+                            ButtonToolTips.SetAction,
+                            this.menu.getCarried(),
+                            emptyingAction)
+                            .stream()
+                            .map(Component::getVisualOrderText)
+                            .toList(),
+                    mouseX,
+                    mouseY);
         }
-
-        if (this.menu.getCarried().isEmpty() && isGenericStorageSlot(this.hoveredSlot)) {
-            List<Component> tooltip = new ArrayList<>(this.getTooltipFromContainerItem(this.hoveredSlot.getItem()));
-            GenericStack stack = GenericStack.fromItemStack(this.hoveredSlot.getItem());
-            long amount = stack != null ? stack.amount() : 0L;
-            tooltip.add(getAmountTooltip(this.menu.getSlotSemantic(this.hoveredSlot), amount));
-            this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
-            return;
-        }
-
-        super.renderTooltip(guiGraphics, mouseX, mouseY);
     }
 
     @Override
-    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        if (slot.isActive() && slot.getItem().isEmpty() && this.menu.getSlotSemantic(slot) == SlotSemantics.UPGRADE) {
-            DataEnergisticsIcon.getBlitter("PLACEMENT_TOOLBOX")
-                    .dest(slot.x, slot.y)
-                    .blit(guiGraphics);
-        }
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int screenX, int screenY, int button) {
+        return remainsOutside(
+                super.hasClickedOutside(mouseX, mouseY, screenX, screenY, button),
+                this.modularUI.getLastHoveredElement());
+    }
 
-        GenericStack genericStack = getDisplayedGenericStack(slot);
-        if (genericStack != null) {
-            renderGenericSlot(guiGraphics, slot, genericStack);
+    static boolean remainsOutside(boolean vanillaOutside, @Nullable UIElement hoveredElement) {
+        return vanillaOutside && hoveredElement == null;
+    }
+
+    @Override
+    protected void slotClicked(@Nullable Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
+        if (this.menu.isClientSideSlot(slot) || slot instanceof DisabledSlot) {
             return;
         }
-
-        super.renderSlot(guiGraphics, slot);
+        if (clickType == ClickType.CLONE && slot != null && GenericStack.isWrapped(slot.getItem())) {
+            return;
+        }
+        if (clickType == ClickType.PICKUP && mouseButton == InputConstants.MOUSE_BUTTON_RIGHT && getEmptyingAction(slot, this.menu.getCarried()) != null) {
+            PacketDistributor.sendToServer(new InventoryActionPacket(InventoryAction.EMPTY_ITEM, slotIdx, 0));
+            return;
+        }
+        if (slot != null && InputConstants.isKeyDown(this.minecraft.getWindow().getWindow(), GLFW.GLFW_KEY_SPACE)) {
+            PacketDistributor.sendToServer(new InventoryActionPacket(InventoryAction.MOVE_REGION, slot.index, 0));
+            return;
+        }
+        if (slot != null && !this.handlingShiftClick && hasShiftDown() && mouseButton == 0) {
+            this.handlingShiftClick = true;
+            if (this.doubleClickItem.isEmpty() || this.doubleClickedSlot != slot || this.doubleClickTimer.elapsed(TimeUnit.MILLISECONDS) > 250L) {
+                this.doubleClickedSlot = slot;
+                this.doubleClickTimer = Stopwatch.createStarted();
+                this.doubleClickItem = slot.hasItem() ? slot.getItem().copy() : ItemStack.EMPTY;
+            } else {
+                for (Slot inventorySlot : this.menu.slots) {
+                    if (inventorySlot.mayPickup(this.menu.getPlayerInventory().player) && inventorySlot.hasItem() && isSameInventory(inventorySlot, slot) && AbstractContainerMenu.canItemQuickReplace(
+                            inventorySlot,
+                            this.doubleClickItem,
+                            true)) {
+                        slotClicked(inventorySlot, inventorySlot.index, 0, ClickType.QUICK_MOVE);
+                    }
+                }
+                this.doubleClickItem = ItemStack.EMPTY;
+            }
+            this.handlingShiftClick = false;
+        }
+        super.slotClicked(slot, slotIdx, mouseButton, clickType);
     }
 
-    private boolean isEmptyGenericSlot(Slot slot) {
-        if (slot == null || !slot.isActive() || !slot.getItem().isEmpty()) {
+    @Override
+    protected boolean checkHotbarKeyPressed(int keyCode, int scanCode) {
+        Slot slot = this.hoveredSlot;
+        if (!this.menu.getCarried().isEmpty() || slot == null) {
             return false;
         }
-
-        var semantic = this.menu.getSlotSemantic(slot);
-        return semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B || semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
+        if (this.minecraft.options.keySwapOffhand.matches(keyCode, scanCode)) {
+            slotClicked(slot, slot.index, Inventory.SLOT_OFFHAND, ClickType.SWAP);
+            return true;
+        }
+        for (int hotbarSlot = 0; hotbarSlot < Inventory.getSelectionSize(); hotbarSlot++) {
+            if (!this.minecraft.options.keyHotbarSlots[hotbarSlot].matches(keyCode, scanCode)) {
+                continue;
+            }
+            List<Slot> slots = this.menu.slots;
+            for (Slot playerSlot : slots) {
+                if (playerSlot.getContainerSlot() == hotbarSlot && playerSlot.container == this.menu.getPlayerInventory() && !playerSlot.mayPickup(this.menu.getPlayerInventory().player)) {
+                    return false;
+                }
+            }
+            if (!requiresSwapSlotsPacket(slot)) {
+                slotClicked(slot, slot.index, hotbarSlot, ClickType.SWAP);
+                return true;
+            }
+            for (Slot playerSlot : slots) {
+                if (playerSlot.getContainerSlot() == hotbarSlot && playerSlot.container == this.menu.getPlayerInventory()) {
+                    ServerboundPacket packet = new SwapSlotsPacket(playerSlot.index, slot.index);
+                    PacketDistributor.sendToServer(packet);
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    private boolean isGenericStorageSlot(Slot slot) {
-        if (slot == null || !slot.isActive() || slot.getItem().isEmpty()) {
-            return false;
-        }
-
-        var semantic = this.menu.getSlotSemantic(slot);
-        return semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B || semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
+    static boolean requiresSwapSlotsPacket(Slot slot) {
+        return slot.getMaxStackSize() != 64;
     }
 
-    private Component getEmptySlotTooltip(SlotSemantic semantic) {
-        if (semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT) {
-            return Component.translatable("screen.data_energistics.data_reassembler.key.empty");
-        }
-        return Component.translatable("screen.data_energistics.data_reassembler.fluid.empty");
+    private static boolean isSameInventory(Slot first, Slot second) {
+        return first.container == second.container;
     }
 
-    private Component getAmountTooltip(SlotSemantic semantic, long amount) {
-        if (semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B) {
-            return Component.literal(amount + " mB / " + this.menu.getFluidInputCapacity() + " mB")
-                    .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
-        }
-        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A || semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B) {
-            return Component.literal(amount + " mB / " + this.menu.getFluidOutputCapacity() + " mB")
-                    .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
-        }
-        if (semantic == DataRipperReassemblerMenu.KEY_INPUT) {
-            return Component.literal(amount + " / " + this.menu.getKeyInputCapacity())
-                    .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
-        }
-        return Component.literal(amount + " / " + this.menu.getKeyOutputCapacity())
-                .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
-    }
-
-    private void renderGenericSlot(GuiGraphics guiGraphics, Slot slot, GenericStack genericStack) {
-        CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, slot.x, slot.y, genericStack.what());
-        GenericStackDisplayHelper.renderSmallOverlay(
-                guiGraphics,
-                slot.x,
-                slot.y,
-                GenericStackDisplayHelper.formatCompactAmount(genericStack));
-    }
-
-    private @Nullable GenericStack getDisplayedGenericStack(Slot slot) {
-        if (slot == null || !slot.isActive()) {
+    static @Nullable EmptyingAction getEmptyingAction(@Nullable Slot slot, ItemStack carried) {
+        if (!(slot instanceof AppEngSlot appEngSlot) || carried.isEmpty()) {
             return null;
         }
-
-        var semantic = this.menu.getSlotSemantic(slot);
-        if (semantic == SlotSemantics.STORAGE) {
-            return fluidStack(this.menu.fluidInputAId, this.menu.fluidInputAAmount);
+        if (!(appEngSlot.getInventory() instanceof ConfigMenuInventory configInventory)) {
+            return null;
         }
-        if (semantic == DataRipperReassemblerMenu.FLUID_INPUT_B) {
-            return fluidStack(this.menu.fluidInputBId, this.menu.fluidInputBAmount);
-        }
-        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A) {
-            return fluidStack(this.menu.fluidOutputAId, this.menu.fluidOutputAAmount);
-        }
-        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B) {
-            return fluidStack(this.menu.fluidOutputBId, this.menu.fluidOutputBAmount);
-        }
-        if (semantic == DataRipperReassemblerMenu.KEY_INPUT) {
-            return GenericStack.fromItemStack(slot.getItem());
-        }
-        if (semantic == DataRipperReassemblerMenu.KEY_OUTPUT) {
-            return GenericStack.fromItemStack(slot.getItem());
-        }
-        return null;
+        EmptyingAction emptyingAction = ContainerItemStrategies.getEmptyingAction(carried);
+        return validateEmptyingAction(configInventory, slot.getContainerSlot(), emptyingAction);
     }
 
-    private @Nullable GenericStack fluidStack(String fluidId, int amount) {
-        if (fluidId == null || fluidId.isBlank() || amount <= 0) {
+    static @Nullable EmptyingAction validateEmptyingAction(
+                                                           ConfigMenuInventory configInventory,
+                                                           int slot,
+                                                           @Nullable EmptyingAction emptyingAction) {
+        if (emptyingAction == null) {
             return null;
         }
+        return configInventory.getDelegate().isAllowedIn(slot, emptyingAction.what()) ? emptyingAction : null;
+    }
 
-        var fluid = BuiltInRegistries.FLUID.getOptional(ResourceLocation.parse(fluidId)).orElse(null);
-        if (fluid == null) {
-            return null;
-        }
-
-        AEKey key = AEFluidKey.of(new FluidStack(fluid, amount));
-        return key == null ? null : new GenericStack(key, amount);
+    @Override
+    public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
+        return this.uiProvider.getGenericStackUnderMouse(mouseX, mouseY);
     }
 }
