@@ -1,13 +1,12 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.DataReassemblerRecipeIngredientAdapter;
 
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.fluids.FluidStack;
 
-import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
+import appeng.integration.modules.emi.EmiStackHelper;
+import appeng.items.misc.WrappedGenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -68,22 +67,12 @@ public final class DataReassemblerRecipeIngredientAdapterImpl
     }
 
     static EmiStack toEmiStack(GenericStack stack) {
-        if (stack.what() instanceof AEFluidKey fluidKey) {
-            int renderAmount = (int) Math.min(Integer.MAX_VALUE, stack.amount());
-            FluidStack fluidStack = fluidKey.toStack(renderAmount);
-            return EmiStack.of(
-                    fluidStack.getFluid(),
-                    fluidStack.getComponentsPatch(),
-                    stack.amount());
+        EmiStack converted = EmiStackHelper.toEmiStack(stack);
+        if (converted != null) {
+            return converted;
         }
 
-        EmiStack dataStack = DataResourceEmiStackConverter.INSTANCE.toEmiStack(stack);
-        if (dataStack != null) {
-            return dataStack;
-        }
-
-        String message = "Data reassembler EMI recipes only support fluid, Data, and DataFlow generic stacks: " + stack.what();
-        Data_Energistics.LOGGER.error(message);
-        throw new IllegalArgumentException(message);
+        ItemStack wrappedIdentity = WrappedGenericStack.wrap(stack.what(), 1L);
+        return EmiStack.of(wrappedIdentity).setAmount(stack.amount());
     }
 }

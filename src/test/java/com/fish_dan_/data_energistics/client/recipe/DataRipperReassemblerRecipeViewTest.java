@@ -211,26 +211,23 @@ public final class DataRipperReassemblerRecipeViewTest {
     }
 
     @Test
-    void rejectsUnsupportedCustomKeysInKeySlots() {
+    void acceptsAddonCustomKeysInKeySlots() {
         GenericStack input = new GenericStack(TestCustomKey.INSTANCE, 23L);
         GenericStack output = new GenericStack(TestCustomKey.INSTANCE, 47L);
 
-        assertThrows(IllegalArgumentException.class, () -> view(recipe(
+        var view = view(recipe(
                 List.of(),
                 List.of(),
                 List.of(),
                 List.of(),
                 1,
                 input,
-                null)));
-        assertThrows(IllegalArgumentException.class, () -> view(recipe(
-                List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
-                1,
-                null,
-                output)));
+                output));
+
+        assertEquals(TestCustomKey.INSTANCE, view.keyInput().what());
+        assertEquals(23L, view.keyInput().amount());
+        assertEquals(TestCustomKey.INSTANCE, view.keyOutput().what());
+        assertEquals(47L, view.keyOutput().amount());
     }
 
     private static DataRipperReassemblerIngredient itemInput() {
