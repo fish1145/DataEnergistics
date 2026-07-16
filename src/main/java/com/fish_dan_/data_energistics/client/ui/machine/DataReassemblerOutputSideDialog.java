@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.ui.machine;
 
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -11,6 +12,7 @@ import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.EnumMap;
@@ -26,13 +28,20 @@ final class DataReassemblerOutputSideDialog extends Dialog {
             "textures/guis/set_output_sides.png");
     private final EnumMap<Direction, Boolean> selectedSides = new EnumMap<>(Direction.class);
 
-    DataReassemblerOutputSideDialog(DataRipperReassemblerMachineUiState state, Runnable onClosed) {
+    DataReassemblerOutputSideDialog(
+                                    DataRipperReassemblerMachineUiState state,
+                                    List<Rect2i> externalModalAreas,
+                                    Runnable onClosed) {
         this.overlay.clearAllChildren();
         this.overlay.getLayout().width(93);
         this.overlay.getLayout().height(92);
         this.overlay.style(style -> style.backgroundTexture(
                 SpriteTexture.of(BACKGROUND).setSprite(0, 0, 93, 92)));
         setOnClose(onClosed);
+
+        for (Rect2i area : externalModalAreas) {
+            addChild(position(new UIElement(), area.getX(), area.getY(), area.getWidth(), area.getHeight()));
+        }
 
         this.overlay.addChild(position(new Label()
                 .setText(Component.translatable("gui.data_energistics.set_output_sides"))
@@ -79,6 +88,12 @@ final class DataReassemblerOutputSideDialog extends Dialog {
                     16,
                     16));
         }
+    }
+
+    @Override
+    protected void keyDown(UIEvent event) {
+        super.keyDown(event);
+        event.stopPropagation();
     }
 
     private static <T extends UIElement> T position(T element, int x, int y, int width, int height) {

@@ -62,6 +62,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
 
     private final List<ItemSlot> mappedSlots = new ArrayList<>();
     private final List<DataReassemblerGenericSlotElement> genericSlots = new ArrayList<>();
+    private final List<UIElement> externalModalElements = new ArrayList<>();
     private DataRipperReassemblerMachineUiState state;
     private UIElement root;
     private boolean dialogOpen;
@@ -187,6 +188,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
         }
         exclusion.addChild(panel);
         this.root.addChild(exclusion);
+        this.externalModalElements.add(exclusion);
     }
 
     private void addToolboxPanel() {
@@ -210,6 +212,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
             addItemSlot(panel, toolboxSlots.get(i), 1 + i % 3 * 18, 6 + i / 3 * 18, true);
         }
         this.root.addChild(panel);
+        this.externalModalElements.add(panel);
     }
 
     private void addProgress() {
@@ -272,6 +275,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
         toolbar.addChild(outputButton);
         this.root.addEventListener(UIEvents.TICK, event -> outputButton.setDisplay(this.state.isAutoExportEnabled()));
         this.root.addChild(toolbar);
+        this.externalModalElements.add(toolbar);
     }
 
     private static DataReassemblerIconButtonElement toolbarButton(
@@ -286,8 +290,31 @@ public final class DataRipperReassemblerMachineUiProviderImpl
         if (this.dialogOpen) {
             return;
         }
+        List<Rect2i> externalModalAreas = this.externalModalElements.stream()
+                .map(DataRipperReassemblerMachineUiProviderImpl::modalArea)
+                .toList();
+        var dialog = new DataReassemblerOutputSideDialog(this.state, externalModalAreas, this::onOutputDialogClosed);
+        dialog.show(this.root);
         this.dialogOpen = true;
-        new DataReassemblerOutputSideDialog(this.state, () -> this.dialogOpen = false).show(this.root);
+    }
+
+    private void onOutputDialogClosed() {
+        this.dialogOpen = false;
+        this.root.focus();
+    }
+
+    private static Rect2i modalArea(UIElement element) {
+        int width = Math.round(element.getSizeWidth());
+        int height = Math.round(element.getSizeHeight());
+        if (width <= 0 || height <= 0) {
+            Data_Energistics.LOGGER.error("Cannot open the data reassembler output dialog before external UI layout");
+            throw new IllegalStateException("External data reassembler UI layout is unavailable");
+        }
+        return new Rect2i(
+                Math.round(element.getPositionX()),
+                Math.round(element.getPositionY()),
+                width,
+                height);
     }
 
     /** Reports whether Escape should be routed to the modal output-side dialog instead of closing its Screen. */

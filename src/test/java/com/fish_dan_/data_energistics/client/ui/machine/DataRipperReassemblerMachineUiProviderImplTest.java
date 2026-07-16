@@ -45,6 +45,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -59,6 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataRipperReassemblerMachineUiProviderImplTest {
@@ -320,20 +322,79 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     @Test
-    void outputDialogTracksItsModalLifetimeForEscapeRouting() {
+    void outputDialogBlocksTheMainUiAndEveryExistingExternalPanel() {
         FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        state.hasHelp = true;
+        state.autoExportEnabled = true;
         var provider = new DataRipperReassemblerMachineUiProviderImpl();
         ModularUI modularUI = provider.createModularUI(state);
-        assertFalse(provider.isOutputDialogOpen());
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
 
         provider.openOutputDialog();
+        modularUI.init(176, 183);
         assertTrue(provider.isOutputDialogOpen());
         Dialog dialog = assertInstanceOf(
                 Dialog.class,
                 modularUI.ui.rootElement.getChildren().getLast());
 
-        dialog.close();
+        assertModalMouseTarget(modularUI, dialog, 10, 170);
+        assertModalMouseTarget(modularUI, dialog, -7, 10);
+        assertModalMouseTarget(modularUI, dialog, 180, 10);
+        assertModalMouseTarget(modularUI, dialog, 180, 100);
+
+        assertSame(dialog, modularUI.getFocusedElement());
+        assertTrue(provider.isOutputDialogOpen());
+        assertTrue(state.autoExportRequests.isEmpty());
+        assertTrue(state.outputSides.isEmpty());
+    }
+
+    @Test
+    void outputDialogOnlyBlocksExternalPanelsThatExist() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl(false);
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
+
+        provider.openOutputDialog();
+        modularUI.init(176, 183);
+
+        assertNull(modularUI.ui.rootElement.hitTest(180, 100));
+    }
+
+    @Test
+    void outputDialogFailFastKeepsClosedStateBeforeLayout() {
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        provider.createModularUI(new FakeMachineUiStateImpl());
+
+        assertThrows(IllegalStateException.class, provider::openOutputDialog);
+
         assertFalse(provider.isOutputDialogOpen());
+    }
+
+    @Test
+    void outputDialogConsumesKeysAndEscapeClosesThroughTheModularUi() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        modularUI.init(176, 183);
+
+        provider.openOutputDialog();
+        Dialog dialog = assertInstanceOf(
+                Dialog.class,
+                modularUI.ui.rootElement.getChildren().getLast());
+        assertSame(dialog, modularUI.getFocusedElement());
+
+        assertTrue(modularUI.getWidget().keyPressed(GLFW.GLFW_KEY_G, 0, 0));
+        assertTrue(provider.isOutputDialogOpen());
+        assertSame(dialog, modularUI.getFocusedElement());
+
+        assertTrue(modularUI.getWidget().keyPressed(GLFW.GLFW_KEY_ESCAPE, 0, 0));
+        assertFalse(provider.isOutputDialogOpen());
+        assertFalse(modularUI.ui.rootElement.getChildren().contains(dialog));
+        assertSame(modularUI.ui.rootElement, modularUI.getFocusedElement());
     }
 
     private static final class FakeMachineUiStateImpl implements DataRipperReassemblerMachineUiState {
@@ -525,6 +586,20 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         UIEvent event = UIEvent.create(eventType);
         event.target = target;
         UIEventDispatcher.dispatchEvent(event, false, false, false);
+    }
+
+    private static void assertModalMouseTarget(ModularUI modularUI, Dialog dialog, float x, float y) {
+        var hit = modularUI.ui.rootElement.hitTest(x, y);
+        assertNotNull(hit);
+        assertTrue(dialog.isAncestorOf(hit.getA()));
+
+        UIEvent event = UIEvent.create(UIEvents.MOUSE_DOWN);
+        event.x = x;
+        event.y = y;
+        event.target = hit.getA();
+        UIEventDispatcher.dispatchEvent(event);
+        assertTrue(event.hasHandler);
+        assertSame(dialog, modularUI.getFocusedElement());
     }
 
     private static void assertElementBounds(UIElement element, int x, int y, int width, int height) {
