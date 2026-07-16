@@ -31,6 +31,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
 import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
+import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
@@ -202,21 +203,46 @@ public final class TrinityDataCoreHostUiGameTest {
         assertEquals(
                 2.0F * TrinityCpuStatusList.ROW_STRIDE,
                 cpuList.getScrollerView().getTotalVirtualHeight());
-        assertComponent(Component.literal("Idle CPU"), label(modularUI, "trinity_cpu_status_2_name").getText());
-        assertComponent(Component.literal("4"), label(modularUI, "trinity_cpu_status_2_processor_count").getText());
-        assertComponent(Component.literal("1M"), label(modularUI, "trinity_cpu_status_2_storage_amount").getText());
+        Label idleName = label(modularUI, "trinity_cpu_status_2_name");
+        assertComponent(Component.literal("Idle CPU"), idleName.getText());
+        assertStaticCpuLabel(idleName);
+        Label processorCount = label(modularUI, "trinity_cpu_status_2_processor_count");
+        assertComponent(Component.literal("4"), processorCount.getText());
+        assertStaticCpuLabel(processorCount);
+        Label storageAmount = label(modularUI, "trinity_cpu_status_2_storage_amount");
+        assertComponent(Component.literal("1M"), storageAmount.getText());
+        assertStaticCpuLabel(storageAmount);
         assertElement(modularUI, "trinity_cpu_status_2_processor_icon");
         assertElement(modularUI, "trinity_cpu_status_2_storage_icon");
         assertElement(modularUI, "trinity_cpu_status_2_mode_icon");
         assertMissingElement(modularUI, "trinity_cpu_status_2_craft_icon");
 
-        assertComponent(Component.literal("Busy CPU"), label(modularUI, "trinity_cpu_status_5_name").getText());
-        assertComponent(Component.literal("64"), label(modularUI, "trinity_cpu_status_5_craft_amount").getText());
+        Label busyName = label(modularUI, "trinity_cpu_status_5_name");
+        assertComponent(Component.literal("Busy CPU"), busyName.getText());
+        assertStaticCpuLabel(busyName);
+        Label craftAmount = label(modularUI, "trinity_cpu_status_5_craft_amount");
+        assertComponent(Component.literal("64"), craftAmount.getText());
+        assertStaticCpuLabel(craftAmount);
         assertElement(modularUI, "trinity_cpu_status_5_craft_icon");
         assertElement(modularUI, "trinity_cpu_status_5_target_icon");
         assertElement(modularUI, "trinity_cpu_status_5_progress");
         assertElement(modularUI, "trinity_cpu_status_5_task_overlay");
         assertMissingElement(modularUI, "trinity_cpu_status_5_storage_icon");
+
+        TrinityCpuStatus unlimited = new TrinityCpuStatus(
+                7,
+                Long.MAX_VALUE,
+                Integer.MAX_VALUE,
+                Component.literal("Unlimited CPU"),
+                CpuSelectionMode.ANY,
+                null,
+                0.0F,
+                0L);
+        cpuList.setValue(new TrinityCpuListStatus(List.of(unlimited)), false);
+        assertComponent(Component.literal("MAX"), label(modularUI, "trinity_cpu_status_7_processor_count").getText());
+        assertComponent(Component.literal("MAX"), label(modularUI, "trinity_cpu_status_7_storage_amount").getText());
+        cpuList.setValue(new TrinityCpuListStatus(List.of(busy, idle)), false);
+
         assertTrue(cpuList.activateCpu(5));
         assertEquals(5, selectedCpu.get());
         cpuList.setValue(TrinityCpuListStatus.EMPTY, false);
@@ -382,6 +408,12 @@ public final class TrinityDataCoreHostUiGameTest {
     private static void assertComponent(Component expected, Component actual) {
         if (!expected.equals(actual)) {
             throw new GameTestAssertException("Expected component " + expected + ", got " + actual);
+        }
+    }
+
+    private static void assertStaticCpuLabel(Label label) {
+        if (label.getTextStyle().textWrap() != TextWrap.NONE) {
+            throw new GameTestAssertException("CPU label " + label.getId() + " must not roll or wrap");
         }
     }
 

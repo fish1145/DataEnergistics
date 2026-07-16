@@ -69,9 +69,12 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final int VIEWPORT_TOP = 4;
     private static final int VIEWPORT_WIDTH = DEFAULT_WIDTH - VIEWPORT_LEFT * 2;
     private static final int NAME_LEFT = 3;
+    private static final int NAME_TOP = 2;
     private static final int NAME_WIDTH = ROW_WIDTH - NAME_LEFT - 2;
     private static final int ICON_TOP = 9;
     private static final int ICON_SIZE = 10;
+    private static final int DETAIL_TEXT_TOP = 13;
+    private static final int TEXT_HEIGHT = 6;
     private static final int PROCESSOR_ICON_LEFT = 2;
     private static final int PROCESSOR_TEXT_LEFT = 14;
     private static final int STORAGE_ICON_LEFT = 27;
@@ -82,6 +85,9 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     private static final int TARGET_ICON_LEFT = 55;
     private static final int TARGET_ICON_TOP = ICON_TOP;
     private static final int TARGET_ICON_SIZE = 11;
+    private static final float TARGET_RENDER_SCALE = 0.666F;
+    private static final float TARGET_RENDER_DEPTH = 0.0F;
+    private static final String UNLIMITED_TEXT = "MAX";
     private static final int TEXT_COLOR = 0xFF413F54;
     private static final int PROGRESS_FILL_COLOR = 0xFFACE9FF;
     private static final int SCROLL_TRACK_COLOR = 0xFF4D4D67;
@@ -222,7 +228,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                 rowPartId(cpu, "name"),
                 displayName(cpu),
                 NAME_LEFT,
-                1,
+                NAME_TOP,
                 NAME_WIDTH);
     }
 
@@ -232,9 +238,9 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                     statusIcon(cpu, "processor", PROCESSOR_ICON_TEXTURE, PROCESSOR_ICON_LEFT),
                     label(
                             rowPartId(cpu, "processor_count"),
-                            Component.literal(Integer.toString(cpu.coProcessors())),
+                            Component.literal(formatCoProcessors(cpu.coProcessors())),
                             PROCESSOR_TEXT_LEFT,
-                            10,
+                            DETAIL_TEXT_TOP,
                             STORAGE_ICON_LEFT - PROCESSOR_TEXT_LEFT));
         }
         row.addChildren(
@@ -243,7 +249,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                         rowPartId(cpu, "storage_amount"),
                         Component.literal(formatStorage(cpu.storage())),
                         STORAGE_TEXT_LEFT,
-                        10,
+                        DETAIL_TEXT_TOP,
                         MODE_ICON_LEFT - STORAGE_TEXT_LEFT));
         switch (cpu.mode()) {
             case PLAYER_ONLY -> row.addChild(statusIcon(cpu, "mode", TERMINAL_ICON_TEXTURE, MODE_ICON_LEFT));
@@ -264,7 +270,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                         rowPartId(cpu, "craft_amount"),
                         Component.literal(job.what().formatAmount(job.amount(), AmountFormat.SLOT)),
                         CRAFT_TEXT_LEFT,
-                        10,
+                        DETAIL_TEXT_TOP,
                         TARGET_ICON_LEFT - CRAFT_TEXT_LEFT),
                 targetIcon(cpu, job),
                 progressBar(cpu),
@@ -282,8 +288,8 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                 .adaptiveHeight(false)
                 .fontSize(6.0F)
                 .textAlignHorizontal(Horizontal.LEFT)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HOVER_ROLL)
+                .textAlignVertical(Vertical.TOP)
+                .textWrap(TextWrap.NONE)
                 .textColor(TEXT_COLOR)
                 .textShadow(false));
         label.layout(layout -> layout
@@ -291,7 +297,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
                 .left(left)
                 .top(top)
                 .width(width)
-                .height(7));
+                .height(TEXT_HEIGHT));
         return label;
     }
 
@@ -399,10 +405,17 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
     }
 
     private static String formatStorage(long storage) {
+        if (storage == Long.MAX_VALUE) {
+            return UNLIMITED_TEXT;
+        }
         if (storage >= 1024L * 1024L) {
             return storage / (1024L * 1024L) + "M";
         }
         return storage / 1024L + "k";
+    }
+
+    private static String formatCoProcessors(int coProcessors) {
+        return coProcessors == Integer.MAX_VALUE ? UNLIMITED_TEXT : Integer.toString(coProcessors);
     }
 
     private static String formatElapsed(long elapsedTimeNanos) {
@@ -543,15 +556,10 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         @Override
         @OnlyIn(Dist.CLIENT)
         public void drawBackgroundAdditional(GUIContext guiContext) {
-            float width = getContentWidth();
-            float height = getContentHeight();
-            if (width <= 0.0F || height <= 0.0F) {
-                return;
-            }
             guiContext.graphics.flush();
             guiContext.pose.pushPose();
-            guiContext.pose.scale(width / 16.0F, height / 16.0F, 1.0F);
-            guiContext.pose.translate(getContentX() * 16.0F / width, getContentY() * 16.0F / height, -200.0F);
+            guiContext.pose.translate(getContentX(), getContentY(), TARGET_RENDER_DEPTH);
+            guiContext.pose.scale(TARGET_RENDER_SCALE, TARGET_RENDER_SCALE, 1.0F);
             AEKeyRendering.drawInGui(guiContext.mc, guiContext.graphics, 0, 0, this.target);
             guiContext.pose.popPose();
         }
