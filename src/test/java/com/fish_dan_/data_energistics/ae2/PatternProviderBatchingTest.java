@@ -52,6 +52,15 @@ public final class PatternProviderBatchingTest {
     }
 
     @Test
+    void limitsInputlessPatternsToOneCraftWhenCapacityCannotBeMeasured() {
+        KeyCounter[] prototype = counters(new KeyCounter());
+        RecordingTarget target = new RecordingTarget(Map.of());
+
+        assertEquals(1L, PatternProviderBatching.simulateCapacity(target, prototype, 64L));
+        assertTrue(target.simulatedRequests.isEmpty());
+    }
+
+    @Test
     void advancesRoundRobinPastTargetsWithoutCapacity() {
         assertEquals(2, PatternProviderBatching.nextRoundRobinIndex(0, 1));
         assertEquals(5, PatternProviderBatching.nextRoundRobinIndex(2, 2));
@@ -80,10 +89,38 @@ public final class PatternProviderBatchingTest {
 
         assertTrue(transferredInputOwnership.get());
         assertEquals(1, pattern.pushCalls);
-        assertEquals(8L, total(pattern.pushedInputs, data));
-        assertEquals(4L, total(pattern.pushedInputs, dataFlow));
+        assertEquals(2L, total(pattern.pushedInputs, data));
+        assertEquals(1L, total(pattern.pushedInputs, dataFlow));
         assertEquals(9L, target.inserted);
         assertEquals(3L, total(remainder));
+        assertEquals(2L, prototype[0].get(data));
+        assertEquals(1L, prototype[1].get(dataFlow));
+    }
+
+    @Test
+    void scalesSparsePatternSinkAmountsForEveryAdmittedCraft() {
+        AEKey data = DataKey.of();
+        AEKey dataFlow = DataFlowKey.of();
+        KeyCounter[] prototype = counters(counter(data, 2L), counter(dataFlow, 1L));
+        SparseSingleCraftPattern pattern = new SparseSingleCraftPattern(data, dataFlow);
+        RecordingInsertTarget target = new RecordingInsertTarget();
+        KeyCounter remainder = new KeyCounter();
+        AtomicBoolean transferredInputOwnership = new AtomicBoolean();
+
+        PatternProviderBatching.pushExpanded(
+                pattern,
+                prototype,
+                4L,
+                target,
+                () -> transferredInputOwnership.set(true),
+                remainder::add);
+
+        assertTrue(transferredInputOwnership.get());
+        assertEquals(2L, pattern.receivedInputs.get(data));
+        assertEquals(1L, pattern.receivedInputs.get(dataFlow));
+        assertEquals(8L, target.inserted.get(data));
+        assertEquals(4L, target.inserted.get(dataFlow));
+        assertEquals(0L, total(remainder));
         assertEquals(2L, prototype[0].get(data));
         assertEquals(1L, prototype[1].get(dataFlow));
     }
@@ -193,6 +230,63 @@ public final class PatternProviderBatchingTest {
         assertIllegalArgument(
                 "Pattern-provider input prototype counter at index 1 must not be null",
                 () -> PatternProviderBatching.scalePrototype(malformedPrototype, 1L));
+    }
+
+    @Test
+    void validatesEveryExpandedInputBeforeCrossingTheTargetBoundary() {
+        AEKey data = DataKey.of();
+        AEKey dataFlow = DataFlowKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L), counter(dataFlow, Long.MAX_VALUE));
+        RecordingInsertTarget target = new RecordingInsertTarget();
+        AtomicBoolean transferredInputOwnership = new AtomicBoolean();
+
+        assertThrows(
+                ArithmeticException.class,
+                () -> PatternProviderBatching.pushExpanded(
+                        new OrderedPattern(data, dataFlow),
+                        prototype,
+                        2L,
+                        target,
+                        () -> transferredInputOwnership.set(true),
+                        (what, amount) -> {}));
+
+        assertFalse(transferredInputOwnership.get());
+        assertEquals(0L, total(target.inserted));
+        assertEquals(1L, prototype[0].get(data));
+        assertEquals(Long.MAX_VALUE, prototype[1].get(dataFlow));
+    }
+
+    @Test
+    void rejectsNonPositiveBatchCountsBeforeExpandingThePattern() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+        RecordingInsertTarget target = new RecordingInsertTarget();
+        AtomicBoolean transferredInputOwnership = new AtomicBoolean();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern,
+                        prototype,
+                        0L,
+                        target,
+                        () -> transferredInputOwnership.set(true),
+                        (what, amount) -> {}));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern,
+                        prototype,
+                        -1L,
+                        target,
+                        () -> transferredInputOwnership.set(true),
+                        (what, amount) -> {}));
+
+        assertEquals(0, pattern.pushCalls);
+        assertEquals(0L, total(target.inserted));
+        assertFalse(transferredInputOwnership.get());
+        assertEquals(1L, prototype[0].get(data));
     }
 
     @Test
@@ -354,6 +448,24 @@ public final class PatternProviderBatchingTest {
         }
     }
 
+    private static final class RecordingInsertTarget implements PatternProviderTarget {
+
+        private final KeyCounter inserted = new KeyCounter();
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable type) {
+            if (type == Actionable.MODULATE) {
+                this.inserted.add(what, amount);
+            }
+            return amount;
+        }
+
+        @Override
+        public boolean containsPatternInput(Set<AEKey> patternInputs) {
+            return false;
+        }
+    }
+
     private static final class FaultingTarget implements PatternProviderTarget {
 
         private int modulatedInputs;
@@ -427,6 +539,42 @@ public final class PatternProviderBatchingTest {
         public void pushInputsToExternalInventory(KeyCounter[] inputHolder, PatternInputSink inputSink) {
             inputSink.pushInput(this.first, total(inputHolder, this.first));
             inputSink.pushInput(this.second, total(inputHolder, this.second));
+        }
+    }
+
+    private static final class SparseSingleCraftPattern implements IPatternDetails {
+
+        private final AEKey first;
+        private final AEKey second;
+        private final KeyCounter receivedInputs = new KeyCounter();
+
+        private SparseSingleCraftPattern(AEKey first, AEKey second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        @Override
+        public AEItemKey getDefinition() {
+            return null;
+        }
+
+        @Override
+        public IInput[] getInputs() {
+            return new IInput[0];
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return List.of();
+        }
+
+        @Override
+        public void pushInputsToExternalInventory(KeyCounter[] inputHolder, PatternInputSink inputSink) {
+            for (KeyCounter inputs : inputHolder) {
+                this.receivedInputs.addAll(inputs);
+            }
+            inputSink.pushInput(this.first, 2L);
+            inputSink.pushInput(this.second, 1L);
         }
     }
 

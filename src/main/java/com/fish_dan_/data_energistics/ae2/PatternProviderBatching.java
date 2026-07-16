@@ -12,12 +12,14 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.implementations.blockentities.ICraftingMachine;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderTarget;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -137,6 +139,9 @@ public final class PatternProviderBatching {
         }
 
         KeyCounter aggregated = aggregatePrototype(prototype);
+        if (!aggregated.iterator().hasNext()) {
+            return 1L;
+        }
         long admitted = requestedCount;
         for (var entry : aggregated) {
             long perCraft = entry.getLongValue();
@@ -170,17 +175,46 @@ public final class PatternProviderBatching {
         if (remainderSink == null) {
             throw new IllegalArgumentException("Pattern-provider remainder sink must not be null");
         }
-        KeyCounter[] expanded = scalePrototype(prototype, count);
-        patternDetails.pushInputsToExternalInventory(expanded, (what, amount) -> {
+        List<GenericStack> expandedInputs = expandPatternInputs(patternDetails, prototype, count);
+        for (GenericStack input : expandedInputs) {
             transferOwnership.run();
-            long inserted = target.insert(what, amount, Actionable.MODULATE);
-            if (inserted < 0L || inserted > amount) {
+            long inserted = target.insert(input.what(), input.amount(), Actionable.MODULATE);
+            if (inserted < 0L || inserted > input.amount()) {
                 throw new IllegalStateException("Pattern provider target returned an invalid insertion amount");
             }
-            if (inserted < amount) {
-                remainderSink.pushInput(what, amount - inserted);
+            if (inserted < input.amount()) {
+                remainderSink.pushInput(input.what(), input.amount() - inserted);
             }
+        }
+    }
+
+    private static List<GenericStack> expandPatternInputs(
+                                                          IPatternDetails patternDetails,
+                                                          KeyCounter[] prototype,
+                                                          long count) {
+        if (count <= 0L) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+
+        KeyCounter expectedInputs = aggregatePrototype(prototype);
+        KeyCounter emittedInputs = new KeyCounter();
+        ArrayList<GenericStack> expandedInputs = new ArrayList<>();
+        KeyCounter[] perCraft = scalePrototype(prototype, 1L);
+        patternDetails.pushInputsToExternalInventory(perCraft, (what, amount) -> {
+            if (what == null) {
+                throw new IllegalStateException("Pattern emitted a null input key");
+            }
+            if (amount <= 0L) {
+                throw new IllegalStateException("Pattern emitted a non-positive input amount");
+            }
+            emittedInputs.set(what, Math.addExact(emittedInputs.get(what), amount));
+            expandedInputs.add(new GenericStack(what, Math.multiplyExact(amount, count)));
         });
+        if (!containsSameAmounts(expectedInputs, emittedInputs) ||
+                !containsSameAmounts(emittedInputs, expectedInputs)) {
+            throw new IllegalStateException("Pattern did not emit its complete per-craft input prototype");
+        }
+        return List.copyOf(expandedInputs);
     }
 
     static KeyCounter[] scalePrototype(KeyCounter[] prototype, long count) {
@@ -266,6 +300,15 @@ public final class PatternProviderBatching {
             }
         }
         return aggregated;
+    }
+
+    private static boolean containsSameAmounts(KeyCounter expected, KeyCounter actual) {
+        for (var entry : expected) {
+            if (actual.get(entry.getKey()) != entry.getLongValue()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void validatePreparation(
