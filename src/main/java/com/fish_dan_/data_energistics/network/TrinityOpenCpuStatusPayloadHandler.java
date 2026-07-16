@@ -105,7 +105,11 @@ public final class TrinityOpenCpuStatusPayloadHandler {
         return new RoutedCpu(
                 host,
                 resolution.hatch(),
-                new TrinityCraftingStatusSelection.Target(host.getHostId(), runtime, resolution.cpu()));
+                new TrinityCraftingStatusSelection.Target(
+                        host.getHostId(),
+                        runtime,
+                        resolution.cpu(),
+                        resolution.grid()));
     }
 
     private static void logRejected(String reason,

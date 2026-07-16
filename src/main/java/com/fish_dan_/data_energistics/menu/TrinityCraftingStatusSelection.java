@@ -87,52 +87,83 @@ public final class TrinityCraftingStatusSelection {
         Target dataEnergistics$getTrinityTarget();
     }
 
-    /** Original host, runtime and CPU identity that must remain valid for the entire submenu lifetime. */
+    /** Captures the immutable menu route and the exact CPU pin selected while the worker is published. */
     public record Target(UUID hostId,
                          TrinityDataCoreCraftingRuntime runtime,
-                         TrinityDataCoreVirtualCpu cpu) {
+                         TrinityDataCoreVirtualCpu cpu,
+                         IGrid grid) {
 
         public Target {
-            if (hostId == null || runtime == null || cpu == null) {
+            if (hostId == null || runtime == null || cpu == null || grid == null) {
                 throw new IllegalArgumentException("Trinity crafting-status target identities cannot be null");
             }
         }
 
-        /** Verifies the current lease publication and grid against the exact objects validated when opening. */
-        public boolean isCurrent(@Nullable UUID currentHostId,
-                                 @Nullable TrinityDataCoreCraftingRuntime currentRuntime,
-                                 @Nullable IGrid currentGrid) {
+        /** Classifies the exact CPU pin while preserving a valid route after a worker finishes or is cancelled. */
+        public TargetState currentState(@Nullable UUID currentHostId,
+                                        @Nullable TrinityDataCoreCraftingRuntime currentRuntime,
+                                        @Nullable IGrid currentGrid) {
             List<TrinityDataCoreVirtualCpu> publishedCpus = currentRuntime == null ? List.of() : currentRuntime.publishedCpus();
-            return matchesCurrentIdentity(
+            return classifyCurrentState(
                     this.hostId,
                     this.runtime,
                     this.cpu,
+                    this.grid,
                     currentHostId,
                     currentRuntime,
                     publishedCpus,
                     currentGrid,
-                    (grid, targetCpu) -> grid.getCraftingService().getCpus().contains(targetCpu));
+                    (grid, targetCpu) -> grid.getCraftingService().getCpus().contains(targetCpu),
+                    this.cpu.number() != 0 && !this.cpu.isBusy());
         }
+
+        /** Verifies the immutable Host, runtime and Grid route independently of the retired worker object. */
+        public boolean isRouteCurrent(@Nullable UUID currentHostId,
+                                      @Nullable TrinityDataCoreCraftingRuntime currentRuntime,
+                                      @Nullable IGrid currentGrid) {
+            return matchesCurrentRoute(
+                    this.hostId,
+                    this.runtime,
+                    this.grid,
+                    currentHostId,
+                    currentRuntime,
+                    currentGrid);
+        }
+    }
+
+    /** Stable lifecycle states used by the menu to distinguish worker retirement from a stale route. */
+    public enum TargetState {
+        CURRENT_CPU,
+        RETIRED_WORKER,
+        STALE_ROUTE
     }
 
     /**
      * Compares opaque identities without requiring Minecraft objects, so the stale-target contract remains directly
      * testable.
      */
-    static <R, C, G> boolean matchesCurrentIdentity(UUID expectedHostId,
-                                                    R expectedRuntime,
-                                                    C expectedCpu,
-                                                    @Nullable UUID currentHostId,
-                                                    @Nullable R currentRuntime,
-                                                    List<C> currentPublishedCpus,
-                                                    @Nullable G currentGrid,
-                                                    BiPredicate<G, C> gridContainsCpu) {
-        if (expectedHostId == null || expectedRuntime == null || expectedCpu == null ||
+    static <R, C, G> TargetState classifyCurrentState(UUID expectedHostId,
+                                                      R expectedRuntime,
+                                                      C expectedCpu,
+                                                      G expectedGrid,
+                                                      @Nullable UUID currentHostId,
+                                                      @Nullable R currentRuntime,
+                                                      List<C> currentPublishedCpus,
+                                                      @Nullable G currentGrid,
+                                                      BiPredicate<G, C> gridContainsCpu,
+                                                      boolean retiredWorker) {
+        if (expectedHostId == null || expectedRuntime == null || expectedCpu == null || expectedGrid == null ||
                 currentPublishedCpus == null || gridContainsCpu == null) {
             throw new IllegalArgumentException("Trinity crafting-status identity collaborators cannot be null");
         }
-        if (!expectedHostId.equals(currentHostId) || expectedRuntime != currentRuntime || currentGrid == null) {
-            return false;
+        if (!matchesCurrentRoute(
+                expectedHostId,
+                expectedRuntime,
+                expectedGrid,
+                currentHostId,
+                currentRuntime,
+                currentGrid)) {
+            return TargetState.STALE_ROUTE;
         }
 
         boolean published = false;
@@ -145,7 +176,46 @@ public final class TrinityCraftingStatusSelection {
                 break;
             }
         }
-        return published && gridContainsCpu.test(currentGrid, expectedCpu);
+        if (published && gridContainsCpu.test(currentGrid, expectedCpu)) {
+            return TargetState.CURRENT_CPU;
+        }
+        return retiredWorker ? TargetState.RETIRED_WORKER : TargetState.STALE_ROUTE;
+    }
+
+    static <R, G> boolean matchesCurrentRoute(UUID expectedHostId,
+                                              R expectedRuntime,
+                                              G expectedGrid,
+                                              @Nullable UUID currentHostId,
+                                              @Nullable R currentRuntime,
+                                              @Nullable G currentGrid) {
+        if (expectedHostId == null || expectedRuntime == null || expectedGrid == null) {
+            throw new IllegalArgumentException("Trinity crafting-status route identities cannot be null");
+        }
+        return expectedHostId.equals(currentHostId) &&
+                expectedRuntime == currentRuntime &&
+                expectedGrid == currentGrid;
+    }
+
+    static <R, C, G> boolean matchesCurrentIdentity(UUID expectedHostId,
+                                                    R expectedRuntime,
+                                                    C expectedCpu,
+                                                    G expectedGrid,
+                                                    @Nullable UUID currentHostId,
+                                                    @Nullable R currentRuntime,
+                                                    List<C> currentPublishedCpus,
+                                                    @Nullable G currentGrid,
+                                                    BiPredicate<G, C> gridContainsCpu) {
+        return classifyCurrentState(
+                expectedHostId,
+                expectedRuntime,
+                expectedCpu,
+                expectedGrid,
+                currentHostId,
+                currentRuntime,
+                currentPublishedCpus,
+                currentGrid,
+                gridContainsCpu,
+                false) == TargetState.CURRENT_CPU;
     }
 
     private static final class PendingSelection {

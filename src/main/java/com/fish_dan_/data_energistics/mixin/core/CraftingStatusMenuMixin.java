@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
@@ -50,6 +51,9 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
     @Nullable
     private TrinityCraftingStatusSelection.Target dataEnergistics$requestedTarget;
 
+    @Unique
+    private boolean dataEnergistics$targetCpuPinReleased;
+
     protected CraftingStatusMenuMixin(MenuType<?> menuType, int id, Inventory inventory, Object host) {
         super(menuType, id, inventory, host);
     }
@@ -64,7 +68,8 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
             return;
         }
         this.dataEnergistics$requestedTarget = target;
-        if (!(host instanceof TrinityAccessHatchBlockEntity hatch) || !hatch.isCurrentCpuStatusTarget(target)) {
+        if (!(host instanceof TrinityAccessHatchBlockEntity hatch) ||
+                hatch.cpuStatusTargetState(target) != TargetState.CURRENT_CPU) {
             throw new IllegalStateException("Trinity CPU status target became stale during menu construction");
         }
 
@@ -97,17 +102,71 @@ public abstract class CraftingStatusMenuMixin extends CraftingCPUMenu
         }
 
         ITerminalHost menuHost = ((CraftingStatusMenu) (Object) this).getHost();
-        if (menuHost instanceof TrinityAccessHatchBlockEntity hatch && hatch.isCurrentCpuStatusTarget(target)) {
+        if (!(menuHost instanceof TrinityAccessHatchBlockEntity hatch)) {
+            dataEnergistics$closeStaleTarget("menu host is no longer the Trinity access hatch", target);
+            ci.cancel();
+            return;
+        }
+        if (this.dataEnergistics$targetCpuPinReleased) {
+            if (hatch.isCurrentCpuStatusRoute(target)) {
+                return;
+            }
+            dataEnergistics$closeStaleTarget("target Host, runtime, lease or Grid route changed", target);
+            ci.cancel();
             return;
         }
 
-        dataEnergistics$closeStaleTarget("target host, runtime, lease or grid identity changed", target);
+        TargetState state = hatch.cpuStatusTargetState(target);
+        if (state == TargetState.CURRENT_CPU) {
+            return;
+        }
+        if (state == TargetState.RETIRED_WORKER && dataEnergistics$selectCoordinatorFallback(target, hatch)) {
+            this.dataEnergistics$targetCpuPinReleased = true;
+            return;
+        }
+
+        String reason = state == TargetState.RETIRED_WORKER ?
+                "retired worker has no published CPU #0 fallback" :
+                "target Host, runtime, lease or Grid identity changed";
+        dataEnergistics$closeStaleTarget(reason, target);
         ci.cancel();
     }
 
     @Override
     public @Nullable TrinityCraftingStatusSelection.Target dataEnergistics$getTrinityTarget() {
         return this.dataEnergistics$requestedTarget;
+    }
+
+    @Unique
+    private boolean dataEnergistics$selectCoordinatorFallback(TrinityCraftingStatusSelection.Target target,
+                                                              TrinityAccessHatchBlockEntity hatch) {
+        IGrid grid = hatch.accessGrid();
+        if (grid == null || grid != target.grid()) {
+            return false;
+        }
+
+        TrinityDataCoreVirtualCpu coordinator = null;
+        for (TrinityDataCoreVirtualCpu cpu : target.runtime().publishedCpus()) {
+            if (cpu.number() == 0) {
+                coordinator = cpu;
+                break;
+            }
+        }
+        if (coordinator == null) {
+            return false;
+        }
+
+        this.lastCpuSet = grid.getCraftingService().getCpus();
+        CraftingStatusMenu menu = (CraftingStatusMenu) (Object) this;
+        menu.cpuList = dataEnergistics$invokeCreateCpuList();
+        Integer serial = this.cpuSerialMap.get(coordinator);
+        boolean listed = serial != null && menu.cpuList.cpus().stream()
+                .anyMatch(entry -> entry.serial() == serial);
+        if (!listed) {
+            return false;
+        }
+        menu.selectCpu(serial);
+        return menu.getSelectedCpuSerial() == serial;
     }
 
     @Unique

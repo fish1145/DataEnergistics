@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -164,9 +165,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
         TrinityCraftingStatusSelection.Target target = subMenu instanceof TrinityCraftingStatusSelection.TargetedMenu menu ? menu.dataEnergistics$getTrinityTarget() : null;
         TrinityDataCoreBlockEntity host = boundHost(false);
-        if (target == null || host == null || !isCurrentCpuStatusTarget(target)) {
+        if (target == null || host == null || !isCurrentCpuStatusRoute(target)) {
             LOGGER.warn(
-                    "Cannot return from Trinity CPU status because its original target is stale: access={}, expectedHost={}, currentHost={}",
+                    "Cannot return from Trinity CPU status because its original route is stale: access={}, expectedHost={}, currentHost={}",
                     this.worldPosition,
                     target == null ? null : target.hostId(),
                     host == null ? null : host.getHostId());
@@ -430,13 +431,30 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                 !host.isCpuProviderAvailable() ? null : host.getCraftingRuntime();
     }
 
-    /** Verifies that an open AE CPU submenu still belongs to this hatch's exact original lease publication. */
-    public boolean isCurrentCpuStatusTarget(TrinityCraftingStatusSelection.Target target) {
+    /** Classifies the original CPU pin against this hatch's current lease publication. */
+    public TargetState cpuStatusTargetState(TrinityCraftingStatusSelection.Target target) {
         if (target == null) {
             throw new IllegalArgumentException("Trinity CPU status target cannot be null");
         }
         TrinityDataCoreBlockEntity host = boundHost(false);
-        return host != null && target.isCurrent(host.getHostId(), boundCraftingRuntime(), accessGrid());
+        if (host == null) {
+            return TargetState.STALE_ROUTE;
+        }
+        return target.currentState(host.getHostId(), boundCraftingRuntime(), accessGrid());
+    }
+
+    /** Verifies that the original CPU is still published on this hatch's exact lease Grid. */
+    public boolean isCurrentCpuStatusTarget(TrinityCraftingStatusSelection.Target target) {
+        return cpuStatusTargetState(target) == TargetState.CURRENT_CPU;
+    }
+
+    /** Verifies the Host, runtime, lease and Grid route after the original worker retires. */
+    public boolean isCurrentCpuStatusRoute(TrinityCraftingStatusSelection.Target target) {
+        if (target == null) {
+            throw new IllegalArgumentException("Trinity CPU status target cannot be null");
+        }
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host != null && target.isRouteCurrent(host.getHostId(), boundCraftingRuntime(), accessGrid());
     }
 
     public @Nullable IGrid connectedGrid() {
