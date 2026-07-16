@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin.neoecoae;
+package com.fish_dan_.data_energistics.client.integration;
 
 import net.minecraft.core.BlockPos;
 
