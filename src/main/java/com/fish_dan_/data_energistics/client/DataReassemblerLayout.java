@@ -13,22 +13,22 @@ public final class DataReassemblerLayout {
     public static final int PROGRESS_HEIGHT = 18;
 
     private static final int SLOT_SPACING = 18;
-    private static final int RECIPE_ITEM_INPUT_START_X = 8;
-    private static final int RECIPE_ITEM_INPUT_START_Y = 3;
+    private static final int RECIPE_ITEM_INPUT_START_X = 7;
+    private static final int RECIPE_ITEM_INPUT_START_Y = 2;
     private static final SlotPos[] RECIPE_ITEM_OUTPUTS = {
-            new SlotPos(114, 3),
-            new SlotPos(114, 21),
-            new SlotPos(114, 39)
+            new SlotPos(113, 2),
+            new SlotPos(113, 20),
+            new SlotPos(113, 38)
     };
-    private static final SlotPos RECIPE_KEY_INPUT = new SlotPos(63, 21);
-    private static final SlotPos RECIPE_KEY_OUTPUT = new SlotPos(132, 21);
+    private static final SlotPos RECIPE_KEY_INPUT = new SlotPos(62, 20);
+    private static final SlotPos RECIPE_KEY_OUTPUT = new SlotPos(131, 20);
     private static final SlotPos[] RECIPE_FLUID_INPUTS = {
-            new SlotPos(63, 3),
-            new SlotPos(63, 39)
+            new SlotPos(62, 2),
+            new SlotPos(62, 38)
     };
     private static final SlotPos[] RECIPE_FLUID_OUTPUTS = {
-            new SlotPos(132, 3),
-            new SlotPos(132, 39)
+            new SlotPos(131, 2),
+            new SlotPos(131, 38)
     };
 
     private DataReassemblerLayout() {}

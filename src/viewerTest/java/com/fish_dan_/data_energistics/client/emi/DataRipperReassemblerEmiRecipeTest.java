@@ -201,20 +201,20 @@ public final class DataRipperReassemblerEmiRecipeTest {
         assertEquals(18, slotsByBounds.size());
 
         Map<Bounds, Item> expectedItemInputs = Map.ofEntries(
-                Map.entry(new Bounds(8, 3, 18, 18), Items.WHITE_WOOL),
-                Map.entry(new Bounds(26, 3, 18, 18), Items.LIGHT_GRAY_WOOL),
-                Map.entry(new Bounds(44, 3, 18, 18), Items.GRAY_WOOL),
-                Map.entry(new Bounds(8, 21, 18, 18), Items.BLACK_WOOL),
-                Map.entry(new Bounds(26, 21, 18, 18), Items.BROWN_WOOL),
-                Map.entry(new Bounds(44, 21, 18, 18), Items.RED_WOOL),
-                Map.entry(new Bounds(8, 39, 18, 18), Items.ORANGE_WOOL),
-                Map.entry(new Bounds(26, 39, 18, 18), Items.YELLOW_WOOL),
-                Map.entry(new Bounds(44, 39, 18, 18), Items.LIME_WOOL));
+                Map.entry(new Bounds(7, 2, 18, 18), Items.WHITE_WOOL),
+                Map.entry(new Bounds(25, 2, 18, 18), Items.LIGHT_GRAY_WOOL),
+                Map.entry(new Bounds(43, 2, 18, 18), Items.GRAY_WOOL),
+                Map.entry(new Bounds(7, 20, 18, 18), Items.BLACK_WOOL),
+                Map.entry(new Bounds(25, 20, 18, 18), Items.BROWN_WOOL),
+                Map.entry(new Bounds(43, 20, 18, 18), Items.RED_WOOL),
+                Map.entry(new Bounds(7, 38, 18, 18), Items.ORANGE_WOOL),
+                Map.entry(new Bounds(25, 38, 18, 18), Items.YELLOW_WOOL),
+                Map.entry(new Bounds(43, 38, 18, 18), Items.LIME_WOOL));
         expectedItemInputs.forEach((bounds, item) -> assertItemIngredient(slotAt(slotsByBounds, bounds).getStack(), 1L, item));
 
-        Bounds waterInputBounds = new Bounds(63, 3, 18, 18);
-        Bounds lavaInputBounds = new Bounds(63, 39, 18, 18);
-        Bounds dataFlowInputBounds = new Bounds(63, 21, 18, 18);
+        Bounds waterInputBounds = new Bounds(62, 2, 18, 18);
+        Bounds lavaInputBounds = new Bounds(62, 38, 18, 18);
+        Bounds dataFlowInputBounds = new Bounds(62, 20, 18, 18);
         assertFluidIngredient(slotAt(slotsByBounds, waterInputBounds).getStack(), Fluids.WATER, 1_000L);
         assertFluidIngredient(slotAt(slotsByBounds, lavaInputBounds).getStack(), Fluids.LAVA, 1_000L);
         assertDataIngredient(
@@ -223,14 +223,14 @@ public final class DataRipperReassemblerEmiRecipeTest {
                 1_200L);
 
         Map<Bounds, Item> expectedItemOutputs = Map.of(
-                new Bounds(114, 3, 18, 18), registeredItem("ae2:mysterious_cube"),
-                new Bounds(114, 21, 18, 18), registeredItem("ae2:not_so_mysterious_cube"),
-                new Bounds(114, 39, 18, 18), registeredItem("ae2:quartz_fixture"));
+                new Bounds(113, 2, 18, 18), registeredItem("ae2:mysterious_cube"),
+                new Bounds(113, 20, 18, 18), registeredItem("ae2:not_so_mysterious_cube"),
+                new Bounds(113, 38, 18, 18), registeredItem("ae2:quartz_fixture"));
         expectedItemOutputs.forEach((bounds, item) -> assertItemIngredient(slotAt(slotsByBounds, bounds).getStack(), 1L, item));
 
-        Bounds waterOutputBounds = new Bounds(132, 3, 18, 18);
-        Bounds lavaOutputBounds = new Bounds(132, 39, 18, 18);
-        Bounds dataFlowOutputBounds = new Bounds(132, 21, 18, 18);
+        Bounds waterOutputBounds = new Bounds(131, 2, 18, 18);
+        Bounds lavaOutputBounds = new Bounds(131, 38, 18, 18);
+        Bounds dataFlowOutputBounds = new Bounds(131, 20, 18, 18);
         assertFluidIngredient(slotAt(slotsByBounds, waterOutputBounds).getStack(), Fluids.WATER, 5_000L);
         assertFluidIngredient(slotAt(slotsByBounds, lavaOutputBounds).getStack(), Fluids.LAVA, 5_000L);
         assertDataIngredient(

@@ -62,7 +62,7 @@ public final class DataRipperReassemblerRecipeUiTest {
     }
 
     @Test
-    void createsFreshUiTreesWithStableSlotCoordinates() {
+    void createsFreshUiTreesWithSlotBoundsIncludingTextureShadow() {
         var adapter = new RecordingAdapterImpl();
         var provider = new DataRipperReassemblerRecipeUiProviderImpl(adapter);
         var recipe = recipeView();
@@ -83,24 +83,24 @@ public final class DataRipperReassemblerRecipeUiTest {
                 Math.round(first.ui.rootElement.getSizeHeight()),
                 "Recipe root height");
 
-        assertStableBounds(first, second, "item-input-0", 8, 3, 18, 18);
-        assertStableBounds(first, second, "item-input-1", 26, 3, 18, 18);
-        assertStableBounds(first, second, "item-input-2", 44, 3, 18, 18);
-        assertStableBounds(first, second, "item-input-3", 8, 21, 18, 18);
-        assertStableBounds(first, second, "item-input-4", 26, 21, 18, 18);
-        assertStableBounds(first, second, "item-input-5", 44, 21, 18, 18);
-        assertStableBounds(first, second, "item-input-6", 8, 39, 18, 18);
-        assertStableBounds(first, second, "item-input-7", 26, 39, 18, 18);
-        assertStableBounds(first, second, "item-input-8", 44, 39, 18, 18);
-        assertStableBounds(first, second, "fluid-input-0", 63, 3, 18, 18);
-        assertStableBounds(first, second, "key-input", 63, 21, 18, 18);
-        assertStableBounds(first, second, "fluid-input-1", 63, 39, 18, 18);
-        assertStableBounds(first, second, "item-output-0", 114, 3, 18, 18);
-        assertStableBounds(first, second, "item-output-1", 114, 21, 18, 18);
-        assertStableBounds(first, second, "item-output-2", 114, 39, 18, 18);
-        assertStableBounds(first, second, "fluid-output-0", 132, 3, 18, 18);
-        assertStableBounds(first, second, "key-output", 132, 21, 18, 18);
-        assertStableBounds(first, second, "fluid-output-1", 132, 39, 18, 18);
+        assertStableBounds(first, second, "item-input-0", 7, 2, 18, 18);
+        assertStableBounds(first, second, "item-input-1", 25, 2, 18, 18);
+        assertStableBounds(first, second, "item-input-2", 43, 2, 18, 18);
+        assertStableBounds(first, second, "item-input-3", 7, 20, 18, 18);
+        assertStableBounds(first, second, "item-input-4", 25, 20, 18, 18);
+        assertStableBounds(first, second, "item-input-5", 43, 20, 18, 18);
+        assertStableBounds(first, second, "item-input-6", 7, 38, 18, 18);
+        assertStableBounds(first, second, "item-input-7", 25, 38, 18, 18);
+        assertStableBounds(first, second, "item-input-8", 43, 38, 18, 18);
+        assertStableBounds(first, second, "fluid-input-0", 62, 2, 18, 18);
+        assertStableBounds(first, second, "key-input", 62, 20, 18, 18);
+        assertStableBounds(first, second, "fluid-input-1", 62, 38, 18, 18);
+        assertStableBounds(first, second, "item-output-0", 113, 2, 18, 18);
+        assertStableBounds(first, second, "item-output-1", 113, 20, 18, 18);
+        assertStableBounds(first, second, "item-output-2", 113, 38, 18, 18);
+        assertStableBounds(first, second, "fluid-output-0", 131, 2, 18, 18);
+        assertStableBounds(first, second, "key-output", 131, 20, 18, 18);
+        assertStableBounds(first, second, "fluid-output-1", 131, 38, 18, 18);
         assertStableBounds(first, second, "progress", 153, 20, 6, 18);
 
         assertInstanceOf(ItemSlot.class, element(first, "item-input-0"));
