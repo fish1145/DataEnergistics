@@ -31,7 +31,6 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.crafting.PatternDetailsHelper;
-import appeng.menu.locator.MenuLocators;
 
 import java.util.List;
 import java.util.UUID;
@@ -49,17 +48,32 @@ public final class TrinityDataCoreMenuTest {
         BlockPos hostPosition = new BlockPos(2, 1, 2);
         helper.setBlock(hostPosition, ModBlocks.TRINITY_DATA_CORE.get().defaultBlockState());
         TrinityDataCoreBlockEntity host = helper.getBlockEntity(hostPosition);
+        BlockPos worldHostPosition = host.getBlockPos();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setPos(
+                worldHostPosition.getX() + 0.5D,
+                worldHostPosition.getY() + 0.5D,
+                worldHostPosition.getZ() + 0.5D);
         TrinityDataCoreMenu menu = new TrinityDataCoreMenu(70, player.getInventory(), host);
-        menu.setLocator(MenuLocators.forBlockEntity(host));
         player.containerMenu = menu;
 
         assertTrue(menu.isHostUiAvailable(player));
+        assertTrue(menu.quickMoveStack(player, 0).isEmpty());
         Player otherPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
         assertFalse(menu.isHostUiAvailable(otherPlayer));
         player.containerMenu = player.inventoryMenu;
         assertFalse(menu.isHostUiAvailable(player));
         player.containerMenu = menu;
+        assertTrue(menu.isHostUiAvailable(player));
+        player.setPos(
+                worldHostPosition.getX() + 9.0D,
+                worldHostPosition.getY() + 0.5D,
+                worldHostPosition.getZ() + 0.5D);
+        assertFalse(menu.isHostUiAvailable(player));
+        player.setPos(
+                worldHostPosition.getX() + 0.5D,
+                worldHostPosition.getY() + 0.5D,
+                worldHostPosition.getZ() + 0.5D);
         assertTrue(menu.isHostUiAvailable(player));
 
         helper.destroyBlock(hostPosition);

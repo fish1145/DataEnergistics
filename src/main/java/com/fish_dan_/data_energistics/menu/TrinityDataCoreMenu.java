@@ -16,15 +16,21 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKe
 import com.fish_dan_.data_energistics.network.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
 import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.menu.AEBaseMenu;
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import lombok.Getter;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -33,8 +39,9 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinatorHolder {
+public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUiCoordinatorHolder {
 
+    private final Inventory playerInventory;
     @Nullable
     private final TrinityDataCoreMenuHost host;
     private final Consumer<CustomPacketPayload> hostedActionSink;
@@ -44,6 +51,48 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
     /** Double-sided child-window endpoint owned by this menu's mounted LDLib2 root. */
     @Getter
     private final HostUiCoordinator hostUiCoordinator;
+
+    /** Opens the native Trinity menu for one exact live controller and transmits only its block position. */
+    public static boolean open(ServerPlayer player, TrinityDataCoreBlockEntity host) {
+        if (player == null || host == null) {
+            Data_Energistics.LOGGER.error("Cannot open the Trinity Data Core menu without a player and host");
+            throw new IllegalArgumentException("Trinity Data Core menu player and host cannot be null");
+        }
+        if (!isLiveHost(player, host)) {
+            Data_Energistics.LOGGER.warn(
+                    "Cannot open a stale or out-of-range Trinity Data Core menu: player={}, host={}, position={}",
+                    player.getGameProfile().getName(),
+                    host.getHostId(),
+                    host.getBlockPos());
+            return false;
+        }
+        try {
+            boolean opened = player.openMenu(
+                    new SimpleMenuProvider(
+                            (containerId, inventory, menuPlayer) -> new TrinityDataCoreMenu(
+                                    containerId,
+                                    inventory,
+                                    host),
+                            host.getBlockState().getBlock().getName()),
+                    buffer -> buffer.writeBlockPos(host.getBlockPos())).isPresent();
+            if (!opened) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to open the Trinity Data Core menu: player={}, host={}, position={}",
+                        player.getGameProfile().getName(),
+                        host.getHostId(),
+                        host.getBlockPos());
+            }
+            return opened;
+        } catch (RuntimeException failure) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to create the Trinity Data Core menu: player={}, host={}, position={}",
+                    player.getGameProfile().getName(),
+                    host.getHostId(),
+                    host.getBlockPos(),
+                    failure);
+            return false;
+        }
+    }
 
     public TrinityDataCoreMenu(int id, Inventory playerInventory, @Nullable TrinityDataCoreMenuHost host) {
         this(
@@ -74,17 +123,63 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
                         Consumer<CustomPacketPayload> hostedActionSink,
                         TrinityHostedActionExecutor hostedActionExecutor,
                         @Nullable Consumer<HostUiExtension> additionalProviderRegistrar) {
-        super(ModMenus.TRINITY_DATA_CORE.get(), id, playerInventory, host);
-        if (hostedActionSink == null || hostedActionExecutor == null) {
-            throw new IllegalArgumentException("Trinity hosted action collaborators cannot be null");
+        super(ModMenus.TRINITY_DATA_CORE.get(), id);
+        if (playerInventory == null || hostedActionSink == null || hostedActionExecutor == null) {
+            throw new IllegalArgumentException("Trinity menu inventory and hosted action collaborators cannot be null");
         }
+        this.playerInventory = playerInventory;
         this.host = host;
         this.hostedActionSink = hostedActionSink;
         this.hostedActionExecutor = hostedActionExecutor;
-        createPlayerInventorySlots(playerInventory);
         this.hostUiCoordinator = TrinityDataCoreHostUi.mount(this, hostUi -> playerInventory.player.level().isClientSide ?
                 createClientCoordinator(hostUi, playerInventory, additionalProviderRegistrar) :
                 createServerCoordinator(hostUi, playerInventory, additionalProviderRegistrar));
+    }
+
+    /** Returns the player whose inventory owns this menu on both logical sides. */
+    public Player getPlayer() {
+        return this.playerInventory.player;
+    }
+
+    /** A status-only menu has no machine slots, so shift-click cannot move an item to another side. */
+    @Override
+    public @NotNull ItemStack quickMoveStack(@NotNull Player player, int index) {
+        return ItemStack.EMPTY;
+    }
+
+    /** Keeps the menu bound to the same nearby live controller instance used during construction. */
+    @Override
+    public boolean stillValid(@NotNull Player player) {
+        return player == getPlayer() && this.host instanceof TrinityDataCoreBlockEntity dataCore &&
+                isLiveHost(player, dataCore);
+    }
+
+    /** Releases the server-side LDLib2 tree when vanilla removes this native menu. */
+    @Override
+    public void removed(@NotNull Player player) {
+        Throwable failure = null;
+        try {
+            super.removed(player);
+        } catch (RuntimeException | Error exception) {
+            Data_Energistics.LOGGER.error("Failed to remove the vanilla Trinity Data Core menu", exception);
+            failure = exception;
+        }
+        try {
+            removeModularUi();
+        } catch (RuntimeException | Error exception) {
+            Data_Energistics.LOGGER.error("Failed to remove the Trinity Data Core LDLib2 UI", exception);
+            if (failure == null) {
+                failure = exception;
+            } else if (failure != exception) {
+                failure.addSuppressed(exception);
+            }
+        }
+        if (failure instanceof RuntimeException exception) {
+            throw exception;
+        }
+        if (failure instanceof Error error) {
+            throw error;
+        }
     }
 
     /**
@@ -104,9 +199,7 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
      */
     @Override
     public boolean isHostUiAvailable(Player player) {
-        return this.host != null && player == getPlayer() && player.containerMenu == this && isValidMenu() &&
-                stillValid(player) && getLocator() != null &&
-                getLocator().locate(player, TrinityDataCoreMenuHost.class) == this.host;
+        return this.host != null && player == getPlayer() && player.containerMenu == this && stillValid(player);
     }
 
     public @Nullable TrinityDataCoreMenuHost getHost() {
@@ -119,7 +212,7 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
             throw new IllegalArgumentException("Synchronized Trinity host ID is required");
         }
         if (this.host == null || !getPlayer().level().isClientSide() || getPlayer().containerMenu != this ||
-                !isValidMenu()) {
+                !stillValid(getPlayer())) {
             return false;
         }
         try {
@@ -281,6 +374,28 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
         }
     }
 
+    private static boolean isLiveHost(Player player, TrinityDataCoreBlockEntity host) {
+        var level = host.getLevel();
+        var position = host.getBlockPos();
+        return level != null && player.level() == level && level.getBlockEntity(position) == host &&
+                level.getBlockState(position).is(ModBlocks.TRINITY_DATA_CORE.get()) &&
+                player.distanceToSqr(
+                        position.getX() + 0.5D,
+                        position.getY() + 0.5D,
+                        position.getZ() + 0.5D) <= 64.0D;
+    }
+
+    private void removeModularUi() {
+        if (!(this instanceof IModularUIHolderMenu holder)) {
+            throw new IllegalStateException("Trinity Data Core menu does not implement the LDLib2 menu holder");
+        }
+        var modularUI = holder.getModularUI();
+        if (modularUI == null) {
+            throw new IllegalStateException("Trinity Data Core menu has no mounted LDLib2 UI to remove");
+        }
+        modularUI.onRemoved();
+    }
+
     private HostUiCoordinator createClientCoordinator(HostUiExtension hostUi,
                                                       Inventory playerInventory,
                                                       @Nullable Consumer<HostUiExtension> additionalProviderRegistrar) {
@@ -315,14 +430,8 @@ public class TrinityDataCoreMenu extends AEBaseMenu implements HostUiCoordinator
     }
 
     /** Production business adapter for the exact menu host captured during construction. */
-    private static final class TrinityHostedActionExecutorImpl implements TrinityHostedActionExecutor {
-
-        @Nullable
-        private final TrinityDataCoreMenuHost host;
-
-        private TrinityHostedActionExecutorImpl(@Nullable TrinityDataCoreMenuHost host) {
-            this.host = host;
-        }
+    private record TrinityHostedActionExecutorImpl(@Nullable TrinityDataCoreMenuHost host)
+            implements TrinityHostedActionExecutor {
 
         @Override
         public void autoBuild(Player player, TrinityAutoBuildRequest request) {

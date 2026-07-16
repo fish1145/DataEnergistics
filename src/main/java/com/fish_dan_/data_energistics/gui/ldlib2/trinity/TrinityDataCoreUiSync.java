@@ -67,7 +67,7 @@ final class TrinityDataCoreUiSync {
         return new TrinityDataCoreUiSync(menu);
     }
 
-    /** Registers channels in protocol order before the ModularUI is attached to its AE menu. */
+    /** Registers channels in protocol order before the ModularUI is attached to its native menu. */
     void register(ModularUI modularUI) {
         if (modularUI == null) {
             throw new NullPointerException("Trinity ModularUI must not be null");

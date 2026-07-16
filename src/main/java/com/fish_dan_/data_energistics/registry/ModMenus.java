@@ -79,9 +79,18 @@ public final class ModMenus {
             .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<TrinityDataCoreMenu>> TRINITY_DATA_CORE = MENUS.register("trinity_data_core", () -> MenuTypeBuilder
-            .create(TrinityDataCoreMenu::new, TrinityDataCoreBlockEntity.class)
-            .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "trinity_data_core")));
+    public static final DeferredHolder<MenuType<?>, MenuType<TrinityDataCoreMenu>> TRINITY_DATA_CORE = MENUS.register("trinity_data_core", () -> IMenuTypeExtension.create((id, playerInventory, data) -> {
+        var pos = data.readBlockPos();
+        BlockEntity blockEntity = playerInventory.player.level().getBlockEntity(pos);
+        TrinityDataCoreBlockEntity host = blockEntity instanceof TrinityDataCoreBlockEntity dataCore ? dataCore : null;
+        if (host == null) {
+            Data_Energistics.LOGGER.error(
+                    "Cannot resolve the Trinity Data Core menu host at {} in {}",
+                    pos,
+                    playerInventory.player.level().dimension().location());
+        }
+        return new TrinityDataCoreMenu(id, playerInventory, host);
+    }));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder
             .create(DataMimeticFieldMenu::new, DataMimeticFieldBlockEntity.class)

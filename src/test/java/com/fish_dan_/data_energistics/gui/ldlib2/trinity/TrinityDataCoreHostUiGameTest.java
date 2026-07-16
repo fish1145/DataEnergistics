@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
-import com.fish_dan_.data_energistics.gui.ldlib2.AeItemSlot;
-import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
@@ -19,16 +17,12 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import appeng.menu.SlotSemantics;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.layout.LayoutProperties;
-import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
-import dev.vfyjxf.taffy.style.LengthPercentageAuto;
-import dev.vfyjxf.taffy.style.TaffyDimension;
-import dev.vfyjxf.taffy.style.TaffyPosition;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
 
 import java.util.List;
 
@@ -38,10 +32,10 @@ public final class TrinityDataCoreHostUiGameTest {
 
     private TrinityDataCoreHostUiGameTest() {}
 
-    @TestHolder("trinity_data_core_mounts_ldlib2_ui_with_existing_player_slots")
+    @TestHolder("trinity_data_core_mounts_ldlib2_ui_with_native_player_slots")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void mountsLdlib2UiWithExistingPlayerSlots(GameTestHelper helper) {
+    public static void mountsLdlib2UiWithNativePlayerSlots(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         TrinityDataCoreMenu menu = new TrinityDataCoreMenu(1, player.getInventory(), null);
         IModularUIHolderMenu holder = holder(menu);
@@ -57,16 +51,18 @@ public final class TrinityDataCoreHostUiGameTest {
                 TrinityDataCoreHostUiKeys.registrationOrder(),
                 menu.getHostUiExtension().registeredKeys());
         assertEquals(36, menu.slots.size());
-        assertEquals(27, menu.getSlots(SlotSemantics.PLAYER_INVENTORY).size());
-        assertEquals(9, menu.getSlots(SlotSemantics.PLAYER_HOTBAR).size());
-        assertEquals(36, modularUI.getElementsByType(AeItemSlot.class).size());
-        for (Slot slot : menu.slots) {
-            AeItemSlot wrapper = requireAeSlot(holder, slot);
-            assertSame(slot, wrapper.getSlot());
+        assertEquals(36, modularUI.getElementsByType(ItemSlot.class).size());
+        for (int index = 0; index < menu.slots.size(); index++) {
+            Slot slot = menu.slots.get(index);
+            int expectedInventoryIndex = index < 27 ? index + 9 : index - 27;
+            assertSame(player.getInventory(), slot.container);
+            assertEquals(expectedInventoryIndex, slot.getContainerSlot());
+            ItemSlot itemSlot = requireItemSlot(holder, slot);
+            assertSame(slot, itemSlot.getSlot());
+            assertEquals(index, slot.index);
         }
 
         UIElement root = assertElement(modularUI, TrinityDataCoreHostUi.ROOT_ID);
-        assertDimensions(root, 256, 212);
         Label title = label(modularUI, TrinityDataCoreHostUi.TITLE_ID);
         assertSame(root, title.getParent());
         assertComponent(Component.translatable("block.data_energistics.trinity_data_core"), title.getText());
@@ -76,29 +72,22 @@ public final class TrinityDataCoreHostUiGameTest {
 
         UIElement statusPanel = assertElement(modularUI, TrinityDataCoreStatusPanel.PANEL_ID);
         assertSame(root, statusPanel.getParent());
-        assertAbsoluteBox(statusPanel, 0, 0, 256, 114);
         UIElement leftStatusPanel = assertElement(modularUI, TrinityDataCoreStatusPanel.LEFT_PANEL_ID);
         assertSame(statusPanel, leftStatusPanel.getParent());
-        assertAbsoluteBox(leftStatusPanel, 5, 15, 128, 99);
         UIElement rightStatusPanel = assertElement(modularUI, TrinityDataCoreStatusPanel.RIGHT_PANEL_ID);
         assertSame(statusPanel, rightStatusPanel.getParent());
-        assertAbsoluteBox(rightStatusPanel, 134, 15, 117, 64);
         assertEquals(1, label(modularUI, TrinityDataCoreStatusPanel.ONLINE_ID).getBoundDataSources().size());
 
         UIElement storagePanel = assertElement(modularUI, TrinityDataCoreStoragePanel.PANEL_ID);
         assertSame(root, storagePanel.getParent());
-        assertAbsoluteBox(storagePanel, 134, 82, 117, 32);
         Label amountLabel = label(modularUI, TrinityDataCoreStoragePanel.AMOUNT_ID);
-        assertAbsolutePosition(amountLabel, 2, 2);
         assertEquals(1, amountLabel.getBoundDataSources().size());
         Label typesLabel = label(modularUI, TrinityDataCoreStoragePanel.TYPES_ID);
-        assertAbsolutePosition(typesLabel, 2, 12);
         assertEquals(1, typesLabel.getBoundDataSources().size());
         TrinityStorageCapacityBar capacityBar = singleElement(
                 modularUI,
                 TrinityStorageCapacityBar.class);
         assertSame(storagePanel, capacityBar.getParent());
-        assertAbsoluteBox(capacityBar, 0, 24, 116, 6);
         assertEquals(1, capacityBar.getBoundDataSources().size());
         assertSame(
                 capacityBar,
@@ -106,36 +95,33 @@ public final class TrinityDataCoreHostUiGameTest {
 
         TrinityCpuStatusList cpuList = singleElement(modularUI, TrinityCpuStatusList.class);
         assertSame(root, cpuList.getParent());
-        assertAbsoluteBox(cpuList, 168, 129, 84, 76);
         assertEquals(1, cpuList.getBoundDataSources().size());
         assertSame(cpuList, cpuList.getScrollerView().getParent());
 
-        UIElement playerInventoryPanel = assertElement(modularUI, AePlayerInventoryPanel.PANEL_ID);
-        assertSame(root, playerInventoryPanel.getParent());
-        assertAbsoluteBox(playerInventoryPanel, 5, 129, 162, 76);
-        assertEquals(6, TrinityDataCoreHostUi.PLAYER_INVENTORY_LAYOUT.slotLeft());
-        assertEquals(130, TrinityDataCoreHostUi.PLAYER_INVENTORY_LAYOUT.inventoryTop());
-        assertEquals(188, TrinityDataCoreHostUi.PLAYER_INVENTORY_LAYOUT.hotbarTop());
-        AeItemSlot firstInventorySlot = requireAeSlot(
-                holder,
-                menu.getSlots(SlotSemantics.PLAYER_INVENTORY).getFirst());
-        assertSame(playerInventoryPanel, firstInventorySlot.getParent());
-        assertAbsolutePosition(firstInventorySlot, 0, 0);
-        AeItemSlot firstHotbarSlot = requireAeSlot(
-                holder,
-                menu.getSlots(SlotSemantics.PLAYER_HOTBAR).getFirst());
-        assertSame(playerInventoryPanel, firstHotbarSlot.getParent());
-        assertAbsolutePosition(firstHotbarSlot, 0, 58);
+        InventorySlots playerInventorySlots = singleElement(modularUI, InventorySlots.class);
+        assertSame(root, playerInventorySlots.getParent());
+        assertEquals(TrinityDataCoreHostUi.PLAYER_INVENTORY_ID, playerInventorySlots.getId());
+        assertSame(menu.slots.getFirst(), playerInventorySlots.rows[0].slots[0].getSlot());
+        assertSame(menu.slots.get(27), playerInventorySlots.hotbar.slots[0].getSlot());
+        for (int row = 0; row < playerInventorySlots.rows.length; row++) {
+            for (int column = 0; column < playerInventorySlots.rows[row].slots.length; column++) {
+                assertSame(
+                        menu.slots.get(row * 9 + column),
+                        playerInventorySlots.rows[row].slots[column].getSlot());
+            }
+        }
+        for (int column = 0; column < playerInventorySlots.hotbar.slots.length; column++) {
+            assertSame(menu.slots.get(27 + column), playerInventorySlots.hotbar.slots[column].getSlot());
+        }
 
         UIElement launcherPanel = assertElement(modularUI, TrinityDataCoreHostLauncherPanel.PANEL_ID);
         assertSame(root, launcherPanel.getParent());
-        assertAbsoluteBox(launcherPanel, 238, 1, 14, 14);
-        assertEquals(
-                Integer.valueOf(TrinityDataCoreHostLauncherPanel.PANEL_Z_INDEX),
-                launcherPanel.getStyle().getImportant(PropertyRegistry.Z_INDEX));
         UIElement autoBuildLauncher = assertElement(modularUI, TrinityDataCoreHostLauncherPanel.AUTO_BUILD_ID);
         assertSame(launcherPanel, autoBuildLauncher.getParent());
-        assertAbsoluteBox(autoBuildLauncher, 0, 0, 14, 14);
+        menu.removed(player);
+        assertTrue(menu.getHostUiExtension().isDisposed());
+        menu.removed(player);
+        assertTrue(menu.getHostUiExtension().isDisposed());
         helper.succeed();
     }
 
@@ -175,11 +161,12 @@ public final class TrinityDataCoreHostUiGameTest {
         throw new GameTestAssertException("LDLib2 did not enhance the Trinity Data Core menu");
     }
 
-    private static AeItemSlot requireAeSlot(IModularUIHolderMenu holder, Slot slot) {
-        if (holder.getItemSlot(slot) instanceof AeItemSlot wrapper) {
-            return wrapper;
+    private static ItemSlot requireItemSlot(IModularUIHolderMenu holder, Slot slot) {
+        ItemSlot itemSlot = holder.getItemSlot(slot);
+        if (itemSlot != null) {
+            return itemSlot;
         }
-        throw new GameTestAssertException("Existing menu slot " + slot.index + " has no AeItemSlot wrapper");
+        throw new GameTestAssertException("Menu slot " + slot.index + " has no LDLib2 ItemSlot mapping");
     }
 
     private static UIElement assertElement(ModularUI modularUI, String id) {
@@ -199,22 +186,6 @@ public final class TrinityDataCoreHostUiGameTest {
         return elements.getFirst();
     }
 
-    private static void assertAbsoluteBox(UIElement element, int left, int top, int width, int height) {
-        assertAbsolutePosition(element, left, top);
-        assertDimensions(element, width, height);
-    }
-
-    private static void assertAbsolutePosition(UIElement element, int left, int top) {
-        assertEquals(TaffyPosition.ABSOLUTE, element.getLayout().getInline(LayoutProperties.POSITION));
-        assertEquals(LengthPercentageAuto.length(left), element.getLayout().getInline(LayoutProperties.LEFT));
-        assertEquals(LengthPercentageAuto.length(top), element.getLayout().getInline(LayoutProperties.TOP));
-    }
-
-    private static void assertDimensions(UIElement element, int width, int height) {
-        assertEquals(TaffyDimension.length(width), element.getLayout().getInline(LayoutProperties.WIDTH));
-        assertEquals(TaffyDimension.length(height), element.getLayout().getInline(LayoutProperties.HEIGHT));
-    }
-
     private static Label label(ModularUI modularUI, String id) {
         if (modularUI.getElementById(id) instanceof Label label) {
             return label;
@@ -231,6 +202,12 @@ public final class TrinityDataCoreHostUiGameTest {
     private static void assertSame(Object expected, Object actual) {
         if (expected != actual) {
             throw new GameTestAssertException("Expected identical objects");
+        }
+    }
+
+    private static void assertTrue(boolean condition) {
+        if (!condition) {
+            throw new GameTestAssertException("Expected condition to be true");
         }
     }
 

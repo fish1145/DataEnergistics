@@ -16,15 +16,16 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
-import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -53,8 +54,6 @@ import appeng.api.util.AECableType;
 import appeng.api.util.IConfigManager;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import appeng.menu.ISubMenu;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import appeng.util.NullConfigManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
@@ -174,11 +173,13 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             player.closeContainer();
             return;
         }
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            LOGGER.error("Cannot return from Trinity CPU status outside a server player context: player={}", player);
+            player.closeContainer();
+            return;
+        }
         try {
-            if (MenuOpener.returnTo(
-                    ModMenus.TRINITY_DATA_CORE.get(),
-                    player,
-                    MenuLocators.forBlockEntity(host))) {
+            if (TrinityDataCoreMenu.open(serverPlayer, host)) {
                 return;
             }
             LOGGER.error("Failed to return from Trinity CPU status to host {} at {}",

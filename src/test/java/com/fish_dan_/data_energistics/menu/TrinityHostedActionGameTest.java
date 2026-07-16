@@ -45,7 +45,6 @@ import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import appeng.menu.locator.MenuLocators;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -208,7 +207,6 @@ public final class TrinityHostedActionGameTest {
                 outbound::add,
                 executor,
                 TrinityHostedActionGameTest::registerProviders);
-        menu.setLocator(MenuLocators.forBlockEntity(host));
         serverPlayer.containerMenu = menu;
         assertTrue(menu.isHostUiAvailable(serverPlayer));
         return new Fixture(serverPlayer, menu, executor, outbound);

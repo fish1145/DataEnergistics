@@ -3,16 +3,16 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
-import com.fish_dan_.data_energistics.gui.ldlib2.AeMenuBridge;
-import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryLayout;
-import com.fish_dan_.data_energistics.gui.ldlib2.AePlayerInventoryPanel;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiCoordinator;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostUiExtension;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
@@ -21,9 +21,13 @@ import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -36,11 +40,16 @@ public final class TrinityDataCoreHostUi {
     static final String ROOT_ID = "trinity_data_core_root";
     static final String TITLE_ID = "trinity_data_core_title";
     static final String PLAYER_INVENTORY_TITLE_ID = "trinity_data_core_player_inventory_title";
+    static final String PLAYER_INVENTORY_ID = "trinity_data_core_player_inventory";
     private static final int WIDTH = 256;
     private static final int HEIGHT = 212;
     static final int CPU_LIST_LEFT = 168;
     static final int CPU_LIST_TOP = 129;
-    static final AePlayerInventoryLayout PLAYER_INVENTORY_LAYOUT = new AePlayerInventoryLayout(6, 130, 188);
+    private static final int PLAYER_INVENTORY_LEFT = 5;
+    private static final int PLAYER_INVENTORY_TOP = 129;
+    private static final int PLAYER_INVENTORY_WIDTH = 162;
+    private static final int PLAYER_INVENTORY_HEIGHT = 76;
+    private static final int PLAYER_HOTBAR_MARGIN_TOP = 4;
     private static final IGuiTexture ROOT_BACKGROUND = GuiTextureGroup.of(
             new ColorRectTexture(0xFFE3E3EA),
             new ColorBorderTexture(-1, 0xFF696D88));
@@ -52,7 +61,7 @@ public final class TrinityDataCoreHostUi {
     private TrinityDataCoreHostUi() {}
 
     /**
-     * Builds and mounts the complete root after the AE2 menu has created all of its existing slots.
+     * Builds the complete root and lets LDLib2 create and register the native player inventory slots during mount.
      *
      * @param menu               menu whose server and client instances must construct an identical root tree
      * @param coordinatorFactory side-specific endpoint factory bound before ModularUI registration begins
@@ -69,7 +78,7 @@ public final class TrinityDataCoreHostUi {
             throw new IllegalArgumentException("Trinity Data Core coordinator factory must not be null");
         }
 
-        AeMenuBridge bridge = AeMenuBridge.create(menu);
+        IModularUIHolderMenu holder = requireUnmountedMenu(menu);
         TrinityDataCoreUiSync sync = TrinityDataCoreUiSync.create(menu);
         UIElement root = new UIElement();
         root.setId(ROOT_ID);
@@ -88,16 +97,13 @@ public final class TrinityDataCoreHostUi {
             root.addChild(title(
                     PLAYER_INVENTORY_TITLE_ID,
                     Component.translatable("container.inventory"),
-                    PLAYER_INVENTORY_LAYOUT.slotLeft(),
-                    PLAYER_INVENTORY_LAYOUT.inventoryTop() - 11,
-                    162));
+                    PLAYER_INVENTORY_LEFT + 1,
+                    PLAYER_INVENTORY_TOP - 10,
+                    PLAYER_INVENTORY_WIDTH));
             root.addChild(TrinityDataCoreStatusPanel.create(sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreStoragePanel.create(sync.storageStatusProvider()));
-            root.addChild(AePlayerInventoryPanel.create(
-                    menu,
-                    bridge,
-                    PLAYER_INVENTORY_LAYOUT,
-                    PLAYER_SLOT_BACKGROUND));
+            InventorySlots playerInventorySlots = playerInventorySlots();
+            root.addChild(playerInventorySlots);
             root.addChild(cpuList(menu, sync.cpuListStatusProvider(), sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreHostLauncherPanel.create(hostUi));
             HostUiCoordinator coordinator = coordinatorFactory.apply(hostUi);
@@ -106,10 +112,12 @@ public final class TrinityDataCoreHostUi {
             }
             modularUI = hostUi.createModularUI(UI.of(root), menu.getPlayer());
             sync.register(modularUI);
-            bridge.mount(modularUI);
+            mountNativePlayerInventory(menu, holder, modularUI, playerInventorySlots);
             return coordinator;
         } catch (RuntimeException | Error failure) {
-            Data_Energistics.LOGGER.error("Failed to create the Trinity Data Core LDLib2 host UI", failure);
+            Data_Energistics.LOGGER.error(
+                    "Failed to create the Trinity Data Core LDLib2 host UI; discard this menu and UI instance",
+                    failure);
             try {
                 if (modularUI == null) {
                     HostUiExtension.discardUnmounted(hostUi);
@@ -124,6 +132,105 @@ public final class TrinityDataCoreHostUi {
             }
             throw failure;
         }
+    }
+
+    private static InventorySlots playerInventorySlots() {
+        InventorySlots inventorySlots = new InventorySlots();
+        inventorySlots.setId(PLAYER_INVENTORY_ID);
+        inventorySlots.hotbar.getLayout().marginTop(PLAYER_HOTBAR_MARGIN_TOP);
+        inventorySlots.apply(slot -> slot.getStyle().backgroundTexture(PLAYER_SLOT_BACKGROUND));
+        inventorySlots.layout(layout -> layout
+                .positionType(TaffyPosition.ABSOLUTE)
+                .left(PLAYER_INVENTORY_LEFT)
+                .top(PLAYER_INVENTORY_TOP)
+                .width(PLAYER_INVENTORY_WIDTH)
+                .height(PLAYER_INVENTORY_HEIGHT));
+        return inventorySlots;
+    }
+
+    /** Validates every invariant that can be checked before LDLib2 mutates the menu. */
+    private static IModularUIHolderMenu requireUnmountedMenu(TrinityDataCoreMenu menu) {
+        if (!(menu instanceof IModularUIHolderMenu holder)) {
+            throw mountViolation("menu is not an IModularUIHolderMenu: " + menu.getClass().getName());
+        }
+        if (holder.getModularUI() != null) {
+            throw mountViolation("menu already has a ModularUI: " + menu.getClass().getName());
+        }
+        if (!menu.slots.isEmpty()) {
+            throw mountViolation("menu must not pre-create slots before InventorySlots mounts; found " +
+                    menu.slots.size());
+        }
+        return holder;
+    }
+
+    /** Mounts once, then proves the native slot order and both sides of LDLib2's slot mapping. */
+    private static void mountNativePlayerInventory(TrinityDataCoreMenu menu,
+                                                   IModularUIHolderMenu holder,
+                                                   HostModularUI modularUI,
+                                                   InventorySlots inventorySlots) {
+        if (modularUI.getMenu() != null) {
+            throw mountViolation("ModularUI is already attached to a menu");
+        }
+        if (modularUI.player != menu.getPlayer()) {
+            throw mountViolation("ModularUI player does not own the Trinity Data Core menu");
+        }
+        List<ItemSlot> expectedSlots = orderedPlayerSlots(inventorySlots);
+        if (expectedSlots.size() != 36) {
+            throw mountViolation("Trinity Data Core UI must contain exactly 36 native player ItemSlots");
+        }
+
+        holder.setModularUI(modularUI);
+
+        if (holder.getModularUI() != modularUI || modularUI.getMenu() != menu) {
+            throw mountViolation("LDLib2 did not establish the expected menu/UI references");
+        }
+        if (menu.slots.size() != expectedSlots.size()) {
+            throw mountViolation("LDLib2 mounted " + menu.slots.size() + " menu slots instead of 36");
+        }
+        List<InventorySlots> inventories = modularUI.getElementsByType(InventorySlots.class);
+        if (inventories.size() != 1 || inventories.getFirst() != inventorySlots) {
+            throw mountViolation("Trinity Data Core UI must contain its exact single InventorySlots instance");
+        }
+        List<ItemSlot> mountedSlots = modularUI.getElementsByType(ItemSlot.class);
+        if (mountedSlots.size() != expectedSlots.size()) {
+            throw mountViolation("LDLib2 did not mount the complete native player ItemSlot tree");
+        }
+        for (int index = 0; index < expectedSlots.size(); index++) {
+            if (mountedSlots.get(index) != expectedSlots.get(index)) {
+                throw mountViolation("LDLib2 reordered the native player ItemSlot tree at index " + index);
+            }
+        }
+        Inventory playerInventory = menu.getPlayer().getInventory();
+        for (int menuIndex = 0; menuIndex < expectedSlots.size(); menuIndex++) {
+            ItemSlot itemSlot = expectedSlots.get(menuIndex);
+            Slot slot = itemSlot.getSlot();
+            int inventoryIndex = menuIndex < 27 ? menuIndex + 9 : menuIndex - 27;
+            if (menu.slots.get(menuIndex) != slot || slot.index != menuIndex) {
+                throw mountViolation("native player slot order diverged at menu index " + menuIndex);
+            }
+            if (slot.container != playerInventory || slot.getContainerSlot() != inventoryIndex) {
+                throw mountViolation("menu slot " + menuIndex + " is not bound to player inventory index " +
+                        inventoryIndex);
+            }
+            if (holder.getItemSlot(slot) != itemSlot || itemSlot.getSlot() != slot) {
+                throw mountViolation("LDLib2 did not retain the native ItemSlot mapping at menu index " +
+                        menuIndex);
+            }
+        }
+    }
+
+    private static List<ItemSlot> orderedPlayerSlots(InventorySlots inventorySlots) {
+        List<ItemSlot> slots = new ArrayList<>(36);
+        for (InventorySlots.Row row : inventorySlots.rows) {
+            slots.addAll(List.of(row.slots));
+        }
+        slots.addAll(List.of(inventorySlots.hotbar.slots));
+        return slots;
+    }
+
+    private static IllegalStateException mountViolation(String message) {
+        Data_Energistics.LOGGER.error("Trinity Data Core native LDLib2 mount invariant failed: {}", message);
+        return new IllegalStateException(message);
     }
 
     private static Label title(String id, Component text, int left, int top, int width) {
