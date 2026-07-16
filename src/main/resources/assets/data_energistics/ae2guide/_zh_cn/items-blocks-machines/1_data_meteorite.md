@@ -133,6 +133,6 @@ item_ids:
 > 使用方法与普通的陨石罗盘一致
 
 <Row>
-    <ItemImage id="data_energistics:data_meteorite_compass" />
+    <ItemImage id="data_energistics:data_meteorite_compass" scale="6" />
     <RecipeFor id="data_energistics:data_meteorite_compass" />
 </Row> 

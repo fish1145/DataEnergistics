@@ -109,7 +109,7 @@ After assembly, you can obtain Data Flow storage components of the corresponding
   </Row>
 
   <Row>
-    <Recipe id="data_energistics:crafting/cell/data_flow_cell_1k_1" />
+    <Recipe id="data_energistics:data_energistics/crafting/cell/data_flow_cell_1k_1" />
   </Row>
 </Column>
 

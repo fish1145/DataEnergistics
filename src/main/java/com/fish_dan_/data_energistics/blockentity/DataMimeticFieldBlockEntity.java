@@ -105,15 +105,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     public static final int MAX_CAPACITY_CARDS = 1;
     public static final int SLOT_COUNT = BASE_ACTIVE_SLOTS + EXTRA_SLOTS_PER_CAPACITY_CARD * MAX_CAPACITY_CARDS;
     public static final double ENERGY_CACHE_CAPACITY = 1600.0;
-    public static final long KEY_INPUT_CAPACITY = 64_000L;
+    public static final long KEY_INPUT_CAPACITY = 640_000L;
     private static final int HIDDEN_BUFFER_SLOTS = 64;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
-    private static final long DATA_FLOW_PER_WORK_CYCLE = 320L;
+    private static final long DATA_FLOW_PER_WORK_CYCLE = 3_200L;
     private static final int BASE_WORK_INTERVAL_TICKS = 200;
-    private static final int OUTPUT_MULTIPLIER = 10;
-    private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 64;
-    private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 64;
     private static final int OUTPUT_PER_SPEED_CARD = 800;
+    private static final int OUTPUT_REDUCTION_DIVISOR = 7;
+    private static final int OUTPUT_SCALE = 2;
     private static final int HIDDEN_BUFFER_FLUSH_INTERVAL_TICKS = 5;
     private static final int UPGRADE_SLOTS = 6;
     private static final long DATA_FLOW_PER_CONVERTED_ITEM = 1L;
@@ -1439,11 +1438,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public int getBiologyLootRollsPerCycle() {
-        return OUTPUT_PER_SPEED_CARD * (getInstalledSpeedCardCount() + 1);
+        return (OUTPUT_PER_SPEED_CARD * (getInstalledSpeedCardCount() + 1) * OUTPUT_SCALE) / OUTPUT_REDUCTION_DIVISOR;
     }
 
     public int getOreOutputRollsPerCycle() {
-        return OUTPUT_PER_SPEED_CARD * (getInstalledSpeedCardCount() + 1);
+        return (OUTPUT_PER_SPEED_CARD * (getInstalledSpeedCardCount() + 1) * OUTPUT_SCALE) / OUTPUT_REDUCTION_DIVISOR;
     }
 
     private int computeWorkIntervalTicks() {
@@ -1487,7 +1486,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private long getDataFlowCostPerWorkCycle(int activeCarrierCount) {
-        return (long) activeCarrierCount * (DATA_FLOW_PER_WORK_CYCLE + getInstalledSpeedCardCount() * 50L);
+        return (long) activeCarrierCount * (DATA_FLOW_PER_WORK_CYCLE + getInstalledSpeedCardCount() * 500L);
     }
 
     private void refillEnergyCache() {
