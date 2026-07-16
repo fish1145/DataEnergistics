@@ -9,9 +9,6 @@ ldlib = "2.2.28"
 mekanism = "1.21.1-10.7.19.85"
 pneumaticcraft = "8.2.9+mc1.21.1"
 kotlinforforge = "5.7.0"
-create = "6.0.8-168"
-ponder = "1.0.64"
-flywheel = "1.0.5"
 curios = "9.5.1+1.21.1"
 architectury = "13.0.8"
 
@@ -71,10 +68,6 @@ ldlib               = { module = "com.lowdragmc.ldlib2:ldlib2-neoforge-1.21.1", 
 mek                 = { module = "mekanism:Mekanism", version.ref = "mekanism" }
 pneumaticcraft      = { module = "me.desht.pneumaticcraft:pneumaticcraft-repressurized", version.ref = "pneumaticcraft" }
 kotlinforforge      = { module = "thedarkcolour:kotlinforforge-neoforge", version.ref = "kotlinforforge" }
-create              = { module = "com.simibubi.create:create-1.21.1", version.ref = "create" }
-ponder              = { module = "net.createmod.ponder:Ponder-NeoForge-1.21.1", version.ref = "ponder"}
-flywheel-forge-api  = { module = "dev.engine-room.flywheel:flywheel-neoforge-api-1.21.1", version.ref = "flywheel"}
-flywheel-forge      = { module = "dev.engine-room.flywheel:flywheel-neoforge-1.21.1", version.ref = "flywheel"}
 curios              = { module = "top.theillusivec4.curios:curios-neoforge", version.ref = "curios" }
 architectury        = { module = "dev.architectury:architectury-neoforge", version.ref = "architectury" }
 

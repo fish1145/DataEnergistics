@@ -26,7 +26,6 @@ dependencies {
     compileOnly(forge.actually.additions)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
-    compileOnly(forge.create)
     compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
     compileOnly(forge.sut)
@@ -77,11 +76,6 @@ dependencies {
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.mek)
     localRuntime(forge.oritech)
-    localRuntime(forge.create) {
-        // Needed to prevent game-test crashes
-        exclude group: "maven.modrinth", module: "journeymap"
-        exclude group: "info.journeymap", module: "journeymap-api-neoforge"
-    }
 
     extraLocalRuntime(forge.sut)
 
