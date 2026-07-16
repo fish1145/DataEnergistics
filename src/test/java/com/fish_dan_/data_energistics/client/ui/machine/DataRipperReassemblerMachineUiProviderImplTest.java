@@ -511,19 +511,21 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         var provider = new DataRipperReassemblerMachineUiProviderImpl();
         ModularUI modularUI = provider.createModularUI(state);
         state.menu.setModularUI(modularUI);
-        modularUI.init(176, 183);
+        modularUI.init(400, 300);
 
         provider.openOutputDialog();
-        modularUI.init(176, 183);
+        modularUI.init(400, 300);
         assertTrue(provider.isOutputDialogOpen());
         Dialog dialog = assertInstanceOf(
                 Dialog.class,
                 modularUI.ui.rootElement.getChildren().getLast());
+        int left = Math.round(modularUI.getLeftPos());
+        int top = Math.round(modularUI.getTopPos());
 
-        assertModalMouseTarget(modularUI, dialog, 10, 170);
-        assertModalMouseTarget(modularUI, dialog, -7, 10);
-        assertModalMouseTarget(modularUI, dialog, 180, 10);
-        assertModalMouseTarget(modularUI, dialog, 180, 100);
+        assertModalMouseTarget(modularUI, dialog, left + 10, top + 170);
+        assertModalMouseTarget(modularUI, dialog, left - 7, top + 10);
+        assertModalMouseTarget(modularUI, dialog, left + 180, top + 10);
+        assertModalMouseTarget(modularUI, dialog, left + 180, top + 100);
 
         assertSame(dialog, modularUI.getFocusedElement());
         assertTrue(provider.isOutputDialogOpen());

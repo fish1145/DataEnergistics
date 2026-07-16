@@ -311,8 +311,8 @@ public final class DataRipperReassemblerMachineUiProviderImpl
             throw new IllegalStateException("External data reassembler UI layout is unavailable");
         }
         return new Rect2i(
-                Math.round(element.getPositionX()),
-                Math.round(element.getPositionY()),
+                Math.round(element.getLayoutX()),
+                Math.round(element.getLayoutY()),
                 width,
                 height);
     }
