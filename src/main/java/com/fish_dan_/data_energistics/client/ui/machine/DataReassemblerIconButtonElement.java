@@ -53,12 +53,10 @@ final class DataReassemblerIconButtonElement extends Button {
     public void drawBackgroundAdditional(GUIContext guiContext) {
         int x = Math.round(getPositionX());
         int y = Math.round(getPositionY());
-        boolean hovered = getState() != State.DEFAULT;
-        int yOffset = hovered && !this.small ? 1 : 0;
+        int yOffset = contentYOffset();
 
         if (!this.small) {
-            Icon background = hovered ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : this.selectedSupplier.getAsBoolean() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
-            background.getBlitter().dest(x - 1, y + yOffset, 18, 20).zOffset(2).blit(guiContext.graphics);
+            backgroundIcon().getBlitter().dest(x - 1, y + yOffset, 18, 20).zOffset(2).blit(guiContext.graphics);
         }
 
         ItemStack item = this.itemSupplier.get();
@@ -73,5 +71,19 @@ final class DataReassemblerIconButtonElement extends Button {
                         .blit(guiContext.graphics);
             }
         }
+    }
+
+    Icon backgroundIcon() {
+        if (getState() != State.DEFAULT) {
+            return Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER;
+        }
+        if (this.selectedSupplier.getAsBoolean() || isFocused()) {
+            return Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS;
+        }
+        return Icon.TOOLBAR_BUTTON_BACKGROUND;
+    }
+
+    int contentYOffset() {
+        return getState() != State.DEFAULT && !this.small ? 1 : 0;
     }
 }

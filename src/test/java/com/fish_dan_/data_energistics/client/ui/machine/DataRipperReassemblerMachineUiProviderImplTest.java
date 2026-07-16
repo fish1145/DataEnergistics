@@ -169,6 +169,95 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     @Test
+    void toolbarKeepsTheAe2BoundsForEveryVisibleButtonCount() {
+        FakeMachineUiStateImpl oneButtonState = new FakeMachineUiStateImpl();
+        assertToolbarBounds(initializedUi(oneButtonState), 24, 28);
+
+        FakeMachineUiStateImpl twoButtonState = new FakeMachineUiStateImpl();
+        twoButtonState.hasHelp = true;
+        assertToolbarBounds(initializedUi(twoButtonState), 46, 50);
+
+        FakeMachineUiStateImpl threeButtonState = new FakeMachineUiStateImpl();
+        threeButtonState.hasHelp = true;
+        threeButtonState.autoExportEnabled = true;
+        assertToolbarBounds(initializedUi(threeButtonState), 68, 72);
+    }
+
+    @Test
+    void toolbarOnlyHitsItsFocusableButtons() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        state.hasHelp = true;
+        state.autoExportEnabled = true;
+        ModularUI modularUI = initializedUi(state);
+        UIElement toolbar = element(modularUI, "toolbar");
+        UIElement helpButton = element(modularUI, "toolbar-help");
+        UIElement autoExportButton = element(modularUI, "toolbar-auto-export");
+        UIElement outputSidesButton = element(modularUI, "toolbar-output-sides");
+
+        assertFalse(toolbar.isAllowHitTest());
+        assertTrue(helpButton.isFocusable());
+        assertTrue(autoExportButton.isFocusable());
+        assertTrue(outputSidesButton.isFocusable());
+        assertNull(modularUI.ui.rootElement.hitTest(-16, 10));
+        assertNull(modularUI.ui.rootElement.hitTest(-7, 22));
+        assertNull(modularUI.ui.rootElement.hitTest(-7, 44));
+        assertSame(helpButton, modularUI.ui.rootElement.hitTest(-7, 10).getA());
+        assertSame(autoExportButton, modularUI.ui.rootElement.hitTest(-7, 32).getA());
+        assertSame(outputSidesButton, modularUI.ui.rootElement.hitTest(-7, 54).getA());
+    }
+
+    @Test
+    void toolbarButtonsKeepAe2HoverFocusAndPressedStates() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        state.autoExportEnabled = true;
+        ModularUI modularUI = initializedUi(state);
+        DataReassemblerIconButtonElement autoExportButton = assertInstanceOf(
+                DataReassemblerIconButtonElement.class,
+                element(modularUI, "toolbar-auto-export"));
+
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND, autoExportButton.backgroundIcon());
+        assertEquals(0, autoExportButton.contentYOffset());
+
+        modularUI.requestFocus(autoExportButton);
+        assertTrue(autoExportButton.isFocused());
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS, autoExportButton.backgroundIcon());
+        assertEquals(0, autoExportButton.contentYOffset());
+
+        dispatchMouse(autoExportButton, UIEvents.MOUSE_ENTER);
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER, autoExportButton.backgroundIcon());
+        assertEquals(1, autoExportButton.contentYOffset());
+
+        dispatchMouse(autoExportButton, UIEvents.MOUSE_DOWN);
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER, autoExportButton.backgroundIcon());
+        assertEquals(1, autoExportButton.contentYOffset());
+
+        dispatchMouse(autoExportButton, UIEvents.MOUSE_LEAVE);
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS, autoExportButton.backgroundIcon());
+        assertEquals(0, autoExportButton.contentYOffset());
+    }
+
+    @Test
+    void selectedIconButtonsKeepTheirSelectionWithoutFocus() {
+        boolean[] selected = { false };
+        var button = new DataReassemblerIconButtonElement(
+                Icon.HELP::getBlitter,
+                () -> ItemStack.EMPTY,
+                List::of,
+                () -> selected[0],
+                false,
+                () -> {});
+
+        assertFalse(button.isFocusable());
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND, button.backgroundIcon());
+        selected[0] = true;
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS, button.backgroundIcon());
+
+        dispatchMouse(button, UIEvents.MOUSE_ENTER);
+        assertSame(Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER, button.backgroundIcon());
+        assertEquals(1, button.contentYOffset());
+    }
+
+    @Test
     void repeatedAutoExportClicksUseTheLatestLocalValue() {
         FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
         var provider = new DataRipperReassemblerMachineUiProviderImpl();
@@ -256,6 +345,7 @@ class DataRipperReassemblerMachineUiProviderImplTest {
         private final List<Boolean> autoExportRequests = new ArrayList<>();
         private int nextContainerSlot;
         private boolean autoExportEnabled;
+        private boolean hasHelp;
         private boolean hasProgressRange;
         private double progressFraction;
         private int progressPercent;
@@ -375,7 +465,7 @@ class DataRipperReassemblerMachineUiProviderImplTest {
 
         @Override
         public boolean hasHelp() {
-            return false;
+            return this.hasHelp;
         }
 
         @Override
@@ -409,6 +499,32 @@ class DataRipperReassemblerMachineUiProviderImplTest {
 
     private static boolean hasArea(List<Rect2i> areas, int x, int y, int width, int height) {
         return areas.stream().anyMatch(area -> area.getX() == x && area.getY() == y && area.getWidth() == width && area.getHeight() == height);
+    }
+
+    private static UIElement element(ModularUI modularUI, String id) {
+        return modularUI.ui.selectId(id).findFirst().orElseThrow();
+    }
+
+    private static void assertToolbarBounds(ModularUI modularUI, int toolbarHeight, int backgroundHeight) {
+        var toolbar = assertInstanceOf(
+                DataRipperReassemblerMachineUiProviderImpl.ToolbarElement.class,
+                element(modularUI, "toolbar"));
+        assertElementBounds(toolbar, -17, 1, 20, toolbarHeight);
+        assertRect(toolbar.backgroundBounds(), -19, 0, 21, backgroundHeight);
+        assertTrue(hasArea(modularUI.getGuiExtraAreas(), -17, 1, 20, toolbarHeight));
+    }
+
+    private static void assertRect(Rect2i rect, int x, int y, int width, int height) {
+        assertEquals(x, rect.getX());
+        assertEquals(y, rect.getY());
+        assertEquals(width, rect.getWidth());
+        assertEquals(height, rect.getHeight());
+    }
+
+    private static void dispatchMouse(UIElement target, String eventType) {
+        UIEvent event = UIEvent.create(eventType);
+        event.target = target;
+        UIEventDispatcher.dispatchEvent(event, false, false, false);
     }
 
     private static void assertElementBounds(UIElement element, int x, int y, int width, int height) {

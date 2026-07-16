@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.ui.DataReassemblerProgressElement;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.Slot;
@@ -12,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.client.gui.Icon;
 import appeng.client.gui.StackWithBounds;
+import appeng.core.AppEng;
 import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.GuiText;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
@@ -27,6 +29,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.IModularUIProvider;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyPosition;
@@ -52,6 +55,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
     private static final ResourceLocation EXTRA_PANELS = ResourceLocation.fromNamespaceAndPath(
             "ae2",
             "textures/guis/extra_panels.png");
+    private static final ResourceLocation TOOLBAR_BACKGROUND = AppEng.makeId("vertical_buttons_bg");
     private static final IGuiTexture SLOT_HOVER = GuiTextureGroup.of(
             new ColorRectTexture(0x6693FFDE),
             new ColorBorderTexture(1, 0xFF57E0BB));
@@ -235,45 +239,47 @@ public final class DataRipperReassemblerMachineUiProviderImpl
     }
 
     private void addToolbar() {
-        var toolbar = new UIElement();
-        toolbar.getLayout().positionType(TaffyPosition.ABSOLUTE);
-        toolbar.getLayout().left(-15);
-        toolbar.getLayout().top(3);
-        toolbar.getLayout().width(16);
-        toolbar.getLayout().flexDirection(FlexDirection.COLUMN);
-        toolbar.getLayout().gapAll(6);
+        var toolbar = position(new ToolbarElement(), -17, 1);
 
         if (this.state.hasHelp()) {
-            toolbar.addChild(new DataReassemblerIconButtonElement(
+            toolbar.addChild(toolbarButton("toolbar-help", new DataReassemblerIconButtonElement(
                     Icon.HELP::getBlitter,
                     () -> ItemStack.EMPTY,
                     () -> List.of(ButtonToolTips.OpenGuide.text(), ButtonToolTips.OpenGuideDetail.text()),
                     () -> false,
                     false,
-                    this.state::openHelp));
+                    this.state::openHelp)));
         }
 
-        toolbar.addChild(new DataReassemblerIconButtonElement(
+        toolbar.addChild(toolbarButton("toolbar-auto-export", new DataReassemblerIconButtonElement(
                 () -> (this.state.isAutoExportEnabled() ? Icon.AUTO_EXPORT_ON : Icon.AUTO_EXPORT_OFF).getBlitter(),
                 () -> ItemStack.EMPTY,
                 () -> List.of(
                         ButtonToolTips.AutoExport.text(),
                         (this.state.isAutoExportEnabled() ? ButtonToolTips.AutoExportOn : ButtonToolTips.AutoExportOff).text()),
-                this.state::isAutoExportEnabled,
+                () -> false,
                 false,
-                this::toggleAutoExport));
+                this::toggleAutoExport)));
 
-        var outputButton = new DataReassemblerIconButtonElement(
+        var outputButton = toolbarButton("toolbar-output-sides", new DataReassemblerIconButtonElement(
                 () -> DataEnergisticsIcon.getBlitter("PLACEMENT_TOOLBOX"),
                 () -> ItemStack.EMPTY,
                 () -> List.of(Component.translatable("gui.data_energistics.set_output_sides.open")),
                 () -> false,
                 false,
-                this::openOutputDialog);
+                this::openOutputDialog));
         outputButton.setDisplay(this.state.isAutoExportEnabled());
         toolbar.addChild(outputButton);
         this.root.addEventListener(UIEvents.TICK, event -> outputButton.setDisplay(this.state.isAutoExportEnabled()));
         this.root.addChild(toolbar);
+    }
+
+    private static DataReassemblerIconButtonElement toolbarButton(
+                                                                  String id,
+                                                                  DataReassemblerIconButtonElement button) {
+        button.setId(id);
+        button.setFocusable(true);
+        return button;
     }
 
     void openOutputDialog() {
@@ -363,5 +369,41 @@ public final class DataRipperReassemblerMachineUiProviderImpl
         element.getLayout().width(width);
         element.getLayout().height(height);
         return element;
+    }
+
+    /** Reproduces AE2's external toolbar frame while leaving interaction to its button children. */
+    static final class ToolbarElement extends UIElement {
+
+        ToolbarElement() {
+            setId("toolbar");
+            setAllowHitTest(false);
+            getLayout().width(20);
+            getLayout().flexDirection(FlexDirection.COLUMN);
+            getLayout().gapAll(6);
+            getLayout().paddingLeft(2);
+            getLayout().paddingTop(2);
+            getLayout().paddingRight(2);
+            getLayout().paddingBottom(6);
+        }
+
+        Rect2i backgroundBounds() {
+            return new Rect2i(
+                    Math.round(getPositionX()) - 2,
+                    Math.round(getPositionY()) - 1,
+                    Math.round(getSizeWidth()) + 1,
+                    Math.round(getSizeHeight()) + 4);
+        }
+
+        @Override
+        public void drawBackgroundAdditional(GUIContext guiContext) {
+            Rect2i bounds = backgroundBounds();
+            guiContext.graphics.blitSprite(
+                    TOOLBAR_BACKGROUND,
+                    bounds.getX(),
+                    bounds.getY(),
+                    1,
+                    bounds.getWidth(),
+                    bounds.getHeight());
+        }
     }
 }
