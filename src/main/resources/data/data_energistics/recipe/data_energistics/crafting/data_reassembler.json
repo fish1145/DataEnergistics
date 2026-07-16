@@ -1,5 +1,5 @@
 {
-	"type": "minecraft:crafting_shaped",
+	"type": "data_energistics:data_reassembler_crafting",
 	"pattern": ["ABJ", "EDC", "WQG"],
 	"key": {
 		"A": {

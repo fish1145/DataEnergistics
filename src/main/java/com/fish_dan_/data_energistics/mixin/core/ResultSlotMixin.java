@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
 import com.fish_dan_.data_energistics.util.PoweredCraftingEnergyHelper;
 
 import net.minecraft.core.NonNullList;
@@ -37,6 +36,5 @@ public abstract class ResultSlotMixin {
                                                                int top,
                                                                NonNullList<ItemStack> remainders) {
         PoweredCraftingEnergyHelper.consumeEnergyFromCraftingRemainders(input, remainders);
-        DataCaptureBallCraftingRemainderHelper.applyDataReassemblerRemainder(input, remainders);
     }
 }
