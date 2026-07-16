@@ -60,8 +60,8 @@ final class DataReassemblerGenericSlotElement extends ItemSlot {
             CustomKeyGuiRenderer.draw(guiContext.mc, guiContext.graphics, x, y, stack.what());
             GenericStackDisplayHelper.renderSmallOverlay(
                     guiContext.graphics,
-                    Math.round(getPositionX()),
-                    Math.round(getPositionY()),
+                    x,
+                    y,
                     GenericStackDisplayHelper.formatCompactAmount(stack));
         }
         super.drawBackgroundAdditional(guiContext);

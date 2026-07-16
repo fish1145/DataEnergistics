@@ -177,7 +177,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
         position(panel, VIEWER_EXCLUSION_MARGIN, VIEWER_EXCLUSION_MARGIN);
         for (int i = 0; i < upgrades.size(); i++) {
             var itemSlot = new DataReassemblerUpgradePanelElement.UpgradeSlot(upgrades.get(i));
-            position(itemSlot, i / 8 * 18, 5 + i % 8 * 18, 18, 18);
+            position(itemSlot, 1 + i / 8 * 18, 6 + i % 8 * 18, 16, 16);
             panel.addChild(itemSlot);
             this.mappedSlots.add(itemSlot);
         }
@@ -305,7 +305,7 @@ public final class DataRipperReassemblerMachineUiProviderImpl
                 storage,
                 () -> this.state.genericStack(storage),
                 () -> this.state.capacity(storage));
-        position(element, contentX - 1, contentY - 1, 18, 18);
+        position(element, contentX, contentY, 16, 16);
         this.root.addChild(element);
         this.genericSlots.add(element);
         this.mappedSlots.add(element);
@@ -314,12 +314,13 @@ public final class DataRipperReassemblerMachineUiProviderImpl
     private void addItemSlot(UIElement parent, Slot slot, int contentX, int contentY, boolean playerSlot) {
         var element = new ItemSlot(slot);
         configureSlot(element, playerSlot);
-        position(element, contentX - 1, contentY - 1, 18, 18);
+        position(element, contentX, contentY, 16, 16);
         parent.addChild(element);
         this.mappedSlots.add(element);
     }
 
     static void configureSlot(ItemSlot slot, boolean playerSlot) {
+        slot.getLayout().paddingAll(0);
         slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
         slot.slotStyle(style -> style
                 .isPlayerSlot(playerSlot)

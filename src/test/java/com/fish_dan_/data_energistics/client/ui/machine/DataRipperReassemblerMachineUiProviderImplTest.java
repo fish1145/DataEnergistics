@@ -117,6 +117,31 @@ class DataRipperReassemblerMachineUiProviderImplTest {
     }
 
     @Test
+    void mappedSlotsOnlyHitTheirSixteenPixelContent() {
+        FakeMachineUiStateImpl state = new FakeMachineUiStateImpl();
+        var provider = new DataRipperReassemblerMachineUiProviderImpl();
+        ModularUI modularUI = provider.createModularUI(state);
+        state.menu.setModularUI(modularUI);
+        provider.mapExistingSlots(state.menu);
+        modularUI.init(176, 183);
+        provider.updateMappedSlotPositions();
+
+        ItemSlot itemInput = state.menu.ldlib2$getItemSlot(state.single(SlotGroup.ITEM_INPUT));
+        ItemSlot keyInput = state.menu.ldlib2$getItemSlot(state.single(SlotGroup.KEY_INPUT));
+        ItemSlot upgrade = state.menu.ldlib2$getItemSlot(state.single(SlotGroup.UPGRADE));
+        ItemSlot toolbox = state.menu.ldlib2$getItemSlot(state.single(SlotGroup.TOOLBOX));
+        assertNotNull(itemInput);
+        assertNotNull(keyInput);
+        assertNotNull(upgrade);
+        assertNotNull(toolbox);
+
+        assertSlotHitBounds(modularUI, itemInput, 19, 22);
+        assertSlotHitBounds(modularUI, keyInput, 74, 40);
+        assertSlotHitBounds(modularUI, upgrade, 175, 6);
+        assertSlotHitBounds(modularUI, toolbox, 175, 99);
+    }
+
+    @Test
     void ldlibViewerExclusionsTrackExternalPanelsWithAndWithoutToolbox() {
         ModularUI withToolbox = initializedUi(new FakeMachineUiStateImpl(true));
         assertTrue(hasArea(withToolbox.getGuiExtraAreas(), 172, -2, 32, 86));
@@ -346,6 +371,24 @@ class DataRipperReassemblerMachineUiProviderImplTest {
 
     private static boolean hasArea(List<Rect2i> areas, int x, int y, int width, int height) {
         return areas.stream().anyMatch(area -> area.getX() == x && area.getY() == y && area.getWidth() == width && area.getHeight() == height);
+    }
+
+    private static void assertSlotHitBounds(ModularUI modularUI, ItemSlot slot, int x, int y) {
+        assertEquals(x, Math.round(slot.getPositionX()));
+        assertEquals(y, Math.round(slot.getPositionY()));
+        assertEquals(16, Math.round(slot.getSizeWidth()));
+        assertEquals(16, Math.round(slot.getSizeHeight()));
+        assertTrue(hits(modularUI, slot, x, y));
+        assertTrue(hits(modularUI, slot, x + 15.5D, y + 15.5D));
+        assertFalse(hits(modularUI, slot, x - 0.5D, y + 8));
+        assertFalse(hits(modularUI, slot, x + 16.0D, y + 8));
+        assertFalse(hits(modularUI, slot, x + 8, y - 0.5D));
+        assertFalse(hits(modularUI, slot, x + 8, y + 16.0D));
+    }
+
+    private static boolean hits(ModularUI modularUI, ItemSlot slot, double x, double y) {
+        var hit = modularUI.ui.rootElement.hitTest(x, y);
+        return hit != null && hit.getA() == slot;
     }
 
     private static final class TestSlotImpl extends Slot implements SlotAccessor {
