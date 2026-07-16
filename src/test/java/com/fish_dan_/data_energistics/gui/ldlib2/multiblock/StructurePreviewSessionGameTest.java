@@ -42,6 +42,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
+import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
@@ -170,7 +171,10 @@ public final class StructurePreviewSessionGameTest {
         assertEquals(1, countId(xei.panel(), "presentation_xei" + StructurePreviewPanel.SELECTED_BLOCK_SUFFIX));
         assertEquals(1, countId(xei.panel(), "presentation_xei" + StructurePreviewPanel.LAYER_ALL_SUFFIX));
 
+        UIElement hostedControls = requireId(hosted.panel(), "presentation_hosted_controls");
         UIElement controls = requireId(xei.panel(), "presentation_xei_controls");
+        assertSame(Sprites.RECT_DARK, hostedControls.getStyle().getInline(PropertyRegistry.BACKGROUND));
+        assertSame(Sprites.RECT_DARK, controls.getStyle().getInline(PropertyRegistry.BACKGROUND));
         assertEquals("presentation_xei_variant", controls.getChildren().get(0).getId());
         assertEquals("presentation_xei_tier", controls.getChildren().get(1).getId());
         assertEquals("presentation_xei_repeat_controls", controls.getChildren().get(2).getId());

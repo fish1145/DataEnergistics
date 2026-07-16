@@ -271,7 +271,7 @@ public final class StructurePreviewPanel extends UIElement {
                 .top(StructurePreviewPresentation.CONTROL_RAIL_TOP)
                 .width(StructurePreviewPresentation.WIDTH)
                 .height(StructurePreviewPresentation.CONTROL_RAIL_HEIGHT));
-        controls.style(style -> style.backgroundTexture(Sprites.BORDER));
+        controls.getStyle().backgroundTexture(Sprites.RECT_DARK);
 
         PreviewStepper variant = new PreviewStepper(
                 this.idPrefix + "_variant",
