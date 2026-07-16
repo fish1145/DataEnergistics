@@ -61,6 +61,8 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
 
     private static final BlockPos REASSEMBLER_POS = new BlockPos(2, 2, 2);
     private static final BlockPos ENERGY_CELL_POS = new BlockPos(3, 2, 2);
+    private static final String ACTION_SET_AUTO_EXPORT = "set_auto_export";
+    private static final String ACTION_SET_OUTPUT_SIDE = "set_output_side";
     private static final GenericStack FLUID_INPUT_A = new GenericStack(AEFluidKey.of(Fluids.WATER), 1_000L);
     private static final GenericStack FLUID_INPUT_B = new GenericStack(AEFluidKey.of(Fluids.LAVA), 2_000L);
     private static final GenericStack FLUID_OUTPUT_A = new GenericStack(AEFluidKey.of(Fluids.WATER), 3_000L);
@@ -88,6 +90,58 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
                         "The real Ender recipe did not advance the machine progress"))
                 .thenExecute(() -> assertMenuBinding(helper, reassembler))
                 .thenSucceed();
+    }
+
+    @TestHolder("data_reassembler_menu_rejects_invalid_client_actions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void menuRejectsInvalidClientActions(GameTestHelper helper) {
+        DataRipperReassemblerBlockEntity reassembler = placePoweredReassembler(helper);
+        ServerPlayer player = createCapturingPlayer(helper);
+        DataRipperReassemblerMenu menu = new DataRipperReassemblerMenu(1, player.getInventory(), reassembler);
+
+        helper.assertFalse(reassembler.isAutoExportEnabled(), "Auto-export must start disabled");
+        menu.receiveClientAction(ACTION_SET_AUTO_EXPORT, "true");
+        helper.assertTrue(reassembler.isAutoExportEnabled(), "A valid true action must enable auto-export");
+        helper.assertValueEqual(menu.getAutoExport(), YesNo.YES, "The menu must mirror enabled auto-export");
+
+        menu.receiveClientAction(ACTION_SET_AUTO_EXPORT, null);
+        helper.assertTrue(reassembler.isAutoExportEnabled(), "A missing auto-export payload must be rejected");
+        helper.assertValueEqual(menu.getAutoExport(), YesNo.YES, "A rejected payload must not change the menu state");
+        menu.receiveClientAction(ACTION_SET_AUTO_EXPORT, "null");
+        helper.assertTrue(reassembler.isAutoExportEnabled(), "A JSON null auto-export payload must be rejected");
+        helper.assertValueEqual(menu.getAutoExport(), YesNo.YES, "A rejected JSON null must not change the menu state");
+
+        menu.receiveClientAction(ACTION_SET_AUTO_EXPORT, "false");
+        helper.assertFalse(reassembler.isAutoExportEnabled(), "A valid false action must disable auto-export");
+        helper.assertValueEqual(menu.getAutoExport(), YesNo.NO, "The menu must mirror disabled auto-export");
+
+        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, "\"north:false\"");
+        helper.assertFalse(
+                reassembler.getOutputSides().contains(Direction.NORTH),
+                "A valid false action must disable the selected output side");
+        helper.assertFalse(
+                menu.getOutputSides().contains(Direction.NORTH),
+                "The menu must mirror a disabled output side");
+        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, "\"north:true\"");
+        helper.assertTrue(
+                reassembler.getOutputSides().contains(Direction.NORTH),
+                "A valid true action must enable the selected output side");
+        helper.assertTrue(
+                menu.getOutputSides().contains(Direction.NORTH),
+                "The menu must mirror an enabled output side");
+
+        assertRejectedOutputSideAction(helper, menu, reassembler, null, true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "null", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\":true\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:true:extra\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"missing:true\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:TRUE\"", false);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:yes\"", true);
+        helper.succeed();
     }
 
     private static DataRipperReassemblerBlockEntity placePoweredReassembler(GameTestHelper helper) {
@@ -353,6 +407,33 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
             mask |= 1 << side.ordinal();
         }
         return mask;
+    }
+
+    private static void assertRejectedOutputSideAction(
+                                                       GameTestHelper helper,
+                                                       DataRipperReassemblerMenu menu,
+                                                       DataRipperReassemblerBlockEntity reassembler,
+                                                       String jsonPayload,
+                                                       boolean northInitiallyEnabled) {
+        reassembler.setOutputSideEnabled(Direction.NORTH, northInitiallyEnabled);
+        menu.broadcastChanges();
+        Set<Direction> expectedSides = Set.copyOf(reassembler.getOutputSides());
+        int expectedMask = menu.outputSidesMask;
+
+        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, jsonPayload);
+
+        helper.assertValueEqual(
+                Set.copyOf(reassembler.getOutputSides()),
+                expectedSides,
+                "An invalid output-side payload must not change the machine state");
+        helper.assertValueEqual(
+                Set.copyOf(menu.getOutputSides()),
+                expectedSides,
+                "An invalid output-side payload must not change the menu state");
+        helper.assertValueEqual(
+                menu.outputSidesMask,
+                expectedMask,
+                "An invalid output-side payload must not change the synchronized mask");
     }
 
     private static ServerPlayer createCapturingPlayer(GameTestHelper helper) {
