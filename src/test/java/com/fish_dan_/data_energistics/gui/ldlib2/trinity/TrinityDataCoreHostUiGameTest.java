@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
 import com.fish_dan_.data_energistics.gui.ldlib2.HostModularUI;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
@@ -11,24 +13,36 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import appeng.api.config.CpuSelectionMode;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture.WrapMode;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay;
+import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.style.PropertyRegistry;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 @PrefixGameTestTemplate(false)
 @GameTestHolder(Data_Energistics.MODID)
@@ -104,6 +118,27 @@ public final class TrinityDataCoreHostUiGameTest {
         assertSame(root, cpuList.getParent());
         assertEquals(1, cpuList.getBoundDataSources().size());
         assertSame(cpuList, cpuList.getScrollerView().getParent());
+        assertEquals(
+                ScrollerMode.VERTICAL,
+                cpuList.getScrollerView().getScrollerViewStyle().getDefault(PropertyRegistry.SCROLLER_VIEW_MODE));
+        assertEquals(
+                ScrollDisplay.ALWAYS,
+                cpuList.getScrollerView().getScrollerViewStyle().getDefault(PropertyRegistry.SCROLLER_VERTICAL_DISPLAY));
+        assertEquals(
+                ScrollDisplay.NEVER,
+                cpuList.getScrollerView().getScrollerViewStyle().getDefault(PropertyRegistry.SCROLLER_HORIZONTAL_DISPLAY));
+        Scroller verticalScroller = cpuList.getScrollerView().verticalScroller;
+        assertSame(verticalScroller, assertElement(modularUI, TrinityCpuStatusList.SCROLLBAR_ID));
+        assertSame(verticalScroller.headButton, assertElement(modularUI, TrinityCpuStatusList.SCROLL_HEAD_ID));
+        assertSame(verticalScroller.scrollContainer, assertElement(modularUI, TrinityCpuStatusList.SCROLL_TRACK_ID));
+        assertSame(verticalScroller.scrollBar, assertElement(modularUI, TrinityCpuStatusList.SCROLL_THUMB_ID));
+        assertSame(verticalScroller.tailButton, assertElement(modularUI, TrinityCpuStatusList.SCROLL_TAIL_ID));
+        assertSame(cpuList.getScrollerView().verticalContainer, verticalScroller.getParent());
+        assertSame(verticalScroller, verticalScroller.headButton.getParent());
+        assertSame(verticalScroller, verticalScroller.scrollContainer.getParent());
+        assertTrue(verticalScroller.scrollContainer.isAncestorOf(verticalScroller.scrollBar));
+        assertSame(verticalScroller, verticalScroller.tailButton.getParent());
+        assertTrue(verticalScroller.selfAndAllChildren().noneMatch(UIElement::isAllowHitTest));
 
         InventorySlots playerInventorySlots = singleElement(modularUI, InventorySlots.class);
         assertSame(root, playerInventorySlots.getParent());
@@ -129,6 +164,115 @@ public final class TrinityDataCoreHostUiGameTest {
         assertTrue(menu.getHostUiExtension().isDisposed());
         menu.removed(player);
         assertTrue(menu.getHostUiExtension().isDisposed());
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_list_uses_ae_information_hierarchy_and_native_scrollbar")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuListUsesAeInformationHierarchyAndNativeScrollbar(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        TrinityDataCoreMenu menu = new TrinityDataCoreMenu(3, player.getInventory(), null);
+        ModularUI modularUI = holder(menu).getModularUI();
+        TrinityCpuStatusList cpuList = singleElement(modularUI, TrinityCpuStatusList.class);
+        TrinityCpuStatus idle = new TrinityCpuStatus(
+                2,
+                1_572_864L,
+                4,
+                Component.literal("Idle CPU"),
+                CpuSelectionMode.PLAYER_ONLY,
+                null,
+                0.0F,
+                0L);
+        TrinityCpuStatus busy = new TrinityCpuStatus(
+                5,
+                1_048_576L,
+                2,
+                Component.literal("Busy CPU"),
+                CpuSelectionMode.MACHINE_ONLY,
+                new GenericStack(AEItemKey.of(Items.DIAMOND), 64L),
+                0.5F,
+                1_000_000_000L);
+        AtomicInteger selectedCpu = new AtomicInteger(-1);
+        cpuList.setOnCpuSelected(selectedCpu::set);
+
+        cpuList.setValue(new TrinityCpuListStatus(List.of(busy, idle)), false);
+
+        assertEquals(2, cpuList.getScrollerView().getItemCount());
+        assertEquals(
+                2.0F * TrinityCpuStatusList.ROW_STRIDE,
+                cpuList.getScrollerView().getTotalVirtualHeight());
+        assertComponent(Component.literal("Idle CPU"), label(modularUI, "trinity_cpu_status_2_name").getText());
+        assertComponent(Component.literal("4"), label(modularUI, "trinity_cpu_status_2_processor_count").getText());
+        assertComponent(Component.literal("1M"), label(modularUI, "trinity_cpu_status_2_storage_amount").getText());
+        assertElement(modularUI, "trinity_cpu_status_2_processor_icon");
+        assertElement(modularUI, "trinity_cpu_status_2_storage_icon");
+        assertElement(modularUI, "trinity_cpu_status_2_mode_icon");
+        assertMissingElement(modularUI, "trinity_cpu_status_2_craft_icon");
+
+        assertComponent(Component.literal("Busy CPU"), label(modularUI, "trinity_cpu_status_5_name").getText());
+        assertComponent(Component.literal("64"), label(modularUI, "trinity_cpu_status_5_craft_amount").getText());
+        assertElement(modularUI, "trinity_cpu_status_5_craft_icon");
+        assertElement(modularUI, "trinity_cpu_status_5_target_icon");
+        assertElement(modularUI, "trinity_cpu_status_5_progress");
+        assertElement(modularUI, "trinity_cpu_status_5_task_overlay");
+        assertMissingElement(modularUI, "trinity_cpu_status_5_storage_icon");
+        assertTrue(cpuList.activateCpu(5));
+        assertEquals(5, selectedCpu.get());
+        cpuList.setValue(TrinityCpuListStatus.EMPTY, false);
+        assertTrue(!cpuList.activateCpu(5));
+        assertEquals(5, selectedCpu.get());
+
+        cpuList.setValue(new TrinityCpuListStatus(List.of(busy, idle)), false);
+        dispatchMouseWheel(cpuList.getScrollerView().viewPort, -1.0F);
+        assertFloatEquals(0.0F, cpuList.getScrollerView().verticalScroller.getNormalizedValue());
+
+        List<TrinityCpuStatus> cpus = IntStream.range(0, 6)
+                .mapToObj(TrinityDataCoreHostUiGameTest::idleCpu)
+                .toList();
+        cpuList.setValue(new TrinityCpuListStatus(cpus), false);
+        assertEquals(0, cpuList.getScrollerView().getFirstMountedIndex());
+        assertEquals(
+                6.0F * TrinityCpuStatusList.ROW_STRIDE,
+                cpuList.getScrollerView().getTotalVirtualHeight());
+        assertTrue(cpuList.getScrollerView().verticalScroller
+                .selfAndAllChildren()
+                .allMatch(UIElement::isAllowHitTest));
+        cpuList.getScrollerView().refreshVisibleItems(0.0F, TrinityCpuStatusList.VIEWPORT_HEIGHT);
+        assertEquals(0, cpuList.getScrollerView().getFirstMountedIndex());
+        float oneRowScroll = (float) TrinityCpuStatusList.ROW_STRIDE /
+                (cpuList.getScrollerView().getTotalVirtualHeight() - TrinityCpuStatusList.VIEWPORT_HEIGHT);
+        cpuList.getScrollerView().verticalScroller.setNormalizedValue(oneRowScroll, true);
+        assertFloatEquals(
+                oneRowScroll,
+                cpuList.getScrollerView().verticalScroller.getNormalizedValue());
+        cpuList.getScrollerView().verticalScroller.setNormalizedValue(0.0F, true);
+        assertFloatEquals(0.0F, cpuList.getScrollerView().verticalScroller.getNormalizedValue());
+        cpuList.getScrollerView().verticalScroller.setNormalizedValue(1.0F, true);
+        assertTrue(cpuList.getScrollerView().getFirstMountedIndex() > 0);
+        assertEquals(5, cpuList.getScrollerView().getLastMountedIndex());
+        assertElement(modularUI, "trinity_cpu_status_5");
+        cpuList.getScrollerView().scrollToTop();
+        assertEquals(0, cpuList.getScrollerView().getFirstMountedIndex());
+
+        cpuList.getScrollerView().verticalScroller.setNormalizedValue(1.0F, true);
+        cpuList.setValue(new TrinityCpuListStatus(cpus.subList(0, 4)), false);
+        assertFloatEquals(0.0F, cpuList.getScrollerView().verticalScroller.getNormalizedValue());
+        assertEquals(0, cpuList.getScrollerView().getFirstMountedIndex());
+        assertTrue(cpuList.getScrollerView().verticalScroller
+                .selfAndAllChildren()
+                .allMatch(UIElement::isAllowHitTest));
+        cpuList.getScrollerView().verticalScroller.setNormalizedValue(1.0F, true);
+        assertFloatEquals(1.0F, cpuList.getScrollerView().verticalScroller.getNormalizedValue());
+
+        cpuList.setValue(new TrinityCpuListStatus(cpus.subList(0, 2)), false);
+        assertFloatEquals(0.0F, cpuList.getScrollerView().verticalScroller.getNormalizedValue());
+        assertEquals(0, cpuList.getScrollerView().getFirstMountedIndex());
+        assertTrue(cpuList.getScrollerView().verticalScroller
+                .selfAndAllChildren()
+                .noneMatch(UIElement::isAllowHitTest));
+
+        menu.removed(player);
         helper.succeed();
     }
 
@@ -184,6 +328,31 @@ public final class TrinityDataCoreHostUiGameTest {
         return element;
     }
 
+    private static void assertMissingElement(ModularUI modularUI, String id) {
+        if (modularUI.getElementById(id) != null) {
+            throw new GameTestAssertException("Unexpected LDLib2 element " + id);
+        }
+    }
+
+    private static TrinityCpuStatus idleCpu(int number) {
+        return new TrinityCpuStatus(
+                number,
+                1_024L,
+                0,
+                Component.literal("CPU " + number),
+                CpuSelectionMode.ANY,
+                null,
+                0.0F,
+                0L);
+    }
+
+    private static void dispatchMouseWheel(UIElement target, float deltaY) {
+        UIEvent event = UIEvent.create(UIEvents.MOUSE_WHEEL);
+        event.target = target;
+        event.deltaY = deltaY;
+        UIEventDispatcher.dispatchEvent(event);
+    }
+
     private static void assertRepeatingFillTexture(ModularUI modularUI, String id) {
         IGuiTexture texture = assertElement(modularUI, id).getStyle().getDefault(PropertyRegistry.BACKGROUND);
         if (!(texture instanceof SpriteTexture spriteTexture)) {
@@ -225,6 +394,12 @@ public final class TrinityDataCoreHostUiGameTest {
     private static void assertTrue(boolean condition) {
         if (!condition) {
             throw new GameTestAssertException("Expected condition to be true");
+        }
+    }
+
+    private static void assertFloatEquals(float expected, float actual) {
+        if (Math.abs(expected - actual) > 0.0001F) {
+            throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
     }
 

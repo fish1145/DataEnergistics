@@ -63,7 +63,14 @@ public final class TrinityDataCoreResourceTest {
                 DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/host_layout_reference.png",
                 256,
                 256);
+        assertGuiTexture("cpu_entry.png", 67, 22);
+        assertGuiTexture("cpu_entry_selected.png", 67, 22);
         assertGuiTexture("cpu_idle.png", 67, 22);
+        assertGuiTexture("cpu_icon_craft.png", 10, 10);
+        assertGuiTexture("cpu_icon_machine.png", 10, 10);
+        assertGuiTexture("cpu_icon_processor.png", 10, 10);
+        assertGuiTexture("cpu_icon_storage.png", 10, 10);
+        assertGuiTexture("cpu_icon_terminal.png", 10, 10);
         assertGuiTexture("cpu_panel.png", 84, 76);
         assertGuiTexture("cpu_task_overlay.png", 67, 22);
         assertGuiTexture("inventory_slot.png", 16, 16);
