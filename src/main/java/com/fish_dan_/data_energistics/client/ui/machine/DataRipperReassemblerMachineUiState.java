@@ -7,6 +7,7 @@ import net.minecraft.world.item.ItemStack;
 
 import appeng.api.orientation.RelativeSide;
 import appeng.api.stacks.GenericStack;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -44,22 +45,16 @@ public interface DataRipperReassemblerMachineUiState {
         FLUID_OUTPUT_B(true, false),
         KEY_OUTPUT(false, false);
 
+        /** Whether amounts for this storage use milli-buckets. */
+        @Getter
         private final boolean fluid;
+        /** Whether this storage accepts machine inputs. */
+        @Getter
         private final boolean input;
 
         GenericStorage(boolean fluid, boolean input) {
             this.fluid = fluid;
             this.input = input;
-        }
-
-        /** Returns whether amounts for this storage use milli-buckets. */
-        public boolean isFluid() {
-            return this.fluid;
-        }
-
-        /** Returns whether this storage accepts machine inputs. */
-        public boolean isInput() {
-            return this.input;
         }
     }
 

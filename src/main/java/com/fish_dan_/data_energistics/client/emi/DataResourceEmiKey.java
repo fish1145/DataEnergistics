@@ -7,11 +7,15 @@ import com.fish_dan_.data_energistics.ae2.DataKey;
 import net.minecraft.resources.ResourceLocation;
 
 import appeng.api.stacks.AEKey;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * Identifies the two Data Energistics resources that have native EMI stacks.
  */
+@Getter
+@Accessors(fluent = true)
 public enum DataResourceEmiKey {
 
     DATA(DataKey.ID, DataKey.of()),
@@ -23,14 +27,6 @@ public enum DataResourceEmiKey {
     DataResourceEmiKey(ResourceLocation id, AEKey aeKey) {
         this.id = id;
         this.aeKey = aeKey;
-    }
-
-    public ResourceLocation id() {
-        return id;
-    }
-
-    public AEKey aeKey() {
-        return aeKey;
     }
 
     public static DataResourceEmiKey fromId(ResourceLocation id) {

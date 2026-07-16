@@ -38,10 +38,6 @@ public final class DataReassemblerGenericStackSlot extends UIElement {
                 null));
     }
 
-    public GenericStack stack() {
-        return this.stack;
-    }
-
     @Override
     public void drawBackgroundAdditional(GUIContext guiContext) {
         int x = Math.round(getPositionX());

@@ -9,7 +9,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -17,16 +20,24 @@ import java.util.List;
 /**
  * Immutable, validated client view of a data reassembler recipe shared by recipe viewers.
  */
+@Accessors(fluent = true)
 public final class DataRipperReassemblerRecipeView {
 
+    @Getter
     private final ResourceLocation id;
+    @Getter
     private final List<DataRipperReassemblerIngredient> itemInputs;
+    @Getter
     private final List<GenericStack> fluidInputs;
     private final List<ItemStack> itemOutputs;
+    @Getter
     private final List<GenericStack> fluidOutputs;
+    @Getter
     private final int processTicks;
+    @Getter
     @Nullable
     private final GenericStack keyInput;
+    @Getter
     @Nullable
     private final GenericStack keyOutput;
 
@@ -67,38 +78,8 @@ public final class DataRipperReassemblerRecipeView {
                 recipe.getKeyOutput());
     }
 
-    public ResourceLocation id() {
-        return this.id;
-    }
-
-    public List<DataRipperReassemblerIngredient> itemInputs() {
-        return this.itemInputs;
-    }
-
-    public List<GenericStack> fluidInputs() {
-        return this.fluidInputs;
-    }
-
     public List<ItemStack> itemOutputs() {
         return copyItemStacks(this.itemOutputs);
-    }
-
-    public List<GenericStack> fluidOutputs() {
-        return this.fluidOutputs;
-    }
-
-    public int processTicks() {
-        return this.processTicks;
-    }
-
-    @Nullable
-    public GenericStack keyInput() {
-        return this.keyInput;
-    }
-
-    @Nullable
-    public GenericStack keyOutput() {
-        return this.keyOutput;
     }
 
     private static List<DataRipperReassemblerIngredient> validateItemInputs(
@@ -150,6 +131,10 @@ public final class DataRipperReassemblerRecipeView {
             return null;
         }
         validatePositiveStack(stack, description);
+        if (stack.what() instanceof AEItemKey || stack.what() instanceof AEFluidKey) {
+            throw validationError(
+                    "Data reassembler " + description + " only accepts custom keys: " + stack.what());
+        }
         return stack;
     }
 
