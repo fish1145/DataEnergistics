@@ -38,6 +38,7 @@
 		"core.IOBusPartWrappedKeyMigrationMixin",
 		"core.InterfaceLogicTickAccessor",
 		"core.InterfaceLogicUpgradesAccessor",
+		"core.LivingEntityDropInvoker",
 		"core.NetworkStatusMixin",
 		"core.NeoForgeEnergyStorageAccessor",
 		"core.PathingCalculationMixin",
