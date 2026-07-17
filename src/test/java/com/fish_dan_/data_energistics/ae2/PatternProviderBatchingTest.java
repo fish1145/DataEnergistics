@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -137,6 +138,98 @@ public final class PatternProviderBatchingTest {
                 ArithmeticException.class,
                 () -> PatternProviderBatching.scalePrototype(prototype, Long.MAX_VALUE));
         assertEquals(2L, prototype[0].get(data));
+    }
+
+    @Test
+    void rejectsNullImmediateArgumentsAtTheirMethodBoundaries() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+        ICraftingProvider provider = new NoopCraftingProvider();
+
+        assertIllegalArgument(
+                "Pattern provider capacity target and input prototype must not be null",
+                () -> PatternProviderBatching.simulateCapacity(null, prototype, 1L));
+        assertIllegalArgument(
+                "Pattern provider capacity target and input prototype must not be null",
+                () -> PatternProviderBatching.simulateCapacity(target, null, 1L));
+        assertIllegalArgument(
+                "Pattern details must not be null when expanding a pattern-provider batch",
+                () -> PatternProviderBatching.pushExpanded(
+                        null,
+                        prototype,
+                        1L,
+                        target,
+                        () -> {},
+                        (what, amount) -> {}));
+        assertIllegalArgument(
+                "Pattern-provider input prototype must not be null when scaling a batch",
+                () -> PatternProviderBatching.scalePrototype(null, 1L));
+        assertIllegalArgument(
+                "Pattern details and input prototype must not be null when preparing a pattern-provider batch",
+                () -> PatternProviderBatching.prepareSingle(provider, null, prototype, 1L));
+        assertIllegalArgument(
+                "Pattern details and input prototype must not be null when preparing a pattern-provider batch",
+                () -> PatternProviderBatching.prepareSingle(provider, pattern, null, 1L));
+    }
+
+    @Test
+    void rejectsNullExpansionCollaboratorsAtTheirMethodBoundary() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+
+        assertIllegalArgument(
+                "Pattern-provider expansion target must not be null",
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern, prototype, 1L, null, () -> {}, (what, amount) -> {}));
+        assertIllegalArgument(
+                "Pattern-provider ownership callback must not be null",
+                () -> PatternProviderBatching.pushExpanded(
+                        pattern, prototype, 1L, target, null, (what, amount) -> {}));
+        assertIllegalArgument(
+                "Pattern-provider remainder sink must not be null",
+                () -> PatternProviderBatching.pushExpanded(pattern, prototype, 1L, target, () -> {}, null));
+    }
+
+    @Test
+    void rejectsNullAdmissionCollaboratorsAtTheirMethodBoundary() {
+        AEKey data = DataKey.of();
+        KeyCounter[] prototype = counters(counter(data, 1L));
+        RecordingPattern pattern = new RecordingPattern();
+
+        assertIllegalArgument(
+                "Prepared pattern-provider input prototype must not be null",
+                () -> PatternProviderBatching.admission(1L, null, ignored -> true));
+        assertIllegalArgument(
+                "Pattern-provider batch commit must not be null",
+                () -> PatternProviderBatching.admission(1L, prototype, null));
+        assertIllegalArgument(
+                "Prepared pattern-provider input prototype must not be null",
+                () -> PatternProviderBatching.ownershipAwareAdmission(1L, null, (ignored, transfer) -> true));
+        assertIllegalArgument(
+                "Ownership-aware pattern-provider batch commit must not be null",
+                () -> PatternProviderBatching.ownershipAwareAdmission(1L, prototype, null));
+        assertIllegalArgument(
+                "Pattern-provider post-commit action must not be null",
+                () -> PatternProviderBatching.prepareStandardBatch(
+                        null, null, pattern, prototype, 1L, null));
+    }
+
+    @Test
+    void rejectsNullPrototypeCountersWithTheirIndex() {
+        AEKey data = DataKey.of();
+        RecordingTarget target = new RecordingTarget(Map.of(data, 1L));
+        KeyCounter[] malformedPrototype = new KeyCounter[] { counter(data, 1L), null };
+
+        assertIllegalArgument(
+                "Pattern-provider input prototype counter at index 1 must not be null",
+                () -> PatternProviderBatching.simulateCapacity(target, malformedPrototype, 1L));
+        assertIllegalArgument(
+                "Pattern-provider input prototype counter at index 1 must not be null",
+                () -> PatternProviderBatching.scalePrototype(malformedPrototype, 1L));
     }
 
     @Test
@@ -282,6 +375,11 @@ public final class PatternProviderBatchingTest {
         return total;
     }
 
+    private static void assertIllegalArgument(String message, Runnable action) {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, action::run);
+        assertEquals(message, exception.getMessage());
+    }
+
     private static final class RecordingTarget implements PatternProviderTarget {
 
         private final Map<AEKey, Long> simulatedCapacities;
@@ -328,6 +426,24 @@ public final class PatternProviderBatchingTest {
 
         @Override
         public boolean containsPatternInput(Set<AEKey> patternInputs) {
+            return false;
+        }
+    }
+
+    private static final class NoopCraftingProvider implements ICraftingProvider {
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of();
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            return true;
+        }
+
+        @Override
+        public boolean isBusy() {
             return false;
         }
     }

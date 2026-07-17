@@ -5,12 +5,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 /**
  * Layered in-memory registry for built-in and datapack JSON multiblock definitions.
@@ -19,68 +16,90 @@ public final class LayeredJsonMultiBlockDefinitionRegistry implements JsonMultiB
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
-    private final Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> builtins = new LinkedHashMap<>();
-    private final Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> active = new LinkedHashMap<>();
-    private boolean jsonApplied;
-    private volatile long revision;
+    private Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> builtins = Map.of();
+    private Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> jsonDefinitions = Map.of();
+    private volatile JsonMultiBlockDefinitionRegistrySnapshot activeSnapshot = new JsonMultiBlockDefinitionRegistrySnapshot(0L, Map.of());
 
     @Override
     public synchronized void registerBuiltin(JsonMultiBlockDefinition definition) {
-        JsonMultiBlockDefinition existing = this.builtins.putIfAbsent(definition.key(), definition);
-        if (existing != null) {
+        if (definition == null || definition.key() == null) {
+            throw new IllegalArgumentException("Built-in JSON multiblock definition and key cannot be null");
+        }
+        if (this.builtins.containsKey(definition.key())) {
             String message = "Duplicate built-in JSON multiblock definition: " + definition.key();
             LOGGER.error(message);
             throw new IllegalStateException(message);
         }
-        if (!this.jsonApplied) {
-            this.active.put(definition.key(), definition);
-        } else {
-            this.active.putIfAbsent(definition.key(), definition);
-        }
-        this.revision = Math.incrementExact(this.revision);
+
+        long nextRevision = nextRevision("register built-in " + definition.key());
+        LinkedHashMap<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> nextBuiltins = new LinkedHashMap<>(this.builtins);
+        nextBuiltins.put(definition.key(), definition);
+        Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> immutableBuiltins = immutableCopy(nextBuiltins);
+        JsonMultiBlockDefinitionRegistrySnapshot nextSnapshot = new JsonMultiBlockDefinitionRegistrySnapshot(
+                nextRevision,
+                merge(immutableBuiltins, this.jsonDefinitions));
+
+        this.builtins = immutableBuiltins;
+        this.activeSnapshot = nextSnapshot;
         LOGGER.info("Registered built-in JSON multiblock definition {}", definition.key());
     }
 
     @Override
     public synchronized void applyJsonDefinitions(Collection<JsonMultiBlockDefinition> definitions) {
-        Set<JsonMultiBlockStructureKey> jsonKeys = new LinkedHashSet<>();
-        Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> next = new LinkedHashMap<>(this.builtins);
+        if (definitions == null) {
+            throw new IllegalArgumentException("JSON multiblock reload definitions cannot be null");
+        }
+        LinkedHashMap<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> nextJsonDefinitions = new LinkedHashMap<>();
         for (JsonMultiBlockDefinition definition : definitions) {
-            if (!jsonKeys.add(definition.key())) {
+            if (definition == null || definition.key() == null) {
+                throw new IllegalArgumentException("JSON multiblock reload cannot contain a null definition or key");
+            }
+            if (nextJsonDefinitions.putIfAbsent(definition.key(), definition) != null) {
                 String message = "Duplicate JSON multiblock definition in reload apply: " + definition.key();
                 LOGGER.error(message);
                 throw new IllegalStateException(message);
             }
-            next.put(definition.key(), definition);
         }
-        this.active.clear();
-        this.active.putAll(next);
-        this.jsonApplied = true;
-        this.revision = Math.incrementExact(this.revision);
+
+        long nextRevision = nextRevision("apply JSON definitions");
+        Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> immutableJsonDefinitions = immutableCopy(nextJsonDefinitions);
+        JsonMultiBlockDefinitionRegistrySnapshot nextSnapshot = new JsonMultiBlockDefinitionRegistrySnapshot(
+                nextRevision,
+                merge(this.builtins, immutableJsonDefinitions));
+
+        this.jsonDefinitions = immutableJsonDefinitions;
+        this.activeSnapshot = nextSnapshot;
         LOGGER.info(
                 "Applied {} JSON multiblock definitions ({} active, {} built-in fallback)",
-                jsonKeys.size(),
-                this.active.size(),
+                this.jsonDefinitions.size(),
+                this.activeSnapshot.definitions().size(),
                 this.builtins.size());
     }
 
     @Override
-    public synchronized Optional<JsonMultiBlockDefinition> get(JsonMultiBlockStructureKey key) {
-        return Optional.ofNullable(this.active.get(key));
+    public JsonMultiBlockDefinitionRegistrySnapshot snapshot() {
+        return this.activeSnapshot;
     }
 
-    @Override
-    public synchronized Collection<JsonMultiBlockDefinition> values() {
-        return List.copyOf(this.active.values());
+    private long nextRevision(String operation) {
+        try {
+            return Math.incrementExact(this.activeSnapshot.revision());
+        } catch (ArithmeticException exception) {
+            LOGGER.error("JSON multiblock definition revision overflow while attempting to {}", operation, exception);
+            throw exception;
+        }
     }
 
-    @Override
-    public synchronized int size() {
-        return this.active.size();
+    private static Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> merge(
+                                                                                   Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> builtins,
+                                                                                   Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> jsonDefinitions) {
+        LinkedHashMap<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> merged = new LinkedHashMap<>(builtins);
+        merged.putAll(jsonDefinitions);
+        return immutableCopy(merged);
     }
 
-    @Override
-    public long revision() {
-        return this.revision;
+    private static Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> immutableCopy(
+                                                                                           Map<JsonMultiBlockStructureKey, JsonMultiBlockDefinition> definitions) {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(definitions));
     }
 }

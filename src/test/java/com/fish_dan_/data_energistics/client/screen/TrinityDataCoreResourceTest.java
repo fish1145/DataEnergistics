@@ -28,9 +28,11 @@ public final class TrinityDataCoreResourceTest {
     private static final String DATA_TEXTURE_ROOT = "assets/data_energistics/textures/";
     private static final String LANG_ROOT = "assets/data_energistics/lang/";
     private static final String SCREEN_ROOT = "assets/ae2/screens/";
-    private static final String GUI_TEXTURE_ROOT = "assets/ae2/textures/";
+    private static final String AE_GUI_TEXTURE_ROOT = "assets/ae2/textures/";
+    private static final String DATA_GUI_TEXTURE_ROOT = "assets/data_energistics/textures/";
     private static final String MULTIBLOCK_ROOT = "data/data_energistics/multiblock/";
     private static final String TRINITY_DATA_CORE_TEXTURE_PREFIX = "data_energistics:block/trinity_data_core/";
+    private static final String EMI_MULTIBLOCK_CATEGORY_KEY = "emi.category.data_energistics.multiblock_preview";
     private static final Set<String> MODEL_TEXTURE_KEYS = Set.of("2", "3", "top_light", "5", "screen");
 
     @Test
@@ -53,31 +55,30 @@ public final class TrinityDataCoreResourceTest {
     }
 
     @Test
-    void trinityDataCoreScreenUsesRenamedGuiTextureFolder() {
-        JsonObject root = readJson(SCREEN_ROOT + "trinity_data_core.json");
-        assertNoAbsolutePaths(root, "trinity_data_core screen");
-
-        JsonObject background = object(root, "background");
-        String backgroundTexture = string(background, "texture");
-        assertEquals("guis/trinity_data_core/gui.png", backgroundTexture);
-        assertSourceRect(background, 256, 212);
-        assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Trinity Data Core GUI texture should exist");
-        assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
-
-        JsonObject text = object(root, "text");
-        assertEquals(
-                Set.of("dialog_title", "player_inventory_title"),
-                text.keySet(),
-                "Dynamic host status text should be drawn by TrinityDataCoreScreen");
-
+    void trinityDataCoreLdlib2TexturesUseLocalNamespace() {
         assertResourceExists(
-                GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png",
-                "Trinity CPU list idle overlay should exist");
-        assertResourceExists(
-                GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png",
-                "Trinity CPU list task overlay should exist");
-        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_idle.png", 67, 22);
-        assertPngDimensions(GUI_TEXTURE_ROOT + "guis/trinity_data_core/cpu_task_overlay.png", 67, 22);
+                DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/host_layout_reference.png",
+                "Trinity Data Core layout reference should exist");
+        assertPngDimensions(
+                DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/host_layout_reference.png",
+                256,
+                256);
+        assertGuiTexture("cpu_entry.png", 67, 22);
+        assertGuiTexture("cpu_entry_selected.png", 67, 22);
+        assertGuiTexture("cpu_idle.png", 67, 22);
+        assertGuiTexture("cpu_icon_craft.png", 10, 10);
+        assertGuiTexture("cpu_icon_machine.png", 10, 10);
+        assertGuiTexture("cpu_icon_processor.png", 10, 10);
+        assertGuiTexture("cpu_icon_storage.png", 10, 10);
+        assertGuiTexture("cpu_icon_terminal.png", 10, 10);
+        assertGuiTexture("cpu_panel.png", 84, 76);
+        assertGuiTexture("cpu_task_overlay.png", 67, 22);
+        assertGuiTexture("inventory_slot.png", 16, 16);
+        assertGuiTexture("status_panel.png", 128, 99);
+        assertGuiTexture("storage_capacity_track.png", 116, 6);
+        assertGuiTexture("storage_fluid_fill.png", 2, 4);
+        assertGuiTexture("storage_item_fill.png", 2, 4);
+        assertGuiTexture("storage_other_fill.png", 2, 4);
         assertResourceExists(
                 DATA_TEXTURE_ROOT + "guis/list.png",
                 "Trinity auto-build overlay texture should exist in the formal data_energistics namespace");
@@ -93,8 +94,8 @@ public final class TrinityDataCoreResourceTest {
         String backgroundTexture = string(background, "texture");
         assertEquals("guis/me_digital_pattern_processing_core.png", backgroundTexture);
         assertSourceRect(background, 176, 256);
-        assertResourceExists(GUI_TEXTURE_ROOT + backgroundTexture, "Trinity pattern core GUI texture should exist");
-        assertPngDimensions(GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
+        assertResourceExists(AE_GUI_TEXTURE_ROOT + backgroundTexture, "Trinity pattern core GUI texture should exist");
+        assertPngDimensions(AE_GUI_TEXTURE_ROOT + backgroundTexture, 256, 256);
 
         JsonObject slots = object(root, "slots");
         for (int row = 0; row < 8; row++) {
@@ -164,6 +165,10 @@ public final class TrinityDataCoreResourceTest {
                 "结构方块不匹配",
                 string(zhCn, "text.data_energistics.multiblock.failure.block_predicate"),
                 "Known MDLib predicate diagnostics should be localized for Jade and the host screen");
+        assertEquals(
+                "多方块预览",
+                string(zhCn, EMI_MULTIBLOCK_CATEGORY_KEY),
+                "EMI multiblock category should have a Chinese display name");
 
         JsonObject enUs = readJson(LANG_ROOT + "en_us.json");
         assertEquals(
@@ -174,6 +179,10 @@ public final class TrinityDataCoreResourceTest {
                 "Structure block did not match",
                 string(enUs, "text.data_energistics.multiblock.failure.block_predicate"),
                 "English predicate diagnostic should avoid exposing the raw MDLib message");
+        assertEquals(
+                "Multiblock Preview",
+                string(enUs, EMI_MULTIBLOCK_CATEGORY_KEY),
+                "EMI multiblock category should have an English display name");
         assertAutoBuildStructureLabels(zhCn);
         assertAutoBuildStructureLabels(enUs);
     }
@@ -273,6 +282,12 @@ public final class TrinityDataCoreResourceTest {
         } catch (IOException exception) {
             throw new IllegalStateException("Could not read PNG resource " + path, exception);
         }
+    }
+
+    private static void assertGuiTexture(String fileName, int expectedWidth, int expectedHeight) {
+        String path = DATA_GUI_TEXTURE_ROOT + "guis/trinity_data_core/" + fileName;
+        assertResourceExists(path, "Trinity LDLib2 GUI texture should exist");
+        assertPngDimensions(path, expectedWidth, expectedHeight);
     }
 
     private static void assertNoAbsolutePaths(JsonElement element, String owner) {

@@ -47,6 +47,7 @@ sourceSets {
         compileClasspath += client.output + extra.compileClasspath
         runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath
     }
+
 }
 
 configurations {

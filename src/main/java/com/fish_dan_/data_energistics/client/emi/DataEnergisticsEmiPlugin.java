@@ -21,6 +21,7 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import appeng.api.integrations.emi.EmiStackConverters;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiInitRegistry;
@@ -80,12 +81,23 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addRecipeHandler(
                 ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
                 new EmiEncodePatternHandler<>(UniversalPatternEncodingTermMenu.class));
+        registry.addRecipeHandler(
+                PatternEncodingTermMenu.TYPE,
+                new EmiMultiblockPatternTransferHandler<>(PatternEncodingTermMenu.class));
+        registry.addRecipeHandler(
+                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                new EmiMultiblockPatternTransferHandler<>(UniversalPatternEncodingTermMenu.class));
 
         registry.addCategory(TimeShiftEmiRecipe.CATEGORY);
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
         registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()));
+        registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
+        registry.addRecipe(new TrinityMultiblockEmiRecipe());
+        registry.addWorkstation(
+                TrinityMultiblockEmiRecipe.CATEGORY,
+                EmiStack.of(ModBlocks.TRINITY_DATA_CORE.get()));
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
                 .map(DataCaptureBallRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);

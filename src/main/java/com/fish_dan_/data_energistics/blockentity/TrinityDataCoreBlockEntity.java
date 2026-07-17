@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.compartment.UnavailableCompartmentStorage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCpuProfile;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
@@ -36,6 +37,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCpuCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreCraftingCoreProfile;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageProfile;
+import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
@@ -59,7 +61,6 @@ import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
-import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData.StorageSummary;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -67,7 +68,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -94,6 +94,7 @@ import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
+import lombok.Getter;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
@@ -148,7 +149,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
 
     private UUID storageId = UUID.randomUUID();
+    /**
+     * -- GETTER --
+     * Returns the stable crafting identity, which is deliberately independent from the saved-data storage UUID.
+     */
+    @Getter
     private UUID hostId = UUID.randomUUID();
+    /**
+     * -- GETTER --
+     * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
+     */
+    @Getter
     private TrinityPatternCatalog patternCatalog = new TrinityPatternCatalogImpl(this.hostId);
     private final TrinityPatternOutputRouter patternOutputRouter = new TrinityPatternOutputRouterImpl();
     /** Runtime validation gates that keep unloaded chunks distinct from structural damage. */
@@ -158,6 +169,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private boolean patternCatalogValid;
     private boolean loaded;
     private boolean formed;
+    @Getter
     private List<BlockPos> matchedPositions = List.of();
     private TrinityDataCoreStorageProfile storageProfile = TrinityDataCoreStorageProfile.EMPTY;
     private String lastFailureReason = NO_FAILURE;
@@ -488,24 +500,6 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 this.structureValidation.isValid(Structure.CRAFTING) && this.craftingProfile.active() &&
                 this.patternCatalogValid &&
                 this.patternCatalog.layoutSnapshot().active();
-    }
-
-    /**
-     * Returns the stable crafting identity, which is deliberately independent from the saved-data storage UUID.
-     */
-    public UUID getHostId() {
-        return this.hostId;
-    }
-
-    /**
-     * Returns the aggregate consumed by the lease-owning access hatch's AE2 provider.
-     */
-    public TrinityPatternCatalog getPatternCatalog() {
-        return this.patternCatalog;
-    }
-
-    public List<BlockPos> getMatchedPositions() {
-        return this.matchedPositions;
     }
 
     @Override
@@ -846,23 +840,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public int getStoredTypeCount() {
-        return storageSummary().typeCount();
+    public TrinityDataCoreStorageStatus getStorageStatus() {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return TrinityDataCoreStorageStatus.EMPTY;
+        }
+        return TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
+                .storageStatus(this.storageId, this.storageProfile);
     }
 
     @Override
-    public String getStoredAmountText() {
-        return storageSummary().totalAmount();
-    }
-
-    @Override
-    public String getStoredTypeCapacityText() {
-        return storageCapacityText(Integer.toString(this.storageProfile.typeCapacity()));
-    }
-
-    @Override
-    public String getStoredAmountCapacityText() {
-        return storageCapacityText(this.storageProfile.totalCapacity().toString());
+    public TrinityCpuListStatus getCpuListStatus() {
+        return TrinityCpuListStatus.from(this.craftingRuntime);
     }
 
     @Override
@@ -967,20 +955,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return stack != null && stack.amount() > 0;
     }
 
-    private StorageSummary storageSummary() {
-        if (!(this.level instanceof ServerLevel serverLevel)) {
-            return StorageSummary.EMPTY;
-        }
-        return TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).summary(this.storageId);
-    }
-
-    private String storageCapacityText(String finiteCapacity) {
-        return this.storageProfile.unlimited() ? TrinityDataCoreMenuHost.UNLIMITED_STORAGE_CAPACITY : finiteCapacity;
-    }
-
     public boolean hasActiveAccessHatch() {
         reevaluateAccessLease();
         return isStorageAvailable() && activeLeaseHatch() != null;
+    }
+
+    /**
+     * Returns the exact live lease owner used as the AE crafting-status terminal host.
+     */
+    public @Nullable TrinityAccessHatchBlockEntity getActiveAccessHatch() {
+        reevaluateAccessLease();
+        if (!isStorageAvailable() || !isCpuProviderAvailable()) {
+            return null;
+        }
+        return activeLeaseHatch();
     }
 
     public @Nullable IGrid accessGrid() {
@@ -2078,19 +2066,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static JsonMultiBlockStructureKey mainDefinitionKey() {
-        return JsonMultiBlockStructureKey.main(ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID));
+        return ModVerticalMultiBlocks.trinityDataCoreMainKey();
     }
 
     private static JsonMultiBlockStructureKey cpuDefinitionKey() {
-        return new JsonMultiBlockStructureKey(
-                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID),
-                CPU_STRUCTURE_NAME);
+        return ModVerticalMultiBlocks.trinityDataCoreCpuKey();
     }
 
     private static JsonMultiBlockStructureKey craftingDefinitionKey() {
-        return new JsonMultiBlockStructureKey(
-                ResourceLocation.parse(ModVerticalMultiBlocks.TRINITY_DATA_CORE_ID),
-                CRAFTING_STRUCTURE_NAME);
+        return ModVerticalMultiBlocks.trinityDataCoreCraftingKey();
     }
 
     private static TrinityDataCoreCraftingCoreProfile readCraftingProfile(CompoundTag data) {

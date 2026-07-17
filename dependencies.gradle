@@ -26,7 +26,6 @@ dependencies {
     compileOnly(forge.actually.additions)
     compileOnly(forge.applied.flux)
     compileOnly(forge.applied.create)
-    compileOnly(forge.create)
     compileOnly(forge.mega.cells)
     compileOnly(forge.aae)
     compileOnly(forge.sut)
@@ -44,7 +43,9 @@ dependencies {
 
     // Recipe viewers
     compileOnly(forge.bundles.jei)
+    testCompileOnly(forge.bundles.jei)
     compileOnly(forge.emi)
+    testCompileOnly(forge.emi)
 
     // UI framework
     compileOnly(forge.ldlib)
@@ -75,6 +76,8 @@ dependencies {
     localRuntime(forge.pneumaticcraft)
     localRuntime(forge.kotlinforforge)
     localRuntime(forge.mek)
+    localRuntime(forge.oritech)
+
     extraLocalRuntime(forge.sut)
 
     // Runtime AE2 addons
@@ -100,6 +103,7 @@ dependencies {
     // Client-only runtime mods
     clientLocalRuntime(forge.jech)
     clientLocalRuntime(forge.ctm)
+    clientLocalRuntime(forge.athena)
     clientLocalRuntime(forge.worldedit.cui.forge)
     jarJar(forge.ctm.get())
     clientLocalRuntime(forge.sodium)

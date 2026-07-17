@@ -4,25 +4,25 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
-import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
+import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
+import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
+import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
-import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -30,22 +30,20 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 import appeng.core.definitions.AEBlocks;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.recipes.handlers.ChargerRecipe;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.recipe.RecipeType;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
-import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
-import mezz.jei.api.runtime.IIngredientVisibility;
 import mezz.jei.api.runtime.IJeiRuntime;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,28 +52,15 @@ import java.util.function.Function;
 @JeiPlugin
 public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
-    private static final String AE2_JEI_TRANSFER_PACKAGE = String.join(
-            ".",
-            "tamaized",
-            "ae2jeiintegration",
-            "integration",
-            "modules",
-            "jei",
-            "transfer");
-    private static final String CRAFTING_HANDLER_CLASS = AE2_JEI_TRANSFER_PACKAGE + ".UseCraftingRecipeTransfer";
-    private static final String ENCODING_HANDLER_CLASS = AE2_JEI_TRANSFER_PACKAGE + ".EncodePatternTransferHandler";
+    private static final String AE2_JEI_INTEGRATION_MOD_ID = "ae2jeiintegration";
     private static final ResourceLocation AE2_CHARGER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final RecipeType<RecipeHolder<ChargerRecipe>> AE2_CHARGER_RECIPE_TYPE = RecipeType.createRecipeHolderType(AE2_CHARGER_RECIPE_ID);
-    private static final Class<?>[] CRAFTING_HANDLER_PARAMETERS = {
-            Class.class,
-            MenuType.class,
-            IRecipeTransferHandlerHelper.class };
-    private static final Class<?>[] ENCODING_HANDLER_PARAMETERS = {
-            MenuType.class,
-            Class.class,
-            IRecipeTransferHandlerHelper.class,
-            IIngredientVisibility.class };
+    private static final Object MULTIBLOCK_REFRESH_KEY = new Object();
+    @Nullable
     private IJeiRuntime jeiRuntime;
+    @Nullable
+    private TrinityMultiblockJeiCategory trinityMultiblockCategory;
+    private boolean multiblockRefreshInProgress;
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -84,11 +69,16 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
+        TrinityMultiblockJeiCategory multiblockCategory = installTrinityMultiblockCategory(
+                new TrinityMultiblockJeiCategory(
+                        registration.getJeiHelpers(),
+                        this::requestMultiblockRefresh));
         registration.addRecipeCategories(
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
-                new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
+                new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
+                multiblockCategory);
     }
 
     @Override
@@ -98,6 +88,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(ModBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(ModBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
+        registration.addRecipeCatalyst(ModBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
         registerDataChargerCatalysts(registration, DataChargerRecipeCategory.RECIPE_TYPE);
     }
 
@@ -110,22 +101,31 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
-        var craftingHandler = createCraftingHandler(registration.getTransferHelper());
-        if (craftingHandler != null) {
-            registration.addRecipeTransferHandler(craftingHandler, RecipeTypes.CRAFTING);
-        }
+        var transferHelper = registration.getTransferHelper();
+        registration.addRecipeTransferHandler(
+                new MultiblockPatternJeiTransferHandler<>(
+                        PatternEncodingTermMenu.class,
+                        PatternEncodingTermMenu.TYPE,
+                        TrinityMultiblockJeiCategory.RECIPE_TYPE,
+                        transferHelper),
+                TrinityMultiblockJeiCategory.RECIPE_TYPE);
+        registration.addRecipeTransferHandler(
+                new MultiblockPatternJeiTransferHandler<>(
+                        UniversalPatternEncodingTermMenu.class,
+                        ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
+                        TrinityMultiblockJeiCategory.RECIPE_TYPE,
+                        transferHelper),
+                TrinityMultiblockJeiCategory.RECIPE_TYPE);
 
-        var encodingHandler = createEncodingHandler(
-                registration.getTransferHelper(),
-                registration.getJeiHelpers().getIngredientVisibility());
-        if (encodingHandler != null) {
-            registration.addUniversalRecipeTransferHandler(encodingHandler);
+        if (Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            Ae2JeiTransferRegistration.register(registration);
         }
     }
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
+        registration.addRecipes(TrinityMultiblockJeiCategory.RECIPE_TYPE, List.of(MultiblockXeiRecipe.trinity()));
         var level = Minecraft.getInstance().level;
         if (level != null) {
             List<WorldInteractionJeiRecipe> worldInteractionRecipes = new ArrayList<>();
@@ -208,7 +208,80 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
+        XeiLayoutRefreshQueue.cancel(MULTIBLOCK_REFRESH_KEY);
         this.jeiRuntime = null;
+        this.multiblockRefreshInProgress = false;
+        releaseTrinityMultiblockCategory();
+    }
+
+    /**
+     * Releases and detaches the category owned by the completed JEI runtime cycle.
+     */
+    void releaseTrinityMultiblockCategory() {
+        TrinityMultiblockJeiCategory multiblockCategory = this.trinityMultiblockCategory;
+        this.trinityMultiblockCategory = null;
+        if (multiblockCategory != null) {
+            multiblockCategory.releaseCachedUis();
+        }
+    }
+
+    /**
+     * Installs the sole category owned by the current JEI runtime registration cycle.
+     */
+    TrinityMultiblockJeiCategory installTrinityMultiblockCategory(
+                                                                  TrinityMultiblockJeiCategory category) {
+        if (category == null) {
+            throw new IllegalArgumentException("Trinity multiblock JEI category cannot be null");
+        }
+        if (this.trinityMultiblockCategory != null) {
+            throw new IllegalStateException("Trinity multiblock JEI category was already registered");
+        }
+        this.trinityMultiblockCategory = category;
+        return category;
+    }
+
+    /**
+     * Returns the category retained by the current JEI runtime registration cycle.
+     */
+    @Nullable
+    TrinityMultiblockJeiCategory currentTrinityMultiblockCategory() {
+        return this.trinityMultiblockCategory;
+    }
+
+    private void requestMultiblockRefresh(
+                                          MultiblockXeiRecipe recipe,
+                                          MultiblockXeiComposition composition,
+                                          MultiblockXeiComposition.RecipeChange change) {
+        IJeiRuntime runtime = this.jeiRuntime;
+        TrinityMultiblockJeiCategory category = currentTrinityMultiblockCategory();
+        if (runtime == null || category == null || this.multiblockRefreshInProgress) {
+            return;
+        }
+        Screen screen = Minecraft.getInstance().screen;
+        if (screen == null || screen != runtime.getRecipesGui()) {
+            return;
+        }
+        XeiLayoutRefreshQueue.enqueue(
+                MULTIBLOCK_REFRESH_KEY,
+                screen,
+                () -> this.jeiRuntime == runtime &&
+                        this.trinityMultiblockCategory == category &&
+                        !this.multiblockRefreshInProgress &&
+                        recipe.isActiveComposition(composition) &&
+                        composition.currentRecipeView().projectionFingerprint().equals(change.projectionFingerprint()),
+                () -> refreshMultiblockRecipe(runtime, category, recipe));
+    }
+
+    private void refreshMultiblockRecipe(IJeiRuntime runtime,
+                                         TrinityMultiblockJeiCategory category,
+                                         MultiblockXeiRecipe recipe) {
+        this.multiblockRefreshInProgress = true;
+        try {
+            // JEI exposes navigation, but no in-place formal-slot invalidation API.
+            runtime.getRecipesGui().showRecipes(category, List.of(recipe), List.of());
+        } finally {
+            this.multiblockRefreshInProgress = false;
+        }
     }
 
     private void hidePoweredRepairRecipes() {
@@ -234,36 +307,5 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (!craftingRepairRecipes.isEmpty()) {
             recipeManager.hideRecipes(RecipeTypes.CRAFTING, craftingRepairRecipes);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static IRecipeTransferHandler<UniversalCraftingTermMenu, RecipeHolder<CraftingRecipe>> createCraftingHandler(IRecipeTransferHandlerHelper transferHelper) {
-        Object handler = ReflectionAccess.newInstance(
-                CRAFTING_HANDLER_CLASS,
-                CRAFTING_HANDLER_PARAMETERS,
-                UniversalCraftingTermMenu.class,
-                ModMenus.UNIVERSAL_CRAFTING_TERM.get(),
-                transferHelper);
-        if (handler instanceof IRecipeTransferHandler<?, ?> recipeTransferHandler) {
-            return (IRecipeTransferHandler<UniversalCraftingTermMenu, RecipeHolder<CraftingRecipe>>) recipeTransferHandler;
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu> createEncodingHandler(
-                                                                                                           IRecipeTransferHandlerHelper transferHelper,
-                                                                                                           IIngredientVisibility ingredientVisibility) {
-        Object handler = ReflectionAccess.newInstance(
-                ENCODING_HANDLER_CLASS,
-                ENCODING_HANDLER_PARAMETERS,
-                ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(),
-                UniversalPatternEncodingTermMenu.class,
-                transferHelper,
-                ingredientVisibility);
-        if (handler instanceof IUniversalRecipeTransferHandler<?> recipeTransferHandler) {
-            return (IUniversalRecipeTransferHandler<UniversalPatternEncodingTermMenu>) recipeTransferHandler;
-        }
-        return null;
     }
 }

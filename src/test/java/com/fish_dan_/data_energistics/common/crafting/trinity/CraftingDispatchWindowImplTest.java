@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -72,9 +73,14 @@ public final class CraftingDispatchWindowImplTest {
     void rejectsNullProvidersBeforeMutatingState() {
         CraftingDispatchWindow window = CraftingDispatchWindow.create();
 
-        assertThrows(NullPointerException.class, () -> window.canAttempt(null));
-        assertThrows(NullPointerException.class, () -> window.tryAcquire(null));
-        assertThrows(NullPointerException.class, () -> window.markUnavailable(null));
+        assertIllegalArgument(() -> window.canAttempt(null));
+        assertIllegalArgument(() -> window.tryAcquire(null));
+        assertIllegalArgument(() -> window.markUnavailable(null));
+    }
+
+    private static void assertIllegalArgument(Runnable action) {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, action::run);
+        assertEquals("Crafting dispatch provider must not be null", exception.getMessage());
     }
 
     /** Provider whose equality deliberately collapses instances to verify identity-based accounting. */

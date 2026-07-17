@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -24,8 +25,6 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.hooks.WrenchHook;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -44,8 +43,9 @@ public class TrinityDataCoreBlock extends DataRipperReassemblerBlock implements 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
-            MenuOpener.open(ModMenus.TRINITY_DATA_CORE.get(), player, MenuLocators.forBlockEntity(host));
+        if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer &&
+                level.getBlockEntity(pos) instanceof TrinityDataCoreBlockEntity host) {
+            TrinityDataCoreMenu.open(serverPlayer, host);
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }

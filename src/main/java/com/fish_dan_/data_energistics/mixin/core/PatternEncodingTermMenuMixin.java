@@ -1,12 +1,16 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import com.fish_dan_.data_energistics.common.multiblock.preview.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferState;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.network.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.util.PatternEncodingPreviewLayoutHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 
@@ -16,6 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -34,6 +39,8 @@ import appeng.menu.me.common.MEStorageMenu;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.parts.encoding.EncodingMode;
+import appeng.parts.encoding.PatternEncodingLogic;
+import appeng.util.ConfigInventory;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
@@ -54,7 +61,7 @@ import java.util.Map;
 public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                    implements PatternEncodingPreviewMenu, PatternEncodingSourceAware, PatternEncodingTransferKeyAware,
                                                    PatternEncodingPreviewLayoutAware,
-                                                   BlankPatternProxyMenu {
+                                                   BlankPatternProxyMenu, PatternEncodingMultiblockTransferTarget {
 
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "dataEnergistics$transferEncodedPatternToProvider";
@@ -146,6 +153,91 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Override
     public EncodingMode data_energistics$getEncodingMode() {
         return this.mode;
+    }
+
+    @Override
+    public void data_energistics$requestMultiblockTransfer(MultiblockRecipeView recipe) {
+        if (recipe == null) {
+            throw new IllegalArgumentException("Multiblock pattern transfer recipe cannot be null");
+        }
+        if (!this.isClientSide()) {
+            throw new IllegalStateException("Multiblock pattern transfer requests must originate on the client");
+        }
+        PacketDistributor.sendToServer(new MultiblockPatternTransferPayload(
+                this.containerId,
+                recipe.registeredRecipeId(),
+                recipe.projectionFingerprint()));
+    }
+
+    @Override
+    public ConfigInventory data_energistics$getMultiblockTransferInputInventory() {
+        return dataEnergistics$getMultiblockTransferLogic().getEncodedInputInv();
+    }
+
+    @Override
+    public ConfigInventory data_energistics$getMultiblockTransferOutputInventory() {
+        return dataEnergistics$getMultiblockTransferLogic().getEncodedOutputInv();
+    }
+
+    @Override
+    public EncodingMode data_energistics$getMultiblockTransferEncodingMode() {
+        return dataEnergistics$getMultiblockTransferLogic().getMode();
+    }
+
+    @Override
+    public void data_energistics$setMultiblockTransferEncodingMode(EncodingMode mode) {
+        if (mode == null) {
+            throw new IllegalArgumentException("Multiblock pattern transfer encoding mode cannot be null");
+        }
+        dataEnergistics$getMultiblockTransferLogic().setMode(mode);
+    }
+
+    @Override
+    public PatternEncodingMultiblockTransferState data_energistics$snapshotMultiblockTransferState() {
+        if (!this.isServerSide()) {
+            throw new IllegalStateException("Multiblock transfer state can only be snapshotted on the server");
+        }
+        return new PatternEncodingMultiblockTransferState(
+                data_energistics$getPendingPatternSource(),
+                data_energistics$getLastEncodedPatternSource(),
+                PatternEncodingSourceHelper.readPendingTransferKeyInput(this.getPlayer()),
+                PatternEncodingSourceHelper.readPendingTransferKeyOutput(this.getPlayer()),
+                PatternEncodingSourceHelper.readPendingTransferFluidInputs(this.getPlayer()),
+                PatternEncodingSourceHelper.readPendingTransferFluidOutputs(this.getPlayer()),
+                this.dataEnergistics$displayTransferKeyInputSerialized,
+                this.dataEnergistics$displayTransferKeyOutputSerialized);
+    }
+
+    @Override
+    public void data_energistics$clearMultiblockTransferState() {
+        data_energistics$restoreMultiblockTransferState(PatternEncodingMultiblockTransferState.cleared());
+    }
+
+    @Override
+    public void data_energistics$restoreMultiblockTransferState(PatternEncodingMultiblockTransferState state) {
+        if (state == null) {
+            throw new IllegalArgumentException("Multiblock transfer state cannot be null");
+        }
+        if (!this.isServerSide()) {
+            throw new IllegalStateException("Multiblock transfer state can only be changed on the server");
+        }
+
+        data_energistics$clearPatternSourceState();
+        if (state.pendingPatternSource() != null) {
+            data_energistics$setPendingPatternSource(state.pendingPatternSource());
+        }
+        data_energistics$setLastEncodedPatternSource(state.lastEncodedPatternSource());
+        PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), state.pendingKeyInput());
+        PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), state.pendingKeyOutput());
+        PatternEncodingSourceHelper.writePendingTransferFluidInputs(this.getPlayer(), state.pendingFluidInputs());
+        PatternEncodingSourceHelper.writePendingTransferFluidOutputs(this.getPlayer(), state.pendingFluidOutputs());
+        this.dataEnergistics$displayTransferKeyInputSerialized = state.displayedKeyInputSerialized();
+        this.dataEnergistics$displayTransferKeyOutputSerialized = state.displayedKeyOutputSerialized();
+    }
+
+    @Override
+    public void data_energistics$invalidateMultiblockTransferTarget() {
+        this.setValidMenu(false);
     }
 
     @Override
@@ -730,6 +822,18 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return layoutAware;
         }
         throw new IllegalStateException("Pattern encoding logic does not implement preview layout storage: " + logic.getClass().getName());
+    }
+
+    @Unique
+    private PatternEncodingLogic dataEnergistics$getMultiblockTransferLogic() {
+        if (!(this.getHost() instanceof IPatternTerminalMenuHost host)) {
+            throw new IllegalStateException("Pattern encoding menu host does not expose encoding logic");
+        }
+        PatternEncodingLogic logic = host.getLogic();
+        if (logic == null) {
+            throw new IllegalStateException("Pattern encoding menu host returned null encoding logic");
+        }
+        return logic;
     }
 
     @Unique

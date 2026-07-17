@@ -17,18 +17,12 @@ public abstract class EmiEncodePatternHandlerMixin {
 
     @Inject(
             method = "transferRecipe(Lappeng/menu/me/items/PatternEncodingTermMenu;Lnet/minecraft/world/item/crafting/RecipeHolder;Ldev/emi/emi/api/recipe/EmiRecipe;Z)Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;",
-            at = @At("RETURN"))
+            at = @At(
+                     value = "INVOKE",
+                     target = "Lappeng/integration/modules/emi/AbstractRecipeHandler$Result;createSuccessful()Lappeng/integration/modules/emi/AbstractRecipeHandler$Result$Success;"))
     private void dataEnergistics$rememberPatternSource(PatternEncodingTermMenu menu, RecipeHolder<?> holder,
                                                        EmiRecipe emiRecipe, boolean doTransfer,
                                                        CallbackInfoReturnable<Object> cir) {
-        if (!doTransfer || cir.getReturnValue() == null) {
-            return;
-        }
-
-        if (!cir.getReturnValue().getClass().getName().endsWith("$Success")) {
-            return;
-        }
-
         PatternEncodingSourceHelper.rememberTransferSource(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferKeyInput(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, holder, emiRecipe);

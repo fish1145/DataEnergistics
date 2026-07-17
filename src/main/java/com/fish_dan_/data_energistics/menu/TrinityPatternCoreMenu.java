@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
+import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityPatternCoreUi;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.network.chat.Component;
@@ -15,7 +16,6 @@ import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.slot.RestrictedInputSlot;
-import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 
 import java.util.ArrayList;
@@ -84,6 +84,7 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
         createPlayerInventorySlots(playerInventory);
         refreshState();
         updatePatternSlotVisibility();
+        TrinityPatternCoreUi.mount(this, host.getBlockState().getBlock().getName());
     }
 
     @Override
@@ -149,11 +150,6 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
         return List.copyOf(this.pagePatternSlots);
     }
 
-    /** Returns whether a slot belongs to the current local pattern page. */
-    public boolean isPagePatternSlot(Slot slot) {
-        return this.pagePatternSlots.contains(slot);
-    }
-
     void setPage(int requestedPage) {
         int targetPage = clampPage(requestedPage);
         if (targetPage == this.pageIndex) {
@@ -206,9 +202,9 @@ public final class TrinityPatternCoreMenu extends AEBaseMenu {
         private final int slotOnPage;
 
         private PagedPatternSlot(int slotOnPage) {
-            super(PlacableItemType.PROVIDER_PATTERN, new PagedPatternInventory(slotOnPage), 0);
+            super(RestrictedInputSlot.PlacableItemType.PROVIDER_PATTERN, new PagedPatternInventory(slotOnPage), 0);
             this.slotOnPage = slotOnPage;
-            // TrinityPatternCoreScreen draws the dedicated empty-pattern sprite.
+            // The LDLib2 page wrapper draws the dedicated empty-pattern sprite.
             setIcon(null);
         }
 

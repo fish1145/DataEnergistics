@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.bridge;
 
+import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.StructurePreviewSceneBinder;
 import com.fish_dan_.data_energistics.network.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
@@ -20,6 +21,13 @@ public interface DataEnergisticsClientBridge {
      * @return {@code true} when execution is on the client thread.
      */
     boolean isClientThread();
+
+    /**
+     * Returns the client adapter that installs an independent LDLib2 world renderer on a common scene shell.
+     *
+     * @return stateless binder whose every bind call creates a fresh rendering lifetime
+     */
+    StructurePreviewSceneBinder structurePreviewSceneBinder();
 
     /**
      * Refreshes the open data ripper screen after the common menu state changes.

@@ -20,7 +20,7 @@
 
 - 迁移数据重组器 UI 至 LDLib2 并升级 EMI by @QiuYe-123 in [#106](https://github.com/fish1145/DataEnergistics/pull/106)
 
- 
+
 ## Version [v2.1.1](https://github.com/fish1145/DataEnergistics/compare/v2.1.0-1.21...v2.1.1-1.21)
 ### Added
 

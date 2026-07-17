@@ -42,9 +42,29 @@ public final class ModPayloads {
                 DigitalStorageDepotBucketModePayload.STREAM_CODEC,
                 DigitalStorageDepotBucketModePayload::handle);
         registrar.playToServer(
-                TrinityDataCoreAutoBuildPayload.TYPE,
-                TrinityDataCoreAutoBuildPayload.STREAM_CODEC,
-                TrinityDataCoreAutoBuildPayload::handle);
+                HostUiRequestPayload.TYPE,
+                HostUiRequestPayload.STREAM_CODEC,
+                HostUiRequestPayload::handle);
+        registrar.playToServer(
+                MultiblockPatternTransferPayload.TYPE,
+                MultiblockPatternTransferPayload.STREAM_CODEC,
+                MultiblockPatternTransferPayload::handle);
+        registrar.playToClient(
+                HostUiResponsePayload.TYPE,
+                HostUiResponsePayload.STREAM_CODEC,
+                HostUiResponsePayload::handle);
+        registrar.playToServer(
+                TrinityHostedAutoBuildPayload.TYPE,
+                TrinityHostedAutoBuildPayload.STREAM_CODEC,
+                TrinityHostedAutoBuildPayload::handle);
+        registrar.playToServer(
+                TrinityOpenCpuStatusPayload.TYPE,
+                TrinityOpenCpuStatusPayload.STREAM_CODEC,
+                TrinityOpenCpuStatusPayload::handle);
+        registrar.playToClient(
+                TrinityHostedActionResponsePayload.TYPE,
+                TrinityHostedActionResponsePayload.STREAM_CODEC,
+                TrinityHostedActionResponsePayload::handle);
         registrar.playToServer(
                 DataMeteoriteCompassRequestPayload.TYPE,
                 DataMeteoriteCompassRequestPayload.STREAM_CODEC,

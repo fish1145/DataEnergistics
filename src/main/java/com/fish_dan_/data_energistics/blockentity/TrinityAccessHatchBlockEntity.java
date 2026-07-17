@@ -15,6 +15,9 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
+import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
+import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
+import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
@@ -23,6 +26,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
@@ -38,11 +44,18 @@ import appeng.api.orientation.BlockOrientation;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.ILinkStatus;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
+import appeng.api.storage.ITerminalHost;
 import appeng.api.storage.MEStorage;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
+import appeng.api.util.IConfigManager;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.menu.ISubMenu;
+import appeng.util.NullConfigManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,14 +63,13 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * AE network hatch that exposes the bound Trinity Data Core UUID storage instead of storing contents locally.
  */
-public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implements CompartmentPart {
+public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implements CompartmentPart, ITerminalHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
 
@@ -103,6 +115,82 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Override
     public AECableType getCableConnectionType(Direction dir) {
         return AECableType.COVERED;
+    }
+
+    /**
+     * Exposes the existing host-backed storage to AE's crafting-status terminal menu.
+     */
+    @Override
+    public MEStorage getInventory() {
+        return this.networkStorage;
+    }
+
+    /**
+     * Reports both the grid-node state and whether this hatch still owns the Trinity lease.
+     */
+    @Override
+    public ILinkStatus getLinkStatus() {
+        ILinkStatus nodeStatus = ILinkStatus.ofManagedNode(this.getMainNode());
+        if (!nodeStatus.connected() || isAccessOnline()) {
+            return nodeStatus;
+        }
+        return ILinkStatus.ofDisconnected();
+    }
+
+    /**
+     * Crafting status does not expose upgrades for the Trinity access hatch.
+     */
+    @Override
+    public IUpgradeInventory getUpgrades() {
+        return UpgradeInventories.empty();
+    }
+
+    /**
+     * Crafting status does not expose configurable terminal settings for this host.
+     */
+    @Override
+    public IConfigManager getConfigManager() {
+        return NullConfigManager.INSTANCE;
+    }
+
+    @Override
+    public ItemStack getMainMenuIcon() {
+        return ModBlocks.TRINITY_DATA_CORE.get().asItem().getDefaultInstance();
+    }
+
+    /**
+     * Resolves the live bound controller instead of returning to the access hatch itself.
+     */
+    @Override
+    public void returnToMainMenu(Player player, ISubMenu subMenu) {
+        TrinityCraftingStatusSelection.Target target = subMenu instanceof TrinityCraftingStatusSelection.TargetedMenu menu ? menu.dataEnergistics$getTrinityTarget() : null;
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (target == null || host == null || !isCurrentCpuStatusRoute(target)) {
+            LOGGER.warn(
+                    "Cannot return from Trinity CPU status because its original route is stale: access={}, expectedHost={}, currentHost={}",
+                    this.worldPosition,
+                    target == null ? null : target.hostId(),
+                    host == null ? null : host.getHostId());
+            player.closeContainer();
+            return;
+        }
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            LOGGER.error("Cannot return from Trinity CPU status outside a server player context: player={}", player);
+            player.closeContainer();
+            return;
+        }
+        try {
+            if (TrinityDataCoreMenu.open(serverPlayer, host)) {
+                return;
+            }
+            LOGGER.error("Failed to return from Trinity CPU status to host {} at {}",
+                    host.getHostId(), host.getBlockPos());
+            player.closeContainer();
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to resolve the Trinity host menu at {} from access hatch {}",
+                    host.getBlockPos(), this.worldPosition, exception);
+            player.closeContainer();
+        }
     }
 
     public void serverTick() {
@@ -341,6 +429,32 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         TrinityDataCoreBlockEntity host = boundHost(false);
         return host == null || !isCandidateOnline() || !host.isLeaseOwner(this) ||
                 !host.isCpuProviderAvailable() ? null : host.getCraftingRuntime();
+    }
+
+    /** Classifies the original CPU pin against this hatch's current lease publication. */
+    public TargetState cpuStatusTargetState(TrinityCraftingStatusSelection.Target target) {
+        if (target == null) {
+            throw new IllegalArgumentException("Trinity CPU status target cannot be null");
+        }
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        if (host == null) {
+            return TargetState.STALE_ROUTE;
+        }
+        return target.currentState(host.getHostId(), boundCraftingRuntime(), accessGrid());
+    }
+
+    /** Verifies that the original CPU is still published on this hatch's exact lease Grid. */
+    public boolean isCurrentCpuStatusTarget(TrinityCraftingStatusSelection.Target target) {
+        return cpuStatusTargetState(target) == TargetState.CURRENT_CPU;
+    }
+
+    /** Verifies the Host, runtime, lease and Grid route after the original worker retires. */
+    public boolean isCurrentCpuStatusRoute(TrinityCraftingStatusSelection.Target target) {
+        if (target == null) {
+            throw new IllegalArgumentException("Trinity CPU status target cannot be null");
+        }
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host != null && target.isRouteCurrent(host.getHostId(), boundCraftingRuntime(), accessGrid());
     }
 
     public @Nullable IGrid connectedGrid() {
@@ -710,8 +824,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         public @Nullable CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
                                                                KeyCounter[] prototype,
                                                                long requestedCount) {
-            Objects.requireNonNull(patternDetails, "patternDetails");
-            Objects.requireNonNull(prototype, "prototype");
+            if (patternDetails == null) {
+                throw new IllegalArgumentException("Trinity pattern details must not be null");
+            }
+            if (prototype == null) {
+                throw new IllegalArgumentException("Trinity input prototype must not be null");
+            }
             if (requestedCount <= 0L) {
                 throw new IllegalArgumentException("requestedCount must be positive");
             }

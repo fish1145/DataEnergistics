@@ -1,8 +1,5 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.DataKeyType;
-
 import net.minecraft.SharedConstants;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
@@ -47,16 +44,25 @@ class DataRipperReassemblerScreenTest {
         }
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
-        Registry<AEKeyType> registry = new RegistryBuilder<>(AEKeyType.REGISTRY_KEY)
-                .sync(true)
-                .maxId(127)
-                .create();
-        AEKeyTypesInternal.setRegistry(registry);
-        Registry.register(registry, AEKeyType.items().getId(), AEKeyType.items());
-        Registry.register(registry, AEKeyType.fluids().getId(), AEKeyType.fluids());
-        Registry.register(registry, DataKeyType.TYPE.getId(), DataKeyType.TYPE);
-        Registry.register(registry, DataFlowKeyType.TYPE.getId(), DataFlowKeyType.TYPE);
-        registry.freeze();
+        initializeAeKeyTypes();
+    }
+
+    private static void initializeAeKeyTypes() {
+        synchronized (AEKeyTypesInternal.class) {
+            try {
+                AEKeyTypesInternal.getRegistry();
+                return;
+            } catch (IllegalStateException notInitialized) {
+                Registry<AEKeyType> registry = new RegistryBuilder<>(AEKeyType.REGISTRY_KEY)
+                        .sync(true)
+                        .maxId(127)
+                        .create();
+                AEKeyTypesInternal.setRegistry(registry);
+                Registry.register(registry, AEKeyType.items().getId(), AEKeyType.items());
+                Registry.register(registry, AEKeyType.fluids().getId(), AEKeyType.fluids());
+                registry.freeze();
+            }
+        }
     }
 
     @Test

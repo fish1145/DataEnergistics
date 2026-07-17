@@ -1,0 +1,38 @@
+package com.fish_dan_.data_energistics.common.trinity;
+
+/** Terminal outcome returned after the server handles one exact hosted business-action ticket. */
+public enum TrinityHostedActionStatus {
+
+    /**
+     * The validated business entry point completed handling the request.
+     *
+     * <p>
+     * For automatic building this does not promise that blocks were placed; detailed planner failures continue to
+     * use the existing player message and server log path.
+     * </p>
+     */
+    COMPLETED(0),
+    /** The request was rejected or its business entry point failed before completing normally. */
+    REJECTED(1);
+
+    private final int networkId;
+
+    TrinityHostedActionStatus(int networkId) {
+        this.networkId = networkId;
+    }
+
+    /** Returns the stable bounded network discriminator. */
+    public int networkId() {
+        return this.networkId;
+    }
+
+    /** Resolves a network discriminator without accepting future values implicitly. */
+    public static TrinityHostedActionStatus fromNetworkId(int networkId) {
+        for (TrinityHostedActionStatus status : values()) {
+            if (status.networkId == networkId) {
+                return status;
+            }
+        }
+        throw new IllegalArgumentException("Unknown Trinity hosted action status: " + networkId);
+    }
+}

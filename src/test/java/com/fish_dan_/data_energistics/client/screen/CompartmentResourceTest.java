@@ -182,8 +182,11 @@ public final class CompartmentResourceTest {
             assertTrue(text.has("player_inventory_title"), screen + " should label the player inventory");
         }
 
-        JsonObject compositeWidgets = object(readJson(SCREEN_ROOT + "composite_warehouse.json"), "widgets");
-        assertTrue(compositeWidgets.has("upgrades"), "Plain composite warehouses should keep the capacity upgrade panel");
+        JsonObject compositeRoot = readJson(SCREEN_ROOT + "composite_warehouse.json");
+        JsonObject compositeWidgets = compositeRoot.has("widgets") ?
+                object(compositeRoot, "widgets") : new JsonObject();
+        assertFalse(compositeWidgets.has("upgrades"),
+                "Plain composite warehouse upgrades should be rendered by the LDLib2 panel");
 
         for (String screen : List.of(
                 "me_composite_input_warehouse.json",
