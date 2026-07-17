@@ -129,6 +129,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final ResourceLocation ARMADILLO_ENTITY_ID = ResourceLocation.parse("minecraft:armadillo");
     private static final ResourceLocation TURTLE_ENTITY_ID = ResourceLocation.parse("minecraft:turtle");
     private static final ThreadLocal<SimulatedDeathDrops> SIMULATED_DEATH_DROPS = new ThreadLocal<>();
+
+    /** Produces actual death drops without notifying unrelated real-world death listeners. */
+    private static final BiologyDeathDropSimulation BIOLOGY_DEATH_DROP_SIMULATION = new BiologyDeathDropSimulationImpl();
     private static final List<ResourceKey<Instrument>> GOAT_HORN_INSTRUMENTS = List.of(
             Instruments.PONDER_GOAT_HORN,
             Instruments.SING_GOAT_HORN,
@@ -956,17 +959,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
     }
 
-    private GeneratedLoot simulateEntityDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
-        var damageSource = serverLevel.damageSources().playerAttack(fakePlayer);
+    static GeneratedLoot simulateEntityDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
         int experience = Math.max(0, livingEntity.getExperienceReward(serverLevel, fakePlayer));
         SimulatedDeathDrops captured = new SimulatedDeathDrops(livingEntity);
         SIMULATED_DEATH_DROPS.set(captured);
         try {
             // Match a player-caused death so loot tables using killed_by_player can roll.
-            livingEntity.tickCount = 100;
-            livingEntity.setLastHurtByPlayer(fakePlayer);
-            livingEntity.skipDropExperience();
-            livingEntity.die(damageSource);
+            BIOLOGY_DEATH_DROP_SIMULATION.generateDrops(serverLevel, livingEntity, fakePlayer);
         } finally {
             SIMULATED_DEATH_DROPS.remove();
         }
@@ -1784,7 +1783,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
     }
 
-    private record GeneratedLoot(List<ItemStack> stacks, long experience) {
+    /**
+     * Captures the item and experience output of one or more simulated loot rolls.
+     *
+     * @param stacks     generated item stacks
+     * @param experience generated experience amount
+     */
+    record GeneratedLoot(List<ItemStack> stacks, long experience) {
 
         private static GeneratedLoot empty() {
             return new GeneratedLoot(List.of(), 0L);
