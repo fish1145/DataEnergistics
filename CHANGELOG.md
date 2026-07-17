@@ -1,5 +1,23 @@
 # ChangeLog
 
+## Version [v2.3.0](https://github.com/fish1145/DataEnergistics/compare/v2.2.0-1.21...v2.3.0-1.21)
+### Added
+
+- 优化数据拟态场生物掉落延迟 by @QiuYe-123 in [#122](https://github.com/fish1145/DataEnergistics/pull/122)
+
+### Fixed
+
+- 修复样板上传后编码槽未清空 by @QiuYe-123 in [#121](https://github.com/fish1145/DataEnergistics/pull/121)
+- 优化数据拟态场生物掉落延迟 by @QiuYe-123 in [#122](https://github.com/fish1145/DataEnergistics/pull/122)
+- 修复 AE 超大存储数量溢出 by @QiuYe-123 in [#123](https://github.com/fish1145/DataEnergistics/pull/123)
+- 修复数据拟态场容器与 BHC 掉落输出 by @QiuYe-123 in [#124](https://github.com/fish1145/DataEnergistics/pull/124)
+- 优化 Trinity CPU 下单计算性能 by @QiuYe-123 in [#126](https://github.com/fish1145/DataEnergistics/pull/126)
+
+### Changed
+
+- 迁移多方块与舱室 UI 至 LDLib2 by @QiuYe-123 in [#99](https://github.com/fish1145/DataEnergistics/pull/99)
+
+ 
 ## Version [v2.2.0](https://github.com/fish1145/DataEnergistics/compare/v2.1.1-1.21...v2.2.0-1.21)
 ### Added
 
