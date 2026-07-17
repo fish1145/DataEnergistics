@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.accessor.CondenserBlockEntityAccessor;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
-import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
 
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
@@ -61,16 +61,21 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
             return;
         }
 
-        if (this.dataEnergistics$isValidDataCaptureBallStorageComponent(this.storageSlot.getStackInSlot(0))) {
-            cir.setReturnValue(DATA_ENERGISTICS_DATA_CAPTURE_BALL_REQUIRED_POWER);
-        } else {
-            cir.setReturnValue(0.0D);
-        }
+        cir.setReturnValue(this.dataEnergistics$getDataCaptureBallStorage(this.storageSlot.getStackInSlot(0)));
     }
 
     @Unique
     private boolean dataEnergistics$isValidDataCaptureBallStorageComponent(ItemStack stack) {
-        return stack.is(ModItems.DATA_STORAGE_COMPONENT_16K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_64K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_256K.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_1M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_4M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_16M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_64M.get()) || stack.is(ModItems.DATA_STORAGE_COMPONENT_256M.get());
+        return this.dataEnergistics$getDataCaptureBallStorage(stack) > 0.0D;
+    }
+
+    @Unique
+    private double dataEnergistics$getDataCaptureBallStorage(ItemStack stack) {
+        if (!(stack.getItem() instanceof DataStorageComponentItem component) || !component.isStorageComponent(stack)) {
+            return 0.0D;
+        }
+        double storage = (double) component.getBytes(stack) * CondenserBlockEntity.BYTE_MULTIPLIER;
+        return storage >= DATA_ENERGISTICS_DATA_CAPTURE_BALL_REQUIRED_POWER ? storage : 0.0D;
     }
 
     @Inject(method = "saveAdditional", at = @At("TAIL"))
@@ -99,6 +104,5 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
         this.dataEnergistics$dataCaptureBallMode = enabled;
         var condenser = (CondenserBlockEntity) (Object) this;
         condenser.setChanged();
-        condenser.addPower(0);
     }
 }
