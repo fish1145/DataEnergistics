@@ -14,6 +14,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGrid;
@@ -21,9 +22,11 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
 import appeng.api.networking.events.GridEvent;
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
 import com.google.gson.stream.JsonWriter;
 
 import java.io.IOException;
@@ -114,6 +117,144 @@ public final class PatternProviderSyncHelperTest {
         helper.succeed();
     }
 
+    @TestHolder("pattern_provider_upload_reports_committed_write_when_notification_fails")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void reportsCommittedWriteWhenNotificationFails(GameTestHelper helper) {
+        FailingSaveNotificationHost inventoryHost = new FailingSaveNotificationHost();
+        AppEngInternalInventory patternInventory = new AppEngInternalInventory(inventoryHost, 1);
+        TestPatternProvider provider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, patternInventory, 10);
+        ItemStack encodedPattern = encodedProcessingPattern();
+
+        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                List.of(provider), encodedPattern);
+
+        assertEquals(1, inventoryHost.saveAttemptCount);
+        assertTrue(result.transferred());
+        assertTrue(result.remainder().isEmpty());
+        assertTrue(!result.duplicateFound());
+        ItemStack uploadedPattern = patternInventory.getStackInSlot(0);
+        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, uploadedPattern));
+        assertEquals(encodedPattern.getCount(), uploadedPattern.getCount());
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_provider_upload_uses_committed_delta_when_inventory_misreports_remainder")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void usesCommittedDeltaWhenInventoryMisreportsRemainder(GameTestHelper helper) {
+        MisreportingPatternInventory patternInventory = new MisreportingPatternInventory();
+        TestPatternProvider provider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, patternInventory, 10);
+        ItemStack encodedPattern = encodedProcessingPattern();
+
+        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                List.of(provider), encodedPattern);
+
+        assertTrue(result.transferred());
+        assertTrue(result.remainder().isEmpty());
+        assertTrue(!result.duplicateFound());
+        assertEquals(1, patternInventory.size());
+        ItemStack uploadedPattern = patternInventory.getStackInSlot(0);
+        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, uploadedPattern));
+        assertEquals(1, uploadedPattern.getCount());
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_provider_upload_reports_committed_write_when_linkage_notification_fails")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void reportsCommittedWriteWhenLinkageNotificationFails(GameTestHelper helper) {
+        LinkageFailingSaveNotificationHost inventoryHost = new LinkageFailingSaveNotificationHost();
+        AppEngInternalInventory patternInventory = new AppEngInternalInventory(inventoryHost, 1);
+        TestPatternProvider provider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, patternInventory, 10);
+        ItemStack encodedPattern = encodedProcessingPattern();
+
+        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                List.of(provider), encodedPattern);
+
+        assertEquals(1, inventoryHost.saveAttemptCount);
+        assertTrue(result.transferred());
+        assertTrue(result.remainder().isEmpty());
+        assertTrue(!result.duplicateFound());
+        ItemStack uploadedPattern = patternInventory.getStackInSlot(0);
+        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, uploadedPattern));
+        assertEquals(encodedPattern.getCount(), uploadedPattern.getCount());
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_provider_upload_does_not_commit_when_insertion_fails_before_write")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void doesNotCommitWhenInsertionFailsBeforeWrite(GameTestHelper helper) {
+        FailingBeforeWritePatternInventory patternInventory = new FailingBeforeWritePatternInventory();
+        TestPatternProvider provider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, patternInventory, 10);
+        ItemStack encodedPattern = encodedProcessingPattern();
+
+        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                List.of(provider), encodedPattern);
+
+        assertTrue(!result.transferred());
+        assertTrue(!result.duplicateFound());
+        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, result.remainder()));
+        assertEquals(encodedPattern.getCount(), result.remainder().getCount());
+        assertTrue(patternInventory.getStackInSlot(0).isEmpty());
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_provider_upload_rejects_reported_commit_without_inventory_delta")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void rejectsReportedCommitWithoutInventoryDelta(GameTestHelper helper) {
+        OverreportingPatternInventory patternInventory = new OverreportingPatternInventory();
+        TestPatternProvider provider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, patternInventory, 10);
+        ItemStack encodedPattern = encodedProcessingPattern();
+
+        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                List.of(provider), encodedPattern);
+
+        assertTrue(!result.transferred());
+        assertTrue(!result.duplicateFound());
+        assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, result.remainder()));
+        assertEquals(encodedPattern.getCount(), result.remainder().getCount());
+        assertTrue(patternInventory.getStackInSlot(0).isEmpty());
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_provider_upload_commits_partial_insertions_across_providers")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void commitsPartialInsertionsAcrossProviders(GameTestHelper helper) {
+        AppEngInternalInventory firstInventory = new AppEngInternalInventory(1);
+        AppEngInternalInventory secondInventory = new AppEngInternalInventory(1);
+        firstInventory.setMaxStackSize(0, 1);
+        secondInventory.setMaxStackSize(0, 1);
+        TestPatternProvider firstProvider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, firstInventory, 10);
+        TestPatternProvider secondProvider = new TestPatternProvider(
+                "Assembler", Items.CRAFTING_TABLE, secondInventory, 20);
+        ItemStack encodedPatterns = encodedProcessingPattern();
+        encodedPatterns.setCount(2);
+
+        var result = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(
+                List.of(firstProvider, secondProvider), encodedPatterns);
+
+        assertTrue(result.transferred());
+        assertTrue(result.remainder().isEmpty());
+        assertTrue(!result.duplicateFound());
+        assertEquals(1, firstInventory.getStackInSlot(0).getCount());
+        assertEquals(1, secondInventory.getStackInSlot(0).getCount());
+        assertTrue(ItemStack.isSameItemSameComponents(
+                encodedPatterns, firstInventory.getStackInSlot(0)));
+        assertTrue(ItemStack.isSameItemSameComponents(
+                encodedPatterns, secondInventory.getStackInSlot(0)));
+        helper.succeed();
+    }
+
     private static PatternEncodingPreviewMenu.SyncedPatternProviderList collect(
                                                                                 List<? extends PatternContainer> providers,
                                                                                 Map<Long, List<PatternContainer>> targetsById) {
@@ -141,9 +282,13 @@ public final class PatternProviderSyncHelperTest {
         private Component customName;
 
         private TestPatternProvider(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
+            this(baseName, icon, inventory(slots, usedSlots), sortOrder);
+        }
+
+        private TestPatternProvider(String baseName, Item icon, AppEngInternalInventory inventory, long sortOrder) {
             this.baseName = baseName;
             this.icon = AEItemKey.of(icon);
-            this.inventory = inventory(slots, usedSlots);
+            this.inventory = inventory;
             this.sortOrder = sortOrder;
         }
 
@@ -196,6 +341,81 @@ public final class PatternProviderSyncHelperTest {
             inventory.setItemDirect(slot, new ItemStack(Items.PAPER));
         }
         return inventory;
+    }
+
+    private static ItemStack encodedProcessingPattern() {
+        return PatternDetailsHelper.encodeProcessingPattern(
+                List.of(new GenericStack(AEItemKey.of(Items.IRON_INGOT), 1)),
+                List.of(new GenericStack(AEItemKey.of(Items.GOLD_INGOT), 1)));
+    }
+
+    private static final class MisreportingPatternInventory extends AppEngInternalInventory {
+
+        private MisreportingPatternInventory() {
+            super(1);
+        }
+
+        @Override
+        public ItemStack addItems(ItemStack stack, boolean simulate) {
+            ItemStack actualRemainder = insertItem(0, stack, simulate);
+            return !simulate && actualRemainder.isEmpty() ? stack : actualRemainder;
+        }
+    }
+
+    private static final class OverreportingPatternInventory extends AppEngInternalInventory {
+
+        private OverreportingPatternInventory() {
+            super(1);
+        }
+
+        @Override
+        public ItemStack addItems(ItemStack stack, boolean simulate) {
+            return simulate ? stack : ItemStack.EMPTY;
+        }
+    }
+
+    private static final class FailingBeforeWritePatternInventory extends AppEngInternalInventory {
+
+        private FailingBeforeWritePatternInventory() {
+            super(1);
+        }
+
+        @Override
+        public ItemStack addItems(ItemStack stack, boolean simulate) {
+            throw new IllegalStateException("Simulated insertion failure before the pattern slot was changed");
+        }
+    }
+
+    private static final class FailingSaveNotificationHost implements InternalInventoryHost {
+
+        private int saveAttemptCount;
+
+        @Override
+        public void saveChangedInventory(AppEngInternalInventory inventory) {
+            this.saveAttemptCount++;
+            throw new IllegalStateException("Simulated notification failure after the pattern slot was committed");
+        }
+
+        @Override
+        public boolean isClientSide() {
+            return false;
+        }
+    }
+
+    private static final class LinkageFailingSaveNotificationHost implements InternalInventoryHost {
+
+        private int saveAttemptCount;
+
+        @Override
+        public void saveChangedInventory(AppEngInternalInventory inventory) {
+            this.saveAttemptCount++;
+            throw new NoClassDefFoundError("Simulated linkage failure after the pattern slot was committed");
+        }
+
+        @Override
+        public boolean isClientSide() {
+            return false;
+        }
     }
 
     private static void assertEquals(Object expected, Object actual) {
