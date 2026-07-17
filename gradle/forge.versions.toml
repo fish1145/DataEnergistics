@@ -24,6 +24,7 @@ jade = "15.10.0+neoforge"
 sodium = "mc1.21.1-0.6.13-neoforge"
 iris = "1.8.8+1.21.1-neoforge"
 modernfix = "4SPHwiDB" # 5.24.3+mc1.21.1
+bhc = "1.21.1-1.4.1"
 
 ## cursemaven ##
 spark = "6225208"
@@ -84,6 +85,7 @@ jade                = { module = "maven.modrinth:jade", version.ref = "jade" }
 sodium              = { module = "maven.modrinth:sodium", version.ref = "sodium" }
 iris                = { module = "maven.modrinth:iris", version.ref = "iris" }
 modernfix           = { module = "maven.modrinth:modernfix", version.ref = "modernfix" }
+bhc                 = { module = "maven.modrinth:baubley-heart-canisters", version.ref = "bhc" }
 
 geckolib            = { module = "curse.maven:geckolib-388172", version.ref = "geckolib" }
 glodium             = { module = "curse.maven:glodium-957920", version.ref = "glodium" }
