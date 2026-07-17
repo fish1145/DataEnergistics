@@ -39,6 +39,7 @@
 		"core.InterfaceLogicTickAccessor",
 		"core.InterfaceLogicUpgradesAccessor",
 		"core.LivingEntityDropInvoker",
+		"core.NetworkCraftingProvidersPatternsForKeyMixin",
 		"core.NetworkStatusMixin",
 		"core.NetworkStorageMixin",
 		"core.NeoForgeEnergyStorageAccessor",
