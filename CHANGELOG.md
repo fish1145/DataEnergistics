@@ -1,5 +1,26 @@
 # ChangeLog
 
+## Version [v2.2.0](https://github.com/fish1145/DataEnergistics/compare/v2.1.1-1.21...v2.2.0-1.21)
+### Added
+
+- [1.21] Add Fish_Dan doll variants and refresh Guide/UI integration by @fish1145 in [#107](https://github.com/fish1145/DataEnergistics/pull/107)
+- Sync AE2 guide items-blocks-machines structure between English and zh_cn by @fish1145 in [#108](https://github.com/fish1145/DataEnergistics/pull/108)
+- 调整数据拟态场平衡并完善 AE2 Guide by @fish1145 in [#114](https://github.com/fish1145/DataEnergistics/pull/114)
+
+### Fixed
+
+- 修复数据均分塔连接 AE 部件 by @QiuYe-123 in [#103](https://github.com/fish1145/DataEnergistics/pull/103)
+- Fix output side screen button directions by @fish1145 in [#109](https://github.com/fish1145/DataEnergistics/pull/109)
+- 修复 Trinity CPU 外部机器容量合并发配 by @QiuYe-123 in [#112](https://github.com/fish1145/DataEnergistics/pull/112)
+- 修复通用终端打开样板编码终端崩溃 by @QiuYe-123 in [#113](https://github.com/fish1145/DataEnergistics/pull/113)
+- 升级 LDLib2 与 ECO 并修复渲染注入 by @QiuYe-123 in [#116](https://github.com/fish1145/DataEnergistics/pull/116)
+- 修复合成数据重组器时消耗数据捕捉球 by @QiuYe-123 in [#117](https://github.com/fish1145/DataEnergistics/pull/117)
+
+### Changed
+
+- 迁移数据重组器 UI 至 LDLib2 并升级 EMI by @QiuYe-123 in [#106](https://github.com/fish1145/DataEnergistics/pull/106)
+
+ 
 ## Version [v2.1.1](https://github.com/fish1145/DataEnergistics/compare/v2.1.0-1.21...v2.1.1-1.21)
 ### Added
 
