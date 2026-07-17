@@ -68,7 +68,7 @@ public final class DataCaptureBallCondenserRecipe implements Recipe<RecipeInput>
 
     @Override
     public ItemStack getResultItem(HolderLookup.Provider registries) {
-        return this.result.copy();
+        return DataCaptureBallItem.createChargedStack();
     }
 
     @Override

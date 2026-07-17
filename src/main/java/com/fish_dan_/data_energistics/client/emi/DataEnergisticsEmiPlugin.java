@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
+import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -9,11 +10,9 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelper;
-import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -36,9 +35,7 @@ import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
 import dev.emi.emi.registry.EmiRecipes;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
@@ -138,32 +135,12 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
-        List<EmiCraftingRecipe> recipes = new ArrayList<>();
-        List<UniversalTerminalData.TerminalEntry> terminals = UniversalTerminalData.getDefinitions().stream()
-                .filter(definition -> !new ItemStack(ModItems.UNIVERSAL_TERMINAL.get()).is(definition.createIcon().getItem()))
-                .map(definition -> {
-                    ItemStack stack = definition.createIcon();
-                    return stack.isEmpty() ? null : new UniversalTerminalData.TerminalEntry(definition.name(), stack);
-                })
-                .filter(Objects::nonNull)
+        return UniversalTerminalCombineRecipeView.fromRegisteredTerminals().stream()
+                .map(recipe -> new EmiCraftingRecipe(
+                        List.of(EmiStack.of(recipe.firstInput()), EmiStack.of(recipe.secondInput())),
+                        EmiStack.of(recipe.output()),
+                        recipe.id()))
                 .toList();
-
-        for (int i = 0; i < terminals.size(); i++) {
-            for (int j = i + 1; j < terminals.size(); j++) {
-                UniversalTerminalData.TerminalEntry first = terminals.get(i);
-                UniversalTerminalData.TerminalEntry second = terminals.get(j);
-                recipes.add(new EmiCraftingRecipe(
-                        List.of(EmiStack.of(first.stack().copy()), EmiStack.of(second.stack().copy())),
-                        EmiStack.of(ModItems.UNIVERSAL_TERMINAL.get()),
-                        Data_Energistics.id("universal_terminal_combine/" + sanitize(first.name()) + "_" + sanitize(second.name()))));
-            }
-        }
-
-        return recipes;
-    }
-
-    private static String sanitize(String terminalName) {
-        return terminalName.replace(':', '_').replace('/', '_');
     }
 
     private static <R extends Recipe<?>> void registerRecipeCategory(

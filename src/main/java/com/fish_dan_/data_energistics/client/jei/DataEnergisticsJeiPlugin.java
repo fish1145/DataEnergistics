@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
+import com.fish_dan_.data_energistics.client.recipe.UniversalTerminalCombineRecipeView;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.client.xei.multiblock.MultiblockXeiComposition;
@@ -17,14 +18,19 @@ import com.fish_dan_.data_energistics.util.DataCaptureBallCraftingRemainderHelpe
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
@@ -126,6 +132,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     public void registerRecipes(IRecipeRegistration registration) {
         registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
         registration.addRecipes(TrinityMultiblockJeiCategory.RECIPE_TYPE, List.of(MultiblockXeiRecipe.trinity()));
+        registration.addRecipes(RecipeTypes.CRAFTING, buildUniversalTerminalRecipes());
         var level = Minecraft.getInstance().level;
         if (level != null) {
             List<WorldInteractionJeiRecipe> worldInteractionRecipes = new ArrayList<>();
@@ -165,6 +172,21 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         "jei.data_energistics.data_reassembler.crafting_requirement",
                         DataCaptureBallCraftingRemainderHelper.DATA_REASSEMBLER_DATA_COST));
         registerMatterConvergingCrossbowAnvilRecipes(registration);
+    }
+
+    private static List<RecipeHolder<CraftingRecipe>> buildUniversalTerminalRecipes() {
+        return UniversalTerminalCombineRecipeView.fromRegisteredTerminals().stream()
+                .map(recipe -> new RecipeHolder<CraftingRecipe>(
+                        recipe.id(),
+                        new ShapelessRecipe(
+                                "",
+                                CraftingBookCategory.MISC,
+                                recipe.output(),
+                                NonNullList.of(
+                                        Ingredient.EMPTY,
+                                        Ingredient.of(recipe.firstInput()),
+                                        Ingredient.of(recipe.secondInput())))))
+                .toList();
     }
 
     private static <R extends Recipe<?>, T> void registerRecipeType(IRecipeRegistration registration, RecipeType<T> recipeType,

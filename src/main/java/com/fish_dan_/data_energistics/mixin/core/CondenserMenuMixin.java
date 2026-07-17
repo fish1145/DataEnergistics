@@ -78,8 +78,8 @@ public abstract class CondenserMenuMixin extends AEBaseMenu implements Condenser
     @Unique
     private void dataEnergistics$applyCondenserOutputMode(Integer ordinal) {
         var mode = CondenserOutputMode.fromOrdinal(ordinal == null ? 0 : ordinal);
-        this.condenser.getConfigManager().putSetting(Settings.CONDENSER_OUTPUT, mode.toVanillaOutput());
         ((CondenserBlockEntityAccessor) this.condenser).dataEnergistics$setDataCaptureBallMode(mode.isDataCaptureBallMode());
+        this.condenser.getConfigManager().putSetting(Settings.CONDENSER_OUTPUT, mode.toVanillaOutput());
         this.dataEnergistics$condenserOutputMode = mode.ordinal();
     }
 }
