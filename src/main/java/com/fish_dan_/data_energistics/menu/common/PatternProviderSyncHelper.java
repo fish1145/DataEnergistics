@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.fml.ModList;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
@@ -46,6 +47,7 @@ public final class PatternProviderSyncHelper {
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
     private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
+    private static final String USELESS_MOD_ID = "useless_mod";
     private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
     private static final String NEOECOAE_NAMESPACE = "neoecoae";
     private static final String APPLIED_PNEUMATICS_NAMESPACE = "appliedpneumatics";
@@ -274,18 +276,96 @@ public final class PatternProviderSyncHelper {
             return encodedPattern;
         }
 
-        ItemStack remainder = patternInventory.addItems(encodedPattern.copy(), false);
-        if (remainder.getCount() == encodedPattern.getCount()) {
+        long matchingCountBefore = countMatchingEncodedPatterns(patternInventory, encodedPattern);
+        ItemStack reportedRemainder;
+        try {
+            reportedRemainder = patternInventory.addItems(encodedPattern.copy(), false);
+        } catch (RuntimeException | LinkageError exception) {
+            LOGGER.error("Failed to insert encoded pattern into {}; checking the target inventory for committed patterns",
+                    container, exception);
+            int committedCount = countCommittedPatternDelta(
+                    matchingCountBefore, patternInventory, encodedPattern);
+            if (committedCount <= 0) {
+                return encodedPattern;
+            }
+
+            notifyCommittedPatternUpload(container, committedCount);
+            return createRemainderAfterCommit(encodedPattern, committedCount);
+        }
+
+        int reportedCommittedCount = countReportedPatternCommit(encodedPattern, reportedRemainder);
+        int actualCommittedCount = countCommittedPatternDelta(
+                matchingCountBefore, patternInventory, encodedPattern);
+        int committedCount = actualCommittedCount;
+        if (reportedCommittedCount != actualCommittedCount) {
+            LOGGER.warn("Pattern provider {} reported {} of {} patterns committed, but its inventory changed by {}; " +
+                    "using the inventory delta as the committed count",
+                    container, reportedCommittedCount, encodedPattern.getCount(), actualCommittedCount);
+        }
+        if (committedCount <= 0) {
             return encodedPattern;
         }
 
-        if (container instanceof PatternProviderLogicHost providerHost) {
-            providerHost.getLogic().updatePatterns();
-            providerHost.saveChanges();
-        }
-        SomeUselessThingsCompat.afterPatternUpload(container);
+        notifyCommittedPatternUpload(container, committedCount);
+        return createRemainderAfterCommit(encodedPattern, committedCount);
+    }
 
+    private static long countMatchingEncodedPatterns(InternalInventory inventory, ItemStack encodedPattern) {
+        long matchingCount = 0;
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            ItemStack stack = inventory.getStackInSlot(slot);
+            if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, encodedPattern)) {
+                matchingCount += stack.getCount();
+            }
+        }
+        return matchingCount;
+    }
+
+    private static int countReportedPatternCommit(ItemStack encodedPattern, ItemStack reportedRemainder) {
+        int boundedRemainderCount = Math.min(encodedPattern.getCount(), reportedRemainder.getCount());
+        return encodedPattern.getCount() - boundedRemainderCount;
+    }
+
+    private static int countCommittedPatternDelta(long matchingCountBefore, InternalInventory inventory,
+                                                  ItemStack encodedPattern) {
+        long matchingCountAfter = countMatchingEncodedPatterns(inventory, encodedPattern);
+        long positiveDelta = Math.max(0, matchingCountAfter - matchingCountBefore);
+        return (int) Math.min(encodedPattern.getCount(), positiveDelta);
+    }
+
+    private static ItemStack createRemainderAfterCommit(ItemStack encodedPattern, int committedCount) {
+        if (committedCount >= encodedPattern.getCount()) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack remainder = encodedPattern.copy();
+        remainder.shrink(committedCount);
         return remainder;
+    }
+
+    private static void notifyCommittedPatternUpload(PatternContainer container, int committedCount) {
+        if (container instanceof PatternProviderLogicHost providerHost) {
+            try {
+                providerHost.getLogic().updatePatterns();
+            } catch (RuntimeException | LinkageError exception) {
+                LOGGER.error("Failed to update patterns after committing {} encoded patterns to {}",
+                        committedCount, container, exception);
+            }
+            try {
+                providerHost.saveChanges();
+            } catch (RuntimeException | LinkageError exception) {
+                LOGGER.error("Failed to save pattern provider after committing {} encoded patterns to {}",
+                        committedCount, container, exception);
+            }
+        }
+        if (ModList.get().isLoaded(USELESS_MOD_ID)) {
+            try {
+                SomeUselessThingsCompat.afterPatternUpload(container);
+            } catch (RuntimeException | LinkageError exception) {
+                LOGGER.error("Failed to run the post-upload compatibility hook after committing {} encoded patterns to {}",
+                        committedCount, container, exception);
+            }
+        }
     }
 
     public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern) {

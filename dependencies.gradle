@@ -56,6 +56,7 @@ dependencies {
 
     // Standard runtime mods
     localRuntime(forge.spark)
+    localRuntime(forge.bhc)
 
     // FTB //
     localRuntime(forge.architectury)

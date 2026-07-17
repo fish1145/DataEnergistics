@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.multiblock.MultiBlockFailureText;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreHostStatus.StructureStatus;
@@ -20,7 +21,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -60,8 +60,6 @@ final class TrinityDataCoreStatusPanel {
     private static final int RIGHT_LABEL_X = 2;
     private static final int RIGHT_LABEL_WIDTH = 113;
     private static final int RIGHT_LINE_HEIGHT = 11;
-    private static final BigInteger UNIT_BASE = BigInteger.valueOf(1024L);
-    private static final String[] COMPACT_UNITS = { "", "K", "M", "G", "T", "P", "E" };
 
     private TrinityDataCoreStatusPanel() {}
 
@@ -135,33 +133,7 @@ final class TrinityDataCoreStatusPanel {
     }
 
     static String compactNumber(String value) {
-        if (value.isBlank()) {
-            return "0";
-        }
-        BigInteger amount = new BigInteger(value.trim());
-        if (amount.signum() == 0) {
-            return "0";
-        }
-
-        BigInteger absoluteAmount = amount.abs();
-        BigInteger divisor = BigInteger.ONE;
-        int unitIndex = 0;
-        while (unitIndex < COMPACT_UNITS.length - 1 &&
-                absoluteAmount.compareTo(divisor.multiply(UNIT_BASE)) >= 0) {
-            divisor = divisor.multiply(UNIT_BASE);
-            unitIndex++;
-        }
-        if (unitIndex == 0) {
-            return amount.toString();
-        }
-
-        BigInteger whole = absoluteAmount.divide(divisor);
-        BigInteger fraction = absoluteAmount.remainder(divisor).multiply(BigInteger.TEN).divide(divisor);
-        String sign = amount.signum() < 0 ? "-" : "";
-        if (whole.compareTo(BigInteger.TEN) >= 0 || fraction.signum() == 0) {
-            return sign + whole + COMPACT_UNITS[unitIndex];
-        }
-        return sign + whole + "." + fraction + COMPACT_UNITS[unitIndex];
+        return TrinityAmountFormatter.format(value);
     }
 
     private static UIElement leftPanel(IDataProvider<TrinityDataCoreHostStatus> statusProvider) {

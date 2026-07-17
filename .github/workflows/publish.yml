@@ -131,10 +131,11 @@ jobs:
           LOADER: neoforge
           JAVA: '21'
           VERSION_TYPE: beta
-        uses: Kir-Antipov/mc-publish@v3.3.0
+        uses: Kira-NT/mc-publish@v3.3.1
         with:
           curseforge-id: 1565514
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          environment: 'client | server'
           files: |
             ./data_energistics-${{ env.MC_VERSION }}-${{ needs.build.outputs.ver }}.jar
             ./!(data_energistics-${{ env.MC_VERSION }}-${{ needs.build.outputs.ver }}.jar)
