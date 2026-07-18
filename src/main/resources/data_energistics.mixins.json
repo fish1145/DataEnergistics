@@ -13,6 +13,7 @@
 		"ae2cs.Ae2CsPatternProviderLogicMixin",
 		"ae2cs.Ae2CsUpgradeablePatternProviderMenuMixin",
 		"ae2lt.Ae2ltEjectCapabilityMixin",
+		"ae2lt.Ae2ltPathingCalculationCompatMixin",
 		"ae2lt.Ae2ltOverloadedPatternProviderLogicMixin",
 		"ae2lt.Ae2ltWirelessConnectorUsePacketMixin",
 		"appliedcreate.AppliedCreatePatternProviderBlockEntityMixin",
