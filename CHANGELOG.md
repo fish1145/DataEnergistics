@@ -1,5 +1,17 @@
 # ChangeLog
 
+## Version [v2.3.1](https://github.com/fish1145/DataEnergistics/compare/v2.3.0-1.21...v2.3.1-1.21)
+### Fixed
+
+- 修复数据捕捉球聚合与 JEI 配方显示 by @QiuYe-123 in [#128](https://github.com/fish1145/DataEnergistics/pull/128)
+- 修复专用服务器样板终端打开失败 by @QiuYe-123 in [#129](https://github.com/fish1145/DataEnergistics/pull/129)
+- 修复数据均分塔超过32频道输出 by @QiuYe-123 in [#130](https://github.com/fish1145/DataEnergistics/pull/130)
+- 修复数据充能台 Capability 交互 by @QiuYe-123 in [#131](https://github.com/fish1145/DataEnergistics/pull/131)
+- 修复量子缠绕态奇点组件配方 by @QiuYe-123 in [#132](https://github.com/fish1145/DataEnergistics/pull/132)
+- 修复样板上传搜索与改名输入交互 by @QiuYe-123 in [#133](https://github.com/fish1145/DataEnergistics/pull/133)
+- 修复 ME 太阳能板贴片双向合成 by @QiuYe-123 in [#134](https://github.com/fish1145/DataEnergistics/pull/134)
+
+ 
 ## Version [v2.3.0](https://github.com/fish1145/DataEnergistics/compare/v2.2.0-1.21...v2.3.0-1.21)
 ### Added
 
