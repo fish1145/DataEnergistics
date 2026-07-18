@@ -1,75 +1,62 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.mixin.core.AEBaseBlockEntityNameAccessor;
+import com.fish_dan_.data_energistics.mixin.core.AEBasePartNameAccessor;
+
 import net.minecraft.network.chat.Component;
 
 import appeng.blockentity.AEBaseBlockEntity;
 import appeng.parts.AEBasePart;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.invoke.VarHandle;
-import java.util.Optional;
-
 public final class PatternProviderNameHelper {
-
-    private static final Optional<VarHandle> AE_BASE_PART_CUSTOM_NAME_FIELD = resolveCustomNameField(AEBasePart.class);
-    private static final Optional<VarHandle> AE_BASE_BLOCK_ENTITY_CUSTOM_NAME_FIELD = resolveCustomNameField(AEBaseBlockEntity.class);
 
     private PatternProviderNameHelper() {}
 
     public static boolean setCustomName(Object target, @Nullable Component customName) {
         if (target instanceof AEBasePart part) {
-            return writeField(AE_BASE_PART_CUSTOM_NAME_FIELD, part, customName);
+            ((AEBasePartNameAccessor) part).dataEnergistics$setCustomName(customName);
+            return true;
         }
         if (target instanceof AEBaseBlockEntity blockEntity) {
-            return writeField(AE_BASE_BLOCK_ENTITY_CUSTOM_NAME_FIELD, blockEntity, customName);
+            ((AEBaseBlockEntityNameAccessor) blockEntity).dataEnergistics$setCustomName(customName);
+            return true;
         }
-        return writeField(resolveCustomNameField(target.getClass()), target, customName);
+        return false;
     }
 
     @Nullable
     public static Component getCustomName(Object target) {
         if (target instanceof AEBasePart part) {
-            return readField(AE_BASE_PART_CUSTOM_NAME_FIELD, part);
+            return part.getCustomName();
         }
         if (target instanceof AEBaseBlockEntity blockEntity) {
-            return readField(AE_BASE_BLOCK_ENTITY_CUSTOM_NAME_FIELD, blockEntity);
+            return blockEntity.getCustomName();
         }
-        return readField(resolveCustomNameField(target.getClass()), target);
+        return null;
     }
 
     public static boolean canRename(Object target) {
-        if (target instanceof AEBasePart || target instanceof AEBaseBlockEntity) {
-            return true;
-        }
-        return resolveCustomNameField(target.getClass()).isPresent();
+        return target instanceof AEBasePart || target instanceof AEBaseBlockEntity;
     }
 
     public static void syncRename(Object target) {
-        invokeNoArg(target, "saveChanges");
-        invokeNoArg(target, "setChanged");
-        invokeNoArg(target, "markForUpdate");
-        invokeNoArg(target, "markForClientUpdate");
-        if (target instanceof AEBasePart part && part.getHost() != null) {
+        if (target instanceof AEBasePart part) {
+            if (part.getHost() == null) {
+                throw new IllegalStateException("Cannot synchronize a detached AE2 part custom name");
+            }
+            part.getHost().markForSave();
             part.getHost().markForUpdate();
+            return;
         }
-    }
-
-    @Nullable
-    private static Optional<VarHandle> resolveCustomNameField(Class<?> owner) {
-        return ReflectionAccess.findFieldAssignable(owner, "customName", Component.class);
-    }
-
-    private static boolean writeField(Optional<VarHandle> field, Object target, @Nullable Component value) {
-        return ReflectionAccess.setField(field, target, value);
-    }
-
-    @Nullable
-    private static Component readField(Optional<VarHandle> field, Object target) {
-        Object value = ReflectionAccess.getField(field, target);
-        return value instanceof Component component ? component : null;
-    }
-
-    private static void invokeNoArg(Object target, String methodName) {
-        ReflectionAccess.invokeNoArgBestEffort(target, methodName);
+        if (target instanceof AEBaseBlockEntity blockEntity) {
+            blockEntity.saveChanges();
+            blockEntity.setChanged();
+            blockEntity.markForUpdate();
+            blockEntity.markForClientUpdate();
+            return;
+        }
+        String targetType = target == null ? "null" : target.getClass().getName();
+        throw new IllegalArgumentException("Unsupported pattern provider type: " + targetType);
     }
 }
