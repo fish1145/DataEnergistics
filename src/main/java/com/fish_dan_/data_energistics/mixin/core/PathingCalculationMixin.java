@@ -34,7 +34,7 @@ import java.util.Set;
 /**
  * Adds a controller-wide channel pool to AE2 pathing and compresses every hub's controller-facing route to one channel.
  */
-@Mixin(PathingCalculation.class)
+@Mixin(value = PathingCalculation.class, priority = 2000)
 public abstract class PathingCalculationMixin {
 
     /**

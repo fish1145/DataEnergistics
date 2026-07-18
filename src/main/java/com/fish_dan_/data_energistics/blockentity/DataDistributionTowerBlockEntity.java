@@ -979,7 +979,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
 
             int connectedNodes = reconnectTarget(selfNode, targetPos, linkableNodes);
-            this.linkGraph.removePending(targetPos);
+            if (hasAllConnections(targetPos, linkableNodes)) {
+                this.linkGraph.removePending(targetPos);
+            } else {
+                this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
+            }
             remainingChannels -= connectedNodes;
             if (remainingChannels <= 0) {
                 break;
@@ -1696,6 +1700,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.invalidateClusterCache();
         this.setChanged();
         return createdConnections;
+    }
+
+    private boolean hasAllConnections(BlockPos targetPos, List<IGridNode> targetNodes) {
+        for (IGridNode targetNode : targetNodes) {
+            if (!this.linkGraph.hasConnection(targetPos, targetNode)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean shouldReconnectTrackedTarget(BlockPos targetPos) {
