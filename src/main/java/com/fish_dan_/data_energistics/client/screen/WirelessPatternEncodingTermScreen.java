@@ -110,6 +110,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     private boolean previewScrollbarDragging;
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
+    private boolean suppressRenameKeyChar;
     private ResourceLocation lastLocatedWorkstationId;
     private AbstractWidget encodePatternWidget;
     private Component originalEncodePatternMessage;
@@ -169,6 +170,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     @Override
     public void containerTick() {
         super.containerTick();
+        this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
         }
@@ -181,6 +183,14 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         }
 
         if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
+            return true;
+        }
+
+        if (this.providerRenameBox != null && PatternEncodingTextFieldHelper.clearOnRightClick(this.providerRenameBox, mouseX, mouseY, button)) {
+            return true;
+        }
+
+        if (this.providerSearchBox != null && PatternEncodingTextFieldHelper.clearOnRightClick(this.providerSearchBox, mouseX, mouseY, button)) {
             return true;
         }
 
@@ -309,6 +319,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             var hit = getProviderButtonHit(getMouseGuiX(), getMouseGuiY());
             if (hit != null && hit.provider().renameable()) {
                 beginProviderRename(hit.provider());
+                this.suppressRenameKeyChar = true;
                 return true;
             }
         }
@@ -330,6 +341,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (this.suppressRenameKeyChar) {
+            this.suppressRenameKeyChar = false;
+            return true;
+        }
+
         if (isRenamingProvider() && this.providerRenameBox != null && this.providerRenameBox.charTyped(codePoint, modifiers)) {
             return true;
         }
