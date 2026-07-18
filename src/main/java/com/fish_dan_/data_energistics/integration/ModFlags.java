@@ -82,6 +82,10 @@ public final class ModFlags {
         return isOritechLoaded();
     }
 
+    public static boolean isBrandonsCoreLoaded() {
+        return isLoaded("brandonscore");
+    }
+
     public static boolean isNeoEcoAeLoaded() {
         return isLoaded("neoecoae");
     }

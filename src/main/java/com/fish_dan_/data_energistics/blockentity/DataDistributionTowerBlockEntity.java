@@ -23,6 +23,7 @@ import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionC
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessImpl;
 import com.fish_dan_.data_energistics.integration.tower.AeCraftingDisplayBridge;
+import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.integration.tower.NeoEcoAeTowerBridge;
 import com.fish_dan_.data_energistics.integration.tower.OritechEnergyBridge;
 import com.fish_dan_.data_energistics.item.DataDistributionConnectorItem;
@@ -107,7 +108,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new UnlimitedEnergyAccessImpl();
-    /** Selects the connector source captured when a player places a potentially compatible target. */
+    /**
+     * Selects the connector source captured when a player places a potentially compatible target.
+     */
     private static final DataDistributionConnectorSelector CONNECTOR_SELECTOR = DataDistributionConnectorSelector.create();
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
@@ -182,10 +185,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.coverage = new TowerCoverageImpl(blockPos);
+        BrandonsCoreEnergyBridge brandonsCoreEnergyBridge = new BrandonsCoreEnergyBridge();
         OritechEnergyBridge oritechEnergyBridge = new OritechEnergyBridge();
         AeCraftingDisplayBridge aeCraftingDisplayBridge = new AeCraftingDisplayBridge();
-        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(this, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
-        this.energyDistributor = new TowerEnergyDistributorImpl(this, this.energyEndpointResolver, UNLIMITED_ENERGY_ACCESS);
+        this.energyEndpointResolver = new TowerEnergyEndpointResolverImpl(
+                this, brandonsCoreEnergyBridge, oritechEnergyBridge, UNLIMITED_ENERGY_ACCESS);
+        this.energyDistributor = new TowerEnergyDistributorImpl(
+                this, this.energyEndpointResolver, brandonsCoreEnergyBridge, UNLIMITED_ENERGY_ACCESS);
         this.targetDisplayResolver = new TowerTargetDisplayResolverImpl(this, this.neoEcoAeBridge, aeCraftingDisplayBridge);
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()

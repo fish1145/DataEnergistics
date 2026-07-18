@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccess;
 import com.fish_dan_.data_energistics.integration.energy.UnlimitedEnergyAccessException;
+import com.fish_dan_.data_energistics.integration.tower.BrandonsCoreEnergyBridge;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import net.minecraft.core.BlockPos;
@@ -30,6 +31,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
     private final TowerEnergyDistributorContext context;
     private final TowerEnergyEndpointResolver endpointResolver;
+    private final TowerOpEnergyAccess opEnergyAccess;
     private final UnlimitedEnergyAccess unlimitedEnergyAccess;
     private final TowerGridEnergyAccess gridEnergyAccess;
     private final boolean appFluxEnergySupportLoaded;
@@ -51,15 +53,33 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     public TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
                                       TowerEnergyEndpointResolver endpointResolver,
                                       UnlimitedEnergyAccess unlimitedEnergyAccess) {
-        this(context, endpointResolver, unlimitedEnergyAccess, ModFlags.isAppFluxEnergySupportLoaded(),
+        this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
+                ModFlags.isAppFluxEnergySupportLoaded(),
                 new TowerGridEnergyAccessImpl());
+    }
+
+    /**
+     * Creates an active FE distributor with a shared BrandonsCore capability bridge.
+     *
+     * @param context                  owning tower callbacks
+     * @param endpointResolver         endpoint resolver used for side probing and caching
+     * @param brandonsCoreEnergyBridge direct long-width OP access
+     * @param unlimitedEnergyAccess    rate-limit-free non-OP storage access
+     */
+    public TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
+                                      TowerEnergyEndpointResolver endpointResolver,
+                                      BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
+                                      UnlimitedEnergyAccess unlimitedEnergyAccess) {
+        this(context, endpointResolver, brandonsCoreEnergyBridge, unlimitedEnergyAccess,
+                ModFlags.isAppFluxEnergySupportLoaded(), new TowerGridEnergyAccessImpl());
     }
 
     TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
                                TowerEnergyEndpointResolver endpointResolver,
                                UnlimitedEnergyAccess unlimitedEnergyAccess,
                                boolean appFluxEnergySupportLoaded) {
-        this(context, endpointResolver, unlimitedEnergyAccess, appFluxEnergySupportLoaded,
+        this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
+                appFluxEnergySupportLoaded,
                 new TowerGridEnergyAccessImpl());
     }
 
@@ -68,8 +88,29 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                                UnlimitedEnergyAccess unlimitedEnergyAccess,
                                boolean appFluxEnergySupportLoaded,
                                TowerGridEnergyAccess gridEnergyAccess) {
+        this(context, endpointResolver, new BrandonsCoreEnergyBridge(), unlimitedEnergyAccess,
+                appFluxEnergySupportLoaded, gridEnergyAccess);
+    }
+
+    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
+                               TowerEnergyEndpointResolver endpointResolver,
+                               BrandonsCoreEnergyBridge brandonsCoreEnergyBridge,
+                               UnlimitedEnergyAccess unlimitedEnergyAccess,
+                               boolean appFluxEnergySupportLoaded,
+                               TowerGridEnergyAccess gridEnergyAccess) {
+        this(context, endpointResolver, new TowerOpEnergyAccessImpl(brandonsCoreEnergyBridge), unlimitedEnergyAccess,
+                appFluxEnergySupportLoaded, gridEnergyAccess);
+    }
+
+    TowerEnergyDistributorImpl(TowerEnergyDistributorContext context,
+                               TowerEnergyEndpointResolver endpointResolver,
+                               TowerOpEnergyAccess opEnergyAccess,
+                               UnlimitedEnergyAccess unlimitedEnergyAccess,
+                               boolean appFluxEnergySupportLoaded,
+                               TowerGridEnergyAccess gridEnergyAccess) {
         this.context = context;
         this.endpointResolver = endpointResolver;
+        this.opEnergyAccess = opEnergyAccess;
         this.unlimitedEnergyAccess = unlimitedEnergyAccess;
         this.appFluxEnergySupportLoaded = appFluxEnergySupportLoaded;
         this.gridEnergyAccess = gridEnergyAccess;
@@ -149,10 +190,10 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         for (TowerEnergyEndpoint endpoint : this.endpointResolver.getCachedResolvedEnergyEndpoints(false)) {
             try {
                 IEnergyStorage storage = endpoint.storage();
-                if (!this.unlimitedEnergyAccess.canExtract(storage)) {
+                if (!endpoint.direction().allowsExtract()) {
                     continue;
                 }
-                long quota = this.unlimitedEnergyAccess.stored(storage);
+                long quota = storedEnergy(storage);
                 if (quota > 0) {
                     sources.add(new TransferSource(endpoint, quota));
                 }
@@ -346,7 +387,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     public long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
         Set<IEnergyStorage> stalledReceiveStorages = Collections.newSetFromMap(new IdentityHashMap<>());
         return distributeEnergyInRange(amount, simulate, excludedPos,
-                this.endpointResolver.collectClusterEnergyEndpoints(true), stalledReceiveStorages);
+                this.endpointResolver.getCachedResolvedEnergyEndpoints(true), stalledReceiveStorages);
     }
 
     @Override
@@ -441,7 +482,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
             EndpointTransferResult result;
             try {
-                if (!this.endpointResolver.canReceiveEnergy(storage)) {
+                if (!endpoint.direction().allowsReceive()) {
                     stalledReceiveStorages.add(storage);
                     continue;
                 }
@@ -490,6 +531,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
 
         IEnergyStorage storage = endpoint.storage();
+        if (this.opEnergyAccess.supports(storage)) {
+            return insertOpIntoEndpoint(endpoint, amount, simulate);
+        }
         long directInserted;
         try {
             directInserted = this.unlimitedEnergyAccess.insert(storage, amount, simulate);
@@ -525,6 +569,60 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             return new EndpointTransferResult(directInserted, directInserted == 0);
         }
         return insertThroughCapability(endpoint, amount, simulate);
+    }
+
+    private EndpointTransferResult insertOpIntoEndpoint(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
+        IEnergyStorage storage = endpoint.storage();
+        Long before = readOpStored(endpoint, "before receiver mutation");
+        if (before == null) {
+            return EndpointTransferResult.STALLED;
+        }
+
+        long inserted;
+        try {
+            inserted = this.opEnergyAccess.insert(storage, amount, simulate);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            return resolveFailedOpInsertion(endpoint, amount, simulate, before, exception);
+        }
+
+        Long after = readOpStored(endpoint, "after receiver mutation");
+        if (after == null) {
+            return isolateUnknownOpInsertion(endpoint, amount, simulate, null);
+        }
+        if (simulate) {
+            if (!after.equals(before)) {
+                Data_Energistics.LOGGER.error(
+                        "BrandonsCore OP receiver simulation mutated {} side {} storage {} from {} to {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), before, after);
+                return EndpointTransferResult.STALLED;
+            }
+            if (inserted < 0 || inserted > amount) {
+                Data_Energistics.LOGGER.error(
+                        "BrandonsCore OP receiver at {} side {} storage {} returned {} for simulated request {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), inserted, amount);
+                return EndpointTransferResult.STALLED;
+            }
+            return new EndpointTransferResult(inserted, inserted == 0);
+        }
+
+        long confirmedInserted = confirmedOpMutation(before, after, amount, true);
+        if (confirmedInserted < 0) {
+            return isolateUnknownOpInsertion(endpoint, amount, false, null);
+        }
+        if (inserted != confirmedInserted) {
+            Data_Energistics.LOGGER.error(
+                    "BrandonsCore OP receiver at {} side {} storage {} reported {} for request {}, but stored state confirms {}",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), inserted, amount, confirmedInserted);
+            if (confirmedInserted > 0) {
+                publishFailedMutation(endpoint, storage, "OP receiver mutation");
+            }
+            return new EndpointTransferResult(confirmedInserted, true, true);
+        }
+        if (!simulate && inserted > 0) {
+            publishMutation(endpoint, storage, "OP receiver mutation");
+        }
+        return new EndpointTransferResult(inserted, inserted == 0);
     }
 
     private EndpointTransferResult insertThroughCapability(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
@@ -593,6 +691,9 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         }
 
         IEnergyStorage storage = endpoint.storage();
+        if (this.opEnergyAccess.supports(storage)) {
+            return extractOpFromEndpoint(endpoint, amount, simulate);
+        }
         long directExtracted;
         try {
             directExtracted = this.unlimitedEnergyAccess.extract(storage, amount, simulate);
@@ -664,6 +765,159 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             remaining -= extracted;
         }
         return new EndpointTransferResult(extractedTotal, false);
+    }
+
+    private EndpointTransferResult extractOpFromEndpoint(TowerEnergyEndpoint endpoint, long amount,
+                                                         boolean simulate) {
+        IEnergyStorage storage = endpoint.storage();
+        Long before = readOpStored(endpoint, "before source mutation");
+        if (before == null) {
+            return EndpointTransferResult.STALLED;
+        }
+
+        long extracted;
+        try {
+            extracted = this.opEnergyAccess.extract(storage, amount, simulate);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            return resolveFailedOpExtraction(endpoint, amount, simulate, before, exception);
+        }
+
+        Long after = readOpStored(endpoint, "after source mutation");
+        if (after == null) {
+            return isolateUnknownOpExtraction(endpoint, amount, simulate, null);
+        }
+        if (simulate) {
+            if (!after.equals(before)) {
+                Data_Energistics.LOGGER.error(
+                        "BrandonsCore OP source simulation mutated {} side {} storage {} from {} to {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), before, after);
+                return EndpointTransferResult.STALLED;
+            }
+            if (extracted < 0 || extracted > amount) {
+                Data_Energistics.LOGGER.error(
+                        "BrandonsCore OP source at {} side {} storage {} returned {} for simulated request {}",
+                        endpoint.pos(), endpoint.side(), storage.getClass().getName(), extracted, amount);
+                return EndpointTransferResult.STALLED;
+            }
+            return new EndpointTransferResult(extracted, extracted == 0);
+        }
+
+        long confirmedExtracted = confirmedOpMutation(before, after, amount, false);
+        if (confirmedExtracted < 0) {
+            return isolateUnknownOpExtraction(endpoint, amount, false, null);
+        }
+        if (extracted != confirmedExtracted) {
+            Data_Energistics.LOGGER.error(
+                    "BrandonsCore OP source at {} side {} storage {} reported {} for request {}, but stored state confirms {}",
+                    endpoint.pos(), endpoint.side(), storage.getClass().getName(), extracted, amount, confirmedExtracted);
+            if (confirmedExtracted > 0) {
+                publishFailedMutation(endpoint, storage, "OP source mutation");
+            }
+            return new EndpointTransferResult(confirmedExtracted, true);
+        }
+        if (!simulate && extracted > 0) {
+            publishMutation(endpoint, storage, "OP source mutation");
+        }
+        return new EndpointTransferResult(extracted, extracted == 0);
+    }
+
+    private EndpointTransferResult resolveFailedOpInsertion(TowerEnergyEndpoint endpoint, long amount,
+                                                            boolean simulate, long before, Throwable exception) {
+        Long after = readOpStored(endpoint, "after failed receiver mutation");
+        if (after == null || simulate) {
+            return isolateUnknownOpInsertion(endpoint, amount, simulate, exception);
+        }
+        long confirmedInserted = confirmedOpMutation(before, after, amount, true);
+        if (confirmedInserted < 0) {
+            return isolateUnknownOpInsertion(endpoint, amount, false, exception);
+        }
+        if (confirmedInserted > 0) {
+            publishFailedMutation(endpoint, endpoint.storage(), "OP receiver mutation");
+        }
+        Data_Energistics.LOGGER.error(
+                "BrandonsCore OP receiver failed at {} side {} storage {}; confirmed {} of {} OP inserted",
+                endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(),
+                confirmedInserted, amount, exception);
+        return new EndpointTransferResult(confirmedInserted, true, true);
+    }
+
+    private EndpointTransferResult resolveFailedOpExtraction(TowerEnergyEndpoint endpoint, long amount,
+                                                             boolean simulate, long before, Throwable exception) {
+        Long after = readOpStored(endpoint, "after failed source mutation");
+        if (after == null || simulate) {
+            return isolateUnknownOpExtraction(endpoint, amount, simulate, exception);
+        }
+        long confirmedExtracted = confirmedOpMutation(before, after, amount, false);
+        if (confirmedExtracted < 0) {
+            return isolateUnknownOpExtraction(endpoint, amount, false, exception);
+        }
+        if (confirmedExtracted > 0) {
+            publishFailedMutation(endpoint, endpoint.storage(), "OP source mutation");
+        }
+        Data_Energistics.LOGGER.error(
+                "BrandonsCore OP source failed at {} side {} storage {}; confirmed {} of {} OP extracted",
+                endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(),
+                confirmedExtracted, amount, exception);
+        return new EndpointTransferResult(confirmedExtracted, true);
+    }
+
+    private EndpointTransferResult isolateUnknownOpInsertion(TowerEnergyEndpoint endpoint, long amount,
+                                                             boolean simulate, @Nullable Throwable exception) {
+        if (!simulate) {
+            addQuarantinedEnergy(amount);
+            publishFailedMutation(endpoint, endpoint.storage(), "uncertain OP receiver mutation");
+        }
+        Data_Energistics.LOGGER.error(
+                "BrandonsCore OP receiver at {} side {} storage {} has an unverified final state for {} OP; {}",
+                endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(), amount,
+                simulate ? "simulation stopped" : "amount quarantined", exception);
+        return simulate ? EndpointTransferResult.STALLED : new EndpointTransferResult(amount, true, true);
+    }
+
+    private EndpointTransferResult isolateUnknownOpExtraction(TowerEnergyEndpoint endpoint, long amount,
+                                                              boolean simulate, @Nullable Throwable exception) {
+        if (!simulate) {
+            addQuarantinedEnergy(amount);
+            publishFailedMutation(endpoint, endpoint.storage(), "uncertain OP source mutation");
+        }
+        Data_Energistics.LOGGER.error(
+                "BrandonsCore OP source at {} side {} storage {} has an unverified final state for {} OP; {}",
+                endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(), amount,
+                simulate ? "simulation stopped" : "amount quarantined", exception);
+        return EndpointTransferResult.STALLED;
+    }
+
+    @Nullable
+    private Long readOpStored(TowerEnergyEndpoint endpoint, String phase) {
+        try {
+            long stored = this.opEnergyAccess.stored(endpoint.storage());
+            if (stored >= 0) {
+                return stored;
+            }
+            Data_Energistics.LOGGER.error(
+                    "BrandonsCore OP endpoint at {} side {} storage {} reported negative stored energy {} {}",
+                    endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(), stored, phase);
+        } catch (Throwable exception) {
+            ThrowableIsolation.rethrowIfFatal(exception);
+            Data_Energistics.LOGGER.error(
+                    "Failed to read BrandonsCore OP endpoint at {} side {} storage {} {}",
+                    endpoint.pos(), endpoint.side(), endpoint.storage().getClass().getName(), phase, exception);
+        }
+        return null;
+    }
+
+    private static long confirmedOpMutation(long before, long after, long requested, boolean inserting) {
+        if (inserting) {
+            if (after < before || after - before > requested) {
+                return -1L;
+            }
+            return after - before;
+        }
+        if (after > before || before - after > requested) {
+            return -1L;
+        }
+        return before - after;
     }
 
     private long getCapabilityStoredEnergy(TowerEnergyEndpoint endpoint) {
@@ -751,8 +1005,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
 
             int endpointIndex = (startIndex + offset) % endpointCount;
             TowerEnergyEndpoint endpoint = endpoints.get(endpointIndex);
-            IEnergyStorage storage = endpoint.storage();
-            if (!this.unlimitedEnergyAccess.canExtract(storage)) {
+            if (!endpoint.direction().allowsExtract()) {
                 continue;
             }
 
@@ -795,8 +1048,8 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         long totalCapacity = bufferedEnergy;
         List<TowerEnergyEndpoint> endpoints = this.endpointResolver.collectEnergyEndpoints(false, normalizedExcludedPos);
         for (TowerEnergyEndpoint endpoint : endpoints) {
-            totalStored = saturatingAdd(totalStored, this.unlimitedEnergyAccess.stored(endpoint.storage()));
-            totalCapacity = saturatingAdd(totalCapacity, this.unlimitedEnergyAccess.capacity(endpoint.storage()));
+            totalStored = saturatingAdd(totalStored, storedEnergy(endpoint.storage()));
+            totalCapacity = saturatingAdd(totalCapacity, energyCapacity(endpoint.storage()));
         }
         long aeExtractable = 0L;
         if (this.appFluxEnergySupportLoaded) {
@@ -870,6 +1123,20 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
         return (int) Math.min(amount, Integer.MAX_VALUE);
     }
 
+    private long storedEnergy(IEnergyStorage storage) {
+        if (this.opEnergyAccess.supports(storage)) {
+            return this.opEnergyAccess.stored(storage);
+        }
+        return this.unlimitedEnergyAccess.stored(storage);
+    }
+
+    private long energyCapacity(IEnergyStorage storage) {
+        if (this.opEnergyAccess.supports(storage)) {
+            return this.opEnergyAccess.capacity(storage);
+        }
+        return this.unlimitedEnergyAccess.capacity(storage);
+    }
+
     private static long saturatingAdd(long current, long delta) {
         if (delta <= 0) {
             return current;
@@ -893,13 +1160,15 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     }
 
     private void publishMutation(TowerEnergyEndpoint endpoint, IEnergyStorage storage, String operation) {
-        try {
-            this.unlimitedEnergyAccess.notifyStorageChanged(storage);
-        } catch (Throwable exception) {
-            ThrowableIsolation.rethrowIfFatal(exception);
-            Data_Energistics.LOGGER.error(
-                    "Failed to notify unlimited tower {} at {} side {} storage {}",
-                    operation, endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+        if (!this.opEnergyAccess.supports(storage)) {
+            try {
+                this.unlimitedEnergyAccess.notifyStorageChanged(storage);
+            } catch (Throwable exception) {
+                ThrowableIsolation.rethrowIfFatal(exception);
+                Data_Energistics.LOGGER.error(
+                        "Failed to notify unlimited tower {} at {} side {} storage {}",
+                        operation, endpoint.pos(), endpoint.side(), storage.getClass().getName(), exception);
+            }
         }
         try {
             this.context.markEndpointChanged(endpoint.pos());
@@ -961,7 +1230,12 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
             }
 
             IEnergyStorage storage = this.endpoint.storage();
-            long restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
+            long restored;
+            if (TowerEnergyDistributorImpl.this.opEnergyAccess.supports(storage)) {
+                restored = TowerEnergyDistributorImpl.this.opEnergyAccess.insert(storage, amount, false);
+            } else {
+                restored = TowerEnergyDistributorImpl.this.unlimitedEnergyAccess.rollbackExtraction(storage, amount);
+            }
             if (restored > 0) {
                 TowerEnergyDistributorImpl.this.publishMutation(this.endpoint, storage, "source compensation");
             }
