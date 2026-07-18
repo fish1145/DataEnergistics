@@ -19,6 +19,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
@@ -63,6 +64,8 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final String DATA_FLOW_TAG = "data_flow";
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, EXTENDED_SLOT_COUNT, 1);
+    private final IItemHandler regularExternalItemHandler = this.storage.getSlotInv(0).toItemHandler();
+    private final IItemHandler extendedExternalItemHandler = this.storage.toItemHandler();
     private long storedDataFlow;
     private boolean working;
 
@@ -99,6 +102,10 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     @Override
     public InternalInventory getInternalInventory() {
         return this.storage;
+    }
+
+    public IItemHandler getExternalItemHandler() {
+        return isExtended() ? this.extendedExternalItemHandler : this.regularExternalItemHandler;
     }
 
     public ItemStack getDisplayStack(int slot) {
@@ -530,6 +537,15 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
             return canAcceptStack(stack);
+        }
+
+        @Override
+        public boolean allowExtract(InternalInventory inv, int slot, int amount) {
+            ItemStack stack = inv.getStackInSlot(slot);
+            if (stack.isEmpty() || findDataChargerRecipe(stack).isPresent() || findAeChargerRecipe(stack).isPresent()) {
+                return false;
+            }
+            return !canChargeAePower(stack) && !canChargeDataFlow(stack);
         }
     }
 }

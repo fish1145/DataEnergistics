@@ -42,6 +42,14 @@ final class CommonCapabilityRegistrar {
                 ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalItemHandler());
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
