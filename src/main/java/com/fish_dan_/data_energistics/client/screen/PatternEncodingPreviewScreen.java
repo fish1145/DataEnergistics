@@ -116,6 +116,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private boolean previewScrollbarDragging;
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
+    private boolean suppressRenameKeyChar;
     private ResourceLocation lastLocatedWorkstationId;
     private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
     private AbstractWidget encodePatternWidget;
@@ -181,6 +182,14 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
+            return true;
+        }
+
+        if (this.providerRenameBox != null && PatternEncodingTextFieldHelper.clearOnRightClick(this.providerRenameBox, mouseX, mouseY, button)) {
+            return true;
+        }
+
+        if (this.providerSearchBox != null && PatternEncodingTextFieldHelper.clearOnRightClick(this.providerSearchBox, mouseX, mouseY, button)) {
             return true;
         }
 
@@ -311,6 +320,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                     this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
             if (hit != null && hit.provider().renameable()) {
                 beginProviderRename(hit.provider());
+                this.suppressRenameKeyChar = true;
                 return true;
             }
         }
@@ -333,6 +343,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (this.suppressRenameKeyChar) {
+            this.suppressRenameKeyChar = false;
+            return true;
+        }
+
         if (isRenamingProvider() && this.providerRenameBox != null && this.providerRenameBox.charTyped(codePoint, modifiers)) {
             return true;
         }
@@ -540,6 +555,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void containerTick() {
         super.containerTick();
+        this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
         }
