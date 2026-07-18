@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "data_energistics:me_solar_panel_part"
+		}
+	],
+	"result": {
+		"id": "data_energistics:me_solar_panel",
+		"count": 1
+	}
+}
