@@ -71,7 +71,7 @@ public final class DataRipperReassemblerRecipeView {
                 holder.id(),
                 recipe.getItemInputs(),
                 recipe.getFluidInputs(),
-                recipe.getItemOutputs(),
+                recipe.getCraftedItemOutputs(),
                 recipe.getFluidOutputs(),
                 recipe.getProcessTicks(),
                 recipe.getKeyInput(),

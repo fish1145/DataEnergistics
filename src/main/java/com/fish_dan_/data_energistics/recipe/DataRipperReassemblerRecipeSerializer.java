@@ -54,9 +54,17 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
             KEY_INPUT_CODEC.optionalFieldOf("key_input").forGetter(
                     (DataRipperReassemblerRecipe recipe) -> Optional.ofNullable(recipe.getKeyInput())),
             KEY_OUTPUT_CODEC.optionalFieldOf("key_output").forGetter(
-                    (DataRipperReassemblerRecipe recipe) -> Optional.ofNullable(recipe.getKeyOutput())))
-            .apply(instance, (itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput) -> new DataRipperReassemblerRecipe(itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks,
-                    keyInput.orElse(null), keyOutput.orElse(null))));
+                    (DataRipperReassemblerRecipe recipe) -> Optional.ofNullable(recipe.getKeyOutput())),
+            Codec.BOOL.optionalFieldOf("assign_quantum_frequency", false).forGetter(DataRipperReassemblerRecipe::assignsQuantumFrequency))
+            .apply(instance, (itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput, assignQuantumFrequency) -> new DataRipperReassemblerRecipe(
+                    itemInputs,
+                    fluidInputs,
+                    itemOutputs,
+                    fluidOutputs,
+                    processTicks,
+                    keyInput.orElse(null),
+                    keyOutput.orElse(null),
+                    assignQuantumFrequency)));
 
     private static final StreamCodec<RegistryFriendlyByteBuf, DataRipperReassemblerRecipe> STREAM_CODEC = StreamCodec.of(DataRipperReassemblerRecipeSerializer::writeRecipe, DataRipperReassemblerRecipeSerializer::readRecipe);
 
@@ -76,6 +84,7 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
         int processTicks = ByteBufCodecs.VAR_INT.decode(buffer);
         GenericStack keyInput = OPTIONAL_KEY_INPUT_STREAM_CODEC.decode(buffer);
         GenericStack keyOutput = OPTIONAL_KEY_INPUT_STREAM_CODEC.decode(buffer);
+        boolean assignQuantumFrequency = ByteBufCodecs.BOOL.decode(buffer);
         return new DataRipperReassemblerRecipe(
                 itemInputs,
                 fluidInputs,
@@ -83,7 +92,8 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
                 fluidOutputs,
                 processTicks,
                 keyInput,
-                keyOutput);
+                keyOutput,
+                assignQuantumFrequency);
     }
 
     private static void writeRecipe(RegistryFriendlyByteBuf buffer, DataRipperReassemblerRecipe recipe) {
@@ -95,6 +105,7 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
         ByteBufCodecs.VAR_INT.encode(buffer, recipe.getProcessTicks());
         OPTIONAL_KEY_INPUT_STREAM_CODEC.encode(buffer, recipe.getKeyInput());
         OPTIONAL_KEY_INPUT_STREAM_CODEC.encode(buffer, recipe.getKeyOutput());
+        ByteBufCodecs.BOOL.encode(buffer, recipe.assignsQuantumFrequency());
     }
 
     private static List<GenericStack> readGenericStackList(RegistryFriendlyByteBuf buffer) {

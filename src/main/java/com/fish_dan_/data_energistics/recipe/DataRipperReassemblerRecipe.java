@@ -42,6 +42,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     private final GenericStack keyInput;
     @Nullable
     private final GenericStack keyOutput;
+    private final boolean assignQuantumFrequency;
 
     public DataRipperReassemblerRecipe(List<DataRipperReassemblerIngredient> itemInputs,
                                        List<GenericStack> fluidInputs,
@@ -50,6 +51,17 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
                                        int processTicks,
                                        @Nullable GenericStack keyInput,
                                        @Nullable GenericStack keyOutput) {
+        this(itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput, false);
+    }
+
+    public DataRipperReassemblerRecipe(List<DataRipperReassemblerIngredient> itemInputs,
+                                       List<GenericStack> fluidInputs,
+                                       List<ItemStack> itemOutputs,
+                                       List<GenericStack> fluidOutputs,
+                                       int processTicks,
+                                       @Nullable GenericStack keyInput,
+                                       @Nullable GenericStack keyOutput,
+                                       boolean assignQuantumFrequency) {
         this.itemInputs = NonNullList.copyOf(itemInputs);
         this.fluidInputs = List.copyOf(fluidInputs);
         this.itemOutputs = NonNullList.copyOf(itemOutputs);
@@ -57,6 +69,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
         this.processTicks = processTicks;
         this.keyInput = keyInput != null && keyInput.amount() > 0 ? keyInput : null;
         this.keyOutput = keyOutput != null && keyOutput.amount() > 0 ? keyOutput : null;
+        this.assignQuantumFrequency = assignQuantumFrequency;
     }
 
     @Override
@@ -143,7 +156,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
         if (!outputs.isEmpty()) {
             ItemStack result = outputs.getFirst();
-            if (AEItems.QUANTUM_ENTANGLED_SINGULARITY.is(result) && result.getCount() > 1) {
+            if (this.assignQuantumFrequency && AEItems.QUANTUM_ENTANGLED_SINGULARITY.is(result) && result.getCount() > 1) {
                 QuantumBridgeBlockEntity.assignFrequency(result);
             }
         }
@@ -166,6 +179,10 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     @Nullable
     public GenericStack getKeyOutput() {
         return this.keyOutput;
+    }
+
+    public boolean assignsQuantumFrequency() {
+        return this.assignQuantumFrequency;
     }
 
     private boolean matchesKeyInput(@Nullable GenericStack inputKey) {
