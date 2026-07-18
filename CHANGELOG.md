@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Version [v2.3.2](https://github.com/fish1145/DataEnergistics/compare/v2.3.1-1.21...v2.3.2-1.21)
+### Added
+
+- 适配龙之研究龙球并优化数据均分塔能量传输 by @QiuYe-123 in [#136](https://github.com/fish1145/DataEnergistics/pull/136)
+
+ 
 ## Version [v2.3.1](https://github.com/fish1145/DataEnergistics/compare/v2.3.0-1.21...v2.3.1-1.21)
 ### Fixed
 
