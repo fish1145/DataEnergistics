@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.menu.common;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -9,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -23,6 +27,8 @@ import appeng.api.networking.IGridService;
 import appeng.api.networking.events.GridEvent;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.core.definitions.AEBlocks;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.util.inv.AppEngInternalInventory;
@@ -88,6 +94,34 @@ public final class PatternProviderSyncHelperTest {
         var result = collect(List.of(base, renamed), new HashMap<>());
 
         assertEquals(2, result.providers().size());
+        helper.succeed();
+    }
+
+    @TestHolder("pattern_provider_name_access_stays_server_safe")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void patternProviderNameAccessStaysServerSafe(GameTestHelper helper) {
+        TestPatternProvider unsupported = new ClientFieldPatternProvider(
+                "Third-party Provider", Items.CRAFTING_TABLE, 1, 0, 10);
+        assertTrue(!PatternProviderNameHelper.canRename(unsupported));
+        assertEquals(null, PatternProviderNameHelper.getCustomName(unsupported));
+        assertTrue(!PatternProviderNameHelper.setCustomName(unsupported, Component.literal("Ignored")));
+
+        BlockPos providerPosition = new BlockPos(1, 1, 1);
+        helper.setBlock(providerPosition, AEBlocks.PATTERN_PROVIDER.block().defaultBlockState());
+        BlockEntity blockEntity = helper.getBlockEntity(providerPosition);
+        if (!(blockEntity instanceof PatternProviderBlockEntity provider)) {
+            throw new GameTestAssertException("Placed AE2 pattern provider has no matching block entity");
+        }
+
+        Component customName = Component.literal("Dedicated Line");
+        assertTrue(PatternProviderNameHelper.canRename(provider));
+        assertTrue(PatternProviderNameHelper.setCustomName(provider, customName));
+        assertEquals(customName, PatternProviderNameHelper.getCustomName(provider));
+
+        assertTrue(PatternProviderNameHelper.setCustomName(provider, null));
+        assertEquals(null, PatternProviderNameHelper.getCustomName(provider));
+        PatternProviderNameHelper.syncRename(provider);
         helper.succeed();
     }
 
@@ -331,6 +365,16 @@ public final class PatternProviderSyncHelperTest {
     private static final class NeoEcoCraftingProviderF6 extends TestPatternProvider {
 
         private NeoEcoCraftingProviderF6(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
+            super(baseName, icon, slots, usedSlots, sortOrder);
+        }
+    }
+
+    private static final class ClientFieldPatternProvider extends TestPatternProvider {
+
+        @SuppressWarnings("unused")
+        private SoundInstance clientSound;
+
+        private ClientFieldPatternProvider(String baseName, Item icon, int slots, int usedSlots, long sortOrder) {
             super(baseName, icon, slots, usedSlots, sortOrder);
         }
     }
