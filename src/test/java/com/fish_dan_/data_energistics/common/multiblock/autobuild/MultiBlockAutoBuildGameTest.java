@@ -468,6 +468,38 @@ public final class MultiBlockAutoBuildGameTest {
         helper.succeed();
     }
 
+    @TestHolder("multi_block_auto_build_uses_available_colored_covered_cable")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50")
+    public static void usesAvailableColoredCoveredCable(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Block cableBus = block("ae2:cable_bus");
+        Item fluixCable = item("ae2:fluix_covered_cable");
+        Item redCable = item("ae2:red_covered_cable");
+        TraceabilityPredicate predicate = new TraceabilityPredicate(new JsonMultiBlockPlacementPredicate(
+                new BlockPredicate(List.of(cableBus)),
+                List.of(fluixCable.getDefaultInstance(), redCable.getDefaultInstance())));
+        BlockPattern pattern = oneTargetPattern(predicate);
+        BlockPos origin = helper.absolutePos(ORIGIN);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.getInventory().add(redCable.getDefaultInstance());
+
+        Result result = execute(level, player, pattern, origin, 1, Map.of(),
+                (position, partStack) -> Direction.UP);
+        BlockPos target = position(pattern, origin, 0, 1);
+
+        helper.assertTrue(result.success(),
+                "Auto-build should use an available colored covered cable when Fluix is unavailable");
+        helper.assertValueEqual(result.placed(), 1,
+                "The colored covered cable should satisfy the cable position in one placement");
+        helper.assertTrue(PartHelper.getPart(level, target, null) != null &&
+                PartHelper.getPart(level, target, null).getPartItem() == redCable,
+                "The colored covered cable must occupy the cable bus center slot");
+        helper.assertValueEqual(countItem(player, redCable), 0,
+                "Auto-build should consume the selected colored covered cable");
+        helper.succeed();
+    }
+
     @TestHolder("multi_block_auto_build_repairs_existing_ae2_cable_bus_part")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")

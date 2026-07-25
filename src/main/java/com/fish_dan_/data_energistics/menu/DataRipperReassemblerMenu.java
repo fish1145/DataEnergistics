@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
 import net.minecraft.core.Direction;
@@ -68,7 +69,11 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     @GuiSync(855)
     public YesNo autoExport = YesNo.NO;
     @GuiSync(856)
-    public int outputSidesMask = 63;
+    public int itemOutputSidesMask = 63;
+    @GuiSync(857)
+    public int fluidOutputSidesMask = 63;
+    @GuiSync(858)
+    public int keyOutputSidesMask = 63;
 
     public DataRipperReassemblerMenu(int id, Inventory playerInventory, DataRipperReassemblerBlockEntity host) {
         super(ModMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
@@ -104,7 +109,9 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
             this.progress = host.getProgress();
             this.maxProgress = host.getMaxProgress();
             this.autoExport = host.isAutoExportEnabled() ? YesNo.YES : YesNo.NO;
-            this.outputSidesMask = encodeOutputSides(host.getOutputSides());
+            this.itemOutputSidesMask = encodeOutputSides(host.getOutputSides(DigitalStorageDepotOutputType.ITEMS));
+            this.fluidOutputSidesMask = encodeOutputSides(host.getOutputSides(DigitalStorageDepotOutputType.FLUIDS));
+            this.keyOutputSidesMask = encodeOutputSides(host.getOutputSides(DigitalStorageDepotOutputType.KEYS));
         }
         super.broadcastChanges();
     }
@@ -186,18 +193,24 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         return this.autoExport;
     }
 
-    public List<Direction> getOutputSides() {
+    public List<Direction> getOutputSides(DigitalStorageDepotOutputType outputType) {
+        int mask = switch (outputType) {
+            case ITEMS -> this.itemOutputSidesMask;
+            case FLUIDS -> this.fluidOutputSidesMask;
+            case KEYS -> this.keyOutputSidesMask;
+        };
         List<Direction> sides = new ArrayList<>();
         for (Direction side : Direction.values()) {
-            if ((this.outputSidesMask & (1 << side.ordinal())) != 0) {
+            if ((mask & (1 << side.ordinal())) != 0) {
                 sides.add(side);
             }
         }
         return sides;
     }
 
-    public void sendSetOutputSide(Direction side, boolean enabled) {
-        sendClientAction(ACTION_SET_OUTPUT_SIDE, side.getName() + ":" + enabled);
+    public void sendSetOutputSide(DigitalStorageDepotOutputType outputType, Direction side, boolean enabled) {
+        sendClientAction(ACTION_SET_OUTPUT_SIDE,
+                outputType.getSerializedName() + ":" + side.getName() + ":" + enabled);
     }
 
     private void setAutoExportEnabled(Boolean enabled) {
@@ -221,15 +234,25 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
             return;
         }
 
-        int separator = payload.indexOf(':');
-        if (separator <= 0 || separator >= payload.length() - 1 || separator != payload.lastIndexOf(':')) {
+        int firstSeparator = payload.indexOf(':');
+        int secondSeparator = firstSeparator < 0 ? -1 : payload.indexOf(':', firstSeparator + 1);
+        if (firstSeparator <= 0 || secondSeparator <= firstSeparator + 1 || secondSeparator >= payload.length() - 1 || secondSeparator != payload.lastIndexOf(':')) {
             Data_Energistics.LOGGER.warn(
                     "Rejected malformed Data Reassembler output-side client action at {}",
                     this.getHost().getBlockPos());
             return;
         }
 
-        Direction side = Direction.byName(payload.substring(0, separator));
+        DigitalStorageDepotOutputType outputType = DigitalStorageDepotOutputType.fromSerializedName(
+                payload.substring(0, firstSeparator));
+        if (outputType == null) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Reassembler output-side client action with an unknown content type at {}",
+                    this.getHost().getBlockPos());
+            return;
+        }
+
+        Direction side = Direction.byName(payload.substring(firstSeparator + 1, secondSeparator));
         if (side == null) {
             Data_Energistics.LOGGER.warn(
                     "Rejected Data Reassembler output-side client action with an unknown direction at {}",
@@ -237,7 +260,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
             return;
         }
 
-        String enabledValue = payload.substring(separator + 1);
+        String enabledValue = payload.substring(secondSeparator + 1);
         boolean enabled;
         if ("true".equals(enabledValue)) {
             enabled = true;
@@ -250,8 +273,12 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
                     this.getHost().getBlockPos());
             return;
         }
-        this.getHost().setOutputSideEnabled(side, enabled);
-        this.outputSidesMask = encodeOutputSides(this.getHost().getOutputSides());
+        this.getHost().setOutputSideEnabled(outputType, side, enabled);
+        switch (outputType) {
+            case ITEMS -> this.itemOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(outputType));
+            case FLUIDS -> this.fluidOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(outputType));
+            case KEYS -> this.keyOutputSidesMask = encodeOutputSides(this.getHost().getOutputSides(outputType));
+        }
         broadcastChanges();
     }
 

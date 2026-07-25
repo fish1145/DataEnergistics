@@ -30,7 +30,7 @@ public final class TrinityCoreResourceTest {
     private static final String RECIPE_ROOT = "data/data_energistics/recipe/data_energistics/crafting/trinity_core/";
     private static final String DATA_ROOT = "data/";
     private static final String LANG_ROOT = "assets/data_energistics/lang/";
-    private static final String ACCESS_HATCH_MODEL = "data_energistics:block/trinity_core/access_hatch/trinity_access_hatch";
+    private static final String ACCESS_HATCH_MODEL = "data_energistics:block/trinity_core/access_hatch/me_access_hatch";
     private static final String TIERED_CORE_MODEL = "data_energistics:block/trinity_core/common/tiered_core";
     private static final String STORAGE_DIRECTORY = "storage";
     private static final String MERGED_STORAGE_DIRECTORY = "merged_storage";
@@ -63,7 +63,7 @@ public final class TrinityCoreResourceTest {
 
     @Test
     void accessHatchUsesItsDedicatedModelDirectoryAndLocalTextures() {
-        JsonObject blockstate = readJson(BLOCKSTATE_ROOT + "trinity_access_hatch.json");
+        JsonObject blockstate = readJson(BLOCKSTATE_ROOT + "me_access_hatch.json");
         JsonObject variants = object(blockstate, "variants");
         assertEquals(8, variants.size(), "The access hatch should define every facing and active state");
         for (Map.Entry<String, Integer> facing : Map.of(
@@ -82,7 +82,7 @@ public final class TrinityCoreResourceTest {
             }
         }
 
-        JsonObject root = readJson(BLOCK_MODEL_ROOT + "access_hatch/trinity_access_hatch.json");
+        JsonObject root = readJson(BLOCK_MODEL_ROOT + "access_hatch/me_access_hatch.json");
         assertEquals("cutout", string(root, "render_type"));
         assertModelHasNoTemporaryReferences(root, "trinity_access_hatch");
 
@@ -91,7 +91,7 @@ public final class TrinityCoreResourceTest {
         assertLocalTextureReference(string(textures, "4"), "trinity_access_hatch front texture");
         assertLocalTextureReference(string(textures, "6"), "trinity_access_hatch top texture");
 
-        JsonObject item = readJson(ITEM_MODEL_ROOT + "trinity_access_hatch.json");
+        JsonObject item = readJson(ITEM_MODEL_ROOT + "me_access_hatch.json");
         assertEquals(ACCESS_HATCH_MODEL, string(item, "parent"));
     }
 

@@ -109,7 +109,7 @@ public final class ModBlockEntities {
                     MePatternBufferBlockEntity::new,
                     ModBlocks.ME_PATTERN_BUFFER.get()).build(null));
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityAccessHatchBlockEntity>> TRINITY_ACCESS_HATCH_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
-            "trinity_access_hatch",
+            "me_access_hatch",
             () -> BlockEntityType.Builder.of(
                     TrinityAccessHatchBlockEntity::new,
                     ModBlocks.TRINITY_ACCESS_HATCH.get()).build(null));

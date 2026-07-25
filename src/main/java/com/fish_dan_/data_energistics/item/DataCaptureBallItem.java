@@ -265,7 +265,10 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     }
 
     public boolean captureDispersingData(ItemStack stack, Player player, DispersingDataEntity dispersingDataEntity) {
-        if (this.getAECurrentPower(stack) < ENERGY_PER_CAPTURE) {
+        int affordableAmount = (int) Math.min(
+                dispersingDataEntity.getDataAmount(),
+                Math.floor(this.getAECurrentPower(stack) / ENERGY_PER_CAPTURE));
+        if (affordableAmount <= 0) {
             this.removeIfDepleted(stack);
             return false;
         }
@@ -275,14 +278,18 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
             return false;
         }
 
-        long inserted = cellInventory.insert(DataKey.of(), 1, Actionable.MODULATE, IActionSource.ofPlayer(player));
+        long inserted = cellInventory.insert(
+                DataKey.of(),
+                affordableAmount,
+                Actionable.MODULATE,
+                IActionSource.ofPlayer(player));
         if (inserted <= 0) {
             return false;
         }
 
-        this.extractAEPower(stack, ENERGY_PER_CAPTURE, Actionable.MODULATE);
+        this.extractAEPower(stack, ENERGY_PER_CAPTURE * inserted, Actionable.MODULATE);
         if (!player.level().isClientSide()) {
-            dispersingDataEntity.discard();
+            dispersingDataEntity.removeDataAmount(Math.toIntExact(inserted));
         }
         return true;
     }

@@ -30,6 +30,7 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
+import appeng.api.AECapabilities;
 import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.config.Actionable;
 import appeng.api.config.Setting;
@@ -660,8 +661,8 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     private void exportKeysToAdjacentHandlers() {
-        List<IItemHandler> handlers = getAdjacentItemHandlers(this.keyOutputSides);
-        if (handlers.isEmpty()) {
+        List<GenericInternalInventory> inventories = getAdjacentKeyInventories(this.keyOutputSides);
+        if (inventories.isEmpty()) {
             return;
         }
 
@@ -672,14 +673,36 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 continue;
             }
 
-            ItemStack wrapped = GenericStack.wrapInItemStack(stack.what(), stack.amount());
-            ItemStack remaining = insertIntoAdjacentHandlers(wrapped, handlers);
-            if (ItemStack.matches(wrapped, remaining)) {
+            long remaining = stack.amount();
+            for (GenericInternalInventory inventory : inventories) {
+                if (remaining <= 0L) {
+                    break;
+                }
+                if (!inventory.canInsert() || !inventory.isSupportedType(stack.what())) {
+                    continue;
+                }
+
+                inventory.beginBatch();
+                try {
+                    for (int slot = 0; slot < inventory.size() && remaining > 0L; slot++) {
+                        if (!inventory.isAllowedIn(slot, stack.what())) {
+                            continue;
+                        }
+                        long inserted = inventory.insert(slot, stack.what(), remaining, Actionable.MODULATE);
+                        if (inserted > 0L) {
+                            remaining -= Math.min(inserted, remaining);
+                        }
+                    }
+                } finally {
+                    inventory.endBatch();
+                }
+            }
+
+            if (remaining == stack.amount()) {
                 continue;
             }
 
-            GenericStack remainingStack = GenericStack.fromItemStack(remaining);
-            this.keyStacks[i] = remainingStack == null || remainingStack.what() == null || remainingStack.amount() <= 0 ? null : clampKeyStack(remainingStack);
+            this.keyStacks[i] = remaining <= 0L ? null : new GenericStack(stack.what(), remaining);
             changed = true;
         }
 
@@ -689,17 +712,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             this.markForClientUpdate();
             this.requestStorageUpdate();
         }
-    }
-
-    private ItemStack insertIntoAdjacentHandlers(ItemStack stack, List<IItemHandler> handlers) {
-        ItemStack remaining = stack.copy();
-        for (IItemHandler handler : handlers) {
-            if (remaining.isEmpty()) {
-                break;
-            }
-            remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
-        }
-        return remaining;
     }
 
     private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
@@ -726,6 +738,32 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             }
         }
         return handlers.isEmpty() ? List.of() : List.copyOf(handlers);
+    }
+
+    private List<GenericInternalInventory> getAdjacentKeyInventories(Set<Direction> outputSides) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        List<GenericInternalInventory> inventories = new ArrayList<>();
+        for (Direction direction : outputSides) {
+            BlockPos targetPos = this.worldPosition.relative(direction);
+            BlockState targetState = this.level.getBlockState(targetPos);
+            if (targetState.isAir()) {
+                continue;
+            }
+
+            GenericInternalInventory inventory = this.level.getCapability(
+                    AECapabilities.GENERIC_INTERNAL_INV,
+                    targetPos,
+                    targetState,
+                    this.level.getBlockEntity(targetPos),
+                    direction.getOpposite());
+            if (inventory != null) {
+                inventories.add(inventory);
+            }
+        }
+        return inventories.isEmpty() ? List.of() : List.copyOf(inventories);
     }
 
     private List<IFluidHandler> getAdjacentFluidHandlers(Set<Direction> outputSides) {
@@ -1021,75 +1059,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return what == null ? null : new GenericStack(what, Math.min(getKeyCapacity(), stack.amount()));
     }
 
-    private long insertExternalKey(GenericStack stack, boolean simulate) {
-        AEKey what = stack.what();
-        if (!isAllowedMenuKey(what) || stack.amount() <= 0) {
-            return 0L;
-        }
-
-        int matchingSlot = -1;
-        int emptySlot = -1;
-        for (int i = 0; i < KEY_SLOTS; i++) {
-            GenericStack current = this.keyStacks[i];
-            if (current != null && current.what() != null && current.amount() > 0 && current.what().equals(what)) {
-                matchingSlot = i;
-                break;
-            }
-            if (emptySlot < 0 && (current == null || current.what() == null || current.amount() <= 0)) {
-                emptySlot = i;
-            }
-        }
-
-        int slot = matchingSlot >= 0 ? matchingSlot : emptySlot;
-        if (slot < 0 || (matchingSlot < 0 && conflictsWithOtherKeys(slot, what))) {
-            return 0L;
-        }
-
-        GenericStack current = this.keyStacks[slot];
-        long currentAmount = current == null ? 0L : current.amount();
-        long inserted = Math.min(stack.amount(), Math.max(0L, getKeyCapacity() - currentAmount));
-        if (inserted <= 0L) {
-            return 0L;
-        }
-
-        if (!simulate) {
-            this.keyStacks[slot] = new GenericStack(what, currentAmount + inserted);
-            syncKeyMenusFromStacks();
-            this.saveChanges();
-            this.markForClientUpdate();
-            this.requestStorageUpdate();
-        }
-
-        return inserted;
-    }
-
-    private ItemStack extractExternalKey(int keySlot, int amount, boolean simulate) {
-        if (keySlot < 0 || keySlot >= KEY_SLOTS || amount <= 0) {
-            return ItemStack.EMPTY;
-        }
-
-        GenericStack current = this.keyStacks[keySlot];
-        if (current == null || current.what() == null || current.amount() <= 0) {
-            return ItemStack.EMPTY;
-        }
-
-        long extracted = Math.min(current.amount(), amount);
-        if (extracted <= 0) {
-            return ItemStack.EMPTY;
-        }
-
-        if (!simulate) {
-            long remaining = current.amount() - extracted;
-            this.keyStacks[keySlot] = remaining <= 0 ? null : new GenericStack(current.what(), remaining);
-            syncKeyMenusFromStacks();
-            this.saveChanges();
-            this.markForClientUpdate();
-            this.requestStorageUpdate();
-        }
-
-        return GenericStack.wrapInItemStack(current.what(), extracted);
-    }
-
     public static String getFluidTagKey(int slotIndex) {
         return FLUID_TAG_PREFIX + slotIndex;
     }
@@ -1215,7 +1184,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
 
         @Override
         public int getSlots() {
-            return storage.size() + KEY_SLOTS;
+            return storage.size();
         }
 
         @Override
@@ -1223,17 +1192,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             if (slot < 0) {
                 return ItemStack.EMPTY;
             }
-            if (slot < storage.size()) {
-                return storage.getStackInSlot(slot);
-            }
-
-            int keySlot = slot - storage.size();
-            if (keySlot < 0 || keySlot >= KEY_SLOTS) {
-                return ItemStack.EMPTY;
-            }
-
-            GenericStack current = keyStacks[keySlot];
-            return current == null || current.what() == null || current.amount() <= 0 ? ItemStack.EMPTY : GenericStack.wrapInItemStack(current.what(), current.amount());
+            return slot < storage.size() ? storage.getStackInSlot(slot) : ItemStack.EMPTY;
         }
 
         @Override
@@ -1241,16 +1200,8 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             if (stack.isEmpty()) {
                 return stack;
             }
-
-            GenericStack genericStack = GenericStack.fromItemStack(stack);
-            if (genericStack != null && genericStack.what() != null && isAllowedMenuKey(genericStack.what())) {
-                long inserted = insertExternalKey(genericStack, simulate);
-                if (inserted <= 0) {
-                    return stack;
-                }
-
-                long remaining = genericStack.amount() - inserted;
-                return remaining <= 0 ? ItemStack.EMPTY : GenericStack.wrapInItemStack(genericStack.what(), remaining);
+            if (GenericStack.isWrapped(stack)) {
+                return stack;
             }
 
             if (slot < 0 || slot >= storage.size()) {
@@ -1265,11 +1216,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
             if (slot < 0 || amount <= 0) {
                 return ItemStack.EMPTY;
             }
-            if (slot < storage.size()) {
-                return storage.extractItem(slot, amount, simulate);
-            }
-
-            return extractExternalKey(slot - storage.size(), amount, simulate);
+            return slot < storage.size() ? storage.extractItem(slot, amount, simulate) : ItemStack.EMPTY;
         }
 
         @Override

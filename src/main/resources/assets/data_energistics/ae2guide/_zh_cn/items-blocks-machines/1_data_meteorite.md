@@ -87,6 +87,7 @@ item_ids:
 </GameScene>
 
 即散数据是挖掘数位陨石（掉落概率如上图表格）与挖掘残存数据矿（必定掉落1～3个）  
+相邻的即散数据会自动合并，每个实体最多容纳64份数据；数量达到64份时，实体尺寸为单份数据的4倍。
 >⚠当你一分钟置之不理时，它将会消散  
 > 
 当他出现于世界中，你需要使用
@@ -135,4 +136,4 @@ item_ids:
 <Row>
     <ItemImage id="data_energistics:data_meteorite_compass" scale="6" />
     <RecipeFor id="data_energistics:data_meteorite_compass" />
-</Row> 
+</Row>

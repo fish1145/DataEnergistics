@@ -18,6 +18,9 @@ import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
 import net.minecraft.gametest.framework.GameTestRunner;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -297,6 +300,35 @@ public final class DataDistributionTowerDiscoveryGameTest {
                 tower.quarantinedTransferEnergy(),
                 QUARANTINED_TRANSFER_ENERGY,
                 "The quarantined transfer energy must survive an NBT round trip");
+        helper.succeed();
+    }
+
+    @TestHolder("data_distribution_tower_save_does_not_load_linked_target_chunks")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 100)
+    public static void saveDoesNotLoadLinkedTargetChunks(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, REGULAR_CHARGER_POS);
+        ServerLevel level = helper.getLevel();
+        HolderLookup.Provider registries = level.registryAccess();
+        BlockPos unloadedTarget = tower.getBlockPos().offset(4096, 0, 4096);
+
+        helper.assertFalse(level.hasChunkAt(unloadedTarget), "The remote target chunk must start unloaded");
+        CompoundTag loadedData = new CompoundTag();
+        ListTag linkedPositions = new ListTag();
+        CompoundTag linkedPosition = new CompoundTag();
+        linkedPosition.put("pos", NbtUtils.writeBlockPos(unloadedTarget));
+        linkedPositions.add(linkedPosition);
+        loadedData.put("linked_positions", linkedPositions);
+        tower.loadTag(loadedData, registries);
+
+        CompoundTag savedData = new CompoundTag();
+        tower.saveAdditional(savedData, registries);
+
+        helper.assertFalse(level.hasChunkAt(unloadedTarget), "Saving the tower must not load a linked target chunk");
+        helper.assertValueEqual(
+                savedData.getList("linked_positions", Tag.TAG_COMPOUND).size(),
+                1,
+                "Saving must retain the unloaded linked target");
         helper.succeed();
     }
 

@@ -87,6 +87,7 @@ The blocks that can appear inside the meteorite are already shown in this overvi
 </GameScene>
 
 Dispersing Data are mining digital meteorites (drop rates as shown in the table above) and mining residual data ores (guaranteed to drop 1~3).  
+Nearby Dispersing Data merge automatically, up to 64 data units per entity. At 64 units, the entity is four times its base size.
 > ⚠ if you leave it alone for a minute, it will fade away  
 > 
 When he appears in the world, you need to use it

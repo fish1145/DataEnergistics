@@ -89,7 +89,7 @@ final class TrinityDataCoreGameTestFixture implements AutoCloseable {
                 "Formed Trinity crafting structure should expose P cores");
 
         List<TrinityAccessHatchBlockEntity> hatches = boundHatches(host);
-        helper.assertValueEqual(hatches.size(), 2, "Trinity main structure should bind both access hatches");
+        helper.assertValueEqual(hatches.size(), 1, "Trinity main structure should bind its sole lower access hatch");
         TrinityDataCoreGameTestFixture fixture = new TrinityDataCoreGameTestFixture(helper, host, hatches);
         fixture.registerCleanup();
         return fixture;

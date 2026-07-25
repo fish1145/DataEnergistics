@@ -151,7 +151,19 @@ public final class TrinityDataCoreResourceTest {
                 "Trinity Data Core should not reference the missing ExtendedAE namespace");
         JsonObject cableBusPredicate = object(predicates, "#");
         assertEquals("data_energistics:placement_items", string(cableBusPredicate, "type"));
-        assertEquals("ae2:fluix_covered_cable", string(cableBusPredicate, "item"));
+        assertFalse(cableBusPredicate.has("item"), "Covered cables should no longer require only the Fluix variant");
+        JsonArray coveredCables = cableBusPredicate.getAsJsonArray("items");
+        assertNotNull(coveredCables, "Covered cable placement candidates should be an item array");
+        assertEquals(17, coveredCables.size(), "All AE2 covered cable colors should be accepted");
+        assertEquals("ae2:fluix_covered_cable", coveredCables.get(0).getAsString(),
+                "Fluix should remain the default auto-build candidate");
+        Set<String> coveredCableIds = new HashSet<>();
+        coveredCables.forEach(element -> coveredCableIds.add(element.getAsString()));
+        assertEquals(17, coveredCableIds.size(), "Covered cable placement candidates should not contain duplicates");
+        assertTrue(coveredCableIds.contains("ae2:red_covered_cable"),
+                "Colored covered cables should be accepted by the structure");
+        assertTrue(coveredCableIds.stream().allMatch(id -> id.startsWith("ae2:") && id.endsWith("_covered_cable")),
+                "Smart, glass, and dense cables must not be included as covered-cable candidates");
     }
 
     @Test

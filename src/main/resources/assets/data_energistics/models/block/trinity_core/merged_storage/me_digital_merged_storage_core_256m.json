@@ -3,7 +3,7 @@
 	"render_type": "cutout",
 	"textures": {
 		"0": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core",
-		"1": "ae2:block/crafting/256k_storage_light",
+		"1": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core_256m",
 		"particle": "data_energistics:block/trinity_core/merged_storage/me_digital_merged_storage_core"
 	}
 }

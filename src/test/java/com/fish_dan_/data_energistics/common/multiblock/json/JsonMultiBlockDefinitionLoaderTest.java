@@ -30,6 +30,7 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -49,6 +50,7 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -209,8 +211,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "Bundled Trinity Data Core should map the exported controller to the host position");
         helper.assertValueEqual(
                 pattern.structureSlices[24][3],
-                "            M@M            ",
-                "Bundled Trinity Data Core should allow Trinity access replacement directly above the host");
+                "            MHM            ",
+                "Bundled Trinity Data Core should keep the quartz vibrant glass directly above the host fixed");
         helper.assertValueEqual(
                 pattern.structureSlices[0][0],
                 "                           ",
@@ -227,8 +229,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertValueEqual(pattern.getCenterOffset().minZ(), 24, "Controller Z min offset should match the placeholder aisle");
         helper.assertValueEqual(pattern.getCenterOffset().maxZ(), 24, "Controller Z max offset should match the placeholder aisle");
         helper.assertValueEqual(countSymbol(pattern, 'Z'), 1176, "Main Trinity Data Core should expose all storage core slots through Z");
-        helper.assertValueEqual(countSymbol(pattern, '@'), 2, "Main Trinity Data Core should expose exactly two access hatch replacement slots");
-        helper.assertValueEqual(countSymbol(pattern, 'H'), 36, "Main Trinity Data Core should keep all other quartz vibrant glass slots fixed");
+        helper.assertValueEqual(countSymbol(pattern, '@'), 1, "Main Trinity Data Core should expose exactly one access hatch replacement slot");
+        helper.assertValueEqual(countSymbol(pattern, 'H'), 37, "Main Trinity Data Core should keep all other quartz vibrant glass slots fixed");
         helper.assertValueEqual(countSymbol(pattern, ' '), 21525, "Main Trinity Data Core should leave exported air unconstrained");
         helper.assertValueEqual(countSymbol(pattern, '#'), 12, "Main Trinity Data Core should retain all covered cable positions");
         helper.assertValueEqual(countSymbol(pattern, 'D'), 160, "Main Trinity Data Core should retain the re-exported framework shell");
@@ -261,9 +263,25 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "data_energistics:placement_items",
                 "Main covered cables should retain their placement-item predicate");
         helper.assertValueEqual(
-                cablePredicate.get("item").getAsString(),
+                cablePredicate.has("item"),
+                false,
+                "Main covered cables should not require only the Fluix variant");
+        JsonArray coveredCables = cablePredicate.getAsJsonArray("items");
+        helper.assertValueEqual(coveredCables.size(), 17,
+                "Main covered cables should accept every AE2 covered cable color");
+        helper.assertValueEqual(
+                coveredCables.get(0).getAsString(),
                 "ae2:fluix_covered_cable",
-                "Main covered cables should retain their exact AE2 part item");
+                "Main covered cables should preserve Fluix as the default placement candidate");
+        Set<String> coveredCableIds = new LinkedHashSet<>();
+        coveredCables.forEach(element -> coveredCableIds.add(element.getAsString()));
+        helper.assertValueEqual(coveredCableIds.size(), 17,
+                "Main covered cable candidates should not contain duplicates");
+        helper.assertTrue(coveredCableIds.contains("ae2:red_covered_cable"),
+                "Main covered cables should accept colored variants");
+        helper.assertTrue(
+                coveredCableIds.stream().allMatch(id -> id.startsWith("ae2:") && id.endsWith("_covered_cable")),
+                "Main covered cable candidates must exclude smart, glass, and dense cables");
         JsonObject quartzVibrantGlassPredicate = predicates.getAsJsonObject("H");
         JsonObject replaceableQuartzVibrantGlassPredicate = predicates.getAsJsonObject("@");
         helper.assertValueEqual(replaceableQuartzVibrantGlassPredicate, quartzVibrantGlassPredicate, "Dedicated access hatch symbol should match the same quartz vibrant glass block as H");
@@ -301,7 +319,14 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "main");
         helper.assertTrue(originalResult.matched(), "Generated Trinity Data Core main structure should match");
 
-        BlockPos accessSlot = mapPatternPosition(pattern, firstSymbol(pattern, '@'), hostPos, frontFacing, Direction.NORTH);
+        helper.assertValueEqual(countSymbol(pattern, '@'), 1,
+                "Trinity Data Core main structure should expose exactly one access hatch slot");
+        BlockPos accessPatternPos = firstSymbol(pattern, '@');
+        BlockPos controllerPatternPos = firstSymbol(pattern, '~');
+        helper.assertValueEqual(accessPatternPos,
+                controllerPatternPos.below(),
+                "The sole access hatch slot should remain directly below the controller");
+        BlockPos accessSlot = mapPatternPosition(pattern, accessPatternPos, hostPos, frontFacing, Direction.NORTH);
         Map<BlockPos, BlockState> accessStates = new LinkedHashMap<>(states);
         accessStates.put(accessSlot, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState());
         StructureMatchResult accessResult = JsonMultiBlockPatternMatcher.matchExact(

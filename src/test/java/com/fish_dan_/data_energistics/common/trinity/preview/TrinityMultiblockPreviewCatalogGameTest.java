@@ -34,7 +34,9 @@ import com.modularmc.mdl.api.multiblock.PatternUnit;
 import com.modularmc.mdl.api.multiblock.RepeatRange;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * End-to-end common-layer acceptance coverage for Trinity's live preview catalog generation.
@@ -45,7 +47,8 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
 
     private static final ResourceLocation CABLE_BUS = ResourceLocation.parse("ae2:cable_bus");
     private static final ResourceLocation FLUIX_COVERED_CABLE = ResourceLocation.parse("ae2:fluix_covered_cable");
-    private static final ResourceLocation TRINITY_ACCESS_HATCH = ResourceLocation.parse("data_energistics:trinity_access_hatch");
+    private static final ResourceLocation RED_COVERED_CABLE = ResourceLocation.parse("ae2:red_covered_cable");
+    private static final ResourceLocation TRINITY_ACCESS_HATCH = ResourceLocation.parse("data_energistics:me_access_hatch");
     private static final ResourceLocation QUARTZ_VIBRANT_GLASS = ResourceLocation.parse("ae2:quartz_vibrant_glass");
     private static final int CHILD_CELLS_PER_REPEAT = 198;
     private static final long CHILD_MATERIALS_PER_REPEAT = 36L;
@@ -222,13 +225,26 @@ public final class TrinityMultiblockPreviewCatalogGameTest {
     }
 
     private static void assertMainSpecialCandidates(GameTestHelper helper, StructurePreviewSnapshot main) {
-        boolean cablePairFound = main.cells().stream()
-                .flatMap(cell -> cell.predicate().candidates().stream())
-                .anyMatch(candidate -> candidate.concrete() &&
+        List<PreviewCandidate> cableCandidates = main.cells().stream()
+                .map(PreviewCellSnapshot::predicate)
+                .map(PreviewPredicateSnapshot::candidates)
+                .filter(candidates -> candidates.stream().anyMatch(candidate -> candidate.concrete() &&
                         CABLE_BUS.equals(blockId(candidate)) &&
-                        FLUIX_COVERED_CABLE.equals(itemId(candidate)));
-        helper.assertTrue(cablePairFound,
-                "Main preview must pair the cable bus render state with the fluix covered cable placement item");
+                        FLUIX_COVERED_CABLE.equals(itemId(candidate))))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Main preview did not expose covered cable candidates"));
+        helper.assertValueEqual(cableCandidates.size(), 17,
+                "Main preview must expose every AE2 covered cable color");
+        Set<ResourceLocation> cableItems = new HashSet<>();
+        for (PreviewCandidate candidate : cableCandidates) {
+            helper.assertTrue(candidate.concrete() && CABLE_BUS.equals(blockId(candidate)),
+                    "Every covered cable preview candidate must render as an AE2 cable bus");
+            cableItems.add(itemId(candidate));
+        }
+        helper.assertValueEqual(cableItems.size(), 17,
+                "Main preview covered cable candidates should not contain duplicates");
+        helper.assertTrue(cableItems.containsAll(List.of(FLUIX_COVERED_CABLE, RED_COVERED_CABLE)),
+                "Main preview must pair the cable bus with Fluix and colored covered cable items");
 
         PreviewPredicateSnapshot accessPredicate = main.cells().stream()
                 .map(PreviewCellSnapshot::predicate)

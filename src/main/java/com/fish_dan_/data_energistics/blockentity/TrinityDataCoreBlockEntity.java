@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -2166,6 +2167,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     public void onChunkUnloaded() {
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
+        if (isServerStopping()) {
+            super.onChunkUnloaded();
+            return;
+        }
         withdrawPatternCatalog();
         transitionAccessLease(this.accessLease == null ? null : this.accessLease.unbind());
         requestStructureRecheck();
@@ -2176,10 +2181,19 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     public void setRemoved() {
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
+        if (isServerStopping()) {
+            super.setRemoved();
+            return;
+        }
         withdrawPatternCatalog();
         transitionAccessLease(this.accessLease == null ? null : this.accessLease.unbind());
         clearCompartmentBindings(mainDefinitionKey().structureName());
         super.setRemoved();
+    }
+
+    private boolean isServerStopping() {
+        return this.level instanceof ServerLevel serverLevel &&
+                ServerLifecycleEventHandler.isStopping(serverLevel.getServer());
     }
 
     /** Cancels active CPU jobs only when the host block is being permanently removed from the world. */

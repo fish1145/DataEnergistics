@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
@@ -116,31 +117,33 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
         helper.assertFalse(reassembler.isAutoExportEnabled(), "A valid false action must disable auto-export");
         helper.assertValueEqual(menu.getAutoExport(), YesNo.NO, "The menu must mirror disabled auto-export");
 
-        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, "\"north:false\"");
+        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, "\"items:north:false\"");
         helper.assertFalse(
-                reassembler.getOutputSides().contains(Direction.NORTH),
+                reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS).contains(Direction.NORTH),
                 "A valid false action must disable the selected output side");
         helper.assertFalse(
-                menu.getOutputSides().contains(Direction.NORTH),
+                menu.getOutputSides(DigitalStorageDepotOutputType.ITEMS).contains(Direction.NORTH),
                 "The menu must mirror a disabled output side");
-        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, "\"north:true\"");
+        menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, "\"items:north:true\"");
         helper.assertTrue(
-                reassembler.getOutputSides().contains(Direction.NORTH),
+                reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS).contains(Direction.NORTH),
                 "A valid true action must enable the selected output side");
         helper.assertTrue(
-                menu.getOutputSides().contains(Direction.NORTH),
+                menu.getOutputSides(DigitalStorageDepotOutputType.ITEMS).contains(Direction.NORTH),
                 "The menu must mirror an enabled output side");
 
         assertRejectedOutputSideAction(helper, menu, reassembler, null, true);
         assertRejectedOutputSideAction(helper, menu, reassembler, "null", true);
         assertRejectedOutputSideAction(helper, menu, reassembler, "\"\"", true);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north\"", true);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\":true\"", true);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:\"", true);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:true:extra\"", true);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\"missing:true\"", true);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:TRUE\"", false);
-        assertRejectedOutputSideAction(helper, menu, reassembler, "\"north:yes\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items:north\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\":north:true\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items::true\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items:north:\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items:north:true:extra\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"missing:north:true\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items:missing:true\"", true);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items:north:TRUE\"", false);
+        assertRejectedOutputSideAction(helper, menu, reassembler, "\"items:north:yes\"", true);
         helper.succeed();
     }
 
@@ -164,9 +167,22 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
         helper.assertTrue(
                 realProgress > 0 && realProgress < realMaxProgress,
                 "The binding assertion must observe progress produced by a live recipe tick");
-        Set<Direction> enabledSides = EnumSet.of(Direction.WEST, Direction.UP, Direction.NORTH);
+        Set<Direction> itemOutputSides = EnumSet.of(Direction.WEST, Direction.UP, Direction.NORTH);
+        Set<Direction> fluidOutputSides = EnumSet.of(Direction.SOUTH, Direction.EAST);
+        Set<Direction> keyOutputSides = EnumSet.of(Direction.DOWN);
         for (Direction side : Direction.values()) {
-            reassembler.setOutputSideEnabled(side, enabledSides.contains(side));
+            reassembler.setOutputSideEnabled(
+                    DigitalStorageDepotOutputType.ITEMS,
+                    side,
+                    itemOutputSides.contains(side));
+            reassembler.setOutputSideEnabled(
+                    DigitalStorageDepotOutputType.FLUIDS,
+                    side,
+                    fluidOutputSides.contains(side));
+            reassembler.setOutputSideEnabled(
+                    DigitalStorageDepotOutputType.KEYS,
+                    side,
+                    keyOutputSides.contains(side));
         }
         setMenuStack(reassembler.getFluidMenuInventoryA(), FLUID_INPUT_A);
         setMenuStack(reassembler.getFluidMenuInventoryB(), FLUID_INPUT_B);
@@ -202,13 +218,21 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
                 .apply(Unpooled.wrappedBuffer(packets.getFirst().syncData())));
 
         assertGuiSyncFieldIds(helper, menu);
-        assertSynchronizedFields(helper, menu, reassembler, enabledSides, realProgress, realMaxProgress);
+        assertSynchronizedFields(
+                helper,
+                menu,
+                reassembler,
+                itemOutputSides,
+                fluidOutputSides,
+                keyOutputSides,
+                realProgress,
+                realMaxProgress);
         assertCapacities(helper, menu);
         assertSlotBindings(helper, menu);
     }
 
     private static void assertGuiSyncFieldIds(GameTestHelper helper, TrackingDataRipperReassemblerMenu menu) {
-        for (short fieldId = 840; fieldId <= 856; fieldId++) {
+        for (short fieldId = 840; fieldId <= 858; fieldId++) {
             helper.assertTrue(
                     menu.receivedField(fieldId),
                     "The full menu packet must update GuiSync field " + fieldId);
@@ -219,7 +243,9 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
                                                  GameTestHelper helper,
                                                  DataRipperReassemblerMenu menu,
                                                  DataRipperReassemblerBlockEntity reassembler,
-                                                 Set<Direction> enabledSides,
+                                                 Set<Direction> itemOutputSides,
+                                                 Set<Direction> fluidOutputSides,
+                                                 Set<Direction> keyOutputSides,
                                                  int realProgress,
                                                  int realMaxProgress) {
         helper.assertTrue(menu.online, "GuiSync 840 must read the real machine online state");
@@ -247,13 +273,23 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
         helper.assertValueEqual(menu.maxProgress, realMaxProgress, "GuiSync 854 must read the live progress range");
         helper.assertValueEqual(menu.autoExport, YesNo.YES, "GuiSync 855 must read the real auto-export setting");
         helper.assertValueEqual(
-                menu.outputSidesMask,
-                encodeOutputSides(enabledSides),
-                "GuiSync 856 must encode the real absolute output sides");
+                menu.itemOutputSidesMask,
+                encodeOutputSides(itemOutputSides),
+                "GuiSync 856 must encode the real item output sides");
         helper.assertValueEqual(
-                Set.copyOf(menu.getOutputSides()),
-                Set.copyOf(reassembler.getOutputSides()),
-                "The menu output-side view must decode the synchronized machine mask");
+                menu.fluidOutputSidesMask,
+                encodeOutputSides(fluidOutputSides),
+                "GuiSync 857 must encode the real fluid output sides");
+        helper.assertValueEqual(
+                menu.keyOutputSidesMask,
+                encodeOutputSides(keyOutputSides),
+                "GuiSync 858 must encode the real key output sides");
+        for (DigitalStorageDepotOutputType outputType : DigitalStorageDepotOutputType.values()) {
+            helper.assertValueEqual(
+                    Set.copyOf(menu.getOutputSides(outputType)),
+                    Set.copyOf(reassembler.getOutputSides(outputType)),
+                    "The menu output-side view must decode the synchronized mask for " + outputType);
+        }
     }
 
     private static void assertFluidFields(
@@ -415,23 +451,27 @@ public final class DataRipperReassemblerMachineUiBindingGameTest {
                                                        DataRipperReassemblerBlockEntity reassembler,
                                                        String jsonPayload,
                                                        boolean northInitiallyEnabled) {
-        reassembler.setOutputSideEnabled(Direction.NORTH, northInitiallyEnabled);
+        reassembler.setOutputSideEnabled(
+                DigitalStorageDepotOutputType.ITEMS,
+                Direction.NORTH,
+                northInitiallyEnabled);
         menu.broadcastChanges();
-        Set<Direction> expectedSides = Set.copyOf(reassembler.getOutputSides());
-        int expectedMask = menu.outputSidesMask;
+        Set<Direction> expectedSides = Set.copyOf(
+                reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS));
+        int expectedMask = menu.itemOutputSidesMask;
 
         menu.receiveClientAction(ACTION_SET_OUTPUT_SIDE, jsonPayload);
 
         helper.assertValueEqual(
-                Set.copyOf(reassembler.getOutputSides()),
+                Set.copyOf(reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS)),
                 expectedSides,
                 "An invalid output-side payload must not change the machine state");
         helper.assertValueEqual(
-                Set.copyOf(menu.getOutputSides()),
+                Set.copyOf(menu.getOutputSides(DigitalStorageDepotOutputType.ITEMS)),
                 expectedSides,
                 "An invalid output-side payload must not change the menu state");
         helper.assertValueEqual(
-                menu.outputSidesMask,
+                menu.itemOutputSidesMask,
                 expectedMask,
                 "An invalid output-side payload must not change the synchronized mask");
     }
