@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
@@ -32,12 +33,14 @@ public class DispersingDataEntity extends Entity {
 
     private static final EntityDataAccessor<Integer> TEXTURE_VARIANT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_AMOUNT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
-    public static final int MAX_DATA_AMOUNT = 64;
+    public static final int MAX_DATA_AMOUNT = 16;
     private static final int LIFETIME_TICKS = 1200;
     private static final double DRIFT_STRENGTH = 0.015D;
     private static final double VERTICAL_DRIFT = 0.01D;
     private static final double HITBOX_Y_OFFSET = 0.0625D;
     private static final double MERGE_RADIUS = 0.5D;
+    private static final double ATTRACTION_RADIUS = 4.0D;
+    private static final double ATTRACTION_STRENGTH = 0.012D;
     private static final int MAX_LIQUID_ESCAPE_DISTANCE = 64;
     private int age;
 
@@ -61,7 +64,8 @@ public class DispersingDataEntity extends Entity {
                 (this.random.nextDouble() - 0.5D) * DRIFT_STRENGTH,
                 (this.random.nextDouble() - 0.5D) * VERTICAL_DRIFT,
                 (this.random.nextDouble() - 0.5D) * DRIFT_STRENGTH);
-        this.setDeltaMovement(this.getDeltaMovement().scale(0.92D).add(drift));
+        Vec3 attraction = this.level() instanceof ServerLevel ? this.getAttractionAcceleration() : Vec3.ZERO;
+        this.setDeltaMovement(this.getDeltaMovement().scale(0.92D).add(drift).add(attraction));
         this.move(MoverType.SELF, this.getDeltaMovement());
 
         if (this.level() instanceof ServerLevel) {
@@ -70,6 +74,31 @@ public class DispersingDataEntity extends Entity {
                 this.discard();
             }
         }
+    }
+
+    private Vec3 getAttractionAcceleration() {
+        DispersingDataEntity nearest = null;
+        double nearestDistanceSqr = Double.MAX_VALUE;
+        for (DispersingDataEntity other : this.level().getEntitiesOfClass(
+                DispersingDataEntity.class,
+                this.getBoundingBox().inflate(ATTRACTION_RADIUS),
+                entity -> entity != this && entity.isAlive() && this.canMergeWith(entity))) {
+            double distanceSqr = this.distanceToSqr(other);
+            if (distanceSqr < nearestDistanceSqr) {
+                nearest = other;
+                nearestDistanceSqr = distanceSqr;
+            }
+        }
+
+        if (nearest == null || nearestDistanceSqr < 1.0E-6D) {
+            return Vec3.ZERO;
+        }
+        return nearest.position().subtract(this.position()).normalize().scale(ATTRACTION_STRENGTH);
+    }
+
+    private boolean canMergeWith(DispersingDataEntity other) {
+        DispersingDataEntity receiver = this.getId() < other.getId() ? this : other;
+        return receiver.getDataAmount() < MAX_DATA_AMOUNT;
     }
 
     private void mergeNearbyData() {
@@ -158,6 +187,12 @@ public class DispersingDataEntity extends Entity {
 
     public void setTextureVariant(int variant) {
         this.entityData.set(TEXTURE_VARIANT, Math.floorMod(variant, 4));
+    }
+
+    @Override
+    public Component getName() {
+        Component name = super.getName();
+        return this.getDataAmount() > 1 ? name.copy().append("*").append(String.valueOf(this.getDataAmount())) : name;
     }
 
     public int getDataAmount() {

@@ -29,14 +29,14 @@ public final class DispersingDataEntityGameTest {
 
     private DispersingDataEntityGameTest() {}
 
-    @TestHolder("dispersing_data_merges_without_exceeding_64")
+    @TestHolder("dispersing_data_merges_without_exceeding_16")
     @EmptyTemplate("5x5")
     @GameTest(template = "empty_5x5", timeoutTicks = 40)
     public static void mergesWithoutExceedingMaximum(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         Vec3 position = Vec3.atCenterOf(helper.absolutePos(BlockPos.ZERO));
-        DispersingDataEntity first = create(level, position, 40);
-        DispersingDataEntity second = create(level, position, 40);
+        DispersingDataEntity first = create(level, position, 10);
+        DispersingDataEntity second = create(level, position, 10);
         helper.assertTrue(level.addFreshEntity(first), "The first dispersing data entity must spawn");
         helper.assertTrue(level.addFreshEntity(second), "The second dispersing data entity must spawn");
 
@@ -49,40 +49,70 @@ public final class DispersingDataEntityGameTest {
                     helper.assertValueEqual(entities.size(), 2, "Overflow must remain in a second entity");
                     helper.assertValueEqual(
                             entities.stream().mapToInt(DispersingDataEntity::getDataAmount).sum(),
-                            80,
+                            20,
                             "Merging must preserve the total data amount");
                     helper.assertTrue(
-                            entities.stream().anyMatch(entity -> entity.getDataAmount() == 64),
-                            "One merged entity must reach the 64-data limit");
+                            entities.stream().anyMatch(entity -> entity.getDataAmount() == 16),
+                            "One merged entity must reach the 16-data limit");
                     helper.assertTrue(
-                            entities.stream().allMatch(entity -> entity.getDataAmount() <= 64),
-                            "No merged entity may exceed the 64-data limit");
+                            entities.stream().allMatch(entity -> entity.getDataAmount() <= 16),
+                            "No merged entity may exceed the 16-data limit");
                 })
                 .thenSucceed();
     }
 
-    @TestHolder("dispersing_data_persists_amount_and_scales_to_four")
+    @TestHolder("dispersing_data_attracts_and_merges_from_a_distance")
+    @EmptyTemplate("5x5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 120)
+    public static void attractsAndMergesFromDistance(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Vec3 firstPosition = Vec3.atCenterOf(helper.absolutePos(new BlockPos(1, 2, 2)));
+        Vec3 secondPosition = Vec3.atCenterOf(helper.absolutePos(new BlockPos(3, 2, 2)));
+        helper.assertTrue(level.addFreshEntity(create(level, firstPosition, 1)), "The first data entity must spawn");
+        helper.assertTrue(level.addFreshEntity(create(level, secondPosition, 1)), "The second data entity must spawn");
+
+        AABB searchArea = new AABB(firstPosition, secondPosition).inflate(2.0D);
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    List<DispersingDataEntity> entities = level.getEntitiesOfClass(
+                            DispersingDataEntity.class,
+                            searchArea);
+                    helper.assertValueEqual(entities.size(), 1, "Distant data entities must attract and merge");
+                    helper.assertValueEqual(entities.getFirst().getDataAmount(), 2, "The merged entity must contain both data units");
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("dispersing_data_persists_amount_and_scales_with_amount")
     @EmptyTemplate("5x5")
     @GameTest(template = "empty_5x5")
     public static void persistsAmountAndScalesToFour(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        DispersingDataEntity entity = create(level, Vec3.ZERO, 64);
+        DispersingDataEntity entity = create(level, Vec3.ZERO, 16);
         CompoundTag saved = new CompoundTag();
         entity.addAdditionalSaveData(saved);
 
         DispersingDataEntity restored = create(level, Vec3.ZERO, 1);
         restored.readAdditionalSaveData(saved);
-        helper.assertValueEqual(restored.getDataAmount(), 64, "Saved data amount must round-trip");
+        helper.assertValueEqual(restored.getDataAmount(), 16, "Saved data amount must round-trip");
+        helper.assertValueEqual(
+                restored.getName(),
+                restored.getType().getDescription().copy().append("*").append("16"),
+                "Merged data must include its amount in the display name");
         helper.assertTrue(
-                Math.abs(restored.getSizeScale() - 4.0F) < EPSILON,
-                "A full 64-data entity must render at four times the base size");
+                Math.abs(restored.getSizeScale() - (float) Math.cbrt(16.0D)) < EPSILON,
+                "A full 16-data entity must scale with the cube root of its amount");
         helper.assertTrue(
-                Math.abs(restored.getDimensions(Pose.STANDING).width() - 1.0F) < EPSILON,
-                "A full 64-data entity must have a four-times-wide hitbox");
+                Math.abs(restored.getDimensions(Pose.STANDING).width() - 0.25F * (float) Math.cbrt(16.0D)) < EPSILON,
+                "A full 16-data entity must have a matching scaled hitbox");
 
         CompoundTag legacy = new CompoundTag();
         restored.readAdditionalSaveData(legacy);
         helper.assertValueEqual(restored.getDataAmount(), 1, "Legacy entities without an amount must default to one");
+        helper.assertValueEqual(
+                restored.getName(),
+                restored.getType().getDescription(),
+                "A single data entity must keep its base display name");
         helper.succeed();
     }
 
