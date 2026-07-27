@@ -2,7 +2,9 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
+import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -38,6 +40,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
@@ -655,6 +658,68 @@ public final class CompartmentBlockEntityTest {
                 .thenSucceed();
     }
 
+    @TestHolder("data_distribution_tower_exposes_online_trinity_access_hatch_storage")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void dataDistributionTowerExposesOnlineTrinityAccessHatchStorage(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        TrinityAccessHatchBlockEntity hatch = fixture.accessHatches().getFirst();
+        DataDistributionTowerBlockEntity tower = placeTowerNearAccessHatch(helper, hatch.getBlockPos());
+        AtomicReference<TestGridPower> towerPower = new AtomicReference<>();
+        registerGridPowerCleanup(helper, List.of(towerPower));
+        AEItemKey probe = AEItemKey.of(Items.EMERALD);
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenWaitUntil(() -> {
+                    IGridNode towerNode = tower.getMainNode().getNode();
+                    if (towerNode == null) {
+                        throw new GameTestAssertException("Data distribution tower node is still initializing");
+                    }
+                    if (towerPower.get() == null) {
+                        TestGridPower power = new TestGridPower(helper.getLevel());
+                        power.connect(towerNode);
+                        towerPower.set(power);
+                    }
+                    helper.assertTrue(towerNode.isActive(), "Powered data distribution tower must be active");
+                    helper.assertTrue(hatch.getMainNode().getNode().isOnline(),
+                            "Trinity access hatch must already be online on its original grid");
+                })
+                .thenExecute(() -> {
+                    long inserted = TrinityDataCoreStorageSavedData.get(helper.getLevel().getServer()).insert(
+                            host.getStorageId(),
+                            probe,
+                            11L,
+                            Actionable.MODULATE);
+                    helper.assertValueEqual(inserted, 11L, "Tower bridge probe must enter Trinity storage");
+                    hatch.refreshTrinityStorageContent();
+
+                    ConnectorBindResult result = tower.bindTargetFromConnector(hatch.getBlockPos());
+                    helper.assertTrue(result.success(), "Data distribution tower must bind the ME access hatch");
+                    helper.assertTrue(result.aeSupported(), "ME access hatch binding must expose an AE node");
+                })
+                .thenWaitUntil(() -> {
+                    tower.serverTick();
+                    hatch.serverTick();
+                    host.serverTick();
+                    IGridNode towerNode = tower.getMainNode().getNode();
+                    IGridNode hatchNode = hatch.getMainNode().getNode();
+                    helper.assertValueEqual(
+                            tower.getTargetTransferInfo(hatch.getBlockPos()).channelConnections(),
+                            1,
+                            "Tower must create one wireless connection to the ME access hatch");
+                    helper.assertTrue(towerNode.getGrid() == hatchNode.getGrid(),
+                            "Tower and ME access hatch must join the same compatible AE grid");
+                    helper.assertValueEqual(
+                            availableAmount(towerNode.getGrid(), probe),
+                            11L,
+                            "A terminal on the tower grid must see Trinity storage through the ME access hatch");
+                })
+                .thenExecute(() -> destroyGridPower(towerPower))
+                .thenSucceed();
+    }
+
     @TestHolder("trinity_access_hatch_lifecycle_withdraws_local_publications_synchronously")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
@@ -714,53 +779,22 @@ public final class CompartmentBlockEntityTest {
                             "Chunk unload must withdraw the local CPU publication before returning");
                     helper.assertTrue(unloadedOwner.terminalPartitions().isEmpty(),
                             "Chunk unload must detach local terminal partitions before returning");
-
-                    TrinityAccessHatchBlockEntity removedOwner = fixture.accessHatches().stream()
-                            .filter(host::isLeaseOwner)
-                            .findFirst()
-                            .orElseThrow();
-                    helper.assertTrue(removedOwner != unloadedOwner,
-                            "Chunk unload must let the host elect the remaining online hatch");
-                    IGridNode removedNode = removedOwner.getMainNode().getNode();
-                    IGrid removedGrid = removedOwner.connectedGrid();
-                    helper.assertTrue(removedNode != null && removedGrid != null,
-                            "The replacement owner must have an initialized grid node");
-                    TrinityCraftingRuntimeRegistry removedRegistry = runtimeRegistry(removedGrid);
-                    helper.assertTrue(!removedRegistry.publish(removedNode, host.getCraftingRuntime()),
-                            "The replacement owner runtime must be published before removal");
-                    helper.assertValueEqual(availableAmount(removedGrid, storageProbe), 9L,
-                            "Replacement owner must retain the single Trinity storage mount");
+                    helper.assertValueEqual(availableAmount(unloadedGrid, storageProbe), 0L,
+                            "Unloading the sole access hatch must withdraw Trinity storage");
                     helper.assertValueEqual(
-                            publishedCpuCount(removedGrid, host.getCpuPartitions()),
-                            (long) host.getCpuPartitions().size(),
-                            "Replacement owner must publish every Trinity CPU exactly once");
-                    helper.assertValueEqual(
-                            publishedRouteCount(removedGrid, patternOutput, route),
-                            1L,
-                            "Replacement owner must publish the routed pattern exactly once");
-                    helper.assertTrue(!removedOwner.terminalPartitions().isEmpty() &&
-                            removedOwner.terminalPartitions().stream()
-                                    .allMatch(partition -> partition.isAttachedTo(removedGrid)),
-                            "Replacement owner must attach terminal partitions to its grid");
-
-                    removedOwner.setRemoved();
-
-                    helper.assertTrue(!removedRegistry.withdraw(removedNode),
-                            "Block-entity removal must withdraw the local CPU publication before returning");
-                    helper.assertTrue(removedOwner.terminalPartitions().isEmpty(),
-                            "Block-entity removal must detach local terminal partitions before returning");
-                    helper.assertValueEqual(availableAmount(removedGrid, storageProbe), 0L,
-                            "Removing the final online hatch must withdraw Trinity storage");
-                    helper.assertValueEqual(
-                            publishedCpuCount(removedGrid, host.getCpuPartitions()),
+                            publishedCpuCount(unloadedGrid, host.getCpuPartitions()),
                             0L,
-                            "Removing the final online hatch must withdraw every Trinity CPU");
+                            "Unloading the sole access hatch must withdraw every Trinity CPU");
                     helper.assertValueEqual(
-                            publishedRouteCount(removedGrid, patternOutput, route),
+                            publishedRouteCount(unloadedGrid, patternOutput, route),
                             0L,
-                            "Removing the final online hatch must withdraw the routed pattern");
+                            "Unloading the sole access hatch must withdraw the routed pattern");
                     helper.assertTrue(host.accessGrid() == null,
-                            "Removing the final online hatch must clear the host access grid");
+                            "Unloading the sole access hatch must clear the host access grid");
+                    helper.assertValueEqual(
+                            fixture.accessHatches().stream().filter(host::isLeaseOwner).count(),
+                            0L,
+                            "Unloading the sole access hatch must clear the host lease");
                 })
                 .thenSucceed();
     }
@@ -865,7 +899,7 @@ public final class CompartmentBlockEntityTest {
         buildMainStructure(helper, level, origin);
         host.serverTick();
         List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
-        helper.assertValueEqual(hatches.size(), 2, "Main structure must bind exactly two access hatches");
+        helper.assertValueEqual(hatches.size(), 1, "Main structure must bind exactly one access hatch");
         buildCraftingStructure(helper, level, origin);
         host.requestStructureRecheck();
         host.serverTick();
@@ -997,14 +1031,13 @@ public final class CompartmentBlockEntityTest {
         host.serverTick();
         PatternRoute patternRoute = new PatternRoute(host.getHostId(), patternMount.core().coreId(), 0);
         AEItemKey patternOutput = AEItemKey.of(Items.OAK_PLANKS);
-        List<TrinityAccessHatchBlockEntity> hatches = boundTrinityAccessHatches(host);
-        helper.assertValueEqual(hatches.size(), 2, "Main structure must bind exactly two access hatches");
-        TrinityAccessHatchBlockEntity initialOwner = hatches.stream()
-                .max((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
-                .orElseThrow();
-        TrinityAccessHatchBlockEntity competitor = hatches.stream()
-                .min((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
-                .orElseThrow();
+        List<TrinityAccessHatchBlockEntity> structureHatches = boundTrinityAccessHatches(host);
+        helper.assertValueEqual(structureHatches.size(), 1,
+                "Main structure must bind exactly one access hatch");
+        TrinityAccessHatchBlockEntity testCompetitor = placeAdditionalBoundAccessHatch(level, origin, host);
+        List<TrinityAccessHatchBlockEntity> hatches = List.of(structureHatches.getFirst(), testCompetitor);
+        TrinityAccessHatchBlockEntity initialOwner = structureHatches.getFirst();
+        TrinityAccessHatchBlockEntity competitor = testCompetitor;
         AtomicReference<TestGridPower> ownerPower = new AtomicReference<>();
         AtomicReference<TestGridPower> competitorPower = new AtomicReference<>();
         registerGridPowerCleanup(helper, List.of(ownerPower, competitorPower));
@@ -1066,6 +1099,7 @@ public final class CompartmentBlockEntityTest {
                         power.connect(initializedCompetitorNode);
                         competitorPower.set(power);
                     }
+                    competitor.compartment$bindToHost(mainStructureName(), host);
                     host.serverTick();
                     IGrid otherGrid = competitor.connectedGrid();
                     helper.assertTrue(otherGrid != null && ownerGrid.get() != otherGrid,
@@ -1103,6 +1137,8 @@ public final class CompartmentBlockEntityTest {
                 })
                 .thenExecute(() -> destroyGridPower(ownerPower))
                 .thenWaitUntil(() -> {
+                    competitor.compartment$bindToHost(mainStructureName(), host);
+                    host.requestAccessLeaseReevaluation();
                     host.serverTick();
                     competitor.refreshTrinityPatternPublication();
                     helper.assertTrue(host.isLeaseOwner(competitor),
@@ -1317,13 +1353,12 @@ public final class CompartmentBlockEntityTest {
         AEItemKey jobOutput = AEItemKey.of(Items.DIAMOND);
         long jobOutputAmount = 3L;
 
-        helper.assertValueEqual(hatches.size(), 2, "Complete Trinity main structure must bind exactly two access hatches");
-        TrinityAccessHatchBlockEntity intendedOwner = hatches.stream()
-                .max((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
-                .orElseThrow();
-        TrinityAccessHatchBlockEntity intendedCompetitor = hatches.stream()
-                .min((left, right) -> left.getBlockPos().compareTo(right.getBlockPos()))
-                .orElseThrow();
+        helper.assertValueEqual(hatches.size(), 1,
+                "Complete Trinity main structure must bind exactly one access hatch");
+        TrinityAccessHatchBlockEntity testCompetitor = placeAdditionalBoundAccessHatch(level, origin, host);
+        hatches = List.of(hatches.getFirst(), testCompetitor);
+        TrinityAccessHatchBlockEntity intendedOwner = hatches.getFirst();
+        TrinityAccessHatchBlockEntity intendedCompetitor = testCompetitor;
         AtomicReference<TestGridPower> ownerPower = new AtomicReference<>();
         AtomicReference<TestGridPower> competitorPower = new AtomicReference<>();
         registerGridPowerCleanup(helper, List.of(ownerPower, competitorPower));
@@ -1424,6 +1459,7 @@ public final class CompartmentBlockEntityTest {
                         power.connect(competitorNode);
                         competitorPower.set(power);
                     }
+                    intendedCompetitor.compartment$bindToHost(mainStructureName(), host);
                     host.serverTick();
                     IGrid otherGrid = intendedCompetitor.connectedGrid();
                     helper.assertTrue(otherGrid != null && otherGrid != originalLeaseGrid.get(),
@@ -1475,6 +1511,8 @@ public final class CompartmentBlockEntityTest {
                     level.setBlockEntity(loadedHost);
                     loadedHost.onLoad();
                     loadedHost.serverTick();
+                    intendedOwner.compartment$bindToHost(mainStructureName(), loadedHost);
+                    intendedCompetitor.compartment$bindToHost(mainStructureName(), loadedHost);
                     helper.assertValueEqual(
                             loadedHost.structureValidationStatus(Structure.MAIN).state(),
                             State.DEFERRED,
@@ -2103,6 +2141,60 @@ public final class CompartmentBlockEntityTest {
         return List.copyOf(hatches);
     }
 
+    private static DataDistributionTowerBlockEntity placeTowerNearAccessHatch(
+                                                                              GameTestHelper helper,
+                                                                              BlockPos hatchPos) {
+        ServerLevel level = helper.getLevel();
+        BlockPos towerPos = null;
+        for (int radius = 2; radius <= 7 && towerPos == null; radius++) {
+            for (int offsetX = -radius; offsetX <= radius && towerPos == null; offsetX++) {
+                for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
+                    if (Math.max(Math.abs(offsetX), Math.abs(offsetZ)) != radius) {
+                        continue;
+                    }
+                    BlockPos candidate = hatchPos.offset(offsetX, 0, offsetZ);
+                    if (level.getBlockState(candidate).isAir() &&
+                            level.getBlockState(candidate.above()).isAir() &&
+                            level.getBlockState(candidate.above(2)).isAir()) {
+                        towerPos = candidate.immutable();
+                        break;
+                    }
+                }
+            }
+        }
+        if (towerPos == null) {
+            throw new IllegalStateException("No clear tower position exists near ME access hatch " + hatchPos);
+        }
+
+        for (int part = 2; part >= 0; part--) {
+            BlockState state = ModBlocks.DATA_DISTRIBUTION_TOWER.get()
+                    .defaultBlockState()
+                    .setValue(DataDistributionTowerBlock.PART, part)
+                    .setValue(DataDistributionTowerBlock.FACING, Direction.NORTH)
+                    .setValue(DataDistributionTowerBlock.ACTIVE, false);
+            level.setBlock(towerPos.above(part), state, Block.UPDATE_CLIENTS);
+        }
+        if (level.getBlockEntity(towerPos) instanceof DataDistributionTowerBlockEntity tower) {
+            return tower;
+        }
+        throw new IllegalStateException("Placed data distribution tower has no block entity at " + towerPos);
+    }
+
+    /** Adds a structure-external candidate only for exercising multi-grid lease arbitration. */
+    private static TrinityAccessHatchBlockEntity placeAdditionalBoundAccessHatch(
+                                                                                 ServerLevel level,
+                                                                                 BlockPos origin,
+                                                                                 TrinityDataCoreBlockEntity host) {
+        BlockPos hatchPos = origin.offset(16, 0, 0);
+        level.setBlock(hatchPos, ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState(), Block.UPDATE_ALL);
+        BlockEntity blockEntity = level.getBlockEntity(hatchPos);
+        if (!(blockEntity instanceof TrinityAccessHatchBlockEntity hatch)) {
+            throw new IllegalStateException("Missing test-only Trinity access hatch at " + hatchPos);
+        }
+        hatch.compartment$bindToHost(mainStructureName(), host);
+        return hatch;
+    }
+
     private static void assertTrinityAccessCableConnections(GameTestHelper helper, TrinityAccessHatchBlockEntity hatch) {
         var connectableSides = hatch.getGridConnectableSides(BlockOrientation.get(hatch.getBlockState()));
         for (Direction direction : Direction.values()) {
@@ -2123,13 +2215,11 @@ public final class CompartmentBlockEntityTest {
         if (testGridPower.get() != null) {
             return;
         }
-        helper.assertValueEqual(hatches.size(), 2, "Trinity main structure should bind exactly two access hatches");
-        IGridNode first = hatches.getFirst().getMainNode().getNode();
-        IGridNode second = hatches.getLast().getMainNode().getNode();
-        helper.assertTrue(first != null && second != null, "Both Trinity access nodes must finish AE initialization");
+        helper.assertValueEqual(hatches.size(), 1, "Trinity main structure should bind exactly one access hatch");
+        IGridNode accessNode = hatches.getFirst().getMainNode().getNode();
+        helper.assertTrue(accessNode != null, "The Trinity access node must finish AE initialization");
         TestGridPower power = new TestGridPower(level);
-        power.connect(first);
-        power.connect(second);
+        power.connect(accessNode);
         testGridPower.set(power);
     }
 

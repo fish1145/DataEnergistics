@@ -33,6 +33,8 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
+import appeng.api.AECapabilities;
+import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
@@ -90,6 +92,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int ITEM_OUTPUT_START_SLOT = 9;
     public static final int ITEM_OUTPUT_SLOT_COUNT = 3;
     public static final int STORAGE_SLOTS = 12;
+    public static final int KEY_INPUT_SLOT = 0;
+    public static final int KEY_OUTPUT_SLOT = 1;
+    public static final int KEY_SLOT_COUNT = 2;
     public static final int FLUID_INPUT_CAPACITY = 64_000;
     public static final int FLUID_OUTPUT_CAPACITY = 64_000;
     public static final long KEY_INPUT_CAPACITY = 6_400_000L;
@@ -108,6 +113,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String KEY_OUTPUT_TAG = "key_output";
     private static final String AUTO_EXPORT_TAG = "auto_export";
     private static final String OUTPUT_SIDES_TAG = "output_sides";
+    private static final String ITEM_OUTPUT_SIDES_TAG = "item_output_sides";
+    private static final String FLUID_OUTPUT_SIDES_TAG = "fluid_output_sides";
+    private static final String KEY_OUTPUT_SIDES_TAG = "key_output_sides";
     private static final String PROGRESS_TAG = "progress";
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
@@ -130,6 +138,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     private final GenericStackInv keyOutputMenuInventory = createKeyOutputMenuInventory();
     @Getter
+    private final GenericInternalInventory externalKeyInventory = new ReassemblerKeyInventory();
+    @Getter
     private final IFluidHandler externalFluidHandler = new ReassemblerFluidHandler();
     @Getter
     private final MEStorage externalPatternInputStorage = new PatternInputStorage();
@@ -138,7 +148,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private boolean syncingKeyMenu;
     private GenericStack keyInputStack;
     private GenericStack keyOutputStack;
-    private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
+    private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
+    private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
+    private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
     @Getter
     private int progress;
     @Getter
@@ -281,15 +293,17 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return this.configManager.getSetting(Settings.AUTO_EXPORT) == YesNo.YES;
     }
 
-    public Set<Direction> getOutputSides() {
-        if (this.outputSides.isEmpty()) {
+    public Set<Direction> getOutputSides(DigitalStorageDepotOutputType outputType) {
+        Set<Direction> sides = getOutputSidesInternal(outputType);
+        if (sides.isEmpty()) {
             return EnumSet.noneOf(Direction.class);
         }
-        return EnumSet.copyOf(this.outputSides);
+        return EnumSet.copyOf(sides);
     }
 
-    public void setOutputSideEnabled(Direction side, boolean enabled) {
-        boolean changed = enabled ? this.outputSides.add(side) : this.outputSides.remove(side);
+    public void setOutputSideEnabled(DigitalStorageDepotOutputType outputType, Direction side, boolean enabled) {
+        Set<Direction> sides = getOutputSidesInternal(outputType);
+        boolean changed = enabled ? sides.add(side) : sides.remove(side);
         if (!changed) {
             return;
         }
@@ -340,16 +354,17 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else {
             this.configManager.readFromNBT(data, registries);
         }
-        this.outputSides.clear();
-        if (data.contains(OUTPUT_SIDES_TAG)) {
-            for (Tag name : data.getList(OUTPUT_SIDES_TAG, Tag.TAG_STRING)) {
-                Direction side = Direction.byName(name.getAsString());
-                if (side != null) {
-                    this.outputSides.add(side);
-                }
-            }
+        boolean hasTypedOutputSides = data.contains(ITEM_OUTPUT_SIDES_TAG) || data.contains(FLUID_OUTPUT_SIDES_TAG) || data.contains(KEY_OUTPUT_SIDES_TAG);
+        if (hasTypedOutputSides) {
+            readOutputSides(data, ITEM_OUTPUT_SIDES_TAG, this.itemOutputSides);
+            readOutputSides(data, FLUID_OUTPUT_SIDES_TAG, this.fluidOutputSides);
+            readOutputSides(data, KEY_OUTPUT_SIDES_TAG, this.keyOutputSides);
+        } else if (data.contains(OUTPUT_SIDES_TAG)) {
+            Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
+            readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
+            copyOutputSidesToAllTypes(legacySides);
         } else {
-            this.outputSides.addAll(EnumSet.allOf(Direction.class));
+            copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
         }
         this.progress = data.getInt(PROGRESS_TAG);
         this.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
@@ -370,11 +385,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         CompoundTag autoExportData = new CompoundTag();
         this.configManager.writeToNBT(autoExportData, registries);
         data.put(AUTO_EXPORT_TAG, autoExportData);
-        ListTag sides = new ListTag();
-        for (Direction side : this.outputSides) {
-            sides.add(StringTag.valueOf(side.getName()));
-        }
-        data.put(OUTPUT_SIDES_TAG, sides);
+        data.put(ITEM_OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
+        data.put(FLUID_OUTPUT_SIDES_TAG, createOutputSidesTag(this.fluidOutputSides));
+        data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
+        data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         data.putInt(PROGRESS_TAG, this.progress);
         data.putInt(MAX_PROGRESS_TAG, this.maxProgress);
         if (this.activeRecipeId != null) {
@@ -396,7 +410,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         CompoundTag settings = new CompoundTag();
-        settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.outputSides));
+        settings.putInt(ITEM_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
+        settings.putInt(FLUID_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.fluidOutputSides));
+        settings.putInt(KEY_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.keyOutputSides));
+        settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
         builder.set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
@@ -427,13 +444,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
+        // AEBaseInvBlockEntity already adds getInternalInventory(), which is this.storage.
         super.addAdditionalDrops(level, pos, drops);
         for (ItemStack stack : this.upgrades) {
-            if (!stack.isEmpty()) {
-                drops.add(stack.copy());
-            }
-        }
-        for (ItemStack stack : this.storage) {
             if (!stack.isEmpty()) {
                 drops.add(stack.copy());
             }
@@ -490,7 +503,22 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void applyMemoryCardSettings(CompoundTag settings) {
-        if (!settings.contains(OUTPUT_SIDES_TAG) || !MemoryCardSettingsHelper.replaceSides(this.outputSides, settings.getInt(OUTPUT_SIDES_TAG))) {
+        boolean changed = false;
+        boolean hasTypedOutputSides = settings.contains(ITEM_OUTPUT_SIDES_TAG) || settings.contains(FLUID_OUTPUT_SIDES_TAG) || settings.contains(KEY_OUTPUT_SIDES_TAG);
+        if (hasTypedOutputSides) {
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS,
+                    settings.getInt(ITEM_OUTPUT_SIDES_TAG));
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS,
+                    settings.getInt(FLUID_OUTPUT_SIDES_TAG));
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS,
+                    settings.getInt(KEY_OUTPUT_SIDES_TAG));
+        } else if (settings.contains(OUTPUT_SIDES_TAG)) {
+            int legacyMask = settings.getInt(OUTPUT_SIDES_TAG);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS, legacyMask);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, legacyMask);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, legacyMask);
+        }
+        if (!changed) {
             return;
         }
 
@@ -841,13 +869,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        List<IItemHandler> itemHandlers = getAdjacentItemHandlers();
-        List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers();
+        List<IItemHandler> itemHandlers = getAdjacentItemHandlers(this.itemOutputSides);
+        List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers(this.fluidOutputSides);
+        List<GenericInternalInventory> keyInventories = getAdjacentKeyInventories(this.keyOutputSides);
 
         boolean changed = exportItemOutputs(itemHandlers);
         changed |= exportFluidOutput(this.fluidOutputTankA, fluidHandlers);
         changed |= exportFluidOutput(this.fluidOutputTankB, fluidHandlers);
-        changed |= exportKeyOutput(itemHandlers);
+        changed |= exportKeyOutput(keyInventories);
 
         if (changed) {
             saveChanges();
@@ -902,23 +931,43 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return true;
     }
 
-    private boolean exportKeyOutput(List<IItemHandler> adjacentHandlers) {
+    private boolean exportKeyOutput(List<GenericInternalInventory> adjacentInventories) {
         if (this.keyOutputStack == null || this.keyOutputStack.amount() <= 0 || this.keyOutputStack.what() == null) {
             return false;
         }
 
-        ItemStack wrapped = GenericStack.wrapInItemStack(this.keyOutputStack.what(), this.keyOutputStack.amount());
-        ItemStack remaining = insertIntoAdjacentHandlers(wrapped, adjacentHandlers);
-        if (ItemStack.matches(wrapped, remaining)) {
+        AEKey what = this.keyOutputStack.what();
+        long originalAmount = this.keyOutputStack.amount();
+        long remaining = originalAmount;
+        for (GenericInternalInventory inventory : adjacentInventories) {
+            if (remaining <= 0L) {
+                break;
+            }
+            if (!inventory.canInsert() || !inventory.isSupportedType(what)) {
+                continue;
+            }
+
+            inventory.beginBatch();
+            try {
+                for (int slot = 0; slot < inventory.size() && remaining > 0L; slot++) {
+                    if (!inventory.isAllowedIn(slot, what)) {
+                        continue;
+                    }
+                    long inserted = inventory.insert(slot, what, remaining, Actionable.MODULATE);
+                    if (inserted > 0L) {
+                        remaining -= Math.min(inserted, remaining);
+                    }
+                }
+            } finally {
+                inventory.endBatch();
+            }
+        }
+
+        if (remaining == originalAmount) {
             return false;
         }
 
-        GenericStack remainingStack = GenericStack.fromItemStack(remaining);
-        if (remainingStack == null || remainingStack.amount() <= 0 || remainingStack.what() == null) {
-            this.keyOutputStack = null;
-        } else {
-            this.keyOutputStack = clampKeyStack(remainingStack, KEY_OUTPUT_CAPACITY);
-        }
+        this.keyOutputStack = remaining <= 0L ? null : new GenericStack(what, remaining);
         syncKeyMenuFromStack();
         return true;
     }
@@ -934,13 +983,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return remaining;
     }
 
-    private List<IItemHandler> getAdjacentItemHandlers() {
+    private List<IItemHandler> getAdjacentItemHandlers(Set<Direction> outputSides) {
         if (this.level == null) {
             return List.of();
         }
 
         List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : getAutoExportSides()) {
+        for (Direction direction : outputSides) {
             BlockPos targetPos = this.worldPosition.relative(direction);
             BlockState targetState = this.level.getBlockState(targetPos);
             if (targetState.isAir()) {
@@ -960,13 +1009,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return handlers;
     }
 
-    private List<IFluidHandler> getAdjacentFluidHandlers() {
+    private List<IFluidHandler> getAdjacentFluidHandlers(Set<Direction> outputSides) {
         if (this.level == null) {
             return List.of();
         }
 
         List<IFluidHandler> handlers = new ArrayList<>();
-        for (Direction direction : getAutoExportSides()) {
+        for (Direction direction : outputSides) {
             BlockPos targetPos = this.worldPosition.relative(direction);
             BlockState targetState = this.level.getBlockState(targetPos);
             if (targetState.isAir()) {
@@ -986,8 +1035,70 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return handlers;
     }
 
-    private Set<Direction> getAutoExportSides() {
-        return this.outputSides;
+    private List<GenericInternalInventory> getAdjacentKeyInventories(Set<Direction> outputSides) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        List<GenericInternalInventory> inventories = new ArrayList<>();
+        for (Direction direction : outputSides) {
+            BlockPos targetPos = this.worldPosition.relative(direction);
+            BlockState targetState = this.level.getBlockState(targetPos);
+            if (targetState.isAir()) {
+                continue;
+            }
+
+            GenericInternalInventory inventory = this.level.getCapability(
+                    AECapabilities.GENERIC_INTERNAL_INV,
+                    targetPos,
+                    targetState,
+                    this.level.getBlockEntity(targetPos),
+                    direction.getOpposite());
+            if (inventory != null) {
+                inventories.add(inventory);
+            }
+        }
+        return inventories;
+    }
+
+    private Set<Direction> getOutputSidesInternal(DigitalStorageDepotOutputType outputType) {
+        return switch (outputType) {
+            case ITEMS -> this.itemOutputSides;
+            case FLUIDS -> this.fluidOutputSides;
+            case KEYS -> this.keyOutputSides;
+        };
+    }
+
+    private boolean replaceOutputSides(DigitalStorageDepotOutputType outputType, int sidesMask) {
+        Set<Direction> sides = getOutputSidesInternal(outputType);
+        return MemoryCardSettingsHelper.replaceSides(sides, sidesMask);
+    }
+
+    private void copyOutputSidesToAllTypes(Set<Direction> sides) {
+        this.itemOutputSides.clear();
+        this.fluidOutputSides.clear();
+        this.keyOutputSides.clear();
+        this.itemOutputSides.addAll(sides);
+        this.fluidOutputSides.addAll(sides);
+        this.keyOutputSides.addAll(sides);
+    }
+
+    private static void readOutputSides(CompoundTag data, String tagName, Set<Direction> target) {
+        target.clear();
+        for (Tag name : data.getList(tagName, Tag.TAG_STRING)) {
+            Direction side = Direction.byName(name.getAsString());
+            if (side != null) {
+                target.add(side);
+            }
+        }
+    }
+
+    private static ListTag createOutputSidesTag(Set<Direction> sides) {
+        ListTag tag = new ListTag();
+        for (Direction side : sides) {
+            tag.add(StringTag.valueOf(side.getName()));
+        }
+        return tag;
     }
 
     private ItemStack[] copyInputSlots() {
@@ -1486,6 +1597,171 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
         return new GenericStack(stack.what(), stack.amount());
+    }
+
+    private final class ReassemblerKeyInventory implements GenericInternalInventory {
+
+        private int batchDepth;
+        private boolean batchDirty;
+
+        @Override
+        public int size() {
+            return KEY_SLOT_COUNT;
+        }
+
+        @Override
+        public @Nullable GenericStack getStack(int slot) {
+            return switch (slot) {
+                case KEY_INPUT_SLOT -> keyInputStack;
+                case KEY_OUTPUT_SLOT -> keyOutputStack;
+                default -> null;
+            };
+        }
+
+        @Override
+        public @Nullable AEKey getKey(int slot) {
+            GenericStack stack = getStack(slot);
+            return stack == null ? null : stack.what();
+        }
+
+        @Override
+        public long getAmount(int slot) {
+            GenericStack stack = getStack(slot);
+            return stack == null ? 0L : stack.amount();
+        }
+
+        @Override
+        public long getMaxAmount(AEKey key) {
+            return isAllowedMenuKey(key) ? Math.max(KEY_INPUT_CAPACITY, KEY_OUTPUT_CAPACITY) : 0L;
+        }
+
+        @Override
+        public long getCapacity(AEKeyType keyType) {
+            return isSupportedType(keyType) ? Math.max(KEY_INPUT_CAPACITY, KEY_OUTPUT_CAPACITY) : 0L;
+        }
+
+        @Override
+        public boolean canInsert() {
+            return true;
+        }
+
+        @Override
+        public boolean canExtract() {
+            return true;
+        }
+
+        @Override
+        public void setStack(int slot, @Nullable GenericStack newStack) {
+            if (slot != KEY_INPUT_SLOT) {
+                return;
+            }
+
+            GenericStack normalized = null;
+            if (newStack != null && newStack.what() != null && newStack.amount() > 0L) {
+                if (!isAllowedMenuKey(newStack.what()) || !isCompatibleKeyReplacement(keyInputStack, newStack)) {
+                    return;
+                }
+                normalized = clampKeyStack(newStack, KEY_INPUT_CAPACITY);
+            }
+
+            boolean changed = keyInputStack == null ? normalized != null : !keyInputStack.equals(normalized);
+            if (!changed) {
+                return;
+            }
+
+            keyInputStack = normalized;
+            syncKeyMenuFromStack();
+            onChange();
+        }
+
+        @Override
+        public boolean isSupportedType(AEKeyType type) {
+            return type != null && type != AEKeyType.items() && type != AEKeyType.fluids();
+        }
+
+        @Override
+        public boolean isAllowedIn(int slot, AEKey what) {
+            if (slot != KEY_INPUT_SLOT || !isAllowedMenuKey(what)) {
+                return false;
+            }
+            return keyInputStack == null || keyInputStack.what() == null || keyInputStack.what().equals(what);
+        }
+
+        @Override
+        public long insert(int slot, AEKey what, long amount, Actionable mode) {
+            if (!isAllowedIn(slot, what) || amount <= 0L) {
+                return 0L;
+            }
+
+            long stored = keyInputStack == null ? 0L : keyInputStack.amount();
+            long inserted = Math.min(amount, Math.max(0L, KEY_INPUT_CAPACITY - stored));
+            if (inserted <= 0L) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                keyInputStack = new GenericStack(what, stored + inserted);
+                syncKeyMenuFromStack();
+                onChange();
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(int slot, AEKey what, long amount, Actionable mode) {
+            if (slot != KEY_OUTPUT_SLOT || what == null || amount <= 0L || keyOutputStack == null || !what.equals(keyOutputStack.what())) {
+                return 0L;
+            }
+
+            long extracted = Math.min(amount, keyOutputStack.amount());
+            if (mode == Actionable.MODULATE) {
+                long remaining = keyOutputStack.amount() - extracted;
+                keyOutputStack = remaining <= 0L ? null : new GenericStack(what, remaining);
+                syncKeyMenuFromStack();
+                onChange();
+            }
+            return extracted;
+        }
+
+        @Override
+        public void beginBatch() {
+            this.batchDepth++;
+        }
+
+        @Override
+        public void endBatch() {
+            if (this.batchDepth > 0) {
+                this.batchDepth--;
+            }
+            if (this.batchDepth == 0 && this.batchDirty) {
+                this.batchDirty = false;
+                notifyChanged();
+            }
+        }
+
+        @Override
+        public void endBatchSuppressed() {
+            if (this.batchDepth > 0) {
+                this.batchDepth--;
+            }
+            if (this.batchDepth == 0) {
+                this.batchDirty = false;
+            }
+        }
+
+        @Override
+        public void onChange() {
+            if (this.batchDepth > 0) {
+                this.batchDirty = true;
+            } else {
+                notifyChanged();
+            }
+        }
+
+        private void notifyChanged() {
+            saveChanges();
+            markForClientUpdate();
+        }
     }
 
     private final class PatternInputStorage implements MEStorage {

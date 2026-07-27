@@ -224,7 +224,7 @@ public final class ModBlocks {
             "me_pattern_buffer",
             CompartmentType.PATTERN_BUFFER);
     public static final DeferredBlock<CompartmentBlock> TRINITY_ACCESS_HATCH = registerCompartment(
-            "trinity_access_hatch",
+            "me_access_hatch",
             CompartmentType.TRINITY_ACCESS);
 
     public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_0 = BLOCKS.registerBlock(

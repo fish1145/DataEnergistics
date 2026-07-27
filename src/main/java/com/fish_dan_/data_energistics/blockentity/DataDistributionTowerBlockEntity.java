@@ -605,7 +605,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         LinkedHashSet<BlockPos> positions = new LinkedHashSet<>(this.linkGraph.linkedPositions());
         positions.addAll(this.linkGraph.pendingPositions());
         for (BlockPos pos : positions) {
-            if (getTargetTransferMode(pos) == TargetTransferMode.DISABLED) {
+            // LinkGraph positions are canonicalized before insertion. Saving must never resolve them through the world,
+            // because loading an unloading target chunk here prevents server shutdown from converging.
+            if (this.targetTransferModes.getOrDefault(pos, TargetTransferMode.AUTO) == TargetTransferMode.DISABLED) {
                 continue;
             }
 
@@ -1752,6 +1754,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
 
+        boolean bridgeableTarget = towerTarget || targetNode.getOwner() instanceof TrinityAccessHatchBlockEntity;
         IGrid targetGrid = targetNode.getGrid();
         IGrid selfGrid = selfNode.getGrid();
         if (targetGrid != null && selfGrid != null) {
@@ -1759,7 +1762,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 return !targetNode.meetsChannelRequirements();
             }
 
-            if (!towerTarget && targetNode.isOnline()) {
+            if (!bridgeableTarget && targetNode.isOnline()) {
                 return false;
             }
 
@@ -1767,7 +1770,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             ControllerState selfControllerState = selfGrid.getPathingService().getControllerState();
             return targetControllerState == ControllerState.NO_CONTROLLER || selfControllerState == ControllerState.NO_CONTROLLER;
         }
-        if (!towerTarget && targetNode.isOnline()) {
+        if (!bridgeableTarget && targetNode.isOnline()) {
             return false;
         }
         return true;

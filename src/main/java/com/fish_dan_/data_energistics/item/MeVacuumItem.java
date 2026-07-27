@@ -35,6 +35,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 
+import appeng.api.config.Actionable;
 import appeng.api.implementations.menuobjects.IMenuItem;
 import appeng.api.implementations.menuobjects.ItemMenuHost;
 import appeng.api.networking.security.IActionSource;
@@ -307,19 +308,27 @@ public class MeVacuumItem extends Item implements PoweredEnergyItem, IMenuItem {
         IActionSource actionSource = IActionSource.ofPlayer(player);
         for (DispersingDataEntity target : level.getEntitiesOfClass(DispersingDataEntity.class, area,
                 Entity::isAlive)) {
-            if (!this.hasSufficientEnergy(stack)) {
+            double energyCost = this.getActionEnergyCost(stack);
+            int affordableAmount = (int) Math.min(
+                    target.getDataAmount(),
+                    Math.floor(this.getAECurrentPower(stack) / energyCost));
+            if (affordableAmount <= 0) {
                 player.stopUsingItem();
                 break;
             }
 
-            long inserted = MeVacuumMenuHost.insertIntoStoredCells(stack, level.registryAccess(), DataKey.of(), 1L,
+            long inserted = MeVacuumMenuHost.insertIntoStoredCells(
+                    stack,
+                    level.registryAccess(),
+                    DataKey.of(),
+                    affordableAmount,
                     actionSource);
             if (inserted <= 0L) {
                 continue;
             }
 
-            target.discard();
-            this.consumeActionEnergy(stack);
+            target.removeDataAmount(Math.toIntExact(inserted));
+            this.extractAEPower(stack, energyCost * inserted, Actionable.MODULATE);
             changed = true;
         }
         return changed;

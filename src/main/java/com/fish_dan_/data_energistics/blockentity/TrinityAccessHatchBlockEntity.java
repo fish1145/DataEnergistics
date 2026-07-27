@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
+import com.fish_dan_.data_energistics.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorage;
@@ -243,6 +244,11 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     /** Forcefully withdraws an old lease owner in terminal, CPU, pattern, then storage order. */
     public void withdrawTrinityLeasePublications() {
+        if (this.level instanceof ServerLevel serverLevel &&
+                ServerLifecycleEventHandler.isStopping(serverLevel.getServer())) {
+            discardShutdownPublications();
+            return;
+        }
         this.terminalPartitionsDirty = true;
         detachTerminalPartitions();
         withdrawCraftingCpuPublicationAndNotify();
@@ -251,6 +257,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             requestStorageUpdate();
             updateActiveState();
         }
+    }
+
+    /** The closing server owns the remaining AE2 graph; rebuilding it while every chunk unloads is wasted work. */
+    private void discardShutdownPublications() {
+        this.terminalPartitionsDirty = false;
+        this.terminalPartitions = List.of();
+        this.terminalPartitionHostId = null;
+        this.terminalPartitionGrid = null;
+        this.terminalPartitionLayoutRevision = -1L;
+        this.terminalPartitionAttachmentCheckRequested = false;
+        this.cpuPublication = null;
+        this.patternPublication = null;
+        this.patternPublicationRefreshRequested = false;
     }
 
     /** Publishes a selected lease owner in CPU, storage, pattern, then terminal order. */

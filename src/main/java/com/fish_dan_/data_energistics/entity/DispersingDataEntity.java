@@ -21,6 +21,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -30,10 +31,13 @@ import net.minecraft.world.phys.Vec3;
 public class DispersingDataEntity extends Entity {
 
     private static final EntityDataAccessor<Integer> TEXTURE_VARIANT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_AMOUNT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
+    public static final int MAX_DATA_AMOUNT = 64;
     private static final int LIFETIME_TICKS = 1200;
     private static final double DRIFT_STRENGTH = 0.015D;
     private static final double VERTICAL_DRIFT = 0.01D;
     private static final double HITBOX_Y_OFFSET = 0.0625D;
+    private static final double MERGE_RADIUS = 0.5D;
     private static final int MAX_LIQUID_ESCAPE_DISTANCE = 64;
     private int age;
 
@@ -46,6 +50,7 @@ public class DispersingDataEntity extends Entity {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(TEXTURE_VARIANT, 0);
+        builder.define(DATA_AMOUNT, 1);
     }
 
     @Override
@@ -59,8 +64,34 @@ public class DispersingDataEntity extends Entity {
         this.setDeltaMovement(this.getDeltaMovement().scale(0.92D).add(drift));
         this.move(MoverType.SELF, this.getDeltaMovement());
 
-        if (this.level() instanceof ServerLevel && ++this.age >= LIFETIME_TICKS) {
-            this.discard();
+        if (this.level() instanceof ServerLevel) {
+            this.mergeNearbyData();
+            if (++this.age >= LIFETIME_TICKS) {
+                this.discard();
+            }
+        }
+    }
+
+    private void mergeNearbyData() {
+        if (this.getDataAmount() >= MAX_DATA_AMOUNT) {
+            return;
+        }
+
+        for (DispersingDataEntity other : this.level().getEntitiesOfClass(
+                DispersingDataEntity.class,
+                this.getBoundingBox().inflate(MERGE_RADIUS),
+                entity -> entity != this && entity.isAlive() && this.getId() < entity.getId())) {
+            int transferred = Math.min(MAX_DATA_AMOUNT - this.getDataAmount(), other.getDataAmount());
+            if (transferred <= 0) {
+                continue;
+            }
+
+            this.age = Math.min(this.age, other.age);
+            this.setDataAmount(this.getDataAmount() + transferred);
+            other.removeDataAmount(transferred);
+            if (this.getDataAmount() >= MAX_DATA_AMOUNT) {
+                break;
+            }
         }
     }
 
@@ -106,12 +137,14 @@ public class DispersingDataEntity extends Entity {
         if (tag.contains("TextureVariant")) {
             this.setTextureVariant(tag.getInt("TextureVariant"));
         }
+        this.setDataAmount(tag.contains("DataAmount") ? tag.getInt("DataAmount") : 1);
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Age", this.age);
         tag.putInt("TextureVariant", this.getTextureVariant());
+        tag.putInt("DataAmount", this.getDataAmount());
     }
 
     @Override
@@ -125,6 +158,44 @@ public class DispersingDataEntity extends Entity {
 
     public void setTextureVariant(int variant) {
         this.entityData.set(TEXTURE_VARIANT, Math.floorMod(variant, 4));
+    }
+
+    public int getDataAmount() {
+        return this.entityData.get(DATA_AMOUNT);
+    }
+
+    public void setDataAmount(int amount) {
+        this.entityData.set(DATA_AMOUNT, Math.clamp(amount, 1, MAX_DATA_AMOUNT));
+    }
+
+    public void removeDataAmount(int amount) {
+        if (amount <= 0) {
+            return;
+        }
+
+        int remaining = this.getDataAmount() - amount;
+        if (remaining <= 0) {
+            this.discard();
+        } else {
+            this.setDataAmount(remaining);
+        }
+    }
+
+    public float getSizeScale() {
+        return (float) Math.cbrt(this.getDataAmount());
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return super.getDimensions(pose).scale(this.getSizeScale());
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_AMOUNT.equals(key)) {
+            this.refreshDimensions();
+        }
     }
 
     public static void spawnAt(ServerLevel level, BlockPos pos, RandomSource random) {

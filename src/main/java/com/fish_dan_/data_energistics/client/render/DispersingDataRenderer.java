@@ -47,7 +47,7 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
 
         VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityTranslucent(this.getTextureLocation(entity)));
         PoseStack.Pose pose = poseStack.last();
-        float halfSize = DISPLAY_HALF_SIZE * pulse;
+        float halfSize = DISPLAY_HALF_SIZE * entity.getSizeScale() * pulse;
         vertex(vertexConsumer, pose, -halfSize, -halfSize, 0.0F, 1.0F, packedLight);
         vertex(vertexConsumer, pose, halfSize, -halfSize, 1.0F, 1.0F, packedLight);
         vertex(vertexConsumer, pose, halfSize, halfSize, 1.0F, 0.0F, packedLight);

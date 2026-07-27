@@ -70,10 +70,10 @@ public final class TrinityDataCoreAe2CraftingGameTest {
 
     private TrinityDataCoreAe2CraftingGameTest() {}
 
-    @TestHolder("trinity_data_core_cpu_publication_is_synchronous_with_storage")
+    @TestHolder("trinity_data_core_access_withdrawal_is_synchronous_with_storage")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
-    public static void cpuPublicationIsSynchronousWithStorage(GameTestHelper helper) {
+    public static void accessWithdrawalIsSynchronousWithStorage(GameTestHelper helper) {
         TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
 
         helper.startSequence()
@@ -94,19 +94,16 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             "Removing the lease node must immediately hide the Trinity CPU");
 
                     host.requestAccessLeaseReevaluation();
-                    TrinityAccessHatchBlockEntity replacementHatch = fixture.accessHatches().stream()
-                            .filter(host::isLeaseOwner)
-                            .findFirst()
-                            .orElseThrow(() -> new GameTestAssertException("Trinity lease did not move to the online hatch"));
-
                     KeyCounter available = new KeyCounter();
                     grid.getStorageService().getInventory().getAvailableStacks(available);
-                    helper.assertValueEqual(available.get(storedKey), 3L,
-                            "Replacement hatch must mount Trinity storage during the lease change");
-                    helper.assertTrue(replacementHatch != initialHatch,
-                            "Trinity lease must move away from the removed node");
-                    helper.assertTrue(grid.getCraftingService().getCpus().contains(reservedCpu),
-                            "Replacement hatch must publish its CPU in the same lease-change tick");
+                    helper.assertValueEqual(available.get(storedKey), 0L,
+                            "Removing the sole access hatch must unmount Trinity storage in the same tick");
+                    helper.assertTrue(host.accessGrid() == null,
+                            "Removing the sole access hatch must leave the Trinity host offline");
+                    helper.assertValueEqual(
+                            fixture.accessHatches().stream().filter(host::isLeaseOwner).count(),
+                            0L,
+                            "Removing the sole access hatch must clear the network lease");
                 })
                 .thenSucceed();
     }

@@ -74,6 +74,10 @@ final class CommonCapabilityRegistrar {
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalPatternInputStorage());
         event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalKeyInventory());
+        event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalItemHandler());
