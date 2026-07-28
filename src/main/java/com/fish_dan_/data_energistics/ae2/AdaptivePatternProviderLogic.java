@@ -99,6 +99,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private static final int METEORITE_ENERGY_PER_WORK = 50;
     private static final int METEORITE_MAX_WORKS_PER_ROUND = 8;
     private static final int EXPANDED_RETURN_SLOTS = 18;
+    private static final String NBT_CRAFTED_CONTENTS = "adaptive_crafted_contents";
     private static final String NBT_ADVANCED_SEND_LIST = "adaptive_advanced_send_list";
     private static final String NBT_ADVANCED_SEND_DIRECTION = "adaptive_advanced_send_direction";
     private static final String NBT_ADVANCED_DIRECTION_MAP = "adaptive_advanced_direction_map";
@@ -179,6 +180,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
         super.writeToNBT(tag, registries);
 
+        ListTag craftedContentsTag = new ListTag();
+        for (var entry : this.craftedContents.object2LongEntrySet()) {
+            if (entry.getKey() != null && entry.getLongValue() > 0) {
+                craftedContentsTag.add(GenericStack.writeTag(registries, new GenericStack(entry.getKey(), entry.getLongValue())));
+            }
+        }
+        tag.put(NBT_CRAFTED_CONTENTS, craftedContentsTag);
+
         ListTag sendListTag = new ListTag();
         for (var entry : this.advancedDirectionalSendList.object2LongEntrySet()) {
             if (entry.getKey() != null && entry.getLongValue() > 0) {
@@ -220,9 +229,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
         super.readFromNBT(tag, registries);
 
+        this.craftedContents.clear();
         this.advancedDirectionalSendList.clear();
         this.advancedDirectionalMap.clear();
         this.advancedSendDirection = null;
+
+        ListTag craftedContentsTag = tag.getList(NBT_CRAFTED_CONTENTS, Tag.TAG_COMPOUND);
+        for (int i = 0; i < craftedContentsTag.size(); i++) {
+            GenericStack stack = GenericStack.readTag(registries, craftedContentsTag.getCompound(i));
+            if (stack != null && stack.what() != null && stack.amount() > 0) {
+                this.craftedContents.addTo(stack.what(), stack.amount());
+            }
+        }
 
         ListTag sendListTag = tag.getList(NBT_ADVANCED_SEND_LIST, Tag.TAG_COMPOUND);
         for (int i = 0; i < sendListTag.size(); i++) {
@@ -682,6 +700,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public void addDrops(List<ItemStack> drops) {
         super.addDrops(drops);
 
+        for (var entry : this.craftedContents.object2LongEntrySet()) {
+            AEKey key = entry.getKey();
+            long amount = entry.getLongValue();
+            if (key != null && amount > 0) {
+                key.addDrops(amount, drops, this.host.getBlockEntity().getLevel(), this.host.getBlockEntity().getBlockPos());
+            }
+        }
+
         for (var entry : this.advancedDirectionalSendList.object2LongEntrySet()) {
             AEKey key = entry.getKey();
             long amount = entry.getLongValue();
@@ -698,6 +724,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     @Override
     public void clearContent() {
         super.clearContent();
+        this.craftedContents.clear();
         this.advancedDirectionalSendList.clear();
         this.advancedDirectionalMap.clear();
         this.advancedSendDirection = null;
@@ -2604,6 +2631,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             return;
         }
 
+        boolean contentsChanged = false;
         var iterator = this.craftedContents.object2LongEntrySet().iterator();
         while (iterator.hasNext()) {
             Object2LongMap.Entry<AEKey> entry = iterator.next();
@@ -2611,10 +2639,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             long remaining = entry.getLongValue();
             if (key == null || remaining <= 0) {
                 iterator.remove();
+                contentsChanged = true;
                 continue;
             }
 
             long inserted = getReturnInv().insert(key, remaining, Actionable.MODULATE, this.actionSource);
+            if (inserted <= 0) {
+                continue;
+            }
             remaining -= inserted;
 
             if (remaining <= 0) {
@@ -2622,6 +2654,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             } else {
                 entry.setValue(remaining);
             }
+            contentsChanged = true;
+        }
+
+        if (contentsChanged) {
+            this.saveChanges();
         }
     }
 
