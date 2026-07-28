@@ -363,7 +363,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else if (data.contains(OUTPUT_SIDES_TAG)) {
             Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
             readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
-            copyOutputSidesToAllTypes(legacySides);
+            migrateLegacyOutputSidesToItemOnly(legacySides);
         } else {
             copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
         }
@@ -516,8 +516,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else if (settings.contains(OUTPUT_SIDES_TAG)) {
             int legacyMask = settings.getInt(OUTPUT_SIDES_TAG);
             changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS, legacyMask);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, legacyMask);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, legacyMask);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, MemoryCardSettingsHelper.ALL_DIRECTIONS_MASK);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, MemoryCardSettingsHelper.ALL_DIRECTIONS_MASK);
         }
         if (!changed) {
             return;
@@ -1137,6 +1137,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         this.itemOutputSides.addAll(sides);
         this.fluidOutputSides.addAll(sides);
         this.keyOutputSides.addAll(sides);
+    }
+
+    private void migrateLegacyOutputSidesToItemOnly(Set<Direction> legacySides) {
+        this.itemOutputSides.clear();
+        this.itemOutputSides.addAll(legacySides);
+        this.fluidOutputSides.clear();
+        this.fluidOutputSides.addAll(EnumSet.allOf(Direction.class));
+        this.keyOutputSides.clear();
+        this.keyOutputSides.addAll(EnumSet.allOf(Direction.class));
     }
 
     private static void readOutputSides(CompoundTag data, String tagName, Set<Direction> target) {

@@ -3,9 +3,12 @@ package com.fish_dan_.data_energistics.blockentity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModDataComponents;
+import com.fish_dan_.data_energistics.util.MemoryCardSettingsHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -127,29 +130,51 @@ public final class DataRipperReassemblerKeyCapabilityGameTest {
         helper.succeed();
     }
 
-    @TestHolder("data_reassembler_migrates_legacy_output_sides_to_all_types")
+    @TestHolder("data_reassembler_migrates_legacy_output_sides_to_item_only")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void migratesLegacyOutputSidesToAllTypes(GameTestHelper helper) {
+    public static void migratesLegacyOutputSidesToItemOnly(GameTestHelper helper) {
         helper.setBlock(SOURCE_POS, ModBlocks.DATA_RIPPER_REASSEMBLER.get());
         DataRipperReassemblerBlockEntity reassembler = requireReassembler(helper, SOURCE_POS);
+        Set<Direction> allSides = EnumSet.allOf(Direction.class);
 
         CompoundTag legacyData = new CompoundTag();
         ListTag sides = new ListTag();
         sides.add(StringTag.valueOf(Direction.NORTH.getName()));
         legacyData.put("output_sides", sides);
         reassembler.loadTag(legacyData, helper.getLevel().registryAccess());
-        for (DigitalStorageDepotOutputType outputType : DigitalStorageDepotOutputType.values()) {
-            helper.assertValueEqual(reassembler.getOutputSides(outputType), EnumSet.of(Direction.NORTH),
-                    "A legacy output mask must migrate to " + outputType);
-        }
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS), EnumSet.of(Direction.NORTH),
+                "A legacy output list must migrate only to item output sides");
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.FLUIDS), allSides,
+                "A legacy output list must restore all fluid output sides");
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.KEYS), allSides,
+                "A legacy output list must restore all Data Key output sides");
 
         legacyData.put("output_sides", new ListTag());
         reassembler.loadTag(legacyData, helper.getLevel().registryAccess());
-        for (DigitalStorageDepotOutputType outputType : DigitalStorageDepotOutputType.values()) {
-            helper.assertTrue(reassembler.getOutputSides(outputType).isEmpty(),
-                    "A deliberately empty legacy output mask must stay empty for " + outputType);
-        }
+        helper.assertTrue(reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS).isEmpty(),
+                "An empty legacy output list must keep item output sides empty");
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.FLUIDS), allSides,
+                "An empty legacy output list must restore all fluid output sides");
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.KEYS), allSides,
+                "An empty legacy output list must restore all Data Key output sides");
+
+        CompoundTag legacySettings = new CompoundTag();
+        legacySettings.putInt("output_sides", MemoryCardSettingsHelper.encodeSides(EnumSet.of(Direction.NORTH)));
+        DataComponentMap legacyCardSettings = DataComponentMap.builder()
+                .set(ModDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), legacySettings)
+                .build();
+        configureOutputSides(reassembler, DigitalStorageDepotOutputType.ITEMS, EnumSet.of(Direction.WEST));
+        configureOutputSides(reassembler, DigitalStorageDepotOutputType.FLUIDS, EnumSet.of(Direction.SOUTH));
+        configureOutputSides(reassembler, DigitalStorageDepotOutputType.KEYS, EnumSet.of(Direction.UP));
+        reassembler.importSettings(SettingsFrom.MEMORY_CARD, legacyCardSettings, null);
+
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.ITEMS), EnumSet.of(Direction.NORTH),
+                "A legacy memory card must migrate only to item output sides");
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.FLUIDS), allSides,
+                "A legacy memory card must restore all fluid output sides");
+        helper.assertValueEqual(reassembler.getOutputSides(DigitalStorageDepotOutputType.KEYS), allSides,
+                "A legacy memory card must restore all Data Key output sides");
         helper.succeed();
     }
 
