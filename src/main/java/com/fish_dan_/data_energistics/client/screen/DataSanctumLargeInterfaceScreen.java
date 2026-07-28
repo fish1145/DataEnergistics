@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu;
+import com.fish_dan_.data_energistics.menu.DataSanctumLargeInterfaceMenu.PageSlotTarget;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.core.Direction;
@@ -68,7 +69,7 @@ public class DataSanctumLargeInterfaceScreen extends UpgradeableScreen<DataSanct
             var button = new SetAmountButton(btn -> {
                 int index = amountButtons.indexOf(btn);
                 if (index >= 0 && index < this.menu.getConfigSlots().size()) {
-                    this.menu.openSetAmountMenu(index);
+                    this.menu.openSetAmountMenu(new PageSlotTarget(this.menu.pageIndex, index));
                 }
             });
             button.setDisableBackground(true);
