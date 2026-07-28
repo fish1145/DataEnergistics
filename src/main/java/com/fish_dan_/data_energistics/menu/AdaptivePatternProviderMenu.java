@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.menu;
 import com.fish_dan_.data_energistics.accessor.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderModes;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderResolver;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
@@ -595,24 +596,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu implements PatternPr
             return;
         }
 
-        int slotCount = this.host != null ? this.host.getPatternSlotCountForMenu() : 0;
-        InternalInventory patternInventory = this.logic.getPatternInv();
-        Inventory playerInventory = this.getPlayerInventory();
-        boolean changed = false;
-
-        for (int i = slotCount; i < patternInventory.size(); i++) {
-            ItemStack stack = patternInventory.getStackInSlot(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
-
-            patternInventory.setItemDirect(i, ItemStack.EMPTY);
-            playerInventory.placeItemBackInInventory(stack);
-            changed = true;
-        }
-
-        if (changed && this.host != null) {
-            this.host.saveChanges();
+        if (this.logic instanceof AdaptivePatternProviderLogic adaptiveLogic && adaptiveLogic.returnPatternSlotOverflow(this.getPlayerInventory()::placeItemBackInInventory) && this.host != null) {
             this.host.markForClientUpdate();
         }
     }

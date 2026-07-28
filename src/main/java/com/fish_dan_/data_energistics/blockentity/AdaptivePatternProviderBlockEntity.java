@@ -46,15 +46,12 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
-import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.core.definitions.AEItems;
-import appeng.helpers.patternprovider.PatternContainer;
-import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
@@ -395,6 +392,15 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         super.loadTag(data, registries);
         getAdaptiveState().readFromNBT(data, registries, this.upgrades);
         readRedstoneTuningMode(data);
+        AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+        if (logic != null) {
+            if (logic.reconcileConfiguredPatternSlots()) {
+                this.saveChanges();
+                this.markForClientUpdate();
+            } else {
+                logic.updatePatterns();
+            }
+        }
         this.syncedPatternSlotCount = getConfiguredPatternSlotCount();
     }
 
@@ -410,13 +416,27 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
-        super.importSettings(mode, input, player);
         if (mode != SettingsFrom.MEMORY_CARD) {
+            super.importSettings(mode, input, player);
             return;
         }
 
+        AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+        boolean patternInventoryChanged;
+        if (logic == null) {
+            super.importSettings(mode, input, player);
+            patternInventoryChanged = false;
+        } else {
+            patternInventoryChanged = logic.runWithPatternInventoryCallbacksSuppressed(() -> super.importSettings(mode, input, player));
+        }
+
         CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
-        if (settings != null && getAdaptiveState().readMemoryCardSettings(settings)) {
+        boolean stateChanged = settings != null && getAdaptiveState().readMemoryCardSettings(settings);
+        boolean patternSlotsReconciled = logic != null && logic.reconcileConfiguredPatternSlotsAfterSettingsImport();
+        if (patternInventoryChanged && !patternSlotsReconciled) {
+            logic.updatePatterns();
+        }
+        if (stateChanged || patternInventoryChanged || patternSlotsReconciled) {
             onAe2LtStateChanged();
         }
     }
@@ -524,22 +544,19 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         boolean adapterInventoryChanged = inv == getAdaptiveState().getAe2LtPackagedAdapterInventory();
         AdaptivePatternProviderLogic logic = getAdaptiveLogic();
 
-        if (providerInventoryChanged && logic != null) {
-            logic.updatePatterns();
-        }
         if (inv == this.upgrades) {
             getAdaptiveState().refreshProviderSlotLimit();
         }
-        int oldSlotCount = this.syncedPatternSlotCount;
         int newSlotCount = getConfiguredPatternSlotCount();
+        boolean patternSlotsReconciled = (providerInventoryChanged || inv == this.upgrades) && logic != null && logic.reconcileConfiguredPatternSlots();
+        if (providerInventoryChanged && logic != null && !patternSlotsReconciled) {
+            logic.updatePatterns();
+        }
         this.syncedPatternSlotCount = newSlotCount;
         this.saveChanges();
         this.markForClientUpdate();
         if ((providerInventoryChanged || adapterInventoryChanged || inv == this.upgrades) && logic != null) {
             logic.onHostStateChanged();
-        }
-        if (oldSlotCount != newSlotCount) {
-            requestPatternAccessTerminalRefresh();
         }
     }
 
@@ -691,12 +708,15 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     private void onUpgradesChanged() {
         getAdaptiveState().refreshProviderSlotLimit();
-        this.saveChanges();
-        this.markForClientUpdate();
+        int newSlotCount = getConfiguredPatternSlotCount();
         AdaptivePatternProviderLogic logic = getAdaptiveLogic();
         if (logic != null) {
+            logic.reconcileConfiguredPatternSlots();
             logic.onHostStateChanged();
         }
+        this.syncedPatternSlotCount = newSlotCount;
+        this.saveChanges();
+        this.markForClientUpdate();
     }
 
     private void readRedstoneTuningMode(CompoundTag data) {
@@ -841,30 +861,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             this.adaptiveState = new AdaptivePatternProviderState(this, this::getProviderSlotLimit);
         }
         return this.adaptiveState;
-    }
-
-    private void requestPatternAccessTerminalRefresh() {
-        var grid = getGridNode() != null ? getGridNode().getGrid() : null;
-        if (grid == null) {
-            return;
-        }
-
-        PatternProviderLogicHost host = this;
-        ICraftingProvider.requestUpdate(this.getMainNode());
-
-        try {
-            for (Class<?> machineClass : grid.getMachineClasses()) {
-                if (!PatternContainer.class.isAssignableFrom(machineClass)) {
-                    continue;
-                }
-
-                for (Object machine : grid.getActiveMachines((Class<? extends PatternContainer>) machineClass)) {
-                    if (machine == host) {
-                        return;
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
     }
 
     protected String getProviderTranslationKey() {
