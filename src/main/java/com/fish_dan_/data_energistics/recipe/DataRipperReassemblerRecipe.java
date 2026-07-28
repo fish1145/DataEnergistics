@@ -86,7 +86,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
             remaining.add(stack.copy());
         }
 
-        for (DataRipperReassemblerIngredient countedIngredient : this.itemInputs) {
+        for (DataRipperReassemblerIngredient countedIngredient : getItemInputsForMatching()) {
             int required = countedIngredient.count();
             for (ItemStack stack : remaining) {
                 if (required <= 0) {
@@ -107,6 +107,61 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
         }
 
         return true;
+    }
+
+    private List<DataRipperReassemblerIngredient> getItemInputsForMatching() {
+        List<DataRipperReassemblerIngredient> matchingOrder = new ArrayList<>(this.itemInputs);
+        int segmentStart = 0;
+        for (int index = 0; index <= matchingOrder.size(); index++) {
+            if (index == matchingOrder.size() || getItemIngredientMatchPriority(matchingOrder.get(index).ingredient()) == ItemIngredientMatchPriority.UNKNOWN) {
+                matchingOrder.subList(segmentStart, index).sort(DataRipperReassemblerRecipe::compareKnownItemIngredients);
+                segmentStart = index + 1;
+            }
+        }
+        return matchingOrder;
+    }
+
+    private static int compareKnownItemIngredients(DataRipperReassemblerIngredient left,
+                                                   DataRipperReassemblerIngredient right) {
+        ItemIngredientMatchPriority leftPriority = getItemIngredientMatchPriority(left.ingredient());
+        ItemIngredientMatchPriority rightPriority = getItemIngredientMatchPriority(right.ingredient());
+        int priorityComparison = leftPriority.compareTo(rightPriority);
+        if (priorityComparison != 0) {
+            return priorityComparison;
+        }
+        if (leftPriority == ItemIngredientMatchPriority.EXPLICIT) {
+            return Integer.compare(left.ingredient().getItems().length, right.ingredient().getItems().length);
+        }
+        return 0;
+    }
+
+    private static ItemIngredientMatchPriority getItemIngredientMatchPriority(Ingredient ingredient) {
+        if (ingredient.isCustom()) {
+            return ItemIngredientMatchPriority.UNKNOWN;
+        }
+        Ingredient.Value[] values = ingredient.getValues();
+        if (values.length == 0) {
+            return ItemIngredientMatchPriority.UNKNOWN;
+        }
+        if (values.length == 1 && values[0] instanceof Ingredient.ItemValue) {
+            return ItemIngredientMatchPriority.EXACT;
+        }
+        boolean containsTag = false;
+        for (Ingredient.Value value : values) {
+            if (value instanceof Ingredient.TagValue) {
+                containsTag = true;
+            } else if (!(value instanceof Ingredient.ItemValue)) {
+                return ItemIngredientMatchPriority.UNKNOWN;
+            }
+        }
+        return containsTag ? ItemIngredientMatchPriority.TAG : ItemIngredientMatchPriority.EXPLICIT;
+    }
+
+    private enum ItemIngredientMatchPriority {
+        EXACT,
+        EXPLICIT,
+        TAG,
+        UNKNOWN
     }
 
     @Override
