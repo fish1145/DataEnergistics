@@ -22,7 +22,6 @@ import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -63,19 +62,6 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
 
     public DigitalStorageDepotBlockItem(Block block, Properties properties) {
         super(block, properties);
-    }
-
-    @Override
-    public InteractionResult place(BlockPlaceContext context) {
-        ItemStack placementStack = context.getItemInHand().copy();
-        InteractionResult result = super.place(context);
-        if (!result.consumesAction() || context.getLevel().isClientSide()) {
-            return result;
-        }
-
-        restorePlacedDepot(context.getLevel(), context.getClickedPos(), placementStack);
-        restorePlacedDepot(context.getLevel(), context.getClickedPos().relative(context.getClickedFace()), placementStack);
-        return result;
     }
 
     @Override
@@ -742,21 +728,6 @@ public class DigitalStorageDepotBlockItem extends BlockItem {
             blockEntityTag.put(tagKey, GenericStack.writeTag(registries, keyStack));
         }
         BlockItem.setBlockEntityData(stack, ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockEntityTag);
-    }
-
-    private static void restorePlacedDepot(Level level, BlockPos pos, ItemStack stack) {
-        if (!(level.getBlockEntity(pos) instanceof DigitalStorageDepotBlockEntity depot)) {
-            return;
-        }
-
-        HolderLookup.Provider registries = level.registryAccess();
-        CompoundTag blockEntityTag = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
-        if (!blockEntityTag.isEmpty()) {
-            depot.loadTag(blockEntityTag, registries);
-        }
-        applyStoredFluidsToBlockEntity(stack, depot, registries);
-        depot.saveChanges();
-        depot.markForClientUpdate();
     }
 
     private static int clampSlot(int slot, int maxSlots) {
