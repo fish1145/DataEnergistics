@@ -78,9 +78,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private final IStorageProvider storageProvider = new HatchStorageProvider();
     private final ICraftingProvider craftingProvider = new HatchCraftingProvider();
     @Nullable
-    private CompartmentHost compartmentHost;
-    @Nullable
-    private String structureName;
+    private TrinityAccessHatchBindingState compartmentBindingState;
     @Nullable
     private String lastUnavailableReason;
     private List<TrinityPatternTerminalPartition> terminalPartitions = List.of();
@@ -203,7 +201,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         refreshTerminalPartitionsSafely();
     }
 
-    /** Notifies the selected grid that only the host storage content changed. */
+    /**
+     * Notifies the selected grid that only the host storage content changed.
+     */
     public void refreshTrinityStorageContent() {
         if (!canRefreshGridServices()) {
             return;
@@ -211,7 +211,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         requestStorageUpdate();
     }
 
-    /** Synchronizes virtual CPU membership before posting AE2's CPU-cache notification. */
+    /**
+     * Synchronizes virtual CPU membership before posting AE2's CPU-cache notification.
+     */
     public void refreshTrinityCpuTopology() {
         if (!canRefreshGridServices()) {
             return;
@@ -233,7 +235,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         return synchronizeCraftingPatternPublication();
     }
 
-    /** Reconciles only the pattern-terminal layout and its grid attachments. */
+    /**
+     * Reconciles only the pattern-terminal layout and its grid attachments.
+     */
     public void refreshTrinityTerminalLayout() {
         if (!canRefreshGridServices()) {
             return;
@@ -242,7 +246,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         refreshTerminalPartitionsSafely();
     }
 
-    /** Forcefully withdraws an old lease owner in terminal, CPU, pattern, then storage order. */
+    /**
+     * Forcefully withdraws an old lease owner in terminal, CPU, pattern, then storage order.
+     */
     public void withdrawTrinityLeasePublications() {
         if (this.level instanceof ServerLevel serverLevel &&
                 ServerLifecycleEventHandler.isStopping(serverLevel.getServer())) {
@@ -259,7 +265,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    /** The closing server owns the remaining AE2 graph; rebuilding it while every chunk unloads is wasted work. */
+    /**
+     * The closing server owns the remaining AE2 graph; rebuilding it while every chunk unloads is wasted work.
+     */
     private void discardShutdownPublications() {
         this.terminalPartitionsDirty = false;
         this.terminalPartitions = List.of();
@@ -272,7 +280,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         this.patternPublicationRefreshRequested = false;
     }
 
-    /** Publishes a selected lease owner in CPU, storage, pattern, then terminal order. */
+    /**
+     * Publishes a selected lease owner in CPU, storage, pattern, then terminal order.
+     */
     public void publishTrinityLeasePublications() {
         if (!canRefreshGridServices()) {
             return;
@@ -364,13 +374,15 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Nullable
     @Override
     public CompartmentHost compartmentHost() {
-        return this.compartmentHost;
+        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        return binding == null ? null : binding.host();
     }
 
     @Nullable
     @Override
     public String compartmentStructureName() {
-        return this.structureName;
+        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        return binding == null ? null : binding.structureName();
     }
 
     @Override
@@ -380,42 +392,71 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void compartment$bindToHost(String structureName, CompartmentHost host) {
-        if (this.compartmentHost == host && structureName.equals(this.structureName)) {
-            if (!host.compartmentHost$getCompartments(structureName).contains(this)) {
-                CompartmentPart.super.compartment$bindToHost(structureName, host);
-                requestLeaseReevaluation(host);
-            }
+        TrinityAccessHatchBindingState requestedBinding = createBindingState(structureName, host);
+        TrinityAccessHatchBindingState currentBinding = this.compartmentBindingState;
+        if (currentBinding != null && currentBinding.isReleasing() && !currentBinding.isReleaseInProgress()) {
+            releaseBinding(currentBinding, "retrying a previously interrupted release before rebinding");
+            currentBinding = this.compartmentBindingState;
+        }
+
+        if (currentBinding != null && currentBinding.isActive() && currentBinding.matches(host, structureName)) {
+            ensureHostRegistration(currentBinding);
             return;
         }
 
-        CompartmentHost previousHost = this.compartmentHost;
-        String previousStructureName = this.structureName;
-        if (previousHost != null) {
-            CompartmentPart.super.compartment$unbindFromHost(previousStructureName, previousHost);
-            this.compartmentHost = null;
-            this.structureName = null;
-            this.lastUnavailableReason = null;
-            withdrawTrinityLeasePublications();
-            requestLeaseReevaluation(previousHost);
+        if (currentBinding != null && !currentBinding.isReleasing()) {
+            releaseBinding(currentBinding, "replacing an existing Trinity access hatch binding");
+            currentBinding = this.compartmentBindingState;
         }
 
-        CompartmentPart.super.compartment$bindToHost(structureName, host);
-        this.compartmentHost = host;
-        this.structureName = structureName;
+        if (currentBinding != null && currentBinding.isActive()) {
+            if (currentBinding.matches(host, structureName)) {
+                ensureHostRegistration(currentBinding);
+                return;
+            }
+            IllegalStateException exception = new IllegalStateException(
+                    "Trinity access hatch binding changed during a rebind operation");
+            LOGGER.error("Cannot replace Trinity access hatch binding at {} because another binding won the transition",
+                    this.worldPosition, exception);
+            throw exception;
+        }
+
+        registerHost(requestedBinding);
+        this.compartmentBindingState = requestedBinding;
         this.lastUnavailableReason = null;
         requestLeaseReevaluation(host);
     }
 
     @Override
     public void compartment$unbindFromHost(String structureName, CompartmentHost host) {
-        CompartmentPart.super.compartment$unbindFromHost(structureName, host);
-        if (this.compartmentHost == host && this.structureName.equals(structureName)) {
-            this.compartmentHost = null;
-            this.structureName = null;
-            this.lastUnavailableReason = null;
-            withdrawTrinityLeasePublications();
-            requestLeaseReevaluation(host);
+        try {
+            requireUnbindArguments(structureName, host);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Rejecting invalid Trinity access hatch unbind at {}: host={}, structure={}",
+                    this.worldPosition, host, structureName, exception);
+            throw exception;
         }
+        TrinityAccessHatchBindingState currentBinding = this.compartmentBindingState;
+        if (currentBinding == null) {
+            LOGGER.warn("Ignoring Trinity access hatch unbind at {} because no local binding exists; host={}, structure={}",
+                    this.worldPosition, host, structureName);
+            unregisterHost(structureName, host);
+            return;
+        }
+        if (!currentBinding.matches(host, structureName)) {
+            LOGGER.warn("Ignoring stale Trinity access hatch unbind at {} for host={}, structure={}; current host={}, structure={}",
+                    this.worldPosition,
+                    host,
+                    structureName,
+                    currentBinding.host(),
+                    currentBinding.structureName());
+            unregisterHost(structureName, host);
+            return;
+        }
+        if (currentBinding.isReleasing() && currentBinding.isReleaseInProgress()) {
+            return;
+        }
+        releaseBinding(currentBinding, "explicit Trinity access hatch unbind");
     }
 
     @Override
@@ -427,14 +468,105 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Override
     public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
-        CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName);
-        if (this.compartmentHost == controller && this.structureName.equals(structureName)) {
-            CompartmentHost previousHost = this.compartmentHost;
-            this.compartmentHost = null;
-            this.structureName = null;
+        if (!(controller instanceof CompartmentHost host)) {
+            LOGGER.warn("Ignoring Trinity access hatch removal from non-compartment controller at {}: {}",
+                    this.worldPosition, controller);
+            return;
+        }
+        compartment$unbindFromHost(structureName, host);
+    }
+
+    @Override
+    public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
+        TrinityAccessHatchBindingState currentBinding = this.compartmentBindingState;
+        if (currentBinding == null) {
+            return;
+        }
+        if (currentBinding.host() != controller) {
+            LOGGER.warn("Ignoring Trinity access hatch removal from stale controller at {}: currentHost={}, callbackHost={}",
+                    this.worldPosition, currentBinding.host(), controller);
+            return;
+        }
+        compartment$unbindFromHost(currentBinding.structureName(), currentBinding.host());
+    }
+
+    private TrinityAccessHatchBindingState createBindingState(String structureName, CompartmentHost host) {
+        try {
+            return TrinityAccessHatchBindingState.active(structureName, host);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Rejecting invalid Trinity access hatch binding at {}: host={}, structure={}",
+                    this.worldPosition, host, structureName, exception);
+            throw exception;
+        }
+    }
+
+    private void registerHost(TrinityAccessHatchBindingState binding) {
+        try {
+            CompartmentPart.super.compartment$bindToHost(binding.structureName(), binding.host());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to register Trinity access hatch at {} with host={}, structure={}",
+                    this.worldPosition, binding.host(), binding.structureName(), exception);
+            throw exception;
+        }
+    }
+
+    private void ensureHostRegistration(TrinityAccessHatchBindingState binding) {
+        if (binding.host().compartmentHost$getCompartments(binding.structureName()).contains(this)) {
+            return;
+        }
+        registerHost(binding);
+        requestLeaseReevaluation(binding.host());
+    }
+
+    private void unregisterHost(String structureName, CompartmentHost host) {
+        try {
+            CompartmentPart.super.compartment$unbindFromHost(structureName, host);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to remove stale Trinity access hatch registration at {} from host={}, structure={}",
+                    this.worldPosition, host, structureName, exception);
+            throw exception;
+        }
+    }
+
+    private void releaseBinding(TrinityAccessHatchBindingState expectedBinding, String reason) {
+        if (this.compartmentBindingState != expectedBinding) {
+            return;
+        }
+        TrinityAccessHatchBindingState releasingBinding = expectedBinding.isReleasing() ? expectedBinding : expectedBinding.releasing();
+        this.compartmentBindingState = releasingBinding;
+        if (releasingBinding.isReleaseInProgress()) {
+            return;
+        }
+        releasingBinding.beginReleaseAttempt();
+        try {
+            unregisterHost(releasingBinding.structureName(), releasingBinding.host());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to release Trinity access hatch binding at {} ({})", this.worldPosition, reason, exception);
+            throw exception;
+        } finally {
+            releasingBinding.finishReleaseAttempt();
+        }
+
+        if (this.compartmentBindingState == releasingBinding) {
+            this.compartmentBindingState = null;
             this.lastUnavailableReason = null;
             withdrawTrinityLeasePublications();
-            requestLeaseReevaluation(previousHost);
+            requestLeaseReevaluation(releasingBinding.host());
+            return;
+        }
+
+        TrinityAccessHatchBindingState replacementBinding = this.compartmentBindingState;
+        if (replacementBinding != null && replacementBinding.isActive()) {
+            ensureHostRegistration(replacementBinding);
+        }
+    }
+
+    private static void requireUnbindArguments(String structureName, CompartmentHost host) {
+        if (host == null) {
+            throw new IllegalArgumentException("Trinity access hatch unbind host must not be null");
+        }
+        if (structureName == null || structureName.isBlank()) {
+            throw new IllegalArgumentException("Trinity access hatch unbind structure name must not be blank");
         }
     }
 
@@ -450,7 +582,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                 !host.isCpuProviderAvailable() ? null : host.getCraftingRuntime();
     }
 
-    /** Classifies the original CPU pin against this hatch's current lease publication. */
+    /**
+     * Classifies the original CPU pin against this hatch's current lease publication.
+     */
     public TargetState cpuStatusTargetState(TrinityCraftingStatusSelection.Target target) {
         if (target == null) {
             throw new IllegalArgumentException("Trinity CPU status target cannot be null");
@@ -462,12 +596,16 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         return target.currentState(host.getHostId(), boundCraftingRuntime(), accessGrid());
     }
 
-    /** Verifies that the original CPU is still published on this hatch's exact lease Grid. */
+    /**
+     * Verifies that the original CPU is still published on this hatch's exact lease Grid.
+     */
     public boolean isCurrentCpuStatusTarget(TrinityCraftingStatusSelection.Target target) {
         return cpuStatusTargetState(target) == TargetState.CURRENT_CPU;
     }
 
-    /** Verifies the Host, runtime, lease and Grid route after the original worker retires. */
+    /**
+     * Verifies the Host, runtime, lease and Grid route after the original worker retires.
+     */
     public boolean isCurrentCpuStatusRoute(TrinityCraftingStatusSelection.Target target) {
         if (target == null) {
             throw new IllegalArgumentException("Trinity CPU status target cannot be null");
@@ -505,7 +643,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                 isCandidateOnline();
     }
 
-    /** Returns the immutable set of terminal partitions currently owned by this hatch. */
+    /**
+     * Returns the immutable set of terminal partitions currently owned by this hatch.
+     */
     public List<TrinityPatternTerminalPartition> terminalPartitions() {
         return this.terminalPartitions;
     }
@@ -521,11 +661,12 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     @Nullable
     private TrinityDataCoreBlockEntity boundHost(boolean logUnavailable) {
-        if (this.compartmentHost == null || this.structureName == null) {
+        TrinityAccessHatchBindingState binding = this.compartmentBindingState;
+        if (binding == null || !binding.isActive()) {
             logUnavailable(logUnavailable, "not bound to a trinity structure");
             return null;
         }
-        if (!(this.compartmentHost instanceof TrinityDataCoreBlockEntity host)) {
+        if (!(binding.host() instanceof TrinityDataCoreBlockEntity host)) {
             logUnavailable(logUnavailable, "bound host is not a Trinity Data Core");
             return null;
         }
@@ -811,7 +952,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    /** Identifies the exact immutable pattern view already indexed by one AE grid. */
+    /**
+     * Identifies the exact immutable pattern view already indexed by one AE grid.
+     */
     private record PatternPublication(UUID hostId,
                                       IGrid grid,
                                       IGridNode node,
@@ -870,7 +1013,9 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
     }
 
-    /** Commits the full logical batch to the exact Trinity catalog selected during admission. */
+    /**
+     * Commits the full logical batch to the exact Trinity catalog selected during admission.
+     */
     private static final class HatchCraftingAdmission implements CountedCraftingAdmission {
 
         private final TrinityDataCoreBlockEntity host;
