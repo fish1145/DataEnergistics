@@ -81,6 +81,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -120,6 +121,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String WORK_PROGRESS_TAG = "work_progress";
     private static final String PENDING_DATA_FLOW_TAG = "pending_data_flow";
+    private static final String PENDING_XP_DATA_FLOW_TAG = "pending_xp_data_flow";
+    private static final String XP_ORB_COUNT_TAG = "Count";
     private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
     private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
 
@@ -189,6 +192,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     private int syncedCapacityCardCount;
     private int workTicks;
     private long pendingDataFlow;
+    private long pendingXpDataFlow;
     private int dropCollectionCooldown;
     private int targetScanCooldown;
     private int debuffCooldown;
@@ -270,6 +274,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.syncedCapacityCardCount = computeCapacityCardCount(this.upgrades);
         this.workTicks = Math.max(0, data.getInt(WORK_PROGRESS_TAG));
         this.pendingDataFlow = Math.max(0L, data.getLong(PENDING_DATA_FLOW_TAG));
+        this.pendingXpDataFlow = Math.max(0L, data.getLong(PENDING_XP_DATA_FLOW_TAG));
         this.dropCollectionCooldown = 0;
         this.targetScanCooldown = 0;
         this.debuffCooldown = 0;
@@ -296,6 +301,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         data.put(OUTPUT_SIDES_TAG, sides);
         data.putInt(WORK_PROGRESS_TAG, this.workTicks);
         data.putLong(PENDING_DATA_FLOW_TAG, this.pendingDataFlow);
+        data.putLong(PENDING_XP_DATA_FLOW_TAG, this.pendingXpDataFlow);
     }
 
     @Override
@@ -358,6 +364,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             }
         }
         DataFlowKey.of().addDrops(this.pendingDataFlow, drops, level, pos);
+        DataFlowKey.of().addDrops(this.pendingXpDataFlow, drops, level, pos);
     }
 
     @Override
@@ -366,6 +373,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         this.storage.clear();
         this.upgrades.clear();
         this.pendingDataFlow = 0L;
+        this.pendingXpDataFlow = 0L;
     }
 
     @Override
@@ -1212,6 +1220,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private void tryAutoExport() {
+        if (this.pendingXpDataFlow > 0) {
+            flushPendingXpDataFlow(getConnectedItemNetwork());
+        }
+
         boolean fuzzyCardInstalled = hasFuzzyCard();
         if (fuzzyCardInstalled) {
             tickDroppedItemCollection(List.of(), null);
@@ -1332,25 +1344,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
             changed = true;
         }
 
-        for (ExperienceOrb orb : serverLevel.getEntitiesOfClass(
-                ExperienceOrb.class,
-                getDropCollectionAabb(),
-                ExperienceOrb::isAlive)) {
-            if (networkStorage == null) {
-                break;
-            }
-            int value = orb.getValue();
-            int converted = convertToDataFlow(networkStorage, value, DATA_FLOW_PER_EXPERIENCE);
-            if (converted <= 0) {
-                continue;
-            }
-
-            if (converted >= value) {
-                orb.discard();
-            } else {
-                orb.value = value - converted;
-            }
-            changed = true;
+        if (networkStorage != null && this.pendingXpDataFlow == 0) {
+            changed |= convertExperienceOrbs(serverLevel, networkStorage);
         }
 
         if (changed) {
@@ -1405,18 +1400,119 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
         return viewCellItem.getUpgrades(viewCell).isInstalled(AEItems.INVERTER_CARD);
     }
 
-    private int convertToDataFlow(MEStorage networkStorage, int units, int dataFlowPerUnit) {
-        if (units <= 0 || dataFlowPerUnit <= 0) {
-            return 0;
+    private boolean convertExperienceOrbs(ServerLevel serverLevel, MEStorage networkStorage) {
+        List<ExperienceOrbValue> experienceOrbs = serverLevel.getEntitiesOfClass(
+                ExperienceOrb.class,
+                getDropCollectionAabb(),
+                ExperienceOrb::isAlive)
+                .stream()
+                .sorted(Comparator.comparing(ExperienceOrb::getUUID))
+                .map(orb -> new ExperienceOrbValue(orb, getExperience(orb)))
+                .filter(orb -> orb.experience() > 0)
+                .toList();
+        if (experienceOrbs.isEmpty()) {
+            return false;
         }
 
-        long requested = (long) units * dataFlowPerUnit;
+        long maxConvertibleExperience = Long.MAX_VALUE / DATA_FLOW_PER_EXPERIENCE;
+        long totalExperience = 0L;
+        for (ExperienceOrbValue orb : experienceOrbs) {
+            long remainingCapacity = maxConvertibleExperience - totalExperience;
+            if (remainingCapacity == 0) {
+                break;
+            }
+            totalExperience += Math.min(orb.experience(), remainingCapacity);
+        }
+        if (totalExperience == 0) {
+            return false;
+        }
+
+        long simulated = networkStorage.insert(
+                DataFlowKey.of(),
+                totalExperience * DATA_FLOW_PER_EXPERIENCE,
+                Actionable.SIMULATE,
+                IActionSource.ofMachine(this));
+        long unitsToConvert = Math.min(totalExperience, simulated / DATA_FLOW_PER_EXPERIENCE);
+        if (unitsToConvert == 0) {
+            return false;
+        }
+
         long inserted = networkStorage.insert(
                 DataFlowKey.of(),
-                requested,
+                unitsToConvert * DATA_FLOW_PER_EXPERIENCE,
                 Actionable.MODULATE,
                 IActionSource.ofMachine(this));
-        return (int) Math.min(units, inserted / dataFlowPerUnit);
+        if (inserted == 0) {
+            return false;
+        }
+
+        long completedUnits = inserted / DATA_FLOW_PER_EXPERIENCE;
+        long partialDataFlow = inserted % DATA_FLOW_PER_EXPERIENCE;
+        if (partialDataFlow > 0) {
+            this.pendingXpDataFlow = DATA_FLOW_PER_EXPERIENCE - partialDataFlow;
+            this.saveChanges();
+        }
+        consumeExperienceOrbs(serverLevel, experienceOrbs, completedUnits + (partialDataFlow > 0 ? 1 : 0));
+        return true;
+    }
+
+    private static long getExperience(ExperienceOrb orb) {
+        CompoundTag data = new CompoundTag();
+        orb.saveWithoutId(data);
+        return (long) orb.getValue() * data.getInt(XP_ORB_COUNT_TAG);
+    }
+
+    private static void consumeExperienceOrbs(ServerLevel serverLevel, List<ExperienceOrbValue> experienceOrbs,
+                                              long units) {
+        long remainingUnits = units;
+        for (ExperienceOrbValue orb : experienceOrbs) {
+            if (remainingUnits == 0) {
+                return;
+            }
+
+            long consumed = Math.min(orb.experience(), remainingUnits);
+            long remainingExperience = orb.experience() - consumed;
+            orb.orb().discard();
+            if (remainingExperience > 0) {
+                awardExperience(serverLevel, orb.orb(), remainingExperience);
+            }
+            remainingUnits -= consumed;
+        }
+    }
+
+    private static void awardExperience(ServerLevel serverLevel, ExperienceOrb source, long experience) {
+        while (experience > 0) {
+            int amount = (int) Math.min(Integer.MAX_VALUE, experience);
+            ExperienceOrb.award(serverLevel, source.position(), amount);
+            experience -= amount;
+        }
+    }
+
+    private void flushPendingXpDataFlow(@Nullable MEStorage networkStorage) {
+        if (this.pendingXpDataFlow == 0 || networkStorage == null) {
+            return;
+        }
+
+        long simulated = networkStorage.insert(
+                DataFlowKey.of(),
+                this.pendingXpDataFlow,
+                Actionable.SIMULATE,
+                IActionSource.ofMachine(this));
+        if (simulated < this.pendingXpDataFlow) {
+            return;
+        }
+
+        long inserted = networkStorage.insert(
+                DataFlowKey.of(),
+                this.pendingXpDataFlow,
+                Actionable.MODULATE,
+                IActionSource.ofMachine(this));
+        if (inserted == 0) {
+            return;
+        }
+
+        this.pendingXpDataFlow -= inserted;
+        this.saveChanges();
     }
 
     private ItemStack routeAutoExportItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
@@ -1657,6 +1753,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
 
         return 1.0F + 0.5F * (sharpnessLevel - 1);
     }
+
+    private record ExperienceOrbValue(ExperienceOrb orb, long experience) {}
 
     private record SwordAttackResult(boolean damaged, ItemStack updatedSword) {}
 
