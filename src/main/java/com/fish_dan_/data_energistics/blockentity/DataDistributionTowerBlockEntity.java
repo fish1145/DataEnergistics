@@ -150,6 +150,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private List<BlockPos> cachedAeDisplayTargets = List.of();
     private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
     private boolean endpointCacheValid;
+    private long targetDisplayStateRevision;
     private BlockPos cachedClusterCoordinatorPos;
     private long diagnosticWindowStartTick = Long.MIN_VALUE;
     private int diagnosticRealExtractCalls;
@@ -258,6 +259,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
             }
         }
+
+        clearRuntimeCaches();
     }
 
     @Override
@@ -734,6 +737,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return this.targetDisplayResolver.boundTargetSummaries(maxEntries);
     }
 
+    public long getTargetDisplayStateRevision() {
+        return this.targetDisplayStateRevision;
+    }
+
     @SubscribeEvent
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
         LevelAccessor levelAccessor = event.getLevel();
@@ -973,6 +980,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                     this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
                 } else {
                     this.linkGraph.removePending(targetPos);
+                    incrementTargetDisplayStateRevision();
                 }
                 continue;
             }
@@ -1210,7 +1218,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedEndpoints = List.of();
         this.cachedAeDisplayTargets = List.of();
         this.endpointCacheValid = false;
+        incrementTargetDisplayStateRevision();
         invalidateResolvedEnergyEndpointCache();
+    }
+
+    private void incrementTargetDisplayStateRevision() {
+        this.targetDisplayStateRevision++;
     }
 
     private void invalidateClusterCache() {
@@ -1639,7 +1652,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
 
-        return this.linkGraph.queuePending(normalizedPos, delay);
+        boolean queued = this.linkGraph.queuePending(normalizedPos, delay);
+        if (queued) {
+            incrementTargetDisplayStateRevision();
+        }
+        return queued;
     }
 
     @Override

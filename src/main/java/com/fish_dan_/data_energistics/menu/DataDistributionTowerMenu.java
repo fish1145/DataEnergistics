@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
@@ -47,7 +48,9 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
     private List<TargetSnapshotKey> lastTargetSnapshotKeys;
+    private Set<TargetIdentity> targetSnapshotIdentities = Set.of();
     private long targetSnapshotRevision = -1L;
+    private long targetDisplayStateRevision = Long.MIN_VALUE;
     public List<DataDistributionTowerTargetEntry> boundTargetEntries = List.of();
 
     @GuiSync(730)
@@ -107,7 +110,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
             this.connectionMode = tower.getConnectionMode().ordinal();
             this.rangeAdjustmentMode = tower.getRangeAdjustmentMode().ordinal();
             this.boundTargetCount = tower.getBoundTargetCount();
-            syncTargetSnapshot(tower.getBoundTargetSummaries(Integer.MAX_VALUE));
+            syncTargetSnapshot(tower.getBoundTargetSummaries(Integer.MAX_VALUE), tower.getTargetDisplayStateRevision());
         }
 
         super.broadcastChanges();
@@ -120,22 +123,25 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
         }
         this.boundTargetEntries = snapshot.entries();
         this.boundTargetCount = snapshot.totalCount();
+        this.targetSnapshotRevision = snapshot.revision();
         if (this.isClientSide()) {
             MenuClientRefresh.refreshDataDistributionTowerScreen();
         }
     }
 
-    private void syncTargetSnapshot(List<BoundTargetSummary> summaries) {
+    private void syncTargetSnapshot(List<BoundTargetSummary> summaries, long targetDisplayStateRevision) {
         if (!(getPlayer() instanceof ServerPlayer serverPlayer)) {
             return;
         }
 
         List<TargetSnapshotKey> snapshotKeys = summaries.stream().map(TargetSnapshotKey::fromSummary).toList();
+        this.targetDisplayStateRevision = targetDisplayStateRevision;
         if (snapshotKeys.equals(this.lastTargetSnapshotKeys)) {
             return;
         }
 
         this.lastTargetSnapshotKeys = snapshotKeys;
+        this.targetSnapshotIdentities = Set.copyOf(summaries.stream().map(TargetIdentity::fromSummary).toList());
         this.targetSnapshotRevision = Math.incrementExact(this.targetSnapshotRevision);
         List<DataDistributionTowerTargetEntry> entries = summaries.stream()
                 .map(DataDistributionTowerTargetEntry::fromSummary)
@@ -147,7 +153,10 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     }
 
     public void sendFocusTarget(String dimensionId, int x, int y, int z, boolean teleport) {
-        sendClientAction(ACTION_FOCUS_TARGET, new TargetAction(dimensionId, x, y, z, teleport));
+        if (this.targetSnapshotRevision < 0L) {
+            return;
+        }
+        sendClientAction(ACTION_FOCUS_TARGET, new TargetAction(this.targetSnapshotRevision, dimensionId, x, y, z, teleport));
     }
 
     public void sendSetRangeVisible(boolean visible) {
@@ -170,20 +179,48 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     }
 
     private void onFocusTarget(TargetAction action) {
-        if (action == null) {
+        if (action == null || action.targetSnapshotRevision() == null || action.dimensionId() == null || action.x() == null || action.y() == null || action.z() == null || action.teleport() == null || action.targetSnapshotRevision() < 0L) {
+            logRejectedTargetAction("with an incomplete target payload", action);
             return;
         }
 
-        var levelKey = ResourceKey.create(
-                Registries.DIMENSION,
-                ResourceLocation.parse(action.dimensionId()));
+        if (this.host == null) {
+            logRejectedTargetAction("without a server tower host", action);
+            return;
+        }
+
+        ResourceLocation dimensionId = ResourceLocation.tryParse(action.dimensionId());
+        if (dimensionId == null) {
+            logRejectedTargetAction("with an invalid dimension identifier", action);
+            return;
+        }
+
+        long actionRevision = action.targetSnapshotRevision();
+        if (actionRevision != this.targetSnapshotRevision) {
+            logRejectedTargetAction("with a stale target snapshot revision", action);
+            return;
+        }
+
+        if (this.targetDisplayStateRevision != this.host.getTargetDisplayStateRevision()) {
+            logRejectedTargetAction("after the target display state changed", action);
+            return;
+        }
+
+        BlockPos targetPos = new BlockPos(action.x(), action.y(), action.z());
+        TargetIdentity targetIdentity = new TargetIdentity(dimensionId, targetPos);
+        if (!this.targetSnapshotIdentities.contains(targetIdentity)) {
+            logRejectedTargetAction("for a target that is not currently bound", action);
+            return;
+        }
+
+        var levelKey = ResourceKey.create(Registries.DIMENSION, dimensionId);
 
         getPlayer().sendSystemMessage(Component.translatable(
                 "message.data_energistics.data_distribution_tower.target",
-                action.x(),
-                action.y(),
-                action.z(),
-                action.dimensionId()));
+                targetPos.getX(),
+                targetPos.getY(),
+                targetPos.getZ(),
+                dimensionId.toString()));
 
         if (!action.teleport()) {
             return;
@@ -206,8 +243,21 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
         }
 
         getPlayer().closeContainer();
-        getPlayer().teleportTo(targetLevel, action.x() + 0.5, action.y() + 1.1, action.z() + 0.5,
+        getPlayer().teleportTo(targetLevel, targetPos.getX() + 0.5, targetPos.getY() + 1.1, targetPos.getZ() + 0.5,
                 Set.of(), getPlayer().getYRot(), getPlayer().getXRot());
+    }
+
+    private void logRejectedTargetAction(String reason, @Nullable TargetAction action) {
+        Data_Energistics.LOGGER.warn(
+                "Rejected Data Distribution Tower target action {} at {}: revision={}, dimension={}, x={}, y={}, z={}, teleport={}",
+                reason,
+                this.host == null ? null : this.host.getBlockPos(),
+                action == null ? null : action.targetSnapshotRevision(),
+                action == null ? null : action.dimensionId(),
+                action == null ? null : action.x(),
+                action == null ? null : action.y(),
+                action == null ? null : action.z(),
+                action == null ? null : action.teleport());
     }
 
     private void setRangeVisible(Boolean visible) {
@@ -249,7 +299,9 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
         broadcastChanges();
     }
 
-    private record TargetAction(String dimensionId, int x, int y, int z, boolean teleport) {}
+    private record TargetAction(@Nullable Long targetSnapshotRevision, @Nullable String dimensionId,
+                                @Nullable Integer x, @Nullable Integer y, @Nullable Integer z,
+                                @Nullable Boolean teleport) {}
 
     private record TargetTransferModeAction(String dimensionId, int x, int y, int z, int mode) {}
 
@@ -265,6 +317,17 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
                     summary.pos(), summary.kind(), summary.transferMode(), transferInfo.channelConnections(),
                     transferInfo.hasAeTarget(), transferInfo.hasEnergyTarget(), transferInfo.canExtractFe(),
                     transferInfo.canReceiveFe());
+        }
+    }
+
+    private record TargetIdentity(ResourceLocation dimensionId, BlockPos pos) {
+
+        private TargetIdentity {
+            pos = pos.immutable();
+        }
+
+        private static TargetIdentity fromSummary(BoundTargetSummary summary) {
+            return new TargetIdentity(summary.dimensionId(), summary.pos());
         }
     }
 }
