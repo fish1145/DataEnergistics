@@ -75,8 +75,8 @@ public final class ModItems {
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_1K = registerDataFlowCell("data_flow_cell_1k", 0.5, 1);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_4K = registerDataFlowCell("data_flow_cell_4k", 1.0, 4);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16K = registerDataFlowCell("data_flow_cell_16k", 1.5, 16);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64K = registerDataFlowCell("data_flow_cell_64k", 2.5, 65);
-    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256K = registerDataFlowCell("data_flow_cell_256k", 3.0, 262);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64K = registerDataFlowCell("data_flow_cell_64k", 2.5, 64);
+    public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256K = registerDataFlowCell("data_flow_cell_256k", 3.0, 256);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_1M = registerDataFlowCell("data_flow_cell_1m", 3.5, 1024);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_4M = registerDataFlowCell("data_flow_cell_4m", 4.0, 4096);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16M = registerDataFlowCell("data_flow_cell_16m", 4.5, 16384);
