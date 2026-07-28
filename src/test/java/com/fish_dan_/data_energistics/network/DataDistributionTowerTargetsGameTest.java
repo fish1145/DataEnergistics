@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
@@ -174,8 +175,9 @@ public final class DataDistributionTowerTargetsGameTest {
         DataDistributionTowerMenu menu = new DataDistributionTowerMenu(MENU_ID, player.getInventory(), tower);
         menu.broadcastChanges();
 
-        DataDistributionTowerTargetsPayload snapshot = listener.targetPayloads().getFirst();
-        DataDistributionTowerTargetEntry target = snapshot.entries().getFirst();
+        DataDistributionTowerTargetEntry target = listener.targetPayloads().getFirst().entries().getFirst();
+        assertTargetTransferModeActionValidation(helper, tower, menu, target);
+        DataDistributionTowerTargetsPayload snapshot = listener.targetPayloads().getLast();
         int initialMessageCount = listener.systemMessageCount();
 
         menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos()));
@@ -197,6 +199,10 @@ public final class DataDistributionTowerTargetsGameTest {
         CompoundTag savedState = new CompoundTag();
         tower.saveAdditional(savedState, helper.getLevel().registryAccess());
         tower.loadTag(savedState, helper.getLevel().registryAccess());
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.AUTO,
+                "A transfer mode action captured before an NBT reload must not restore a target override");
         menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos()));
         helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
                 "A target action captured before an NBT reload must not emit focus feedback");
@@ -212,10 +218,65 @@ public final class DataDistributionTowerTargetsGameTest {
         menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos()));
         helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
                 "A target action captured before target removal must not emit focus feedback");
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.AUTO,
+                "A transfer mode action captured before target removal must not restore a target override");
+    }
+
+    private static void assertTargetTransferModeActionValidation(GameTestHelper helper,
+                                                                 DataDistributionTowerBlockEntity tower,
+                                                                 DataDistributionTowerMenu menu,
+                                                                 DataDistributionTowerTargetEntry target) {
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A current target action must retain normal disabled-mode behavior");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                "minecraft:the_nether", target.pos(), TargetTransferMode.AUTO.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action for another dimension must not change the local target override");
+
+        BlockPos unboundPos = target.pos().east();
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), unboundPos, TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action for an unbound position must not change the current target override");
+        helper.assertValueEqual(tower.getTargetTransferMode(unboundPos), TargetTransferMode.AUTO,
+                "A transfer mode action for an unbound position must not create an override");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                "invalid dimension", target.pos(), TargetTransferMode.AUTO.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action with an invalid dimension must not change the target override");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayloadWithoutMode(
+                target.dimensionId().toString(), target.pos()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action with a missing mode must not fall back to AUTO");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), Integer.MAX_VALUE));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action with an invalid mode must not fall back to AUTO");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.AUTO.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.AUTO,
+                "A current target action must retain normal AUTO-mode behavior");
     }
 
     private static String focusTargetPayload(long revision, String dimensionId, BlockPos pos) {
         return "{\"targetSnapshotRevision\":" + revision + ",\"dimensionId\":\"" + dimensionId + "\",\"x\":" + pos.getX() + ",\"y\":" + pos.getY() + ",\"z\":" + pos.getZ() + ",\"teleport\":false}";
+    }
+
+    private static String targetTransferModePayload(String dimensionId, BlockPos pos, int mode) {
+        return "{\"dimensionId\":\"" + dimensionId + "\",\"x\":" + pos.getX() + ",\"y\":" + pos.getY() + ",\"z\":" + pos.getZ() + ",\"mode\":" + mode + "}";
+    }
+
+    private static String targetTransferModePayloadWithoutMode(String dimensionId, BlockPos pos) {
+        return "{\"dimensionId\":\"" + dimensionId + "\",\"x\":" + pos.getX() + ",\"y\":" + pos.getY() + ",\"z\":" + pos.getZ() + "}";
     }
 
     private static ServerPlayer createCapturingPlayer(GameTestHelper helper) {

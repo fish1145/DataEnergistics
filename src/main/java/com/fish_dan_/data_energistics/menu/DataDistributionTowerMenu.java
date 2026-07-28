@@ -290,12 +290,53 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
     }
 
     private void setTargetTransferMode(TargetTransferModeAction action) {
-        if (action == null || this.host == null) {
+        DataDistributionTowerBlockEntity tower = this.host;
+        if (action == null || tower == null) {
+            logRejectedTargetTransferModeAction("without a server tower host", action);
             return;
         }
 
-        this.host.setTargetTransferMode(new BlockPos(action.x(), action.y(), action.z()),
-                TargetTransferMode.fromOrdinal(action.mode()));
+        if (action.dimensionId() == null || action.x() == null || action.y() == null || action.z() == null || action.mode() == null) {
+            logRejectedTargetTransferModeAction("with an incomplete target payload", action);
+            return;
+        }
+
+        ResourceLocation dimensionId = ResourceLocation.tryParse(action.dimensionId());
+        if (dimensionId == null) {
+            logRejectedTargetTransferModeAction("with an invalid dimension identifier", action);
+            return;
+        }
+
+        var level = tower.getLevel();
+        if (level == null) {
+            logRejectedTargetTransferModeAction("without a tower level", action);
+            return;
+        }
+
+        if (!dimensionId.equals(level.dimension().location())) {
+            logRejectedTargetTransferModeAction("for a different dimension", action);
+            return;
+        }
+
+        BlockPos targetPos = new BlockPos(action.x(), action.y(), action.z()).immutable();
+        if (this.targetDisplayStateRevision != tower.getTargetDisplayStateRevision()) {
+            logRejectedTargetTransferModeAction("after the target display state changed", action);
+            return;
+        }
+
+        if (!this.targetSnapshotIdentities.contains(new TargetIdentity(dimensionId, targetPos))) {
+            logRejectedTargetTransferModeAction("for a target that is not currently bound", action);
+            return;
+        }
+
+        TargetTransferMode[] transferModes = TargetTransferMode.values();
+        int modeOrdinal = action.mode();
+        if (modeOrdinal < 0 || modeOrdinal >= transferModes.length) {
+            logRejectedTargetTransferModeAction("with an invalid transfer mode", action);
+            return;
+        }
+
+        tower.setTargetTransferMode(targetPos, transferModes[modeOrdinal]);
         broadcastChanges();
     }
 
@@ -303,7 +344,20 @@ public class DataDistributionTowerMenu extends AEBaseMenu implements DataDistrib
                                 @Nullable Integer x, @Nullable Integer y, @Nullable Integer z,
                                 @Nullable Boolean teleport) {}
 
-    private record TargetTransferModeAction(String dimensionId, int x, int y, int z, int mode) {}
+    private void logRejectedTargetTransferModeAction(String reason, @Nullable TargetTransferModeAction action) {
+        Data_Energistics.LOGGER.warn(
+                "Rejected Data Distribution Tower target transfer mode action {} at {}: dimension={}, x={}, y={}, z={}, mode={}",
+                reason,
+                this.host == null ? null : this.host.getBlockPos(),
+                action == null ? null : action.dimensionId(),
+                action == null ? null : action.x(),
+                action == null ? null : action.y(),
+                action == null ? null : action.z(),
+                action == null ? null : action.mode());
+    }
+
+    private record TargetTransferModeAction(@Nullable String dimensionId, @Nullable Integer x, @Nullable Integer y,
+                                            @Nullable Integer z, @Nullable Integer mode) {}
 
     private record TargetSnapshotKey(ResourceLocation itemId, String displayName, int count,
                                      ResourceLocation dimensionId, BlockPos pos, TargetKind kind,
