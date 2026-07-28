@@ -97,6 +97,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private static final String CREATE_RECIPE_GRID_HANDLER_CLASS = "com.simibubi.create.content.kinetics.crafter.RecipeGridHandler";
     private static final String CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS = "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlock";
     private static final int METEORITE_ENERGY_PER_WORK = 50;
+    private static final double METEORITE_ENERGY_TOLERANCE = 1.0e-9;
     private static final int METEORITE_MAX_WORKS_PER_ROUND = 8;
     private static final int EXPANDED_RETURN_SLOTS = 18;
     private static final String NBT_CRAFTED_CONTENTS = "adaptive_crafted_contents";
@@ -801,19 +802,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             return false;
         }
 
-        if (!tryConsumeMeteoriteEnergy()) {
+        if (!hasMeteoriteEnergy()) {
             return false;
         }
 
         List<GenericStack> output = getMeteoritePatternOutput(pattern, inputHolder, level);
-        if (output == null || output.isEmpty()) {
+        if (output == null || output.stream().noneMatch(stack -> stack.amount() > 0)) {
+            return false;
+        }
+
+        if (!tryConsumeMeteoriteEnergy()) {
             return false;
         }
 
         boolean wasEmpty = this.craftedContents.isEmpty();
 
         for (GenericStack stack : output) {
-            if (stack != null && stack.what() != null && stack.amount() > 0) {
+            if (stack.amount() > 0) {
                 this.craftedContents.addTo(stack.what(), stack.amount());
             }
         }
@@ -2816,6 +2821,21 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAdvancedAeProviderSelected() && adaptivePatternProviderHost.isAdvancedAeFilteredImportEnabled();
     }
 
+    private boolean hasMeteoriteEnergy() {
+        var grid = getGrid();
+        if (grid == null) {
+            return false;
+        }
+        IEnergyService energyService = grid.getEnergyService();
+        if (energyService == null) {
+            return false;
+        }
+
+        double requiredEnergy = getMeteoriteEnergyPerWork();
+        double extracted = energyService.extractAEPower(requiredEnergy, Actionable.SIMULATE, PowerMultiplier.ONE);
+        return isMeteoriteEnergyRequirementMet(extracted, requiredEnergy);
+    }
+
     private boolean tryConsumeMeteoriteEnergy() {
         var grid = getGrid();
         if (grid == null) {
@@ -2828,7 +2848,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
         double requiredEnergy = getMeteoriteEnergyPerWork();
         double extracted = energyService.extractAEPower(requiredEnergy, Actionable.MODULATE, PowerMultiplier.ONE);
-        if (extracted + 1.0e-9 >= requiredEnergy) {
+        if (isMeteoriteEnergyRequirementMet(extracted, requiredEnergy)) {
             return true;
         }
 
@@ -2838,6 +2858,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             Data_Energistics.LOGGER.debug("Could not refund extracted meteorite provider energy", e);
         }
         return false;
+    }
+
+    private static boolean isMeteoriteEnergyRequirementMet(double extractedEnergy, double requiredEnergy) {
+        return extractedEnergy + METEORITE_ENERGY_TOLERANCE >= requiredEnergy;
     }
 
     private int getMeteoriteSpeedCardCount() {
