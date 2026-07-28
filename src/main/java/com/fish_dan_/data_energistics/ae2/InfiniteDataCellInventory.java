@@ -13,7 +13,7 @@ import appeng.api.storage.cells.StorageCell;
 
 public final class InfiniteDataCellInventory implements StorageCell {
 
-    public static final long STORED_AMOUNT = Integer.MAX_VALUE;
+    public static final long STORED_AMOUNT = Long.MAX_VALUE;
 
     private final ItemStack stack;
 
