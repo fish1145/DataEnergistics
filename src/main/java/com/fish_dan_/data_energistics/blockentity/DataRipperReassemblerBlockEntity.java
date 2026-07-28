@@ -80,6 +80,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -664,6 +665,16 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean consumeRecipeInputs(DataRipperReassemblerRecipe recipe) {
+        Map<AEFluidKey, Long> requiredFluidAmounts = recipe.getMergedFluidInputAmounts();
+        if (requiredFluidAmounts == null) {
+            return false;
+        }
+        for (long amount : requiredFluidAmounts.values()) {
+            if (amount > Integer.MAX_VALUE) {
+                return false;
+            }
+        }
+
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
             for (int i = 0; i < ITEM_INPUT_SLOT_COUNT && remaining > 0; i++) {
@@ -696,12 +707,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             syncKeyMenuFromStack();
         }
 
-        for (GenericStack requiredFluid : recipe.getFluidInputs()) {
-            if (!(requiredFluid.what() instanceof AEFluidKey requiredKeyFluid)) {
-                return false;
-            }
-
-            int remaining = (int) Math.min(Integer.MAX_VALUE, requiredFluid.amount());
+        for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
+            AEFluidKey requiredKeyFluid = requirement.getKey();
+            int remaining = requirement.getValue().intValue();
 
             if (matchesFluidKey(this.fluidInputTankA.getFluid(), requiredKeyFluid)) {
                 int drained = this.fluidInputTankA.drain(Math.min(remaining, this.fluidInputTankA.getFluidAmount()),

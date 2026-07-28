@@ -12,7 +12,6 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
 import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.blockentity.qnb.QuantumBridgeBlockEntity;
 import appeng.core.definitions.AEItems;
@@ -20,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -144,6 +144,22 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
         return this.fluidInputs;
     }
 
+    @Nullable
+    public Map<AEFluidKey, Long> getMergedFluidInputAmounts() {
+        Map<AEFluidKey, Long> merged = new LinkedHashMap<>();
+        for (GenericStack fluidInput : this.fluidInputs) {
+            if (!(fluidInput.what() instanceof AEFluidKey fluidKey) || fluidInput.amount() <= 0) {
+                return null;
+            }
+            long current = merged.getOrDefault(fluidKey, 0L);
+            if (fluidInput.amount() > Long.MAX_VALUE - current) {
+                return null;
+            }
+            merged.put(fluidKey, current + fluidInput.amount());
+        }
+        return merged;
+    }
+
     public NonNullList<ItemStack> getItemOutputs() {
         return this.itemOutputs;
     }
@@ -196,20 +212,21 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     }
 
     private boolean matchesFluidInputs(List<GenericStack> inputFluids) {
-        if (this.fluidInputs.isEmpty()) {
-            return true;
+        Map<AEFluidKey, Long> required = getMergedFluidInputAmounts();
+        if (required == null) {
+            return false;
         }
 
-        Map<AEKey, Long> available = new HashMap<>();
+        Map<AEFluidKey, Long> available = new HashMap<>();
         for (GenericStack fluid : inputFluids) {
             if (fluid == null || !(fluid.what() instanceof AEFluidKey) || fluid.amount() <= 0) {
                 continue;
             }
-            available.merge(fluid.what(), fluid.amount(), Long::sum);
+            available.merge((AEFluidKey) fluid.what(), fluid.amount(), Long::sum);
         }
 
-        for (GenericStack required : this.fluidInputs) {
-            if (available.getOrDefault(required.what(), 0L) < required.amount()) {
+        for (Map.Entry<AEFluidKey, Long> requirement : required.entrySet()) {
+            if (available.getOrDefault(requirement.getKey(), 0L) < requirement.getValue()) {
                 return false;
             }
         }
