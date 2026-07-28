@@ -49,6 +49,7 @@ public class DataFlowPortableCellItem extends PortableCellItem {
             giveBack(player, storageComponent);
             giveBack(player, energyCell);
             giveBack(player, ModItems.DATA_FLOW_COMPONENT_HOUSING.toStack());
+            getUpgrades(stack).forEach(upgrade -> giveBack(player, upgrade));
         }
 
         return InteractionResultHolder.sidedSuccess(player.getItemInHand(usedHand), level.isClientSide);
