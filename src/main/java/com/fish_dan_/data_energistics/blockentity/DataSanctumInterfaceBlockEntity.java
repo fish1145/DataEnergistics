@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import com.fish_dan_.data_energistics.ae2.DataSanctumFluidPuller;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceInventory;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
@@ -25,7 +26,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
@@ -41,7 +41,6 @@ import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.orientation.RelativeSide;
-import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
@@ -472,39 +471,11 @@ public class DataSanctumInterfaceBlockEntity extends AENetworkedBlockEntity impl
     }
 
     private boolean pullFromFluidHandler(IFluidHandler handler) {
-        for (int tank = 0; tank < handler.getTanks(); tank++) {
-            FluidStack simulated = handler.drain(ACTIVE_PULL_FLUID_AMOUNT_PER_TICK, IFluidHandler.FluidAction.SIMULATE);
-            if (simulated.isEmpty()) {
-                continue;
-            }
-
-            AEFluidKey key = AEFluidKey.of(simulated);
-            if (key == null) {
-                continue;
-            }
-
-            long canBuffer = this.returnInventory.insert(key, simulated.getAmount(), Actionable.SIMULATE, this.actionSource);
-            if (canBuffer <= 0) {
-                continue;
-            }
-
-            FluidStack request = simulated.copy();
-            request.setAmount((int) Math.min(Integer.MAX_VALUE, canBuffer));
-            FluidStack extracted = handler.drain(request, IFluidHandler.FluidAction.EXECUTE);
-            if (extracted.isEmpty()) {
-                continue;
-            }
-
-            long buffered = this.returnInventory.insert(key, extracted.getAmount(), Actionable.MODULATE, this.actionSource);
-            if (buffered < extracted.getAmount()) {
-                FluidStack leftover = extracted.copy();
-                leftover.setAmount(extracted.getAmount() - (int) Math.min(buffered, extracted.getAmount()));
-                handler.fill(leftover, IFluidHandler.FluidAction.EXECUTE);
-            }
-            return true;
-        }
-
-        return false;
+        return DataSanctumFluidPuller.pullFirstAccepted(
+                handler,
+                this.returnInventory,
+                this.actionSource,
+                ACTIVE_PULL_FLUID_AMOUNT_PER_TICK);
     }
 
     private static int encodeSides(Iterable<Direction> sides) {
