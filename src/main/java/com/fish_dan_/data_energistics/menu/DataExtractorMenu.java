@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -64,6 +65,8 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
     public int autoExportModeOrdinal;
     @GuiSync(771)
     public int outputSidesMask = 63;
+    @GuiSync(772)
+    public boolean carrierInteractionAllowed = true;
 
     public DataExtractorMenu(int id, Inventory playerInventory, DataExtractorBlockEntity host) {
         super(ModMenus.DATA_EXTRACTOR.get(), id, playerInventory, host);
@@ -114,6 +117,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
             this.rangeVisible = host.isRangeDisplayEnabled();
             this.autoExportModeOrdinal = host.getAutoExportMode().ordinal();
             this.outputSidesMask = encodeOutputSides(host.getOutputSides());
+            this.carrierInteractionAllowed = host.isCarrierInteractionAllowed();
             ItemStack carrier = host.getStorageInventory().getStackInSlot(0);
             if (BiologyDataCarrierData.hasRecordedEntity(carrier)) {
                 this.collectionProgress = Math.round(BiologyDataCarrierData.getCollectedDamage(carrier) * 10.0F);
@@ -236,7 +240,7 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
         return mask;
     }
 
-    private static final class DataCarrierInputSlot extends RestrictedInputSlot {
+    private final class DataCarrierInputSlot extends RestrictedInputSlot {
 
         private DataCarrierInputSlot(InternalInventory inv, int invSlot) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, invSlot);
@@ -246,7 +250,16 @@ public class DataExtractorMenu extends UpgradeableMenu<DataExtractorBlockEntity>
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return stack.is(ModItems.DATA_CARRIER.get()) && super.mayPlace(stack);
+            return isCarrierInteractionAllowed() && stack.is(ModItems.DATA_CARRIER.get()) && super.mayPlace(stack);
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return isCarrierInteractionAllowed() && super.mayPickup(player);
+        }
+
+        private boolean isCarrierInteractionAllowed() {
+            return DataExtractorMenu.this.isClientSide() ? DataExtractorMenu.this.carrierInteractionAllowed : DataExtractorMenu.this.getHost().isCarrierInteractionAllowed();
         }
     }
 

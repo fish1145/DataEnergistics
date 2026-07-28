@@ -113,7 +113,7 @@ final class CommonCapabilityRegistrar {
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
+                (blockEntity, context) -> blockEntity.getExternalItemHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
