@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuildImpl;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.TrinityAutoBuildStagingPolicy;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
@@ -604,7 +605,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     orientation.front(),
                     orientation.flipped(),
                     request);
-            if (result.success()) {
+            if (result.success() || result.failure().type() == FailureType.PUBLISH_FAILED) {
                 requestStructureRecheck(structureIndex);
             }
             reportAutoBuildResult(player, structureIndex, result);
@@ -681,6 +682,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 .selectedTierBlocks(selectedTierBlocks)
                 .tierRanks(TrinityAutoBuildBlockMap.tierRanksForStructure(structureIndex))
                 .partSideResolver(partSideResolver)
+                .stagingPolicy(TrinityAutoBuildStagingPolicy.INSTANCE)
                 .build();
         return AUTO_BUILD.execute(context);
     }
