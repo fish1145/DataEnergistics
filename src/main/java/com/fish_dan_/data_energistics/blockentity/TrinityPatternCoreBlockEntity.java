@@ -8,6 +8,9 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityCraftingBatch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
@@ -65,9 +68,15 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Nullable
     private CompoundTag stagedCoreState;
     private boolean stagedInitialHydration;
+    /** Current transient host together with the exact catalog range that authorized this binding. */
     @Nullable
-    private TrinityPatternCoreHost patternHost;
+    private BoundPatternHost patternHostBinding;
     private boolean patternHostChangeFailed;
+    /** Prevents stale-host cleanup while a host has locked publication but still owes release confirmation. */
+    private boolean patternHostReleasePending;
+
+    /** Couples one host reference to its immutable catalog authority token. */
+    private record BoundPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {}
 
     /**
      * Creates a core and derives its fixed inventory size directly from the placed block metadata.
@@ -123,17 +132,9 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * unbound, offline, or structurally invalid core cannot craft independently.
      */
     public void serverTick() {
-        if (this.patternHostChangeFailed) {
+        if (this.patternHostChangeFailed || this.patternHostReleasePending) {
             this.patternHostChangeFailed = false;
-            try {
-                releasePatternHost();
-            } catch (RuntimeException exception) {
-                Data_Energistics.LOGGER.error(
-                        "Failed to withdraw Trinity pattern core {} at {} after a host update failure",
-                        coreId(),
-                        this.worldPosition,
-                        exception);
-            }
+            releasePatternHost();
         }
         if (isCoreStateReady()) {
             this.coreLoadState = CoreLoadState.READY;
@@ -202,8 +203,9 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         if (!isCoreStateReady()) {
             return false;
         }
-        TrinityPatternCoreHost current = currentPatternHost();
-        return current == null || current == host;
+        BoundPatternHost current = this.patternHostBinding;
+        return current == null ||
+                (!this.patternHostChangeFailed && !this.patternHostReleasePending && current.host() == host);
     }
 
     /**
@@ -212,11 +214,14 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * @param host authoritative formed host
      * @return false when another active host still owns this physical core
      */
-    public boolean bindPatternHost(TrinityPatternCoreHost host) {
-        if (!canBindPatternHost(host)) {
+    public boolean bindPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {
+        if (!binding.coreId().equals(coreId()) || !binding.mountPosition().equals(this.worldPosition) ||
+                binding.blockCapacity() != patternCapacity() || !canBindPatternHost(host)) {
             return false;
         }
-        this.patternHost = host;
+        this.patternHostBinding = new BoundPatternHost(host, binding);
+        this.patternHostChangeFailed = false;
+        this.patternHostReleasePending = false;
         return true;
     }
 
@@ -225,10 +230,10 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      *
      * @param host host withdrawing its catalog
      */
-    public void unbindPatternHost(TrinityPatternCoreHost host) {
-        if (this.patternHost == host) {
-            this.patternHost = null;
-            this.patternHostChangeFailed = false;
+    public void unbindPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {
+        BoundPatternHost current = this.patternHostBinding;
+        if (current != null && current.host() == host && current.binding().equals(binding)) {
+            clearPatternHostBinding(current);
         }
     }
 
@@ -242,10 +247,10 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         if (!isCoreStateReady()) {
             return false;
         }
-        TrinityPatternCoreHost host = currentPatternHost();
-        if (host != null) {
+        BoundPatternHost current = currentPatternHost();
+        if (current != null) {
             try {
-                return host.tryRefundPatternCore(this, player);
+                return current.host().tryRefundPatternCore(this, current.binding(), player);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Failed to refund Trinity pattern core {} through its mounted host; using player fallbacks",
@@ -614,10 +619,10 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
                     this.level != null && !this.level.isClientSide()) {
                 markForClientUpdate();
             }
-            if (!this.patternHostChangeFailed) {
-                TrinityPatternCoreHost host = currentPatternHost();
-                if (host != null) {
-                    host.onPatternCoreChanged(this, change);
+            if (!this.patternHostChangeFailed && !this.patternHostReleasePending) {
+                BoundPatternHost current = currentPatternHost();
+                if (current != null) {
+                    current.host().onPatternCoreChanged(this, current.binding(), change);
                 }
             }
         } catch (RuntimeException exception) {
@@ -633,21 +638,50 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Nullable
-    private TrinityPatternCoreHost currentPatternHost() {
-        TrinityPatternCoreHost current = this.patternHost;
-        if (current != null && !current.isPatternCoreMounted(this)) {
-            this.patternHost = null;
-            return null;
-        }
-        return current;
+    private BoundPatternHost currentPatternHost() {
+        return this.patternHostBinding;
     }
 
     private void releasePatternHost() {
-        TrinityPatternCoreHost current = this.patternHost;
-        this.patternHost = null;
-        this.patternHostChangeFailed = false;
-        if (current != null) {
-            current.onPatternCoreUnavailable(this);
+        BoundPatternHost current = this.patternHostBinding;
+        if (current == null) {
+            this.patternHostChangeFailed = false;
+            this.patternHostReleasePending = false;
+            return;
+        }
+        try {
+            PatternCoreReleaseResult result = current.host().onPatternCoreUnavailable(
+                    new PatternCoreReleaseRequest(this, current.binding()));
+            if (result.confirmsRelease()) {
+                clearPatternHostBinding(current);
+            } else if (result == PatternCoreReleaseResult.RETRY_REQUIRED) {
+                this.patternHostReleasePending = true;
+            } else {
+                this.patternHostReleasePending = false;
+                Data_Energistics.LOGGER.warn(
+                        "Trinity pattern core {} at {} retained its binding after host {} rejected stale release token {}",
+                        coreId(),
+                        this.worldPosition,
+                        current.binding().hostId(),
+                        current.binding().layoutRevision());
+            }
+        } catch (RuntimeException exception) {
+            this.patternHostReleasePending = true;
+            Data_Energistics.LOGGER.error(
+                    "Trinity pattern core {} at {} retained host {} binding from layout {} after release confirmation failed",
+                    current.binding().coreId(),
+                    this.worldPosition,
+                    current.binding().hostId(),
+                    current.binding().layoutRevision(),
+                    exception);
+        }
+    }
+
+    private void clearPatternHostBinding(BoundPatternHost expected) {
+        if (this.patternHostBinding == expected) {
+            this.patternHostBinding = null;
+            this.patternHostChangeFailed = false;
+            this.patternHostReleasePending = false;
         }
     }
 

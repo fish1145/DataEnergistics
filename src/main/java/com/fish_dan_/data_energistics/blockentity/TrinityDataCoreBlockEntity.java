@@ -44,6 +44,9 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
@@ -169,6 +172,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     /** Factory for matcher views that retain unloaded coordinates lost by orientation fallbacks. */
     private final TrinityStructureWorldViewFactory structureWorldViews;
     private boolean patternCatalogValid;
+    /** Retains a locked old layout until a failed core-release cleanup can finish without reopening publication. */
+    @Nullable
+    private PendingPatternCoreRelease pendingPatternCoreRelease;
+    /** Retries access-hatch and terminal invalidation after a post-lock notification failure. */
+    private boolean patternLayoutRefreshRequested;
     private boolean loaded;
     private boolean formed;
     @Getter
@@ -210,6 +218,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private long accessLeaseEpoch;
     private boolean accessLeasePublicationRefreshRequested;
     private boolean missingBusyLeaseReported;
+
+    /** Captures a failed release without reconstructing the old catalog or persisting transient ownership. */
+    private record PendingPatternCoreRelease(PatternCoreReleaseRequest request,
+                                             TrinityPatternCatalog.LayoutSnapshot layout,
+                                             RuntimeException initialFailure) {}
 
     public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
         this(blockPos, blockState, new TrinityStructureValidationImpl(), new TrinityStructureWorldViewFactoryImpl());
@@ -283,6 +296,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private void tickServerState() {
         observeMultiBlockDefinitionRevision();
         synchronizePatternReloadEpoch();
+        PendingPatternCoreRelease pendingRelease = this.pendingPatternCoreRelease;
+        if (pendingRelease != null) {
+            retryPendingPatternCoreRelease(pendingRelease);
+            if (this.pendingPatternCoreRelease != null) {
+                flushRequestedPatternLayoutRefresh();
+                return;
+            }
+        }
         long gameTime = this.level.getGameTime();
         if (this.patternCatalogValid && this.patternCatalog.layoutSnapshot().active() &&
                 this.lastPatternCoreHealthCheckTick != gameTime &&
@@ -299,14 +320,15 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         updateScheduledStructureMatches();
         reevaluateAccessLease();
         flushRequestedAccessLeasePublication();
+        flushRequestedPatternLayoutRefresh();
         if (this.patternCatalogValid) {
-            List<TrinityPatternCatalog.CoreMount> mountedBeforeFlush = this.patternCatalog.mountedCores();
+            TrinityPatternCatalog.LayoutSnapshot layoutBeforeFlush = this.patternCatalog.layoutSnapshot();
             if (this.patternCatalog.refreshChangedPatterns()) {
                 this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
                 if (this.patternCatalogValid) {
                     notifyTrinityPatternPublicationChanged();
                 } else {
-                    releasePatternCoreBindings(mountedBeforeFlush);
+                    releasePatternCoreBindings(layoutBeforeFlush, null);
                     requestCraftingStructureRecheck();
                     notifyTrinityPatternLayoutChanged();
                 }
@@ -413,13 +435,27 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public boolean isPatternCoreMounted(TrinityPatternCore core) {
-        return this.patternCatalogValid && this.patternCatalog.isCoreMounted(core);
+    public boolean isPatternCoreMounted(TrinityPatternCore core, PatternCoreBinding binding) {
+        if (!this.patternCatalogValid || !binding.hostId().equals(this.hostId)) {
+            return false;
+        }
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        if (!layout.active() || layout.revision() != binding.layoutRevision()) {
+            return false;
+        }
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            TrinityPatternCatalog.CoreMount mount = range.mount();
+            if (mount.core() == core && range.coreId().equals(binding.coreId()) &&
+                    mount.position().equals(binding.mountPosition()) && mount.blockCapacity() == binding.blockCapacity()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
-    public boolean tryRefundPatternCore(TrinityPatternCore core, Player player) {
-        if (!isPatternCoreMounted(core)) {
+    public boolean tryRefundPatternCore(TrinityPatternCore core, PatternCoreBinding binding, Player player) {
+        if (!isPatternCoreMounted(core, binding)) {
             return false;
         }
         boolean refunded = core.tryRefundAll(createRefundDelivery(player));
@@ -430,23 +466,53 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public void onPatternCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change) {
-        if (this.patternCatalogValid) {
+    public void onPatternCoreChanged(TrinityPatternCore core,
+                                     PatternCoreBinding binding,
+                                     TrinityPatternSlot.Change change) {
+        if (isPatternCoreMounted(core, binding)) {
             this.patternCatalog.onCoreChanged(core, change);
         }
     }
 
     @Override
-    public void onPatternCoreUnavailable(TrinityPatternCore core) {
-        if (!isPatternCoreMounted(core)) {
-            return;
+    public PatternCoreReleaseResult onPatternCoreUnavailable(PatternCoreReleaseRequest request) {
+        if (!request.binding().hostId().equals(this.hostId)) {
+            return PatternCoreReleaseResult.STALE_REQUEST;
         }
-        boolean changed = withdrawPatternCatalog();
-        requestCraftingStructureRecheck();
-        if (changed) {
-            notifyTrinityPatternLayoutChanged();
+        PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
+        if (pending != null) {
+            if (!pending.request().equals(request)) {
+                return PatternCoreReleaseResult.STALE_REQUEST;
+            }
+            return retryPendingPatternCoreRelease(pending) ? PatternCoreReleaseResult.REVOKED :
+                    PatternCoreReleaseResult.RETRY_REQUIRED;
         }
-        setChanged();
+        if (!isPatternCoreMounted(request.core(), request.binding())) {
+            return this.patternCatalog.layoutSnapshot().active() ? PatternCoreReleaseResult.STALE_REQUEST :
+                    PatternCoreReleaseResult.ALREADY_REVOKED;
+        }
+
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        try {
+            withdrawPatternCatalog(layout, request.binding());
+            requestCraftingStructureRecheck();
+            setChanged();
+            requestPatternLayoutRefresh();
+            return PatternCoreReleaseResult.REVOKED;
+        } catch (RuntimeException exception) {
+            this.patternCatalogValid = false;
+            this.pendingPatternCoreRelease = new PendingPatternCoreRelease(request, layout, exception);
+            requestCraftingStructureRecheck();
+            LOGGER.error(
+                    "Trinity host {} locked pattern layout {} while awaiting release recovery for core {} at {}",
+                    this.worldPosition,
+                    request.binding().layoutRevision(),
+                    request.binding().coreId(),
+                    request.binding().mountPosition(),
+                    exception);
+            requestPatternLayoutRefresh();
+            return PatternCoreReleaseResult.RETRY_REQUIRED;
+        }
     }
 
     private TrinityRefundDeliveryImpl createRefundDelivery(Player player) {
@@ -1730,18 +1796,19 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 applyCraftingFailure(scan.failureReason(), scan.failurePosition());
                 return;
             }
-            List<TrinityPatternCatalog.CoreMount> previousMounts = this.patternCatalog.mountedCores();
+            TrinityPatternCatalog.LayoutSnapshot previousLayout = this.patternCatalog.layoutSnapshot();
             TrinityPatternCatalog.RebuildResult rebuild = this.patternCatalog.rebuild(scan.mounts());
             this.patternCatalogValid = rebuild.valid();
             if (!rebuild.valid()) {
-                releasePatternCoreBindings(previousMounts);
+                releasePatternCoreBindings(previousLayout, null);
                 applyCraftingFailure(rebuild.failureReason(), rebuild.failurePosition());
                 return;
             }
-            TrinityPatternCatalog.CoreMount bindingFailure = bindPatternCoreBindings(scan.mounts());
+            TrinityPatternCatalog.LayoutSnapshot currentLayout = this.patternCatalog.layoutSnapshot();
+            TrinityPatternCatalog.CoreMount bindingFailure = bindPatternCoreBindings(currentLayout);
             if (bindingFailure != null) {
-                releasePatternCoreBindings(scan.mounts());
-                releasePatternCoreBindings(previousMounts);
+                releasePatternCoreBindings(currentLayout, null);
+                releasePatternCoreBindings(previousLayout, null);
                 this.patternCatalog.invalidateLayout();
                 this.patternCatalogValid = false;
                 applyCraftingFailure(
@@ -1749,7 +1816,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         bindingFailure.position());
                 return;
             }
-            releaseStalePatternCoreBindings(previousMounts, scan.mounts());
+            releaseStalePatternCoreBindings(previousLayout, currentLayout);
             applyCraftingMatch(world, result.positions(), rebuild.changed());
         } else {
             if (deferStructureValidation(Structure.CRAFTING, result.diagnostic(), world.firstUnloadedPosition())) {
@@ -2106,6 +2173,28 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityTerminalLayout);
     }
 
+    /** Requests and immediately attempts the retryable post-lock refresh of every public pattern surface. */
+    private void requestPatternLayoutRefresh() {
+        this.patternLayoutRefreshRequested = true;
+        flushRequestedPatternLayoutRefresh();
+    }
+
+    /** Leaves the catalog locked when a downstream refresh fails and retries from the next server tick. */
+    private void flushRequestedPatternLayoutRefresh() {
+        if (!this.patternLayoutRefreshRequested) {
+            return;
+        }
+        try {
+            notifyTrinityPatternLayoutChanged();
+            this.patternLayoutRefreshRequested = false;
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Trinity host {} retained locked pattern layout while access-hatch refresh is retried",
+                    this.worldPosition,
+                    exception);
+        }
+    }
+
     private void refreshTrinityAccessHatches(Consumer<TrinityAccessHatchBlockEntity> refresh) {
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
             if (part instanceof TrinityAccessHatchBlockEntity hatch) {
@@ -2116,52 +2205,115 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     /** Withdraws every public pattern route while retaining queued work for the current network lease. */
     private boolean withdrawPatternCatalog() {
-        List<TrinityPatternCatalog.CoreMount> mountedCores = this.patternCatalog.mountedCores();
-        boolean changed = this.patternCatalogValid || this.patternCatalog.layoutSnapshot().active();
-        this.patternCatalog.invalidateLayout();
+        PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
+        if (pending != null) {
+            this.pendingPatternCoreRelease = null;
+            return withdrawPatternCatalog(pending.layout(), null);
+        }
+        return withdrawPatternCatalog(this.patternCatalog.layoutSnapshot(), null);
+    }
+
+    /** Locks publication before local unbinding, retaining one releasing core until it receives the host result. */
+    private boolean withdrawPatternCatalog(TrinityPatternCatalog.LayoutSnapshot layout,
+                                           @Nullable PatternCoreBinding retainedBinding) {
+        boolean changed = this.patternCatalogValid || layout.active();
         this.patternCatalogValid = false;
-        releasePatternCoreBindings(mountedCores);
+        this.patternCatalog.invalidateLayout();
+        releasePatternCoreBindings(layout, retainedBinding);
         return changed;
     }
 
     private void clearPatternCatalog() {
-        List<TrinityPatternCatalog.CoreMount> mountedCores = this.patternCatalog.mountedCores();
+        PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
+        TrinityPatternCatalog.LayoutSnapshot layout = pending == null ? this.patternCatalog.layoutSnapshot() :
+                pending.layout();
+        this.patternCatalogValid = false;
         this.patternCatalog.clear();
-        releasePatternCoreBindings(mountedCores);
+        this.pendingPatternCoreRelease = null;
+        releasePatternCoreBindings(layout, null);
     }
 
     @Nullable
     private TrinityPatternCatalog.CoreMount bindPatternCoreBindings(
-                                                                    List<TrinityPatternCatalog.CoreMount> mounts) {
-        for (TrinityPatternCatalog.CoreMount mount : mounts) {
-            if (!(mount.core() instanceof TrinityPatternCoreBlockEntity core) || !core.bindPatternHost(this)) {
+                                                                    TrinityPatternCatalog.LayoutSnapshot layout) {
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            TrinityPatternCatalog.CoreMount mount = range.mount();
+            if (!(mount.core() instanceof TrinityPatternCoreBlockEntity core) ||
+                    !core.bindPatternHost(this, patternCoreBinding(layout, range))) {
                 return mount;
             }
         }
         return null;
     }
 
-    private void releasePatternCoreBindings(List<TrinityPatternCatalog.CoreMount> mounts) {
-        for (TrinityPatternCatalog.CoreMount mount : mounts) {
+    /** Releases only the bindings represented by one captured layout, never a newer rebind of the same core. */
+    private void releasePatternCoreBindings(TrinityPatternCatalog.LayoutSnapshot layout,
+                                            @Nullable PatternCoreBinding retainedBinding) {
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            PatternCoreBinding binding = patternCoreBinding(layout, range);
+            if (binding.equals(retainedBinding)) {
+                continue;
+            }
+            TrinityPatternCatalog.CoreMount mount = range.mount();
             if (mount.core() instanceof TrinityPatternCoreBlockEntity core) {
-                core.unbindPatternHost(this);
+                core.unbindPatternHost(this, binding);
             }
         }
     }
 
-    private void releaseStalePatternCoreBindings(List<TrinityPatternCatalog.CoreMount> previousMounts,
-                                                 List<TrinityPatternCatalog.CoreMount> currentMounts) {
-        for (TrinityPatternCatalog.CoreMount previous : previousMounts) {
+    /** Clears only physical cores omitted from the latest scan, while preserving current bindings of retained cores. */
+    private void releaseStalePatternCoreBindings(TrinityPatternCatalog.LayoutSnapshot previousLayout,
+                                                 TrinityPatternCatalog.LayoutSnapshot currentLayout) {
+        for (TrinityPatternCatalog.CoreRange previousRange : previousLayout.ranges()) {
+            TrinityPatternCatalog.CoreMount previous = previousRange.mount();
             boolean retained = false;
-            for (TrinityPatternCatalog.CoreMount current : currentMounts) {
-                if (previous.core() == current.core()) {
+            for (TrinityPatternCatalog.CoreRange currentRange : currentLayout.ranges()) {
+                TrinityPatternCatalog.CoreMount current = currentRange.mount();
+                if (previous.core() == current.core() && previousRange.coreId().equals(currentRange.coreId()) &&
+                        previous.position().equals(current.position()) &&
+                        previous.blockCapacity() == current.blockCapacity()) {
                     retained = true;
                     break;
                 }
             }
             if (!retained && previous.core() instanceof TrinityPatternCoreBlockEntity core) {
-                core.unbindPatternHost(this);
+                core.unbindPatternHost(this, patternCoreBinding(previousLayout, previousRange));
             }
+        }
+    }
+
+    /** Builds the immutable token shared by a core and the exact catalog generation that owns it. */
+    private PatternCoreBinding patternCoreBinding(TrinityPatternCatalog.LayoutSnapshot layout,
+                                                  TrinityPatternCatalog.CoreRange range) {
+        TrinityPatternCatalog.CoreMount mount = range.mount();
+        return new PatternCoreBinding(
+                this.hostId,
+                layout.revision(),
+                range.coreId(),
+                mount.position(),
+                mount.blockCapacity());
+    }
+
+    /** Completes a previously locked release without permitting a new structure scan to republish the old layout. */
+    private boolean retryPendingPatternCoreRelease(PendingPatternCoreRelease pending) {
+        try {
+            this.patternCatalogValid = false;
+            this.patternCatalog.invalidateLayout();
+            releasePatternCoreBindings(pending.layout(), pending.request().binding());
+            this.pendingPatternCoreRelease = null;
+            requestCraftingStructureRecheck();
+            setChanged();
+            requestPatternLayoutRefresh();
+            return true;
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Trinity host {} could not finish release recovery for core {} at {} after initial failure {}",
+                    this.worldPosition,
+                    pending.request().binding().coreId(),
+                    pending.request().binding().mountPosition(),
+                    pending.initialFailure().toString(),
+                    exception);
+            return false;
         }
     }
 
