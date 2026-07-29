@@ -700,7 +700,6 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(result.aeSupported(), "ME access hatch binding must expose an AE node");
                 })
                 .thenWaitUntil(() -> {
-                    tower.serverTick();
                     hatch.serverTick();
                     host.serverTick();
                     IGridNode towerNode = tower.getMainNode().getNode();

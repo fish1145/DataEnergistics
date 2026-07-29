@@ -69,10 +69,14 @@ import appeng.api.networking.GridHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
@@ -104,7 +108,7 @@ import java.util.Set;
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements ChannelHubHost,
                                               InternalInventoryHost, TowerEnergyEndpointResolverContext, TowerEnergyDistributorContext,
-                                              TowerTargetDisplayResolverContext {
+                                              TowerTargetDisplayResolverContext, IGridTickable {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final UnlimitedEnergyAccess UNLIMITED_ENERGY_ACCESS = new UnlimitedEnergyAccessImpl();
@@ -125,6 +129,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
     private static final int AUTO_DISCOVERY_INTERVAL_TICKS = 20;
     private static final int RANGE_SCAN_CHUNKS_PER_TICK = 1;
+    private static final int MAX_RANGE_SCAN_CHUNK_CREDIT = 64;
+    private static final int MAX_RANGE_SCAN_CHUNKS_PER_AE_TICK = 8;
+    private static final int AE_TICK_MIN_INTERVAL_TICKS = 1;
+    private static final int AE_TICK_MAX_INTERVAL_TICKS = 20;
+    private static final TickingRequest AE_TICKING_REQUEST = new TickingRequest(
+            AE_TICK_MIN_INTERVAL_TICKS, AE_TICK_MAX_INTERVAL_TICKS, false);
     private static final int CLUSTER_CACHE_TICKS = 10;
     private static final int DIAGNOSTIC_LOG_INTERVAL_TICKS = 100;
     private static final int CACHE_CLEANUP_INTERVAL_TICKS = 6000;
@@ -173,6 +183,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean showRange = false;
     private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
+    private boolean pendingNetworkRecovery;
+    private boolean mainNodeActive;
     private int cacheCleanupCooldown;
     @Getter
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
@@ -180,8 +192,10 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private RangeAdjustmentMode rangeAdjustmentMode = RangeAdjustmentMode.POINT;
     private int autoDiscoveryCooldown;
     private RangeScanCursor rangeScanCursor;
+    private int rangeScanChunkCredit;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
+    private long recoveryEpoch;
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -197,11 +211,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.wirelessBoosters.setFilter(new AEItemDefinitionFilter(AEItems.WIRELESS_BOOSTER));
         this.getMainNode()
                 .setFlags(GridFlags.REQUIRE_CHANNEL, GridFlags.DENSE_CAPACITY)
-                .setIdlePowerUsage(BASE_IDLE_POWER_USAGE);
+                .setIdlePowerUsage(BASE_IDLE_POWER_USAGE)
+                .addService(IGridTickable.class, this);
     }
 
     @Override
     public void onReady() {
+        this.recoveryEpoch++;
         super.onReady();
         updateIdlePowerUsage();
         if (this.level != null && !this.level.isClientSide()) {
@@ -210,17 +226,29 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             requeuePersistedLinks();
             schedulePersistedLinkRequeue();
             resetAutoDiscoveryCooldown();
+            this.pendingNetworkRecovery = true;
+            this.mainNodeActive = this.getMainNode().isActive();
+            requestAeTickWake();
         }
     }
 
     @Override
     public void setRemoved() {
+        this.recoveryEpoch++;
+        this.pendingNetworkRecovery = false;
         if (this.level != null && !this.level.isClientSide()) {
             unregisterFromChunkIndex();
             destroyAllConnections();
             clearRuntimeCaches();
         }
         super.setRemoved();
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        this.recoveryEpoch++;
+        this.pendingNetworkRecovery = false;
+        super.onChunkUnloaded();
     }
 
     @Override
@@ -365,41 +393,61 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return changed;
     }
 
-    public void serverTick() {
-        if (this.level == null) {
+    public void lifecycleTick() {
+        if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
         emitDiagnosticLogIfNeeded();
-
-        syncClientOnlineState();
 
         if (--this.cacheCleanupCooldown <= 0) {
             this.cacheCleanupCooldown = CACHE_CLEANUP_INTERVAL_TICKS;
             trimCaches();
         }
 
+        if (this.pendingNetworkRecovery) {
+            requestAeTickWake();
+        }
+    }
+
+    @Override
+    public TickingRequest getTickingRequest(IGridNode node) {
+        return AE_TICKING_REQUEST;
+    }
+
+    @Override
+    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+        if (node != this.getMainNode().getNode() || !node.isActive() || !this.getMainNode().hasGridBooted()) {
+            return TickRateModulation.SLEEP;
+        }
+
+        int elapsedTicks = Math.max(1, ticksSinceLastCall);
+        boolean completedNetworkWork = false;
+        syncClientOnlineState();
+
+        if (this.pendingNetworkRecovery) {
+            this.pendingNetworkRecovery = false;
+            completedNetworkWork |= enqueuePersistedLinkReconciliation();
+        }
         if (this.pendingRangeRefresh) {
             applyPendingRangeRefresh();
+            completedNetworkWork = true;
         }
 
-        IGridNode selfNode = this.getMainNode().getNode();
-        if (selfNode == null || !selfNode.isActive()) {
-            return;
-        }
+        completedNetworkWork |= processAutoDiscovery(elapsedTicks);
+        completedNetworkWork |= processRangeScanBatch(elapsedTicks);
 
-        processAutoDiscovery();
-        processRangeScanBatch();
-
-        if (selfNode.getUsedChannels() < getMaxLinkChannels()) {
-            processPendingLinks(selfNode);
+        if (node.getUsedChannels() < getMaxLinkChannels()) {
+            completedNetworkWork |= processPendingLinks(node, elapsedTicks);
         }
 
         if (isClusterCoordinator()) {
-            performActiveRangeTransfer();
+            completedNetworkWork |= performActiveRangeTransfer();
         } else {
-            this.energyDistributor.flushBufferedEnergy();
+            completedNetworkWork |= this.energyDistributor.flushBufferedEnergy();
         }
+
+        return completedNetworkWork ? TickRateModulation.URGENT : hasDeferredAeNetworkWork() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP;
     }
 
     public IEnergyStorage getEnergyStorageForQuery(BlockPos accessPos, @Nullable Direction side) {
@@ -727,6 +775,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         setChanged();
         markForClientUpdate();
         this.pendingRangeRefresh = true;
+        requestAeTickWake();
     }
 
     public int getBoundTargetCount() {
@@ -870,11 +919,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         int minChunkZ = this.coverage.minChunkZ(chunkRadius);
         int maxChunkZ = this.coverage.maxChunkZ(chunkRadius);
         this.rangeScanCursor = new RangeScanCursor(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+        this.rangeScanChunkCredit = 0;
+        requestAeTickWake();
     }
 
-    private void requestNearbyConnectableNodeScanIfIdle() {
+    private boolean requestNearbyConnectableNodeScanIfIdle() {
         if (this.level == null || !allowsAutomaticRangeConnections()) {
-            return;
+            return false;
         }
 
         int chunkRadius = getChunkRadius();
@@ -883,24 +934,33 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         int minChunkZ = this.coverage.minChunkZ(chunkRadius);
         int maxChunkZ = this.coverage.maxChunkZ(chunkRadius);
         if (this.rangeScanCursor != null && this.rangeScanCursor.matches(minChunkX, maxChunkX, minChunkZ, maxChunkZ)) {
-            return;
+            return false;
         }
 
         this.rangeScanCursor = new RangeScanCursor(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+        this.rangeScanChunkCredit = 0;
+        requestAeTickWake();
+        return true;
     }
 
-    private void processRangeScanBatch() {
+    private boolean processRangeScanBatch(int elapsedTicks) {
         if (this.level == null || this.level.isClientSide() || this.rangeScanCursor == null) {
-            return;
+            return false;
         }
         if (!allowsAutomaticRangeConnections()) {
             this.rangeScanCursor = null;
-            return;
+            this.rangeScanChunkCredit = 0;
+            return false;
         }
 
+        int addedCredit = Math.min(
+                MAX_RANGE_SCAN_CHUNK_CREDIT - this.rangeScanChunkCredit,
+                elapsedTicks * RANGE_SCAN_CHUNKS_PER_TICK);
+        this.rangeScanChunkCredit += addedCredit;
         int processedChunks = 0;
         int added = 0;
-        while (this.rangeScanCursor != null && processedChunks < RANGE_SCAN_CHUNKS_PER_TICK) {
+        int scanLimit = Math.min(this.rangeScanChunkCredit, MAX_RANGE_SCAN_CHUNKS_PER_AE_TICK);
+        while (this.rangeScanCursor != null && processedChunks < scanLimit) {
             if (this.rangeScanCursor.isComplete()) {
                 this.rangeScanCursor = null;
                 break;
@@ -913,10 +973,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 this.rangeScanCursor = null;
             }
         }
+        this.rangeScanChunkCredit -= processedChunks;
+        if (this.rangeScanCursor == null) {
+            this.rangeScanChunkCredit = 0;
+        }
 
         if (added > 0) {
             this.setChanged();
         }
+        return processedChunks > 0;
     }
 
     private int scanRangeChunk(int chunkX, int chunkZ) {
@@ -944,15 +1009,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return added;
     }
 
-    private void processPendingLinks(IGridNode selfNode) {
+    private boolean processPendingLinks(IGridNode selfNode, int elapsedTicks) {
         if (this.level == null) {
-            return;
+            return false;
         }
 
         ArrayList<BlockPos> readyTargets = new ArrayList<>();
         for (Map.Entry<BlockPos, Integer> entry : this.linkGraph.pendingEntries()) {
             if (entry.getValue() > 0) {
-                entry.setValue(entry.getValue() - 1);
+                entry.setValue(Math.max(0, entry.getValue() - elapsedTicks));
+            }
+            if (entry.getValue() > 0) {
                 continue;
             }
 
@@ -963,18 +1030,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         if (readyTargets.isEmpty()) {
-            return;
+            return false;
         }
 
         readyTargets.sort(this::compareLinkTargetPriority);
         int remainingChannels = Math.max(0, getMaxLinkChannels() - selfNode.getUsedChannels());
         if (remainingChannels <= 0) {
-            return;
+            return false;
         }
 
+        boolean processed = false;
         for (BlockPos targetPos : readyTargets) {
             List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
             if (linkableNodes.isEmpty()) {
+                processed = true;
                 reconnectTarget(selfNode, targetPos, List.of());
                 if (this.linkGraph.containsLinked(targetPos.immutable()) && needsAeChannelLink(targetPos)) {
                     this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
@@ -994,6 +1063,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 continue;
             }
 
+            processed = true;
             int connectedNodes = reconnectTarget(selfNode, targetPos, linkableNodes);
             if (hasAllConnections(targetPos, linkableNodes)) {
                 this.linkGraph.removePending(targetPos);
@@ -1005,11 +1075,29 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 break;
             }
         }
+        return processed;
     }
 
     @Override
     public boolean isTowerActive() {
         return this.getMainNode().isActive();
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
+        boolean active = this.getMainNode().isActive();
+        if (reason == IGridNodeListener.State.GRID_BOOT || active && !this.mainNodeActive) {
+            this.pendingNetworkRecovery = true;
+        }
+        this.mainNodeActive = active;
+        invalidateEndpointCache();
+        invalidateClusterCache();
+        syncClientOnlineState();
+        requestAeTickWake();
     }
 
     private void syncClientOnlineState() {
@@ -1110,6 +1198,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         this.bufferedTransferEnergy = amount;
         this.setChanged();
+        requestAeTickWake();
     }
 
     @Override
@@ -1578,8 +1667,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return coordinatorPos;
     }
 
-    private void performActiveRangeTransfer() {
-        this.energyDistributor.performActiveRangeTransfer();
+    private boolean performActiveRangeTransfer() {
+        return this.energyDistributor.performActiveRangeTransfer();
     }
 
     private long readBufferedTransferEnergy(CompoundTag data) {
@@ -1655,8 +1744,34 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean queued = this.linkGraph.queuePending(normalizedPos, delay);
         if (queued) {
             incrementTargetDisplayStateRevision();
+            requestAeTickWake();
         }
         return queued;
+    }
+
+    private void requestAeTickWake() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || !node.isActive()) {
+            return;
+        }
+
+        IGrid grid = node.getGrid();
+        if (grid != null) {
+            grid.getTickManager().alertDevice(node);
+        }
+    }
+
+    private boolean hasDeferredAeNetworkWork() {
+        if (this.pendingNetworkRecovery || this.pendingRangeRefresh || this.rangeScanCursor != null || !this.linkGraph.pendingPositions().isEmpty() || this.bufferedTransferEnergy > 0 || allowsAutomaticRangeConnections()) {
+            return true;
+        }
+
+        for (BlockPos targetPos : this.linkGraph.linkedPositions()) {
+            if (getTargetTransferMode(targetPos) != TargetTransferMode.DISABLED) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -1814,30 +1929,31 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (server == null) {
             return;
         }
-        schedulePersistedLinkRequeue(server, this.level, this.worldPosition.immutable(), PERSISTED_LINK_REQUEUE_TICKS);
+        schedulePersistedLinkRequeue(server, this.recoveryEpoch, PERSISTED_LINK_REQUEUE_TICKS);
     }
 
-    private static void schedulePersistedLinkRequeue(MinecraftServer server, Level level, BlockPos towerPos, int remainingTicks) {
+    private void schedulePersistedLinkRequeue(MinecraftServer server, long expectedRecoveryEpoch, int remainingTicks) {
         if (remainingTicks <= 0) {
             return;
         }
         ServerTickDelayQueue.runNextServerTick(server, () -> {
-            if (!level.isLoaded(towerPos)) {
-                return;
-            }
-            BlockEntity blockEntity = level.getBlockEntity(towerPos);
-            if (!(blockEntity instanceof DataDistributionTowerBlockEntity tower) || tower.level == null || tower.level.isClientSide()) {
+            if (!isCurrentRecoveryEpoch(expectedRecoveryEpoch)) {
                 return;
             }
 
-            tower.enqueuePersistedLinkReconciliation();
-            schedulePersistedLinkRequeue(server, level, towerPos, remainingTicks - 1);
+            this.pendingNetworkRecovery = true;
+            requestAeTickWake();
+            schedulePersistedLinkRequeue(server, expectedRecoveryEpoch, remainingTicks - 1);
         });
     }
 
-    private void enqueuePersistedLinkReconciliation() {
+    private boolean isCurrentRecoveryEpoch(long expectedRecoveryEpoch) {
+        return this.recoveryEpoch == expectedRecoveryEpoch && this.level != null && !this.level.isClientSide() && this.level.getBlockEntity(this.worldPosition) == this;
+    }
+
+    private boolean enqueuePersistedLinkReconciliation() {
         if (this.linkGraph.linkedPositions().isEmpty()) {
-            return;
+            return false;
         }
 
         boolean changed = false;
@@ -1850,29 +1966,32 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (changed) {
             this.setChanged();
         }
+        return changed;
     }
 
     private void resetAutoDiscoveryCooldown() {
         this.autoDiscoveryCooldown = Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
     }
 
-    private void processAutoDiscovery() {
+    private boolean processAutoDiscovery(int elapsedTicks) {
         if (this.level == null || this.level.isClientSide()) {
-            return;
+            return false;
         }
 
         if (!allowsAutomaticRangeConnections()) {
-            return;
+            return false;
         }
 
-        if (this.autoDiscoveryCooldown > 0) {
-            this.autoDiscoveryCooldown--;
-            return;
+        if (this.autoDiscoveryCooldown > elapsedTicks) {
+            this.autoDiscoveryCooldown -= elapsedTicks;
+            return false;
         }
 
-        this.autoDiscoveryCooldown = AUTO_DISCOVERY_INTERVAL_TICKS;
-        enqueuePersistedLinkReconciliation();
-        requestNearbyConnectableNodeScanIfIdle();
+        int elapsedAfterDeadline = this.autoDiscoveryCooldown > 0 ? elapsedTicks - this.autoDiscoveryCooldown : 0;
+        this.autoDiscoveryCooldown = AUTO_DISCOVERY_INTERVAL_TICKS - Math.floorMod(elapsedAfterDeadline, AUTO_DISCOVERY_INTERVAL_TICKS);
+        boolean queued = enqueuePersistedLinkReconciliation();
+        boolean scanRequested = requestNearbyConnectableNodeScanIfIdle();
+        return queued || scanRequested;
     }
 
     public static List<IGridNode> getConnectableNodes(Level level, BlockPos pos) {

@@ -117,24 +117,24 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
     }
 
     @Override
-    public void performActiveRangeTransfer() {
+    public boolean performActiveRangeTransfer() {
         if (!this.context.isTowerActive() || this.context.quarantinedTransferEnergy() > 0) {
-            return;
+            return false;
         }
 
-        flushBufferedEnergy();
+        boolean transferred = flushBufferedEnergy();
         if (this.context.bufferedTransferEnergy() > 0 || this.context.quarantinedTransferEnergy() > 0) {
-            return;
+            return transferred;
         }
 
         List<TowerEnergyEndpoint> receiveEndpoints = this.endpointResolver.getCachedResolvedEnergyEndpoints(true);
         if (receiveEndpoints.isEmpty()) {
-            return;
+            return transferred;
         }
 
         ArrayList<TransferSource> sources = createTransferSources();
         if (sources.isEmpty()) {
-            return;
+            return transferred;
         }
 
         int sourceCount = sources.size();
@@ -152,6 +152,7 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 try {
                     long inserted = transferSourceOnce(source, receiveEndpoints, stalledReceiveStorages);
                     madeProgress |= inserted > 0;
+                    transferred |= inserted > 0;
                 } catch (Throwable exception) {
                     ThrowableIsolation.rethrowIfFatal(exception);
                     source.stalled = true;
@@ -159,23 +160,25 @@ public final class TowerEnergyDistributorImpl implements TowerEnergyDistributor 
                 }
                 if (this.context.bufferedTransferEnergy() > 0 || this.context.quarantinedTransferEnergy() > 0) {
                     this.activeSourceCursor = (startIndex + offset + 1) % sourceCount;
-                    return;
+                    return transferred;
                 }
             }
         } while (madeProgress && hasActiveSource(sources));
 
         this.activeSourceCursor = (startIndex + 1) % sourceCount;
+        return transferred;
     }
 
     @Override
-    public void flushBufferedEnergy() {
+    public boolean flushBufferedEnergy() {
         long bufferedEnergy = this.context.bufferedTransferEnergy();
         if (!this.context.isTowerActive() || bufferedEnergy <= 0 || this.context.quarantinedTransferEnergy() > 0) {
-            return;
+            return false;
         }
 
         long inserted = distributeEnergyInRange(bufferedEnergy, false, null);
         consumeBufferedEnergy(inserted);
+        return inserted > 0;
     }
 
     private ArrayList<TransferSource> createTransferSources() {

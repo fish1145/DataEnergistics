@@ -502,7 +502,7 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
 
         return (tickLevel, tickPos, tickState, blockEntity) -> {
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                tower.serverTick();
+                tower.lifecycleTick();
             }
         };
     }
