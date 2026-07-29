@@ -192,6 +192,75 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertTrue(
                 !definition.replaceableCompartmentTypes().containsKey("Y"),
                 "Bundled Trinity Data Core should not allow compartments to replace plain glass");
+        helper.assertFalse(
+                definition.autoBuildStaging().allowsBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Unmarked candidates must stay outside the current definition's staging set");
+        helper.assertTrue(
+                definition.autoBuildStaging().allowsBlock(block("ae2:quartz_vibrant_glass").defaultBlockState()),
+                "JSON-declared base candidate should enter the staging set");
+        helper.assertTrue(
+                definition.autoBuildStaging().allowsPhysicalBlock(block("ae2:quartz_vibrant_glass").defaultBlockState()),
+                "JSON-declared base candidate should retain its physical staging mode");
+        helper.assertTrue(
+                definition.autoBuildStaging().allowsBlock(ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                "Replaceable compartment candidate should enter the staging overlay");
+        helper.assertFalse(
+                definition.autoBuildStaging().allowsPhysicalBlock(ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                "Replaceable compartment candidate must not create a block entity during physical staging");
+        JsonMultiBlockDefinition dataPackDefinition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("datapack_auto_build_staging"),
+                new StringReader("""
+                        {
+                        "metadata": {
+                        \t"auto_build_staging": {
+                        \t"block_symbols": ["A"],
+                        \t"physical_block_symbols": ["A"]
+                        \t}
+                        },
+                        "aisles": [{"slices": [["~A"]]}],
+                        "predicates": {
+                        \t"A": {"type": "mdlib:blocks", "block": "minecraft:obsidian"}
+                        }
+                        }
+                        """));
+        helper.assertTrue(
+                dataPackDefinition.autoBuildStaging().allowsBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Data-pack metadata should authorize a predicate candidate without a Java id allowlist");
+        helper.assertTrue(
+                dataPackDefinition.autoBuildStaging().allowsPhysicalBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Data-pack metadata should control physical staging independently");
+        JsonMultiBlockDefinition noMetadataDefinition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("no_auto_build_staging"),
+                new StringReader("""
+                        {
+                        "aisles": [{"slices": [["~A"]]}],
+                        "predicates": {
+                        \t"A": {"type": "mdlib:blocks", "block": "minecraft:obsidian"}
+                        }
+                        }
+                        """));
+        helper.assertFalse(
+                noMetadataDefinition.autoBuildStaging().allowsBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Definitions without auto-build metadata must reject staging candidates");
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("invalid_auto_build_staging"),
+                        new StringReader("""
+                                {
+                                "metadata": {
+                                "auto_build_staging": {
+                                "physical_block_symbols": ["A"]
+                                }
+                                },
+                                "aisles": [{"slices": [["~A"]]}],
+                                "predicates": {
+                                "A": {"type": "mdlib:blocks", "block": "minecraft:obsidian"}
+                                }
+                                }
+                                """)),
+                "Physical staging symbols without a matching block staging declaration must fail fast");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 32, 28, 27 },
                 "Bundled Trinity Data Core dimensions should match the shipped main JSON resource");
         helper.assertValueEqual(pattern.structureSlices.length, 32, "Bundled Trinity Data Core should use one aisle per exported front layer");

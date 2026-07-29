@@ -32,21 +32,29 @@ public final class JsonMultiBlockMetadata {
     private final Optional<String> displayNameTranslationKey;
     private final Map<String, CompartmentType> compartmentTypes;
     private final Map<String, Set<CompartmentType>> replaceableCompartmentTypes;
+    private final JsonMultiBlockAutoBuildStagingMetadata autoBuildStagingMetadata;
     private final StructureDir structureDir;
 
     private JsonMultiBlockMetadata(Optional<String> displayNameTranslationKey,
                                    Map<String, CompartmentType> compartmentTypes,
                                    Map<String, Set<CompartmentType>> replaceableCompartmentTypes,
+                                   JsonMultiBlockAutoBuildStagingMetadata autoBuildStagingMetadata,
                                    StructureDir structureDir) {
         this.displayNameTranslationKey = displayNameTranslationKey;
         this.compartmentTypes = Map.copyOf(compartmentTypes);
         this.replaceableCompartmentTypes = copyReplaceableCompartmentTypes(replaceableCompartmentTypes);
+        this.autoBuildStagingMetadata = autoBuildStagingMetadata;
         this.structureDir = structureDir;
     }
 
     public static JsonMultiBlockMetadata read(JsonObject root, ResourceLocation resourceId) {
         if (!root.has(METADATA_PROPERTY)) {
-            return new JsonMultiBlockMetadata(Optional.empty(), Map.of(), Map.of(), DEFAULT_STRUCTURE_DIR);
+            return new JsonMultiBlockMetadata(
+                    Optional.empty(),
+                    Map.of(),
+                    Map.of(),
+                    JsonMultiBlockAutoBuildStagingMetadata.none(),
+                    DEFAULT_STRUCTURE_DIR);
         }
         JsonElement metadataElement = root.get(METADATA_PROPERTY);
         if (!metadataElement.isJsonObject()) {
@@ -57,6 +65,7 @@ public final class JsonMultiBlockMetadata {
                 readDisplayNameTranslationKey(metadata, resourceId),
                 readCompartmentTypes(metadata, resourceId),
                 readReplaceableCompartmentTypes(metadata, resourceId),
+                JsonMultiBlockAutoBuildStagingMetadata.read(metadata, resourceId),
                 readStructureDir(metadata, resourceId));
     }
 
@@ -70,6 +79,10 @@ public final class JsonMultiBlockMetadata {
 
     public Map<String, Set<CompartmentType>> replaceableCompartmentTypes() {
         return this.replaceableCompartmentTypes;
+    }
+
+    JsonMultiBlockAutoBuildStagingMetadata autoBuildStagingMetadata() {
+        return this.autoBuildStagingMetadata;
     }
 
     public StructureDir structureDir() {

@@ -16,7 +16,8 @@ public record ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
                                                BlockPattern pattern,
                                                Optional<String> displayNameTranslationKey,
                                                Map<String, CompartmentType> compartmentTypes,
-                                               Map<String, Set<CompartmentType>> replaceableCompartmentTypes)
+                                               Map<String, Set<CompartmentType>> replaceableCompartmentTypes,
+                                               JsonMultiBlockAutoBuildStaging autoBuildStaging)
         implements JsonMultiBlockDefinition {
 
     public ResolvedJsonMultiBlockDefinition {
@@ -26,12 +27,26 @@ public record ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
 
     public ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
                                             BlockPattern pattern,
+                                            Optional<String> displayNameTranslationKey,
+                                            Map<String, CompartmentType> compartmentTypes,
+                                            Map<String, Set<CompartmentType>> replaceableCompartmentTypes) {
+        this(
+                key,
+                pattern,
+                displayNameTranslationKey,
+                compartmentTypes,
+                replaceableCompartmentTypes,
+                JsonMultiBlockAutoBuildStaging.none());
+    }
+
+    public ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key,
+                                            BlockPattern pattern,
                                             Optional<String> displayNameTranslationKey) {
-        this(key, pattern, displayNameTranslationKey, Map.of(), Map.of());
+        this(key, pattern, displayNameTranslationKey, Map.of(), Map.of(), JsonMultiBlockAutoBuildStaging.none());
     }
 
     public ResolvedJsonMultiBlockDefinition(JsonMultiBlockStructureKey key, BlockPattern pattern) {
-        this(key, pattern, Optional.empty(), Map.of(), Map.of());
+        this(key, pattern, Optional.empty(), Map.of(), Map.of(), JsonMultiBlockAutoBuildStaging.none());
     }
 
     private static Map<String, Set<CompartmentType>> copyReplaceableCompartmentTypes(

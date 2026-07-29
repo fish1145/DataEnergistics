@@ -1,5 +1,9 @@
 {
 	"metadata": {
+		"auto_build_staging": {
+			"block_symbols": ["A", "B", "P", "E"],
+			"physical_block_symbols": ["A", "B"]
+		},
 		"structure_dir": {
 			"char": "right",
 			"string": "front",

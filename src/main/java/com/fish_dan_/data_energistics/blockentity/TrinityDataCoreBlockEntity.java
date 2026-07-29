@@ -834,7 +834,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 .selectedTierBlocks(selectedTierBlocks)
                 .tierRanks(TrinityAutoBuildBlockMap.tierRanksForStructure(structureIndex))
                 .partSideResolver(partSideResolver)
-                .stagingPolicy(TrinityAutoBuildStagingPolicy.INSTANCE)
+                .stagingPolicy(new TrinityAutoBuildStagingPolicy(definition))
                 .build();
         return AUTO_BUILD.execute(context);
     }

@@ -42,4 +42,9 @@ public interface JsonMultiBlockDefinition {
      * Returns normal structure symbols that may be replaced by the listed compartment roles.
      */
     Map<String, Set<CompartmentType>> replaceableCompartmentTypes();
+
+    /**
+     * Returns the exact auto-build staging permissions derived from this definition's JSON metadata.
+     */
+    JsonMultiBlockAutoBuildStaging autoBuildStaging();
 }

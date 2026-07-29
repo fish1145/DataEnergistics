@@ -8,6 +8,56 @@
 		},
 		"replaceable_compartments": {
 			"@": ["trinity_access"]
+		},
+		"auto_build_staging": {
+			"block_symbols": [
+				"Z",
+				"H",
+				"@",
+				"B",
+				"C",
+				"D",
+				"E",
+				"I",
+				"K",
+				"M",
+				"N",
+				"O",
+				"P",
+				"Q",
+				"R",
+				"S",
+				"W",
+				"X",
+				"Y",
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8",
+				"$"
+			],
+			"physical_block_symbols": [
+				"D",
+				"2",
+				"4",
+				"5",
+				"H",
+				"@",
+				"B",
+				"I",
+				"8",
+				"E",
+				"M",
+				"X",
+				"3",
+				"6"
+			],
+			"replaceable_compartment_symbols": ["@"],
+			"part_host_symbols": ["#"]
 		}
 	},
 	"aisles": [
