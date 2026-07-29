@@ -20,6 +20,59 @@ import java.util.Set;
 public interface TowerLinkGraph {
 
     /**
+     * Describes the runtime AE connection lifecycle for one persisted target.
+     */
+    enum TargetLinkState {
+        BOUND,
+        WAITING_TARGET,
+        WAITING_GRID,
+        PENDING,
+        PARTIAL,
+        CONNECTED,
+        DISABLED,
+        INVALID
+    }
+
+    /**
+     * Records the most recent retryable reason without retaining AE runtime objects.
+     */
+    enum TargetLinkFailure {
+        NONE,
+        TARGET_UNAVAILABLE,
+        GRID_UNAVAILABLE,
+        CHANNEL_UNAVAILABLE,
+        CONNECTION_EXCEPTION
+    }
+
+    /**
+     * Immutable runtime snapshot for one target's connection state.
+     *
+     * @param state      current lifecycle state
+     * @param failure    most recent retryable failure category
+     * @param retryTicks AE ticks remaining before the next attempt
+     */
+    record TargetLinkStatus(TargetLinkState state, TargetLinkFailure failure, int retryTicks) {
+
+        public TargetLinkStatus {
+            if (retryTicks < 0) {
+                throw new IllegalArgumentException("Target link retry ticks must be non-negative: " + retryTicks);
+            }
+        }
+
+        /**
+         * Checks whether the status should be reconsidered by a later AE tick.
+         *
+         * @return true when the target requires a later AE reconciliation, including a low-frequency health check
+         */
+        public boolean isRetryable() {
+            return switch (this.state) {
+                case WAITING_TARGET, WAITING_GRID, PENDING, PARTIAL, CONNECTED -> true;
+                case BOUND, DISABLED, INVALID -> false;
+            };
+        }
+    }
+
+    /**
      * Removes all persisted, pending, and live connection state.
      */
     void clear();
@@ -54,58 +107,65 @@ public interface TowerLinkGraph {
     Set<BlockPos> linkedPositions();
 
     /**
-     * Removes all pending retry positions.
+     * Clears runtime connection state while preserving persisted target identities.
      */
-    void clearPending();
+    void resetRuntimeState();
 
     /**
-     * Queues a target for connection after the supplied delay.
+     * Updates one persisted target's runtime state.
+     *
+     * @param targetPos  target position
+     * @param state      next lifecycle state
+     * @param failure    current retryable failure category
+     * @param retryTicks AE ticks before the next attempt
+     * @return true when the runtime state changed
+     */
+    boolean transition(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure, int retryTicks);
+
+    /**
+     * Schedules a retryable state using a bounded per-target exponential backoff.
+     *
+     * <p>
+     * A normal {@link #transition(BlockPos, TargetLinkState, TargetLinkFailure, int)} resets the accumulated
+     * backoff. Lifecycle wake-ups can therefore retry immediately, while repeated unchanged failures remain
+     * rate-limited.
+     * </p>
+     *
+     * @param targetPos         target position
+     * @param state             retryable lifecycle state
+     * @param failure           current retryable failure category
+     * @param initialDelayTicks delay for the first retry
+     * @param maximumDelayTicks maximum bounded retry delay
+     * @return true when the runtime state changed
+     */
+    boolean scheduleRetry(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure,
+                          int initialDelayTicks, int maximumDelayTicks);
+
+    /**
+     * Returns one target's runtime status.
      *
      * @param targetPos target position
-     * @param delay     tick delay before trying to connect
-     * @return true when the pending state changed
+     * @return current status, or {@link TargetLinkState#INVALID} when the target is not persisted
      */
-    boolean queuePending(BlockPos targetPos, int delay);
+    TargetLinkStatus status(BlockPos targetPos);
 
     /**
-     * Updates an existing pending delay.
+     * Advances retry timers using elapsed AE ticks and returns every target now ready for reconciliation.
      *
-     * @param targetPos target position
-     * @param delay     next delay value
+     * @param elapsedTicks elapsed ticks reported by the AE tick manager
+     * @return deterministic snapshot of retry-ready target positions
      */
-    void putPending(BlockPos targetPos, int delay);
+    List<BlockPos> advanceRetryClock(int elapsedTicks);
 
     /**
-     * Removes a pending target.
+     * Checks whether any persisted target is scheduled for a later AE reconciliation attempt.
      *
-     * @param targetPos target position
+     * @return true when retryable or health-check runtime work remains
      */
-    void removePending(BlockPos targetPos);
+    boolean hasRetryableTargets();
 
     /**
-     * Checks whether a target is pending.
-     *
-     * @param targetPos target position
-     * @return true when queued for connection
-     */
-    boolean containsPending(BlockPos targetPos);
-
-    /**
-     * Returns pending targets and delays.
-     *
-     * @return mutable entry view for tick countdowns
-     */
-    Set<Map.Entry<BlockPos, Integer>> pendingEntries();
-
-    /**
-     * Returns pending target positions.
-     *
-     * @return immutable pending position snapshot
-     */
-    Set<BlockPos> pendingPositions();
-
-    /**
-     * Returns tracked target positions from persisted and pending state.
+     * Returns every persisted target position in deterministic iteration order.
      *
      * @return immutable tracked position snapshot
      */

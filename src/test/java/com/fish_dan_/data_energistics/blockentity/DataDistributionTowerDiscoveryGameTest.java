@@ -23,6 +23,7 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -49,7 +50,9 @@ import appeng.util.SettingsFrom;
 
 import java.util.List;
 
-/** Exercises tower target discovery against real block capabilities and managed AE nodes. */
+/**
+ * Exercises tower target discovery against real block capabilities and managed AE nodes.
+ */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
 public final class DataDistributionTowerDiscoveryGameTest {
@@ -112,6 +115,72 @@ public final class DataDistributionTowerDiscoveryGameTest {
                     assertConnectedTarget(helper, tower, extended.getBlockPos(), requireNode(extended), "Extended data charger");
                     List<BoundTargetSummary> summaries = tower.getBoundTargetSummaries(Integer.MAX_VALUE);
                     helper.assertValueEqual(summaries.size(), 2, "Both connected data chargers must appear in the GUI");
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("data_distribution_tower_recovers_persisted_link_after_target_node_ready")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 400)
+    public static void recoversPersistedLinkAfterTargetNodeReady(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
+        helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
+        DataChargerBlockEntity charger = requireDataCharger(helper, CONNECTED_REGULAR_CHARGER_POS);
+        GridPower power = new GridPower(helper);
+        CompoundTag savedData = new CompoundTag();
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+        DataDistributionTowerBlockEntity[] restoredTower = new DataDistributionTowerBlockEntity[1];
+        DataChargerBlockEntity[] restoredCharger = new DataChargerBlockEntity[1];
+        BlockPos towerPos = helper.absolutePos(TOWER_POS);
+        BlockPos chargerPos = helper.absolutePos(CONNECTED_REGULAR_CHARGER_POS);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    assertTowerNodeReady(helper, tower);
+                    helper.assertTrue(charger.getMainNode().getNode() != null, "The initial charger node must be ready");
+                })
+                .thenExecute(() -> {
+                    power.connect(requireNode(tower));
+                    assertAeBindSuccess(helper, tower, charger.getBlockPos(), "Persisted recovery charger");
+                })
+                .thenWaitUntil(() -> assertConnectedTarget(
+                        helper, tower, charger.getBlockPos(), requireNode(charger), "Persisted recovery charger"))
+                .thenExecute(() -> {
+                    tower.saveAdditional(savedData, registries);
+                    charger.setRemoved();
+                    helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, Blocks.STONE.defaultBlockState());
+                    tower.setRemoved();
+                    helper.getLevel().removeBlockEntity(towerPos);
+
+                    BlockState towerState = helper.getLevel().getBlockState(towerPos);
+                    DataDistributionTowerBlockEntity restored = new DataDistributionTowerBlockEntity(towerPos, towerState);
+                    restoredTower[0] = restored;
+                    helper.getLevel().setBlockEntity(restored);
+                    restored.loadTag(savedData, registries);
+                    restored.onLoad();
+                })
+                .thenWaitUntil(() -> assertTowerNodeReady(helper, restoredTower[0]))
+                .thenExecute(() -> power.connect(requireNode(restoredTower[0])))
+                .thenIdle(50)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            restoredTower[0].linkedPositions().contains(chargerPos),
+                            "A target without a ready block entity must remain persisted after recovery retries");
+                    helper.assertValueEqual(
+                            restoredTower[0].getTargetTransferInfo(chargerPos).channelConnections(),
+                            0,
+                            "A target without a ready AE node must not retain a live connection");
+
+                    helper.setBlock(CONNECTED_REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
+                    DataChargerBlockEntity restored = requireDataCharger(helper, CONNECTED_REGULAR_CHARGER_POS);
+                    restoredCharger[0] = restored;
+                })
+                .thenWaitUntil(() -> {
+                    DataChargerBlockEntity restored = restoredCharger[0];
+                    helper.assertTrue(restored != null, "The replacement charger block entity must be created");
+                    IGridNode targetNode = restored.getMainNode().getNode();
+                    helper.assertTrue(targetNode != null, "The replacement charger AE node must be ready");
+                    assertConnectedTarget(helper, restoredTower[0], chargerPos, targetNode, "Recovered persisted charger");
                 })
                 .thenSucceed();
     }

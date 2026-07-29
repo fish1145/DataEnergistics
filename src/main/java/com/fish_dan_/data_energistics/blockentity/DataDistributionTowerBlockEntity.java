@@ -13,6 +13,9 @@ import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResol
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverContext;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerEnergyEndpointResolverImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkFailure;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkState;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkStatus;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraphImpl;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolver;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerTargetDisplayResolverContext;
@@ -60,6 +63,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
@@ -122,8 +126,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final String TARGET_TRANSFER_MODES_TAG = "target_transfer_modes";
     private static final String BUFFERED_TRANSFER_ENERGY_TAG = "buffered_transfer_energy";
     private static final String QUARANTINED_TRANSFER_ENERGY_TAG = "quarantined_transfer_energy";
-    private static final int PERSISTED_LINK_RETRY_DELAY = 10;
-    private static final int PERSISTED_LINK_REQUEUE_TICKS = 40;
+    private static final int LINK_RETRY_INITIAL_DELAY_TICKS = 20;
+    private static final int LINK_RETRY_MAX_DELAY_TICKS = 200;
+    private static final int LINK_HEALTH_CHECK_INTERVAL_TICKS = 100;
     private static final String RANGE_ADJUSTMENT_MODE_TAG = "range_adjustment_mode";
     private static final int INITIAL_PENDING_DELAY = 2;
     private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
@@ -131,6 +136,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private static final int RANGE_SCAN_CHUNKS_PER_TICK = 1;
     private static final int MAX_RANGE_SCAN_CHUNK_CREDIT = 64;
     private static final int MAX_RANGE_SCAN_CHUNKS_PER_AE_TICK = 8;
+    private static final int MAX_LINK_RECONCILIATIONS_PER_AE_TICK = 8;
     private static final int AE_TICK_MIN_INTERVAL_TICKS = 1;
     private static final int AE_TICK_MAX_INTERVAL_TICKS = 20;
     private static final TickingRequest AE_TICKING_REQUEST = new TickingRequest(
@@ -152,6 +158,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final TowerTargetDisplayResolver targetDisplayResolver;
     private final Map<BlockPos, TargetTransferMode> targetTransferModes = new HashMap<>();
     private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
+    private final Map<BlockPos, Long> lastLinkFailureLogTicks = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private long bufferedTransferEnergy;
     private long quarantinedTransferEnergy;
@@ -185,6 +192,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private boolean pendingRangeRefresh = false;
     private boolean pendingNetworkRecovery;
     private boolean mainNodeActive;
+    private boolean linkReconciliationInProgress;
     private int cacheCleanupCooldown;
     @Getter
     private ConnectionMode connectionMode = ConnectionMode.AE_AND_FE;
@@ -195,7 +203,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private int rangeScanChunkCredit;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
-    private long recoveryEpoch;
 
     public DataDistributionTowerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -217,14 +224,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public void onReady() {
-        this.recoveryEpoch++;
         super.onReady();
         updateIdlePowerUsage();
         if (this.level != null && !this.level.isClientSide()) {
             registerInChunkIndex();
             invalidateEndpointCache();
-            requeuePersistedLinks();
-            schedulePersistedLinkRequeue();
+            resetPersistedLinkRuntimeState();
             resetAutoDiscoveryCooldown();
             this.pendingNetworkRecovery = true;
             this.mainNodeActive = this.getMainNode().isActive();
@@ -234,7 +239,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public void setRemoved() {
-        this.recoveryEpoch++;
         this.pendingNetworkRecovery = false;
         if (this.level != null && !this.level.isClientSide()) {
             unregisterFromChunkIndex();
@@ -246,8 +250,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     @Override
     public void onChunkUnloaded() {
-        this.recoveryEpoch++;
         this.pendingNetworkRecovery = false;
+        destroyAllConnections();
         super.onChunkUnloaded();
     }
 
@@ -427,7 +431,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (this.pendingNetworkRecovery) {
             this.pendingNetworkRecovery = false;
-            completedNetworkWork |= enqueuePersistedLinkReconciliation();
+            completedNetworkWork |= requeuePersistedLinks();
         }
         if (this.pendingRangeRefresh) {
             applyPendingRangeRefresh();
@@ -437,9 +441,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         completedNetworkWork |= processAutoDiscovery(elapsedTicks);
         completedNetworkWork |= processRangeScanBatch(elapsedTicks);
 
-        if (node.getUsedChannels() < getMaxLinkChannels()) {
-            completedNetworkWork |= processPendingLinks(node, elapsedTicks);
-        }
+        completedNetworkWork |= processPendingLinks(node, elapsedTicks);
 
         if (isClusterCoordinator()) {
             completedNetworkWork |= performActiveRangeTransfer();
@@ -491,9 +493,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         if (normalizedMode == TargetTransferMode.DISABLED) {
             destroyTargetConnections(normalizedPos);
-            this.linkGraph.removePending(normalizedPos);
-        } else if (canMaintainGridLinkTo(normalizedPos)) {
+            this.linkGraph.transition(
+                    normalizedPos, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0);
+        } else if (this.linkGraph.containsLinked(normalizedPos) && allowsAeTargets()) {
             queueLink(normalizedPos, 0);
+        } else if (this.linkGraph.containsLinked(normalizedPos)) {
+            this.linkGraph.transition(
+                    normalizedPos, TargetLinkState.BOUND, TargetLinkFailure.NONE, 0);
         }
 
         invalidateEndpointCache();
@@ -564,11 +570,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         this.linkGraph.addLinked(normalizedPos);
-        if (aeSupported && canMaintainGridLinkTo(normalizedPos)) {
+        if (getTargetTransferMode(normalizedPos) == TargetTransferMode.DISABLED) {
+            this.linkGraph.transition(
+                    normalizedPos, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0);
+        } else if (aeSupported && allowsAeTargets()) {
             queueLink(normalizedPos, 0);
         } else {
-            this.linkGraph.removePending(normalizedPos);
-            destroyTargetConnections(normalizedPos);
+            this.linkGraph.transition(
+                    normalizedPos, TargetLinkState.BOUND, TargetLinkFailure.NONE, 0);
         }
 
         invalidateEndpointCache();
@@ -653,15 +662,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private ListTag createLinkedPositionsTag() {
         ListTag linked = new ListTag();
-        LinkedHashSet<BlockPos> positions = new LinkedHashSet<>(this.linkGraph.linkedPositions());
-        positions.addAll(this.linkGraph.pendingPositions());
-        for (BlockPos pos : positions) {
+        for (BlockPos pos : this.linkGraph.linkedPositions()) {
             // LinkGraph positions are canonicalized before insertion. Saving must never resolve them through the world,
             // because loading an unloading target chunk here prevents server shutdown from converging.
-            if (this.targetTransferModes.getOrDefault(pos, TargetTransferMode.AUTO) == TargetTransferMode.DISABLED) {
-                continue;
-            }
-
             CompoundTag entry = new CompoundTag();
             entry.put("pos", NbtUtils.writeBlockPos(pos));
             linked.add(entry);
@@ -852,6 +855,22 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     @SubscribeEvent
+    public static void onChunkLoad(ChunkEvent.Load event) {
+        LevelAccessor levelAccessor = event.getLevel();
+        if (levelAccessor instanceof Level level && !level.isClientSide()) {
+            notifyTargetChunkLoaded(level, event.getChunk().getPos());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onChunkUnload(ChunkEvent.Unload event) {
+        LevelAccessor levelAccessor = event.getLevel();
+        if (levelAccessor instanceof Level level && !level.isClientSide()) {
+            notifyTargetChunkUnloaded(level, event.getChunk().getPos());
+        }
+    }
+
+    @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
         ensureBound(event.getServer());
     }
@@ -876,14 +895,19 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
             BlockEntity blockEntity = level.getBlockEntity(towerPos);
             if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!tower.allowsAutomaticRangeConnections() && !tower.shouldReconnectTrackedTarget(targetPos)) {
+                BlockPos normalizedPos = tower.normalizeTargetPos(targetPos);
+                boolean trackedTarget = tower.shouldReconnectTrackedTarget(normalizedPos);
+                if (!tower.allowsAutomaticRangeConnections() && !trackedTarget) {
                     continue;
                 }
-                if (!tower.canMaintainGridLinkTo(targetPos)) {
+                if (!trackedTarget && !tower.canAutomaticallyTrackGridLink(normalizedPos)) {
                     continue;
                 }
 
-                if (tower.queueLink(targetPos, INITIAL_PENDING_DELAY)) {
+                if (!trackedTarget) {
+                    tower.linkGraph.addLinked(normalizedPos);
+                }
+                if (tower.queueLink(normalizedPos, INITIAL_PENDING_DELAY)) {
                     tower.setChanged();
                 }
             }
@@ -905,6 +929,62 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
                 tower.removeTarget(targetPos);
             }
+        }
+    }
+
+    private static void notifyTargetChunkLoaded(Level level, ChunkPos targetChunk) {
+        Set<BlockPos> towerPositions = TOWER_CHUNK_POSITIONS.get(new ChunkKey(level, targetChunk));
+        if (towerPositions == null || towerPositions.isEmpty()) {
+            return;
+        }
+
+        for (BlockPos towerPos : new HashSet<>(towerPositions)) {
+            BlockEntity blockEntity = level.getBlockEntity(towerPos);
+            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+                tower.onTargetChunkLoaded(targetChunk);
+            }
+        }
+    }
+
+    private static void notifyTargetChunkUnloaded(Level level, ChunkPos targetChunk) {
+        Set<BlockPos> towerPositions = TOWER_CHUNK_POSITIONS.get(new ChunkKey(level, targetChunk));
+        if (towerPositions == null || towerPositions.isEmpty()) {
+            return;
+        }
+
+        for (BlockPos towerPos : new HashSet<>(towerPositions)) {
+            BlockEntity blockEntity = level.getBlockEntity(towerPos);
+            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+                tower.onTargetChunkUnloaded(targetChunk);
+            }
+        }
+    }
+
+    private void onTargetChunkLoaded(ChunkPos targetChunk) {
+        boolean changed = false;
+        for (BlockPos targetPos : this.linkGraph.linkedPositions()) {
+            if (!new ChunkPos(targetPos).equals(targetChunk) || this.linkGraph.status(targetPos).state() != TargetLinkState.WAITING_TARGET) {
+                continue;
+            }
+            changed |= queueLink(targetPos, 0);
+        }
+        if (changed) {
+            this.setChanged();
+        }
+    }
+
+    private void onTargetChunkUnloaded(ChunkPos targetChunk) {
+        boolean changed = false;
+        for (BlockPos targetPos : this.linkGraph.linkedPositions()) {
+            if (new ChunkPos(targetPos).equals(targetChunk) && getTargetTransferMode(targetPos) != TargetTransferMode.DISABLED) {
+                destroyTargetConnections(targetPos);
+                changed |= scheduleTargetRetry(
+                        targetPos, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE);
+            }
+        }
+        if (changed) {
+            invalidateEndpointCache();
+            invalidateClusterCache();
         }
     }
 
@@ -1002,6 +1082,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (pos.equals(this.worldPosition) || !isWithinTowerCoverage(pos)) {
                 continue;
             }
+            if (this.linkGraph.containsLinked(pos)) {
+                continue;
+            }
+            if (!canAutomaticallyTrackGridLink(pos)) {
+                continue;
+            }
+            this.linkGraph.addLinked(pos);
             if (queueLink(pos, 0)) {
                 added++;
             }
@@ -1014,20 +1101,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return false;
         }
 
-        ArrayList<BlockPos> readyTargets = new ArrayList<>();
-        for (Map.Entry<BlockPos, Integer> entry : this.linkGraph.pendingEntries()) {
-            if (entry.getValue() > 0) {
-                entry.setValue(Math.max(0, entry.getValue() - elapsedTicks));
-            }
-            if (entry.getValue() > 0) {
-                continue;
-            }
-
-            BlockPos targetPos = entry.getKey();
-            if (this.level.isLoaded(targetPos)) {
-                readyTargets.add(targetPos);
-            }
-        }
+        ArrayList<BlockPos> readyTargets = new ArrayList<>(this.linkGraph.advanceRetryClock(elapsedTicks));
 
         if (readyTargets.isEmpty()) {
             return false;
@@ -1035,21 +1109,65 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         readyTargets.sort(this::compareLinkTargetPriority);
         int remainingChannels = Math.max(0, getMaxLinkChannels() - selfNode.getUsedChannels());
-        if (remainingChannels <= 0) {
-            return false;
-        }
-
         boolean processed = false;
+        int reconciledTargets = 0;
         for (BlockPos targetPos : readyTargets) {
-            List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos);
+            if (reconciledTargets >= MAX_LINK_RECONCILIATIONS_PER_AE_TICK) {
+                break;
+            }
+            if (!this.linkGraph.containsLinked(targetPos)) {
+                continue;
+            }
+            reconciledTargets++;
+            if (getTargetTransferMode(targetPos) == TargetTransferMode.DISABLED) {
+                destroyTargetConnections(targetPos);
+                transitionTargetState(targetPos, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0);
+                processed = true;
+                continue;
+            }
+            if (!isWithinTowerCoverage(targetPos)) {
+                removeTarget(targetPos);
+                processed = true;
+                continue;
+            }
+            if (!allowsAeTargets()) {
+                transitionTargetState(targetPos, TargetLinkState.BOUND, TargetLinkFailure.NONE, 0);
+                processed = true;
+                continue;
+            }
+            if (!this.level.isLoaded(targetPos)) {
+                destroyTargetConnections(targetPos);
+                scheduleTargetRetry(
+                        targetPos, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE);
+                processed = true;
+                continue;
+            }
+            if (this.level.getBlockState(targetPos).isAir()) {
+                removeTarget(targetPos);
+                processed = true;
+                continue;
+            }
+
+            List<IGridNode> targetNodes = getConnectableNodes(this.level, targetPos);
+            if (targetNodes.isEmpty()) {
+                destroyTargetConnections(targetPos);
+                scheduleTargetRetry(
+                        targetPos, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE);
+                processed = true;
+                continue;
+            }
+
+            List<IGridNode> linkableNodes = getLinkableTargetNodes(selfNode, targetPos, targetNodes);
             if (linkableNodes.isEmpty()) {
                 processed = true;
                 reconnectTarget(selfNode, targetPos, List.of());
-                if (this.linkGraph.containsLinked(targetPos.immutable()) && needsAeChannelLink(targetPos)) {
-                    this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
+                if (isAlreadyConnectedToSelfGrid(selfNode, targetNodes)) {
+                    transitionTargetState(
+                            targetPos, TargetLinkState.CONNECTED, TargetLinkFailure.NONE,
+                            LINK_HEALTH_CHECK_INTERVAL_TICKS);
                 } else {
-                    this.linkGraph.removePending(targetPos);
-                    incrementTargetDisplayStateRevision();
+                    scheduleTargetRetry(
+                            targetPos, TargetLinkState.WAITING_GRID, TargetLinkFailure.GRID_UNAVAILABLE);
                 }
                 continue;
             }
@@ -1060,20 +1178,25 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
             }
             if (missingConnections > remainingChannels) {
+                scheduleTargetRetry(
+                        targetPos, TargetLinkState.WAITING_GRID, TargetLinkFailure.CHANNEL_UNAVAILABLE);
+                processed = true;
                 continue;
             }
 
             processed = true;
-            int connectedNodes = reconnectTarget(selfNode, targetPos, linkableNodes);
+            TargetConnectionAttempt attempt = reconnectTarget(selfNode, targetPos, linkableNodes);
             if (hasAllConnections(targetPos, linkableNodes)) {
-                this.linkGraph.removePending(targetPos);
+                transitionTargetState(
+                        targetPos, TargetLinkState.CONNECTED, TargetLinkFailure.NONE,
+                        LINK_HEALTH_CHECK_INTERVAL_TICKS);
             } else {
-                this.linkGraph.putPending(targetPos.immutable(), PERSISTED_LINK_RETRY_DELAY);
+                scheduleTargetRetry(
+                        targetPos,
+                        TargetLinkState.PARTIAL,
+                        attempt.connectionCreationFailed() ? TargetLinkFailure.CONNECTION_EXCEPTION : TargetLinkFailure.CHANNEL_UNAVAILABLE);
             }
-            remainingChannels -= connectedNodes;
-            if (remainingChannels <= 0) {
-                break;
-            }
+            remainingChannels -= attempt.createdConnections();
         }
         return processed;
     }
@@ -1090,8 +1213,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         boolean active = this.getMainNode().isActive();
-        if (reason == IGridNodeListener.State.GRID_BOOT || active && !this.mainNodeActive) {
+        boolean activeChanged = active != this.mainNodeActive;
+        if (!this.linkReconciliationInProgress && (reason == IGridNodeListener.State.GRID_BOOT || activeChanged)) {
             this.pendingNetworkRecovery = true;
+        } else if (!this.linkReconciliationInProgress) {
+            wakeWaitingGridTargets();
         }
         this.mainNodeActive = active;
         invalidateEndpointCache();
@@ -1737,16 +1863,43 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private boolean queueLink(BlockPos targetPos, int delay) {
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        if (!canMaintainGridLinkTo(normalizedPos)) {
+        if (!this.linkGraph.containsLinked(normalizedPos) || getTargetTransferMode(normalizedPos) == TargetTransferMode.DISABLED || !allowsAeTargets() || !isWithinTowerCoverage(normalizedPos)) {
             return false;
         }
 
-        boolean queued = this.linkGraph.queuePending(normalizedPos, delay);
+        boolean queued = transitionTargetState(
+                normalizedPos, TargetLinkState.PENDING, TargetLinkFailure.NONE, delay);
         if (queued) {
-            incrementTargetDisplayStateRevision();
             requestAeTickWake();
         }
         return queued;
+    }
+
+    private boolean transitionTargetState(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure,
+                                          int retryTicks) {
+        TargetLinkStatus previousStatus = this.linkGraph.status(targetPos);
+        boolean changed = this.linkGraph.transition(targetPos, state, failure, retryTicks);
+        if (changed && (previousStatus.state() != state || previousStatus.failure() != failure)) {
+            incrementTargetDisplayStateRevision();
+        }
+        return changed;
+    }
+
+    private boolean scheduleTargetRetry(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure) {
+        TargetLinkStatus previousStatus = this.linkGraph.status(targetPos);
+        boolean changed = this.linkGraph.scheduleRetry(
+                targetPos,
+                state,
+                failure,
+                LINK_RETRY_INITIAL_DELAY_TICKS,
+                LINK_RETRY_MAX_DELAY_TICKS);
+        if (changed && (previousStatus.state() != state || previousStatus.failure() != failure)) {
+            incrementTargetDisplayStateRevision();
+        }
+        if (changed) {
+            requestAeTickWake();
+        }
+        return changed;
     }
 
     private void requestAeTickWake() {
@@ -1762,16 +1915,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean hasDeferredAeNetworkWork() {
-        if (this.pendingNetworkRecovery || this.pendingRangeRefresh || this.rangeScanCursor != null || !this.linkGraph.pendingPositions().isEmpty() || this.bufferedTransferEnergy > 0 || allowsAutomaticRangeConnections()) {
-            return true;
-        }
-
-        for (BlockPos targetPos : this.linkGraph.linkedPositions()) {
-            if (getTargetTransferMode(targetPos) != TargetTransferMode.DISABLED) {
-                return true;
-            }
-        }
-        return false;
+        return this.pendingNetworkRecovery || this.pendingRangeRefresh || this.rangeScanCursor != null || this.linkGraph.hasRetryableTargets() || this.bufferedTransferEnergy > 0 || allowsAutomaticRangeConnections();
     }
 
     @Override
@@ -1780,14 +1924,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        ArrayList<BlockPos> invalidPositions = new ArrayList<>();
+        LinkedHashSet<BlockPos> invalidPositions = new LinkedHashSet<>();
         for (BlockPos pos : this.linkGraph.linkedPositions()) {
-            if (this.level.getBlockState(pos).isAir()) {
+            if (this.level.isLoaded(pos) && this.level.getBlockState(pos).isAir()) {
                 invalidPositions.add(pos);
             }
         }
         for (BlockPos pos : this.targetTransferModes.keySet()) {
-            if (this.level.getBlockState(pos).isAir()) {
+            if (this.level.isLoaded(pos) && this.level.getBlockState(pos).isAir()) {
                 invalidPositions.add(pos);
             }
         }
@@ -1798,10 +1942,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void removeTarget(BlockPos targetPos) {
-        this.linkGraph.removePending(targetPos);
-        this.linkGraph.removeLinked(targetPos);
-        this.targetTransferModes.remove(targetPos);
-        destroyTargetConnections(targetPos);
+        BlockPos normalizedPos = normalizeTargetPos(targetPos);
+        transitionTargetState(normalizedPos, TargetLinkState.INVALID, TargetLinkFailure.NONE, 0);
+        this.linkGraph.removeLinked(normalizedPos);
+        this.targetTransferModes.remove(normalizedPos);
+        this.lastLinkFailureLogTicks.remove(normalizedPos);
 
         this.invalidateEndpointCache();
         this.invalidateClusterCache();
@@ -1817,29 +1962,58 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.invalidateClusterCache();
     }
 
-    private int reconnectTarget(IGridNode selfNode, BlockPos targetPos, List<IGridNode> targetNodes) {
-        Map<IGridNode, IGridConnection> existingConnections = this.linkGraph.connections(targetPos);
-        LinkedHashMap<IGridNode, IGridConnection> reconciledConnections = new LinkedHashMap<>();
-        int createdConnections = 0;
-        for (IGridNode targetNode : targetNodes) {
-            IGridConnection existingConnection = existingConnections.get(targetNode);
-            if (existingConnection != null) {
-                reconciledConnections.put(targetNode, existingConnection);
-                continue;
+    private TargetConnectionAttempt reconnectTarget(IGridNode selfNode, BlockPos targetPos,
+                                                    List<IGridNode> targetNodes) {
+        this.linkReconciliationInProgress = true;
+        try {
+            Map<IGridNode, IGridConnection> existingConnections = this.linkGraph.connections(targetPos);
+            LinkedHashMap<IGridNode, IGridConnection> reconciledConnections = new LinkedHashMap<>();
+            int createdConnections = 0;
+            boolean connectionCreationFailed = false;
+            for (IGridNode targetNode : targetNodes) {
+                IGridConnection existingConnection = existingConnections.get(targetNode);
+                if (existingConnection != null) {
+                    reconciledConnections.put(targetNode, existingConnection);
+                    continue;
+                }
+                try {
+                    reconciledConnections.put(targetNode, GridHelper.createConnection(selfNode, targetNode));
+                    createdConnections++;
+                } catch (IllegalStateException exception) {
+                    connectionCreationFailed = true;
+                    logTargetConnectionFailure(targetPos, exception);
+                }
             }
-            try {
-                reconciledConnections.put(targetNode, GridHelper.createConnection(selfNode, targetNode));
-                createdConnections++;
-            } catch (IllegalStateException exception) {
-                LOGGER.debug("Failed to reconnect data distribution tower at {} to target {}", this.worldPosition, targetPos, exception);
-            }
+
+            this.linkGraph.reconcileConnections(targetPos, reconciledConnections);
+            this.invalidateEndpointCache();
+            this.invalidateClusterCache();
+            this.setChanged();
+            return new TargetConnectionAttempt(createdConnections, connectionCreationFailed);
+        } finally {
+            this.linkReconciliationInProgress = false;
+        }
+    }
+
+    private void logTargetConnectionFailure(BlockPos targetPos, IllegalStateException exception) {
+        if (this.level == null) {
+            return;
         }
 
-        this.linkGraph.reconcileConnections(targetPos, reconciledConnections);
-        this.invalidateEndpointCache();
-        this.invalidateClusterCache();
-        this.setChanged();
-        return createdConnections;
+        long gameTime = this.level.getGameTime();
+        Long lastLogTick = this.lastLinkFailureLogTicks.get(targetPos);
+        if (lastLogTick != null && gameTime - lastLogTick < DIAGNOSTIC_LOG_INTERVAL_TICKS) {
+            return;
+        }
+
+        this.lastLinkFailureLogTicks.put(targetPos.immutable(), gameTime);
+        LOGGER.warn(
+                "Failed to reconnect data distribution tower at {} to target {} state={} failure={}",
+                this.worldPosition,
+                targetPos,
+                TargetLinkState.PARTIAL,
+                TargetLinkFailure.CONNECTION_EXCEPTION,
+                exception);
     }
 
     private boolean hasAllConnections(BlockPos targetPos, List<IGridNode> targetNodes) {
@@ -1853,21 +2027,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private boolean shouldReconnectTrackedTarget(BlockPos targetPos) {
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
-        return this.linkGraph.containsLinked(normalizedPos) || this.linkGraph.containsPending(normalizedPos);
+        return this.linkGraph.containsLinked(normalizedPos);
     }
 
-    private List<IGridNode> getLinkableTargetNodes(IGridNode selfNode, BlockPos targetPos) {
-        if (!canMaintainGridLinkTo(targetPos)) {
-            return List.of();
-        }
-
+    private List<IGridNode> getLinkableTargetNodes(IGridNode selfNode, BlockPos targetPos,
+                                                   List<IGridNode> targetNodes) {
         Level level = this.level;
         if (level == null) {
-            return List.of();
-        }
-
-        List<IGridNode> targetNodes = getConnectableNodes(level, targetPos);
-        if (targetNodes.isEmpty()) {
             return List.of();
         }
 
@@ -1879,6 +2045,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         return List.copyOf(linkableNodes);
+    }
+
+    private boolean isAlreadyConnectedToSelfGrid(IGridNode selfNode, List<IGridNode> targetNodes) {
+        IGrid selfGrid = selfNode.getGrid();
+        if (selfGrid == null) {
+            return false;
+        }
+
+        for (IGridNode targetNode : targetNodes) {
+            if (targetNode.getGrid() != selfGrid || !targetNode.meetsChannelRequirements()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isLinkableTargetNode(IGridNode selfNode, @Nullable IGridNode targetNode, boolean towerTarget) {
@@ -1908,47 +2088,39 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return true;
     }
 
-    private void requeuePersistedLinks() {
+    private boolean requeuePersistedLinks() {
         if (this.linkGraph.linkedPositions().isEmpty()) {
-            return;
+            return false;
         }
 
-        List<BlockPos> persisted = List.copyOf(this.linkGraph.linkedPositions());
-        this.linkGraph.clearPending();
-        destroyAllConnections();
-        for (BlockPos pos : persisted) {
-            queueLink(pos, 0);
-        }
-    }
-
-    private void schedulePersistedLinkRequeue() {
-        if (this.level == null || this.level.isClientSide() || allowsAutomaticRangeConnections() || this.linkGraph.linkedPositions().isEmpty()) {
-            return;
-        }
-        MinecraftServer server = this.level.getServer();
-        if (server == null) {
-            return;
-        }
-        schedulePersistedLinkRequeue(server, this.recoveryEpoch, PERSISTED_LINK_REQUEUE_TICKS);
-    }
-
-    private void schedulePersistedLinkRequeue(MinecraftServer server, long expectedRecoveryEpoch, int remainingTicks) {
-        if (remainingTicks <= 0) {
-            return;
-        }
-        ServerTickDelayQueue.runNextServerTick(server, () -> {
-            if (!isCurrentRecoveryEpoch(expectedRecoveryEpoch)) {
-                return;
+        this.linkReconciliationInProgress = true;
+        try {
+            resetPersistedLinkRuntimeState();
+            boolean changed = false;
+            for (BlockPos pos : this.linkGraph.linkedPositions()) {
+                if (getTargetTransferMode(pos) == TargetTransferMode.DISABLED) {
+                    continue;
+                }
+                if (allowsAeTargets()) {
+                    changed |= queueLink(pos, 0);
+                }
             }
-
-            this.pendingNetworkRecovery = true;
-            requestAeTickWake();
-            schedulePersistedLinkRequeue(server, expectedRecoveryEpoch, remainingTicks - 1);
-        });
+            return changed;
+        } finally {
+            this.linkReconciliationInProgress = false;
+        }
     }
 
-    private boolean isCurrentRecoveryEpoch(long expectedRecoveryEpoch) {
-        return this.recoveryEpoch == expectedRecoveryEpoch && this.level != null && !this.level.isClientSide() && this.level.getBlockEntity(this.worldPosition) == this;
+    private void resetPersistedLinkRuntimeState() {
+        this.linkGraph.resetRuntimeState();
+        this.lastLinkFailureLogTicks.clear();
+        for (BlockPos pos : this.linkGraph.linkedPositions()) {
+            if (getTargetTransferMode(pos) == TargetTransferMode.DISABLED) {
+                transitionTargetState(pos, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0);
+            }
+        }
+        this.invalidateEndpointCache();
+        this.invalidateClusterCache();
     }
 
     private boolean enqueuePersistedLinkReconciliation() {
@@ -1958,7 +2130,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         boolean changed = false;
         for (BlockPos pos : List.copyOf(this.linkGraph.linkedPositions())) {
-            if (this.linkGraph.containsPending(pos)) {
+            if (this.linkGraph.status(pos).state() != TargetLinkState.BOUND) {
                 continue;
             }
             changed |= queueLink(pos, 0);
@@ -1967,6 +2139,15 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             this.setChanged();
         }
         return changed;
+    }
+
+    private void wakeWaitingGridTargets() {
+        for (BlockPos targetPos : this.linkGraph.linkedPositions()) {
+            TargetLinkState state = this.linkGraph.status(targetPos).state();
+            if (state == TargetLinkState.WAITING_GRID || state == TargetLinkState.PARTIAL) {
+                queueLink(targetPos, 0);
+            }
+        }
     }
 
     private void resetAutoDiscoveryCooldown() {
@@ -2233,27 +2414,13 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        ArrayList<BlockPos> retainedTargets = new ArrayList<>(this.linkGraph.linkedPositions());
-        for (BlockPos pos : this.linkGraph.pendingPositions()) {
-            if (!retainedTargets.contains(pos)) {
-                retainedTargets.add(pos);
-            }
-        }
-
-        this.linkGraph.clearPending();
-        destroyAllConnections();
-        invalidateEndpointCache();
-        invalidateClusterCache();
-
-        for (BlockPos pos : retainedTargets) {
-            if (canMaintainGridLinkTo(pos)) {
-                queueLink(pos, 0);
-            }
-        }
+        resetPersistedLinkRuntimeState();
+        this.pendingNetworkRecovery = true;
 
         if (allowsAutomaticRangeConnections()) {
             requestNearbyConnectableNodeScan();
         }
+        requestAeTickWake();
     }
 
     private static final class RangeScanCursor {
@@ -2301,7 +2468,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
-    private boolean canMaintainGridLinkTo(BlockPos targetPos) {
+    private boolean canAutomaticallyTrackGridLink(BlockPos targetPos) {
         BlockPos normalizedPos = normalizeTargetPos(targetPos);
         if (this.level == null || this.worldPosition.equals(normalizedPos) || !isWithinTowerCoverage(normalizedPos)) {
             return false;
@@ -2315,7 +2482,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return true;
         }
 
-        return allowsAeTargets() && hasExposedAeNode(normalizedPos) && (this.linkGraph.containsLinked(normalizedPos) || this.linkGraph.containsPending(normalizedPos) || needsAeChannelLink(normalizedPos));
+        return allowsAeTargets() && hasExposedAeNode(normalizedPos) && needsAeChannelLink(normalizedPos);
     }
 
     private boolean allowsAutomaticRangeConnections() {
@@ -2371,11 +2538,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 toRemove.add(pos);
             }
         }
-        for (BlockPos pos : this.linkGraph.pendingPositions()) {
-            if (!isWithinTowerCoverage(pos) && !toRemove.contains(pos)) {
-                toRemove.add(pos);
-            }
-        }
         for (BlockPos pos : this.targetTransferModes.keySet()) {
             if (!isWithinTowerCoverage(pos) && !toRemove.contains(pos)) {
                 toRemove.add(pos);
@@ -2422,6 +2584,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         private static final TargetTransferInfo EMPTY = new TargetTransferInfo(0, false, false, 0L, 0L, false, false);
     }
+
+    /**
+     * Captures one AE Tick connection attempt without retaining any connection object outside the graph.
+     */
+    private record TargetConnectionAttempt(int createdConnections, boolean connectionCreationFailed) {}
 
     public record ConnectorBindResult(boolean success, ConnectorBindFailure failure, boolean aeSupported,
                                       boolean feSupported) {

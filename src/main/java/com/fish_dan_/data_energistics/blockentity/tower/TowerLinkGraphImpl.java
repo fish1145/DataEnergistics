@@ -19,20 +19,29 @@ import java.util.Set;
  */
 public final class TowerLinkGraphImpl implements TowerLinkGraph {
 
-    private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
+    private static final int MAX_RETRY_ATTEMPTS = 30;
     private final Set<BlockPos> linkedPositions = new LinkedHashSet<>();
+    private final Map<BlockPos, TargetLinkStatus> targetStatuses = new LinkedHashMap<>();
     private final Map<BlockPos, Map<IGridNode, IGridConnection>> linkedConnections = new HashMap<>();
+    private final Map<BlockPos, Integer> retryAttempts = new HashMap<>();
+    private static final TargetLinkStatus INVALID_STATUS = new TargetLinkStatus(
+            TargetLinkState.INVALID, TargetLinkFailure.NONE, 0);
 
     @Override
     public void clear() {
         destroyAllConnections();
-        this.pendingLinkPositions.clear();
+        this.targetStatuses.clear();
+        this.retryAttempts.clear();
         this.linkedPositions.clear();
     }
 
     @Override
     public void addLinked(BlockPos targetPos) {
-        this.linkedPositions.add(targetPos.immutable());
+        BlockPos normalizedPos = targetPos.immutable();
+        if (this.linkedPositions.add(normalizedPos)) {
+            this.targetStatuses.put(normalizedPos, new TargetLinkStatus(
+                    TargetLinkState.BOUND, TargetLinkFailure.NONE, 0));
+        }
     }
 
     @Override
@@ -44,7 +53,11 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
 
     @Override
     public void removeLinked(BlockPos targetPos) {
-        this.linkedPositions.remove(targetPos);
+        BlockPos normalizedPos = targetPos.immutable();
+        this.linkedPositions.remove(normalizedPos);
+        this.targetStatuses.remove(normalizedPos);
+        this.retryAttempts.remove(normalizedPos);
+        destroyTargetConnections(normalizedPos);
     }
 
     @Override
@@ -58,50 +71,91 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
     }
 
     @Override
-    public void clearPending() {
-        this.pendingLinkPositions.clear();
+    public void resetRuntimeState() {
+        destroyAllConnections();
+        this.targetStatuses.clear();
+        this.retryAttempts.clear();
+        for (BlockPos targetPos : this.linkedPositions) {
+            this.targetStatuses.put(targetPos, new TargetLinkStatus(
+                    TargetLinkState.BOUND, TargetLinkFailure.NONE, 0));
+        }
     }
 
     @Override
-    public boolean queuePending(BlockPos targetPos, int delay) {
-        Integer existingDelay = this.pendingLinkPositions.get(targetPos);
-        if (existingDelay == null || existingDelay > delay) {
-            this.pendingLinkPositions.put(targetPos.immutable(), delay);
-            return true;
+    public boolean transition(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure, int retryTicks) {
+        BlockPos normalizedPos = targetPos.immutable();
+        if (!this.linkedPositions.contains(normalizedPos)) {
+            return false;
+        }
+        TargetLinkStatus nextStatus = new TargetLinkStatus(state, failure, retryTicks);
+        TargetLinkStatus previousStatus = this.targetStatuses.put(normalizedPos, nextStatus);
+        this.retryAttempts.remove(normalizedPos);
+        return !nextStatus.equals(previousStatus);
+    }
+
+    @Override
+    public boolean scheduleRetry(BlockPos targetPos, TargetLinkState state, TargetLinkFailure failure,
+                                 int initialDelayTicks, int maximumDelayTicks) {
+        if (initialDelayTicks <= 0 || maximumDelayTicks < initialDelayTicks) {
+            throw new IllegalArgumentException("Target link retry delays must satisfy 0 < initial <= maximum");
+        }
+
+        BlockPos normalizedPos = targetPos.immutable();
+        if (!this.linkedPositions.contains(normalizedPos)) {
+            return false;
+        }
+
+        TargetLinkStatus previousStatus = this.targetStatuses.get(normalizedPos);
+        int retryAttempt = previousStatus != null && previousStatus.state() == state && previousStatus.failure() == failure ? Math.min(MAX_RETRY_ATTEMPTS, this.retryAttempts.getOrDefault(normalizedPos, 0) + 1) : 1;
+        int retryTicks = retryDelay(initialDelayTicks, maximumDelayTicks, retryAttempt);
+        TargetLinkStatus nextStatus = new TargetLinkStatus(state, failure, retryTicks);
+        this.targetStatuses.put(normalizedPos, nextStatus);
+        this.retryAttempts.put(normalizedPos, retryAttempt);
+        return !nextStatus.equals(previousStatus);
+    }
+
+    @Override
+    public TargetLinkStatus status(BlockPos targetPos) {
+        return this.targetStatuses.getOrDefault(targetPos, INVALID_STATUS);
+    }
+
+    @Override
+    public List<BlockPos> advanceRetryClock(int elapsedTicks) {
+        if (elapsedTicks < 0) {
+            throw new IllegalArgumentException("Target link elapsed ticks must be non-negative: " + elapsedTicks);
+        }
+
+        ArrayList<BlockPos> readyTargets = new ArrayList<>();
+        for (Map.Entry<BlockPos, TargetLinkStatus> entry : this.targetStatuses.entrySet()) {
+            TargetLinkStatus status = entry.getValue();
+            if (!status.isRetryable()) {
+                continue;
+            }
+
+            int remainingTicks = Math.max(0, status.retryTicks() - elapsedTicks);
+            if (remainingTicks != status.retryTicks()) {
+                entry.setValue(new TargetLinkStatus(status.state(), status.failure(), remainingTicks));
+            }
+            if (remainingTicks == 0) {
+                readyTargets.add(entry.getKey());
+            }
+        }
+        return List.copyOf(readyTargets);
+    }
+
+    @Override
+    public boolean hasRetryableTargets() {
+        for (TargetLinkStatus status : this.targetStatuses.values()) {
+            if (status.isRetryable()) {
+                return true;
+            }
         }
         return false;
     }
 
     @Override
-    public void putPending(BlockPos targetPos, int delay) {
-        this.pendingLinkPositions.put(targetPos.immutable(), delay);
-    }
-
-    @Override
-    public void removePending(BlockPos targetPos) {
-        this.pendingLinkPositions.remove(targetPos);
-    }
-
-    @Override
-    public boolean containsPending(BlockPos targetPos) {
-        return this.pendingLinkPositions.containsKey(targetPos);
-    }
-
-    @Override
-    public Set<Map.Entry<BlockPos, Integer>> pendingEntries() {
-        return this.pendingLinkPositions.entrySet();
-    }
-
-    @Override
-    public Set<BlockPos> pendingPositions() {
-        return new LinkedHashSet<>(this.pendingLinkPositions.keySet());
-    }
-
-    @Override
     public List<BlockPos> trackedPositions() {
-        LinkedHashSet<BlockPos> tracked = new LinkedHashSet<>(this.linkedPositions);
-        tracked.addAll(this.pendingLinkPositions.keySet());
-        return List.copyOf(tracked);
+        return List.copyOf(this.linkedPositions);
     }
 
     @Override
@@ -124,7 +178,6 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         }
 
         this.linkedConnections.put(targetPos.immutable(), Map.copyOf(connections));
-        addLinked(targetPos);
     }
 
     @Override
@@ -168,5 +221,13 @@ public final class TowerLinkGraphImpl implements TowerLinkGraph {
         if (connection != null) {
             connection.destroy();
         }
+    }
+
+    private static int retryDelay(int initialDelayTicks, int maximumDelayTicks, int retryAttempt) {
+        int delay = initialDelayTicks;
+        for (int attempt = 1; attempt < retryAttempt && delay < maximumDelayTicks; attempt++) {
+            delay = delay > maximumDelayTicks / 2 ? maximumDelayTicks : delay * 2;
+        }
+        return delay;
     }
 }
