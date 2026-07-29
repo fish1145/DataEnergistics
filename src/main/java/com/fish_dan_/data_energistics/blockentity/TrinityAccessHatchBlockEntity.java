@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
+import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
 import com.fish_dan_.data_energistics.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -999,11 +1000,17 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             if (host == null || level == null || level.isClientSide()) {
                 return null;
             }
-            return new HatchCraftingAdmission(
-                    host,
+            CraftingAdmissionToken token = host.issueCraftingAdmission(
+                    TrinityAccessHatchBlockEntity.this,
                     patternDetails,
                     level.getGameTime(),
-                    requestedCount,
+                    requestedCount);
+            if (token == null) {
+                return null;
+            }
+            return new HatchCraftingAdmission(
+                    host,
+                    token,
                     prototype);
         }
 
@@ -1019,27 +1026,21 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private static final class HatchCraftingAdmission implements CountedCraftingAdmission {
 
         private final TrinityDataCoreBlockEntity host;
-        private final IPatternDetails patternDetails;
-        private final long queuedTick;
-        private final long count;
+        private final CraftingAdmissionToken token;
         private final KeyCounter[] preparedPrototype;
         private boolean attempted;
 
         private HatchCraftingAdmission(TrinityDataCoreBlockEntity host,
-                                       IPatternDetails patternDetails,
-                                       long queuedTick,
-                                       long count,
+                                       CraftingAdmissionToken token,
                                        KeyCounter[] preparedPrototype) {
             this.host = host;
-            this.patternDetails = patternDetails;
-            this.queuedTick = queuedTick;
-            this.count = count;
+            this.token = token;
             this.preparedPrototype = preparedPrototype;
         }
 
         @Override
         public long count() {
-            return this.count;
+            return this.token.count();
         }
 
         @Override
@@ -1051,11 +1052,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                 throw new IllegalStateException("Admission has already been committed");
             }
             this.attempted = true;
-            return this.host.getPatternCatalog().pushPattern(
-                    this.patternDetails,
-                    prototype,
-                    this.queuedTick,
-                    this.count);
+            return this.host.commitCraftingAdmission(this.token, prototype);
         }
     }
 

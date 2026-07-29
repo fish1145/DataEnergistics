@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
@@ -38,6 +40,7 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.networking.crafting.ICraftingPlan;
+import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingService;
 import appeng.api.networking.crafting.ICraftingSubmitResult;
 import appeng.api.networking.security.IActionSource;
@@ -67,6 +70,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
     private static final int REMOVAL_PATTERN_SLOT = 39;
     private static final int STRUCTURE_PAUSE_PATTERN_SLOT = 40;
     private static final int SAME_TICK_STORAGE_PATTERN_SLOT = 41;
+    private static final int ADMISSION_INVALIDATION_PATTERN_SLOT = 42;
 
     private TrinityDataCoreAe2CraftingGameTest() {}
 
@@ -104,6 +108,79 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                             fixture.accessHatches().stream().filter(host::isLeaseOwner).count(),
                             0L,
                             "Removing the sole access hatch must clear the network lease");
+                })
+                .thenSucceed();
+    }
+
+    @TestHolder("trinity_data_core_stale_access_hatch_admission_cannot_commit")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void staleAccessHatchAdmissionCannotCommit(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
+        ServerLevel level = helper.getLevel();
+        AEItemKey crimsonPlanks = AEItemKey.of(Items.CRIMSON_PLANKS);
+        KeyCounter[] inputPrototype = { new KeyCounter() };
+        inputPrototype[0].add(crimsonPlanks, 4L);
+        helper.assertTrue(
+                core.patternCapacity() > ADMISSION_INVALIDATION_PATTERN_SLOT,
+                "Selected P core should expose the admission invalidation test slot");
+
+        PatternRoute route = new PatternRoute(host.getHostId(), core.coreId(), ADMISSION_INVALIDATION_PATTERN_SLOT);
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            core.trySetPattern(ADMISSION_INVALIDATION_PATTERN_SLOT, craftingTablePattern(level)),
+                            "Admission invalidation test pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                    assertPublishedRoute(helper, fixture.grid(), AEItemKey.of(Items.CRAFTING_TABLE), route);
+                })
+                .thenExecute(() -> {
+                    TrinityAccessHatchBlockEntity hatch = fixture.accessHatches().stream()
+                            .filter(host::isLeaseOwner)
+                            .findFirst()
+                            .orElseThrow(() -> new GameTestAssertException(
+                                    "Trinity fixture has no lease-owning hatch for admission"));
+                    var node = hatch.getMainNode().getNode();
+                    if (node == null) {
+                        throw new GameTestAssertException("Lease-owning Trinity hatch has no AE2 grid node");
+                    }
+                    ICraftingProvider registeredProvider = node.getService(ICraftingProvider.class);
+                    if (!(registeredProvider instanceof CountedCraftingProvider provider)) {
+                        throw new GameTestAssertException("Lease-owning Trinity hatch has no counted crafting provider");
+                    }
+                    RoutedCraftingPatternDetails pattern = requireSinglePublishedRoute(
+                            helper,
+                            fixture.grid(),
+                            AEItemKey.of(Items.CRAFTING_TABLE),
+                            route);
+                    CountedCraftingAdmission admission = provider.prepareBatch(pattern, inputPrototype, 1L);
+                    if (admission == null) {
+                        throw new GameTestAssertException("Live Trinity hatch should admit its published routed pattern");
+                    }
+                    helper.assertValueEqual(admission.count(), 1L,
+                            "Trinity hatch should admit exactly one valid routed craft");
+
+                    hatch.getMainNode().destroy();
+                    host.requestAccessLeaseReevaluation();
+                    helper.assertTrue(host.accessGrid() == null,
+                            "Destroying the admission hatch must withdraw the Trinity access lease");
+                    helper.assertFalse(admission.commit(inputPrototype),
+                            "Admission must reject after its access hatch leaves the selected AE2 grid");
+                    helper.assertValueEqual(inputPrototype[0].get(crimsonPlanks), 4L,
+                            "Rejected stale admission must retain every prepared input");
+                    helper.assertValueEqual(core.queuedBatchCount(ADMISSION_INVALIDATION_PATTERN_SLOT), 0,
+                            "Rejected stale admission must not enqueue a P-core batch");
+                    helper.assertFalse(host.getPatternCatalog().hasWork(),
+                            "Rejected stale admission must not leave work in the Trinity pattern catalog");
                 })
                 .thenSucceed();
     }
