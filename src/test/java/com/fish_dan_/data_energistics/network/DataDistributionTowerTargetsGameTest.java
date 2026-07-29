@@ -40,7 +40,6 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.core.definitions.AEItems;
-
 import com.mojang.authlib.GameProfile;
 import org.jetbrains.annotations.NotNull;
 
