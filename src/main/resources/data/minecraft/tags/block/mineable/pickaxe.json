@@ -3,7 +3,9 @@
 	"values": [
 		"data_energistics:me_solar_panel",
 		"data_energistics:data_extractor",
+		"data_energistics:data_reassembler",
 		"data_energistics:data_distribution_tower",
+		"data_energistics:data_framework",
 		"data_energistics:data_mimetic_field",
 		"data_energistics:adaptive_pattern_provider",
 		"data_energistics:residual_data_ore",
@@ -23,6 +25,7 @@
 		"data_energistics:data_crystal_cluster",
 		"data_energistics:data_sanctum",
 		"data_energistics:data_sanctum_interface",
+		"data_energistics:data_teleport_anchor",
 		"data_energistics:data_charger",
 		"data_energistics:extended_data_charger",
 		"data_energistics:composite_input_warehouse",
