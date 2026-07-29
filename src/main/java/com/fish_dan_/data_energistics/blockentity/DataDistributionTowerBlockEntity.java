@@ -251,6 +251,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     @Override
     public void onChunkUnloaded() {
         this.pendingNetworkRecovery = false;
+        if (this.level != null && !this.level.isClientSide()) {
+            unregisterFromChunkIndex();
+        }
         destroyAllConnections();
         super.onChunkUnloaded();
     }
@@ -893,23 +896,25 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
-            BlockEntity blockEntity = level.getBlockEntity(towerPos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                BlockPos normalizedPos = tower.normalizeTargetPos(targetPos);
-                boolean trackedTarget = tower.shouldReconnectTrackedTarget(normalizedPos);
-                if (!tower.allowsAutomaticRangeConnections() && !trackedTarget) {
-                    continue;
-                }
-                if (!trackedTarget && !tower.canAutomaticallyTrackGridLink(normalizedPos)) {
-                    continue;
-                }
+            DataDistributionTowerBlockEntity tower = getLoadedTower(level, towerPos);
+            if (tower == null) {
+                continue;
+            }
 
-                if (!trackedTarget) {
-                    tower.linkGraph.addLinked(normalizedPos);
-                }
-                if (tower.queueLink(normalizedPos, INITIAL_PENDING_DELAY)) {
-                    tower.setChanged();
-                }
+            BlockPos normalizedPos = tower.normalizeTargetPos(targetPos);
+            boolean trackedTarget = tower.shouldReconnectTrackedTarget(normalizedPos);
+            if (!tower.allowsAutomaticRangeConnections() && !trackedTarget) {
+                continue;
+            }
+            if (!trackedTarget && !tower.canAutomaticallyTrackGridLink(normalizedPos)) {
+                continue;
+            }
+
+            if (!trackedTarget) {
+                tower.linkGraph.addLinked(normalizedPos);
+            }
+            if (tower.queueLink(normalizedPos, INITIAL_PENDING_DELAY)) {
+                tower.setChanged();
             }
         }
     }
@@ -921,14 +926,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
-            BlockEntity blockEntity = level.getBlockEntity(towerPos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!tower.isWithinTowerCoverage(targetPos)) {
-                    continue;
-                }
-
-                tower.removeTarget(targetPos);
+            DataDistributionTowerBlockEntity tower = getLoadedTower(level, towerPos);
+            if (tower == null || !tower.isWithinTowerCoverage(targetPos)) {
+                continue;
             }
+
+            tower.removeTarget(targetPos);
         }
     }
 
@@ -939,8 +942,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
-            BlockEntity blockEntity = level.getBlockEntity(towerPos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+            DataDistributionTowerBlockEntity tower = getLoadedTower(level, towerPos);
+            if (tower != null) {
                 tower.onTargetChunkLoaded(targetChunk);
             }
         }
@@ -953,8 +956,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
-            BlockEntity blockEntity = level.getBlockEntity(towerPos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+            DataDistributionTowerBlockEntity tower = getLoadedTower(level, towerPos);
+            if (tower != null) {
                 tower.onTargetChunkUnloaded(targetChunk);
             }
         }
@@ -2229,6 +2232,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
     }
 
+    @Nullable
+    private static DataDistributionTowerBlockEntity getLoadedTower(Level level, BlockPos towerPos) {
+        if (!level.isLoaded(towerPos)) {
+            return null;
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(towerPos);
+        return blockEntity instanceof DataDistributionTowerBlockEntity tower ? tower : null;
+    }
+
     private static void invalidateNearbyCaches(Level level, BlockPos changedPos) {
         Set<BlockPos> towerPositions = TOWER_CHUNK_POSITIONS.get(new ChunkKey(level, new ChunkPos(changedPos)));
         if (towerPositions == null || towerPositions.isEmpty()) {
@@ -2236,14 +2249,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         for (BlockPos towerPos : new HashSet<>(towerPositions)) {
-            BlockEntity blockEntity = level.getBlockEntity(towerPos);
-            if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
-                if (!tower.isWithinTowerCoverage(changedPos)) {
-                    continue;
-                }
-
-                tower.invalidateEndpointCache();
+            DataDistributionTowerBlockEntity tower = getLoadedTower(level, towerPos);
+            if (tower == null || !tower.isWithinTowerCoverage(changedPos)) {
+                continue;
             }
+
+            tower.invalidateEndpointCache();
         }
     }
 

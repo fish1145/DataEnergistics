@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
@@ -27,6 +28,7 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,6 +38,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.neoforge.network.connection.ConnectionType;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
+
+import appeng.core.definitions.AEItems;
 
 import com.mojang.authlib.GameProfile;
 import org.jetbrains.annotations.NotNull;
@@ -50,11 +54,32 @@ import java.util.UUID;
 public final class DataDistributionTowerTargetsGameTest {
 
     private static final int TARGET_COUNT = 70;
+    private static final int FULL_WIRELESS_BOOSTER_COUNT = 64;
+    private static final int FULL_TOWER_CHUNK_RADIUS = 8;
     private static final int MENU_ID = 17;
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos TARGET_GRID_ORIGIN = new BlockPos(13, 4, 18);
 
     private DataDistributionTowerTargetsGameTest() {}
+
+    @TestHolder("data_distribution_tower_full_wireless_scope_scans_range")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 500)
+    public static void fullWirelessScopeScansRange(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
+        tower.getInternalInventory().setItemDirect(
+                0, new ItemStack(AEItems.WIRELESS_BOOSTER.asItem(), FULL_WIRELESS_BOOSTER_COUNT));
+        tower.setConnectionMode(ConnectionMode.AE_AND_FE);
+        tower.setRangeAdjustmentMode(RangeAdjustmentMode.SCOPE);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertValueEqual(
+                        tower.getConfiguredChunkRadius(),
+                        FULL_TOWER_CHUNK_RADIUS,
+                        "A full wireless booster stack must expand the tower to its 17x17 chunk scope"))
+                .thenIdle(320)
+                .thenSucceed();
+    }
 
     @TestHolder("data_distribution_tower_syncs_and_searches_seventy_real_targets")
     @EmptyTemplate("50x32x50")
