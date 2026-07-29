@@ -10,10 +10,16 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -27,6 +33,7 @@ import appeng.api.implementations.items.IAEItemPowerStorage;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.StorageCells;
 import appeng.core.definitions.AEItems;
+import appeng.hooks.WrenchHook;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -63,6 +70,36 @@ public final class DataChargerCapabilityGameTest {
         assertDataFlowExtraction(helper, regularCharger, regularItems);
         assertCombinedExtraction(helper, regularCharger, regularItems);
         assertEnergyCapability(helper);
+        helper.succeed();
+    }
+
+    @TestHolder("data_charger_wrench_disassembly_returns_internal_inventory_once")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void wrenchDisassemblyReturnsInternalInventoryOnce(GameTestHelper helper) {
+        helper.setBlock(REGULAR_CHARGER_POS, ModBlocks.DATA_CHARGER.get().defaultBlockState());
+        helper.setBlock(EXTENDED_CHARGER_POS, ModBlocks.EXTENDED_DATA_CHARGER.get().defaultBlockState());
+
+        DataChargerBlockEntity regularCharger = requireCharger(helper, REGULAR_CHARGER_POS);
+        DataChargerBlockEntity extendedCharger = requireCharger(helper, EXTENDED_CHARGER_POS);
+        regularCharger.getInternalInventory().setItemDirect(0, new ItemStack(Items.SNOWBALL));
+        extendedCharger.getInternalInventory().setItemDirect(0, new ItemStack(Items.ENDER_PEARL));
+        extendedCharger.getInternalInventory().setItemDirect(1, new ItemStack(Items.REDSTONE));
+        extendedCharger.getInternalInventory().setItemDirect(2, new ItemStack(Items.GLOWSTONE_DUST));
+        extendedCharger.getInternalInventory().setItemDirect(3, new ItemStack(Items.BLAZE_POWDER));
+
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(AEItems.CERTUS_QUARTZ_WRENCH.asItem()));
+        player.setShiftKeyDown(true);
+
+        disassembleWithAe2Wrench(helper, player, REGULAR_CHARGER_POS);
+        disassembleWithAe2Wrench(helper, player, EXTENDED_CHARGER_POS);
+
+        assertInventoryItemReturnedExactlyOnce(helper, player, Items.SNOWBALL);
+        assertInventoryItemReturnedExactlyOnce(helper, player, Items.ENDER_PEARL);
+        assertInventoryItemReturnedExactlyOnce(helper, player, Items.REDSTONE);
+        assertInventoryItemReturnedExactlyOnce(helper, player, Items.GLOWSTONE_DUST);
+        assertInventoryItemReturnedExactlyOnce(helper, player, Items.BLAZE_POWDER);
         helper.succeed();
     }
 
@@ -140,6 +177,23 @@ public final class DataChargerCapabilityGameTest {
         helper.assertTrue(!back.canExtract(), "The data charger energy capability must not output energy");
         helper.assertTrue(back.receiveEnergy(100, false) > 0,
                 "The data charger energy capability must transfer received energy into its AE buffer");
+    }
+
+    private static void disassembleWithAe2Wrench(GameTestHelper helper, Player player, BlockPos position) {
+        BlockPos absolutePosition = helper.absolutePos(position);
+        InteractionResult result = WrenchHook.onPlayerUseBlock(
+                player,
+                helper.getLevel(),
+                InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(absolutePosition), Direction.UP, absolutePosition, false));
+        helper.assertTrue(result.consumesAction(), "The AE2 wrench must disassemble the data charger");
+        helper.assertTrue(helper.getLevel().getBlockState(absolutePosition).isAir(),
+                "Wrench disassembly must remove the data charger block");
+    }
+
+    private static void assertInventoryItemReturnedExactlyOnce(GameTestHelper helper, Player player, Item item) {
+        helper.assertValueEqual(player.getInventory().countItem(item), 1,
+                "Wrench disassembly must return " + item.getDescription().getString() + " exactly once");
     }
 
     private static DataChargerBlockEntity requireCharger(GameTestHelper helper, BlockPos position) {
