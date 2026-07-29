@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.multiblock.json;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.compartment.CompartmentBindingHandle;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
@@ -15,6 +16,7 @@ import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,10 @@ import java.util.Map;
 public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompartmentBinder {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    /**
+     * Runtime-only identities retained until this binder releases the matching structure.
+     */
+    private final Map<CompartmentHost, Map<String, Map<CompartmentPart, CompartmentBindingHandle>>> bindingHandles = new IdentityHashMap<>();
 
     @Nullable
     @Override
@@ -72,26 +78,56 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
             currentDeclaredParts.put(entry.getKey(), requireDeclaredPart(world, entry.getKey(), entry.getValue()));
         }
 
+        Map<CompartmentPart, Boolean> registeredParts = new IdentityHashMap<>();
         for (CompartmentPart registeredPart : List.copyOf(host.compartmentHost$getCompartments(structureName))) {
+            registeredParts.put(registeredPart, Boolean.TRUE);
+        }
+        Map<String, Map<CompartmentPart, CompartmentBindingHandle>> hostBindings = this.bindingHandles.get(host);
+        if (hostBindings != null) {
+            Map<CompartmentPart, CompartmentBindingHandle> structureBindings = hostBindings.get(structureName);
+            if (structureBindings != null) {
+                for (CompartmentPart registeredPart : List.copyOf(structureBindings.keySet())) {
+                    registeredParts.put(registeredPart, Boolean.TRUE);
+                }
+            }
+        }
+        for (CompartmentPart registeredPart : registeredParts.keySet()) {
             CompartmentPart currentPart = currentDeclaredParts.get(toBlockPos(registeredPart.compartmentPos()));
             if (registeredPart != currentPart) {
-                registeredPart.compartment$unbindFromHost(structureName, host);
+                unbindPart(structureName, host, registeredPart);
             }
         }
 
         for (CompartmentPart currentPart : currentDeclaredParts.values()) {
             if (!host.compartmentHost$getCompartments(structureName).contains(currentPart) ||
                     currentPart.compartmentHost() != host ||
-                    !structureName.equals(currentPart.compartmentStructureName())) {
+                    !structureName.equals(currentPart.compartmentStructureName()) ||
+                    currentPart.compartment$requiresBindingRetry(structureName, host)) {
                 currentPart.compartment$bindToHost(structureName, host);
+                rememberBinding(structureName, host, currentPart);
+            } else {
+                rememberBinding(structureName, host, currentPart);
             }
         }
     }
 
     @Override
     public void unbind(String structureName, CompartmentHost host) {
+        Map<CompartmentPart, Boolean> partsToUnbind = new IdentityHashMap<>();
         for (CompartmentPart part : List.copyOf(host.compartmentHost$getCompartments(structureName))) {
-            part.compartment$unbindFromHost(structureName, host);
+            partsToUnbind.put(part, Boolean.TRUE);
+        }
+        Map<String, Map<CompartmentPart, CompartmentBindingHandle>> hostBindings = this.bindingHandles.get(host);
+        if (hostBindings != null) {
+            Map<CompartmentPart, CompartmentBindingHandle> structureBindings = hostBindings.get(structureName);
+            if (structureBindings != null) {
+                for (CompartmentPart part : List.copyOf(structureBindings.keySet())) {
+                    partsToUnbind.put(part, Boolean.TRUE);
+                }
+            }
+        }
+        for (CompartmentPart part : partsToUnbind.keySet()) {
+            unbindPart(structureName, host, part);
         }
     }
 
@@ -115,12 +151,89 @@ public final class JsonDeclaredCompartmentBinder implements JsonMultiBlockCompar
         return null;
     }
 
-    private static void bindDeclaredPart(StructureWorldView world,
-                                         String structureName,
-                                         CompartmentHost host,
-                                         BlockPos pos,
-                                         CompartmentType declaredType) {
-        requireDeclaredPart(world, pos, declaredType).compartment$bindToHost(structureName, host);
+    private void bindDeclaredPart(StructureWorldView world,
+                                  String structureName,
+                                  CompartmentHost host,
+                                  BlockPos pos,
+                                  CompartmentType declaredType) {
+        CompartmentPart part = requireDeclaredPart(world, pos, declaredType);
+        part.compartment$bindToHost(structureName, host);
+        rememberBinding(structureName, host, part);
+    }
+
+    private void rememberBinding(String structureName, CompartmentHost host, CompartmentPart part) {
+        if (!part.isCompartmentBound() || part.compartmentHost() != host ||
+                !structureName.equals(part.compartmentStructureName())) {
+            return;
+        }
+        CompartmentBindingHandle bindingHandle = part.compartment$bindingHandle();
+        if (bindingHandle == null) {
+            discardBinding(structureName, host, part);
+            return;
+        }
+        this.bindingHandles.computeIfAbsent(host, ignored -> new LinkedHashMap<>())
+                .computeIfAbsent(structureName, ignored -> new IdentityHashMap<>())
+                .put(part, bindingHandle);
+    }
+
+    private void unbindPart(String structureName, CompartmentHost host, CompartmentPart part) {
+        CompartmentBindingHandle bindingHandle = bindingForUnbind(structureName, host, part);
+        if (bindingHandle != null) {
+            part.compartment$unbindFromHost(bindingHandle);
+            rememberBinding(structureName, host, part);
+            discardBinding(structureName, host, part, bindingHandle);
+            return;
+        }
+        part.compartment$unbindFromHost(structureName, host);
+    }
+
+    @Nullable
+    private CompartmentBindingHandle bindingForUnbind(String structureName, CompartmentHost host, CompartmentPart part) {
+        Map<String, Map<CompartmentPart, CompartmentBindingHandle>> hostBindings = this.bindingHandles.get(host);
+        if (hostBindings == null) {
+            return null;
+        }
+        Map<CompartmentPart, CompartmentBindingHandle> structureBindings = hostBindings.get(structureName);
+        if (structureBindings == null) {
+            return null;
+        }
+        return structureBindings.get(part);
+    }
+
+    private void discardBinding(String structureName, CompartmentHost host, CompartmentPart part) {
+        discardBinding(structureName, host, part, null);
+    }
+
+    private void discardBinding(String structureName,
+                                CompartmentHost host,
+                                CompartmentPart part,
+                                @Nullable CompartmentBindingHandle expectedBindingHandle) {
+        Map<String, Map<CompartmentPart, CompartmentBindingHandle>> hostBindings = this.bindingHandles.get(host);
+        if (hostBindings == null) {
+            return;
+        }
+        Map<CompartmentPart, CompartmentBindingHandle> structureBindings = hostBindings.get(structureName);
+        if (structureBindings == null) {
+            return;
+        }
+        if (expectedBindingHandle != null && structureBindings.get(part) != expectedBindingHandle) {
+            return;
+        }
+        structureBindings.remove(part);
+        discardEmptyBindings(host, structureName, hostBindings, structureBindings);
+    }
+
+    private void discardEmptyBindings(CompartmentHost host,
+                                      String structureName,
+                                      Map<String, Map<CompartmentPart, CompartmentBindingHandle>> hostBindings,
+                                      Map<CompartmentPart, CompartmentBindingHandle> structureBindings) {
+        if (!structureBindings.isEmpty()) {
+            return;
+        }
+        hostBindings.remove(structureName);
+        if (hostBindings.isEmpty()) {
+            this.bindingHandles.remove(host);
+        }
     }
 
     private static CompartmentPart requireDeclaredPart(StructureWorldView world,

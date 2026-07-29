@@ -32,6 +32,10 @@ import java.util.function.Predicate;
 public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider, VerticalMultiBlockController, VerticalMultiBlockPart {
 
     private final Map<String, VerticalMultiBlockRuntimeState> verticalMultiBlockStates = new HashMap<>();
+    /**
+     * Last issued callback identity for each named structure, retained after that structure becomes unformed.
+     */
+    private final Map<String, Long> verticalMultiBlockBindingEpochs = new HashMap<>();
     private boolean verticalMultiBlockRecheckRequested = true;
     private boolean defaultStructureController;
 
@@ -134,12 +138,19 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     @Override
     public final VerticalMultiBlockRuntimeState verticalMultiBlock$getRuntimeState(String structureName) {
         requireStructureName(structureName);
-        return this.verticalMultiBlockStates.getOrDefault(structureName, VerticalMultiBlockRuntimeState.unformed());
+        return this.verticalMultiBlockStates.getOrDefault(
+                structureName,
+                VerticalMultiBlockRuntimeState.unformed(this.verticalMultiBlockBindingEpochs.getOrDefault(structureName, 0L)));
     }
 
     @Override
     public final void verticalMultiBlock$setRuntimeState(String structureName, VerticalMultiBlockRuntimeState state) {
         requireStructureName(structureName);
+        long previousBindingEpoch = this.verticalMultiBlockBindingEpochs.getOrDefault(structureName, 0L);
+        if (state.bindingEpoch() < previousBindingEpoch) {
+            throw new IllegalArgumentException("Vertical multiblock binding epoch cannot move backwards for " + structureName);
+        }
+        this.verticalMultiBlockBindingEpochs.put(structureName, state.bindingEpoch());
         if (state.formed()) {
             this.verticalMultiBlockStates.put(structureName, state);
         } else {
@@ -170,6 +181,18 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
     public final void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                            String structureName,
                                                            VerticalMultiBlockContext<?> context) {
+        verticalMultiBlock$addedToController(
+                controller,
+                structureName,
+                context,
+                verticalMultiBlock$getRuntimeState(structureName).bindingEpoch());
+    }
+
+    @Override
+    public final void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
+                                                           String structureName,
+                                                           VerticalMultiBlockContext<?> context,
+                                                           long bindingEpoch) {
         requireStructureName(structureName);
         if (VerticalMultiBlockDefinition.DEFAULT_STRUCTURE_NAME.equals(structureName)) {
             this.defaultStructureController = controller == this;
@@ -179,7 +202,8 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
                 context.definition().id(),
                 structureName,
                 context.height(),
-                List.copyOf(context.matchedPositions())));
+                List.copyOf(context.matchedPositions()),
+                bindingEpoch));
         onVerticalMultiBlockAddedToController(controller, structureName, context);
     }
 
@@ -190,9 +214,22 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
 
     @Override
     public final void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
+        verticalMultiBlock$removedFromController(
+                controller,
+                structureName,
+                verticalMultiBlock$getRuntimeState(structureName).bindingEpoch());
+    }
+
+    @Override
+    public final void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
+                                                               String structureName,
+                                                               long bindingEpoch) {
         requireStructureName(structureName);
         VerticalMultiBlockRuntimeState previousState = verticalMultiBlock$getRuntimeState(structureName);
-        verticalMultiBlock$setRuntimeState(structureName, VerticalMultiBlockRuntimeState.unformed());
+        if (!previousState.formed() || previousState.bindingEpoch() != bindingEpoch) {
+            return;
+        }
+        verticalMultiBlock$setRuntimeState(structureName, VerticalMultiBlockRuntimeState.unformed(bindingEpoch));
         onVerticalMultiBlockRemovedFromController(controller, structureName, previousState);
     }
 

@@ -10,7 +10,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,7 +26,7 @@ public final class TrinityAccessHatchBindingStateTest {
 
         TrinityAccessHatchBindingState releasing = active.releasing();
 
-        assertNotSame(active, releasing);
+        assertSame(active, releasing);
         assertSame(host, releasing.host());
         assertTrue(releasing.matches(host, "main"));
         assertEquals(TrinityAccessHatchBindingState.Phase.RELEASING, releasing.phase());
@@ -46,6 +45,8 @@ public final class TrinityAccessHatchBindingStateTest {
         CompartmentHost host = emptyHost();
 
         assertThrows(IllegalArgumentException.class, () -> TrinityAccessHatchBindingState.active("", host));
+        assertThrows(IllegalArgumentException.class, () -> TrinityAccessHatchBindingState.active(null, host));
+        assertThrows(IllegalArgumentException.class, () -> TrinityAccessHatchBindingState.active("main", null));
     }
 
     private static CompartmentHost emptyHost() {

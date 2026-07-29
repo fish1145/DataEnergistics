@@ -56,6 +56,36 @@ public interface CompartmentPart extends VerticalMultiBlockPart {
     }
 
     /**
+     * Returns the current opaque registration identity when this part needs identity-aware lifecycle callbacks.
+     */
+    @Nullable
+    default CompartmentBindingHandle compartment$bindingHandle() {
+        return null;
+    }
+
+    /**
+     * Returns whether a previously failed release for this exact host and structure must be retried by the binder.
+     */
+    default boolean compartment$requiresBindingRetry(String structureName, CompartmentHost host) {
+        return false;
+    }
+
+    /**
+     * Unbinds the exact registration represented by a previously captured identity handle.
+     *
+     * <p>
+     * Parts without an identity-aware lifecycle keep returning {@code null} from {@link #compartment$bindingHandle()},
+     * so callers retain the original named overload for them.
+     * </p>
+     */
+    default void compartment$unbindFromHost(CompartmentBindingHandle bindingHandle) {
+        if (bindingHandle == null) {
+            throw new IllegalArgumentException("Compartment binding handle must not be null");
+        }
+        throw new IllegalArgumentException("Compartment part does not support identity-aware unbinding");
+    }
+
+    /**
      * Unbinds this part from an invalidated host structure.
      */
     default void compartment$unbindFromHost(String structureName, CompartmentHost host) {

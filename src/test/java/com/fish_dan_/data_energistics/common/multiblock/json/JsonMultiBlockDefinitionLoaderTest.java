@@ -1319,14 +1319,48 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "main",
                 "Bound Trinity access hatch should remember the structure name");
 
+        host.failAfterRemove = true;
+        boolean failedAfterRemovingRegistration = false;
+        try {
+            binder.unbind("main", host);
+        } catch (IllegalStateException expected) {
+            failedAfterRemovingRegistration = true;
+        }
+        helper.assertTrue(failedAfterRemovingRegistration,
+                "A host failure after removal must leave the captured binding handle available for retry");
+        helper.assertTrue(host.compartmentHost$getCompartments("main").isEmpty(),
+                "The failing host should already have removed its registration before the retry");
+
+        host.failAfterRemove = false;
         binder.unbind("main", host);
         helper.assertTrue(
                 host.compartmentHost$getCompartments("main").isEmpty(),
-                "Binder unbind should remove the Trinity access hatch from the host");
+                "Binder retry should release a hatch whose first removal failed after unregistering it");
         helper.assertTrue(hatch.compartmentHost() == null, "Unbound Trinity access hatch should clear its host");
         helper.assertTrue(
                 hatch.compartmentStructureName() == null,
                 "Unbound Trinity access hatch should clear the structure name");
+
+        binder.bind(world, "main", host, declaredCompartments);
+        host.failBeforeRemove = true;
+        boolean failedBeforeRemovingRegistration = false;
+        try {
+            binder.unbind("main", host);
+        } catch (IllegalStateException expected) {
+            failedBeforeRemovingRegistration = true;
+        }
+        helper.assertTrue(failedBeforeRemovingRegistration,
+                "A host failure before removal must retain the releasing binding for ensureBound to retry");
+        helper.assertValueEqual(host.compartmentHost$getCompartments("main"), List.of(hatch),
+                "The host should retain its registration when removal fails before it mutates");
+
+        host.failBeforeRemove = false;
+        binder.ensureBound(world, "main", host, declaredCompartments);
+        helper.assertValueEqual(hatch.compartmentHost(), host,
+                "ensureBound should retry and reactivate the failed same-host Trinity binding");
+        binder.unbind("main", host);
+        helper.assertTrue(hatch.compartmentHost() == null,
+                "The retried same-host binding should still release normally");
         helper.succeed();
     }
 
@@ -1984,6 +2018,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static final class TestCompartmentHost implements CompartmentHost {
 
         private final CompartmentHostState compartments = new CompartmentHostState();
+        private boolean failBeforeRemove;
+        private boolean failAfterRemove;
 
         @Override
         public void compartmentHost$addCompartment(String structureName, CompartmentPart part) {
@@ -1992,7 +2028,13 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
         @Override
         public void compartmentHost$removeCompartment(String structureName, CompartmentPart part) {
+            if (this.failBeforeRemove) {
+                throw new IllegalStateException("Requested test host failure before removal");
+            }
             this.compartments.removeCompartment(structureName, part);
+            if (this.failAfterRemove) {
+                throw new IllegalStateException("Requested test host failure after removal");
+            }
         }
 
         @Override
