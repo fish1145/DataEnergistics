@@ -11,7 +11,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -67,8 +69,11 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
             return Result.failure(planOutcome.reused(), allocation.failure());
         }
 
-        InventoryTransaction inventory = new InventoryTransaction(context.player().getInventory(),
-                allocation.placements(), context.player().isCreative());
+        InventoryTransaction inventory = new InventoryTransaction(
+                context.structureName(),
+                context.player().getInventory(),
+                materialReservations(allocation.placements()),
+                context.player().isCreative());
         List<WorldSnapshot> worldSnapshots;
         try {
             worldSnapshots = captureWorld(context, allocation.placements());
@@ -90,7 +95,25 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                     null,
                     "Unable to begin a block snapshot transaction before material reservation"));
         }
-        if (!inventory.commit()) {
+        boolean materialsReserved;
+        try {
+            materialsReserved = inventory.commit();
+        } catch (RuntimeException exception) {
+            LOGGER.error("Unable to reserve auto-build materials for {}", context.structureName(), exception);
+            snapshotCapture.close();
+            RefundOutcome refundOutcome = inventory.rollback(context.player());
+            if (!refundOutcome.completed()) {
+                return Result.failure(planOutcome.reused(), new Failure(
+                        FailureType.ROLLBACK_FAILED,
+                        null,
+                        "Material reservation failed and " + refundOutcome.detail()));
+            }
+            return Result.failure(planOutcome.reused(), new Failure(
+                    FailureType.PLACE_FAILED,
+                    null,
+                    "Unable to reserve auto-build materials"));
+        }
+        if (!materialsReserved) {
             snapshotCapture.close();
             return Result.failure(planOutcome.reused(), new Failure(
                     FailureType.MISSING_MATERIAL,
@@ -118,22 +141,28 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         }
 
         if (stageOutcome.failure() != null) {
-            inventory.rollback();
-            if (!worldRestored) {
+            RefundOutcome refundOutcome = inventory.rollback(context.player());
+            if (!worldRestored || !refundOutcome.completed()) {
                 return Result.failure(planOutcome.reused(), new Failure(
                         FailureType.ROLLBACK_FAILED,
                         stageOutcome.failure().position(),
-                        "A staging operation failed and at least one captured world position could not be restored"));
+                        rollbackFailureDetail(worldRestored, refundOutcome)));
             }
             return Result.failure(planOutcome.reused(), stageOutcome.failure());
         }
 
         PublicationOutcome publicationOutcome = publishAll(context, allocation.placements(), stageOutcome);
         if (publicationOutcome.failure() != null) {
-            refundUnpublishedMaterials(
-                    context,
-                    inventory.settlePublicationFailure(publicationOutcome.consumedPlacements()));
+            RefundOutcome refundOutcome = inventory.settlePublicationFailure(
+                    context.player(), publicationOutcome.consumedPlacements());
             releaseReplacementDrops(context, publicationOutcome.releasedReplacementDrops());
+            if (!refundOutcome.completed()) {
+                Failure publicationFailure = publicationOutcome.failure();
+                return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), new Failure(
+                        publicationFailure.type(),
+                        publicationFailure.position(),
+                        publicationFailure.detail() + "; " + refundOutcome.detail()));
+            }
             return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), publicationOutcome.failure());
         }
 
@@ -483,6 +512,17 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                     inventorySlot));
         }
         return new AllocationOutcome(List.copyOf(placements), null);
+    }
+
+    private static List<MaterialReservation> materialReservations(List<Placement> placements) {
+        ArrayList<MaterialReservation> reservations = new ArrayList<>(placements.size());
+        for (Placement placement : placements) {
+            reservations.add(new MaterialReservation(
+                    placement.position(),
+                    placement.inventorySlot(),
+                    placement.stack()));
+        }
+        return List.copyOf(reservations);
     }
 
     private static CandidateSelection selectCandidate(Context context,
@@ -976,25 +1016,15 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
                         context, placement.predicate(), placement.position()));
     }
 
-    private static void refundUnpublishedMaterials(Context context, List<Placement> unpublishedPlacements) {
-        for (Placement placement : unpublishedPlacements) {
-            ItemStack remaining = placement.stack().copyWithCount(1);
-            try {
-                context.player().addItem(remaining);
-            } catch (RuntimeException exception) {
-                LOGGER.error("Unable to return uncommitted auto-build material {} to player {}; dropping its remainder",
-                        remaining, context.player().getGameProfile().getName(), exception);
-            }
-            if (remaining.isEmpty()) {
-                continue;
-            }
-            try {
-                Block.popResource(context.level(), placement.position(), remaining.copy());
-            } catch (RuntimeException exception) {
-                LOGGER.error("Unable to drop uncommitted auto-build material {} at {}",
-                        remaining, placement.position(), exception);
-            }
+    private static String rollbackFailureDetail(boolean worldRestored, RefundOutcome refundOutcome) {
+        if (!worldRestored && !refundOutcome.completed()) {
+            return "A staging operation failed, at least one captured world position could not be restored, and " +
+                    refundOutcome.detail();
         }
+        if (!worldRestored) {
+            return "A staging operation failed and at least one captured world position could not be restored";
+        }
+        return "A staging operation failed and " + refundOutcome.detail();
     }
 
     private static void releaseReplacementDrops(Context context, List<ReplacementDrop> replacementDrops) {
@@ -1365,94 +1395,351 @@ public final class MultiBlockAutoBuildImpl implements MultiBlockAutoBuild {
         }
     }
 
-    private static final class InventoryTransaction {
+    /** One planned material deduction with its source slot and durable publication target. */
+    static record MaterialReservation(BlockPos position, int inventorySlot, ItemStack stack) {
 
-        private final Inventory inventory;
-        private final List<Placement> placements;
-        private final boolean creative;
-        private final List<ItemStack> snapshot;
-        private boolean committed;
+        MaterialReservation {
+            position = position.immutable();
+            stack = stack.copyWithCount(1);
+        }
+    }
 
-        private InventoryTransaction(Inventory inventory, List<Placement> placements, boolean creative) {
-            this.inventory = inventory;
-            this.placements = placements;
-            this.creative = creative;
-            this.snapshot = captureInventory(inventory);
+    /** Reports whether every deducted reservation was either returned or deliberately retained after publication. */
+    static record RefundOutcome(boolean completed, @Nullable String detail) {
+
+        private static RefundOutcome success() {
+            return new RefundOutcome(true, null);
         }
 
-        private boolean commit() {
+        private static RefundOutcome failure(String detail) {
+            return new RefundOutcome(false, detail);
+        }
+    }
+
+    /** Owns only the material actually deducted by this auto-build request. */
+    static final class InventoryTransaction {
+
+        private final Inventory inventory;
+        private final String structureName;
+        private final List<MaterialReservation> reservations;
+        private final boolean creative;
+        private final List<ReservationLine> ledger = new ArrayList<>();
+        private final Map<BlockPos, ReservationLine> reservationLinesByPosition = new LinkedHashMap<>();
+        private boolean committed;
+        private boolean closed;
+        private boolean refunding;
+
+        InventoryTransaction(String structureName,
+                             Inventory inventory,
+                             List<MaterialReservation> reservations,
+                             boolean creative) {
+            this.structureName = structureName;
+            this.inventory = inventory;
+            this.reservations = List.copyOf(reservations);
+            this.creative = creative;
+        }
+
+        boolean commit() {
+            if (this.closed || this.committed || !this.ledger.isEmpty()) {
+                throw new IllegalStateException("Auto-build inventory transaction cannot be committed more than once");
+            }
             if (this.creative) {
                 this.committed = true;
                 return true;
             }
-            Map<Integer, Integer> deductions = new LinkedHashMap<>();
-            Map<Integer, ItemStack> expectedStacks = new LinkedHashMap<>();
-            for (Placement placement : this.placements) {
-                deductions.merge(placement.inventorySlot(), 1, Integer::sum);
-                expectedStacks.putIfAbsent(placement.inventorySlot(), placement.stack());
+            LinkedHashMap<Integer, List<MaterialReservation>> reservationsBySlot = new LinkedHashMap<>();
+            for (MaterialReservation reservation : this.reservations) {
+                reservationsBySlot.computeIfAbsent(reservation.inventorySlot(), ignored -> new ArrayList<>()).add(reservation);
             }
-            for (Map.Entry<Integer, Integer> entry : deductions.entrySet()) {
-                int slot = entry.getKey();
-                ItemStack current = this.inventory.getItem(slot);
-                if (!ItemStack.isSameItemSameComponents(current, expectedStacks.get(slot)) ||
-                        current.getCount() < entry.getValue()) {
+            LinkedHashSet<BlockPos> reservationPositions = new LinkedHashSet<>();
+            for (Map.Entry<Integer, List<MaterialReservation>> entry : reservationsBySlot.entrySet()) {
+                ItemStack current = this.inventory.getItem(entry.getKey());
+                ItemStack expected = entry.getValue().getFirst().stack();
+                if (!ItemStack.isSameItemSameComponents(current, expected) ||
+                        current.getCount() < entry.getValue().size()) {
                     return false;
                 }
+                for (MaterialReservation reservation : entry.getValue()) {
+                    if (!ItemStack.isSameItemSameComponents(reservation.stack(), expected)) {
+                        return false;
+                    }
+                    if (!reservationPositions.add(reservation.position())) {
+                        throw new IllegalStateException("Duplicate material reservation position " + reservation.position());
+                    }
+                }
             }
-            for (Map.Entry<Integer, Integer> entry : deductions.entrySet()) {
+            for (Map.Entry<Integer, List<MaterialReservation>> entry : reservationsBySlot.entrySet()) {
+                int actualDeducted = entry.getValue().size();
+                ItemStack expectedStack = entry.getValue().getFirst().stack();
                 ItemStack remaining = this.inventory.getItem(entry.getKey()).copy();
-                remaining.shrink(entry.getValue());
+                remaining.shrink(actualDeducted);
+                ReservationLine line = new ReservationLine(
+                        entry.getKey(), expectedStack, actualDeducted, remaining, entry.getValue());
                 this.inventory.setItem(entry.getKey(), remaining);
+                this.ledger.add(line);
+                for (MaterialReservation reservation : entry.getValue()) {
+                    this.reservationLinesByPosition.put(reservation.position(), line);
+                }
             }
             this.inventory.setChanged();
             this.committed = true;
             return true;
         }
 
-        private void rollback() {
-            if (!this.committed || this.creative) {
+        RefundOutcome rollback(Player player) {
+            if (this.closed) {
+                return RefundOutcome.success();
+            }
+            if (this.creative) {
+                this.complete();
+                return RefundOutcome.success();
+            }
+            return this.refund(player);
+        }
+
+        private RefundOutcome settlePublicationFailure(Player player, List<Placement> consumedPlacements) {
+            if (this.closed) {
+                return RefundOutcome.success();
+            }
+            if (this.creative) {
+                this.complete();
+                return RefundOutcome.success();
+            }
+            for (Placement consumedPlacement : consumedPlacements) {
+                ReservationLine line = this.reservationLinesByPosition.get(consumedPlacement.position());
+                if (line == null || line.sourceSlot() != consumedPlacement.inventorySlot() ||
+                        !line.markPublished(consumedPlacement.position())) {
+                    throw new IllegalStateException("Published placement does not match its material reservation at " +
+                            consumedPlacement.position());
+                }
+            }
+            return this.refund(player);
+        }
+
+        private RefundOutcome refund(Player player) {
+            if (this.refunding) {
+                return RefundOutcome.failure("auto-build material refund is already in progress");
+            }
+            this.refunding = true;
+            try {
+                return this.refundOutstanding(player);
+            } finally {
+                this.refunding = false;
+            }
+        }
+
+        private RefundOutcome refundOutstanding(Player player) {
+            boolean inventoryChanged = false;
+            boolean refundFailed = false;
+            for (ReservationLine line : this.ledger) {
+                if (!line.hasOutstanding()) {
+                    continue;
+                }
+                int outstandingBefore = line.outstanding();
+                try {
+                    this.refundReservation(player, line);
+                } catch (RuntimeException exception) {
+                    refundFailed = true;
+                    LOGGER.error("Unable to refund auto-build material for structure {} at {}: stack {}, count {}, " +
+                            "source slot {}, expected remaining {}, player {}",
+                            this.structureName,
+                            line.firstPosition(),
+                            line.stack(),
+                            line.outstanding(),
+                            line.sourceSlot(),
+                            line.expectedRemaining(),
+                            player.getGameProfile().getName(),
+                            exception);
+                }
+                inventoryChanged |= line.outstanding() != outstandingBefore;
+            }
+            if (inventoryChanged) {
+                this.inventory.setChanged();
+            }
+            if (refundFailed) {
+                return RefundOutcome.failure("one or more deducted materials could not be refunded; see server log");
+            }
+            this.complete();
+            return RefundOutcome.success();
+        }
+
+        private void refundReservation(Player player, ReservationLine line) {
+            ItemStack remaining = line.refundableStack();
+            this.restoreOriginalSlot(line, remaining);
+            if (!remaining.isEmpty()) {
+                this.insertRefund(line, remaining, player);
+            }
+            if (!remaining.isEmpty()) {
+                this.dropRefund(player, line, remaining);
+            }
+            if (line.hasOutstanding()) {
+                throw new IllegalStateException("Auto-build refund finished without settling its material ledger");
+            }
+        }
+
+        private void restoreOriginalSlot(ReservationLine line, ItemStack remaining) {
+            ItemStack current = this.inventory.getItem(line.sourceSlot());
+            if (current.isEmpty()) {
+                int restored = Math.min(remaining.getCount(), remaining.getMaxStackSize());
+                this.inventory.setItem(line.sourceSlot(), remaining.copyWithCount(restored));
+                remaining.shrink(restored);
+                line.recordRefunded(restored);
                 return;
             }
-            for (int slot = 0; slot < this.snapshot.size(); slot++) {
-                this.inventory.setItem(slot, this.snapshot.get(slot).copy());
+            if (!ItemStack.isSameItemSameComponents(current, remaining)) {
+                return;
             }
-            this.inventory.setChanged();
-            this.committed = false;
+            int freeSpace = current.getMaxStackSize() - current.getCount();
+            if (freeSpace <= 0) {
+                return;
+            }
+            int restored = Math.min(freeSpace, remaining.getCount());
+            ItemStack merged = current.copy();
+            merged.grow(restored);
+            this.inventory.setItem(line.sourceSlot(), merged);
+            remaining.shrink(restored);
+            line.recordRefunded(restored);
+        }
+
+        private void insertRefund(ReservationLine line, ItemStack remaining, Player player) {
+            int countBeforeInsertion = remaining.getCount();
+            try {
+                this.inventory.add(remaining);
+            } catch (RuntimeException exception) {
+                line.recordRefunded(countBeforeInsertion - remaining.getCount());
+                LOGGER.error("Unable to insert auto-build refund for structure {} at {}: stack {}, count {}, " +
+                        "source slot {}, player {}; dropping its remainder",
+                        this.structureName,
+                        line.firstPosition(),
+                        line.stack(),
+                        remaining.getCount(),
+                        line.sourceSlot(),
+                        player.getGameProfile().getName(),
+                        exception);
+                return;
+            }
+            line.recordRefunded(countBeforeInsertion - remaining.getCount());
+        }
+
+        private void dropRefund(Player player, ReservationLine line, ItemStack remaining) {
+            while (!remaining.isEmpty()) {
+                int count = Math.min(remaining.getCount(), remaining.getMaxStackSize());
+                ItemStack stack = remaining.copyWithCount(count);
+                this.dropRefundStack(player, line, stack);
+                remaining.shrink(count);
+                line.recordRefunded(count);
+            }
+        }
+
+        private void dropRefundStack(Player player, ReservationLine line, ItemStack stack) {
+            try {
+                ItemEntity refundEntity = new ItemEntity(
+                        player.level(), player.getX(), player.getY(), player.getZ(), stack.copy());
+                if (player.level().addFreshEntity(refundEntity)) {
+                    return;
+                }
+            } catch (RuntimeException exception) {
+                throw new IllegalStateException("Unable to deliver final auto-build refund " + stack, exception);
+            }
+            throw new IllegalStateException("World rejected final auto-build refund " + stack);
         }
 
         private void complete() {
-            if (!this.creative) {
+            if (this.closed) {
+                return;
+            }
+            if (!this.creative && this.committed) {
                 this.inventory.setChanged();
             }
+            this.ledger.clear();
+            this.reservationLinesByPosition.clear();
             this.committed = false;
+            this.closed = true;
         }
 
-        /** Returns only reservations that never reached a durable world placement after publication began. */
-        private List<Placement> settlePublicationFailure(List<Placement> consumedPlacements) {
-            if (!this.committed || this.creative) {
-                this.complete();
-                return List.of();
-            }
-            LinkedHashSet<BlockPos> consumedPositions = new LinkedHashSet<>();
-            for (Placement consumedPlacement : consumedPlacements) {
-                consumedPositions.add(consumedPlacement.position());
-            }
-            ArrayList<Placement> unpublishedPlacements = new ArrayList<>();
-            for (Placement placement : this.placements) {
-                if (!consumedPositions.contains(placement.position())) {
-                    unpublishedPlacements.add(placement);
+        private static final class ReservationLine {
+
+            private final int sourceSlot;
+            private final ItemStack stack;
+            private final int actualDeducted;
+            private final ItemStack expectedRemaining;
+            private final BlockPos firstPosition;
+            private final Map<BlockPos, MaterialReservation> outstandingReservations = new LinkedHashMap<>();
+            private int outstanding;
+
+            private ReservationLine(int sourceSlot,
+                                    ItemStack stack,
+                                    int actualDeducted,
+                                    ItemStack expectedRemaining,
+                                    List<MaterialReservation> reservations) {
+                if (actualDeducted <= 0 || actualDeducted != reservations.size()) {
+                    throw new IllegalArgumentException("Material reservation line must contain every actual deduction");
+                }
+                this.sourceSlot = sourceSlot;
+                this.stack = stack.copyWithCount(1);
+                this.actualDeducted = actualDeducted;
+                this.expectedRemaining = expectedRemaining.copy();
+                this.firstPosition = reservations.getFirst().position();
+                this.outstanding = this.actualDeducted;
+                for (MaterialReservation reservation : reservations) {
+                    if (reservation.inventorySlot() != sourceSlot ||
+                            !ItemStack.isSameItemSameComponents(reservation.stack(), this.stack)) {
+                        throw new IllegalArgumentException("Material reservation does not match its source-slot ledger line");
+                    }
+                    if (this.outstandingReservations.put(reservation.position(), reservation) != null) {
+                        throw new IllegalArgumentException("Material reservation position was assigned more than once");
+                    }
                 }
             }
-            this.complete();
-            return List.copyOf(unpublishedPlacements);
-        }
 
-        private static List<ItemStack> captureInventory(Inventory inventory) {
-            ArrayList<ItemStack> stacks = new ArrayList<>(inventory.getContainerSize());
-            for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-                stacks.add(inventory.getItem(slot).copy());
+            private int sourceSlot() {
+                return this.sourceSlot;
             }
-            return List.copyOf(stacks);
+
+            private ItemStack stack() {
+                return this.stack.copy();
+            }
+
+            private ItemStack expectedRemaining() {
+                return this.expectedRemaining.copy();
+            }
+
+            private int outstanding() {
+                return this.outstanding;
+            }
+
+            private boolean hasOutstanding() {
+                return this.outstanding > 0;
+            }
+
+            private ItemStack refundableStack() {
+                return this.stack.copyWithCount(this.outstanding);
+            }
+
+            private BlockPos firstPosition() {
+                return this.firstPosition;
+            }
+
+            private boolean markPublished(BlockPos position) {
+                if (this.outstandingReservations.remove(position) == null) {
+                    return false;
+                }
+                this.outstanding--;
+                return true;
+            }
+
+            private void recordRefunded(int count) {
+                if (count <= 0) {
+                    return;
+                }
+                if (count > this.outstanding) {
+                    throw new IllegalArgumentException("Refund exceeds outstanding auto-build material");
+                }
+                this.outstanding -= count;
+                if (this.outstanding == 0) {
+                    this.outstandingReservations.clear();
+                }
+            }
         }
     }
 
