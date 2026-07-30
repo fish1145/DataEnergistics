@@ -4,7 +4,6 @@ import net.minecraft.core.Direction;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
-import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternProviderTarget;
@@ -52,8 +51,18 @@ public interface PatternProviderBatchAccess {
     @Nullable
     PatternProviderTarget dataEnergistics$invokeFindAdapter(Direction side);
 
-    /** Adds an input remainder to AE2's persistent send list. */
-    void dataEnergistics$invokeAddToSendList(AEKey what, long amount);
+    /**
+     * Wakes the provider after a complete counted batch has been placed in its persistent send list.
+     *
+     * <p>
+     * Counted dispatch installs the full list in one operation before transferring CPU ownership, so it cannot use
+     * AE2's per-stack {@code addToSendList} helper to perform this wake-up.
+     * </p>
+     */
+    default void dataEnergistics$alertPendingSendList() {
+        this.dataEnergistics$getMainNode().ifPresent(
+                (grid, node) -> grid.getTickManager().alertDevice(node));
+    }
 
     /** Immediately retries AE2's pending send list against its fixed target side. */
     boolean dataEnergistics$invokeSendStacksOut();

@@ -103,13 +103,10 @@ public final class PatternProviderBatching {
                         patternDetails,
                         committedPrototype,
                         count,
-                        possibleTarget.target(),
-                        transferOwnership,
-                        access::dataEnergistics$invokeAddToSendList);
-                transferOwnership.run();
+                        access,
+                        possibleTarget.direction(),
+                        transferOwnership);
                 access.dataEnergistics$invokeOnPushPatternSuccess(patternDetails);
-                access.dataEnergistics$setSendDirection(possibleTarget.direction());
-                access.dataEnergistics$invokeSendStacksOut();
                 access.dataEnergistics$setRoundRobinIndex(nextRoundRobinIndex);
                 afterCommit.run();
                 return true;
@@ -159,39 +156,41 @@ public final class PatternProviderBatching {
                              IPatternDetails patternDetails,
                              KeyCounter[] prototype,
                              long count,
-                             PatternProviderTarget target,
-                             Runnable transferOwnership,
-                             IPatternDetails.PatternInputSink remainderSink) {
+                             PatternProviderBatchAccess access,
+                             Direction direction,
+                             Runnable transferOwnership) {
         if (patternDetails == null) {
             throw new IllegalArgumentException(
                     "Pattern details must not be null when expanding a pattern-provider batch");
         }
-        if (target == null) {
-            throw new IllegalArgumentException("Pattern-provider expansion target must not be null");
+        if (access == null) {
+            throw new IllegalArgumentException("Pattern-provider batch access must not be null");
+        }
+        if (direction == null) {
+            throw new IllegalArgumentException("Pattern-provider batch direction must not be null");
         }
         if (transferOwnership == null) {
             throw new IllegalArgumentException("Pattern-provider ownership callback must not be null");
         }
-        if (remainderSink == null) {
-            throw new IllegalArgumentException("Pattern-provider remainder sink must not be null");
-        }
         List<GenericStack> expandedInputs = expandPatternInputs(patternDetails, prototype, count);
-        for (GenericStack input : expandedInputs) {
-            transferOwnership.run();
-            long inserted = target.insert(input.what(), input.amount(), Actionable.MODULATE);
-            if (inserted < 0L || inserted > input.amount()) {
-                throw new IllegalStateException("Pattern provider target returned an invalid insertion amount");
-            }
-            if (inserted < input.amount()) {
-                remainderSink.pushInput(input.what(), input.amount() - inserted);
-            }
+        List<GenericStack> sendList = access.dataEnergistics$getSendList();
+        if (!sendList.isEmpty()) {
+            throw new IllegalStateException("Pattern provider received another batch while inputs were pending");
         }
+
+        access.dataEnergistics$setSendDirection(direction);
+        sendList.addAll(expandedInputs);
+        transferOwnership.run();
+        if (!expandedInputs.isEmpty()) {
+            access.dataEnergistics$alertPendingSendList();
+        }
+        access.dataEnergistics$invokeSendStacksOut();
     }
 
-    private static List<GenericStack> expandPatternInputs(
-                                                          IPatternDetails patternDetails,
-                                                          KeyCounter[] prototype,
-                                                          long count) {
+    static List<GenericStack> expandPatternInputs(
+                                                  IPatternDetails patternDetails,
+                                                  KeyCounter[] prototype,
+                                                  long count) {
         if (count <= 0L) {
             throw new IllegalArgumentException("count must be positive");
         }

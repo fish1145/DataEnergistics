@@ -8,7 +8,6 @@ import net.minecraft.core.Direction;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
@@ -69,10 +68,6 @@ public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicF
     @Invoker("findAdapter")
     @Nullable
     PatternProviderTarget dataEnergistics$invokeFindAdapter(Direction side);
-
-    @Override
-    @Invoker("addToSendList")
-    void dataEnergistics$invokeAddToSendList(AEKey what, long amount);
 
     @Override
     @Invoker("sendStacksOut")
