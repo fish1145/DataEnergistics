@@ -243,6 +243,25 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return number() != 0 && this.logic.hasJob();
     }
 
+    /**
+     * Returns whether this AE2-visible CPU can accept a new job. The reserved coordinator delegates to runtime worker
+     * capacity while concrete workers use their own job state.
+     *
+     * @return whether job submission may be attempted
+     */
+    public boolean canAcceptJob() {
+        return number() == 0 ? this.runtime.canAcceptJob() : !this.logic.hasJob();
+    }
+
+    /**
+     * Returns the number of worker slots currently retained by this CPU's runtime.
+     *
+     * @return occupied worker count used to balance equal auto-selection candidates
+     */
+    public int getOccupiedWorkerCount() {
+        return this.runtime.occupiedWorkerCount();
+    }
+
     @Nullable
     @Override
     public CraftingJobStatus getJobStatus() {

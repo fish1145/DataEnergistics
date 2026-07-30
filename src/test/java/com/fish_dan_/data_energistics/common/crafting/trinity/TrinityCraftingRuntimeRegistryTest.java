@@ -132,6 +132,23 @@ public final class TrinityCraftingRuntimeRegistryTest {
         assertFalse(this.registry.withdraw(node));
     }
 
+    @Test
+    void reconciliationPreservesTheRelativeOrderOfExistingRuntimeIdentities() {
+        IGrid grid = new StubGrid();
+        IGridNode firstNode = new EqualGridNode(grid);
+        IGridNode secondNode = new EqualGridNode(grid);
+        TrinityDataCoreCraftingRuntime firstRuntime = runtime();
+        TrinityDataCoreCraftingRuntime secondRuntime = runtime();
+        this.registry.publish(firstNode, firstRuntime);
+        this.registry.publish(secondNode, secondRuntime);
+
+        Map<IGridNode, TrinityDataCoreCraftingRuntime> completeScan = new IdentityHashMap<>();
+        completeScan.put(secondNode, secondRuntime);
+        completeScan.put(firstNode, firstRuntime);
+
+        assertEquals(List.of(firstRuntime, secondRuntime), this.registry.reconcile(completeScan));
+    }
+
     /** Creates an identity token without invoking host-backed runtime behavior. */
     private static TrinityDataCoreCraftingRuntime runtime() {
         return new TrinityDataCoreCraftingRuntime(null);

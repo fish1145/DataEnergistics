@@ -123,6 +123,36 @@ public final class TrinityDataCoreCraftingRuntime {
         return false;
     }
 
+    /** Returns whether the coordinator can allocate a worker without mutating retained runtime state. */
+    boolean canAcceptJob() {
+        if (this.paused || !this.mainStructureFormed || !this.profile.active()) {
+            return false;
+        }
+        if (this.nextAvailableWorkerNumber <= this.profile.partitionCount()) {
+            return true;
+        }
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            if (entry.getKey() <= this.profile.partitionCount() &&
+                    !this.pendingWorkerLogic.containsKey(entry.getKey()) &&
+                    entry.getValue().isReleasable()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns the number of retained workers that currently consume an allocation slot. */
+    int occupiedWorkerCount() {
+        int occupied = 0;
+        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+            if (entry.getKey() <= this.profile.partitionCount() &&
+                    (this.pendingWorkerLogic.containsKey(entry.getKey()) || !entry.getValue().isReleasable())) {
+                occupied++;
+            }
+        }
+        return occupied;
+    }
+
     /** Adds or replaces CPU data contributed by a named child structure. */
     public void setContribution(String structureName, TrinityDataCoreCpuContribution contribution) {
         String checkedStructureName = requireStructureName(structureName);
@@ -247,19 +277,25 @@ public final class TrinityDataCoreCraftingRuntime {
         if (startNumber == null) {
             startNumber = this.retainedWorkers.firstKey();
         }
-        Integer followingNumber = this.retainedWorkers.higherKey(startNumber);
-        this.nextWorkerTickStartNumber = followingNumber != null ? followingNumber : this.retainedWorkers.firstKey();
 
         List<TrinityDataCoreVirtualCpu> workers = new ArrayList<>(this.retainedWorkers.size());
         workers.addAll(this.retainedWorkers.tailMap(startNumber, true).values());
         workers.addAll(this.retainedWorkers.headMap(startNumber, false).values());
+        int lastAttemptingWorkerNumber = -1;
         for (TrinityDataCoreVirtualCpu worker : workers) {
             int workerNumber = worker.number();
             if (this.retainedWorkers.get(workerNumber) != worker) {
                 continue;
             }
+            int attemptsBeforeWorker = dispatchWindow.attemptCount();
             worker.tick(energyService, craftingService, dispatchWindow);
+            if (dispatchWindow.attemptCount() > attemptsBeforeWorker) {
+                lastAttemptingWorkerNumber = workerNumber;
+            }
             removeWorkerIfReleasable(workerNumber, worker);
+        }
+        if (lastAttemptingWorkerNumber >= 0) {
+            advanceWorkerTickStartAfter(lastAttemptingWorkerNumber);
         }
     }
 
@@ -480,6 +516,16 @@ public final class TrinityDataCoreCraftingRuntime {
                 iterator.remove();
             }
         }
+    }
+
+    /** Advances fairness only after a worker actually consumes shared physical dispatch capacity. */
+    private void advanceWorkerTickStartAfter(int workerNumber) {
+        if (this.retainedWorkers.isEmpty()) {
+            this.nextWorkerTickStartNumber = 1;
+            return;
+        }
+        Integer followingNumber = this.retainedWorkers.higherKey(workerNumber);
+        this.nextWorkerTickStartNumber = followingNumber != null ? followingNumber : this.retainedWorkers.firstKey();
     }
 
     private void applyProfile(TrinityDataCoreCpuProfile nextProfile) {

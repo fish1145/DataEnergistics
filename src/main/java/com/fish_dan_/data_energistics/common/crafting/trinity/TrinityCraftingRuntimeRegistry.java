@@ -108,7 +108,7 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
     /** Builds the complete immutable view before changing live identity registrations. */
     private List<TrinityDataCoreCraftingRuntime> commitRegistrations(
                                                                      Map<IGridNode, TrinityDataCoreCraftingRuntime> replacements) {
-        List<TrinityDataCoreCraftingRuntime> replacementSnapshot = createSnapshot(replacements.values());
+        List<TrinityDataCoreCraftingRuntime> replacementSnapshot = createSnapshot(replacements.values(), this.snapshot);
         this.registrations.clear();
         this.registrations.putAll(replacements);
         this.snapshot = replacementSnapshot;
@@ -116,9 +116,20 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
     }
 
     private static List<TrinityDataCoreCraftingRuntime> createSnapshot(
-                                                                       Iterable<TrinityDataCoreCraftingRuntime> registrations) {
+                                                                       Iterable<TrinityDataCoreCraftingRuntime> registrations,
+                                                                       List<TrinityDataCoreCraftingRuntime> previousSnapshot) {
+        Map<TrinityDataCoreCraftingRuntime, Boolean> present = new IdentityHashMap<>();
+        for (TrinityDataCoreCraftingRuntime runtime : registrations) {
+            present.put(runtime, Boolean.TRUE);
+        }
         Map<TrinityDataCoreCraftingRuntime, Boolean> seen = new IdentityHashMap<>();
         List<TrinityDataCoreCraftingRuntime> runtimes = new ArrayList<>();
+        for (TrinityDataCoreCraftingRuntime runtime : previousSnapshot) {
+            if (present.containsKey(runtime)) {
+                seen.put(runtime, Boolean.TRUE);
+                runtimes.add(runtime);
+            }
+        }
         for (TrinityDataCoreCraftingRuntime runtime : registrations) {
             if (!seen.containsKey(runtime)) {
                 seen.put(runtime, Boolean.TRUE);

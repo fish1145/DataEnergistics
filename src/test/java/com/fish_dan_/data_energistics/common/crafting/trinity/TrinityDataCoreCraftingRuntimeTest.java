@@ -30,6 +30,7 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.IPatternDetails.IInput;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IGridService;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -48,6 +49,7 @@ import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.crafting.CraftingPlan;
 import appeng.crafting.execution.CraftingSubmitResult;
+import appeng.me.GridNode;
 import appeng.me.service.CraftingService;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.stream.JsonWriter;
@@ -57,8 +59,10 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -446,6 +450,183 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_cpu_coordinator_reports_worker_availability")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuCoordinatorReportsWorkerAvailability(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("capacity", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        TrinityDataCoreVirtualCpu coordinator = host.getCpuPartitions().getFirst();
+
+        helper.assertTrue(coordinator.canAcceptJob(), "An empty coordinator must advertise one available worker");
+        helper.assertTrue(
+                coordinator.submitJob(grid, emptyJobPlan(), IActionSource.empty(), null).successful(),
+                "The only worker slot should accept its first job");
+        helper.assertFalse(coordinator.canAcceptJob(), "A full coordinator must not remain auto-selectable");
+
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.assertTrue(coordinator.canAcceptJob(), "A releasable worker must make the coordinator available again");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_auto_selection_skips_full_runtime")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuAutoSelectionSkipsFullRuntime(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost fullHost = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        NetworkedTestHost availableHost = new NetworkedTestHost(helper.absolutePos(new BlockPos(3, 1, 1)), grid);
+        for (NetworkedTestHost host : List.of(fullHost, availableHost)) {
+            host.setLevel(helper.getLevel());
+            host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+            host.setCpuContribution("selection", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        }
+        helper.assertTrue(
+                fullHost.getCpuPartitions()
+                        .getFirst()
+                        .submitJob(grid, emptyJobPlan(), IActionSource.empty(), null)
+                        .successful(),
+                "The first runtime must be full before auto-selection");
+        TrinityCraftingRuntimeRegistry registry = (TrinityCraftingRuntimeRegistry) grid.craftingService();
+        registry.publish(new RuntimeGridNode(grid), fullHost.getCraftingRuntime());
+        registry.publish(new RuntimeGridNode(grid), availableHost.getCraftingRuntime());
+
+        ICraftingSubmitResult result = grid.craftingService().submitJob(
+                emptyJobPlan(),
+                null,
+                null,
+                true,
+                IActionSource.empty());
+
+        helper.assertTrue(result.successful(),
+                "Auto-selection should continue to the available Trinity runtime: " + result.errorCode());
+        helper.assertValueEqual(fullHost.getCraftingRuntime().occupiedWorkerCount(), 1,
+                "The full runtime must retain only its original worker");
+        helper.assertValueEqual(availableHost.getCraftingRuntime().occupiedWorkerCount(), 1,
+                "The second runtime must receive the auto-selected job");
+        fullHost.getCraftingRuntime().cancelAllJobs();
+        availableHost.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_preserves_ae2_provider_round_robin")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuPreservesAe2ProviderRoundRobin(GameTestHelper helper) {
+        PendingPatternDetails pattern = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
+        RecordingCraftingProvider firstProvider = new RecordingCraftingProvider(pattern);
+        RecordingCraftingProvider secondProvider = new RecordingCraftingProvider(pattern);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProviders(List.of(firstProvider, secondProvider));
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("provider_rr", TrinityDataCoreCpuContribution.of(1024L, 1, 1));
+        TrinityDataCoreVirtualCpu coordinator = host.getCpuPartitions().getFirst();
+        helper.assertTrue(
+                coordinator.submitJob(grid, patternPlan(pattern, 2L), IActionSource.empty(), null).successful(),
+                "Provider round-robin job should be accepted");
+
+        TrinityDataCoreVirtualCpu worker = singleBusyWorker(host.getCraftingRuntime());
+        worker.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(firstProvider.pushCount(), 1,
+                "The first physical submission should use the first AE2 provider");
+        helper.assertValueEqual(secondProvider.pushCount(), 1,
+                "Stopping the cyclic iterator at acceptance must expose the second provider next");
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_no_capacity_cache_is_pattern_scoped")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuNoCapacityCacheIsPatternScoped(GameTestHelper helper) {
+        PendingPatternDetails blockedPattern = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
+        PendingPatternDetails acceptedPattern = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
+        PatternScopedCapacityProvider provider = new PatternScopedCapacityProvider(blockedPattern, acceptedPattern);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("pattern_cache", TrinityDataCoreCpuContribution.of(2048L, 0, 2));
+        TrinityDataCoreVirtualCpu coordinator = host.getCpuPartitions().getFirst();
+        helper.assertTrue(
+                coordinator.submitJob(grid, patternPlan(blockedPattern, 1L), IActionSource.empty(), null).successful(),
+                "Blocked-pattern worker should be allocated");
+        helper.assertTrue(
+                coordinator.submitJob(grid, patternPlan(acceptedPattern, 1L), IActionSource.empty(), null).successful(),
+                "Accepted-pattern worker should be allocated");
+
+        host.getCraftingRuntime().tick(
+                grid.energyService(),
+                grid.craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(provider.blockedPrepareCount(), 1,
+                "The no-capacity pattern should be prepared once");
+        helper.assertValueEqual(provider.acceptedCommitCount(), 1,
+                "A different pattern on the same provider must remain eligible in the shared window");
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_multi_runtime_worker_rotation_avoids_phase_lock")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuMultiRuntimeWorkerRotationAvoidsPhaseLock(GameTestHelper helper) {
+        long taskCount = CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER * 4L;
+        PendingPatternDetails firstA = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
+        PendingPatternDetails secondA = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
+        PendingPatternDetails firstB = new PendingPatternDetails(AEItemKey.of(Items.GOLD_INGOT));
+        PendingPatternDetails secondB = new PendingPatternDetails(AEItemKey.of(Items.IRON_INGOT));
+        SequencedCraftingProvider provider = new SequencedCraftingProvider(List.of(firstA, secondA, firstB, secondB));
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        NetworkedTestHost hostA = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        NetworkedTestHost hostB = new NetworkedTestHost(helper.absolutePos(new BlockPos(3, 1, 1)), grid);
+        for (NetworkedTestHost host : List.of(hostA, hostB)) {
+            host.setLevel(helper.getLevel());
+            host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+            host.setCpuContribution("phase_lock", TrinityDataCoreCpuContribution.of(4096L, Integer.MAX_VALUE, 2));
+        }
+        TrinityDataCoreVirtualCpu coordinatorA = hostA.getCpuPartitions().getFirst();
+        TrinityDataCoreVirtualCpu coordinatorB = hostB.getCpuPartitions().getFirst();
+        helper.assertTrue(
+                coordinatorA.submitJob(grid, patternPlan(firstA, taskCount), IActionSource.empty(), null).successful(),
+                "Runtime A worker 1 should be allocated");
+        helper.assertTrue(
+                coordinatorA.submitJob(grid, patternPlan(secondA, taskCount), IActionSource.empty(), null).successful(),
+                "Runtime A worker 2 should be allocated");
+        helper.assertTrue(
+                coordinatorB.submitJob(grid, patternPlan(firstB, taskCount), IActionSource.empty(), null).successful(),
+                "Runtime B worker 1 should be allocated");
+        helper.assertTrue(
+                coordinatorB.submitJob(grid, patternPlan(secondB, taskCount), IActionSource.empty(), null).successful(),
+                "Runtime B worker 2 should be allocated");
+
+        TrinityDataCoreCraftingRuntime runtimeA = hostA.getCraftingRuntime();
+        TrinityDataCoreCraftingRuntime runtimeB = hostB.getCraftingRuntime();
+        tickRuntimes(grid, CraftingDispatchWindow.create(), runtimeA, runtimeB);
+        tickRuntimes(grid, CraftingDispatchWindow.create(), runtimeB, runtimeA);
+        tickRuntimes(grid, CraftingDispatchWindow.create(), runtimeA, runtimeB);
+        tickRuntimes(grid, CraftingDispatchWindow.create(), runtimeB, runtimeA);
+
+        for (IPatternDetails pattern : List.of(firstA, secondA, firstB, secondB)) {
+            helper.assertValueEqual(
+                    provider.pushCount(pattern),
+                    (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                    "Every runtime worker must receive one complete physical window without phase-lock starvation");
+        }
+        runtimeA.cancelAllJobs();
+        runtimeB.cancelAllJobs();
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_dispatches_one_counted_batch")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -617,6 +798,67 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Fallback acceptance must record every expected output exactly once");
         helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
                 "Fallback acceptance must retain one complete batch energy charge");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_falls_back_after_counted_provider_exception")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuFallsBackAfterCountedProviderException(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.THROW);
+        RecordingBatchCraftingProvider fallback = new RecordingBatchCraftingProvider(
+                fixture.provider().pattern(),
+                fixture.input(),
+                BatchPushOutcome.ACCEPT);
+        fixture.grid().setCraftingProviders(List.of(fixture.provider(), fallback));
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "The throwing provider must consume one physical attempt");
+        helper.assertValueEqual(fallback.batchPushCount(), 1,
+                "A provider exception before ownership transfer must not abort fallback dispatch");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                "Fallback acceptance must transfer the restored batch exactly once");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                "Fallback acceptance must commit the complete expected output count");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
+                "The failed provider charge must roll back before the fallback charge commits");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_isolates_provider_busy_exception")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuIsolatesProviderBusyException(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT);
+        BusyThrowingCraftingProvider throwingProvider = new BusyThrowingCraftingProvider(fixture.provider().pattern());
+        fixture.grid().setCraftingProviders(List.of(throwingProvider, fixture.provider()));
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertValueEqual(throwingProvider.busyCheckCount(), 1,
+                "The faulty provider busy state should be checked once");
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "A busy-state exception must not prevent the next provider from accepting the batch");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                "The accepted fallback must receive every input exactly once");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                "The accepted fallback must retain complete waiting-output accounting");
         helper.succeed();
     }
 
@@ -1570,6 +1812,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 Map.of(pattern, taskCount));
     }
 
+    private static void tickRuntimes(TestGrid grid,
+                                     CraftingDispatchWindow dispatchWindow,
+                                     TrinityDataCoreCraftingRuntime first,
+                                     TrinityDataCoreCraftingRuntime second) {
+        first.tick(grid.energyService(), grid.craftingService(), dispatchWindow);
+        second.tick(grid.energyService(), grid.craftingService(), dispatchWindow);
+    }
+
     private static void assertOfflineWithoutExtraction(GameTestHelper helper,
                                                        TrinityDataCoreVirtualCpu cpu,
                                                        TestGrid grid,
@@ -1698,6 +1948,23 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private record OutputRuntimeFixture(TestGrid grid,
                                         TrinityDataCoreCraftingRuntime runtime,
                                         TrinityDataCoreVirtualCpu reserveCpu) {}
+
+    private static final class RuntimeGridNode extends GridNode {
+
+        private static final IGridNodeListener<Object> LISTENER = (owner, node) -> {};
+
+        private final IGrid grid;
+
+        private RuntimeGridNode(IGrid grid) {
+            super(null, new Object(), LISTENER, Set.of());
+            this.grid = grid;
+        }
+
+        @Override
+        public IGrid getGrid() {
+            return this.grid;
+        }
+    }
 
     private static final class TestHost extends TrinityDataCoreBlockEntity {
 
@@ -1863,6 +2130,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private static final class TestCraftingService extends CraftingService {
 
         private List<ICraftingProvider> providers = List.of();
+        private int nextProviderIndex;
 
         private TestCraftingService(IGrid grid, IStorageService storageService, IEnergyService energyService) {
             super(grid, storageService, energyService);
@@ -1874,14 +2142,39 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private void setProviders(List<ICraftingProvider> providers) {
             this.providers = List.copyOf(providers);
+            this.nextProviderIndex = 0;
         }
 
         @Override
         public Iterable<ICraftingProvider> getProviders(IPatternDetails pattern) {
-            return this.providers.stream()
+            List<ICraftingProvider> matchingProviders = this.providers.stream()
                     .filter(provider -> provider.getAvailablePatterns().stream()
                             .anyMatch(candidate -> candidate == pattern))
                     .toList();
+            if (matchingProviders.isEmpty()) {
+                return List.of();
+            }
+            int start = Math.floorMod(this.nextProviderIndex, matchingProviders.size());
+            return () -> new Iterator<>() {
+
+                private int offset;
+
+                @Override
+                public boolean hasNext() {
+                    return this.offset < matchingProviders.size();
+                }
+
+                @Override
+                public ICraftingProvider next() {
+                    if (!hasNext()) {
+                        throw new NoSuchElementException("No crafting providers remain in this cycle");
+                    }
+                    ICraftingProvider provider = matchingProviders.get((start + this.offset) % matchingProviders.size());
+                    this.offset++;
+                    nextProviderIndex = (start + this.offset) % matchingProviders.size();
+                    return provider;
+                }
+            };
         }
     }
 
@@ -2113,6 +2406,99 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
             this.pushedPatterns.add(patternDetails);
             return true;
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
+        }
+    }
+
+    private static final class BusyThrowingCraftingProvider implements ICraftingProvider {
+
+        private final IPatternDetails pattern;
+        private int busyCheckCount;
+
+        private BusyThrowingCraftingProvider(IPatternDetails pattern) {
+            this.pattern = pattern;
+        }
+
+        private int busyCheckCount() {
+            return this.busyCheckCount;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.pattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            throw new AssertionError("A provider whose busy check failed must not receive inputs");
+        }
+
+        @Override
+        public boolean isBusy() {
+            this.busyCheckCount++;
+            throw new IllegalStateException("Test provider busy-state failure");
+        }
+    }
+
+    private static final class PatternScopedCapacityProvider implements CountedCraftingProvider {
+
+        private final IPatternDetails blockedPattern;
+        private final IPatternDetails acceptedPattern;
+        private int blockedPrepareCount;
+        private int acceptedCommitCount;
+
+        private PatternScopedCapacityProvider(IPatternDetails blockedPattern, IPatternDetails acceptedPattern) {
+            this.blockedPattern = blockedPattern;
+            this.acceptedPattern = acceptedPattern;
+        }
+
+        private int blockedPrepareCount() {
+            return this.blockedPrepareCount;
+        }
+
+        private int acceptedCommitCount() {
+            return this.acceptedCommitCount;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.blockedPattern, this.acceptedPattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            throw new AssertionError("Pattern-scoped provider must use counted dispatch");
+        }
+
+        @Nullable
+        @Override
+        public CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCount) {
+            if (patternDetails == this.blockedPattern) {
+                this.blockedPrepareCount++;
+                return null;
+            }
+            if (patternDetails != this.acceptedPattern) {
+                throw new IllegalArgumentException("Unexpected pattern-scoped capacity test pattern");
+            }
+            return new CountedCraftingAdmission() {
+
+                @Override
+                public long count() {
+                    return Math.min(1L, requestedCount);
+                }
+
+                @Override
+                public boolean commit(KeyCounter[] inputHolder) {
+                    acceptedCommitCount++;
+                    return true;
+                }
+            };
         }
 
         @Override

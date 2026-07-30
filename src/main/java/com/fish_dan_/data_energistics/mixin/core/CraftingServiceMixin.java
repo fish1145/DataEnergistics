@@ -71,6 +71,10 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     @Unique
     private int dataEnergistics$nextTrinityRuntimeTickStart;
 
+    /** Transient cursor balances successful auto-submissions across equally capable Trinity runtimes. */
+    @Unique
+    private int dataEnergistics$nextTrinitySubmitStart;
+
     @Shadow
     @Final
     private IGrid grid;
@@ -204,15 +208,20 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
         ICraftingSubmitResult attemptedTrinityResult = null;
         if (target == null && !job.simulation() && !dataEnergistics$hasExternalCraftingCpu()) {
-            ICraftingCPU selectedCpu = dataEnergistics$findSuitableCpu(job, prioritizePower, src, true);
-            if (selectedCpu instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu) {
-                attemptedTrinityResult = trinityDataCoreCpu.submitJob(
-                        this.grid,
+            List<ICraftingCPU> candidates = dataEnergistics$findSuitableCpus(job, prioritizePower, src, true);
+            if (!candidates.isEmpty() && candidates.getFirst() instanceof TrinityDataCoreVirtualCpu) {
+                attemptedTrinityResult = dataEnergistics$submitToTrinityCandidates(
+                        candidates,
                         job,
                         src,
                         requestingMachine);
-                if (attemptedTrinityResult.successful()) {
-                    return attemptedTrinityResult;
+                if (attemptedTrinityResult != null) {
+                    if (attemptedTrinityResult.successful()) {
+                        return attemptedTrinityResult;
+                    }
+                    if (!dataEnergistics$isRetryableTrinityFailure(attemptedTrinityResult)) {
+                        return attemptedTrinityResult;
+                    }
                 }
             }
         }
@@ -235,10 +244,12 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
             return attemptedTrinityResult;
         }
 
-        ICraftingCPU fallback = dataEnergistics$findSuitableCpu(job, prioritizePower, src, false);
-        return fallback instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu ?
-                trinityDataCoreCpu.submitJob(this.grid, job, src, requestingMachine) :
-                originalResult;
+        ICraftingSubmitResult fallbackResult = dataEnergistics$submitToTrinityCandidates(
+                dataEnergistics$findSuitableCpus(job, prioritizePower, src, false),
+                job,
+                src,
+                requestingMachine);
+        return fallbackResult != null ? fallbackResult : originalResult;
     }
 
     @Inject(
@@ -283,12 +294,11 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
         return false;
     }
 
-    @Nullable
     @Unique
-    private ICraftingCPU dataEnergistics$findSuitableCpu(ICraftingPlan job,
-                                                         boolean prioritizePower,
-                                                         IActionSource source,
-                                                         boolean includeNativeCpus) {
+    private List<ICraftingCPU> dataEnergistics$findSuitableCpus(ICraftingPlan job,
+                                                                boolean prioritizePower,
+                                                                IActionSource source,
+                                                                boolean includeNativeCpus) {
         ArrayList<ICraftingCPU> validCpus = new ArrayList<>();
         if (includeNativeCpus) {
             for (CraftingCPUCluster cpu : this.craftingCPUClusters) {
@@ -301,7 +311,7 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
         dataEnergistics$collectTrinityDataCoreCpuCandidates(job, source, validCpus);
 
         if (validCpus.isEmpty()) {
-            return null;
+            return List.of();
         }
         validCpus.sort((first, second) -> {
             boolean firstPreferred = dataEnergistics$isPreferredFor(first, source);
@@ -309,10 +319,73 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
             if (firstPreferred != secondPreferred) {
                 return Boolean.compare(secondPreferred, firstPreferred);
             }
-            Comparator<ICraftingCPU> comparator = prioritizePower ? DATA_ENERGISTICS_FAST_FIRST_COMPARATOR : DATA_ENERGISTICS_FAST_LAST_COMPARATOR;
-            return comparator.compare(first, second);
+            Comparator<ICraftingCPU> comparator = prioritizePower ?
+                    DATA_ENERGISTICS_FAST_FIRST_COMPARATOR :
+                    DATA_ENERGISTICS_FAST_LAST_COMPARATOR;
+            int hardwareOrder = comparator.compare(first, second);
+            if (hardwareOrder != 0) {
+                return hardwareOrder;
+            }
+            if (first instanceof TrinityDataCoreVirtualCpu firstTrinity &&
+                    second instanceof TrinityDataCoreVirtualCpu secondTrinity) {
+                return Integer.compare(
+                        firstTrinity.getOccupiedWorkerCount(),
+                        secondTrinity.getOccupiedWorkerCount());
+            }
+            return 0;
         });
-        return validCpus.getFirst();
+        return List.copyOf(validCpus);
+    }
+
+    /**
+     * Attempts eligible Trinity coordinators in selection order. Missing ingredients are terminal because retrying a
+     * plan would repeat initial ingredient extraction; only submission-time availability failures permit failover.
+     */
+    @Nullable
+    @Unique
+    private ICraftingSubmitResult dataEnergistics$submitToTrinityCandidates(List<ICraftingCPU> candidates,
+                                                                            ICraftingPlan job,
+                                                                            IActionSource source,
+                                                                            @Nullable ICraftingRequester requester) {
+        ICraftingSubmitResult lastFailure = null;
+        for (ICraftingCPU candidate : candidates) {
+            if (!(candidate instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu)) {
+                continue;
+            }
+            ICraftingSubmitResult result = trinityDataCoreCpu.submitJob(this.grid, job, source, requester);
+            if (result.successful()) {
+                dataEnergistics$advanceTrinitySubmitStart(trinityDataCoreCpu);
+                return result;
+            }
+            lastFailure = result;
+            if (!dataEnergistics$isRetryableTrinityFailure(result)) {
+                return result;
+            }
+        }
+        return lastFailure;
+    }
+
+    /** Returns whether a failed coordinator may safely be bypassed without repeating ingredient extraction. */
+    @Unique
+    private static boolean dataEnergistics$isRetryableTrinityFailure(ICraftingSubmitResult result) {
+        return result.errorCode() == CraftingSubmitErrorCode.CPU_BUSY ||
+                result.errorCode() == CraftingSubmitErrorCode.CPU_OFFLINE ||
+                result.errorCode() == CraftingSubmitErrorCode.CPU_TOO_SMALL;
+    }
+
+    /** Moves the equal-candidate round-robin cursor after one successful Trinity allocation. */
+    @Unique
+    private void dataEnergistics$advanceTrinitySubmitStart(TrinityDataCoreVirtualCpu successfulCpu) {
+        List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
+        for (int runtimeIndex = 0; runtimeIndex < runtimes.size(); runtimeIndex++) {
+            if (runtimes.get(runtimeIndex).hasCpu(successfulCpu)) {
+                this.dataEnergistics$nextTrinitySubmitStart = (runtimeIndex + 1) % runtimes.size();
+                return;
+            }
+        }
+        Data_Energistics.LOGGER.warn(
+                "Successful Trinity CPU {} was no longer present while advancing the auto-selection cursor",
+                successfulCpu.number());
     }
 
     @Unique
@@ -328,12 +401,18 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     private void dataEnergistics$collectTrinityDataCoreCpuCandidates(ICraftingPlan job,
                                                                      IActionSource source,
                                                                      ArrayList<ICraftingCPU> validCpus) {
-        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
+        List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
+        if (runtimes.isEmpty()) {
+            return;
+        }
+        int start = Math.floorMod(this.dataEnergistics$nextTrinitySubmitStart, runtimes.size());
+        for (int offset = 0; offset < runtimes.size(); offset++) {
+            TrinityDataCoreCraftingRuntime runtime = runtimes.get((start + offset) % runtimes.size());
             for (TrinityDataCoreVirtualCpu cpu : runtime.publishedCpus()) {
                 if (!cpu.isActive()) {
                     continue;
                 }
-                if (cpu.isBusy()) {
+                if (!cpu.canAcceptJob()) {
                     continue;
                 }
                 if (cpu.getAvailableStorage() < job.bytes()) {
