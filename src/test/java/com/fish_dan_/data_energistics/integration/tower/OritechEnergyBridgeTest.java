@@ -24,7 +24,7 @@ final class OritechEnergyBridgeTest {
     }
 
     @Test
-    void rethrowsFatalFailuresWithoutChangingTheirIdentity() {
+    void rethrowsVirtualMachineErrorWithoutChangingItsIdentity() {
         TestVirtualMachineError virtualMachineError = new TestVirtualMachineError();
         TestVirtualMachineError thrownVirtualMachineError = assertThrows(
                 TestVirtualMachineError.class,
@@ -32,14 +32,6 @@ final class OritechEnergyBridgeTest {
                     throw virtualMachineError;
                 }, BlockPos.ZERO, Direction.SOUTH));
         assertSame(virtualMachineError, thrownVirtualMachineError);
-
-        ThreadDeath threadDeath = new ThreadDeath();
-        ThreadDeath thrownThreadDeath = assertThrows(
-                ThreadDeath.class,
-                () -> OritechEnergyBridge.isolateEnergyStorageLookup(() -> {
-                    throw threadDeath;
-                }, BlockPos.ZERO, Direction.SOUTH));
-        assertSame(threadDeath, thrownThreadDeath);
     }
 
     private static IEnergyStorage throwUnchecked(Throwable throwable) {

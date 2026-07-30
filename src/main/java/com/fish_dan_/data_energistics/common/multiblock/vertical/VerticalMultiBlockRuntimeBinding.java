@@ -50,10 +50,10 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
         String previousStructureName = state.structureName();
         if (state.formed()) {
             for (VerticalMultiBlockPart part : partLookup.get(state.matchedPositions())) {
-                part.verticalMultiBlock$removedFromController(controller, previousStructureName);
+                part.verticalMultiBlock$removedFromController(controller, previousStructureName, state.bindingEpoch());
             }
         }
-        controller.verticalMultiBlock$setRuntimeState(structureName, VerticalMultiBlockRuntimeState.unformed());
+        controller.verticalMultiBlock$setRuntimeState(structureName, VerticalMultiBlockRuntimeState.unformed(state.bindingEpoch()));
         controller.verticalMultiBlock$onStructureInvalid(structureName, reason);
     }
 
@@ -65,22 +65,24 @@ public record VerticalMultiBlockRuntimeBinding<S>(VerticalMultiBlockScanner<S> s
         String previousStructureName = previous.structureName();
         if (previous.formed() && !previous.matchedPositions().isEmpty()) {
             for (VerticalMultiBlockPart part : partLookup.get(previous.matchedPositions())) {
-                part.verticalMultiBlock$removedFromController(controller, previousStructureName);
+                part.verticalMultiBlock$removedFromController(controller, previousStructureName, previous.bindingEpoch());
             }
         }
 
         List<VerticalMultiBlockPos> matchedPositions = List.copyOf(context.matchedPositions());
+        long bindingEpoch = Math.incrementExact(previous.bindingEpoch());
         VerticalMultiBlockRuntimeState runtimeState = new VerticalMultiBlockRuntimeState(
                 true,
                 context.definition().id(),
                 structureName,
                 context.height(),
-                matchedPositions);
+                matchedPositions,
+                bindingEpoch);
         controller.verticalMultiBlock$setRuntimeState(structureName, runtimeState);
         controller.verticalMultiBlock$onStructureFormed(structureName, context);
 
         for (VerticalMultiBlockPart part : partLookup.get(matchedPositions)) {
-            part.verticalMultiBlock$addedToController(controller, structureName, context);
+            part.verticalMultiBlock$addedToController(controller, structureName, context, bindingEpoch);
         }
     }
 

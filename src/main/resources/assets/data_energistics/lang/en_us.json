@@ -583,5 +583,15 @@
 	"button.data_energistics.trinity_data_core.refund": "Return Queued Crafting Contents",
 	"button.data_energistics.trinity_data_core.refund.hint": "Returns queued inputs and pending outputs to AE storage, then the inventory, then the world; installed patterns remain in place",
 	"message.data_energistics.trinity_data_core.refund.success": "Returned queued Trinity crafting contents",
-	"message.data_energistics.trinity_data_core.refund.failure": "No queued inputs or pending outputs can be returned"
+	"message.data_energistics.trinity_data_core.refund.failure": "No queued inputs or pending outputs can be returned",
+	"button.data_energistics.trinity_data_core.refund_patterns": "Refund Patterns",
+	"button.data_energistics.trinity_data_core.refund_retained_items": "Refund Items",
+	"message.data_energistics.trinity_data_core.refund.subject.patterns": "patterns",
+	"message.data_energistics.trinity_data_core.refund.subject.retained_items": "retained items",
+	"message.data_energistics.trinity_data_core.refund.completed": "Returned %s",
+	"message.data_energistics.trinity_data_core.refund.no_op": "No %s are available to return",
+	"message.data_energistics.trinity_data_core.refund.stale_state": "%s changed before the return could run",
+	"message.data_energistics.trinity_data_core.refund.delivery_failed": "Could not return %s; no return was made",
+	"message.data_energistics.trinity_data_core.refund.internal_error": "Could not return %s due to an internal error",
+	"message.data_energistics.trinity_data_core.refund.rejected": "The return request for %s was rejected"
 }

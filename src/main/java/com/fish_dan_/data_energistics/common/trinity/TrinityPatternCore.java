@@ -73,9 +73,8 @@ public interface TrinityPatternCore {
         }
 
         /**
-         * @return stable resolver and recipe IDs captured by the installed definition, or {@code null} when unresolved
+         * @return stable resolver and recipe IDs captured by the installed definition
          */
-        @Nullable
         public TrinityPatternRecipeIdResolvers.Resolution recipeResolution() {
             return this.definition.resolution();
         }
@@ -489,6 +488,61 @@ public interface TrinityPatternCore {
     boolean hasWork(UUID hostId);
 
     /**
+     * Reports whether this core has retained items for the supplied host that were committed for refund but have not
+     * yet reached an external destination.
+     *
+     * <p>
+     * This deliberately does not make the core working: the source queue was already cleared into the durable refund
+     * ledger and cannot execute again.
+     * </p>
+     *
+     * @param hostId stable host identity whose pending refund ledger is requested
+     * @return whether a later retained-item refund action must retry delivery for this host
+     */
+    default boolean hasPendingRefund(UUID hostId) {
+        return false;
+    }
+
+    /**
+     * Captures the installed patterns only when no queued input or pending output exists anywhere in this core.
+     *
+     * <p>
+     * The returned transaction isolates pattern removal from retained-work refunds. Callers must commit every
+     * participating core before delivering the captured stacks, and roll back all committed captures when another
+     * core becomes stale.
+     * </p>
+     *
+     * @return a prepared pattern refund, or a rejected transaction when retained work blocks the operation
+     */
+    PatternRefundTransaction preparePatternRefund();
+
+    /** Reversible prepared removal of installed patterns from one physical P core. */
+    interface PatternRefundTransaction {
+
+        /** @return immutable slot-ordered installed pattern stacks captured by this transaction */
+        List<ItemStack> patterns();
+
+        /** @return whether every slot was empty when this transaction was prepared */
+        boolean isEmpty();
+
+        /** @return whether queued inputs or pending outputs blocked this transaction before it could be prepared */
+        boolean isBlockedByWork();
+
+        /** Clears exactly the captured patterns while the core and every slot revision still match. */
+        boolean commit();
+
+        /**
+         * Finalizes a committed capture after pattern delivery begins.
+         *
+         * @param undeliveredPatterns exact suffix not accepted by any external destination
+         */
+        void complete(List<ItemStack> undeliveredPatterns);
+
+        /** Restores committed patterns, or releases an uncommitted capture. */
+        void rollback();
+    }
+
+    /**
      * Reversible prepared refund for one physical P core.
      *
      * <p>
@@ -517,10 +571,13 @@ public interface TrinityPatternCore {
          *
          * <p>
          * A caller must use this instead of {@link #rollback()} once any external destination might have received an
-         * item, because restoring the captured queue could duplicate that item.
+         * item, because restoring the captured queue could duplicate that item. The exact undelivered suffix remains
+         * in the core's durable refund ledger for a later retry.
          * </p>
+         *
+         * @param undeliveredItems exact suffix not accepted by any external destination
          */
-        void complete();
+        void complete(List<TrinityItemAmount> undeliveredItems);
 
         /**
          * Restores the captured state after a successful commit, or abandons an uncommitted capture.

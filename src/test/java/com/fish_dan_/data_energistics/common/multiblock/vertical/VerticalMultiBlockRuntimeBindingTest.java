@@ -81,6 +81,10 @@ public final class VerticalMultiBlockRuntimeBindingTest {
                 "requestRecheck should reform the structure after the matched part is restored");
         helper.assertTrue(controller.verticalMultiBlock$isFormed(), "Controller should be formed after rebinding");
         helper.assertValueEqual(
+                controller.verticalMultiBlock$getRuntimeState().bindingEpoch(),
+                2L,
+                "Reforming must issue a new callback epoch instead of reusing the invalidated identity");
+        helper.assertValueEqual(
                 controller.events,
                 List.of(
                         "formed:test:runtime:main:3",
@@ -336,6 +340,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         private final List<String> events = new ArrayList<>();
         private final String definitionId;
         private final Map<String, VerticalMultiBlockRuntimeState> states = new HashMap<>();
+        private final Map<String, Long> bindingEpochs = new HashMap<>();
 
         private TestController() {
             this("test:runtime");
@@ -387,11 +392,14 @@ public final class VerticalMultiBlockRuntimeBindingTest {
 
         @Override
         public VerticalMultiBlockRuntimeState verticalMultiBlock$getRuntimeState(String structureName) {
-            return this.states.getOrDefault(structureName, VerticalMultiBlockRuntimeState.unformed());
+            return this.states.getOrDefault(
+                    structureName,
+                    VerticalMultiBlockRuntimeState.unformed(this.bindingEpochs.getOrDefault(structureName, 0L)));
         }
 
         @Override
         public void verticalMultiBlock$setRuntimeState(String structureName, VerticalMultiBlockRuntimeState state) {
+            this.bindingEpochs.put(structureName, state.bindingEpoch());
             if (state.formed()) {
                 this.states.put(structureName, state);
             } else {

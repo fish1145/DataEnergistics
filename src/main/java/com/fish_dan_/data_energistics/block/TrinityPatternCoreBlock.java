@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreKind;
 import com.fish_dan_.data_energistics.common.trinity.TrinityCoreMetadata;
@@ -17,6 +18,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
@@ -65,16 +67,48 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
     @Override
     public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
         BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
-        return List.of(createCoreDrop(blockEntity));
+        return createMiningDrops(blockEntity);
     }
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide() && player.getAbilities().instabuild && !WrenchHook.isDisassembling() &&
-                level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore) {
-            Block.popResource(level, pos, createCoreDrop(patternCore));
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore) {
+            if (!patternCore.hasMiningDropSnapshot()) {
+                patternCore.freezeMiningDropSnapshot();
+            }
+            if (patternCore.hasMiningDropSnapshot() && player.getAbilities().instabuild &&
+                    !WrenchHook.isDisassembling()) {
+                for (ItemStack drop : patternCore.getMiningDrops()) {
+                    Block.popResource(level, pos, drop);
+                }
+            }
         }
         return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
+    public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos, Player player,
+                                       boolean willHarvest, FluidState fluid) {
+        if (level.isClientSide()) {
+            return super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
+        }
+        if (!(level.getBlockEntity(pos) instanceof TrinityPatternCoreBlockEntity patternCore)) {
+            Data_Energistics.LOGGER.error(
+                    "Refused to remove Trinity pattern core at {} because its mining-drop snapshot has no block entity",
+                    pos);
+            return false;
+        }
+        if (!patternCore.hasMiningDropSnapshot()) {
+            Data_Energistics.LOGGER.error(
+                    "Refused to remove Trinity pattern core at {} because its mining-drop snapshot was not frozen",
+                    pos);
+            return false;
+        }
+        boolean removed = super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
+        if (!removed) {
+            patternCore.discardMiningDropSnapshot();
+        }
+        return removed;
     }
 
     @Nullable
@@ -91,11 +125,11 @@ public final class TrinityPatternCoreBlock extends TrinityCoreBlock implements E
         };
     }
 
-    private ItemStack createCoreDrop(@Nullable BlockEntity blockEntity) {
-        ItemStack stack = new ItemStack(this);
+    private List<ItemStack> createMiningDrops(@Nullable BlockEntity blockEntity) {
         if (blockEntity instanceof TrinityPatternCoreBlockEntity patternCore) {
-            patternCore.saveToItem(stack, patternCore.getLevel().registryAccess());
+            return patternCore.getMiningDrops();
         }
-        return stack;
+        Data_Energistics.LOGGER.error("Cannot create Trinity pattern core drops without its block entity");
+        return List.of();
     }
 }

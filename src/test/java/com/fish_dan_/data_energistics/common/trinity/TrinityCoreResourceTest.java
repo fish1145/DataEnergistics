@@ -401,14 +401,7 @@ public final class TrinityCoreResourceTest {
     }
 
     private static String mergedTierTexture(String suffix) {
-        return switch (suffix) {
-            case "1m" -> "ae2:block/crafting/1k_storage_light";
-            case "4m" -> "ae2:block/crafting/4k_storage_light";
-            case "16m" -> "ae2:block/crafting/16k_storage_light";
-            case "64m" -> "ae2:block/crafting/64k_storage_light";
-            case "256m" -> "ae2:block/crafting/256k_storage_light";
-            default -> localTexture(MERGED_STORAGE_DIRECTORY, "me_digital_merged_storage_core_" + suffix);
-        };
+        return localTexture(MERGED_STORAGE_DIRECTORY, "me_digital_merged_storage_core_" + suffix);
     }
 
     private record CoreResource(String id, String directory, String baseTexture, String tierTexture) {

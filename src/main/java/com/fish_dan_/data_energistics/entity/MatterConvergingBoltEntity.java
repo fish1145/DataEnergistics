@@ -64,10 +64,12 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private static final EntityDataAccessor<Boolean> DATA_HOMING = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> DATA_SABER_ENERGY_CARD_COUNT = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
+    private static final String TAG_CONSUMED_PIERCE_COUNT = "ConsumedPierceCount";
 
     private double traveledDistance;
     private ItemStack weaponStack = ItemStack.EMPTY;
     private final Set<Integer> piercedEntityIds = new HashSet<>();
+    private int consumedPierceCount;
     private boolean critical;
 
     public MatterConvergingBoltEntity(EntityType<? extends MatterConvergingBoltEntity> entityType, Level level) {
@@ -160,6 +162,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         tag.putDouble("TraveledDistance", this.traveledDistance);
         tag.putInt("BoltColor", this.getColor());
         tag.putInt("PierceLevel", this.getPierceLevel());
+        tag.putInt(TAG_CONSUMED_PIERCE_COUNT, this.consumedPierceCount);
         tag.putBoolean("Homing", this.isHoming());
         tag.putBoolean("Critical", this.critical);
         tag.putInt("SaberEnergyCardCount", this.getSaberEnergyCardCount());
@@ -174,6 +177,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         this.traveledDistance = tag.getDouble("TraveledDistance");
         this.getEntityData().set(DATA_COLOR, tag.getInt("BoltColor"));
         this.getEntityData().set(DATA_PIERCE_LEVEL, tag.getInt("PierceLevel"));
+        this.consumedPierceCount = Math.max(0, tag.getInt(TAG_CONSUMED_PIERCE_COUNT));
         this.getEntityData().set(DATA_HOMING, tag.getBoolean("Homing"));
         this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, Math.max(0, tag.getInt("SaberEnergyCardCount")));
         this.critical = tag.getBoolean("Critical");
@@ -225,18 +229,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             damaged = livingTarget.hurt(damageSource, damage);
             target = livingTarget;
         }
-        if (this.getPierceLevel() > 0 && damaged && target.isAlive()) {
-            this.piercedEntityIds.add(target.getId());
-            if (this.piercedEntityIds.size() <= this.getPierceLevel()) {
-                return;
-            }
-        }
-
-        if (this.getPierceLevel() > 0 && damaged && wasAlive && !target.isAlive()) {
-            this.piercedEntityIds.add(target.getId());
-            if (this.piercedEntityIds.size() <= this.getPierceLevel()) {
-                return;
-            }
+        if (this.shouldContinuePiercing(target, damaged, wasAlive)) {
+            return;
         }
 
         this.discardWithEffects();
@@ -280,6 +274,17 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             return false;
         }
         return !this.piercedEntityIds.contains(target.getId());
+    }
+
+    private boolean shouldContinuePiercing(Entity target, boolean damaged, boolean wasAlive) {
+        if (this.getPierceLevel() <= 0 || !damaged || (!target.isAlive() && !wasAlive)) {
+            return false;
+        }
+
+        if (this.piercedEntityIds.add(target.getId())) {
+            this.consumedPierceCount++;
+        }
+        return this.consumedPierceCount <= this.getPierceLevel();
     }
 
     private void spawnTrailParticles(Vec3 previousPosition) {

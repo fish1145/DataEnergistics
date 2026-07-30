@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower;
 
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkFailure;
+import com.fish_dan_.data_energistics.blockentity.tower.TowerLinkGraph.TargetLinkState;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
@@ -84,6 +87,32 @@ public final class TowerLinkGraphImplTest {
         assertTrue(graph.containsLinked(TARGET_POS));
         assertFalse(graph.hasConnections(TARGET_POS));
         assertEquals(1, connection.destroyCalls());
+
+        assertTrue(graph.scheduleRetry(
+                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(3, graph.status(TARGET_POS).retryTicks());
+        assertTrue(graph.advanceRetryClock(2).isEmpty());
+        assertEquals(Set.of(TARGET_POS), Set.copyOf(graph.advanceRetryClock(1)));
+        assertTrue(graph.scheduleRetry(
+                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(6, graph.status(TARGET_POS).retryTicks());
+        assertEquals(Set.of(TARGET_POS), Set.copyOf(graph.advanceRetryClock(6)));
+        assertTrue(graph.scheduleRetry(
+                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(12, graph.status(TARGET_POS).retryTicks());
+        assertEquals(Set.of(TARGET_POS), Set.copyOf(graph.advanceRetryClock(12)));
+        assertTrue(graph.scheduleRetry(
+                TARGET_POS, TargetLinkState.WAITING_TARGET, TargetLinkFailure.TARGET_UNAVAILABLE, 3, 12));
+        assertEquals(12, graph.status(TARGET_POS).retryTicks());
+        assertTrue(graph.transition(TARGET_POS, TargetLinkState.DISABLED, TargetLinkFailure.NONE, 0));
+        assertTrue(graph.containsLinked(TARGET_POS));
+        assertFalse(graph.hasRetryableTargets());
+
+        graph.resetRuntimeState();
+
+        assertTrue(graph.containsLinked(TARGET_POS));
+        assertEquals(TargetLinkState.BOUND, graph.status(TARGET_POS).state());
+        assertFalse(graph.hasConnections(TARGET_POS));
     }
 
     private static final class TestGridNode extends GridNode {

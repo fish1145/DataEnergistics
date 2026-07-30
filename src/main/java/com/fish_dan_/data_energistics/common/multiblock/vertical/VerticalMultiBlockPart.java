@@ -31,6 +31,16 @@ public interface VerticalMultiBlockPart {
     }
 
     /**
+     * Called after a named structure forms with the exact runtime identity retained for its later removal callback.
+     */
+    default void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
+                                                      String structureName,
+                                                      VerticalMultiBlockContext<?> context,
+                                                      long bindingEpoch) {
+        verticalMultiBlock$addedToController(controller, structureName, context);
+    }
+
+    /**
      * Called when the owning structure becomes invalid.
      *
      * @param controller previous owning controller
@@ -45,5 +55,14 @@ public interface VerticalMultiBlockPart {
      */
     default void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
         verticalMultiBlock$removedFromController(controller);
+    }
+
+    /**
+     * Called when a named structure becomes invalid with the runtime identity captured when it formed.
+     */
+    default void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
+                                                          String structureName,
+                                                          long bindingEpoch) {
+        verticalMultiBlock$removedFromController(controller, structureName);
     }
 }

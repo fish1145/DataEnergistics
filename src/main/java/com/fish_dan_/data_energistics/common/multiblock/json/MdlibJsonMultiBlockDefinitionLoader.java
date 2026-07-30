@@ -129,12 +129,17 @@ public final class MdlibJsonMultiBlockDefinitionLoader implements JsonMultiBlock
         applyReplaceableCompartmentPredicates(resourceId, patternRoot, metadata.replaceableCompartmentTypes());
         StringArrayDefinition definition = StructurePatternResolver.parseDefinition(patternRoot);
         BlockPattern pattern = buildPattern(definition, metadata);
+        JsonMultiBlockAutoBuildStaging autoBuildStaging = JsonMultiBlockAutoBuildStaging.resolve(
+                resourceId,
+                metadata.autoBuildStagingMetadata(),
+                definition);
         return new ResolvedJsonMultiBlockDefinition(
                 key,
                 pattern,
                 metadata.displayNameTranslationKey(),
                 metadata.compartmentTypes(),
-                metadata.replaceableCompartmentTypes());
+                metadata.replaceableCompartmentTypes(),
+                autoBuildStaging);
     }
 
     private static BlockPattern buildPattern(StringArrayDefinition definition, JsonMultiBlockMetadata metadata) {

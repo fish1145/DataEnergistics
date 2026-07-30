@@ -19,16 +19,22 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public final class TrinityHostedActionPayloadCodecTest {
 
+    private static final UUID HOST_ID = new UUID(0L, 1L);
+    private static final UUID MENU_SESSION_ID = new UUID(0L, 2L);
+
     @Test
     void autoBuildAndResponsePayloadsRoundTripAndConsumeTheirCompleteBuffers() {
         TrinityHostedAutoBuildPayload autoBuild = new TrinityHostedAutoBuildPayload(
                 42,
+                HOST_ID,
+                MENU_SESSION_ID,
                 9L,
                 5L,
                 submission(Map.of(), true));
@@ -43,6 +49,8 @@ public final class TrinityHostedActionPayloadCodecTest {
 
         TrinityHostedActionResponsePayload response = new TrinityHostedActionResponsePayload(
                 42,
+                HOST_ID,
+                MENU_SESSION_ID,
                 new TrinityHostedActionResult(
                         TrinityDataCoreHostUiKeys.AUTO_BUILD,
                         9L,
@@ -63,14 +71,16 @@ public final class TrinityHostedActionPayloadCodecTest {
         TrinityAutoBuildSubmission submission = submission(Map.of(), true);
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TrinityHostedAutoBuildPayload(1, 0L, 1L, submission));
+                () -> new TrinityHostedAutoBuildPayload(1, HOST_ID, MENU_SESSION_ID, 0L, 1L, submission));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TrinityHostedAutoBuildPayload(1, 1L, 0L, submission));
+                () -> new TrinityHostedAutoBuildPayload(1, HOST_ID, MENU_SESSION_ID, 1L, 0L, submission));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new TrinityHostedAutoBuildPayload(
                         TrinityHostedActionPayloadCodec.MAX_CONTAINER_ID + 1,
+                        HOST_ID,
+                        MENU_SESSION_ID,
                         1L,
                         1L,
                         submission));
@@ -79,7 +89,7 @@ public final class TrinityHostedActionPayloadCodecTest {
         try {
             TrinityHostedAutoBuildPayload.STREAM_CODEC.encode(
                     trailing,
-                    new TrinityHostedAutoBuildPayload(1, 1L, 1L, submission));
+                    new TrinityHostedAutoBuildPayload(1, HOST_ID, MENU_SESSION_ID, 1L, 1L, submission));
             trailing.writeByte(99);
             assertThrows(
                     IllegalArgumentException.class,
@@ -141,6 +151,8 @@ public final class TrinityHostedActionPayloadCodecTest {
     private static RegistryFriendlyByteBuf autoBuildPrefix() {
         RegistryFriendlyByteBuf buffer = buffer();
         buffer.writeVarInt(1);
+        buffer.writeUUID(HOST_ID);
+        buffer.writeUUID(MENU_SESSION_ID);
         buffer.writeVarLong(1L);
         buffer.writeVarLong(1L);
         buffer.writeUtf(ModVerticalMultiBlocks.trinityDataCoreId().toString(), 256);

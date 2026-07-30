@@ -36,7 +36,6 @@ import net.neoforged.neoforge.items.IItemHandler;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
-import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.parts.IPartItem;
 import appeng.api.parts.IPartModel;
 import appeng.api.stacks.AEItemKey;
@@ -364,6 +363,12 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         super.readFromNBT(data, registries);
         getAdaptiveState().readFromNBT(data, registries, this.upgrades);
         readRedstoneTuningMode(data);
+        if (this.getLogic().reconcileConfiguredPatternSlots()) {
+            this.saveChanges();
+            this.markForClientUpdate();
+        } else {
+            this.getLogic().updatePatterns();
+        }
     }
 
     @Override
@@ -385,14 +390,23 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
-        super.importSettings(mode, input, player);
         if (mode != SettingsFrom.MEMORY_CARD) {
+            super.importSettings(mode, input, player);
             return;
         }
 
+        boolean patternInventoryChanged = this.getLogic().runWithPatternInventoryCallbacksSuppressed(
+                () -> super.importSettings(mode, input, player));
         CompoundTag settings = input.get(ModDataComponents.ADAPTIVE_PATTERN_PROVIDER_SETTINGS.get());
-        if (settings != null && getAdaptiveState().readMemoryCardSettings(settings)) {
-            onAdaptiveStateChanged();
+        boolean stateChanged = settings != null && getAdaptiveState().readMemoryCardSettings(settings);
+        boolean patternSlotsReconciled = this.getLogic().reconcileConfiguredPatternSlotsAfterSettingsImport();
+        boolean patternsUpdated = patternSlotsReconciled;
+        if (patternInventoryChanged && !patternSlotsReconciled) {
+            this.getLogic().updatePatterns();
+            patternsUpdated = true;
+        }
+        if (stateChanged || patternsUpdated) {
+            onAdaptiveStateChanged(patternsUpdated);
         }
     }
 
@@ -486,13 +500,16 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
-        if (inv == getAdaptiveState().getProviderInventory()) {
-            this.getLogic().updatePatterns();
-        }
+        boolean providerInventoryChanged = inv == getAdaptiveState().getProviderInventory();
         if (inv == this.upgrades) {
             getAdaptiveState().refreshProviderSlotLimit();
         }
-        onAdaptiveStateChanged();
+        boolean patternSlotsReconciled = (providerInventoryChanged || inv == this.upgrades) && this.getLogic().reconcileConfiguredPatternSlots();
+        if (providerInventoryChanged && !patternSlotsReconciled) {
+            this.getLogic().updatePatterns();
+            patternSlotsReconciled = true;
+        }
+        onAdaptiveStateChanged(patternSlotsReconciled);
     }
 
     @Override
@@ -625,22 +642,29 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     private void onAdaptiveStateChanged() {
+        onAdaptiveStateChanged(false);
+    }
+
+    private void onAdaptiveStateChanged(boolean patternsAlreadyUpdated) {
         this.saveChanges();
         markForClientUpdate();
-        this.getLogic().updatePatterns();
-        this.getLogic().onHostStateChanged();
-        try {
-            ICraftingProvider.requestUpdate(this.getMainNode());
-        } catch (Throwable e) {
-            Data_Energistics.LOGGER.warn("Failed to request adaptive pattern provider terminal refresh", e);
+        if (!patternsAlreadyUpdated) {
+            this.getLogic().updatePatterns();
         }
+        this.getLogic().onHostStateChanged();
     }
 
     private IUpgradeInventory createUpgradeInventory() {
         return UpgradeInventories.forMachine(
                 this.getPartItem().asItem(),
                 AdaptivePatternProviderState.BASE_UPGRADE_SLOTS,
-                this::onAdaptiveStateChanged);
+                this::onUpgradesChanged);
+    }
+
+    private void onUpgradesChanged() {
+        getAdaptiveState().refreshProviderSlotLimit();
+        boolean patternSlotsReconciled = this.getLogic().reconcileConfiguredPatternSlots();
+        onAdaptiveStateChanged(patternSlotsReconciled);
     }
 
     private void readRedstoneTuningMode(CompoundTag data) {

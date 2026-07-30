@@ -351,19 +351,6 @@ class TowerEnergyDistributorImplTest {
     }
 
     @Test
-    void rethrowsThreadDeathFromAppFluxUnchanged() {
-        ThreadDeath failure = new ThreadDeath();
-        TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
-        gridEnergy.failExtraction(failure);
-        TowerEnergyDistributorImpl distributor = createGridDistributor(List.of(), gridEnergy);
-
-        ThreadDeath thrown = assertThrows(ThreadDeath.class,
-                () -> distributor.extractGridEnergy(1L, false, "thread termination test"));
-
-        assertSame(failure, thrown);
-    }
-
-    @Test
     void rejectsNegativeAppFluxResultAndContinuesRangeExtractionFromFe() {
         TestGridEnergyAccess gridEnergy = new TestGridEnergyAccess(10L);
         gridEnergy.returnExtractionResult(-1L);

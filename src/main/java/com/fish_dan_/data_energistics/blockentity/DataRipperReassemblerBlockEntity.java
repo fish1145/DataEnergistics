@@ -80,6 +80,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -362,7 +363,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else if (data.contains(OUTPUT_SIDES_TAG)) {
             Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
             readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
-            copyOutputSidesToAllTypes(legacySides);
+            migrateLegacyOutputSidesToItemOnly(legacySides);
         } else {
             copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
         }
@@ -515,8 +516,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else if (settings.contains(OUTPUT_SIDES_TAG)) {
             int legacyMask = settings.getInt(OUTPUT_SIDES_TAG);
             changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS, legacyMask);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, legacyMask);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, legacyMask);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, MemoryCardSettingsHelper.ALL_DIRECTIONS_MASK);
+            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, MemoryCardSettingsHelper.ALL_DIRECTIONS_MASK);
         }
         if (!changed) {
             return;
@@ -565,12 +566,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
-        if (!consumeRecipeInputs(recipe)) {
+        RecipeProcessingState processingState = captureRecipeProcessingState();
+        if (!consumeRecipeInputs(recipe) || !insertRecipeOutputs(recipe, itemOutputs)) {
+            restoreRecipeProcessingState(processingState);
             resetProcessingState();
+            saveChanges();
+            markForClientUpdate();
             return;
         }
 
-        insertRecipeOutputs(recipe, itemOutputs);
         resetProcessingState();
         saveChanges();
         markForClientUpdate();
@@ -661,6 +665,16 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean consumeRecipeInputs(DataRipperReassemblerRecipe recipe) {
+        Map<AEFluidKey, Long> requiredFluidAmounts = recipe.getMergedFluidInputAmounts();
+        if (requiredFluidAmounts == null) {
+            return false;
+        }
+        for (long amount : requiredFluidAmounts.values()) {
+            if (amount > Integer.MAX_VALUE) {
+                return false;
+            }
+        }
+
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
             for (int i = 0; i < ITEM_INPUT_SLOT_COUNT && remaining > 0; i++) {
@@ -693,12 +707,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             syncKeyMenuFromStack();
         }
 
-        for (GenericStack requiredFluid : recipe.getFluidInputs()) {
-            if (!(requiredFluid.what() instanceof AEFluidKey requiredKeyFluid)) {
-                return false;
-            }
-
-            int remaining = (int) Math.min(Integer.MAX_VALUE, requiredFluid.amount());
+        for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
+            AEFluidKey requiredKeyFluid = requirement.getKey();
+            int remaining = requirement.getValue().intValue();
 
             if (matchesFluidKey(this.fluidInputTankA.getFluid(), requiredKeyFluid)) {
                 int drained = this.fluidInputTankA.drain(Math.min(remaining, this.fluidInputTankA.getFluidAmount()),
@@ -719,7 +730,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return true;
     }
 
-    private void insertRecipeOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
+    private boolean insertRecipeOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
         for (ItemStack output : itemOutputs) {
             if (output.isEmpty()) {
                 continue;
@@ -729,19 +740,25 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT && !remaining.isEmpty(); i++) {
                 remaining = insertIntoOutputSlot(null, i, remaining, true);
             }
+            if (!remaining.isEmpty()) {
+                return false;
+            }
         }
 
         for (GenericStack fluidOutput : recipe.getFluidOutputs()) {
             if (!(fluidOutput.what() instanceof AEFluidKey fluidKey) || fluidOutput.amount() <= 0) {
-                continue;
+                return false;
             }
-            insertFluidOutput(fluidKey, fluidOutput.amount());
+            if (!insertFluidOutput(fluidKey, fluidOutput.amount())) {
+                return false;
+            }
         }
 
         GenericStack keyOutput = recipe.getKeyOutput();
-        if (keyOutput != null && keyOutput.what() != null && keyOutput.amount() > 0) {
-            insertKeyOutput(keyOutput);
+        if (keyOutput == null || keyOutput.what() == null || keyOutput.amount() <= 0) {
+            return true;
         }
+        return insertKeyOutput(keyOutput);
     }
 
     private boolean canAcceptFluidOutputs(DataRipperReassemblerRecipe recipe) {
@@ -769,10 +786,16 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
             if (simulatedA.isEmpty()) {
+                if ((long) simulatedA.getAmount() + amount > FLUID_OUTPUT_CAPACITY) {
+                    return false;
+                }
                 simulatedA = fluidKey.toStack(amount);
                 continue;
             }
             if (simulatedB.isEmpty()) {
+                if ((long) simulatedB.getAmount() + amount > FLUID_OUTPUT_CAPACITY) {
+                    return false;
+                }
                 simulatedB = fluidKey.toStack(amount);
                 continue;
             }
@@ -796,29 +819,62 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
 
-        return this.keyOutputStack.amount() + keyOutput.amount() <= KEY_OUTPUT_CAPACITY;
+        return keyOutput.amount() <= KEY_OUTPUT_CAPACITY - this.keyOutputStack.amount();
     }
 
-    private void insertKeyOutput(GenericStack stack) {
+    private boolean insertKeyOutput(GenericStack stack) {
+        if (stack.what() == null || stack.amount() <= 0 || stack.amount() > KEY_OUTPUT_CAPACITY) {
+            return false;
+        }
         if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
-            this.keyOutputStack = clampKeyStack(stack, KEY_OUTPUT_CAPACITY);
-        } else if (this.keyOutputStack.what().equals(stack.what())) {
-            this.keyOutputStack = clampKeyStack(
-                    new GenericStack(stack.what(), this.keyOutputStack.amount() + stack.amount()),
-                    KEY_OUTPUT_CAPACITY);
+            this.keyOutputStack = new GenericStack(stack.what(), stack.amount());
+        } else {
+            if (!this.keyOutputStack.what().equals(stack.what()) || stack.amount() > KEY_OUTPUT_CAPACITY - this.keyOutputStack.amount()) {
+                return false;
+            }
+            this.keyOutputStack = new GenericStack(stack.what(), this.keyOutputStack.amount() + stack.amount());
         }
         syncKeyMenuFromStack();
+        return true;
     }
 
-    private void insertFluidOutput(AEFluidKey fluidKey, long amountLong) {
-        int amount = (int) Math.min(Integer.MAX_VALUE, amountLong);
+    private boolean insertFluidOutput(AEFluidKey fluidKey, long amountLong) {
+        if (amountLong <= 0 || amountLong > Integer.MAX_VALUE) {
+            return false;
+        }
+        int amount = (int) amountLong;
         if (matchesFluidKey(this.fluidOutputTankA.getFluid(), fluidKey) || this.fluidOutputTankA.isEmpty()) {
-            this.fluidOutputTankA.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE);
-            return;
+            return this.fluidOutputTankA.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE) == amount;
         }
         if (matchesFluidKey(this.fluidOutputTankB.getFluid(), fluidKey) || this.fluidOutputTankB.isEmpty()) {
-            this.fluidOutputTankB.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE);
+            return this.fluidOutputTankB.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE) == amount;
         }
+        return false;
+    }
+
+    private RecipeProcessingState captureRecipeProcessingState() {
+        ItemStack[] itemSlots = new ItemStack[STORAGE_SLOTS];
+        for (int slot = 0; slot < itemSlots.length; slot++) {
+            itemSlots[slot] = this.storage.getStackInSlot(slot).copy();
+        }
+        return new RecipeProcessingState(itemSlots,
+                this.fluidInputTankA.getFluid().copy(), this.fluidInputTankB.getFluid().copy(),
+                this.fluidOutputTankA.getFluid().copy(), this.fluidOutputTankB.getFluid().copy(),
+                copyKeyStack(this.keyInputStack), copyKeyStack(this.keyOutputStack));
+    }
+
+    private void restoreRecipeProcessingState(RecipeProcessingState state) {
+        for (int slot = 0; slot < state.itemSlots.length; slot++) {
+            this.storage.setItemDirect(slot, state.itemSlots[slot].copy());
+        }
+        this.fluidInputTankA.setFluid(state.fluidInputA.copy());
+        this.fluidInputTankB.setFluid(state.fluidInputB.copy());
+        this.fluidOutputTankA.setFluid(state.fluidOutputA.copy());
+        this.fluidOutputTankB.setFluid(state.fluidOutputB.copy());
+        this.keyInputStack = copyKeyStack(state.keyInput);
+        this.keyOutputStack = copyKeyStack(state.keyOutput);
+        syncMenuFluidsFromTanks();
+        syncKeyMenuFromStack();
     }
 
     private ItemStack insertIntoOutputSlot(ItemStack[] simulated, int outputIndex, ItemStack stack, boolean modulate) {
@@ -1081,6 +1137,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         this.itemOutputSides.addAll(sides);
         this.fluidOutputSides.addAll(sides);
         this.keyOutputSides.addAll(sides);
+    }
+
+    private void migrateLegacyOutputSidesToItemOnly(Set<Direction> legacySides) {
+        this.itemOutputSides.clear();
+        this.itemOutputSides.addAll(legacySides);
+        this.fluidOutputSides.clear();
+        this.fluidOutputSides.addAll(EnumSet.allOf(Direction.class));
+        this.keyOutputSides.clear();
+        this.keyOutputSides.addAll(EnumSet.allOf(Direction.class));
     }
 
     private static void readOutputSides(CompoundTag data, String tagName, Set<Direction> target) {
@@ -1902,6 +1967,29 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 case 3 -> fluidOutputTankB;
                 default -> throw new IndexOutOfBoundsException("Invalid tank index: " + tank);
             };
+        }
+    }
+
+    private static final class RecipeProcessingState {
+
+        private final ItemStack[] itemSlots;
+        private final FluidStack fluidInputA;
+        private final FluidStack fluidInputB;
+        private final FluidStack fluidOutputA;
+        private final FluidStack fluidOutputB;
+        private final GenericStack keyInput;
+        private final GenericStack keyOutput;
+
+        private RecipeProcessingState(ItemStack[] itemSlots, FluidStack fluidInputA, FluidStack fluidInputB,
+                                      FluidStack fluidOutputA, FluidStack fluidOutputB,
+                                      @Nullable GenericStack keyInput, @Nullable GenericStack keyOutput) {
+            this.itemSlots = itemSlots;
+            this.fluidInputA = fluidInputA;
+            this.fluidInputB = fluidInputB;
+            this.fluidOutputA = fluidOutputA;
+            this.fluidOutputB = fluidOutputB;
+            this.keyInput = keyInput;
+            this.keyOutput = keyOutput;
         }
     }
 

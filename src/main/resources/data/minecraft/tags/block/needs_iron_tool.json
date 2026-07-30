@@ -2,6 +2,12 @@
 	"replace": false,
 	"values": [
 		"data_energistics:me_solar_panel",
+		"data_energistics:data_extractor",
+		"data_energistics:data_reassembler",
+		"data_energistics:data_distribution_tower",
+		"data_energistics:data_mimetic_field",
+		"data_energistics:data_teleport_anchor",
+		"data_energistics:adaptive_pattern_provider",
 		"data_energistics:data_meteorite_0",
 		"data_energistics:data_meteorite_1",
 		"data_energistics:data_meteorite_2",

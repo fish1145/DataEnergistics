@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.common.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
@@ -12,6 +12,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.storage.MEStorage;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Default AE-network, player-inventory, then world-drop implementation of {@link TrinityRefundDelivery}. */
@@ -52,25 +53,33 @@ public final class TrinityRefundDeliveryImpl implements TrinityRefundDelivery {
     }
 
     @Override
-    public void deliver(List<TrinityItemAmount> items) {
+    public List<TrinityItemAmount> deliver(List<TrinityItemAmount> items) {
         if (!this.prepared || this.delivered || !this.preparedItems.equals(items)) {
             throw new IllegalStateException("Trinity refund delivery was not prepared for this aggregate");
         }
         this.delivered = true;
-        for (TrinityItemAmount item : items) {
-            deliverItem(item);
+        for (int index = 0; index < items.size(); index++) {
+            TrinityItemAmount item = items.get(index);
+            long remaining = deliverItem(item);
+            if (remaining > 0L) {
+                ArrayList<TrinityItemAmount> undelivered = new ArrayList<>(items.size() - index);
+                undelivered.add(item.withAmount(remaining));
+                undelivered.addAll(items.subList(index + 1, items.size()));
+                return List.copyOf(undelivered);
+            }
         }
+        return List.of();
     }
 
-    private void deliverItem(TrinityItemAmount item) {
+    private long deliverItem(TrinityItemAmount item) {
         long remaining = insertIntoNetwork(item);
-        if (remaining == 0L) {
-            return;
+        if (remaining > 0L) {
+            remaining = insertIntoPlayerInventory(item.key(), remaining);
         }
-        long worldRemainder = insertIntoPlayerInventory(item.key(), remaining);
-        if (worldRemainder > 0L) {
-            dropRemainder(item.key(), worldRemainder);
+        if (remaining > 0L) {
+            remaining = dropRemainder(item.key(), remaining);
         }
+        return remaining;
     }
 
     private long insertIntoNetwork(TrinityItemAmount item) {
@@ -127,36 +136,40 @@ public final class TrinityRefundDeliveryImpl implements TrinityRefundDelivery {
         return 0L;
     }
 
-    private void dropRemainder(AEItemKey key, long amount) {
+    private long dropRemainder(AEItemKey key, long amount) {
         long remaining = amount;
         while (remaining > 0L) {
             int count = (int) Math.min(remaining, Integer.MAX_VALUE);
-            dropStack(key.toStack(count));
+            if (!dropStack(key.toStack(count))) {
+                return remaining;
+            }
             remaining -= count;
         }
+        return 0L;
     }
 
-    private void dropStack(ItemStack stack) {
+    private boolean dropStack(ItemStack stack) {
         try {
-            if (this.player.drop(stack.copy(), false) != null) {
-                return;
+            ItemEntity itemEntity = new ItemEntity(
+                    this.player.level(),
+                    this.player.getX(),
+                    this.player.getY(),
+                    this.player.getZ(),
+                    stack.copy());
+            if (this.player.level().addFreshEntity(itemEntity)) {
+                return true;
             }
+            Data_Energistics.LOGGER.error(
+                    "World rejected Trinity refund stack {} for player {}",
+                    stack,
+                    this.player.getGameProfile().getName());
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Failed to drop Trinity refund stack {} for player {}; trying block drop fallback",
+                    "Failed to create Trinity refund world drop {} for player {}",
                     stack,
                     this.player.getGameProfile().getName(),
                     exception);
         }
-        try {
-            Block.popResource(this.player.level(), this.player.blockPosition(), stack.copy());
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Failed to place final Trinity refund stack {} into the world for player {}",
-                    stack,
-                    this.player.getGameProfile().getName(),
-                    exception);
-            throw new IllegalStateException("Unable to deliver final Trinity refund stack " + stack, exception);
-        }
+        return false;
     }
 }

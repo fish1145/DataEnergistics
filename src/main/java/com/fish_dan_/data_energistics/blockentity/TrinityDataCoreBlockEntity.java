@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAuto
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuildImpl;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.TrinityAutoBuildStagingPolicy;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonDeclaredCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentBinder;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockCompartmentPredicate;
@@ -30,6 +31,7 @@ import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockFront
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPatternMatcher;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStructureKey;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAccessLease;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildRequest;
@@ -43,10 +45,14 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalogImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpoch;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
@@ -78,12 +84,14 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CraftingJobStatus;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.parts.IPartItem;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
@@ -102,6 +110,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,6 +177,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     /** Factory for matcher views that retain unloaded coordinates lost by orientation fallbacks. */
     private final TrinityStructureWorldViewFactory structureWorldViews;
     private boolean patternCatalogValid;
+    /** Retains a locked old layout until a failed core-release cleanup can finish without reopening publication. */
+    @Nullable
+    private PendingPatternCoreRelease pendingPatternCoreRelease;
+    /** Retries access-hatch and terminal invalidation after a post-lock notification failure. */
+    private boolean patternLayoutRefreshRequested;
     private boolean loaded;
     private boolean formed;
     @Getter
@@ -209,6 +223,90 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private long accessLeaseEpoch;
     private boolean accessLeasePublicationRefreshRequested;
     private boolean missingBusyLeaseReported;
+    /**
+     * Runtime-only authorization records for one-tick access-hatch crafting dispatches.
+     */
+    private final Map<CraftingAdmissionToken, CraftingAdmissionState> craftingAdmissions = new IdentityHashMap<>();
+    /**
+     * Invalidates every issued admission when any host-owned routing boundary changes.
+     */
+    private long craftingAdmissionGeneration;
+    /**
+     * Supplies diagnostic-only identifiers for opaque admission handles.
+     */
+    private long nextCraftingAdmissionTokenId;
+
+    /** Captures a failed release without reconstructing the old catalog or persisting transient ownership. */
+    private record PendingPatternCoreRelease(PatternCoreReleaseRequest request,
+                                             TrinityPatternCatalog.LayoutSnapshot layout,
+                                             RuntimeException initialFailure) {}
+
+    /**
+     * Opaque, non-persistent authority to commit one exact access-hatch crafting dispatch.
+     */
+    static final class CraftingAdmissionToken {
+
+        private final long identifier;
+        private final long count;
+
+        private CraftingAdmissionToken(long identifier, long count) {
+            this.identifier = identifier;
+            this.count = count;
+        }
+
+        long identifier() {
+            return this.identifier;
+        }
+
+        long count() {
+            return this.count;
+        }
+    }
+
+    /**
+     * Captures every mutable routing boundary that must remain unchanged until commit.
+     */
+    private static final class CraftingAdmissionState {
+
+        private final UUID hostId;
+        private final TrinityAccessHatchBlockEntity hatch;
+        private final BlockPos hatchPosition;
+        private final IGrid grid;
+        private final long leaseEpoch;
+        private final long layoutRevision;
+        private final long publicationRevision;
+        private final RoutedCraftingPatternDetails patternDetails;
+        private final PatternRoute route;
+        private final long count;
+        private final long issuedTick;
+        private final long generation;
+        private boolean committing;
+
+        private CraftingAdmissionState(UUID hostId,
+                                       TrinityAccessHatchBlockEntity hatch,
+                                       BlockPos hatchPosition,
+                                       IGrid grid,
+                                       long leaseEpoch,
+                                       long layoutRevision,
+                                       long publicationRevision,
+                                       RoutedCraftingPatternDetails patternDetails,
+                                       long count,
+                                       long issuedTick,
+                                       long generation) {
+            this.hostId = hostId;
+            this.hatch = hatch;
+            this.hatchPosition = hatchPosition;
+            this.grid = grid;
+            this.leaseEpoch = leaseEpoch;
+            this.layoutRevision = layoutRevision;
+            this.publicationRevision = publicationRevision;
+            this.patternDetails = patternDetails;
+            this.route = patternDetails.route();
+            this.count = count;
+            this.issuedTick = issuedTick;
+            this.generation = generation;
+        }
+    }
 
     public TrinityDataCoreBlockEntity(BlockPos blockPos, BlockState blockState) {
         this(blockPos, blockState, new TrinityStructureValidationImpl(), new TrinityStructureWorldViewFactoryImpl());
@@ -255,6 +353,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public void onLoad() {
+        invalidateCraftingAdmissions();
         super.onLoad();
         this.loaded = true;
         this.craftingRuntime.setPaused(true);
@@ -280,9 +379,18 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private void tickServerState() {
+        long gameTime = this.level.getGameTime();
+        discardExpiredCraftingAdmissions(gameTime);
         observeMultiBlockDefinitionRevision();
         synchronizePatternReloadEpoch();
-        long gameTime = this.level.getGameTime();
+        PendingPatternCoreRelease pendingRelease = this.pendingPatternCoreRelease;
+        if (pendingRelease != null) {
+            retryPendingPatternCoreRelease(pendingRelease);
+            if (this.pendingPatternCoreRelease != null) {
+                flushRequestedPatternLayoutRefresh();
+                return;
+            }
+        }
         if (this.patternCatalogValid && this.patternCatalog.layoutSnapshot().active() &&
                 this.lastPatternCoreHealthCheckTick != gameTime &&
                 isPatternCoreHealthCheckDue(gameTime, this.hostId)) {
@@ -298,14 +406,16 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         updateScheduledStructureMatches();
         reevaluateAccessLease();
         flushRequestedAccessLeasePublication();
+        flushRequestedPatternLayoutRefresh();
         if (this.patternCatalogValid) {
-            List<TrinityPatternCatalog.CoreMount> mountedBeforeFlush = this.patternCatalog.mountedCores();
+            TrinityPatternCatalog.LayoutSnapshot layoutBeforeFlush = this.patternCatalog.layoutSnapshot();
             if (this.patternCatalog.refreshChangedPatterns()) {
+                invalidateCraftingAdmissions();
                 this.patternCatalogValid = this.patternCatalog.layoutSnapshot().active();
                 if (this.patternCatalogValid) {
                     notifyTrinityPatternPublicationChanged();
                 } else {
-                    releasePatternCoreBindings(mountedBeforeFlush);
+                    releasePatternCoreBindings(layoutBeforeFlush, null);
                     requestCraftingStructureRecheck();
                     notifyTrinityPatternLayoutChanged();
                 }
@@ -412,13 +522,41 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public boolean isPatternCoreMounted(TrinityPatternCore core) {
-        return this.patternCatalogValid && this.patternCatalog.isCoreMounted(core);
+    public TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player) {
+        if (!this.patternCatalogValid) {
+            return TrinityPatternCatalog.PatternRefundResult.STALE;
+        }
+        TrinityPatternCatalog.PatternRefundResult result = this.patternCatalog.tryRefundPatterns(
+                new TrinityPatternRefundDeliveryImpl(player));
+        if (result.completed()) {
+            setChanged();
+            notifyTrinityPatternPublicationChanged();
+        }
+        return result;
     }
 
     @Override
-    public boolean tryRefundPatternCore(TrinityPatternCore core, Player player) {
-        if (!isPatternCoreMounted(core)) {
+    public boolean isPatternCoreMounted(TrinityPatternCore core, PatternCoreBinding binding) {
+        if (!this.patternCatalogValid || !binding.hostId().equals(this.hostId)) {
+            return false;
+        }
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        if (!layout.active() || layout.revision() != binding.layoutRevision()) {
+            return false;
+        }
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            TrinityPatternCatalog.CoreMount mount = range.mount();
+            if (mount.core() == core && range.coreId().equals(binding.coreId()) &&
+                    mount.position().equals(binding.mountPosition()) && mount.blockCapacity() == binding.blockCapacity()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean tryRefundPatternCore(TrinityPatternCore core, PatternCoreBinding binding, Player player) {
+        if (!isPatternCoreMounted(core, binding)) {
             return false;
         }
         boolean refunded = core.tryRefundAll(createRefundDelivery(player));
@@ -429,23 +567,53 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     @Override
-    public void onPatternCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change) {
-        if (this.patternCatalogValid) {
+    public void onPatternCoreChanged(TrinityPatternCore core,
+                                     PatternCoreBinding binding,
+                                     TrinityPatternSlot.Change change) {
+        if (isPatternCoreMounted(core, binding)) {
             this.patternCatalog.onCoreChanged(core, change);
         }
     }
 
     @Override
-    public void onPatternCoreUnavailable(TrinityPatternCore core) {
-        if (!isPatternCoreMounted(core)) {
-            return;
+    public PatternCoreReleaseResult onPatternCoreUnavailable(PatternCoreReleaseRequest request) {
+        if (!request.binding().hostId().equals(this.hostId)) {
+            return PatternCoreReleaseResult.STALE_REQUEST;
         }
-        boolean changed = withdrawPatternCatalog();
-        requestCraftingStructureRecheck();
-        if (changed) {
-            notifyTrinityPatternLayoutChanged();
+        PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
+        if (pending != null) {
+            if (!pending.request().equals(request)) {
+                return PatternCoreReleaseResult.STALE_REQUEST;
+            }
+            return retryPendingPatternCoreRelease(pending) ? PatternCoreReleaseResult.REVOKED :
+                    PatternCoreReleaseResult.RETRY_REQUIRED;
         }
-        setChanged();
+        if (!isPatternCoreMounted(request.core(), request.binding())) {
+            return this.patternCatalog.layoutSnapshot().active() ? PatternCoreReleaseResult.STALE_REQUEST :
+                    PatternCoreReleaseResult.ALREADY_REVOKED;
+        }
+
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        try {
+            withdrawPatternCatalog(layout, request.binding());
+            requestCraftingStructureRecheck();
+            setChanged();
+            requestPatternLayoutRefresh();
+            return PatternCoreReleaseResult.REVOKED;
+        } catch (RuntimeException exception) {
+            this.patternCatalogValid = false;
+            this.pendingPatternCoreRelease = new PendingPatternCoreRelease(request, layout, exception);
+            requestCraftingStructureRecheck();
+            LOGGER.error(
+                    "Trinity host {} locked pattern layout {} while awaiting release recovery for core {} at {}",
+                    this.worldPosition,
+                    request.binding().layoutRevision(),
+                    request.binding().coreId(),
+                    request.binding().mountPosition(),
+                    exception);
+            requestPatternLayoutRefresh();
+            return PatternCoreReleaseResult.RETRY_REQUIRED;
+        }
     }
 
     private TrinityRefundDeliveryImpl createRefundDelivery(Player player) {
@@ -604,7 +772,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     orientation.front(),
                     orientation.flipped(),
                     request);
-            if (result.success()) {
+            if (result.success() || result.failure().type() == FailureType.PUBLISH_FAILED) {
                 requestStructureRecheck(structureIndex);
             }
             reportAutoBuildResult(player, structureIndex, result);
@@ -681,6 +849,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 .selectedTierBlocks(selectedTierBlocks)
                 .tierRanks(TrinityAutoBuildBlockMap.tierRanksForStructure(structureIndex))
                 .partSideResolver(partSideResolver)
+                .stagingPolicy(new TrinityAutoBuildStagingPolicy(definition))
                 .build();
         return AUTO_BUILD.execute(context);
     }
@@ -998,6 +1167,150 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return this.accessLease != null && this.accessLease.matches(hatch.getBlockPos(), hatch.connectedGrid());
     }
 
+    /**
+     * Issues one non-persistent authorization for the exact access hatch that currently owns the crafting lease.
+     *
+     * <p>
+     * The token never transfers input ownership. It only proves that a later same-tick commit still belongs to the
+     * exact host, hatch, grid, lease, catalog publication, route, and requested count selected here.
+     * </p>
+     *
+     * @return opaque admission token, or {@code null} when the current publication cannot authorize the dispatch
+     */
+    @Nullable
+    CraftingAdmissionToken issueCraftingAdmission(TrinityAccessHatchBlockEntity hatch,
+                                                  IPatternDetails patternDetails,
+                                                  long queuedTick,
+                                                  long count) {
+        if (count <= 0L) {
+            throw new IllegalArgumentException("Trinity crafting admission count must be positive");
+        }
+        if (!(patternDetails instanceof RoutedCraftingPatternDetails routedDetails)) {
+            return null;
+        }
+        Level level = this.level;
+        if (level == null || level.isClientSide() || level.getGameTime() != queuedTick) {
+            return null;
+        }
+        discardExpiredCraftingAdmissions(queuedTick);
+        if (!this.loaded || !this.hostId.equals(routedDetails.route().hostId()) || !isPatternProviderAvailable()) {
+            return null;
+        }
+        TrinityAccessLease lease = this.accessLease;
+        IGrid grid = hatch.connectedGrid();
+        BlockPos hatchPosition = hatch.getBlockPos().immutable();
+        if (lease == null || grid == null || activeLeaseHatch() != hatch ||
+                !lease.matches(hatchPosition, grid)) {
+            return null;
+        }
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        if (!layout.active() || !publishesPattern(routedDetails)) {
+            return null;
+        }
+
+        CraftingAdmissionToken token = new CraftingAdmissionToken(
+                this.nextCraftingAdmissionTokenId = Math.incrementExact(this.nextCraftingAdmissionTokenId),
+                count);
+        this.craftingAdmissions.put(token, new CraftingAdmissionState(
+                this.hostId,
+                hatch,
+                hatchPosition,
+                grid,
+                lease.epoch(),
+                layout.revision(),
+                this.patternCatalog.publicationRevision(),
+                routedDetails,
+                count,
+                queuedTick,
+                this.craftingAdmissionGeneration));
+        return token;
+    }
+
+    /**
+     * Validates and consumes one exact access-hatch admission before the catalog can accept its inputs.
+     *
+     * <p>
+     * A token enters its terminal state before calling into the catalog. Reentrant, duplicate, stale, and expired
+     * commits therefore fail without modifying input counters.
+     * </p>
+     */
+    boolean commitCraftingAdmission(CraftingAdmissionToken token, KeyCounter[] inputHolder) {
+        CraftingAdmissionState admission = this.craftingAdmissions.get(token);
+        if (admission == null || admission.committing) {
+            return false;
+        }
+        admission.committing = true;
+        try {
+            if (!isCurrentCraftingAdmission(token, admission)) {
+                return false;
+            }
+            return this.patternCatalog.pushPattern(
+                    admission.patternDetails,
+                    inputHolder,
+                    admission.issuedTick,
+                    admission.count);
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Failed to commit Trinity crafting admission {} for host {} through hatch {} on grid {} at lease epoch {} and route {}",
+                    token.identifier(),
+                    this.worldPosition,
+                    admission.hatchPosition,
+                    admission.grid,
+                    admission.leaseEpoch,
+                    admission.route,
+                    exception);
+            throw exception;
+        } finally {
+            this.craftingAdmissions.remove(token);
+        }
+    }
+
+    private boolean isCurrentCraftingAdmission(CraftingAdmissionToken token, CraftingAdmissionState admission) {
+        Level level = this.level;
+        if (level == null || level.isClientSide() || !this.loaded || level.getGameTime() != admission.issuedTick ||
+                token.count() != admission.count || admission.generation != this.craftingAdmissionGeneration ||
+                !this.hostId.equals(admission.hostId) || !this.patternCatalog.hostId().equals(admission.hostId) ||
+                !isPatternProviderAvailable()) {
+            return false;
+        }
+        TrinityAccessLease lease = this.accessLease;
+        if (lease == null || lease.epoch() != admission.leaseEpoch ||
+                !lease.matches(admission.hatchPosition, admission.grid) ||
+                !admission.hatch.getBlockPos().equals(admission.hatchPosition) ||
+                admission.hatch.connectedGrid() != admission.grid || activeLeaseHatch() != admission.hatch) {
+            return false;
+        }
+        TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
+        return layout.active() && layout.revision() == admission.layoutRevision &&
+                this.patternCatalog.publicationRevision() == admission.publicationRevision &&
+                this.hostId.equals(admission.route.hostId()) && admission.route.equals(admission.patternDetails.route()) &&
+                publishesPattern(admission.patternDetails);
+    }
+
+    private boolean publishesPattern(IPatternDetails patternDetails) {
+        for (IPatternDetails availablePattern : this.patternCatalog.getAvailablePatterns()) {
+            if (availablePattern == patternDetails) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Revokes every unfinished authorization after a host-owned routing or lifecycle boundary changes.
+     */
+    private void invalidateCraftingAdmissions() {
+        this.craftingAdmissionGeneration = Math.incrementExact(this.craftingAdmissionGeneration);
+        this.craftingAdmissions.clear();
+    }
+
+    /**
+     * Releases uncommitted tokens from earlier server ticks without retaining hidden reservations.
+     */
+    private void discardExpiredCraftingAdmissions(long currentTick) {
+        this.craftingAdmissions.entrySet().removeIf(entry -> entry.getValue().issuedTick != currentTick);
+    }
+
     public void requestAccessLeaseReevaluation() {
         this.accessLeasePublicationRefreshRequested = true;
         reevaluateAccessLease();
@@ -1084,13 +1397,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private void transitionAccessLease(@Nullable TrinityAccessLease nextLease) {
         TrinityAccessLease previousLease = this.accessLease;
-        if (sameRuntimeLease(previousLease, nextLease)) {
+        if (sameRuntimeLease(previousLease, nextLease) && !accessLeaseIdentityChanged(previousLease, nextLease)) {
             this.accessLease = nextLease;
             this.craftingRuntime.setPaused(nextLease == null || nextLease.grid() == null || !isCpuProviderAvailable());
             this.accessLeasePublicationRefreshRequested = false;
             return;
         }
 
+        invalidateCraftingAdmissions();
         TrinityAccessHatchBlockEntity previousOwner = findAccessHatch(previousLease);
         TrinityAccessHatchBlockEntity nextOwner = nextLease == null || nextLease.grid() == null ? null : findAccessHatch(nextLease);
         boolean persistentIdentityChanged = accessLeaseIdentityChanged(previousLease, nextLease);
@@ -1288,6 +1602,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        invalidateCraftingAdmissions();
         super.loadTag(data, registries);
         this.structureValidation.reset();
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
@@ -1728,18 +2043,25 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 applyCraftingFailure(scan.failureReason(), scan.failurePosition());
                 return;
             }
-            List<TrinityPatternCatalog.CoreMount> previousMounts = this.patternCatalog.mountedCores();
+            TrinityPatternCatalog.LayoutSnapshot previousLayout = this.patternCatalog.layoutSnapshot();
+            long previousPublicationRevision = this.patternCatalog.publicationRevision();
             TrinityPatternCatalog.RebuildResult rebuild = this.patternCatalog.rebuild(scan.mounts());
+            if (previousLayout.revision() != this.patternCatalog.layoutSnapshot().revision() ||
+                    previousPublicationRevision != this.patternCatalog.publicationRevision()) {
+                invalidateCraftingAdmissions();
+            }
             this.patternCatalogValid = rebuild.valid();
             if (!rebuild.valid()) {
-                releasePatternCoreBindings(previousMounts);
+                releasePatternCoreBindings(previousLayout, null);
                 applyCraftingFailure(rebuild.failureReason(), rebuild.failurePosition());
                 return;
             }
-            TrinityPatternCatalog.CoreMount bindingFailure = bindPatternCoreBindings(scan.mounts());
+            TrinityPatternCatalog.LayoutSnapshot currentLayout = this.patternCatalog.layoutSnapshot();
+            TrinityPatternCatalog.CoreMount bindingFailure = bindPatternCoreBindings(currentLayout);
             if (bindingFailure != null) {
-                releasePatternCoreBindings(scan.mounts());
-                releasePatternCoreBindings(previousMounts);
+                releasePatternCoreBindings(currentLayout, null);
+                releasePatternCoreBindings(previousLayout, null);
+                invalidateCraftingAdmissions();
                 this.patternCatalog.invalidateLayout();
                 this.patternCatalogValid = false;
                 applyCraftingFailure(
@@ -1747,7 +2069,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                         bindingFailure.position());
                 return;
             }
-            releaseStalePatternCoreBindings(previousMounts, scan.mounts());
+            releaseStalePatternCoreBindings(previousLayout, currentLayout);
             applyCraftingMatch(world, result.positions(), rebuild.changed());
         } else {
             if (deferStructureValidation(Structure.CRAFTING, result.diagnostic(), world.firstUnloadedPosition())) {
@@ -1764,6 +2086,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (!this.structureValidation.deferIfUnloaded(structure, diagnostic, observedUnloadedPosition)) {
             return false;
         }
+        invalidateCraftingAdmissions();
         BlockPos waitingPosition = this.structureValidation.status(structure).waitingPosition();
         LOGGER.debug(
                 "Deferring Trinity structure '{}' at {} until {} is loaded",
@@ -2104,6 +2427,28 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         refreshTrinityAccessHatches(TrinityAccessHatchBlockEntity::refreshTrinityTerminalLayout);
     }
 
+    /** Requests and immediately attempts the retryable post-lock refresh of every public pattern surface. */
+    private void requestPatternLayoutRefresh() {
+        this.patternLayoutRefreshRequested = true;
+        flushRequestedPatternLayoutRefresh();
+    }
+
+    /** Leaves the catalog locked when a downstream refresh fails and retries from the next server tick. */
+    private void flushRequestedPatternLayoutRefresh() {
+        if (!this.patternLayoutRefreshRequested) {
+            return;
+        }
+        try {
+            notifyTrinityPatternLayoutChanged();
+            this.patternLayoutRefreshRequested = false;
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Trinity host {} retained locked pattern layout while access-hatch refresh is retried",
+                    this.worldPosition,
+                    exception);
+        }
+    }
+
     private void refreshTrinityAccessHatches(Consumer<TrinityAccessHatchBlockEntity> refresh) {
         for (CompartmentPart part : compartmentHost$getCompartments(mainDefinitionKey().structureName())) {
             if (part instanceof TrinityAccessHatchBlockEntity hatch) {
@@ -2114,57 +2459,124 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     /** Withdraws every public pattern route while retaining queued work for the current network lease. */
     private boolean withdrawPatternCatalog() {
-        List<TrinityPatternCatalog.CoreMount> mountedCores = this.patternCatalog.mountedCores();
-        boolean changed = this.patternCatalogValid || this.patternCatalog.layoutSnapshot().active();
-        this.patternCatalog.invalidateLayout();
+        PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
+        if (pending != null) {
+            this.pendingPatternCoreRelease = null;
+            return withdrawPatternCatalog(pending.layout(), null);
+        }
+        return withdrawPatternCatalog(this.patternCatalog.layoutSnapshot(), null);
+    }
+
+    /** Locks publication before local unbinding, retaining one releasing core until it receives the host result. */
+    private boolean withdrawPatternCatalog(TrinityPatternCatalog.LayoutSnapshot layout,
+                                           @Nullable PatternCoreBinding retainedBinding) {
+        invalidateCraftingAdmissions();
+        boolean changed = this.patternCatalogValid || layout.active();
         this.patternCatalogValid = false;
-        releasePatternCoreBindings(mountedCores);
+        this.patternCatalog.invalidateLayout();
+        releasePatternCoreBindings(layout, retainedBinding);
         return changed;
     }
 
     private void clearPatternCatalog() {
-        List<TrinityPatternCatalog.CoreMount> mountedCores = this.patternCatalog.mountedCores();
+        invalidateCraftingAdmissions();
+        PendingPatternCoreRelease pending = this.pendingPatternCoreRelease;
+        TrinityPatternCatalog.LayoutSnapshot layout = pending == null ? this.patternCatalog.layoutSnapshot() :
+                pending.layout();
+        this.patternCatalogValid = false;
         this.patternCatalog.clear();
-        releasePatternCoreBindings(mountedCores);
+        this.pendingPatternCoreRelease = null;
+        releasePatternCoreBindings(layout, null);
     }
 
     @Nullable
     private TrinityPatternCatalog.CoreMount bindPatternCoreBindings(
-                                                                    List<TrinityPatternCatalog.CoreMount> mounts) {
-        for (TrinityPatternCatalog.CoreMount mount : mounts) {
-            if (!(mount.core() instanceof TrinityPatternCoreBlockEntity core) || !core.bindPatternHost(this)) {
+                                                                    TrinityPatternCatalog.LayoutSnapshot layout) {
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            TrinityPatternCatalog.CoreMount mount = range.mount();
+            if (!(mount.core() instanceof TrinityPatternCoreBlockEntity core) ||
+                    !core.bindPatternHost(this, patternCoreBinding(layout, range))) {
                 return mount;
             }
         }
         return null;
     }
 
-    private void releasePatternCoreBindings(List<TrinityPatternCatalog.CoreMount> mounts) {
-        for (TrinityPatternCatalog.CoreMount mount : mounts) {
+    /** Releases only the bindings represented by one captured layout, never a newer rebind of the same core. */
+    private void releasePatternCoreBindings(TrinityPatternCatalog.LayoutSnapshot layout,
+                                            @Nullable PatternCoreBinding retainedBinding) {
+        for (TrinityPatternCatalog.CoreRange range : layout.ranges()) {
+            PatternCoreBinding binding = patternCoreBinding(layout, range);
+            if (binding.equals(retainedBinding)) {
+                continue;
+            }
+            TrinityPatternCatalog.CoreMount mount = range.mount();
             if (mount.core() instanceof TrinityPatternCoreBlockEntity core) {
-                core.unbindPatternHost(this);
+                core.unbindPatternHost(this, binding);
             }
         }
     }
 
-    private void releaseStalePatternCoreBindings(List<TrinityPatternCatalog.CoreMount> previousMounts,
-                                                 List<TrinityPatternCatalog.CoreMount> currentMounts) {
-        for (TrinityPatternCatalog.CoreMount previous : previousMounts) {
+    /** Clears only physical cores omitted from the latest scan, while preserving current bindings of retained cores. */
+    private void releaseStalePatternCoreBindings(TrinityPatternCatalog.LayoutSnapshot previousLayout,
+                                                 TrinityPatternCatalog.LayoutSnapshot currentLayout) {
+        for (TrinityPatternCatalog.CoreRange previousRange : previousLayout.ranges()) {
+            TrinityPatternCatalog.CoreMount previous = previousRange.mount();
             boolean retained = false;
-            for (TrinityPatternCatalog.CoreMount current : currentMounts) {
-                if (previous.core() == current.core()) {
+            for (TrinityPatternCatalog.CoreRange currentRange : currentLayout.ranges()) {
+                TrinityPatternCatalog.CoreMount current = currentRange.mount();
+                if (previous.core() == current.core() && previousRange.coreId().equals(currentRange.coreId()) &&
+                        previous.position().equals(current.position()) &&
+                        previous.blockCapacity() == current.blockCapacity()) {
                     retained = true;
                     break;
                 }
             }
             if (!retained && previous.core() instanceof TrinityPatternCoreBlockEntity core) {
-                core.unbindPatternHost(this);
+                core.unbindPatternHost(this, patternCoreBinding(previousLayout, previousRange));
             }
+        }
+    }
+
+    /** Builds the immutable token shared by a core and the exact catalog generation that owns it. */
+    private PatternCoreBinding patternCoreBinding(TrinityPatternCatalog.LayoutSnapshot layout,
+                                                  TrinityPatternCatalog.CoreRange range) {
+        TrinityPatternCatalog.CoreMount mount = range.mount();
+        return new PatternCoreBinding(
+                this.hostId,
+                layout.revision(),
+                range.coreId(),
+                mount.position(),
+                mount.blockCapacity());
+    }
+
+    /** Completes a previously locked release without permitting a new structure scan to republish the old layout. */
+    private boolean retryPendingPatternCoreRelease(PendingPatternCoreRelease pending) {
+        try {
+            invalidateCraftingAdmissions();
+            this.patternCatalogValid = false;
+            this.patternCatalog.invalidateLayout();
+            releasePatternCoreBindings(pending.layout(), pending.request().binding());
+            this.pendingPatternCoreRelease = null;
+            requestCraftingStructureRecheck();
+            setChanged();
+            requestPatternLayoutRefresh();
+            return true;
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Trinity host {} could not finish release recovery for core {} at {} after initial failure {}",
+                    this.worldPosition,
+                    pending.request().binding().coreId(),
+                    pending.request().binding().mountPosition(),
+                    pending.initialFailure().toString(),
+                    exception);
+            return false;
         }
     }
 
     @Override
     public void onChunkUnloaded() {
+        invalidateCraftingAdmissions();
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
         if (isServerStopping()) {
@@ -2179,6 +2591,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public void setRemoved() {
+        invalidateCraftingAdmissions();
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
         if (isServerStopping()) {
@@ -2198,6 +2611,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     /** Cancels active CPU jobs only when the host block is being permanently removed from the world. */
     public void onPermanentRemoval() {
+        invalidateCraftingAdmissions();
         this.craftingRuntime.cancelAllJobs();
         recoverCancelledCpuInventory();
         this.loaded = false;

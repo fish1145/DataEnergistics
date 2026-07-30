@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.ae2;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
 
@@ -11,6 +12,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
@@ -44,6 +46,7 @@ public final class AdaptivePatternProviderState {
     public static final int EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD = 4;
     public static final int BASE_UPGRADE_SLOTS = 6;
     private static final int MAX_NETWORK_SAFE_MENU_SLOTS = Short.MAX_VALUE + 1;
+    private static final int MAX_STREAM_CONNECTIONS = 256;
     // Keep the large backing inventory headroom so future provider variants can scale up without another migration.
     // The adaptive menu now pages against proxy slots instead of registering one GUI slot for every backing slot.
     private static final int FIXED_MENU_SLOT_OVERHEAD = 36 + 18 + 2 + 36 + (BASE_UPGRADE_SLOTS * 2) + 3;
@@ -175,8 +178,7 @@ public final class AdaptivePatternProviderState {
 
     public void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
         for (int i = 0; i < this.ae2LtConnections.size(); i++) {
-            var connection = this.ae2LtConnections.get(i);
-            if (connection.sameTarget(dimension, pos)) {
+            if (this.ae2LtConnections.get(i).sameTarget(dimension, pos)) {
                 this.ae2LtConnections.set(i, new AdaptiveWirelessConnection(dimension, pos, boundFace));
                 return;
             }
@@ -343,67 +345,68 @@ public final class AdaptivePatternProviderState {
     }
 
     public boolean readFromStream(RegistryFriendlyByteBuf data) {
-        boolean changed = false;
-
         CompoundTag providerStackTag = data.readNbt();
         ItemStack providerStack = providerStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
+        CompoundTag adapterStackTag = data.readNbt();
+        ItemStack adapterStack = adapterStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), adapterStackTag);
+        boolean advancedAeFilteredImport = data.readBoolean();
+        boolean resonatingPullEnabled = data.readBoolean();
+        var ae2LtProviderMode = readStreamEnum(data, "provider mode",
+                AdaptivePatternProviderModes.Ae2LtProviderMode.NORMAL,
+                AdaptivePatternProviderModes.Ae2LtProviderMode.values());
+        var ae2LtReturnMode = readStreamEnum(data, "return mode",
+                AdaptivePatternProviderModes.Ae2LtReturnMode.OFF,
+                AdaptivePatternProviderModes.Ae2LtReturnMode.values());
+        var ae2LtWirelessDispatchMode = readStreamEnum(data, "wireless dispatch mode",
+                AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION,
+                AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.values());
+        var ae2LtWirelessSpeedMode = readStreamEnum(data, "wireless speed mode",
+                AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.NORMAL,
+                AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.values());
+        List<AdaptiveWirelessConnection> incomingConnections = readStreamConnections(data);
+
+        boolean changed = false;
         if (!ItemStack.matches(getProviderStack(), providerStack)) {
             this.providerInventory.setItemDirect(0, providerStack);
             changed = true;
         }
 
-        CompoundTag adapterStackTag = data.readNbt();
-        ItemStack adapterStack = adapterStackTag == null ? ItemStack.EMPTY : ItemStack.parseOptional(data.registryAccess(), adapterStackTag);
         if (!ItemStack.matches(getAe2LtPackagedAdapterStack(), adapterStack)) {
             this.ae2LtPackagedAdapterInventory.setItemDirect(0, adapterStack);
             changed = true;
         }
 
-        boolean advancedAeFilteredImport = data.readBoolean();
         if (this.advancedAeFilteredImport != advancedAeFilteredImport) {
             this.advancedAeFilteredImport = advancedAeFilteredImport;
             changed = true;
         }
 
-        boolean resonatingPullEnabled = data.readBoolean();
         if (this.resonatingPullEnabled != resonatingPullEnabled) {
             this.resonatingPullEnabled = resonatingPullEnabled;
             changed = true;
         }
 
-        var ae2LtProviderMode = AdaptivePatternProviderModes.Ae2LtProviderMode.values()[data.readVarInt()];
         if (this.ae2LtProviderMode != ae2LtProviderMode) {
             this.ae2LtProviderMode = ae2LtProviderMode;
             changed = true;
         }
 
-        var ae2LtReturnMode = AdaptivePatternProviderModes.Ae2LtReturnMode.values()[data.readVarInt()];
         if (this.ae2LtReturnMode != ae2LtReturnMode) {
             this.ae2LtReturnMode = ae2LtReturnMode;
             changed = true;
         }
 
-        var ae2LtWirelessDispatchMode = AdaptivePatternProviderModes.Ae2LtWirelessDispatchMode.values()[data.readVarInt()];
         if (this.ae2LtWirelessDispatchMode != ae2LtWirelessDispatchMode) {
             this.ae2LtWirelessDispatchMode = ae2LtWirelessDispatchMode;
             changed = true;
         }
 
-        var ae2LtWirelessSpeedMode = AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.values()[data.readVarInt()];
         if (this.ae2LtWirelessSpeedMode != ae2LtWirelessSpeedMode) {
             this.ae2LtWirelessSpeedMode = ae2LtWirelessSpeedMode;
             changed = true;
         }
 
-        int connectionCount = data.readVarInt();
-        List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(connectionCount);
-        for (int i = 0; i < connectionCount; i++) {
-            var dimension = ResourceKey.create(Registries.DIMENSION, data.readResourceLocation());
-            var pos = data.readBlockPos();
-            var face = data.readEnum(Direction.class);
-            incomingConnections.add(new AdaptiveWirelessConnection(dimension, pos, face));
-        }
-        if (!this.ae2LtConnections.equals(incomingConnections)) {
+        if (incomingConnections != null && !this.ae2LtConnections.equals(incomingConnections)) {
             this.ae2LtConnections.clear();
             this.ae2LtConnections.addAll(incomingConnections);
             changed = true;
@@ -429,6 +432,84 @@ public final class AdaptivePatternProviderState {
         } catch (IllegalArgumentException ignored) {
             return fallback;
         }
+    }
+
+    private static <E extends Enum<E>> E readStreamEnum(RegistryFriendlyByteBuf data, String fieldName, E fallback, E[] values) {
+        int ordinal = data.readVarInt();
+        if (ordinal < 0 || ordinal >= values.length) {
+            Data_Energistics.LOGGER.warn(
+                    "Received invalid adaptive pattern provider {} ordinal {}; using {}.", fieldName, ordinal, fallback);
+            return fallback;
+        }
+        return values[ordinal];
+    }
+
+    private static @Nullable List<AdaptiveWirelessConnection> readStreamConnections(RegistryFriendlyByteBuf data) {
+        try {
+            int connectionCount = data.readVarInt();
+            if (connectionCount < 0) {
+                Data_Energistics.LOGGER.warn(
+                        "Received negative adaptive pattern provider wireless connection count {}; treating it as zero.",
+                        connectionCount);
+                return List.of();
+            }
+
+            int retainedConnectionCount = Math.min(connectionCount, MAX_STREAM_CONNECTIONS);
+            List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(retainedConnectionCount);
+            for (int i = 0; i < retainedConnectionCount; i++) {
+                AdaptiveWirelessConnection connection = readStreamConnection(data, i);
+                if (connection != null) {
+                    addOrReplaceConnection(incomingConnections, connection);
+                }
+            }
+
+            if (connectionCount > MAX_STREAM_CONNECTIONS) {
+                Data_Energistics.LOGGER.warn(
+                        "Received {} adaptive pattern provider wireless connections; retaining the first {} and discarding the remaining state stream bytes.",
+                        connectionCount, MAX_STREAM_CONNECTIONS);
+                data.skipBytes(data.readableBytes());
+            }
+            return incomingConnections;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.warn(
+                    "Adaptive pattern provider state stream ended while reading wireless connections; keeping the previous complete connection list.",
+                    exception);
+            return null;
+        }
+    }
+
+    private static @Nullable AdaptiveWirelessConnection readStreamConnection(RegistryFriendlyByteBuf data, int connectionIndex) {
+        String dimensionId = data.readUtf();
+        BlockPos pos = data.readBlockPos();
+        int faceOrdinal = data.readVarInt();
+        ResourceLocation dimensionLocation = ResourceLocation.tryParse(dimensionId);
+        if (dimensionLocation == null) {
+            Data_Energistics.LOGGER.warn(
+                    "Skipping adaptive pattern provider wireless connection {} with an invalid dimension identifier.", connectionIndex);
+            return null;
+        }
+
+        Direction[] directions = Direction.values();
+        if (faceOrdinal < 0 || faceOrdinal >= directions.length) {
+            Data_Energistics.LOGGER.warn(
+                    "Skipping adaptive pattern provider wireless connection {} with invalid bound-face ordinal {}.",
+                    connectionIndex, faceOrdinal);
+            return null;
+        }
+
+        return new AdaptiveWirelessConnection(ResourceKey.create(Registries.DIMENSION, dimensionLocation), pos,
+                directions[faceOrdinal]);
+    }
+
+    private static void addOrReplaceConnection(List<AdaptiveWirelessConnection> connections,
+                                               AdaptiveWirelessConnection connection) {
+        for (int i = 0; i < connections.size(); i++) {
+            if (connections.get(i).sameTarget(connection.dimension(), connection.pos())) {
+                connections.set(i, connection);
+                return;
+            }
+        }
+        connections.add(connection);
     }
 
     private static final class ProviderFilter implements IAEItemFilter {

@@ -216,17 +216,17 @@ public interface TrinityPatternSlot {
     void clearQueuedBatches(UUID hostId);
 
     /**
-     * Replaces the FIFO with a previously captured exact snapshot during refund rollback or V2 commit.
+     * Replaces the FIFO with a previously captured exact snapshot during refund rollback or commit.
      *
      * @param batches ordered queue snapshot
      */
     void replaceQueuedBatches(List<TrinityCraftingBatch> batches);
 
     /**
-     * Writes this complete non-empty slot as one V2 atomic unit.
+     * Writes this complete non-empty slot as one atomic unit.
      *
      * @param registries item component registry access
      * @return slot tag containing pattern, definition table, and queue references
      */
-    CompoundTag writeV2(HolderLookup.Provider registries);
+    CompoundTag writeToTag(HolderLookup.Provider registries);
 }

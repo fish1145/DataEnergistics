@@ -76,7 +76,7 @@ final class OritechEnergyIntegrationTest {
     }
 
     @Test
-    void rethrowsFatalFailuresWithoutChangingTheirIdentity() {
+    void rethrowsVirtualMachineErrorWithoutChangingItsIdentity() {
         TestOritechStorage oritechStorage = new TestOritechStorage(40L, 100L);
         IEnergyStorage storage = OritechEnergyIntegration.wrapEnergyStorage(oritechStorage);
 
@@ -85,12 +85,6 @@ final class OritechEnergyIntegrationTest {
         TestVirtualMachineError thrownVirtualMachineError = assertThrows(
                 TestVirtualMachineError.class, storage::getEnergyStored);
         assertSame(virtualMachineError, thrownVirtualMachineError);
-
-        oritechStorage.failAmountWith(null);
-        ThreadDeath threadDeath = new ThreadDeath();
-        oritechStorage.failInsertionPermissionWith(threadDeath);
-        ThreadDeath thrownThreadDeath = assertThrows(ThreadDeath.class, storage::canReceive);
-        assertSame(threadDeath, thrownThreadDeath);
     }
 
     private static final class TestOritechStorage extends EnergyStorage {

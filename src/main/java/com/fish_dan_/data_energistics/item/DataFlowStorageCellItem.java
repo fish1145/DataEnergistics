@@ -35,6 +35,7 @@ public class DataFlowStorageCellItem extends BasicStorageCell {
             player.setItemInHand(usedHand, ItemStack.EMPTY);
             giveBack(player, ModItems.DATA_FLOW_COMPONENT_HOUSING.toStack());
             giveBack(player, storageComponent);
+            getUpgrades(stack).forEach(upgrade -> giveBack(player, upgrade));
         }
 
         return InteractionResultHolder.sidedSuccess(player.getItemInHand(usedHand), level.isClientSide);

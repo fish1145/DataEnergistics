@@ -15,13 +15,17 @@ public interface TowerEnergyDistributor {
 
     /**
      * Runs one active range transfer tick for the cluster coordinator.
+     *
+     * @return true when at least one FE transfer completed
      */
-    void performActiveRangeTransfer();
+    boolean performActiveRangeTransfer();
 
     /**
      * Attempts to deliver energy retained by the owning tower after an incomplete transfer.
+     *
+     * @return true when buffered FE was delivered
      */
-    void flushBufferedEnergy();
+    boolean flushBufferedEnergy();
 
     /**
      * Inserts FE into receiver endpoints in range.

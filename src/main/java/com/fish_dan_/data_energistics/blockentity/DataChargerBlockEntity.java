@@ -43,7 +43,6 @@ import appeng.util.inv.filter.IAEItemFilter;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -306,16 +305,6 @@ public class DataChargerBlockEntity extends AENetworkedPoweredBlockEntity implem
     @Override
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         saveChangedInventory(inv);
-    }
-
-    @Override
-    public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
-        super.addAdditionalDrops(level, pos, drops);
-        for (ItemStack stack : this.storage) {
-            if (!stack.isEmpty()) {
-                drops.add(stack.copy());
-            }
-        }
     }
 
     @Override

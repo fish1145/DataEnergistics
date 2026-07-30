@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityDataCoreStorageStatus;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCatalog;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -91,6 +92,14 @@ public interface TrinityDataCoreMenuHost {
      * @return true only when every participating queued state was cleared and delivery was invoked
      */
     boolean tryRefundAll(Player player);
+
+    /**
+     * Atomically returns every installed pattern from the current valid crafting-core aggregate.
+     *
+     * @param player player who receives inventory-first and final world-drop pattern delivery
+     * @return precise transaction outcome without mixing patterns into retained item delivery
+     */
+    TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player);
 
     /**
      * Returns the last crafting child structure validation error, or an empty string when no error is active.

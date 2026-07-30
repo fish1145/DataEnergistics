@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.FailureType;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.PartSideResolver;
 import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.Result;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.MultiBlockAutoBuild.StagingPolicy;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockPlacementPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.json.JsonMultiBlockStatePropertiesPredicate.StatePattern;
@@ -15,17 +16,20 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.CrafterBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
@@ -36,6 +40,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import appeng.api.parts.PartHelper;
+import appeng.core.definitions.AEBlocks;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.FactoryBlockPattern;
 import com.modularmc.mdl.api.multiblock.Predicates;
@@ -47,6 +52,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -56,6 +62,24 @@ public final class MultiBlockAutoBuildGameTest {
     private static final String STRUCTURE_NAME = "atomic_auto_build_test";
     private static final Direction FRONT = Direction.SOUTH;
     private static final MultiBlockAutoBuild AUTO_BUILD = new MultiBlockAutoBuildImpl();
+    private static final StagingPolicy TEST_STAGING_POLICY = new StagingPolicy() {
+
+        @Override
+        public boolean canStageBlock(BlockPos position, ItemStack stack, BlockState desiredState) {
+            return true;
+        }
+
+        @Override
+        public boolean canPhysicallyStageBlock(BlockPos position, ItemStack stack, BlockState desiredState) {
+            return desiredState.is(Blocks.IRON_BLOCK);
+        }
+
+        @Nullable
+        @Override
+        public BlockState partHostState(BlockPos position, ItemStack partStack, Direction side) {
+            return AEBlocks.CABLE_BUS.block().defaultBlockState();
+        }
+    };
 
     private MultiBlockAutoBuildGameTest() {}
 
@@ -268,28 +292,68 @@ public final class MultiBlockAutoBuildGameTest {
         ServerLevel level = helper.getLevel();
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         player.getInventory().setItem(0, new ItemStack(Blocks.IRON_BLOCK));
-        player.getInventory().setItem(1, new ItemStack(Blocks.DIRT));
-        TraceabilityPredicate invalidPlacementPredicate = new TraceabilityPredicate(
+        Block fixture = block("ae2:quartz_fixture");
+        BlockState fixtureState = fixture.defaultBlockState()
+                .setValue(BlockStateProperties.FACING, Direction.EAST);
+        player.getInventory().setItem(1, fixture.asItem().getDefaultInstance());
+        TraceabilityPredicate unsupportedFixturePredicate = new TraceabilityPredicate(
                 new JsonMultiBlockPlacementPredicate(
-                        new BlockPredicate(List.of(Blocks.GLASS)),
-                        List.of(Blocks.DIRT.asItem().getDefaultInstance())));
-        BlockPattern pattern = twoTargetPattern(Predicates.blocks(Blocks.IRON_BLOCK), invalidPlacementPredicate);
+                        new JsonMultiBlockStatePropertiesPredicate(List.of(new StatePattern(
+                                fixture,
+                                List.of(new StatePropertyValue<>(BlockStateProperties.FACING, Direction.EAST))))),
+                        List.of(fixture.asItem().getDefaultInstance())));
+        BlockPattern pattern = twoTargetPattern(Predicates.blocks(Blocks.IRON_BLOCK), unsupportedFixturePredicate);
         BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos firstTarget = position(pattern, origin, 0, 1);
+        BlockPos fixtureTarget = position(pattern, origin, 0, 2);
+        BlockPos observerPosition = firstTarget.above();
+        BlockPos crafterPosition = observerPosition.above();
+        helper.assertFalse(fixtureState.canSurvive(level, fixtureTarget),
+                "Later fixture target must remain unsupported after the first target stages");
+        level.setBlock(observerPosition, Blocks.OBSERVER.defaultBlockState()
+                .setValue(BlockStateProperties.FACING, Direction.DOWN), Block.UPDATE_ALL);
+        level.setBlock(crafterPosition, Blocks.CRAFTER.defaultBlockState(), Block.UPDATE_ALL);
+        AtomicReference<CompoundTag> crafterBefore = new AtomicReference<>();
 
-        Result result = execute(level, player, pattern, origin, 1, Map.of());
+        helper.startSequence()
+                .thenIdle(3)
+                .thenExecute(() -> {
+                    BlockEntity blockEntity = level.getBlockEntity(crafterPosition);
+                    if (!(blockEntity instanceof CrafterBlockEntity crafter)) {
+                        throw new IllegalStateException("Runtime rollback fixture has no Crafter block entity");
+                    }
+                    for (int slot = 0; slot < crafter.getContainerSize(); slot++) {
+                        crafter.setItem(slot, new ItemStack(Items.WHEAT));
+                    }
+                    crafter.setChanged();
+                    crafterBefore.set(crafter.saveWithFullMetadata(level.registryAccess()));
 
-        helper.assertFalse(result.success(), "A placement item outside the predicate should fail verification");
-        helper.assertValueEqual(result.failure().type(), FailureType.PLACE_FAILED,
-                "Runtime predicate failure should be reported as placement failure");
-        helper.assertValueEqual(blockAt(level, pattern, origin, 0, 1), Blocks.AIR,
-                "Earlier successful placements must be rolled back");
-        helper.assertValueEqual(blockAt(level, pattern, origin, 0, 2), Blocks.AIR,
-                "Failing placement must be rolled back");
-        helper.assertValueEqual(countItem(player, Blocks.IRON_BLOCK.asItem()), 1,
-                "Rollback must restore material consumed by earlier placements");
-        helper.assertValueEqual(countItem(player, Blocks.DIRT.asItem()), 1,
-                "Rollback must restore material consumed by the failing placement");
-        helper.succeed();
+                    Result result = execute(level, player, pattern, origin, 1, Map.of());
+
+                    helper.assertFalse(result.success(), "A later unsupported fixture must fail after the first target stages");
+                    helper.assertValueEqual(result.failure().type(), FailureType.PLACE_FAILED,
+                            "Staging dependency failure should be reported as placement failure");
+                    helper.assertValueEqual(blockAt(level, pattern, origin, 0, 1), Blocks.AIR,
+                            "Earlier staged placements must be rolled back");
+                    helper.assertValueEqual(blockAt(level, pattern, origin, 0, 2), Blocks.AIR,
+                            "Failing placement must remain unchanged");
+                    helper.assertValueEqual(countItem(player, Blocks.IRON_BLOCK.asItem()), 1,
+                            "Rollback must restore material consumed by earlier placements");
+                    helper.assertValueEqual(countItem(player, fixture.asItem()), 1,
+                            "Rollback must restore material reserved for the failing fixture");
+                })
+                .thenIdle(8)
+                .thenExecute(() -> {
+                    helper.assertFalse(level.getBlockState(observerPosition).getValue(BlockStateProperties.POWERED),
+                            "Pre-commit rollback must not trigger the target-neighbor Observer");
+                    BlockEntity blockEntity = level.getBlockEntity(crafterPosition);
+                    if (!(blockEntity instanceof CrafterBlockEntity crafter)) {
+                        throw new IllegalStateException("Runtime rollback fixture lost its Crafter block entity");
+                    }
+                    helper.assertTrue(crafterBefore.get().equals(crafter.saveWithFullMetadata(level.registryAccess())),
+                            "Pre-commit rollback must preserve target-neighbor Crafter NBT");
+                })
+                .thenSucceed();
     }
 
     @TestHolder("multi_block_auto_build_wrong_tier_is_blocked")
@@ -553,30 +617,55 @@ public final class MultiBlockAutoBuildGameTest {
         helper.succeed();
     }
 
-    @TestHolder("multi_block_auto_build_rejects_ae2_part_without_side_before_mutation")
+    @TestHolder("multi_block_auto_build_rejects_unapproved_staging_before_mutation")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")
-    public static void rejectsAe2PartWithoutSideBeforeMutation(GameTestHelper helper) {
+    public static void rejectsUnapprovedStagingBeforeMutation(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player blockPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
+        blockPlayer.getInventory().setItem(0, new ItemStack(Blocks.IRON_BLOCK));
+        BlockPattern blockPattern = oneTargetPattern(Predicates.blocks(Blocks.IRON_BLOCK));
+        BlockPos blockOrigin = helper.absolutePos(ORIGIN);
+
+        Result blockResult = executeWithoutStagingPolicy(
+                level,
+                blockPlayer,
+                blockPattern,
+                blockOrigin,
+                (position, partStack) -> null);
+
+        helper.assertFalse(blockResult.success(), "Generic block candidates must require an explicit staging policy");
+        helper.assertValueEqual(blockResult.failure().type(), FailureType.UNSUPPORTED_STAGING,
+                "Unapproved blocks should fail before the transaction commits");
+        helper.assertValueEqual(blockAt(level, blockPattern, blockOrigin, 0, 1), Blocks.AIR,
+                "Unapproved block staging must not change the world");
+        helper.assertValueEqual(countItem(blockPlayer, Blocks.IRON_BLOCK.asItem()), 1,
+                "Unapproved block staging must not reserve player materials");
+
+        Player partPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
         Block cableBus = block("ae2:cable_bus");
         Item importBus = item("ae2:import_bus");
-        player.getInventory().setItem(0, importBus.getDefaultInstance());
+        partPlayer.getInventory().setItem(0, importBus.getDefaultInstance());
         TraceabilityPredicate predicate = new TraceabilityPredicate(new JsonMultiBlockPlacementPredicate(
                 new BlockPredicate(List.of(cableBus)),
                 List.of(importBus.getDefaultInstance())));
         BlockPattern pattern = oneTargetPattern(predicate);
-        BlockPos origin = helper.absolutePos(ORIGIN);
+        BlockPos origin = blockOrigin.relative(Direction.SOUTH, 4);
 
-        Result result = execute(level, player, pattern, origin, 1, Map.of());
+        Result result = executeWithoutStagingPolicy(
+                level,
+                partPlayer,
+                pattern,
+                origin,
+                (position, partStack) -> Direction.UP);
 
-        helper.assertFalse(result.success(), "AE2 parts without an explicit side must be rejected");
-        helper.assertValueEqual(result.failure().type(), FailureType.UNSUPPORTED_CANDIDATE,
-                "Missing AE2 host side should fail before the transaction commits");
+        helper.assertFalse(result.success(), "AE2 parts without a staging policy must be rejected");
+        helper.assertValueEqual(result.failure().type(), FailureType.UNSUPPORTED_STAGING,
+                "Unapproved AE2 parts should fail before the transaction commits");
         helper.assertValueEqual(blockAt(level, pattern, origin, 0, 1), Blocks.AIR,
-                "Missing AE2 host side must not create a cable bus");
-        helper.assertValueEqual(countItem(player, importBus), 1,
-                "Missing AE2 host side must not reserve the part item");
+                "Unapproved AE2 part staging must not create a cable bus");
+        helper.assertValueEqual(countItem(partPlayer, importBus), 1,
+                "Unapproved AE2 part staging must not reserve the part item");
         helper.succeed();
     }
 
@@ -608,6 +697,28 @@ public final class MultiBlockAutoBuildGameTest {
                                   Map<Block, Block> selectedTierBlocks,
                                   Map<Block, Integer> tierRanks,
                                   PartSideResolver partSideResolver) {
+        return execute(level, player, pattern, origin, repeatCount, selectedTierBlocks, tierRanks, partSideResolver,
+                TEST_STAGING_POLICY);
+    }
+
+    private static Result executeWithoutStagingPolicy(ServerLevel level,
+                                                      Player player,
+                                                      BlockPattern pattern,
+                                                      BlockPos origin,
+                                                      PartSideResolver partSideResolver) {
+        return execute(level, player, pattern, origin, 1, Map.of(), Map.of(), partSideResolver,
+                StagingPolicy.REJECT_ALL);
+    }
+
+    private static Result execute(ServerLevel level,
+                                  Player player,
+                                  BlockPattern pattern,
+                                  BlockPos origin,
+                                  int repeatCount,
+                                  Map<Block, Block> selectedTierBlocks,
+                                  Map<Block, Integer> tierRanks,
+                                  PartSideResolver partSideResolver,
+                                  StagingPolicy stagingPolicy) {
         return AUTO_BUILD.execute(MultiBlockAutoBuild.Context.builder()
                 .level(level)
                 .player(player)
@@ -621,6 +732,7 @@ public final class MultiBlockAutoBuildGameTest {
                 .selectedTierBlocks(selectedTierBlocks)
                 .tierRanks(tierRanks)
                 .partSideResolver(partSideResolver)
+                .stagingPolicy(stagingPolicy)
                 .build());
     }
 

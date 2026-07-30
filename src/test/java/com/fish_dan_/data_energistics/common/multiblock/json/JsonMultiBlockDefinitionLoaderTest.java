@@ -192,6 +192,75 @@ public final class JsonMultiBlockDefinitionLoaderTest {
         helper.assertTrue(
                 !definition.replaceableCompartmentTypes().containsKey("Y"),
                 "Bundled Trinity Data Core should not allow compartments to replace plain glass");
+        helper.assertFalse(
+                definition.autoBuildStaging().allowsBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Unmarked candidates must stay outside the current definition's staging set");
+        helper.assertTrue(
+                definition.autoBuildStaging().allowsBlock(block("ae2:quartz_vibrant_glass").defaultBlockState()),
+                "JSON-declared base candidate should enter the staging set");
+        helper.assertTrue(
+                definition.autoBuildStaging().allowsPhysicalBlock(block("ae2:quartz_vibrant_glass").defaultBlockState()),
+                "JSON-declared base candidate should retain its physical staging mode");
+        helper.assertTrue(
+                definition.autoBuildStaging().allowsBlock(ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                "Replaceable compartment candidate should enter the staging overlay");
+        helper.assertFalse(
+                definition.autoBuildStaging().allowsPhysicalBlock(ModBlocks.TRINITY_ACCESS_HATCH.get().defaultBlockState()),
+                "Replaceable compartment candidate must not create a block entity during physical staging");
+        JsonMultiBlockDefinition dataPackDefinition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("datapack_auto_build_staging"),
+                new StringReader("""
+                        {
+                        "metadata": {
+                        \t"auto_build_staging": {
+                        \t"block_symbols": ["A"],
+                        \t"physical_block_symbols": ["A"]
+                        \t}
+                        },
+                        "aisles": [{"slices": [["~A"]]}],
+                        "predicates": {
+                        \t"A": {"type": "mdlib:blocks", "block": "minecraft:obsidian"}
+                        }
+                        }
+                        """));
+        helper.assertTrue(
+                dataPackDefinition.autoBuildStaging().allowsBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Data-pack metadata should authorize a predicate candidate without a Java id allowlist");
+        helper.assertTrue(
+                dataPackDefinition.autoBuildStaging().allowsPhysicalBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Data-pack metadata should control physical staging independently");
+        JsonMultiBlockDefinition noMetadataDefinition = new MdlibJsonMultiBlockDefinitionLoader().parse(
+                resource("no_auto_build_staging"),
+                new StringReader("""
+                        {
+                        "aisles": [{"slices": [["~A"]]}],
+                        "predicates": {
+                        \t"A": {"type": "mdlib:blocks", "block": "minecraft:obsidian"}
+                        }
+                        }
+                        """));
+        helper.assertFalse(
+                noMetadataDefinition.autoBuildStaging().allowsBlock(Blocks.OBSIDIAN.defaultBlockState()),
+                "Definitions without auto-build metadata must reject staging candidates");
+        assertThrows(
+                helper,
+                IllegalArgumentException.class,
+                () -> new MdlibJsonMultiBlockDefinitionLoader().parse(
+                        resource("invalid_auto_build_staging"),
+                        new StringReader("""
+                                {
+                                "metadata": {
+                                "auto_build_staging": {
+                                "physical_block_symbols": ["A"]
+                                }
+                                },
+                                "aisles": [{"slices": [["~A"]]}],
+                                "predicates": {
+                                "A": {"type": "mdlib:blocks", "block": "minecraft:obsidian"}
+                                }
+                                }
+                                """)),
+                "Physical staging symbols without a matching block staging declaration must fail fast");
         assertIntArrayEqual(helper, pattern.getDimensions(), new int[] { 32, 28, 27 },
                 "Bundled Trinity Data Core dimensions should match the shipped main JSON resource");
         helper.assertValueEqual(pattern.structureSlices.length, 32, "Bundled Trinity Data Core should use one aisle per exported front layer");
@@ -1319,14 +1388,48 @@ public final class JsonMultiBlockDefinitionLoaderTest {
                 "main",
                 "Bound Trinity access hatch should remember the structure name");
 
+        host.failAfterRemove = true;
+        boolean failedAfterRemovingRegistration = false;
+        try {
+            binder.unbind("main", host);
+        } catch (IllegalStateException expected) {
+            failedAfterRemovingRegistration = true;
+        }
+        helper.assertTrue(failedAfterRemovingRegistration,
+                "A host failure after removal must leave the captured binding handle available for retry");
+        helper.assertTrue(host.compartmentHost$getCompartments("main").isEmpty(),
+                "The failing host should already have removed its registration before the retry");
+
+        host.failAfterRemove = false;
         binder.unbind("main", host);
         helper.assertTrue(
                 host.compartmentHost$getCompartments("main").isEmpty(),
-                "Binder unbind should remove the Trinity access hatch from the host");
+                "Binder retry should release a hatch whose first removal failed after unregistering it");
         helper.assertTrue(hatch.compartmentHost() == null, "Unbound Trinity access hatch should clear its host");
         helper.assertTrue(
                 hatch.compartmentStructureName() == null,
                 "Unbound Trinity access hatch should clear the structure name");
+
+        binder.bind(world, "main", host, declaredCompartments);
+        host.failBeforeRemove = true;
+        boolean failedBeforeRemovingRegistration = false;
+        try {
+            binder.unbind("main", host);
+        } catch (IllegalStateException expected) {
+            failedBeforeRemovingRegistration = true;
+        }
+        helper.assertTrue(failedBeforeRemovingRegistration,
+                "A host failure before removal must retain the releasing binding for ensureBound to retry");
+        helper.assertValueEqual(host.compartmentHost$getCompartments("main"), List.of(hatch),
+                "The host should retain its registration when removal fails before it mutates");
+
+        host.failBeforeRemove = false;
+        binder.ensureBound(world, "main", host, declaredCompartments);
+        helper.assertValueEqual(hatch.compartmentHost(), host,
+                "ensureBound should retry and reactivate the failed same-host Trinity binding");
+        binder.unbind("main", host);
+        helper.assertTrue(hatch.compartmentHost() == null,
+                "The retried same-host binding should still release normally");
         helper.succeed();
     }
 
@@ -1984,6 +2087,8 @@ public final class JsonMultiBlockDefinitionLoaderTest {
     private static final class TestCompartmentHost implements CompartmentHost {
 
         private final CompartmentHostState compartments = new CompartmentHostState();
+        private boolean failBeforeRemove;
+        private boolean failAfterRemove;
 
         @Override
         public void compartmentHost$addCompartment(String structureName, CompartmentPart part) {
@@ -1992,7 +2097,13 @@ public final class JsonMultiBlockDefinitionLoaderTest {
 
         @Override
         public void compartmentHost$removeCompartment(String structureName, CompartmentPart part) {
+            if (this.failBeforeRemove) {
+                throw new IllegalStateException("Requested test host failure before removal");
+            }
             this.compartments.removeCompartment(structureName, part);
+            if (this.failAfterRemove) {
+                throw new IllegalStateException("Requested test host failure after removal");
+            }
         }
 
         @Override

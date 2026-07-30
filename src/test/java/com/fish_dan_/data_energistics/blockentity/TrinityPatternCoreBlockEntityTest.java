@@ -48,11 +48,12 @@ public final class TrinityPatternCoreBlockEntityTest {
 
     private TrinityPatternCoreBlockEntityTest() {}
 
-    @TestHolder("trinity_pattern_core_drop_restores_all_physical_tiers")
+    @TestHolder("trinity_pattern_core_mining_drops_separate_patterns_and_retain_work")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void blockEntityDataRoundTripPreservesAllPhysicalTiers(GameTestHelper helper) {
-        ItemStack encodedPattern = encodedOakPlanksPattern(helper);
+    public static void miningDropsSeparatePatternsAndRetainQueuedWorkAcrossPhysicalTiers(GameTestHelper helper) {
+        ItemStack oakPattern = encodedOakPlanksPattern(helper);
+        ItemStack cakePattern = encodedCakePattern(helper);
         List<TrinityPatternCoreBlock> blocks = List.of(
                 ModBlocks.ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
                 ModBlocks.EXTENDED_ME_DIGITAL_PATTERN_PROCESSING_CORE.get(),
@@ -66,10 +67,12 @@ public final class TrinityPatternCoreBlockEntityTest {
             TrinityPatternCoreBlockEntity source = helper.getBlockEntity(sourcePos);
             assertEquals(capacities[index], source.patternCapacity());
 
-            int patternSlot = capacities[index] - 1;
-            PatternRoute route = new PatternRoute(HOST_ID, source.coreId(), patternSlot);
-            assertTrue(source.trySetPattern(patternSlot, encodedPattern));
-            assertTrue(source.enqueueBatch(route, encodedPattern, oakLogInputs(), 40L + index));
+            int separatePatternSlot = capacities[index] - 2;
+            int retainedWorkSlot = capacities[index] - 1;
+            PatternRoute route = new PatternRoute(HOST_ID, source.coreId(), retainedWorkSlot);
+            assertTrue(source.trySetPattern(separatePatternSlot, cakePattern));
+            assertTrue(source.trySetPattern(retainedWorkSlot, oakPattern));
+            assertTrue(source.enqueueBatch(route, oakPattern, oakLogInputs(), 40L + index));
             source.appendPendingOutputs(
                     route,
                     List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, index + 1))));
@@ -79,23 +82,29 @@ public final class TrinityPatternCoreBlockEntityTest {
                     helper.absolutePos(sourcePos),
                     source);
 
-            assertEquals(1, drops.size());
-            ItemStack drop = drops.getFirst();
-            assertTrue(drop.is(block.asItem()));
-            CustomData blockEntityData = drop.get(DataComponents.BLOCK_ENTITY_DATA);
+            assertEquals(3, drops.size());
+            ItemStack coreDrop = drops.getFirst();
+            assertTrue(coreDrop.is(block.asItem()));
+            assertTrue(ItemStack.isSameItemSameComponents(cakePattern, drops.get(1)));
+            assertTrue(ItemStack.isSameItemSameComponents(oakPattern, drops.get(2)));
+            CustomData blockEntityData = coreDrop.get(DataComponents.BLOCK_ENTITY_DATA);
             assertTrue(blockEntityData != null);
 
             BlockPos restoredPos = new BlockPos(index + 1, 1, 3);
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-            player.setItemInHand(InteractionHand.MAIN_HAND, drop);
-            helper.placeAt(player, drop, restoredPos.below(), Direction.UP);
+            player.setItemInHand(InteractionHand.MAIN_HAND, coreDrop);
+            helper.placeAt(player, coreDrop, restoredPos.below(), Direction.UP);
             TrinityPatternCoreBlockEntity restored = helper.getBlockEntity(restoredPos);
             assertEquals(source.coreId(), restored.coreId());
-            assertTrue(ItemStack.isSameItemSameComponents(encodedPattern, restored.pattern(patternSlot)));
-            assertTrue(restored.decodedPattern(patternSlot) != null);
-            assertEquals(1, restored.queuedBatchCount(patternSlot));
-            assertEquals(route, restored.queuedBatches(patternSlot).getFirst().route());
-            assertTrue(restored.queuedBatches(patternSlot).getFirst().inputs().getFirst().is(Items.OAK_LOG));
+            assertEquals(0, restored.occupiedPatternSlots().size());
+            assertTrue(restored.pattern(separatePatternSlot).isEmpty());
+            assertTrue(restored.pattern(retainedWorkSlot).isEmpty());
+            assertEquals(1, restored.queuedBatchCount(retainedWorkSlot));
+            assertEquals(route, restored.queuedBatches(retainedWorkSlot).getFirst().route());
+            assertTrue(restored.queuedBatches(retainedWorkSlot).getFirst().inputs().getFirst().is(Items.OAK_LOG));
+            assertEquals(index + 1L, restored.pendingOutputs(route).getFirst().amount());
+            assertEquals(0, restored.executeOwnedBatches(HOST_ID, 100L + index));
+            assertEquals(1, restored.queuedBatchCount(retainedWorkSlot));
             assertEquals(index + 1L, restored.pendingOutputs(route).getFirst().amount());
         }
         helper.succeed();

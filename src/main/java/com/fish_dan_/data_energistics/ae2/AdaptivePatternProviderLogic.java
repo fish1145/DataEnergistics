@@ -84,6 +84,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class AdaptivePatternProviderLogic extends PatternProviderLogic
                                           implements PatternProviderLogicAccessor, CountedCraftingProvider {
@@ -97,8 +98,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private static final String CREATE_RECIPE_GRID_HANDLER_CLASS = "com.simibubi.create.content.kinetics.crafter.RecipeGridHandler";
     private static final String CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS = "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlock";
     private static final int METEORITE_ENERGY_PER_WORK = 50;
+    private static final double METEORITE_ENERGY_TOLERANCE = 1.0e-9;
     private static final int METEORITE_MAX_WORKS_PER_ROUND = 8;
     private static final int EXPANDED_RETURN_SLOTS = 18;
+    private static final String NBT_CRAFTED_CONTENTS = "adaptive_crafted_contents";
     private static final String NBT_ADVANCED_SEND_LIST = "adaptive_advanced_send_list";
     private static final String NBT_ADVANCED_SEND_DIRECTION = "adaptive_advanced_send_direction";
     private static final String NBT_ADVANCED_DIRECTION_MAP = "adaptive_advanced_direction_map";
@@ -109,6 +112,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private static final String NBT_AE2LT_RETURN_ROUND_ROBIN = "data_energistics_ae2lt_return_round_robin";
     private static final String NBT_AE2LT_UNLOCK_MATCH_MODE = "data_energistics_ae2lt_unlock_match_mode";
     private static final String NBT_AE2LT_UNLOCK_TEMPLATE = "data_energistics_ae2lt_unlock_template";
+    private static final String NBT_PATTERN_SLOT_OVERFLOW = "adaptive_pattern_slot_overflow";
+    private static final String NBT_RECONCILED_PATTERN_SLOT_COUNT = "adaptive_reconciled_pattern_slot_count";
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private static final ConcurrentHashMap<Class<?>, Optional<SparsePatternAccess>> SPARSE_PATTERN_ACCESS_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<ResolvedTargetAccess>> RESOLVED_TARGET_ACCESS_CACHE = new ConcurrentHashMap<>();
@@ -125,6 +130,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private final Object2LongOpenHashMap<AEKey> advancedDirectionalSendList = new Object2LongOpenHashMap<>();
     private final HashMap<AEKey, Direction> advancedDirectionalMap = new HashMap<>();
     private final Map<AdaptiveWirelessConnection, List<GenericStack>> ae2ltPendingOverflowByConnection = new HashMap<>();
+    private final List<ItemStack> patternSlotOverflow = new ArrayList<>();
     private final Set<AEKey> trackedCrafts = new HashSet<>();
     private final HashSet<AEKey> outputCache = new HashSet<>();
     private @Nullable Object ae2ltAllowedOutputFilter;
@@ -137,6 +143,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private boolean dataEnergistics$dispatchPulsePending;
     private int ae2ltWirelessRoundRobinIndex;
     private int ae2ltReturnRoundRobinIndex;
+    private int reconciledPatternSlotCount = -1;
+    private int suppressedPatternInventoryCallbacks;
+    private boolean patternInventoryChangedWhileCallbacksSuppressed;
     private @Nullable String ae2ltPendingUnlockMatchMode;
     private @Nullable ItemStack ae2ltPendingUnlockTemplate;
     private List<AdaptiveWirelessConnection> cachedOrderedWirelessConnections;
@@ -156,18 +165,28 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
     @Override
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
+        if (this.suppressedPatternInventoryCallbacks > 0) {
+            this.patternInventoryChangedWhileCallbacksSuppressed = true;
+            return;
+        }
+
         super.onChangeInventory(inv, slot);
         this.ae2ltOutputFilterDirty = true;
         refreshAdaptivePatternTracking();
     }
 
     @Override
-    public void updatePatterns() {
-        if (isAe2LightningTechOverloadedProviderSelected()) {
-            rebuildPatternsIncludingAe2LtOverloadPatterns();
-        } else {
-            super.updatePatterns();
+    public void saveChangedInventory(AppEngInternalInventory inv) {
+        if (this.suppressedPatternInventoryCallbacks > 0) {
+            return;
         }
+
+        super.saveChangedInventory(inv);
+    }
+
+    @Override
+    public void updatePatterns() {
+        rebuildPatternsForConfiguredSlots();
         if (isAe2LightningTechOverloadedProviderSelected()) {
             Ae2LtRuntimeBridge.applySmartDoubling(this, getAvailablePatterns());
         }
@@ -178,6 +197,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     @Override
     public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
         super.writeToNBT(tag, registries);
+
+        ListTag craftedContentsTag = new ListTag();
+        for (var entry : this.craftedContents.object2LongEntrySet()) {
+            if (entry.getKey() != null && entry.getLongValue() > 0) {
+                craftedContentsTag.add(GenericStack.writeTag(registries, new GenericStack(entry.getKey(), entry.getLongValue())));
+            }
+        }
+        tag.put(NBT_CRAFTED_CONTENTS, craftedContentsTag);
 
         ListTag sendListTag = new ListTag();
         for (var entry : this.advancedDirectionalSendList.object2LongEntrySet()) {
@@ -213,6 +240,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         if (this.ae2ltPendingUnlockTemplate != null && !this.ae2ltPendingUnlockTemplate.isEmpty()) {
             tag.put(NBT_AE2LT_UNLOCK_TEMPLATE, this.ae2ltPendingUnlockTemplate.saveOptional(registries));
         }
+        writePatternSlotOverflowToNBT(tag, registries);
         writeAe2LtWirelessOverflowToNBT(tag, registries);
     }
 
@@ -220,9 +248,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
         super.readFromNBT(tag, registries);
 
+        this.craftedContents.clear();
         this.advancedDirectionalSendList.clear();
         this.advancedDirectionalMap.clear();
         this.advancedSendDirection = null;
+
+        ListTag craftedContentsTag = tag.getList(NBT_CRAFTED_CONTENTS, Tag.TAG_COMPOUND);
+        for (int i = 0; i < craftedContentsTag.size(); i++) {
+            GenericStack stack = GenericStack.readTag(registries, craftedContentsTag.getCompound(i));
+            if (stack != null && stack.what() != null && stack.amount() > 0) {
+                this.craftedContents.addTo(stack.what(), stack.amount());
+            }
+        }
 
         ListTag sendListTag = tag.getList(NBT_ADVANCED_SEND_LIST, Tag.TAG_COMPOUND);
         for (int i = 0; i < sendListTag.size(); i++) {
@@ -257,10 +294,207 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             ItemStack template = ItemStack.parseOptional(registries, tag.getCompound(NBT_AE2LT_UNLOCK_TEMPLATE));
             this.ae2ltPendingUnlockTemplate = template.isEmpty() ? null : template;
         }
+        readPatternSlotOverflowFromNBT(tag, registries);
         readAe2LtWirelessOverflowFromNBT(tag, registries);
         this.ae2ltAllowedOutputFilter = null;
         this.ae2ltOutputFilterDirty = true;
         invalidateAe2LtConnectionCache();
+    }
+
+    /**
+     * Reconciles the backing pattern inventory with the host's current visible slot count.
+     *
+     * @return whether the visible boundary or stored pattern state changed
+     */
+    public boolean reconcileConfiguredPatternSlots() {
+        return reconcileConfiguredPatternSlots(false);
+    }
+
+    /**
+     * Runs an imported pattern update without publishing every intermediate inventory state.
+     */
+    public boolean runWithPatternInventoryCallbacksSuppressed(Runnable action) {
+        boolean outermostSuppression = this.suppressedPatternInventoryCallbacks == 0;
+        if (outermostSuppression) {
+            this.patternInventoryChangedWhileCallbacksSuppressed = false;
+        }
+
+        boolean changed = false;
+        this.suppressedPatternInventoryCallbacks++;
+        try {
+            action.run();
+        } finally {
+            this.suppressedPatternInventoryCallbacks--;
+            if (outermostSuppression) {
+                changed = this.patternInventoryChangedWhileCallbacksSuppressed;
+                this.patternInventoryChangedWhileCallbacksSuppressed = false;
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * Reconciles an imported pattern inventory even if its configured slot count did not change.
+     *
+     * @return whether the visible boundary or stored pattern state changed
+     */
+    public boolean reconcileConfiguredPatternSlotsAfterSettingsImport() {
+        return reconcileConfiguredPatternSlots(true);
+    }
+
+    /**
+     * Gives every persisted overflow pattern to the supplied recovery path in queue order.
+     * A queue entry is removed only after that path returns normally.
+     *
+     * @return whether an overflow stack was recovered
+     */
+    public boolean returnPatternSlotOverflow(Consumer<ItemStack> recoveryPath) {
+        boolean recovered = false;
+        while (!this.patternSlotOverflow.isEmpty()) {
+            ItemStack stack = this.patternSlotOverflow.getFirst().copy();
+            recoveryPath.accept(stack);
+            this.patternSlotOverflow.removeFirst();
+            this.host.saveChanges();
+            recovered = true;
+        }
+        return recovered;
+    }
+
+    private boolean reconcileConfiguredPatternSlots(boolean force) {
+        int configuredSlotCount = getConfiguredPatternSlotCount();
+        if (!force && configuredSlotCount == this.reconciledPatternSlotCount) {
+            return false;
+        }
+
+        List<ItemStack> plannedInventory = copyPatternInventory();
+        List<ItemStack> plannedOverflow = copyPatternStacks(this.patternSlotOverflow);
+        if (this.reconciledPatternSlotCount >= 0 && configuredSlotCount > this.reconciledPatternSlotCount) {
+            restorePatternSlotOverflow(plannedInventory, plannedOverflow, this.reconciledPatternSlotCount, configuredSlotCount);
+        }
+        moveHiddenPatternSlotsToVisibleOrOverflow(plannedInventory, plannedOverflow, configuredSlotCount);
+
+        boolean inventoryChanged = !matchesPatternInventory(plannedInventory);
+        boolean overflowChanged = !matchesPatternStacks(this.patternSlotOverflow, plannedOverflow);
+        boolean slotCountChanged = this.reconciledPatternSlotCount != configuredSlotCount;
+        if (!inventoryChanged && !overflowChanged && !slotCountChanged) {
+            return false;
+        }
+
+        runWithPatternInventoryCallbacksSuppressed(() -> applyPatternInventory(plannedInventory));
+        this.patternSlotOverflow.clear();
+        this.patternSlotOverflow.addAll(plannedOverflow);
+        this.reconciledPatternSlotCount = configuredSlotCount;
+        updatePatterns();
+        return true;
+    }
+
+    private int getConfiguredPatternSlotCount() {
+        if (this.host instanceof AdaptivePatternProviderHost adaptiveHost) {
+            return Math.max(0, Math.min(adaptiveHost.getPatternSlotCountForMenu(), this.patternInventory.size()));
+        }
+        return this.patternInventory.size();
+    }
+
+    private List<ItemStack> copyPatternInventory() {
+        List<ItemStack> copiedInventory = new ArrayList<>(this.patternInventory.size());
+        for (int slot = 0; slot < this.patternInventory.size(); slot++) {
+            copiedInventory.add(this.patternInventory.getStackInSlot(slot).copy());
+        }
+        return copiedInventory;
+    }
+
+    private static List<ItemStack> copyPatternStacks(List<ItemStack> stacks) {
+        List<ItemStack> copiedStacks = new ArrayList<>(stacks.size());
+        for (ItemStack stack : stacks) {
+            copiedStacks.add(stack.copy());
+        }
+        return copiedStacks;
+    }
+
+    private void restorePatternSlotOverflow(List<ItemStack> plannedInventory, List<ItemStack> plannedOverflow, int previousSlotCount, int configuredSlotCount) {
+        int restoredCount = 0;
+        for (int slot = previousSlotCount; slot < configuredSlotCount && restoredCount < plannedOverflow.size(); slot++) {
+            if (plannedInventory.get(slot).isEmpty()) {
+                plannedInventory.set(slot, plannedOverflow.get(restoredCount));
+                restoredCount++;
+            }
+        }
+        if (restoredCount > 0) {
+            plannedOverflow.subList(0, restoredCount).clear();
+        }
+    }
+
+    private static void moveHiddenPatternSlotsToVisibleOrOverflow(List<ItemStack> plannedInventory, List<ItemStack> plannedOverflow, int configuredSlotCount) {
+        List<ItemStack> hiddenPatterns = new ArrayList<>();
+        for (int slot = configuredSlotCount; slot < plannedInventory.size(); slot++) {
+            ItemStack stack = plannedInventory.get(slot);
+            if (!stack.isEmpty()) {
+                hiddenPatterns.add(stack);
+                plannedInventory.set(slot, ItemStack.EMPTY);
+            }
+        }
+
+        int movedCount = 0;
+        for (int slot = 0; slot < configuredSlotCount && movedCount < hiddenPatterns.size(); slot++) {
+            if (plannedInventory.get(slot).isEmpty()) {
+                plannedInventory.set(slot, hiddenPatterns.get(movedCount));
+                movedCount++;
+            }
+        }
+        if (movedCount < hiddenPatterns.size()) {
+            plannedOverflow.addAll(0, hiddenPatterns.subList(movedCount, hiddenPatterns.size()));
+        }
+    }
+
+    private boolean matchesPatternInventory(List<ItemStack> plannedInventory) {
+        for (int slot = 0; slot < this.patternInventory.size(); slot++) {
+            if (!ItemStack.matches(this.patternInventory.getStackInSlot(slot), plannedInventory.get(slot))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean matchesPatternStacks(List<ItemStack> first, List<ItemStack> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int index = 0; index < first.size(); index++) {
+            if (!ItemStack.matches(first.get(index), second.get(index))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void applyPatternInventory(List<ItemStack> plannedInventory) {
+        for (int slot = 0; slot < this.patternInventory.size(); slot++) {
+            ItemStack plannedStack = plannedInventory.get(slot);
+            if (!ItemStack.matches(this.patternInventory.getStackInSlot(slot), plannedStack)) {
+                this.patternInventory.setItemDirect(slot, plannedStack);
+            }
+        }
+    }
+
+    private void writePatternSlotOverflowToNBT(CompoundTag tag, HolderLookup.Provider registries) {
+        ListTag overflowTag = new ListTag();
+        for (ItemStack stack : this.patternSlotOverflow) {
+            overflowTag.add(stack.saveOptional(registries));
+        }
+        tag.put(NBT_PATTERN_SLOT_OVERFLOW, overflowTag);
+        tag.putInt(NBT_RECONCILED_PATTERN_SLOT_COUNT, this.reconciledPatternSlotCount);
+    }
+
+    private void readPatternSlotOverflowFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
+        this.patternSlotOverflow.clear();
+        ListTag overflowTag = tag.getList(NBT_PATTERN_SLOT_OVERFLOW, Tag.TAG_COMPOUND);
+        for (int index = 0; index < overflowTag.size(); index++) {
+            ItemStack stack = ItemStack.parseOptional(registries, overflowTag.getCompound(index));
+            if (!stack.isEmpty()) {
+                this.patternSlotOverflow.add(stack);
+            }
+        }
+        this.reconciledPatternSlotCount = tag.contains(NBT_RECONCILED_PATTERN_SLOT_COUNT, Tag.TAG_INT) ? tag.getInt(NBT_RECONCILED_PATTERN_SLOT_COUNT) : -1;
     }
 
     @Override
@@ -682,6 +916,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public void addDrops(List<ItemStack> drops) {
         super.addDrops(drops);
 
+        for (ItemStack stack : this.patternSlotOverflow) {
+            drops.add(stack.copy());
+        }
+
+        for (var entry : this.craftedContents.object2LongEntrySet()) {
+            AEKey key = entry.getKey();
+            long amount = entry.getLongValue();
+            if (key != null && amount > 0) {
+                key.addDrops(amount, drops, this.host.getBlockEntity().getLevel(), this.host.getBlockEntity().getBlockPos());
+            }
+        }
+
         for (var entry : this.advancedDirectionalSendList.object2LongEntrySet()) {
             AEKey key = entry.getKey();
             long amount = entry.getLongValue();
@@ -698,10 +944,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     @Override
     public void clearContent() {
         super.clearContent();
+        this.craftedContents.clear();
         this.advancedDirectionalSendList.clear();
         this.advancedDirectionalMap.clear();
         this.advancedSendDirection = null;
         this.ae2ltPendingOverflowByConnection.clear();
+        this.patternSlotOverflow.clear();
+        this.reconciledPatternSlotCount = -1;
         this.ae2ltAllowedOutputFilter = null;
         this.ae2ltOutputFilterDirty = true;
         invalidateAe2LtConnectionCache();
@@ -774,19 +1023,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             return false;
         }
 
-        if (!tryConsumeMeteoriteEnergy()) {
+        if (!hasMeteoriteEnergy()) {
             return false;
         }
 
         List<GenericStack> output = getMeteoritePatternOutput(pattern, inputHolder, level);
-        if (output == null || output.isEmpty()) {
+        if (output == null || output.stream().noneMatch(stack -> stack.amount() > 0)) {
+            return false;
+        }
+
+        if (!tryConsumeMeteoriteEnergy()) {
             return false;
         }
 
         boolean wasEmpty = this.craftedContents.isEmpty();
 
         for (GenericStack stack : output) {
-            if (stack != null && stack.what() != null && stack.amount() > 0) {
+            if (stack.amount() > 0) {
                 this.craftedContents.addTo(stack.what(), stack.amount());
             }
         }
@@ -841,12 +1094,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return Ae2LtRuntimeBridge.containsOrUnwrapped(getAvailablePatterns(), patternDetails);
     }
 
-    private void rebuildPatternsIncludingAe2LtOverloadPatterns() {
+    private void rebuildPatternsForConfiguredSlots() {
         this.patterns.clear();
         this.patternInputs.clear();
 
         var level = this.host.getBlockEntity().getLevel();
-        for (int slot = 0; slot < this.patternInventory.size(); slot++) {
+        int configuredSlotCount = getConfiguredPatternSlotCount();
+        for (int slot = 0; slot < configuredSlotCount; slot++) {
             ItemStack patternStack = this.patternInventory.getStackInSlot(slot);
             IPatternDetails details = PatternDetailsHelper.decodePattern(patternStack, level);
             if (details == null) {
@@ -2604,6 +2858,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             return;
         }
 
+        boolean contentsChanged = false;
         var iterator = this.craftedContents.object2LongEntrySet().iterator();
         while (iterator.hasNext()) {
             Object2LongMap.Entry<AEKey> entry = iterator.next();
@@ -2611,10 +2866,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             long remaining = entry.getLongValue();
             if (key == null || remaining <= 0) {
                 iterator.remove();
+                contentsChanged = true;
                 continue;
             }
 
             long inserted = getReturnInv().insert(key, remaining, Actionable.MODULATE, this.actionSource);
+            if (inserted <= 0) {
+                continue;
+            }
             remaining -= inserted;
 
             if (remaining <= 0) {
@@ -2622,6 +2881,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             } else {
                 entry.setValue(remaining);
             }
+            contentsChanged = true;
+        }
+
+        if (contentsChanged) {
+            this.saveChanges();
         }
     }
 
@@ -2779,6 +3043,21 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost && adaptivePatternProviderHost.isAdvancedAeProviderSelected() && adaptivePatternProviderHost.isAdvancedAeFilteredImportEnabled();
     }
 
+    private boolean hasMeteoriteEnergy() {
+        var grid = getGrid();
+        if (grid == null) {
+            return false;
+        }
+        IEnergyService energyService = grid.getEnergyService();
+        if (energyService == null) {
+            return false;
+        }
+
+        double requiredEnergy = getMeteoriteEnergyPerWork();
+        double extracted = energyService.extractAEPower(requiredEnergy, Actionable.SIMULATE, PowerMultiplier.ONE);
+        return isMeteoriteEnergyRequirementMet(extracted, requiredEnergy);
+    }
+
     private boolean tryConsumeMeteoriteEnergy() {
         var grid = getGrid();
         if (grid == null) {
@@ -2791,7 +3070,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
         double requiredEnergy = getMeteoriteEnergyPerWork();
         double extracted = energyService.extractAEPower(requiredEnergy, Actionable.MODULATE, PowerMultiplier.ONE);
-        if (extracted + 1.0e-9 >= requiredEnergy) {
+        if (isMeteoriteEnergyRequirementMet(extracted, requiredEnergy)) {
             return true;
         }
 
@@ -2801,6 +3080,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             Data_Energistics.LOGGER.debug("Could not refund extracted meteorite provider energy", e);
         }
         return false;
+    }
+
+    private static boolean isMeteoriteEnergyRequirementMet(double extractedEnergy, double requiredEnergy) {
+        return extractedEnergy + METEORITE_ENERGY_TOLERANCE >= requiredEnergy;
     }
 
     private int getMeteoriteSpeedCardCount() {

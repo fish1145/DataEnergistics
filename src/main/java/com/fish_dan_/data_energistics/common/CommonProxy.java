@@ -54,6 +54,7 @@ public class CommonProxy {
         modEventBus.addListener(EventPriority.LOWEST, instance::registerGenericKeyWorldExportStrategies);
         modEventBus.addListener(instance::registerAe2KeyTypes);
         modEventBus.addListener(CommonCapabilityRegistrar::register);
+        modEventBus.addListener(CommonCapabilityRegistrar::registerPartCapabilities);
         modEventBus.addListener(CommonPayloadRegistrar::register);
         modEventBus.addListener(BuiltinDataPackRegistrar::register);
 

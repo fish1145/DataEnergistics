@@ -7,6 +7,9 @@ import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.TrinityItemAmount;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreBinding;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseRequest;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreHost.PatternCoreReleaseResult;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -150,7 +153,7 @@ public final class TrinityPatternCoreMenuTest {
         }
         RecordingStorage storage = new RecordingStorage();
         RecordingPatternHost patternHost = new RecordingPatternHost(core, storage);
-        assertTrue(core.bindPatternHost(patternHost));
+        assertTrue(core.bindPatternHost(patternHost, patternHost.binding()));
 
         TrinityPatternCoreMenu menu = new TrinityPatternCoreMenu(1, inventory, core);
         menu.refundAll();
@@ -200,43 +203,62 @@ public final class TrinityPatternCoreMenuTest {
         assertTrue(found);
     }
 
-    /** Active host stub that exercises the same refund destination contract used by the real Trinity host. */
+    /**
+     * Active host stub that exercises the same refund destination contract used by the real Trinity host.
+     */
     private static final class RecordingPatternHost implements TrinityPatternCoreHost {
 
-        private final TrinityPatternCore mountedCore;
+        private final TrinityPatternCoreBlockEntity mountedCore;
         private final MEStorage storage;
+        private final PatternCoreBinding binding;
         private boolean available = true;
 
-        private RecordingPatternHost(TrinityPatternCore mountedCore, MEStorage storage) {
+        private RecordingPatternHost(TrinityPatternCoreBlockEntity mountedCore, MEStorage storage) {
             this.mountedCore = mountedCore;
             this.storage = storage;
+            this.binding = new PatternCoreBinding(
+                    UUID.randomUUID(),
+                    1L,
+                    mountedCore.coreId(),
+                    mountedCore.getBlockPos(),
+                    mountedCore.patternCapacity());
+        }
+
+        private PatternCoreBinding binding() {
+            return this.binding;
         }
 
         @Override
-        public boolean isPatternCoreMounted(TrinityPatternCore core) {
-            return this.available && this.mountedCore == core;
+        public boolean isPatternCoreMounted(TrinityPatternCore core, PatternCoreBinding binding) {
+            return this.available && this.mountedCore == core && this.binding.equals(binding);
         }
 
         @Override
-        public boolean tryRefundPatternCore(TrinityPatternCore core, Player player) {
-            if (!isPatternCoreMounted(core)) {
+        public boolean tryRefundPatternCore(TrinityPatternCore core, PatternCoreBinding binding, Player player) {
+            if (!isPatternCoreMounted(core, binding)) {
                 return false;
             }
             return core.tryRefundAll(new TrinityRefundDeliveryImpl(player, this.storage, IActionSource.empty()));
         }
 
         @Override
-        public void onPatternCoreChanged(TrinityPatternCore core, TrinityPatternSlot.Change change) {}
+        public void onPatternCoreChanged(TrinityPatternCore core,
+                                         PatternCoreBinding binding,
+                                         TrinityPatternSlot.Change change) {}
 
         @Override
-        public void onPatternCoreUnavailable(TrinityPatternCore core) {
-            if (this.mountedCore == core) {
-                this.available = false;
+        public PatternCoreReleaseResult onPatternCoreUnavailable(PatternCoreReleaseRequest request) {
+            if (!isPatternCoreMounted(request.core(), request.binding())) {
+                return this.available ? PatternCoreReleaseResult.STALE_REQUEST : PatternCoreReleaseResult.ALREADY_REVOKED;
             }
+            this.available = false;
+            return PatternCoreReleaseResult.REVOKED;
         }
     }
 
-    /** Storage sink that makes the menu's first refund destination directly observable. */
+    /**
+     * Storage sink that makes the menu's first refund destination directly observable.
+     */
     private static final class RecordingStorage implements MEStorage {
 
         private long insertedAmount;

@@ -5,7 +5,9 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.util.PinyinUtil;
@@ -14,25 +16,32 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
+import net.minecraft.network.PacketSendListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.neoforge.network.connection.ConnectionType;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import appeng.core.definitions.AEItems;
 import com.mojang.authlib.GameProfile;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,11 +53,32 @@ import java.util.UUID;
 public final class DataDistributionTowerTargetsGameTest {
 
     private static final int TARGET_COUNT = 70;
+    private static final int FULL_WIRELESS_BOOSTER_COUNT = 64;
+    private static final int FULL_TOWER_CHUNK_RADIUS = 8;
     private static final int MENU_ID = 17;
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos TARGET_GRID_ORIGIN = new BlockPos(13, 4, 18);
 
     private DataDistributionTowerTargetsGameTest() {}
+
+    @TestHolder("data_distribution_tower_full_wireless_scope_scans_range")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 500)
+    public static void fullWirelessScopeScansRange(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
+        tower.getInternalInventory().setItemDirect(
+                0, new ItemStack(AEItems.WIRELESS_BOOSTER.asItem(), FULL_WIRELESS_BOOSTER_COUNT));
+        tower.setConnectionMode(ConnectionMode.AE_AND_FE);
+        tower.setRangeAdjustmentMode(RangeAdjustmentMode.SCOPE);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertValueEqual(
+                        tower.getConfiguredChunkRadius(),
+                        FULL_TOWER_CHUNK_RADIUS,
+                        "A full wireless booster stack must expand the tower to its 17x17 chunk scope"))
+                .thenIdle(320)
+                .thenSucceed();
+    }
 
     @TestHolder("data_distribution_tower_syncs_and_searches_seventy_real_targets")
     @EmptyTemplate("50x32x50")
@@ -68,6 +98,28 @@ public final class DataDistributionTowerTargetsGameTest {
                             "Every real charger managed node must be ready before menu synchronization");
                 })
                 .thenExecute(() -> assertMenuTargetSynchronization(helper, tower))
+                .thenSucceed();
+    }
+
+    @TestHolder("data_distribution_tower_target_actions_require_current_snapshot")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 200)
+    public static void targetActionsRequireCurrentSnapshot(GameTestHelper helper) {
+        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
+        placeNamedChargers(helper, 1);
+        tower.setRangeAdjustmentMode(RangeAdjustmentMode.SCOPE);
+
+        helper.startSequence()
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(
+                            tower.getMainNode().getNode() != null,
+                            "The real tower node must finish normal initialization before validating target actions");
+                    helper.assertValueEqual(
+                            tower.getBoundTargetSummaries(Integer.MAX_VALUE).size(),
+                            1,
+                            "The real tower must discover the target before validating target actions");
+                })
+                .thenExecute(() -> assertTargetActionValidation(helper, tower))
                 .thenSucceed();
     }
 
@@ -141,6 +193,116 @@ public final class DataDistributionTowerTargetsGameTest {
         helper.assertValueEqual(matches.getFirst().displayName(), "Target 69", "Search must return the final real charger target");
     }
 
+    private static void assertTargetActionValidation(GameTestHelper helper, DataDistributionTowerBlockEntity tower) {
+        ServerPlayer player = createCapturingPlayer(helper);
+        CapturingPacketListener listener = (CapturingPacketListener) player.connection;
+        DataDistributionTowerMenu menu = new DataDistributionTowerMenu(MENU_ID, player.getInventory(), tower);
+        menu.broadcastChanges();
+
+        DataDistributionTowerTargetEntry target = listener.targetPayloads().getFirst().entries().getFirst();
+        assertTargetTransferModeActionValidation(helper, tower, menu, target);
+        DataDistributionTowerTargetsPayload snapshot = listener.targetPayloads().getLast();
+        int initialMessageCount = listener.systemMessageCount();
+
+        menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos()));
+        helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
+                "A current snapshot target action must retain normal focus feedback");
+
+        menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision() + 1L, target.dimensionId().toString(), target.pos()));
+        helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
+                "A target action with a mismatched snapshot revision must not emit focus feedback");
+
+        menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos().east()));
+        helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
+                "A target action for an unbound position must not emit focus feedback");
+
+        menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), "invalid dimension", target.pos()));
+        helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
+                "A target action with an invalid dimension identifier must not emit focus feedback");
+
+        CompoundTag savedState = new CompoundTag();
+        tower.saveAdditional(savedState, helper.getLevel().registryAccess());
+        tower.loadTag(savedState, helper.getLevel().registryAccess());
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.AUTO,
+                "A transfer mode action captured before an NBT reload must not restore a target override");
+        menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos()));
+        helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
+                "A target action captured before an NBT reload must not emit focus feedback");
+
+        BlockState targetState = helper.getLevel().getBlockState(target.pos());
+        helper.assertTrue(helper.getLevel().removeBlock(target.pos(), false),
+                "The current bound target must be removable before validating the stale action");
+        DataDistributionTowerBlockEntity.onBlockBreak(
+                new BlockEvent.BreakEvent(helper.getLevel(), target.pos(), targetState, player));
+        helper.assertValueEqual(tower.getBoundTargetSummaries(Integer.MAX_VALUE).size(), 0,
+                "Removing the target must invalidate the tower's current target summary");
+
+        menu.receiveClientAction("focus_target", focusTargetPayload(snapshot.revision(), target.dimensionId().toString(), target.pos()));
+        helper.assertValueEqual(listener.systemMessageCount(), initialMessageCount + 1,
+                "A target action captured before target removal must not emit focus feedback");
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.AUTO,
+                "A transfer mode action captured before target removal must not restore a target override");
+    }
+
+    private static void assertTargetTransferModeActionValidation(GameTestHelper helper,
+                                                                 DataDistributionTowerBlockEntity tower,
+                                                                 DataDistributionTowerMenu menu,
+                                                                 DataDistributionTowerTargetEntry target) {
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A current target action must retain normal disabled-mode behavior");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                "minecraft:the_nether", target.pos(), TargetTransferMode.AUTO.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action for another dimension must not change the local target override");
+
+        BlockPos unboundPos = target.pos().east();
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), unboundPos, TargetTransferMode.DISABLED.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action for an unbound position must not change the current target override");
+        helper.assertValueEqual(tower.getTargetTransferMode(unboundPos), TargetTransferMode.AUTO,
+                "A transfer mode action for an unbound position must not create an override");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                "invalid dimension", target.pos(), TargetTransferMode.AUTO.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action with an invalid dimension must not change the target override");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayloadWithoutMode(
+                target.dimensionId().toString(), target.pos()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action with a missing mode must not fall back to AUTO");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), Integer.MAX_VALUE));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.DISABLED,
+                "A transfer mode action with an invalid mode must not fall back to AUTO");
+
+        menu.receiveClientAction("set_target_transfer_mode", targetTransferModePayload(
+                target.dimensionId().toString(), target.pos(), TargetTransferMode.AUTO.ordinal()));
+        helper.assertValueEqual(tower.getTargetTransferMode(target.pos()), TargetTransferMode.AUTO,
+                "A current target action must retain normal AUTO-mode behavior");
+    }
+
+    private static String focusTargetPayload(long revision, String dimensionId, BlockPos pos) {
+        return "{\"targetSnapshotRevision\":" + revision + ",\"dimensionId\":\"" + dimensionId + "\",\"x\":" + pos.getX() + ",\"y\":" + pos.getY() + ",\"z\":" + pos.getZ() + ",\"teleport\":false}";
+    }
+
+    private static String targetTransferModePayload(String dimensionId, BlockPos pos, int mode) {
+        return "{\"dimensionId\":\"" + dimensionId + "\",\"x\":" + pos.getX() + ",\"y\":" + pos.getY() + ",\"z\":" + pos.getZ() + ",\"mode\":" + mode + "}";
+    }
+
+    private static String targetTransferModePayloadWithoutMode(String dimensionId, BlockPos pos) {
+        return "{\"dimensionId\":\"" + dimensionId + "\",\"x\":" + pos.getX() + ",\"y\":" + pos.getY() + ",\"z\":" + pos.getZ() + "}";
+    }
+
     private static ServerPlayer createCapturingPlayer(GameTestHelper helper) {
         MinecraftServer server = helper.getLevel().getServer();
         GameProfile profile = new GameProfile(UUID.randomUUID(), "tower-target-sync");
@@ -152,6 +314,7 @@ public final class DataDistributionTowerTargetsGameTest {
     private static final class CapturingPacketListener extends ServerGamePacketListenerImpl {
 
         private final List<DataDistributionTowerTargetsPayload> targetPayloads = new ArrayList<>();
+        private int systemMessageCount;
 
         private CapturingPacketListener(MinecraftServer server, ServerPlayer player, GameProfile profile) {
             super(
@@ -167,14 +330,29 @@ public final class DataDistributionTowerTargetsGameTest {
         }
 
         @Override
-        public void send(Packet<?> packet) {
+        public void send(@NotNull Packet<?> packet) {
+            capturePacket(packet);
+        }
+
+        @Override
+        public void send(@NotNull Packet<?> packet, PacketSendListener listener) {
+            capturePacket(packet);
+        }
+
+        private void capturePacket(Packet<?> packet) {
             if (packet instanceof ClientboundCustomPayloadPacket customPayloadPacket && customPayloadPacket.payload() instanceof DataDistributionTowerTargetsPayload payload) {
                 this.targetPayloads.add(payload);
+            } else if (packet instanceof ClientboundSystemChatPacket) {
+                this.systemMessageCount++;
             }
         }
 
         private List<DataDistributionTowerTargetsPayload> targetPayloads() {
             return List.copyOf(this.targetPayloads);
+        }
+
+        private int systemMessageCount() {
+            return this.systemMessageCount;
         }
     }
 }

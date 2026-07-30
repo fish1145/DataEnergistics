@@ -58,6 +58,14 @@ public final class ModPayloads {
                 TrinityHostedAutoBuildPayload.STREAM_CODEC,
                 TrinityHostedAutoBuildPayload::handle);
         registrar.playToServer(
+                TrinityRefundPatternsPayload.TYPE,
+                TrinityRefundPatternsPayload.STREAM_CODEC,
+                TrinityRefundPatternsPayload::handle);
+        registrar.playToServer(
+                TrinityRefundRetainedItemsPayload.TYPE,
+                TrinityRefundRetainedItemsPayload.STREAM_CODEC,
+                TrinityRefundRetainedItemsPayload::handle);
+        registrar.playToServer(
                 TrinityOpenCpuStatusPayload.TYPE,
                 TrinityOpenCpuStatusPayload.STREAM_CODEC,
                 TrinityOpenCpuStatusPayload::handle);

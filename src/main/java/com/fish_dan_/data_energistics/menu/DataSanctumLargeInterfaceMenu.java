@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.menu;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataSanctumInterfaceConstants;
 import com.fish_dan_.data_energistics.ae2.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -27,10 +28,20 @@ import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 import appeng.util.ConfigInventory;
 import appeng.util.ConfigMenuInventory;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.annotations.JsonAdapter;
+import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Type;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntSupplier;
+import java.util.regex.Pattern;
 
 public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLargeInterfaceHost> {
 
@@ -43,6 +54,50 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
     public static final SlotSemantic RETURN_ROW_1 = SlotSemantics.register("DATA_SANCTUM_LARGE_INTERFACE_RETURN_ROW_1", false);
     public static final SlotSemantic RETURN_ROW_2 = SlotSemantics.register("DATA_SANCTUM_LARGE_INTERFACE_RETURN_ROW_2", false);
 
+    @JsonAdapter(PageSlotTarget.Adapter.class)
+    public record PageSlotTarget(@Nullable Integer pageIndex, @Nullable Integer slotOnPage) {
+
+        private static final Pattern JSON_INTEGER = Pattern.compile("-?(?:0|[1-9][0-9]*)");
+        private static final BigInteger MINIMUM_INTEGER = BigInteger.valueOf(Integer.MIN_VALUE);
+        private static final BigInteger MAXIMUM_INTEGER = BigInteger.valueOf(Integer.MAX_VALUE);
+
+        public static final class Adapter implements JsonDeserializer<PageSlotTarget> {
+
+            @Override
+            public PageSlotTarget deserialize(JsonElement json, Type type, JsonDeserializationContext context) {
+                if (!json.isJsonObject()) {
+                    return new PageSlotTarget(null, null);
+                }
+
+                JsonObject object = json.getAsJsonObject();
+                return new PageSlotTarget(readInteger(object.get("pageIndex")), readInteger(object.get("slotOnPage")));
+            }
+
+            @Nullable
+            private static Integer readInteger(@Nullable JsonElement value) {
+                if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+                    return null;
+                }
+
+                JsonPrimitive primitive = value.getAsJsonPrimitive();
+                if (!primitive.isNumber()) {
+                    return null;
+                }
+
+                String serialized = primitive.getAsString();
+                if (!JSON_INTEGER.matcher(serialized).matches()) {
+                    return null;
+                }
+
+                BigInteger integer = new BigInteger(serialized);
+                if (integer.compareTo(MINIMUM_INTEGER) < 0 || integer.compareTo(MAXIMUM_INTEGER) > 0) {
+                    return null;
+                }
+                return integer.intValue();
+            }
+        }
+    }
+
     @GuiSync(860)
     public int pageIndex;
     @GuiSync(861)
@@ -54,7 +109,7 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
 
     public DataSanctumLargeInterfaceMenu(int id, Inventory playerInventory, DataSanctumLargeInterfaceHost host) {
         super(ModMenus.DATA_SANCTUM_LARGE_INTERFACE.get(), id, playerInventory, host);
-        registerClientAction(ACTION_OPEN_SET_AMOUNT, Integer.class, this::openSetAmountMenu);
+        registerClientAction(ACTION_OPEN_SET_AMOUNT, PageSlotTarget.class, this::openSetAmountMenu);
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_SET_ACTIVE_PULL_SIDE, String.class, this::setActivePullSide);
     }
@@ -137,14 +192,71 @@ public class DataSanctumLargeInterfaceMenu extends UpgradeableMenu<DataSanctumLa
         sendClientAction(ACTION_SET_ACTIVE_PULL_SIDE, side.getName() + ":" + enabled);
     }
 
-    public void openSetAmountMenu(int slotOnPage) {
+    public void openSetAmountMenu(@Nullable PageSlotTarget target) {
         if (isClientSide()) {
-            sendClientAction(ACTION_OPEN_SET_AMOUNT, slotOnPage);
+            sendClientAction(ACTION_OPEN_SET_AMOUNT, target);
             return;
         }
 
-        int configSlot = DataSanctumInterfaceConstants.stockSlotIndex(this.pageIndex, slotOnPage);
-        var stack = getHost().getConfig().getStack(configSlot);
+        if (target == null || target.pageIndex() == null || target.slotOnPage() == null) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Sanctum Large Interface set-amount client action without a complete target at {}: page={}, slot={}",
+                    getHost().getInterfaceBlockPos(),
+                    target == null ? null : target.pageIndex(),
+                    target == null ? null : target.slotOnPage());
+            return;
+        }
+
+        int targetPage = target.pageIndex();
+        int slotOnPage = target.slotOnPage();
+        int serverPage = this.pageIndex;
+        int unlockedPageCount = getHost().getUnlockedPageCount();
+        if (serverPage < 0 || serverPage >= unlockedPageCount) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Sanctum Large Interface set-amount client action for page {} and slot {} because server page {} is outside [0, {}) at {}",
+                    targetPage,
+                    slotOnPage,
+                    serverPage,
+                    unlockedPageCount,
+                    getHost().getInterfaceBlockPos());
+            return;
+        }
+
+        if (targetPage != serverPage) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Sanctum Large Interface set-amount client action for stale page {} and slot {}; server page is {} of {} at {}",
+                    targetPage,
+                    slotOnPage,
+                    serverPage,
+                    unlockedPageCount,
+                    getHost().getInterfaceBlockPos());
+            return;
+        }
+
+        if (slotOnPage < 0 || slotOnPage >= CONFIG_SLOT_COUNT) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Sanctum Large Interface set-amount client action for page {} with slot {} outside [0, {}) at {}",
+                    serverPage,
+                    slotOnPage,
+                    CONFIG_SLOT_COUNT,
+                    getHost().getInterfaceBlockPos());
+            return;
+        }
+
+        var config = getHost().getConfig();
+        int configSlot = DataSanctumInterfaceConstants.stockSlotIndex(serverPage, slotOnPage);
+        if (configSlot < 0 || configSlot >= config.size()) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected Data Sanctum Large Interface set-amount client action for page {} and slot {} because config slot {} is outside inventory size {} at {}",
+                    serverPage,
+                    slotOnPage,
+                    configSlot,
+                    config.size(),
+                    getHost().getInterfaceBlockPos());
+            return;
+        }
+
+        var stack = config.getStack(configSlot);
         if (stack != null) {
             SetStockAmountMenu.open((ServerPlayer) getPlayer(), getLocator(), configSlot, stack.what(), (int) stack.amount());
         }

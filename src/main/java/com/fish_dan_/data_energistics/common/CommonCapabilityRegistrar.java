@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
 import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -23,6 +24,7 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import appeng.api.AECapabilities;
 import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.parts.RegisterPartCapabilitiesEvent;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
@@ -48,6 +50,26 @@ final class CommonCapabilityRegistrar {
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
                 ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
@@ -113,7 +135,7 @@ final class CommonCapabilityRegistrar {
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
+                (blockEntity, context) -> blockEntity.getExternalItemHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
@@ -260,6 +282,17 @@ final class CommonCapabilityRegistrar {
                     return tower.getEnergyStorageForQuery(pos, context);
                 },
                 ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+    }
+
+    static void registerPartCapabilities(RegisterPartCapabilitiesEvent event) {
+        event.register(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                (part, context) -> part.getReturnInventory(),
+                DataSanctumInterfacePart.class);
+        event.register(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                (part, context) -> part.getLogic().getReturnInv(),
+                AdaptivePatternProviderPart.class);
     }
 
     private static void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, Item item) {

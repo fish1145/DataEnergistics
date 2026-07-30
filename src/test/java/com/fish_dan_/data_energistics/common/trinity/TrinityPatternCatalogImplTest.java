@@ -711,6 +711,78 @@ public final class TrinityPatternCatalogImplTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_pattern_catalog_refund_patterns_is_atomic_and_ordered")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundPatternsBlocksOnWorkThenDeliversStableCoreAndSlotOrder(GameTestHelper helper) {
+        UUID hostId = UUID.randomUUID();
+        TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
+        TrinityPatternCoreImpl lower = core(UUID.randomUUID());
+        TrinityPatternCoreImpl upper = core(UUID.randomUUID());
+        ItemStack lowerFirst = new ItemStack(Items.PAPER);
+        ItemStack lowerSecond = new ItemStack(Items.MAP);
+        ItemStack upperPattern = new ItemStack(Items.PAPER);
+        lower.trySetPattern(5, lowerSecond);
+        lower.trySetPattern(1, lowerFirst);
+        upper.trySetPattern(2, upperPattern);
+        PatternRoute retainedRoute = new PatternRoute(hostId, lower.coreId(), 1);
+        lower.enqueueBatch(retainedRoute, lowerFirst, craftingInputs(new ItemStack(Items.IRON_INGOT, 2)), 1L);
+        lower.appendPendingOutputs(
+                retainedRoute, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND, 3))));
+        catalog.rebuild(List.of(
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO.above(), 64, upper),
+                new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, lower)));
+
+        RecordingPatternRefundDelivery patternDelivery = new RecordingPatternRefundDelivery();
+        long blockedPublicationRevision = catalog.publicationRevision();
+        assertEquals(
+                TrinityPatternCatalog.PatternRefundResult.BLOCKED_BY_WORK,
+                catalog.tryRefundPatterns(patternDelivery));
+        assertEquals(0, patternDelivery.prepareCalls);
+        assertEquals(0, patternDelivery.deliveryCalls);
+        assertTrue(lower.pattern(1).is(Items.PAPER));
+        assertTrue(lower.pattern(5).is(Items.MAP));
+        assertTrue(upper.pattern(2).is(Items.PAPER));
+        assertEquals(blockedPublicationRevision, catalog.publicationRevision());
+
+        RecordingRefundDelivery retainedDelivery = new RecordingRefundDelivery(true, false);
+        assertTrue(catalog.tryRefundAll(retainedDelivery));
+        assertFalse(lower.hasWork());
+        assertTrue(lower.pattern(1).is(Items.PAPER));
+        assertTrue(lower.pattern(5).is(Items.MAP));
+        assertTrue(upper.pattern(2).is(Items.PAPER));
+
+        long patternPublicationRevision = catalog.publicationRevision();
+        assertEquals(
+                TrinityPatternCatalog.PatternRefundResult.COMPLETED,
+                catalog.tryRefundPatterns(patternDelivery));
+        assertEquals(1, patternDelivery.prepareCalls);
+        assertEquals(1, patternDelivery.deliveryCalls);
+        assertEquals(
+                List.of(Items.PAPER, Items.MAP, Items.PAPER),
+                patternDelivery.deliveredPatterns.stream().map(ItemStack::getItem).toList());
+        assertTrue(lower.pattern(1).isEmpty());
+        assertTrue(lower.pattern(5).isEmpty());
+        assertTrue(upper.pattern(2).isEmpty());
+        assertTrue(catalog.getAvailablePatterns().isEmpty());
+        assertEquals(patternPublicationRevision + 1L, catalog.publicationRevision());
+
+        assertEquals(
+                TrinityPatternCatalog.PatternRefundResult.NO_PATTERNS,
+                catalog.tryRefundPatterns(patternDelivery));
+        assertEquals(1, patternDelivery.prepareCalls);
+        assertEquals(1, patternDelivery.deliveryCalls);
+        catalog.rebuild(List.of());
+        assertTrue(catalog.layoutSnapshot().active());
+        assertTrue(catalog.mountedCores().isEmpty());
+        assertEquals(
+                TrinityPatternCatalog.PatternRefundResult.NO_PATTERNS,
+                catalog.tryRefundPatterns(patternDelivery));
+        assertEquals(1, patternDelivery.prepareCalls);
+        assertEquals(1, patternDelivery.deliveryCalls);
+        helper.succeed();
+    }
+
     @TestHolder("trinity_pattern_catalog_refund_prepare_rejection_is_atomic")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -920,10 +992,10 @@ public final class TrinityPatternCatalogImplTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_pattern_catalog_refund_delivery_error_reports_committed_state")
+    @TestHolder("trinity_pattern_catalog_refund_delivery_error_reports_failure_after_commit")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void refundAggregateReportsCompletionAfterDeliveryThrows(GameTestHelper helper) {
+    public static void refundAggregateReportsFailureAfterDeliveryThrows(GameTestHelper helper) {
         UUID hostId = UUID.randomUUID();
         TrinityPatternCatalogImpl catalog = new TrinityPatternCatalogImpl(hostId);
         TrinityPatternCoreImpl core = core(UUID.randomUUID());
@@ -934,12 +1006,22 @@ public final class TrinityPatternCatalogImplTest {
         catalog.rebuild(List.of(new TrinityPatternCatalog.CoreMount(BlockPos.ZERO, 64, core)));
 
         RecordingRefundDelivery throwing = new RecordingRefundDelivery(true, false, true);
-        assertTrue(catalog.tryRefundAll(throwing));
+        assertFalse(catalog.tryRefundAll(throwing));
 
         assertEquals(1, throwing.prepareCalls);
         assertEquals(1, throwing.deliveryCalls);
         assertTrue(core.pattern(0).is(Items.PAPER));
         assertFalse(core.hasWork());
+        assertTrue(catalog.hasRefundableState());
+
+        RecordingRefundDelivery retry = new RecordingRefundDelivery(true, false);
+        assertTrue(catalog.tryRefundAll(retry));
+
+        assertEquals(1, retry.prepareCalls);
+        assertEquals(1, retry.deliveryCalls);
+        assertEquals(1, retry.deliveredItems.size());
+        assertTrue(retry.deliveredItems.stream().anyMatch(
+                item -> item.key().is(Items.IRON_INGOT) && item.amount() == 1L));
         assertFalse(catalog.hasRefundableState());
         core.appendPendingOutputs(route, List.of(TrinityItemAmount.of(new ItemStack(Items.DIAMOND))));
         assertEquals(1, core.pendingOutputs(route).size());
@@ -1088,12 +1170,34 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
-        public void deliver(List<TrinityItemAmount> items) {
+        public List<TrinityItemAmount> deliver(List<TrinityItemAmount> items) {
             this.deliveryCalls++;
             this.deliveredItems = List.copyOf(items);
             if (this.throwDuringDelivery) {
                 throw new IllegalStateException("delivery failure after committed refund");
             }
+            return List.of();
+        }
+    }
+
+    /** Captures non-AE installed-pattern delivery without mutating the transaction-owned stacks. */
+    private static final class RecordingPatternRefundDelivery implements TrinityPatternRefundDelivery {
+
+        private int prepareCalls;
+        private int deliveryCalls;
+        private List<ItemStack> deliveredPatterns = List.of();
+
+        @Override
+        public boolean prepare(List<ItemStack> patterns) {
+            this.prepareCalls++;
+            return true;
+        }
+
+        @Override
+        public List<ItemStack> deliver(List<ItemStack> patterns) {
+            this.deliveryCalls++;
+            this.deliveredPatterns = patterns.stream().map(ItemStack::copy).toList();
+            return List.of();
         }
     }
 
@@ -1304,6 +1408,11 @@ public final class TrinityPatternCatalogImplTest {
         }
 
         @Override
+        public PatternRefundTransaction preparePatternRefund() {
+            return this.delegate.preparePatternRefund();
+        }
+
+        @Override
         public RefundTransaction prepareRefund() {
             return wrapRefundTransaction(this.delegate.prepareRefund());
         }
@@ -1330,8 +1439,8 @@ public final class TrinityPatternCatalogImplTest {
                 }
 
                 @Override
-                public void complete() {
-                    transaction.complete();
+                public void complete(List<TrinityItemAmount> undeliveredItems) {
+                    transaction.complete(undeliveredItems);
                 }
 
                 @Override

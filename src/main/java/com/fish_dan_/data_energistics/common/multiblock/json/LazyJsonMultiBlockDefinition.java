@@ -82,6 +82,11 @@ public final class LazyJsonMultiBlockDefinition implements JsonMultiBlockDefinit
         return definition().replaceableCompartmentTypes();
     }
 
+    @Override
+    public JsonMultiBlockAutoBuildStaging autoBuildStaging() {
+        return definition().autoBuildStaging();
+    }
+
     private synchronized JsonMultiBlockDefinition definition() {
         if (this.definition == null) {
             try {
