@@ -1,0 +1,815 @@
+# Trinity CPU 高可用高并行合批发配设计
+
+## 1. 文档状态
+
+- 方案状态：已确定总体架构，待分阶段实现
+- 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
+- 核心目标：在保留 256 份完整独立硬件资源、高容量、高并行和独立规划线程的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
+- 本文档只定义架构、行为、边界、实施顺序和验收标准，不包含源码修改
+
+## 2. 已确认需求
+
+### 2.1 CPU 硬件语义
+
+1. 一个 Trinity Data Core 最多发布 256 个 worker。
+2. 每个 worker 都拥有完整存储容量、完整协处理器数量、独立任务、独立库存、独立等待输出和独立执行预算。
+3. 256 个 worker 不是共享一份存储、协处理器或操作预算的资源池。
+4. 除明确标记为共享的硬件或共享状态外，所有可用 CPU 都可以进入自动预选。
+5. 网格级限流只限制昂贵的物理调用和服务器线程耗时，不得修改每个 worker 的硬件数值或逻辑合成能力。
+
+### 2.2 CPU 与供应器职责
+
+CPU 对以下行为负权威责任：
+
+- CPU 候选预选和失败续选；
+- 图样任务分组；
+- 供应器和目标机器容量汇总；
+- CPU 侧倍率计算；
+- 按机器容量切分发配数量；
+- 并行发配计划；
+- 输入、能源和操作预算核算；
+- 成功数量、任务进度、等待输出和回收归属记账；
+- 公平轮询、退避、负缓存和自适应限流。
+
+第三方样板供应器保持原有物理输入输出行为。针对第三方供应器的 Mixin 或兼容桥只允许提供只读信息，包括机器数量、机器身份、机器容量、在线状态、连接顺序和快照版本。兼容层不得把 CPU 的合批、切分、调度或回收算法注入供应器。
+
+### 2.3 原版行为
+
+以下 AE2 语义必须保持：
+
+- Blocking Mode；
+- `LOCK_UNTIL_RESULT`；
+- `LOCK_UNTIL_PULSE`；
+- `ICraftingMachine` 的单次计划接收语义；
+- `sendList` 未清空时不得继续注入；
+- 供应器和相邻目标的原有 round-robin；
+- 供应器返回 `false` 时，未转移所有权的输入不得丢失；
+- 供应器已经取得输入后即使抛出异常，也不得重复派发同一份输入。
+
+## 3. 非目标
+
+本方案不执行以下行为：
+
+1. 不把 256 个 worker 合并成共享硬件资源池。
+2. 不让异步线程直接修改 AE2 网格、世界、方块实体、能源或库存。
+3. 不通过反射读取第三方供应器内部状态。
+4. 不替换第三方供应器的 `pushPattern`、锁定、阻挡、内部队列、round-robin 或成品回传逻辑。
+5. 不假定所有自定义供应器都支持原子合批或定向派发。
+6. 不把所有 `pushPattern == false` 都解释为 Blocking。
+7. 不以牺牲物品守恒、任务账本或重载恢复正确性换取吞吐量。
+
+## 4. 术语
+
+| 术语 | 定义 |
+| --- | --- |
+| worker | 一个独立的 `TrinityDataCoreVirtualCpu` 及其执行逻辑 |
+| 逻辑 craft | 图样被执行一次对应的输入、输出和任务进度单位 |
+| 物理调用 | CPU 对供应器或目标执行一次不可再拆分的真实提交 |
+| 容量快照 | 服务器线程在某一代次读取的供应器及机器只读状态 |
+| target | 供应器后方的一台可接收处理输入的机器或一个稳定路由目标 |
+| dispatch slice | CPU 分配给一个目标的一段逻辑 craft 数量 |
+| proposal | 异步规划线程生成、等待服务器线程校验和提交的发配提案 |
+| provider shard | CPU 内部按供应器身份划分的规划和公平队列，不是供应器内部线程 |
+| commit | 服务器线程执行的输入、能源、供应器调用和账本变更事务 |
+
+## 5. 当前实现基线
+
+当前 Trinity CPU 在 `CraftingServiceMixin.onServerEndTick` 中依次调用 runtime，并由 `TrinityDataCoreCpuLogic` 在服务器线程完成图样派发。
+
+已有的正确基础包括：
+
+- 每个虚拟 CPU 有自己的 `TrinityDataCoreCpuLogic`、库存、任务和 `usedOps`；
+- CPU 操作预算按协处理器数量独立计算；
+- `CountedCraftingAdmission` 已定义一次性提交和输入所有权边界；
+- 批量任务进度、聚合 scheduled output 和实际接受数量之间已有一致记账规则；
+- Blocking、结果锁、脉冲锁和专用 `ICraftingMachine` 已回退原版单次派发；
+- 网格 tick 已有 runtime 起始位置轮换和共享 `CraftingDispatchWindow`。
+
+当前需要改进的部分包括：
+
+- 自动预选命中已满载 Data Core 后缺少完整候选续选；
+- 同规格核心缺少稳定的负载加权和成功后轮询；
+- `availableProviders` 完整消费 AE2 的循环迭代器，可能破坏跨次 round-robin 公平性；
+- `CraftingDispatchWindow` 固定每供应器 16 次物理尝试，无法表达大量机器容量，也无法根据 TPS 自适应；
+- Blocking 或容量耗尽后的明确拒绝缺少精确的本 tick 负缓存；
+- CPU 主派发路径没有统一的第三方供应器只读容量模型；
+- 核心派发仍在服务器线程同步规划，没有独立的不可变快照规划阶段。
+
+## 6. 总体架构
+
+```mermaid
+flowchart LR
+    A["服务器线程：采集网格与容量快照"] --> B["最多 256 个 Virtual Worker Actor"]
+    B --> C["CPU Provider Shard：容量汇总与公平切片"]
+    C --> D["有界 Dispatch Proposal 队列"]
+    D --> E["服务器线程：代次重验与事务提交"]
+    E --> F["原版或第三方供应器现有派发入口"]
+    F --> G["AE 网络返回输出"]
+    G --> H["CPU Waiting Accounting 与任务完成"]
+    I["自适应 Governor"] --> B
+    I --> C
+    I --> D
+    I --> E
+```
+
+整体采用“只读快照、异步规划、服务器线程提交”的双阶段模型：
+
+1. 服务器线程生成不可变网格快照和供应器容量快照。
+2. 每个活跃 worker 的 Virtual Actor 根据自身完整硬件预算生成任务候选。
+3. CPU 内部 provider shard 汇总对相同供应器和目标的竞争，生成公平切片。
+4. proposal 进入有界队列，防止异步规划无限领先于服务器提交。
+5. 服务器线程重新验证代次、容量、阻挡、锁定、输入、能源和等待输出。
+6. 服务器线程执行真实派发并只提交实际成功的账本变更。
+7. 自适应 Governor 根据 TPS、队列和失败率调整并行度、物理调用额度和批次上限。
+
+## 7. 线程模型
+
+### 7.1 Virtual Worker Actor
+
+每个已发布 worker 拥有独立逻辑 Actor：
+
+- mailbox 只接收不可变快照、任务摘要和控制消息；
+- Actor 只计算候选、排序、容量上限和 proposal；
+- Actor 不持有可跨 tick 使用的世界、网格、方块实体或供应器可变引用；
+- 空闲 worker 保留身份和调度游标，但可以挂起，不持续占用运行线程；
+- worker 异常只取消该 worker 当前 proposal，记录完整上下文后允许下一 tick 重建规划状态。
+
+Virtual Actor 不等于每个 worker 拥有一个长期占用的操作系统平台线程。实现应使用受控虚拟线程执行器或等价的有界调度设施，禁止为每个图样或每次自动请求无界创建线程。
+
+### 7.2 服务器线程边界
+
+以下操作只能在服务器线程执行：
+
+- 枚举 AE Grid 和 crafting provider；
+- 读取目标机器实时容量；
+- 校验方块实体、维度、连接和租约；
+- 提取或返还 CPU 输入；
+- 模拟或扣除能源；
+- 调用 `pushPattern` 或其它现有物理派发入口；
+- 更新任务进度、waiting output、CPU inventory 和 NBT 脏状态；
+- 修改 Blocking、Lock、Pulse 或供应器 round-robin 所依赖的原有状态。
+
+### 7.3 快照生命周期
+
+每份快照至少携带：
+
+- Grid 身份和 generation；
+- runtime 身份和 generation；
+- worker 身份和任务 revision；
+- provider 稳定身份和 revision；
+- target 稳定身份和 capacity revision；
+- 快照 tick。
+
+网络重建、供应器移除、机器卸载、维度卸载、访问租约变化、样板目录重发或任务变化后，旧 proposal 必须被服务器线程判定为 `STALE`，不得按旧容量提交。
+
+proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。任何超过生成 tick 仍未提交的 proposal 必须丢弃并基于新快照重新规划。
+
+## 8. CPU 预选策略
+
+### 8.1 候选范围
+
+自动选择必须收集完整候选列表，而不是只取第一个可见 CPU：
+
+```text
+在线
+  -> SelectionMode 允许当前来源
+  -> 非共享候选
+  -> 存储容量满足 job.bytes
+  -> 当前未忙碌
+  -> 加入预选
+```
+
+原版 CPU、Trinity 虚拟 CPU 和明确支持 AE2 选择语义的外部 CPU 可以进入同一候选排序，但不得把外部模组未知 CPU 当作 Trinity 硬件的一部分。
+
+### 8.2 排序
+
+候选排序依次考虑：
+
+1. `PLAYER_ONLY`、`MACHINE_ONLY` 和 `ANY` 对当前来源的偏好；
+2. 用户请求的 `prioritizePower`；
+3. 当前任务数和最近操作负载；
+4. 同规格 CPU 的成功后 round-robin 游标；
+5. 稳定身份作为最终确定性顺序。
+
+同规格 CPU 不按集合迭代顺序长期固定选择第一座。
+
+### 8.3 失败续选
+
+预选后按顺序尝试提交：
+
+- `CPU_BUSY`：尝试下一候选；
+- `CPU_OFFLINE`：尝试下一候选，并令对应 runtime 快照失效；
+- `CPU_TOO_SMALL`：尝试下一候选；
+- 缺少原料：返回真实缺料结果，不盲目在其它 CPU 重复提取；
+- 成功：推进同规格 round-robin 游标；
+- 所有候选失败：返回最有诊断价值且不会掩盖原版结果的错误。
+
+## 9. 第三方供应器只读容量协议
+
+### 9.1 接口边界
+
+兼容层应采用面向接口的只读契约。示意命名如下，最终实现必须为接口和成员补齐动机、作用和边界注释：
+
+```java
+interface ProviderCapacityView {
+    ProviderCapacitySnapshot snapshotCapacity(IPatternDetails patternDetails);
+}
+
+record ProviderCapacitySnapshot(
+        long revision,
+        ProviderRoutingMode routingMode,
+        List<MachineCapacitySnapshot> machines) {
+}
+
+record MachineCapacitySnapshot(
+        MachineTargetId targetId,
+        boolean online,
+        boolean busy,
+        long craftCapacity,
+        long returnCapacity,
+        int routingOrder) {
+}
+```
+
+接口实现只负责把第三方供应器已经掌握的事实转换成不可变快照，不负责选择倍率或产生发配动作。
+
+### 9.2 允许读取的信息
+
+- 有效连接机器数量；
+- 稳定机器身份，例如维度、位置、方向或第三方连接 ID；
+- 连接和路由顺序；
+- 机器是否在线、加载、忙碌或处于冷却；
+- 当前图样可接受的逻辑 craft 数量；
+- 供应器内部尚未清空的输入、溢出或回收队列是否阻止继续派发；
+- 输出回收空间或现有 API 能可靠提供的回收容量；
+- 容量或连接变化 revision。
+
+### 9.3 禁止行为
+
+第三方兼容 Mixin 不得：
+
+- 修改 `pushPattern` 的输入、输出或返回值；
+- 修改目标选择或 round-robin；
+- 修改机器库存或供应器发送队列；
+- 修改 Blocking、Lock、Pulse 或红石行为；
+- 修改供应器返回库存；
+- 替第三方供应器增加新的合批提交语义；
+- 使用反射、`MethodHandle` 或 `VarHandle` 扫描第三方私有字段；
+- 在异步线程读取第三方方块实体或集合。
+
+若模组没有稳定、可验证的容量信息入口，该模组必须退回保守容量，不允许猜测私有状态。
+
+### 9.4 路由能力
+
+CPU 需要区分供应器现有入口能表达的路由能力：
+
+| 路由能力 | CPU 行为 |
+| --- | --- |
+| `TARGETED` | 使用第三方已经公开的定向入口，按 target slice 精确提交 |
+| `ORDERED` | CPU 按只读快照给出的稳定路由顺序提交，供应器使用自己的既有顺序接收 |
+| `AGGREGATE` | 供应器现有入口只接受聚合数量，CPU提交聚合输入但保留 target 级账本计划 |
+| `UNKNOWN` | 容量按 1 处理并保持单次派发 |
+
+只读容量信息不能凭空创建第三方不存在的定向派发 API。若供应器没有公开定向入口，CPU 可以决定总量和提交顺序，但不能声称精确指定某个内部目标。
+
+## 10. CPU 倍率和容量切分
+
+### 10.1 容量上限
+
+对某个 worker、图样和供应器，CPU 计算：
+
+```text
+taskLimit       = 任务剩余逻辑 craft 数
+inputLimit      = CPU 库存可提供的逻辑 craft 数
+energyLimit     = 当前能源可支持的逻辑 craft 数
+waitingLimit    = scheduled output / waiting output 可容纳数量
+operationLimit  = 该 worker 独立协处理器预算
+machineLimit    = 所有可用目标的 craftCapacity 之和
+providerLimit   = 供应器现有队列、锁定或入口限制
+gridLimit       = 当前网格剩余物理时间/调用额度能承载的逻辑数量
+
+dispatchCount = min(
+    taskLimit,
+    inputLimit,
+    energyLimit,
+    waitingLimit,
+    operationLimit,
+    machineLimit,
+    providerLimit,
+    gridLimit)
+```
+
+所有乘法、加法和容量汇总必须使用精确或饱和运算，禁止 `long` 溢出后得到负容量。
+
+### 10.2 让所有机器优先运行
+
+容量切分不能简单地先填满第一台机器，否则任务数量少于总容量时，后面的机器长期不启动。
+
+采用“启动优先的最大最小公平切分”：
+
+1. 从 provider 的持久 round-robin 起点开始枚举在线且容量大于 0 的机器。
+2. 当 `dispatchCount` 足够时，先给每台可用机器分配 1 份。
+3. 剩余数量按 round-robin 继续逐层填充，任何机器不得超过自己的 `craftCapacity`。
+4. 成功提交后推进 target 游标；失败目标不吞掉后续目标的机会。
+5. 同一机器连续报告容量 0 时可以退避，但下一份新 revision 必须允许它重新加入。
+
+示例：
+
+```text
+机器容量：[4, 4, 2, 8, 0, 1]
+dispatchCount = 12
+
+第一轮启动：[1, 1, 1, 1, 0, 1]
+继续公平填充后，可得到：[3, 3, 2, 3, 0, 1]
+```
+
+若 `dispatchCount = 19`，最终分配为全部容量 `[4, 4, 2, 8, 0, 1]`。
+
+### 10.3 倍率定义
+
+本方案中的 CPU 翻倍不是永久改写样板，也不是让供应器自行决定倍率。
+
+```text
+CPU 倍率 = 本次 CPU 计划并成功派发的基础逻辑 craft 数
+```
+
+对于已由其它模组包装或缩放的 `IPatternDetails`，CPU 必须同时保留：
+
+- pattern 自身表达的一次逻辑输入和输出；
+- CPU 本轮实际派发次数。
+
+账本总量始终是：
+
+```text
+pattern 单次输入/输出 × CPU 实际成功数量
+```
+
+不得把已经聚合的 synthetic pattern 再乘一次相同 count，避免 `N²` 输入或输出记账。
+
+## 11. 合批和发配模式
+
+CPU 根据能力选择三种模式：
+
+### 11.1 原子计数合批
+
+适用于原版普通外部库存路径、本模组 ME 访问仓以及明确具有一次性 admission 契约的路径。
+
+- 一次物理调用承载多个相同逻辑 craft；
+- preparation 固定目标和接受数量；
+- commit 最多调用一次；
+- 返回 `false` 前不得消费输入；
+- 输入所有权转移后发生异常时按完整 admission 已派发处理。
+
+### 11.2 CPU 容量切片发配
+
+适用于能够提供只读机器容量、但不提供原子计数 admission 的自定义供应器。
+
+- CPU 计算总量和 target slices；
+- CPU 使用供应器已经存在的物理入口提交；
+- 每个 slice 单独记录成功数量；
+- 部分成功允许保留，未成功部分回滚并重新规划；
+- 第三方供应器不获得新的合批逻辑。
+
+### 11.3 保守单次发配
+
+适用于：
+
+- Blocking Mode；
+- `LOCK_UNTIL_RESULT`；
+- `LOCK_UNTIL_PULSE`；
+- `ICraftingMachine`；
+- Applied Create 或其它无法证明原子性的路径；
+- 未识别供应器；
+- 容量快照不完整、过期或路由能力未知的供应器。
+
+单次路径仍参与 CPU 公平轮询和物理预算，但不得被通用合批逻辑绕过。
+
+### 11.4 跨 worker 合批边界
+
+首个可用版本只允许 worker 内部合批。不同 worker 的任务、输入库存、scheduled output 和 waiting output 继续独立提交。
+
+跨 worker 二级合批只有在以下条件全部具备后才能单独启用：
+
+- 每个贡献 worker 的输入、能源、任务和输出份额可独立验证；
+- provider 对整个聚合提交具有明确原子性；
+- 部分成功能够准确映射回贡献切片；
+- 任意异常都不会造成一个 worker 成功、另一个 worker 被错误回滚；
+- 已完成专项逻辑测试、GameTest 和重载测试。
+
+该能力不属于阶段 1 至阶段 4 的默认交付，不得为了减少物理调用提前混入基础调度改造。
+
+## 12. Provider Shard
+
+provider shard 是 CPU 内部的规划结构，用于处理多个 worker 对同一供应器或同一目标的竞争。
+
+### 12.1 分片规则
+
+- 使用 provider 稳定身份进行一致分片；
+- 同一 provider 的 proposal 进入同一 shard；
+- 同一 target 不允许在同一 generation 被两个 shard 重复预留容量；
+- shard 数量由 Governor 在安全范围内调整；
+- shard 只处理不可变快照和 reservation，不持有世界对象。
+
+### 12.2 公平性
+
+每个 shard 使用分层轮询：
+
+1. Grid round-robin；
+2. runtime round-robin；
+3. worker deficit round-robin；
+4. provider priority 和 round-robin；
+5. target 启动优先的最大最小公平切分。
+
+单个超大 worker、供应器或图样不能长期独占网格物理提交额度。
+
+### 12.3 容量预留
+
+容量预留只存在于 CPU proposal 层：
+
+- 预留不修改供应器和机器；
+- 预留绑定 provider revision 和 target revision；
+- proposal 被拒绝、过期或取消时立即释放；
+- 服务器线程提交后以实际成功数量结算；
+- 预留不能跨重载持久化。
+
+## 13. 服务器线程事务
+
+### 13.1 提交顺序
+
+每个 proposal 在服务器线程按以下顺序处理：
+
+1. 校验 Grid、runtime、worker、job、provider 和 target 身份。
+2. 校验所有 generation 和 revision。
+3. 重新读取 Blocking、Lock、busy、连接和容量状态。
+4. 计算本次仍可接受的实际数量，必要时缩小 slice。
+5. 校验 scheduled output 和 waiting output 容量。
+6. 提取或预留输入。
+7. 模拟并扣除能源。
+8. 获取网格和供应器物理调用额度。
+9. 调用现有物理派发入口。
+10. 根据输入所有权和返回结果判定实际成功数量。
+11. 提交任务进度、scheduled output、waiting output 和 worker 操作数。
+12. 回滚未派发输入、未消耗能源和未使用 reservation。
+
+### 13.2 部分成功
+
+CPU 容量切片允许部分成功：
+
+```text
+计划 19
+成功 12
+第 13 份因容量变化被拒绝
+
+结果：
+- 任务进度只减少 12
+- waiting output 只增加 12 份输出
+- 能源只消耗 12 份
+- 已成功的 12 份不回滚
+- 剩余 7 份留在任务中等待重新规划
+```
+
+### 13.3 输入所有权
+
+必须保持一次性所有权边界：
+
+- 供应器未修改输入 holder 且返回 `false`：本次未派发，可回滚；
+- 供应器已经取得输入：本次按已派发记账；
+- 供应器取得输入后返回 `false` 或抛异常：记录错误并按已派发处理，避免复制；
+- 供应器在取得输入前抛异常：回滚本次和未使用资源，将供应器标记为当前窗口不可用；
+- 核心业务异常必须隔离并记录日志，不能使用空 `catch`，也不能因一个供应器故障崩溃整个服务器进程。
+
+## 14. Blocking、Lock 和拒绝原因
+
+发配结果应使用明确状态，而不是只传播布尔值：
+
+```text
+ACCEPTED
+BLOCKED
+LOCKED
+BUSY
+OFFLINE
+NO_CAPACITY
+STALE
+REJECTED
+FAILED_BEFORE_OWNERSHIP
+FAILED_AFTER_OWNERSHIP
+```
+
+处理规则：
+
+- `BLOCKED`：按 provider + target/方向加入本 tick 负缓存；
+- `LOCKED`：供应器在原版锁解除前不再进入候选；
+- `BUSY`：当前轮跳过，可在状态 revision 变化后重新加入；
+- `NO_CAPACITY`：当前容量 generation 不再尝试该 target；
+- `STALE`：释放 reservation 并重新规划；
+- `REJECTED`：不自动等同于 Blocking；
+- `FAILED_BEFORE_OWNERSHIP`：回滚并隔离当前供应器窗口；
+- `FAILED_AFTER_OWNERSHIP`：按成功记账并输出高严重度日志。
+
+负缓存最多持续当前 tick 或当前容量 revision。下一 tick 或 revision 变化后必须重新检查，确保机器解除阻挡后自动恢复。
+
+## 15. 物理预算和自适应 Governor
+
+### 15.1 两类预算
+
+必须区分：
+
+- 逻辑预算：每个 worker 按自身完整协处理器计算，可通过合批在一次物理调用中完成大量逻辑 craft；
+- 物理预算：每网格、每 provider 和每服务器 tick 允许执行的真实调用与时间。
+
+物理预算耗尽时，未提交 proposal 延后到下一 tick，不丢失、不取消 worker 的逻辑硬件能力。
+
+### 15.2 观测指标
+
+Governor 至少观测：
+
+- 服务器 tick 耗时和最近 TPS；
+- 快照采集耗时；
+- 异步规划耗时；
+- 服务器提交耗时；
+- proposal 队列长度和等待 tick；
+- stale 比例；
+- provider/target 接受率；
+- 每物理调用承载的逻辑 craft 数；
+- Blocking、Lock、容量不足和异常计数；
+- 每 worker 获得的提交份额。
+
+### 15.3 可调参数
+
+Governor 可以调整：
+
+- 活跃规划 Actor 数；
+- provider shard 数；
+- proposal 队列容量；
+- 每网格物理调用额度；
+- 每 provider 每轮 quantum；
+- 原子合批最大逻辑数量；
+- 单 tick 服务器提交时间预算；
+- stale proposal 的重算频率；
+- 长期容量为 0 的 target 退避时间。
+
+调整必须渐进，避免因为单 tick 波动频繁切换模式。精确默认值应通过基准测试确定，不在实现前凭经验写死。
+
+### 15.4 降级
+
+出现以下情况时按局部范围降级：
+
+- 容量快照失败：该 provider 退回单次；
+- provider revision 高频变化：缩短 proposal 生命周期或暂时在服务器线程同步规划；
+- proposal 队列积压：减少异步并行和物理额度；
+- 某 provider 高频异常：只隔离该 provider，不停止其它 worker；
+- Governor 自身异常：回到固定安全额度和服务器线程单次路径。
+
+降级不得改变输入、输出、Blocking、Lock 或任务账本语义。
+
+## 16. 输出回收和任务归属
+
+第三方供应器继续使用其现有物理返回方式把成品送回 AE 网络或返回库存。CPU 负责逻辑回收归属：
+
+1. 每个成功 slice 按实际成功数量登记预期输出。
+2. waiting accounting 保持 worker 和 job 级独立。
+3. 返回物进入 crafting service 后，只能抵扣已经登记的 waiting output。
+4. 重复输出 Key 必须先聚合再记账，不能因同一图样多个输出槽重复扣减。
+5. 多个 worker 等待相同 Key 时遵循现有 CPU 插入和公平顺序，不允许某个 worker 消耗超过自己的等待量。
+6. 任务取消、CPU 离线、结构失效和服务器重载必须继续使用现有持久化与退款语义。
+
+CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第三方返回库存格式。
+
+## 17. 兼容策略
+
+| 供应器类别 | 容量来源 | CPU 模式 | 备注 |
+| --- | --- | --- | --- |
+| AE2 原版普通样板供应器 | 原版目标模拟和现有 accessor | 原子计数合批 | Blocking/Lock/专用机器除外 |
+| Trinity ME 访问仓 | 本模组目录和 admission | 原子计数合批 | 保留一次性所有权和租约校验 |
+| 本模组自适应样板供应器 | 本模组稳定接口 | 按路由选择合批或切片 | 特殊定向路径保持其语义 |
+| AE2 Lightning Tech 多机器供应器 | 只读连接、机器容量和 revision 兼容层 | CPU 容量切片 | 不修改其 push、回收、冷却和轮询逻辑 |
+| AdvancedAE / ExtendedAE / AE2CS | 只读公开能力或稳定 accessor | 能证明时切片，否则单次 | 不按类名猜测原子性 |
+| Applied Create | 可验证信息有限 | 保守单次 | 不假设机械网络原子接收 |
+| 未识别供应器 | 无可靠快照 | 保守单次 | 正确性优先 |
+
+每个可选模组适配器必须单独证明：
+
+- 容量定义与逻辑 craft 单位一致；
+- 快照读取没有副作用；
+- target 身份稳定；
+- revision 能覆盖连接和容量语义变化；
+- 使用现有派发入口不会绕过阻挡、锁定和回收；
+- 模组缺失时类加载安全。
+
+## 18. 建议代码边界
+
+### 18.1 现有文件
+
+- `mixin/core/CraftingServiceMixin.java`
+  - CPU 完整预选、失败续选、网格快照入口和服务器提交调度。
+- `common/crafting/trinity/TrinityDataCoreCpuLogic.java`
+  - worker 任务摘要、输入/能源/账本事务和实际成功数量提交。
+- `common/crafting/trinity/CraftingDispatchWindow.java`
+  - 从固定尝试计数扩展为物理预算、拒绝原因、负缓存和公平 quantum。
+- `ae2/PatternProviderBatching.java`
+  - 保留已证明安全的原子计数合批，不承载第三方供应器调度策略。
+- `mixin/core/PatternProviderLogicMixin.java`
+  - 保持原版必要桥接；第三方子类继续保守回退，不能在这里加入机器切分算法。
+
+### 18.2 新逻辑层
+
+建议在 `common/crafting/trinity/dispatch/` 下建立小型接口和实现，避免继续扩大 `TrinityDataCoreCpuLogic`：
+
+| 接口/数据对象 | 职责 |
+| --- | --- |
+| `CraftingDispatchPlanner` / `CraftingDispatchPlannerImpl` | 根据不可变快照生成 proposal |
+| `CraftingDispatchCommitter` / `CraftingDispatchCommitterImpl` | 服务器线程重验和提交事务 |
+| `CraftingDispatchGovernor` / `CraftingDispatchGovernorImpl` | 根据指标调整安全参数 |
+| `ProviderCapacityView` | 第三方供应器只读容量入口 |
+| `ProviderCapacitySnapshot` | provider 级不可变容量数据 |
+| `MachineCapacitySnapshot` | target 级不可变容量数据 |
+| `CraftingDispatchProposal` | 绑定版本的待提交计划 |
+| `CraftingDispatchSlice` | 一个 target 的计划数量 |
+| `CraftingDispatchResult` | 明确成功数量、所有权和拒绝原因 |
+
+接口实现类只在自己的装配边界使用。大对象应采用 Builder，禁止把所有规划、提交、指标、兼容和线程生命周期继续塞入一个超级对象。
+
+### 18.3 第三方兼容层
+
+每个可选模组只实现 `ProviderCapacityView` 或等价只读桥：
+
+- 使用编译期类型、公开 API、Mixin `@Accessor` 或只读 `@Invoker`；
+- 不使用反射；
+- 不修改第三方供应器字段；
+- 不接管第三方 tick；
+- 不改变第三方方法返回值；
+- 兼容失败时记录日志并返回“不支持容量快照”，由 CPU 退回单次。
+
+## 19. 分阶段实施
+
+### 阶段 0：建立行为基线
+
+- 固化 256 worker 独立硬件不变量；
+- 增加 CPU 候选选择、Blocking、Lock、round-robin 和批量账本的直接逻辑测试；
+- 记录当前大网络的物理调用数、派发数量和 tick 耗时；
+- 不修改第三方供应器行为。
+
+### 阶段 1：CPU 预选和公平性
+
+- 修复满载 Data Core 自动预选；
+- 建立完整候选列表和 `CPU_BUSY` / `CPU_OFFLINE` 续选；
+- 同规格 CPU 按负载和成功 round-robin；
+- 修复 provider 迭代器消费导致的轮询问题。
+
+### 阶段 2：拒绝原因和物理窗口
+
+- 扩展 `CraftingDispatchWindow`；
+- 增加 provider + target 本 tick 负缓存；
+- 区分 Blocking、Lock、No Capacity 和普通拒绝；
+- 引入网格物理调用和服务器提交时间预算。
+
+### 阶段 3：只读容量协议和 CPU 切片
+
+- 建立 `ProviderCapacityView` 和不可变快照；
+- 先支持本模组可控目标，再接入 AE2LT 等第三方只读适配；
+- 实现启动优先的最大最小公平切分；
+- 实现 slice 部分成功事务和回滚；
+- 供应器兼容层不加入任何写行为。
+
+### 阶段 4：Virtual Worker Actor 和 Provider Shard
+
+- 把纯规划从服务器线程迁移到不可变快照 Actor；
+- 建立有界 proposal 队列；
+- 以 provider 稳定身份分 shard；
+- 增加 generation 失效、取消和卸载清理；
+- 保持所有真实世界提交在服务器线程。
+
+### 阶段 5：自适应 Governor
+
+- 采集规划、提交、接受率、stale 和公平性指标；
+- 自适应调整 shard、quantum、批次和物理额度；
+- 实现局部降级和固定安全模式；
+- 通过压力测试确定默认配置和硬上限。
+
+阶段之间必须串行验收。不得在 CPU 账本、所有权和原版阻挡语义未稳定前直接启用异步规划或自适应切换。
+
+## 20. 测试策略
+
+### 20.1 纯逻辑测试
+
+直接调用目标代码验证：
+
+- 候选过滤、排序和失败续选；
+- 256 个 worker 硬件预算彼此独立；
+- 容量汇总的溢出边界；
+- 启动优先切分保证所有有容量机器尽可能运行；
+- task/input/energy/waiting/operation/machine 多重上限；
+- provider shard reservation 不重复；
+- stale proposal 被拒绝；
+- 部分成功只按实际数量记账；
+- 已聚合 synthetic pattern 不发生 `N²` 扣减；
+- Governor 调整不突破硬上限。
+
+禁止源码文本包含测试、反射测试和仅验证某功能已删除的测试。
+
+### 20.2 集成测试
+
+使用接口实现的可控 fake provider 和 fake capacity view，验证：
+
+- 多 worker 竞争同一 provider；
+- 多 provider 连接相同机器类型；
+- 容量在 snapshot 和 commit 之间缩小；
+- provider 部分接受后拒绝；
+- 所有权转移前后分别抛异常；
+- Blocking、Lock、Pulse 和 busy 状态变化；
+- 输出回收顺序不同但总量守恒；
+- provider 卸载、revision 变化和 proposal 取消。
+
+### 20.3 GameTest
+
+至少覆盖：
+
+- 256 worker 同时存在且各自可以接受独立任务；
+- 多台相同机器容量不一致时全部尽可能启动；
+- 原版 Blocking 已有输入时不重复注入；
+- `LOCK_UNTIL_RESULT` 和 `LOCK_UNTIL_PULSE` 成功后锁定并正确解锁；
+- 自定义供应器容量快照只读，不改变其原有队列和轮询；
+- 重载、区块卸载、网络断开和 Data Core 结构失效；
+- 任务取消和退款；
+- item、fluid、Data Key 和重复输出 Key；
+- 服务器线程断言，确保世界写操作没有发生在 Virtual Actor。
+
+### 20.4 性能验证
+
+建立可重复场景，至少记录：
+
+- 1、16、64、256 worker；
+- 1、16、64、256 个目标机器；
+- 单一图样热点和多图样混合；
+- 普通合批、CPU 容量切片和保守单次；
+- 空闲、满载、持续 Blocking 和持续容量变化；
+- 平均、P95、P99 tick 耗时；
+- 每 tick 逻辑 craft、物理调用和 proposal stale 比例；
+- 每 worker 获得的提交份额。
+
+性能测试不能只证明吞吐提高，还必须证明没有某个 worker 或 target 长期饥饿。
+
+## 21. 验收标准
+
+### 21.1 正确性
+
+1. 最多 256 个 worker 均保留完整独立存储、协处理器和操作预算。
+2. CPU 自动预选不会选择 busy、offline、容量不足或来源模式不允许的 CPU。
+3. 首选 CPU 在提交时变为 busy/offline 后，会尝试下一个合法候选。
+4. CPU 根据只读机器容量计算倍率并切分，任务充足时所有有容量机器都能得到工作。
+5. 供应器或机器容量变化时，旧 proposal 不按旧容量提交。
+6. 任务进度、输入、能源、scheduled output、waiting output 和实际成功数量完全一致。
+7. 供应器取得输入后发生失败不会造成物品复制。
+8. 未取得输入的失败路径不会造成物品丢失或多扣能源。
+9. Blocking、Lock、Pulse、`ICraftingMachine` 和 `sendList` 行为与原版一致。
+10. 第三方兼容 Mixin 只读取容量信息，不改变第三方供应器派发和回收行为。
+
+### 21.2 高可用
+
+1. 单个 worker、provider、target 或规划任务异常不会停止其它网格和 worker。
+2. 异常必须记录 provider、target、pattern、worker、job、revision 和所有权状态。
+3. 不存在空 `catch`；核心业务异常被隔离后服务器进程仍能继续。
+4. 网络重建、区块卸载、服务器停止和结构失效会取消旧 proposal 并释放 reservation。
+5. 异步执行器和 Actor 不泄漏线程、mailbox 或世界引用。
+6. 自适应逻辑异常时可以退回固定安全模式。
+
+### 21.3 性能和公平性
+
+1. 普通安全路径能够以一次物理调用承载多个逻辑 craft。
+2. 多机器供应器由 CPU 按容量切分，不需要按机器数量重复进行完整配方解析。
+3. 网格物理预算可以保护 TPS，但不会篡改 worker 硬件规格。
+4. provider、runtime、worker 和 target 都有稳定轮询，不因集合顺序长期饥饿。
+5. proposal 队列有界，异步规划不会无限领先服务器提交。
+6. 256 worker 和 256 目标压力场景中没有物品丢失、复制、账本负数或未处理异常。
+
+## 22. 已确定不变量
+
+1. 256 个 worker 是 256 份完整硬件资源，不是 256 个共享分片。
+2. CPU 是倍率、容量切分、派发计划和回收账本的唯一权威方。
+3. 第三方供应器兼容层只提供只读事实，不拥有 CPU 调度策略。
+4. 异步线程只处理不可变数据，服务器线程是所有世界状态提交的唯一写入方。
+5. 任何账本变更都以供应器实际取得输入所有权的数量为准。
+6. 物理限流可以延迟工作，不能减少或丢弃逻辑任务。
+7. Blocking 和锁定语义优先于合批和性能优化。
+8. 无法证明容量、原子性或路由正确性时退回单次，不猜测第三方行为。
+9. 所有第三方兼容使用编译期接口或 Mixin accessor，不使用反射。
+10. 任一局部失败不得通过静默兼容或空异常处理掩盖。
+
+## 23. 关联实现和文档
+
+- `src/main/java/com/fish_dan_/data_energistics/mixin/core/CraftingServiceMixin.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/TrinityDataCoreCpuLogic.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CraftingDispatchWindow.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CountedCraftingProvider.java`
+- `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CountedCraftingAdmission.java`
+- `src/main/java/com/fish_dan_/data_energistics/ae2/PatternProviderBatching.java`
+- `src/main/java/com/fish_dan_/data_energistics/mixin/core/PatternProviderLogicMixin.java`
+- `docs/defect-audit/DE-004-trinity-batch-dispatch-accounting.md`
+- `docs/defect-audit/DE-005-adaptive-pattern-provider-crafted-contents-conservation.md`
+- `docs/defect-audit/DE-013-adaptive-pattern-provider-meteorite-energy-preflight.md`
+- `docs/defect-audit/DE-015-adaptive-pattern-provider-advancedae-first-key-contract.md`
+- `docs/defect-audit/DE-016-adaptive-pattern-provider-state-stream-boundary.md`
+- `docs/defect-audit/DE-020-adaptive-pattern-provider-directed-state-sync-boundary.md`
+- `docs/defect-audit/DE-031-trinity-pattern-core-authoritative-release.md`
+- `docs/defect-audit/DE-032-trinity-crafting-admission-token.md`
+- `docs/defect-audit/DE-043-trinity-pattern-core-dual-refund-actions.md`

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderBatchAccess;
 import net.minecraft.core.Direction;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.LockCraftingMode;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.crafting.ICraftingProvider;
@@ -74,6 +75,18 @@ public final class PatternProviderBatchingTest {
         assertEquals(5, PatternProviderBatching.nextRoundRobinIndex(2, 2));
         assertThrows(IllegalArgumentException.class, () -> PatternProviderBatching.nextRoundRobinIndex(-1, 0));
         assertThrows(IllegalArgumentException.class, () -> PatternProviderBatching.nextRoundRobinIndex(0, -1));
+    }
+
+    @Test
+    void preservesSingleCraftRoutingForBlockingLocksAndDedicatedMachines() {
+        assertFalse(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.NONE, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(true, LockCraftingMode.NONE, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.LOCK_UNTIL_RESULT, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.LOCK_UNTIL_PULSE, false));
+        assertTrue(PatternProviderBatching.selectsSingleCraftPath(false, LockCraftingMode.NONE, true));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PatternProviderBatching.selectsSingleCraftPath(false, null, false));
     }
 
     @Test

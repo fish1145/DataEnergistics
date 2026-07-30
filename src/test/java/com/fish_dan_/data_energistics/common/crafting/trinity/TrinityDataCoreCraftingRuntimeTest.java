@@ -291,6 +291,68 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_256_workers_dispatch_independent_operation_budgets")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void workers256DispatchIndependentOperationBudgets(GameTestHelper helper) {
+        int workerCount = TrinityDataCoreCpuProfile.MAX_PARTITION_COUNT;
+        int providerCount = workerCount / CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER;
+        AEItemKey output = AEItemKey.of(Items.DIAMOND);
+        PendingPatternDetails pattern = new PendingPatternDetails(output);
+        List<RecordingCraftingProvider> providers = new ArrayList<>(providerCount);
+        List<ICraftingProvider> configuredProviders = new ArrayList<>(providerCount);
+        for (int providerIndex = 0; providerIndex < providerCount; providerIndex++) {
+            RecordingCraftingProvider provider = new RecordingCraftingProvider(pattern);
+            providers.add(provider);
+            configuredProviders.add(provider);
+        }
+
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProviders(configuredProviders);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("independent", TrinityDataCoreCpuContribution.of(1L, 0, workerCount));
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        CraftingPlan plan = patternPlan(pattern, 1L);
+        for (int workerNumber = 1; workerNumber <= workerCount; workerNumber++) {
+            ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
+            helper.assertTrue(result.successful(), "Independent budget job should allocate worker " + workerNumber);
+        }
+
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
+        long startedNanos = System.nanoTime();
+        host.getCraftingRuntime().tick(grid.energyService(), grid.craftingService(), dispatchWindow);
+        long elapsedNanos = System.nanoTime() - startedNanos;
+
+        helper.assertValueEqual(
+                dispatchWindow.attemptCount(),
+                workerCount,
+                "Every worker must own one independent physical-operation allowance");
+        for (int providerIndex = 0; providerIndex < providers.size(); providerIndex++) {
+            helper.assertValueEqual(
+                    providers.get(providerIndex).pushCount(),
+                    CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                    "Provider " + providerIndex + " should receive its complete fair physical window");
+        }
+        List<TrinityDataCoreVirtualCpu> workers = host.getCpuPartitions().subList(1, workerCount + 1);
+        for (TrinityDataCoreVirtualCpu worker : workers) {
+            helper.assertValueEqual(
+                    worker.getWaitingFor(output),
+                    1L,
+                    "Worker " + worker.number() + " must retain only its own waiting output");
+        }
+        Data_Energistics.LOGGER.info(
+                "Trinity dispatch Phase 0 baseline: workers={}, providers={}, logicalCrafts={}, physicalCalls={}, tickNanos={}",
+                workerCount,
+                providerCount,
+                workerCount,
+                dispatchWindow.attemptCount(),
+                elapsedNanos);
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_runtime_omits_released_worker_nbt")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")

@@ -58,7 +58,7 @@ public final class PatternProviderBatching {
         }
 
         var lockMode = logic.getConfigManager().getSetting(Settings.LOCK_CRAFTING_MODE);
-        if (logic.isBlocking() || lockMode == LockCraftingMode.LOCK_UNTIL_RESULT || lockMode == LockCraftingMode.LOCK_UNTIL_PULSE) {
+        if (selectsSingleCraftPath(logic.isBlocking(), lockMode, false)) {
             return prepareSingle(logic, patternDetails, prototype, requestedCount);
         }
 
@@ -73,7 +73,8 @@ public final class PatternProviderBatching {
             var adjacentPosition = blockEntity.getBlockPos().relative(direction);
             var adjacentSide = direction.getOpposite();
             var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
-            if (craftingMachine != null && craftingMachine.acceptsPlans()) {
+            boolean dedicatedCraftingMachine = craftingMachine != null && craftingMachine.acceptsPlans();
+            if (selectsSingleCraftPath(false, LockCraftingMode.NONE, dedicatedCraftingMachine)) {
                 return prepareSingle(logic, patternDetails, prototype, requestedCount);
             }
 
@@ -114,6 +115,21 @@ public final class PatternProviderBatching {
         }
 
         return null;
+    }
+
+    /**
+     * Selects the original one-craft provider path whenever batching could change AE2 blocking or lock semantics.
+     */
+    static boolean selectsSingleCraftPath(boolean blocking,
+                                          LockCraftingMode lockMode,
+                                          boolean dedicatedCraftingMachine) {
+        if (lockMode == null) {
+            throw new IllegalArgumentException("Pattern-provider lock mode must not be null");
+        }
+        return blocking ||
+                lockMode == LockCraftingMode.LOCK_UNTIL_RESULT ||
+                lockMode == LockCraftingMode.LOCK_UNTIL_PULSE ||
+                dedicatedCraftingMachine;
     }
 
     /** Creates a one-shot admission that preserves the provider's original single-craft routing. */
