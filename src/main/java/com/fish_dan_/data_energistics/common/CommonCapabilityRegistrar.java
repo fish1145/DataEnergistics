@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.item.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.DigitalStorageDepotFluidHandlerItem;
 import com.fish_dan_.data_energistics.item.PoweredItemEnergyStorage;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -23,6 +24,7 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 import appeng.api.AECapabilities;
 import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.parts.RegisterPartCapabilitiesEvent;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
@@ -280,6 +282,13 @@ final class CommonCapabilityRegistrar {
                     return tower.getEnergyStorageForQuery(pos, context);
                 },
                 ModBlocks.DATA_DISTRIBUTION_TOWER.get());
+    }
+
+    static void registerPartCapabilities(RegisterPartCapabilitiesEvent event) {
+        event.register(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                (part, context) -> part.getReturnInventory(),
+                DataSanctumInterfacePart.class);
     }
 
     private static void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, Item item) {
