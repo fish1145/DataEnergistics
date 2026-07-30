@@ -50,6 +50,26 @@ final class CommonCapabilityRegistrar {
                 ModBlockEntities.DATA_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
+                ModBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
