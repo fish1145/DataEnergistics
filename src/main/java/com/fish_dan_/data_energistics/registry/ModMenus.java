@@ -81,6 +81,8 @@ public final class ModMenus {
 
     public static final DeferredHolder<MenuType<?>, MenuType<TrinityDataCoreMenu>> TRINITY_DATA_CORE = MENUS.register("trinity_data_core", () -> IMenuTypeExtension.create((id, playerInventory, data) -> {
         var pos = data.readBlockPos();
+        var hostId = data.readUUID();
+        var menuSessionId = data.readUUID();
         BlockEntity blockEntity = playerInventory.player.level().getBlockEntity(pos);
         TrinityDataCoreBlockEntity host = blockEntity instanceof TrinityDataCoreBlockEntity dataCore ? dataCore : null;
         if (host == null) {
@@ -89,7 +91,7 @@ public final class ModMenus {
                     pos,
                     playerInventory.player.level().dimension().location());
         }
-        return new TrinityDataCoreMenu(id, playerInventory, host);
+        return new TrinityDataCoreMenu(id, playerInventory, host, hostId, menuSessionId);
     }));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD = MENUS.register("data_mimetic_field", () -> MenuTypeBuilder

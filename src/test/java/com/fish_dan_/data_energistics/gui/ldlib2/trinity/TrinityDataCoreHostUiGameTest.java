@@ -161,6 +161,12 @@ public final class TrinityDataCoreHostUiGameTest {
         assertSame(root, launcherPanel.getParent());
         UIElement autoBuildLauncher = assertElement(modularUI, TrinityDataCoreHostLauncherPanel.AUTO_BUILD_ID);
         assertSame(launcherPanel, autoBuildLauncher.getParent());
+        UIElement refundPanel = assertElement(modularUI, TrinityDataCoreRefundPanel.PANEL_ID);
+        assertSame(root, refundPanel.getParent());
+        UIElement refundPatterns = assertElement(modularUI, TrinityDataCoreRefundPanel.REFUND_PATTERNS_ID);
+        assertSame(refundPanel, refundPatterns.getParent());
+        UIElement refundRetainedItems = assertElement(modularUI, TrinityDataCoreRefundPanel.REFUND_RETAINED_ITEMS_ID);
+        assertSame(refundPanel, refundRetainedItems.getParent());
         menu.removed(player);
         assertTrue(menu.getHostUiExtension().isDisposed());
         menu.removed(player);

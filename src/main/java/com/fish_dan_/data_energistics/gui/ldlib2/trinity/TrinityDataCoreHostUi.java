@@ -102,6 +102,7 @@ public final class TrinityDataCoreHostUi {
                     PLAYER_INVENTORY_WIDTH));
             root.addChild(TrinityDataCoreStatusPanel.create(sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreStoragePanel.create(sync.storageStatusProvider()));
+            root.addChild(TrinityDataCoreRefundPanel.create(menu));
             InventorySlots playerInventorySlots = playerInventorySlots();
             root.addChild(playerInventorySlots);
             root.addChild(cpuList(menu, sync.cpuListStatusProvider(), sync.hostStatusProvider()));

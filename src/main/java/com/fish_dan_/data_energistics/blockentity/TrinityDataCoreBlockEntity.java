@@ -52,6 +52,7 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternCoreReloadEpo
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouter.PendingOutputCursor;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternOutputRouterImpl;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.TrinityRefundDeliveryImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
@@ -518,6 +519,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             setChanged();
         }
         return refunded;
+    }
+
+    @Override
+    public TrinityPatternCatalog.PatternRefundResult tryRefundPatterns(Player player) {
+        if (!this.patternCatalogValid) {
+            return TrinityPatternCatalog.PatternRefundResult.STALE;
+        }
+        TrinityPatternCatalog.PatternRefundResult result = this.patternCatalog.tryRefundPatterns(
+                new TrinityPatternRefundDeliveryImpl(player));
+        if (result.completed()) {
+            setChanged();
+            notifyTrinityPatternPublicationChanged();
+        }
+        return result;
     }
 
     @Override

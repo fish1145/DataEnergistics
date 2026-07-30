@@ -37,7 +37,6 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private static final String PENDING_OUTPUTS_TAG = "pending_outputs";
     private static final String PROTOTYPE_TAG = "prototype";
     private static final String RECIPE_ID_TAG = "recipe_id";
-    private static final String RESOLVED_TAG = "resolved";
     private static final String RESOLVER_ID_TAG = "resolver_id";
     private static final String ROUTE_TAG = "route";
     private static final String SLOT_TAG = "slot";
@@ -142,7 +141,6 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         this.pattern = normalized;
         this.installedDefinition = definition;
         this.decodedPattern = decoded;
-        rebindMatchingUnresolvedDefinitions(definition);
         collectUnusedDefinitions();
         changed(ChangeKind.CATALOG);
         changed(ChangeKind.PERSISTENT);
@@ -179,16 +177,10 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                 this.installedDefinition = findOrCreateDefinition(this.pattern, resolved.get());
                 this.decodedPattern = decoded;
                 persistentChange = true;
-                persistentChange |= rebindMatchingUnresolvedDefinitions(this.installedDefinition);
             } else if (!this.installedDefinition.matchesPattern(this.pattern)) {
                 this.decodedPattern = null;
-            } else if (!this.installedDefinition.resolved()) {
-                this.installedDefinition = upgradeInstalledDefinition(resolved.get());
-                this.decodedPattern = decoded;
-                persistentChange = true;
             } else if (this.installedDefinition.resolution().equals(resolved.get())) {
                 this.decodedPattern = decoded;
-                persistentChange = rebindMatchingUnresolvedDefinitions(this.installedDefinition);
             } else {
                 this.decodedPattern = null;
             }
@@ -211,7 +203,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         validateCount(count);
         ItemStack normalized = normalizePattern(patternSnapshot);
         if (this.pattern.isEmpty() || this.decodedPattern == null || this.installedDefinition == null ||
-                !this.installedDefinition.resolved() || !ItemStack.matches(this.pattern, normalized)) {
+                !ItemStack.matches(this.pattern, normalized)) {
             return false;
         }
         return enqueueResolved(
@@ -228,8 +220,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
                           long queuedTick,
                           long count) {
         validateCount(count);
-        if (this.decodedPattern == null || this.installedDefinition != expectedDefinition ||
-                !expectedDefinition.resolved()) {
+        if (this.decodedPattern == null || this.installedDefinition != expectedDefinition) {
             return false;
         }
         return enqueueResolved(route, expectedDefinition, inputs, queuedTick, count);
@@ -473,7 +464,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     @Override
-    public CompoundTag writeV2(HolderLookup.Provider registries) {
+    public CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
         data.putInt(SLOT_TAG, this.index);
         if (!this.pattern.isEmpty()) {
@@ -495,7 +486,46 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     }
 
     /**
-     * Atomically parses one V2 slot without mutating an existing core.
+     * Writes only the durable queued and pending-output state needed after an installed pattern is returned as a
+     * separate mining drop.
+     *
+     * <p>
+     * Queue definitions remain because batches refer to them, but the installed pattern and its definition are
+     * deliberately omitted. A restored core can therefore refund retained work without silently resuming it before
+     * a player installs a valid pattern again.
+     * </p>
+     *
+     * @param registries item component registry access
+     * @return complete slot state without an installed pattern
+     */
+    CompoundTag writeRetainedWorkToTag(HolderLookup.Provider registries) {
+        ensureNoPendingOutputCursor();
+        if (!hasQueuedWork() && !hasPendingOutputs()) {
+            throw new IllegalStateException("Cannot serialize an empty Trinity retained-work slot " + this.index);
+        }
+        CompoundTag data = new CompoundTag();
+        data.putInt(SLOT_TAG, this.index);
+
+        Set<Long> queuedDefinitionIds = new HashSet<>();
+        ListTag batchList = new ListTag();
+        for (TrinityCraftingBatch batch : this.queue) {
+            queuedDefinitionIds.add(batch.definition().id());
+            batchList.add(batch.writeToTag(registries));
+        }
+        ListTag definitionList = new ListTag();
+        for (TrinityPatternDefinition definition : this.definitions.values()) {
+            if (queuedDefinitionIds.contains(definition.id())) {
+                definitionList.add(writeDefinition(definition, registries));
+            }
+        }
+        data.put(DEFINITIONS_TAG, definitionList);
+        data.put(BATCHES_TAG, batchList);
+        data.put(PENDING_OUTPUTS_TAG, writePendingOutputs(registries));
+        return data;
+    }
+
+    /**
+     * Atomically parses one persisted slot without mutating an existing core.
      *
      * @param data              persisted slot unit
      * @param decoder           supported-pattern decoder
@@ -504,13 +534,13 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
      * @param registries        item component registry access
      * @return fully validated detached slot
      */
-    public static TrinityPatternSlotImpl readV2(CompoundTag data, TrinityPatternCore.PatternDecoder decoder,
-                                                TrinityPatternRecipeIdResolvers recipeIdResolvers,
-                                                ChangeListener changeListener,
-                                                HolderLookup.Provider registries) {
+    public static TrinityPatternSlotImpl readFromTag(CompoundTag data, TrinityPatternCore.PatternDecoder decoder,
+                                                     TrinityPatternRecipeIdResolvers recipeIdResolvers,
+                                                     ChangeListener changeListener,
+                                                     HolderLookup.Provider registries) {
         if (!data.contains(SLOT_TAG, Tag.TAG_INT) || !data.contains(DEFINITIONS_TAG, Tag.TAG_LIST) ||
                 !data.contains(BATCHES_TAG, Tag.TAG_LIST) || !data.contains(PENDING_OUTPUTS_TAG, Tag.TAG_LIST)) {
-            throw new IllegalArgumentException("V2 Trinity pattern slot is incomplete");
+            throw new IllegalArgumentException("Trinity pattern slot is incomplete");
         }
         TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
                 data.getInt(SLOT_TAG), decoder, recipeIdResolvers, changeListener);
@@ -526,88 +556,36 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         }
         boolean hasPattern = data.contains(PATTERN_TAG, Tag.TAG_COMPOUND);
         if (hasPattern != data.contains(INSTALLED_DEFINITION_ID_TAG, Tag.TAG_LONG)) {
-            throw new IllegalArgumentException("V2 Trinity pattern slot has an incomplete installed definition");
+            throw new IllegalArgumentException("Trinity pattern slot has an incomplete installed definition");
         }
         if (hasPattern) {
             slot.pattern = normalizePattern(ItemStack.parseOptional(registries, data.getCompound(PATTERN_TAG)));
             long installedId = data.getLong(INSTALLED_DEFINITION_ID_TAG);
             slot.installedDefinition = slot.requiredDefinition(installedId);
             if (!slot.installedDefinition.matchesPattern(slot.pattern)) {
-                throw new IllegalArgumentException("V2 installed pattern does not match its definition");
+                throw new IllegalArgumentException("Installed Trinity pattern does not match its definition");
             }
         }
         ListTag batchList = compoundList(data, BATCHES_TAG);
         for (int index = 0; index < batchList.size(); index++) {
             CompoundTag batchData = batchList.getCompound(index);
             if (!batchData.contains(DEFINITION_ID_TAG, Tag.TAG_LONG)) {
-                throw new IllegalArgumentException("V2 queued crafting group is missing its definition reference");
+                throw new IllegalArgumentException("Queued crafting group is missing its definition reference");
             }
             TrinityPatternDefinition definition = slot.requiredDefinition(batchData.getLong(DEFINITION_ID_TAG));
-            slot.queue.addLast(TrinityCraftingBatch.readV2(batchData, definition, registries));
+            slot.queue.addLast(TrinityCraftingBatch.readFromTag(batchData, definition, registries));
         }
         slot.readPendingOutputs(compoundList(data, PENDING_OUTPUTS_TAG), registries);
         slot.validateDefinitionReferences();
         if (hasPattern) {
-            if (slot.installedDefinition.resolved()) {
-                slot.bindValidatedInstalledPattern(validatedPatterns.get(slot.installedDefinition.id()));
-            } else {
-                slot.refreshPatternCache();
-            }
+            slot.bindValidatedInstalledPattern(validatedPatterns.get(slot.installedDefinition.id()));
         }
         slot.rebuildWorkMembership();
-        return slot;
-    }
-
-    /**
-     * Migrates one no-version V1 slot. Every V1 queue entry retains count one and mergeability disabled.
-     *
-     * @param index             physical slot index
-     * @param installedPattern  retained installed pattern
-     * @param v1Batches         ordered inline-pattern V1 queue entries
-     * @param decoder           supported-pattern decoder
-     * @param recipeIdResolvers recipe identity registry
-     * @param changeListener    typed owner callback
-     * @return detached migrated slot
-     */
-    public static TrinityPatternSlotImpl migrateV1(int index, ItemStack installedPattern,
-                                                   List<TrinityCraftingBatch.V1Data> v1Batches,
-                                                   TrinityPatternCore.PatternDecoder decoder,
-                                                   TrinityPatternRecipeIdResolvers recipeIdResolvers,
-                                                   ChangeListener changeListener) {
-        TrinityPatternSlotImpl slot = new TrinityPatternSlotImpl(
-                index, decoder, recipeIdResolvers, changeListener);
-        for (TrinityCraftingBatch.V1Data v1 : v1Batches) {
-            Optional<TrinityPatternRecipeIdResolvers.Resolution> resolution = slot.resolveV1Definition(v1.pattern());
-            TrinityPatternDefinition definition = slot.findOrCreateDefinition(
-                    v1.pattern(), resolution.orElse(null));
-            slot.queue.addLast(TrinityCraftingBatch.fromV1(v1, definition));
-        }
-        slot.pattern = normalizePattern(installedPattern);
-        if (!slot.pattern.isEmpty()) {
-            Optional<TrinityPatternRecipeIdResolvers.Resolution> resolution = slot.resolveV1Definition(slot.pattern);
-            slot.installedDefinition = slot.findOrCreateDefinition(slot.pattern, resolution.orElse(null));
-        }
-        slot.rebuildWorkMembership();
-        slot.refreshPatternCache();
         return slot;
     }
 
     boolean hasPersistentState() {
         return !this.pattern.isEmpty() || !this.queue.isEmpty() || !this.pendingOutputs.isEmpty();
-    }
-
-    void loadMigratedPendingOutputs(Map<PatternRoute, ? extends List<TrinityItemAmount>> outputs) {
-        if (!this.pendingOutputs.isEmpty()) {
-            throw new IllegalStateException("Migrated Trinity slot already contains pending outputs");
-        }
-        for (Map.Entry<PatternRoute, ? extends List<TrinityItemAmount>> entry : outputs.entrySet()) {
-            validateRoute(entry.getKey());
-            if (entry.getValue().isEmpty()) {
-                throw new IllegalArgumentException("Migrated Trinity pending-output route must not be empty");
-            }
-            this.pendingOutputs.put(entry.getKey(), new ArrayList<>(entry.getValue()));
-        }
-        rebuildPendingRouteHostCounts();
     }
 
     void ensureCanApplyValidatedState(TrinityPatternSlotImpl state) {
@@ -695,105 +673,43 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         notifyWorkMembershipChanged(previousWork);
     }
 
-    private Optional<TrinityPatternRecipeIdResolvers.Resolution> resolveV1Definition(ItemStack pattern) {
-        IMolecularAssemblerSupportedPattern decoded = this.decoder.decode(pattern);
-        return decoded == null ? Optional.empty() : this.recipeIdResolvers.resolve(decoded);
-    }
-
     private TrinityPatternDefinition findOrCreateDefinition(
-                                                            ItemStack pattern, @Nullable TrinityPatternRecipeIdResolvers.Resolution resolution) {
+                                                            ItemStack pattern, TrinityPatternRecipeIdResolvers.Resolution resolution) {
         for (TrinityPatternDefinition definition : this.definitions.values()) {
-            if (definition.matchesPattern(pattern) && resolutionsMatch(definition.resolution(), resolution)) {
+            if (definition.matchesPattern(pattern) && definition.resolution().equals(resolution)) {
                 return definition;
             }
         }
         long definitionId = this.nextDefinitionId;
         this.nextDefinitionId = Math.incrementExact(this.nextDefinitionId);
-        TrinityPatternDefinition definition = resolution == null ? TrinityPatternDefinition.unresolvedV1(definitionId, pattern) : TrinityPatternDefinition.resolved(definitionId, pattern, resolution);
+        TrinityPatternDefinition definition = TrinityPatternDefinition.resolved(definitionId, pattern, resolution);
         this.definitions.put(definitionId, definition);
         return definition;
     }
 
-    private TrinityPatternDefinition upgradeInstalledDefinition(
-                                                                TrinityPatternRecipeIdResolvers.Resolution resolution) {
-        TrinityPatternDefinition unresolved = this.installedDefinition;
-        TrinityPatternDefinition resolved = findDefinition(this.pattern, resolution).orElse(null);
-        if (resolved == null) {
-            resolved = TrinityPatternDefinition.resolved(unresolved.id(), this.pattern, resolution);
-            this.definitions.put(unresolved.id(), resolved);
-        }
-        rebindQueuedDefinition(unresolved, resolved);
-        rebindMatchingUnresolvedDefinitions(resolved);
-        return resolved;
-    }
-
-    private Optional<TrinityPatternDefinition> findDefinition(
-                                                              ItemStack pattern, @Nullable TrinityPatternRecipeIdResolvers.Resolution resolution) {
-        return this.definitions.values().stream()
-                .filter(definition -> definition.matchesPattern(pattern) &&
-                        resolutionsMatch(definition.resolution(), resolution))
-                .findFirst();
-    }
-
-    private boolean rebindMatchingUnresolvedDefinitions(TrinityPatternDefinition resolved) {
-        boolean rebound = false;
-        for (TrinityPatternDefinition definition : List.copyOf(this.definitions.values())) {
-            if (!definition.resolved() && definition.matchesPattern(resolved.pattern())) {
-                rebound |= rebindQueuedDefinition(definition, resolved);
-            }
-        }
-        return rebound;
-    }
-
-    private boolean rebindQueuedDefinition(TrinityPatternDefinition previous,
-                                           TrinityPatternDefinition replacement) {
-        boolean rebound = false;
-        ArrayDeque<TrinityCraftingBatch> reboundQueue = new ArrayDeque<>(this.queue.size());
-        for (TrinityCraftingBatch batch : this.queue) {
-            if (batch.definitionId() == previous.id()) {
-                reboundQueue.addLast(batch.withDefinition(replacement));
-                rebound = true;
-            } else {
-                reboundQueue.addLast(batch);
-            }
-        }
-        if (rebound) {
-            this.queue.clear();
-            this.queue.addAll(reboundQueue);
-        }
-        return rebound;
-    }
-
-    @Nullable
     private IMolecularAssemblerSupportedPattern validatePersistedDefinition(TrinityPatternDefinition definition) {
-        if (!definition.resolved()) {
-            return null;
-        }
         IMolecularAssemblerSupportedPattern decoded = this.decoder.decode(definition.pattern());
         Optional<TrinityPatternRecipeIdResolvers.Resolution> resolution = decoded == null ? Optional.empty() : this.recipeIdResolvers.resolve(decoded);
         if (resolution.isEmpty() || !resolution.get().equals(definition.resolution())) {
             throw new IllegalArgumentException(
-                    "V2 Trinity pattern definition " + definition.id() + " does not match its encoded recipe identity");
+                    "Trinity pattern definition " + definition.id() + " does not match its encoded recipe identity");
         }
         return decoded;
     }
 
     private void bindValidatedInstalledPattern(IMolecularAssemblerSupportedPattern decoded) {
         this.decodedPattern = decoded;
-        if (rebindMatchingUnresolvedDefinitions(this.installedDefinition)) {
-            collectUnusedDefinitions();
-        }
     }
 
     private void retainParsedDefinition(TrinityPatternDefinition definition) {
         if (this.definitions.containsKey(definition.id())) {
-            throw new IllegalArgumentException("Duplicate V2 Trinity pattern definition ID " + definition.id());
+            throw new IllegalArgumentException("Duplicate Trinity pattern definition ID " + definition.id());
         }
         for (TrinityPatternDefinition retained : this.definitions.values()) {
             if (retained.matchesPattern(definition.pattern()) &&
-                    resolutionsMatch(retained.resolution(), definition.resolution())) {
+                    retained.resolution().equals(definition.resolution())) {
                 throw new IllegalArgumentException(
-                        "Duplicate V2 Trinity pattern definition identity " + definition.id());
+                        "Duplicate Trinity pattern definition identity " + definition.id());
             }
         }
         retainDefinition(definition);
@@ -802,7 +718,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
     private void retainDefinition(TrinityPatternDefinition definition) {
         TrinityPatternDefinition previous = this.definitions.putIfAbsent(definition.id(), definition);
         if (previous != null && (!previous.matchesPattern(definition.pattern()) ||
-                !resolutionsMatch(previous.resolution(), definition.resolution()))) {
+                !previous.resolution().equals(definition.resolution()))) {
             throw new IllegalArgumentException("Conflicting Trinity pattern definition ID " + definition.id());
         }
         if (definition.id() >= this.nextDefinitionId) {
@@ -838,7 +754,7 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
             referenced.add(batch.definitionId());
         }
         if (!referenced.equals(this.definitions.keySet())) {
-            throw new IllegalArgumentException("V2 Trinity pattern slot contains unreferenced definitions");
+            throw new IllegalArgumentException("Trinity pattern slot contains unreferenced definitions");
         }
     }
 
@@ -865,28 +781,28 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
             CompoundTag groupData = groups.getCompound(groupIndex);
             if (!groupData.contains(ROUTE_TAG, Tag.TAG_COMPOUND)) {
-                throw new IllegalArgumentException("V2 Trinity pending-output group is missing its route");
+                throw new IllegalArgumentException("Trinity pending-output group is missing its route");
             }
             PatternRoute route = PatternRoute.readFromTag(groupData.getCompound(ROUTE_TAG));
             validateRoute(route);
             if (!populated.add(route)) {
-                throw new IllegalArgumentException("Duplicate V2 Trinity pending-output route " + route);
+                throw new IllegalArgumentException("Duplicate Trinity pending-output route " + route);
             }
             ListTag outputEntries = compoundList(groupData, OUTPUTS_TAG);
             if (outputEntries.isEmpty()) {
-                throw new IllegalArgumentException("V2 Trinity pending-output route " + route + " is empty");
+                throw new IllegalArgumentException("Trinity pending-output route " + route + " is empty");
             }
             ArrayList<TrinityItemAmount> outputs = new ArrayList<>(outputEntries.size());
             for (int outputIndex = 0; outputIndex < outputEntries.size(); outputIndex++) {
                 CompoundTag outputData = outputEntries.getCompound(outputIndex);
                 if (!outputData.contains(PROTOTYPE_TAG, Tag.TAG_COMPOUND) ||
                         !outputData.contains(AMOUNT_TAG, Tag.TAG_LONG)) {
-                    throw new IllegalArgumentException("V2 Trinity pending-output entry is incomplete");
+                    throw new IllegalArgumentException("Trinity pending-output entry is incomplete");
                 }
                 ItemStack prototype = ItemStack.parseOptional(registries, outputData.getCompound(PROTOTYPE_TAG));
                 if (prototype.isEmpty() || prototype.getCount() != 1) {
                     throw new IllegalArgumentException(
-                            "V2 Trinity pending-output prototype must contain exactly one item");
+                            "Trinity pending-output prototype must contain exactly one item");
                 }
                 outputs.add(TrinityItemAmount.of(prototype).withAmount(outputData.getLong(AMOUNT_TAG)));
             }
@@ -933,14 +849,6 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         this.queuedGroupsByHost.clear();
         for (TrinityCraftingBatch batch : this.queue) {
             incrementHostCount(this.queuedGroupsByHost, batch.route().hostId());
-        }
-        refreshWorkMembership();
-    }
-
-    private void rebuildPendingRouteHostCounts() {
-        this.pendingRoutesByHost.clear();
-        for (PatternRoute route : this.pendingOutputs.keySet()) {
-            incrementHostCount(this.pendingRoutesByHost, route.hostId());
         }
         refreshWorkMembership();
     }
@@ -1037,44 +945,30 @@ public final class TrinityPatternSlotImpl implements TrinityPatternSlot {
         CompoundTag data = new CompoundTag();
         data.putLong(DEFINITION_ID_TAG, definition.id());
         data.put(STACK_TAG, definition.pattern().saveOptional(registries));
-        data.putBoolean(RESOLVED_TAG, definition.resolved());
-        if (definition.resolved()) {
-            data.putString(RESOLVER_ID_TAG, definition.resolution().resolverId().toString());
-            data.putString(RECIPE_ID_TAG, definition.resolution().recipeId().toString());
-        }
+        data.putString(RESOLVER_ID_TAG, definition.resolution().resolverId().toString());
+        data.putString(RECIPE_ID_TAG, definition.resolution().recipeId().toString());
         return data;
     }
 
     private static TrinityPatternDefinition readDefinition(CompoundTag data, HolderLookup.Provider registries) {
         if (!data.contains(DEFINITION_ID_TAG, Tag.TAG_LONG) || !data.contains(STACK_TAG, Tag.TAG_COMPOUND) ||
-                !data.contains(RESOLVED_TAG, Tag.TAG_BYTE)) {
-            throw new IllegalArgumentException("V2 Trinity pattern definition is incomplete");
+                !data.contains(RESOLVER_ID_TAG, Tag.TAG_STRING) || !data.contains(RECIPE_ID_TAG, Tag.TAG_STRING)) {
+            throw new IllegalArgumentException("Trinity pattern definition is incomplete");
         }
-        boolean resolved = data.getBoolean(RESOLVED_TAG);
-        boolean hasResolver = data.contains(RESOLVER_ID_TAG, Tag.TAG_STRING);
-        boolean hasRecipe = data.contains(RECIPE_ID_TAG, Tag.TAG_STRING);
-        if (resolved != hasResolver || resolved != hasRecipe) {
-            throw new IllegalArgumentException("V2 Trinity pattern definition has inconsistent resolution fields");
-        }
-        TrinityPatternRecipeIdResolvers.Resolution resolution = resolved ? new TrinityPatternRecipeIdResolvers.Resolution(
+        TrinityPatternRecipeIdResolvers.Resolution resolution = new TrinityPatternRecipeIdResolvers.Resolution(
                 ResourceLocation.parse(data.getString(RESOLVER_ID_TAG)),
-                ResourceLocation.parse(data.getString(RECIPE_ID_TAG))) : null;
+                ResourceLocation.parse(data.getString(RECIPE_ID_TAG)));
         long definitionId = data.getLong(DEFINITION_ID_TAG);
         ItemStack pattern = normalizePattern(ItemStack.parseOptional(registries, data.getCompound(STACK_TAG)));
-        return resolved ? TrinityPatternDefinition.resolved(definitionId, pattern, resolution) : TrinityPatternDefinition.unresolvedV1(definitionId, pattern);
+        return TrinityPatternDefinition.resolved(definitionId, pattern, resolution);
     }
 
     private static ListTag compoundList(CompoundTag data, String name) {
         if (!(data.get(name) instanceof ListTag entries) ||
                 !entries.isEmpty() && entries.getElementType() != Tag.TAG_COMPOUND) {
-            throw new IllegalArgumentException("V2 Trinity pattern slot requires compound list '" + name + "'");
+            throw new IllegalArgumentException("Trinity pattern slot requires compound list '" + name + "'");
         }
         return entries;
-    }
-
-    private static boolean resolutionsMatch(@Nullable TrinityPatternRecipeIdResolvers.Resolution first,
-                                            @Nullable TrinityPatternRecipeIdResolvers.Resolution second) {
-        return first == null ? second == null : first.equals(second);
     }
 
     private static boolean stackListsMatch(List<ItemStack> first, List<ItemStack> second) {

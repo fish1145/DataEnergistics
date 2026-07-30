@@ -588,5 +588,15 @@
 	"button.data_energistics.trinity_data_core.refund": "退还排队合成内容",
 	"button.data_energistics.trinity_data_core.refund.hint": "退还排队输入和待输出物品，依次写入 AE 存储、背包和地面；已安装样板保持不变",
 	"message.data_energistics.trinity_data_core.refund.success": "已退还三位一体数位化核心的排队合成内容",
-	"message.data_energistics.trinity_data_core.refund.failure": "没有可退还的排队输入或待输出物品"
+	"message.data_energistics.trinity_data_core.refund.failure": "没有可退还的排队输入或待输出物品",
+	"button.data_energistics.trinity_data_core.refund_patterns": "回退样板",
+	"button.data_energistics.trinity_data_core.refund_retained_items": "回退留存物品",
+	"message.data_energistics.trinity_data_core.refund.subject.patterns": "样板",
+	"message.data_energistics.trinity_data_core.refund.subject.retained_items": "留存物品",
+	"message.data_energistics.trinity_data_core.refund.completed": "已回退%s",
+	"message.data_energistics.trinity_data_core.refund.no_op": "没有可回退的%s",
+	"message.data_energistics.trinity_data_core.refund.stale_state": "%s状态已变化，未执行回退",
+	"message.data_energistics.trinity_data_core.refund.delivery_failed": "无法回退%s，未执行回退",
+	"message.data_energistics.trinity_data_core.refund.internal_error": "回退%s时发生内部错误",
+	"message.data_energistics.trinity_data_core.refund.rejected": "回退%s的请求已被拒绝"
 }

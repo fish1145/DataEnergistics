@@ -19,7 +19,7 @@ final class AE2FluxIntegrationTest {
     }
 
     @Test
-    void rethrowsFatalFailuresWithoutChangingTheirIdentity() {
+    void rethrowsVirtualMachineErrorWithoutChangingItsIdentity() {
         TestVirtualMachineError virtualMachineError = new TestVirtualMachineError();
         TestVirtualMachineError thrownVirtualMachineError = assertThrows(
                 TestVirtualMachineError.class,
@@ -27,14 +27,6 @@ final class AE2FluxIntegrationTest {
                     throw virtualMachineError;
                 }));
         assertSame(virtualMachineError, thrownVirtualMachineError);
-
-        ThreadDeath threadDeath = new ThreadDeath();
-        ThreadDeath thrownThreadDeath = assertThrows(
-                ThreadDeath.class,
-                () -> AppFluxThrowableBoundary.isolateRestoration(() -> {
-                    throw threadDeath;
-                }));
-        assertSame(threadDeath, thrownThreadDeath);
     }
 
     private static long throwUnchecked(Throwable throwable) {

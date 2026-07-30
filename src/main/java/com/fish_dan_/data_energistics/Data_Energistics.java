@@ -60,7 +60,6 @@ public class Data_Energistics {
         return ModList.get().isLoaded(modId);
     }
 
-    @SuppressWarnings("ConstantValue")
     public static boolean isClientThread() {
         if (!isClientSide()) {
             return false;

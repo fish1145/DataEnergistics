@@ -12,8 +12,16 @@ public enum TrinityHostedActionStatus {
      * </p>
      */
     COMPLETED(0),
-    /** The request was rejected or its business entry point failed before completing normally. */
-    REJECTED(1);
+    /** The request was rejected before its business entry point could complete. */
+    REJECTED(1),
+    /** The action was valid but no matching state remained to return. */
+    NO_OP(2),
+    /** The host, menu session, catalog, or replay state was no longer current. */
+    STALE_STATE(3),
+    /** Delivery could not be prepared or completed without risking a partial return. */
+    DELIVERY_FAILED(4),
+    /** A server-side action or response boundary failed unexpectedly. */
+    INTERNAL_ERROR(5);
 
     private final int networkId;
 

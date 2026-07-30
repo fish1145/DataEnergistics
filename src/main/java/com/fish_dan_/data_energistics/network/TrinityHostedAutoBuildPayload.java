@@ -10,8 +10,12 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** C2S revision-bound auto-build action from one exact automatic-build window generation. */
+import java.util.UUID;
+
+/** C2S revision-bound auto-build action from one exact host and menu session. */
 public record TrinityHostedAutoBuildPayload(int containerId,
+                                            UUID hostId,
+                                            UUID menuSessionId,
                                             long generation,
                                             long actionSequence,
                                             TrinityAutoBuildSubmission submission)
@@ -23,8 +27,9 @@ public record TrinityHostedAutoBuildPayload(int containerId,
 
     /** Rejects invalid envelope and ticket values before transport. */
     public TrinityHostedAutoBuildPayload {
-        if (containerId < 0 || containerId > TrinityHostedActionPayloadCodec.MAX_CONTAINER_ID) {
-            throw new IllegalArgumentException("Invalid Trinity hosted auto-build container id: " + containerId);
+        if (containerId < 0 || containerId > TrinityHostedActionPayloadCodec.MAX_CONTAINER_ID || hostId == null ||
+                menuSessionId == null) {
+            throw new IllegalArgumentException("Invalid Trinity hosted auto-build envelope");
         }
         new TrinityHostedActionTicket(TrinityDataCoreHostUiKeys.AUTO_BUILD, generation, actionSequence);
         if (submission == null) {
@@ -35,6 +40,8 @@ public record TrinityHostedAutoBuildPayload(int containerId,
     private TrinityHostedAutoBuildPayload(RegistryFriendlyByteBuf buffer) {
         this(
                 TrinityHostedActionPayloadCodec.readContainerId(buffer),
+                TrinityHostedActionPayloadCodec.readUuid(buffer, "host id"),
+                TrinityHostedActionPayloadCodec.readUuid(buffer, "menu session id"),
                 TrinityHostedActionPayloadCodec.readGeneration(buffer),
                 TrinityHostedActionPayloadCodec.readSequence(buffer),
                 TrinityHostedActionPayloadCodec.readSubmission(buffer));
@@ -43,6 +50,8 @@ public record TrinityHostedAutoBuildPayload(int containerId,
 
     private void write(RegistryFriendlyByteBuf buffer) {
         TrinityHostedActionPayloadCodec.writeContainerId(buffer, this.containerId);
+        TrinityHostedActionPayloadCodec.writeUuid(buffer, this.hostId, "host id");
+        TrinityHostedActionPayloadCodec.writeUuid(buffer, this.menuSessionId, "menu session id");
         TrinityHostedActionPayloadCodec.writeTicket(buffer, this.generation, this.actionSequence);
         TrinityHostedActionPayloadCodec.writeSubmission(buffer, this.submission);
     }

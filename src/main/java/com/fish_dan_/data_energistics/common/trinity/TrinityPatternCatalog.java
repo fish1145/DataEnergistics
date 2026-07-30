@@ -20,6 +20,48 @@ import java.util.UUID;
 public interface TrinityPatternCatalog {
 
     /**
+     * Final outcome of one host-wide installed-pattern refund transaction.
+     */
+    enum PatternRefundResult {
+
+        /**
+         * Every captured installed pattern was cleared and delivered.
+         */
+        COMPLETED,
+        /**
+         * The active aggregate contained no installed patterns.
+         */
+        NO_PATTERNS,
+        /**
+         * At least one mounted core retained queued input or pending output.
+         */
+        BLOCKED_BY_WORK,
+        /**
+         * The captured layout, mounted-core identity, or exact slot state became stale before completion.
+         */
+        STALE,
+        /**
+         * The destination rejected the aggregate during its side-effect-free preparation.
+         */
+        DELIVERY_REJECTED,
+        /**
+         * The destination failed while preparing or delivering the aggregate.
+         */
+        DELIVERY_FAILED,
+        /**
+         * An unexpected core, catalog, or publication failure aborted the transaction.
+         */
+        INTERNAL_ERROR;
+
+        /**
+         * @return whether the transaction completed and delivery returned normally
+         */
+        public boolean completed() {
+            return this == COMPLETED;
+        }
+    }
+
+    /**
      * Describes one core found during a host structure scan.
      *
      * @param position      world position used for deterministic ordering and diagnostics
@@ -28,7 +70,9 @@ public interface TrinityPatternCatalog {
      */
     record CoreMount(BlockPos position, int blockCapacity, TrinityPatternCore core) {
 
-        /** Validates a scanned mount before it can enter a catalog. */
+        /**
+         * Validates a scanned mount before it can enter a catalog.
+         */
         public CoreMount {
             if (blockCapacity <= 0) {
                 throw new IllegalArgumentException("A Trinity pattern core mount requires a positive block capacity");
@@ -50,7 +94,9 @@ public interface TrinityPatternCatalog {
                      int firstGlobalIndex,
                      int lastGlobalIndexExclusive) {
 
-        /** Ensures the published range is positive and exactly covers its declared core capacity. */
+        /**
+         * Ensures the published range is positive and exactly covers its declared core capacity.
+         */
         public CoreRange {
             if (!coreId.equals(mount.core().coreId()) ||
                     firstGlobalIndex < 0 || lastGlobalIndexExclusive <= firstGlobalIndex ||
@@ -84,7 +130,9 @@ public interface TrinityPatternCatalog {
                           List<CoreMount> mounts,
                           List<CoreRange> ranges) {
 
-        /** Copies collection components and verifies that active ranges form one gap-free global index space. */
+        /**
+         * Copies collection components and verifies that active ranges form one gap-free global index space.
+         */
         public LayoutSnapshot {
             if (revision < 0L || slotCount < 0) {
                 throw new IllegalArgumentException("A Trinity pattern layout requires non-negative revision and size");
@@ -124,7 +172,9 @@ public interface TrinityPatternCatalog {
      */
     record GlobalSlot(long layoutRevision, int globalIndex, CoreRange range, int coreSlot) {
 
-        /** Ensures the resolved physical and global indexes identify the same slot. */
+        /**
+         * Ensures the resolved physical and global indexes identify the same slot.
+         */
         public GlobalSlot {
             if (!range.contains(globalIndex) ||
                     coreSlot != globalIndex - range.firstGlobalIndex()) {
@@ -155,7 +205,9 @@ public interface TrinityPatternCatalog {
      */
     record ActiveSlot(int globalIndex, CoreMount mount, PatternRoute route, TrinityPatternSlot slot) {
 
-        /** Validates that every identity component describes the same mounted physical slot. */
+        /**
+         * Validates that every identity component describes the same mounted physical slot.
+         */
         public ActiveSlot {
             if (globalIndex < 0 || route.slot() != slot.index() || route.slot() >= mount.blockCapacity() ||
                     !route.coreId().equals(mount.core().coreId())) {
@@ -188,7 +240,9 @@ public interface TrinityPatternCatalog {
      */
     record RebuildResult(boolean valid, boolean changed, @Nullable BlockPos failurePosition, String failureReason) {
 
-        /** Validates that success and failure diagnostics cannot contradict each other. */
+        /**
+         * Validates that success and failure diagnostics cannot contradict each other.
+         */
         public RebuildResult {
             if (valid && (failurePosition != null || !failureReason.isEmpty())) {
                 throw new IllegalArgumentException("A successful Trinity pattern catalog rebuild cannot have a failure");
@@ -343,6 +397,20 @@ public interface TrinityPatternCatalog {
     boolean hasRefundableState();
 
     /**
+     * Atomically returns every installed encoded pattern from the current active aggregate.
+     *
+     * <p>
+     * This transaction is intentionally separate from {@link #tryRefundAll(TrinityRefundDelivery)}. It refuses to
+     * clear any pattern while any mounted core retains queued input or pending output, and never converts patterns
+     * into {@link TrinityItemAmount} entries.
+     * </p>
+     *
+     * @param delivery two-phase inventory and world-drop destination for the complete installed-pattern aggregate
+     * @return precise final outcome, including no-op, stale-state, and delivery failure cases
+     */
+    PatternRefundResult tryRefundPatterns(TrinityPatternRefundDelivery delivery);
+
+    /**
      * Atomically returns every queued input and pending output from every core in the current active aggregate.
      *
      * <p>
@@ -355,9 +423,13 @@ public interface TrinityPatternCatalog {
      */
     boolean tryRefundAll(TrinityRefundDelivery delivery);
 
-    /** Invalidates every public mount and slot reference while retaining cores solely for pending-work detection. */
+    /**
+     * Invalidates every public mount and slot reference while retaining cores solely for pending-work detection.
+     */
     void invalidateLayout();
 
-    /** Permanently releases public layout, retained work references, and pattern caches. */
+    /**
+     * Permanently releases public layout, retained work references, and pattern caches.
+     */
     void clear();
 }

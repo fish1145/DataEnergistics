@@ -16,6 +16,8 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKe
 import com.fish_dan_.data_energistics.network.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
 import com.fish_dan_.data_energistics.network.TrinityOpenCpuStatusPayload;
+import com.fish_dan_.data_energistics.network.TrinityRefundPatternsPayload;
+import com.fish_dan_.data_energistics.network.TrinityRefundRetainedItemsPayload;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 
@@ -41,9 +43,13 @@ import java.util.function.Function;
 
 public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUiCoordinatorHolder {
 
+    private static final long STATIC_ACTION_GENERATION = 1L;
+
     private final Inventory playerInventory;
     @Nullable
     private final TrinityDataCoreMenuHost host;
+    private final UUID hostId;
+    private final UUID menuSessionId;
     private final Consumer<CustomPacketPayload> hostedActionSink;
     private final TrinityHostedActionExecutor hostedActionExecutor;
     private final Map<HostUiKey, ClientHostedActionState> clientHostedActions = new HashMap<>();
@@ -67,14 +73,25 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
             return false;
         }
         try {
+            UUID hostId = host.getHostId();
+            UUID menuSessionId = UUID.randomUUID();
             boolean opened = player.openMenu(
                     new SimpleMenuProvider(
                             (containerId, inventory, menuPlayer) -> new TrinityDataCoreMenu(
                                     containerId,
                                     inventory,
-                                    host),
+                                    host,
+                                    hostId,
+                                    menuSessionId,
+                                    PacketDistributor::sendToServer,
+                                    new TrinityHostedActionExecutorImpl(host),
+                                    null),
                             host.getBlockState().getBlock().getName()),
-                    buffer -> buffer.writeBlockPos(host.getBlockPos())).isPresent();
+                    buffer -> {
+                        buffer.writeBlockPos(host.getBlockPos());
+                        buffer.writeUUID(hostId);
+                        buffer.writeUUID(menuSessionId);
+                    }).isPresent();
             if (!opened) {
                 Data_Energistics.LOGGER.error(
                         "Failed to open the Trinity Data Core menu: player={}, host={}, position={}",
@@ -103,6 +120,23 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                 new TrinityHostedActionExecutorImpl(host));
     }
 
+    /** Creates the client menu from the exact host and session identities written by the server opening path. */
+    public TrinityDataCoreMenu(int id,
+                               Inventory playerInventory,
+                               @Nullable TrinityDataCoreMenuHost host,
+                               UUID hostId,
+                               UUID menuSessionId) {
+        this(
+                id,
+                playerInventory,
+                host,
+                hostId,
+                menuSessionId,
+                PacketDistributor::sendToServer,
+                new TrinityHostedActionExecutorImpl(host),
+                null);
+    }
+
     /**
      * Creates a menu with injectable hosted business and transport boundaries for direct protocol tests.
      */
@@ -111,7 +145,15 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         @Nullable TrinityDataCoreMenuHost host,
                         Consumer<CustomPacketPayload> hostedActionSink,
                         TrinityHostedActionExecutor hostedActionExecutor) {
-        this(id, playerInventory, host, hostedActionSink, hostedActionExecutor, null);
+        this(
+                id,
+                playerInventory,
+                host,
+                host == null ? UUID.randomUUID() : host.getHostId(),
+                UUID.randomUUID(),
+                hostedActionSink,
+                hostedActionExecutor,
+                null);
     }
 
     /**
@@ -123,12 +165,37 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                         Consumer<CustomPacketPayload> hostedActionSink,
                         TrinityHostedActionExecutor hostedActionExecutor,
                         @Nullable Consumer<HostUiExtension> additionalProviderRegistrar) {
+        this(
+                id,
+                playerInventory,
+                host,
+                host == null ? UUID.randomUUID() : host.getHostId(),
+                UUID.randomUUID(),
+                hostedActionSink,
+                hostedActionExecutor,
+                additionalProviderRegistrar);
+    }
+
+    /**
+     * Creates one menu bound to the exact server-issued host and opening session identities.
+     */
+    TrinityDataCoreMenu(int id,
+                        Inventory playerInventory,
+                        @Nullable TrinityDataCoreMenuHost host,
+                        UUID hostId,
+                        UUID menuSessionId,
+                        Consumer<CustomPacketPayload> hostedActionSink,
+                        TrinityHostedActionExecutor hostedActionExecutor,
+                        @Nullable Consumer<HostUiExtension> additionalProviderRegistrar) {
         super(ModMenus.TRINITY_DATA_CORE.get(), id);
-        if (playerInventory == null || hostedActionSink == null || hostedActionExecutor == null) {
-            throw new IllegalArgumentException("Trinity menu inventory and hosted action collaborators cannot be null");
+        if (playerInventory == null || hostId == null || menuSessionId == null || hostedActionSink == null ||
+                hostedActionExecutor == null) {
+            throw new IllegalArgumentException("Trinity menu identities and hosted action collaborators cannot be null");
         }
         this.playerInventory = playerInventory;
         this.host = host;
+        this.hostId = hostId;
+        this.menuSessionId = menuSessionId;
         this.hostedActionSink = hostedActionSink;
         this.hostedActionExecutor = hostedActionExecutor;
         this.hostUiCoordinator = TrinityDataCoreHostUi.mount(this, hostUi -> playerInventory.player.level().isClientSide ?
@@ -206,6 +273,21 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         return this.host;
     }
 
+    /** Returns the persistent controller identity sent when this exact menu was opened. */
+    public UUID getHostId() {
+        return this.hostId;
+    }
+
+    /** Returns the unique non-persistent identity for this one open menu lifecycle. */
+    public UUID getMenuSessionId() {
+        return this.menuSessionId;
+    }
+
+    /** Matches an ACK envelope only when it belongs to this host and this open-menu lifecycle. */
+    public boolean matchesHostedActionEnvelope(UUID hostId, UUID menuSessionId) {
+        return this.hostId.equals(hostId) && this.menuSessionId.equals(menuSessionId);
+    }
+
     /** Sends one stable CPU selection with the host identity received through the LDLib2 status channel. */
     public boolean sendOpenCpuStatus(UUID syncedHostId, int cpuNumber) {
         if (syncedHostId == null) {
@@ -249,9 +331,33 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                 generation,
                 ticket -> new TrinityHostedAutoBuildPayload(
                         this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
                         ticket.generation(),
                         ticket.sequence(),
                         submission));
+    }
+
+    /** Sends the static action that returns only installed patterns from the active catalog. */
+    public boolean sendRefundPatterns() {
+        return sendStaticAction(
+                TrinityDataCoreHostUiKeys.REFUND_PATTERNS,
+                ticket -> new TrinityRefundPatternsPayload(
+                        this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
+                        ticket.sequence()));
+    }
+
+    /** Sends the static action that returns queued inputs and pending outputs without clearing patterns. */
+    public boolean sendRefundRetainedItems() {
+        return sendStaticAction(
+                TrinityDataCoreHostUiKeys.REFUND_RETAINED_ITEMS,
+                ticket -> new TrinityRefundRetainedItemsPayload(
+                        this.containerId,
+                        this.hostId,
+                        this.menuSessionId,
+                        ticket.sequence()));
     }
 
     /**
@@ -298,6 +404,16 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         return true;
     }
 
+    /** Rejects an ACK from any replaced host or prior menu opening before touching pending action state. */
+    public boolean handleHostedActionResponse(UUID hostId,
+                                              UUID menuSessionId,
+                                              TrinityHostedActionResult result) {
+        if (hostId == null || menuSessionId == null) {
+            throw new IllegalArgumentException("Trinity hosted action response identities cannot be null");
+        }
+        return matchesHostedActionEnvelope(hostId, menuSessionId) && handleHostedActionResponse(result);
+    }
+
     /**
      * Claims a server action sequence after routing, host availability, and open-generation checks succeed.
      *
@@ -305,7 +421,7 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
      * @return whether the sequence is newer than every accepted request in this key and generation
      */
     public boolean claimHostedActionSequence(TrinityHostedActionTicket ticket) {
-        requireHostedActionKey(ticket.key());
+        requireActionKey(ticket.key());
         ServerHostedActionState state = this.serverHostedActions.computeIfAbsent(
                 ticket.key(),
                 ignored -> new ServerHostedActionState());
@@ -325,14 +441,43 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         this.hostedActionExecutor.autoBuild(player, request);
     }
 
+    /** Executes the server-authoritative installed-pattern refund after the request ticket was claimed. */
+    public TrinityHostedActionStatus executeRefundPatterns(Player player) {
+        return this.hostedActionExecutor.refundPatterns(player);
+    }
+
+    /** Executes the server-authoritative queued-input and pending-output refund after ticket claim. */
+    public TrinityHostedActionStatus executeRefundRetainedItems(Player player) {
+        return this.hostedActionExecutor.refundRetainedItems(player);
+    }
+
     private boolean sendHostedAction(HostUiKey key,
                                      long generation,
                                      Function<TrinityHostedActionTicket, CustomPacketPayload> payloadFactory) {
-        requireHostedActionKey(key);
+        requireHostedWindowActionKey(key);
         if (this.hostUiCoordinator.isTerminal() || this.hostUiCoordinator.pendingRequest() != null ||
                 !this.hostUiCoordinator.hostUi().isOpen(key, generation)) {
             return false;
         }
+        return sendAction(key, generation, payloadFactory);
+    }
+
+    /** Sends an always-mounted menu action without pretending it belongs to a hosted child window. */
+    private boolean sendStaticAction(HostUiKey key,
+                                     Function<TrinityHostedActionTicket, CustomPacketPayload> payloadFactory) {
+        requireStaticActionKey(key);
+        Player player = getPlayer();
+        if (this.host == null || player.containerMenu != this || !stillValid(player)) {
+            return false;
+        }
+        return sendAction(key, STATIC_ACTION_GENERATION, payloadFactory);
+    }
+
+    /** Allocates one isolated action ticket and clears it only when its exact response arrives. */
+    private boolean sendAction(HostUiKey key,
+                               long generation,
+                               Function<TrinityHostedActionTicket, CustomPacketPayload> payloadFactory) {
+        requireActionKey(key);
         ClientHostedActionState state = this.clientHostedActions.computeIfAbsent(
                 key,
                 ignored -> new ClientHostedActionState());
@@ -348,13 +493,13 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         try {
             this.hostedActionSink.accept(payloadFactory.apply(ticket));
             return true;
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             state.pending = null;
             state.result = new TrinityHostedActionResult(
                     key,
                     generation,
                     ticket.sequence(),
-                    TrinityHostedActionStatus.REJECTED);
+                    TrinityHostedActionStatus.INTERNAL_ERROR);
             Data_Energistics.LOGGER.error(
                     "Failed to send Trinity hosted action for player {}, menu {}, host {}, key {}, generation {}, sequence {}",
                     getPlayer().getName().getString(),
@@ -368,9 +513,26 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
         }
     }
 
-    private static void requireHostedActionKey(HostUiKey key) {
-        if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key)) {
+    private static void requireActionKey(HostUiKey key) {
+        if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key) &&
+                !TrinityDataCoreHostUiKeys.REFUND_PATTERNS.equals(key) &&
+                !TrinityDataCoreHostUiKeys.REFUND_RETAINED_ITEMS.equals(key)) {
             throw new IllegalArgumentException("Unsupported Trinity hosted action key: " + key);
+        }
+    }
+
+    private static void requireHostedWindowActionKey(HostUiKey key) {
+        requireActionKey(key);
+        if (!TrinityDataCoreHostUiKeys.AUTO_BUILD.equals(key)) {
+            throw new IllegalArgumentException("Trinity action does not own a hosted child window: " + key);
+        }
+    }
+
+    private static void requireStaticActionKey(HostUiKey key) {
+        requireActionKey(key);
+        if (!TrinityDataCoreHostUiKeys.REFUND_PATTERNS.equals(key) &&
+                !TrinityDataCoreHostUiKeys.REFUND_RETAINED_ITEMS.equals(key)) {
+            throw new IllegalArgumentException("Trinity action is not a static menu action: " + key);
         }
     }
 
@@ -427,6 +589,12 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
 
         /** Invokes one existing atomic automatic-build attempt. */
         void autoBuild(Player player, TrinityAutoBuildRequest request);
+
+        /** Invokes one complete installed-pattern refund attempt. */
+        TrinityHostedActionStatus refundPatterns(Player player);
+
+        /** Invokes one complete queued-input and pending-output refund attempt. */
+        TrinityHostedActionStatus refundRetainedItems(Player player);
     }
 
     /** Production business adapter for the exact menu host captured during construction. */
@@ -439,6 +607,33 @@ public class TrinityDataCoreMenu extends AbstractContainerMenu implements HostUi
                 throw new IllegalStateException("Trinity hosted auto-build requires a data core block entity host");
             }
             dataCore.autoBuildTrinityStructure(player, request);
+        }
+
+        @Override
+        public TrinityHostedActionStatus refundPatterns(Player player) {
+            if (this.host == null) {
+                throw new IllegalStateException("Trinity installed-pattern refund requires a data core host");
+            }
+            return switch (this.host.tryRefundPatterns(player)) {
+                case COMPLETED -> TrinityHostedActionStatus.COMPLETED;
+                case NO_PATTERNS -> TrinityHostedActionStatus.NO_OP;
+                case BLOCKED_BY_WORK, STALE -> TrinityHostedActionStatus.STALE_STATE;
+                case DELIVERY_REJECTED, DELIVERY_FAILED -> TrinityHostedActionStatus.DELIVERY_FAILED;
+                case INTERNAL_ERROR -> TrinityHostedActionStatus.INTERNAL_ERROR;
+            };
+        }
+
+        @Override
+        public TrinityHostedActionStatus refundRetainedItems(Player player) {
+            if (this.host == null) {
+                throw new IllegalStateException("Trinity retained-item refund requires a data core host");
+            }
+            if (!this.host.hasRefundablePatternState()) {
+                return this.host.isCraftingStructureFormed() ?
+                        TrinityHostedActionStatus.NO_OP : TrinityHostedActionStatus.STALE_STATE;
+            }
+            return this.host.tryRefundAll(player) ?
+                    TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.DELIVERY_FAILED;
         }
     }
 

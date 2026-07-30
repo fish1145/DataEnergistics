@@ -24,6 +24,8 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.TrinityDataCoreHostUiKe
 import com.fish_dan_.data_energistics.network.TrinityHostedActionPayloadHandler;
 import com.fish_dan_.data_energistics.network.TrinityHostedActionResponsePayload;
 import com.fish_dan_.data_energistics.network.TrinityHostedAutoBuildPayload;
+import com.fish_dan_.data_energistics.network.TrinityRefundPatternsPayload;
+import com.fish_dan_.data_energistics.network.TrinityRefundRetainedItemsPayload;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModVerticalMultiBlocks;
 
@@ -145,6 +147,8 @@ public final class TrinityHostedActionGameTest {
 
         TrinityHostedAutoBuildPayload valid = new TrinityHostedAutoBuildPayload(
                 82,
+                fixture.menu().getHostId(),
+                fixture.menu().getMenuSessionId(),
                 1L,
                 sequence,
                 new TrinityAutoBuildSubmission(validFingerprint, true));
@@ -158,6 +162,8 @@ public final class TrinityHostedActionGameTest {
 
         TrinityHostedAutoBuildPayload noBuild = new TrinityHostedAutoBuildPayload(
                 82,
+                fixture.menu().getHostId(),
+                fixture.menu().getMenuSessionId(),
                 1L,
                 sequence + 1L,
                 new TrinityAutoBuildSubmission(validFingerprint, false));
@@ -169,6 +175,109 @@ public final class TrinityHostedActionGameTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_hosted_refund_actions_isolate_menu_sessions")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void refundActionsIsolateMenuSessions(GameTestHelper helper) {
+        Fixture fixture = fixture(helper, new BlockPos(3, 1, 3), 84);
+        List<TrinityHostedActionResponsePayload> responses = new ArrayList<>();
+
+        assertTrue(fixture.menu().sendRefundPatterns());
+        TrinityRefundPatternsPayload patternRequest = requireRefundPatterns(fixture.outbound().getLast());
+        assertEquals(1L, patternRequest.actionSequence());
+        TrinityHostedActionPayloadHandler.handleRefundPatterns(
+                new TrinityRefundPatternsPayload(
+                        patternRequest.containerId() + 1,
+                        patternRequest.hostId(),
+                        patternRequest.menuSessionId(),
+                        patternRequest.actionSequence()),
+                fixture.player(),
+                responses::add);
+        assertEquals(0, fixture.executor().refundPatternsCount);
+        assertStatus(responses.getLast(), TrinityHostedActionStatus.STALE_STATE);
+
+        TrinityHostedActionPayloadHandler.handleRefundPatterns(patternRequest, fixture.player(), responses::add);
+        assertEquals(1, fixture.executor().refundPatternsCount);
+        TrinityHostedActionResponsePayload patternResponse = responses.getLast();
+        assertStatus(patternResponse, TrinityHostedActionStatus.COMPLETED);
+
+        assertTrue(fixture.menu().sendRefundRetainedItems());
+        TrinityRefundRetainedItemsPayload retainedItemsRequest = requireRefundRetainedItems(fixture.outbound().getLast());
+        assertEquals(1L, retainedItemsRequest.actionSequence());
+        TrinityHostedActionPayloadHandler.handleRefundRetainedItems(retainedItemsRequest, fixture.player(), responses::add);
+        assertEquals(1, fixture.executor().refundRetainedItemsCount);
+        assertStatus(responses.getLast(), TrinityHostedActionStatus.COMPLETED);
+
+        TrinityDataCoreMenu oldMenu = fixture.menu();
+        TrinityDataCoreMenu replacementMenu = new TrinityDataCoreMenu(
+                oldMenu.containerId,
+                fixture.player().getInventory(),
+                oldMenu.getHost(),
+                oldMenu.getHostId(),
+                UUID.randomUUID(),
+                fixture.outbound()::add,
+                fixture.executor(),
+                TrinityHostedActionGameTest::registerProviders);
+        fixture.player().containerMenu = replacementMenu;
+        assertTrue(replacementMenu.isHostUiAvailable(fixture.player()));
+
+        TrinityHostedActionPayloadHandler.handleRefundPatterns(
+                new TrinityRefundPatternsPayload(
+                        oldMenu.containerId,
+                        oldMenu.getHostId(),
+                        oldMenu.getMenuSessionId(),
+                        2L),
+                fixture.player(),
+                responses::add);
+        assertEquals(1, fixture.executor().refundPatternsCount);
+        assertStatus(responses.getLast(), TrinityHostedActionStatus.STALE_STATE);
+
+        TrinityHostedActionPayloadHandler.handleRefundPatterns(
+                new TrinityRefundPatternsPayload(
+                        replacementMenu.containerId,
+                        UUID.randomUUID(),
+                        replacementMenu.getMenuSessionId(),
+                        2L),
+                fixture.player(),
+                responses::add);
+        assertEquals(1, fixture.executor().refundPatternsCount);
+        assertStatus(responses.getLast(), TrinityHostedActionStatus.STALE_STATE);
+
+        TrinityHostedActionPayloadHandler.handleRefundPatterns(
+                new TrinityRefundPatternsPayload(
+                        oldMenu.containerId,
+                        oldMenu.getHostId(),
+                        oldMenu.getMenuSessionId(),
+                        3L),
+                fixture.player(),
+                ignored -> {
+                    throw new IllegalStateException("Expected stale Trinity response transport failure");
+                });
+        assertEquals(replacementMenu, fixture.player().containerMenu);
+        assertTrue(replacementMenu.isHostUiAvailable(fixture.player()));
+
+        assertTrue(replacementMenu.sendRefundPatterns());
+        TrinityRefundPatternsPayload replacementRequest = requireRefundPatterns(fixture.outbound().getLast());
+        assertEquals(1L, replacementRequest.actionSequence());
+        assertTrue(replacementMenu.isHostedActionPending(TrinityDataCoreHostUiKeys.REFUND_PATTERNS, 1L));
+        assertFalse(replacementMenu.handleHostedActionResponse(
+                patternResponse.hostId(),
+                patternResponse.menuSessionId(),
+                patternResponse.result()));
+        assertTrue(replacementMenu.isHostedActionPending(TrinityDataCoreHostUiKeys.REFUND_PATTERNS, 1L));
+
+        TrinityHostedActionPayloadHandler.handleRefundPatterns(replacementRequest, fixture.player(), responses::add);
+        assertEquals(2, fixture.executor().refundPatternsCount);
+        TrinityHostedActionResponsePayload replacementResponse = responses.getLast();
+        assertTrue(replacementMenu.handleHostedActionResponse(
+                replacementResponse.hostId(),
+                replacementResponse.menuSessionId(),
+                replacementResponse.result()));
+        assertFalse(replacementMenu.isHostedActionPending(TrinityDataCoreHostUiKeys.REFUND_PATTERNS, 1L));
+        fixture.close();
+        helper.succeed();
+    }
+
     private static long rejectAutoBuild(Fixture fixture,
                                         List<TrinityHostedActionResponsePayload> responses,
                                         long sequence,
@@ -176,6 +285,8 @@ public final class TrinityHostedActionGameTest {
         TrinityHostedActionPayloadHandler.handleAutoBuild(
                 new TrinityHostedAutoBuildPayload(
                         fixture.menu().containerId,
+                        fixture.menu().getHostId(),
+                        fixture.menu().getMenuSessionId(),
                         1L,
                         sequence,
                         new TrinityAutoBuildSubmission(fingerprint, true)),
@@ -243,6 +354,20 @@ public final class TrinityHostedActionGameTest {
             return autoBuild;
         }
         throw new GameTestAssertException("Expected Trinity hosted auto-build payload, got " + payload);
+    }
+
+    private static TrinityRefundPatternsPayload requireRefundPatterns(CustomPacketPayload payload) {
+        if (payload instanceof TrinityRefundPatternsPayload refundPatterns) {
+            return refundPatterns;
+        }
+        throw new GameTestAssertException("Expected Trinity refund-patterns payload, got " + payload);
+    }
+
+    private static TrinityRefundRetainedItemsPayload requireRefundRetainedItems(CustomPacketPayload payload) {
+        if (payload instanceof TrinityRefundRetainedItemsPayload refundRetainedItems) {
+            return refundRetainedItems;
+        }
+        throw new GameTestAssertException("Expected Trinity refund-retained-items payload, got " + payload);
     }
 
     private static TrinityAutoBuildSubmission validSubmission() {
@@ -378,9 +503,7 @@ public final class TrinityHostedActionGameTest {
                            List<CustomPacketPayload> outbound) {
 
         private void close() {
-            if (this.player.containerMenu == this.menu) {
-                this.player.doCloseContainer();
-            }
+            this.player.doCloseContainer();
             this.player.closeTestConnection();
         }
     }
@@ -424,12 +547,26 @@ public final class TrinityHostedActionGameTest {
     private static final class CountingExecutor implements TrinityDataCoreMenu.TrinityHostedActionExecutor {
 
         private int autoBuildCount;
+        private int refundPatternsCount;
+        private int refundRetainedItemsCount;
         private TrinityAutoBuildRequest lastAutoBuild;
 
         @Override
         public void autoBuild(Player player, TrinityAutoBuildRequest request) {
             this.autoBuildCount++;
             this.lastAutoBuild = request;
+        }
+
+        @Override
+        public TrinityHostedActionStatus refundPatterns(Player player) {
+            this.refundPatternsCount++;
+            return TrinityHostedActionStatus.COMPLETED;
+        }
+
+        @Override
+        public TrinityHostedActionStatus refundRetainedItems(Player player) {
+            this.refundRetainedItemsCount++;
+            return TrinityHostedActionStatus.COMPLETED;
         }
     }
 }

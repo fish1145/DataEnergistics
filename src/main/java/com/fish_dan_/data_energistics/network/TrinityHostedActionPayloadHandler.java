@@ -18,7 +18,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Main-thread router for the generation-aware Trinity auto-build action. */
 public final class TrinityHostedActionPayloadHandler {
@@ -36,7 +38,14 @@ public final class TrinityHostedActionPayloadHandler {
     public static void handleAutoBuild(TrinityHostedAutoBuildPayload payload,
                                        Player player,
                                        Consumer<TrinityHostedActionResponsePayload> responseSink) {
-        RoutedAction routed = route(payload.containerId(), payload.ticket(), player, responseSink);
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                true);
         if (routed == null) {
             return;
         }
@@ -45,11 +54,13 @@ public final class TrinityHostedActionPayloadHandler {
             MultiblockPreviewSpec spec = ModVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot()
                     .require(ModVerticalMultiBlocks.trinityDataCoreId());
             request = AUTO_BUILD_RESOLVER.resolve(spec, payload.submission());
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             logFailure("auto-build submission was rejected", routed.player(), routed.menu(), payload.ticket(), failure);
             respond(
                     routed.player(),
                     payload.containerId(),
+                    payload.hostId(),
+                    payload.menuSessionId(),
                     payload.ticket(),
                     TrinityHostedActionStatus.REJECTED,
                     responseSink);
@@ -60,32 +71,128 @@ public final class TrinityHostedActionPayloadHandler {
             respond(
                     routed.player(),
                     payload.containerId(),
+                    payload.hostId(),
+                    payload.menuSessionId(),
                     payload.ticket(),
                     TrinityHostedActionStatus.COMPLETED,
                     responseSink);
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             logFailure("auto-build business entry failed", routed.player(), routed.menu(), payload.ticket(), failure);
             respond(
                     routed.player(),
                     payload.containerId(),
+                    payload.hostId(),
+                    payload.menuSessionId(),
                     payload.ticket(),
                     TrinityHostedActionStatus.REJECTED,
                     responseSink);
         }
     }
 
+    /** Routes the installed-pattern action without requiring a hosted child window. */
+    static void handleRefundPatterns(TrinityRefundPatternsPayload payload, Player player) {
+        handleRefundPatterns(payload, player, responseSink(player));
+    }
+
+    /** Test seam for the complete installed-pattern routing and result path. */
+    public static void handleRefundPatterns(TrinityRefundPatternsPayload payload,
+                                            Player player,
+                                            Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                false);
+        if (routed == null) {
+            return;
+        }
+        executeStaticAction(
+                "installed-pattern refund failed",
+                routed,
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                responseSink,
+                () -> routed.menu().executeRefundPatterns(routed.player()));
+    }
+
+    /** Routes the retained-work action without requiring a hosted child window. */
+    static void handleRefundRetainedItems(TrinityRefundRetainedItemsPayload payload, Player player) {
+        handleRefundRetainedItems(payload, player, responseSink(player));
+    }
+
+    /** Test seam for the complete queued-input and pending-output routing and result path. */
+    public static void handleRefundRetainedItems(TrinityRefundRetainedItemsPayload payload,
+                                                 Player player,
+                                                 Consumer<TrinityHostedActionResponsePayload> responseSink) {
+        RoutedAction routed = route(
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                player,
+                responseSink,
+                false);
+        if (routed == null) {
+            return;
+        }
+        executeStaticAction(
+                "retained-item refund failed",
+                routed,
+                payload.containerId(),
+                payload.hostId(),
+                payload.menuSessionId(),
+                payload.ticket(),
+                responseSink,
+                () -> routed.menu().executeRefundRetainedItems(routed.player()));
+    }
+
+    /** Sends a terminal business status while translating unexpected execution errors into a distinct status. */
+    private static void executeStaticAction(String failureReason,
+                                            RoutedAction routed,
+                                            int containerId,
+                                            UUID hostId,
+                                            UUID menuSessionId,
+                                            TrinityHostedActionTicket ticket,
+                                            Consumer<TrinityHostedActionResponsePayload> responseSink,
+                                            Supplier<TrinityHostedActionStatus> action) {
+        TrinityHostedActionStatus status;
+        try {
+            status = action.get();
+        } catch (RuntimeException failure) {
+            logFailure(failureReason, routed.player(), routed.menu(), ticket, failure);
+            status = TrinityHostedActionStatus.INTERNAL_ERROR;
+        }
+        respond(
+                routed.player(),
+                containerId,
+                hostId,
+                menuSessionId,
+                ticket,
+                status,
+                responseSink);
+    }
+
     @Nullable
     private static RoutedAction route(int containerId,
+                                      UUID hostId,
+                                      UUID menuSessionId,
                                       TrinityHostedActionTicket ticket,
                                       Player player,
-                                      Consumer<TrinityHostedActionResponsePayload> responseSink) {
+                                      Consumer<TrinityHostedActionResponsePayload> responseSink,
+                                      boolean requiresHostedWindow) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
             Data_Energistics.LOGGER.warn(
-                    "Rejected Trinity hosted action: reason={}, player={}, menu={}, host={}, key={}, generation={}, sequence={}",
+                    "Rejected Trinity hosted action: reason={}, player={}, menu={}, host={}, session={}, key={}, generation={}, sequence={}",
                     "not a server player",
                     player == null ? "<null>" : player.getName().getString(),
                     player == null ? "<none>" : player.containerMenu,
-                    "<none>",
+                    hostId,
+                    menuSessionId,
                     ticket.key().id(),
                     ticket.generation(),
                     ticket.sequence());
@@ -98,8 +205,23 @@ public final class TrinityHostedActionPayloadHandler {
             respond(
                     serverPlayer,
                     containerId,
+                    hostId,
+                    menuSessionId,
                     ticket,
-                    TrinityHostedActionStatus.REJECTED,
+                    TrinityHostedActionStatus.STALE_STATE,
+                    responseSink);
+            return null;
+        }
+
+        if (!menu.matchesHostedActionEnvelope(hostId, menuSessionId)) {
+            logRejected("host identity or menu session is stale", serverPlayer, menu, menu.getHost(), ticket);
+            respond(
+                    serverPlayer,
+                    containerId,
+                    hostId,
+                    menuSessionId,
+                    ticket,
+                    TrinityHostedActionStatus.STALE_STATE,
                     responseSink);
             return null;
         }
@@ -107,7 +229,7 @@ public final class TrinityHostedActionPayloadHandler {
         boolean hostAvailable;
         try {
             hostAvailable = menu.isHostUiAvailable(serverPlayer);
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             logFailure("host availability check failed", serverPlayer, menu, ticket, failure);
             hostAvailable = false;
         }
@@ -116,15 +238,20 @@ public final class TrinityHostedActionPayloadHandler {
             respond(
                     serverPlayer,
                     containerId,
+                    hostId,
+                    menuSessionId,
                     ticket,
-                    TrinityHostedActionStatus.REJECTED,
+                    TrinityHostedActionStatus.STALE_STATE,
                     responseSink);
             return null;
+        }
+        if (!requiresHostedWindow) {
+            return claimRoutedAction(serverPlayer, menu, containerId, hostId, menuSessionId, ticket, responseSink);
         }
         boolean generationOpen;
         try {
             generationOpen = menu.getHostUiExtension().isOpen(ticket.key(), ticket.generation());
-        } catch (RuntimeException | Error failure) {
+        } catch (RuntimeException failure) {
             logFailure("hosted generation check failed", serverPlayer, menu, ticket, failure);
             generationOpen = false;
         }
@@ -133,29 +260,44 @@ public final class TrinityHostedActionPayloadHandler {
             respond(
                     serverPlayer,
                     containerId,
+                    hostId,
+                    menuSessionId,
                     ticket,
-                    TrinityHostedActionStatus.REJECTED,
+                    TrinityHostedActionStatus.STALE_STATE,
                     responseSink);
             return null;
         }
+        return claimRoutedAction(serverPlayer, menu, containerId, hostId, menuSessionId, ticket, responseSink);
+    }
+
+    @Nullable
+    private static RoutedAction claimRoutedAction(ServerPlayer player,
+                                                  TrinityDataCoreMenu menu,
+                                                  int containerId,
+                                                  UUID hostId,
+                                                  UUID menuSessionId,
+                                                  TrinityHostedActionTicket ticket,
+                                                  Consumer<TrinityHostedActionResponsePayload> responseSink) {
         boolean claimed;
         try {
             claimed = menu.claimHostedActionSequence(ticket);
-        } catch (RuntimeException | Error failure) {
-            logFailure("action sequence claim failed", serverPlayer, menu, ticket, failure);
+        } catch (RuntimeException failure) {
+            logFailure("action sequence claim failed", player, menu, ticket, failure);
             claimed = false;
         }
         if (!claimed) {
-            logRejected("duplicate or out-of-order action sequence", serverPlayer, menu, menu.getHost(), ticket);
+            logRejected("duplicate or out-of-order action sequence", player, menu, menu.getHost(), ticket);
             respond(
-                    serverPlayer,
+                    player,
                     containerId,
+                    hostId,
+                    menuSessionId,
                     ticket,
                     TrinityHostedActionStatus.REJECTED,
                     responseSink);
             return null;
         }
-        return new RoutedAction(serverPlayer, menu);
+        return new RoutedAction(player, menu);
     }
 
     private static Consumer<TrinityHostedActionResponsePayload> responseSink(Player player) {
@@ -167,6 +309,8 @@ public final class TrinityHostedActionPayloadHandler {
 
     private static void respond(ServerPlayer player,
                                 int containerId,
+                                UUID hostId,
+                                UUID menuSessionId,
                                 TrinityHostedActionTicket ticket,
                                 TrinityHostedActionStatus status,
                                 Consumer<TrinityHostedActionResponsePayload> responseSink) {
@@ -176,10 +320,11 @@ public final class TrinityHostedActionPayloadHandler {
                 ticket.sequence(),
                 status);
         try {
-            responseSink.accept(new TrinityHostedActionResponsePayload(containerId, result));
-        } catch (RuntimeException | Error failure) {
+            responseSink.accept(new TrinityHostedActionResponsePayload(containerId, hostId, menuSessionId, result));
+        } catch (RuntimeException failure) {
             logFailure("response transport failed", player, player.containerMenu, ticket, failure);
-            if (player.containerMenu.containerId == containerId) {
+            if (player.containerMenu instanceof TrinityDataCoreMenu menu && menu.containerId == containerId &&
+                    menu.matchesHostedActionEnvelope(hostId, menuSessionId)) {
                 player.closeContainer();
             }
         }

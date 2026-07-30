@@ -23,14 +23,20 @@ import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.TransientCraftingContainer;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -74,6 +80,8 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     private boolean patternHostChangeFailed;
     /** Prevents stale-host cleanup while a host has locked publication but still owes release confirmation. */
     private boolean patternHostReleasePending;
+    @Nullable
+    private List<ItemStack> miningDropSnapshot;
 
     /** Couples one host reference to its immutable catalog authority token. */
     private record BoundPatternHost(TrinityPatternCoreHost host, PatternCoreBinding binding) {}
@@ -261,6 +269,119 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         return this.core.tryRefundAll(new TrinityRefundDeliveryImpl(player, null, null));
     }
 
+    /**
+     * Freezes one authoritative mining-drop snapshot before the block is removed.
+     *
+     * <p>
+     * The snapshot is transient because it bridges the vanilla player-break lifecycle only. Once the block has been
+     * removed, the retained block entity is passed to loot generation after its live state is no longer authoritative.
+     * </p>
+     *
+     * @return whether the snapshot was captured successfully
+     */
+    public boolean freezeMiningDropSnapshot() {
+        this.miningDropSnapshot = null;
+        try {
+            this.miningDropSnapshot = captureMiningDrops();
+            return true;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to freeze Trinity pattern core mining-drop snapshot at {}; refusing removal",
+                    this.worldPosition,
+                    exception);
+            return false;
+        }
+    }
+
+    /**
+     * Reports whether the current player-break attempt owns a frozen mining-drop snapshot.
+     *
+     * @return whether loot may be generated after removal without consulting live core state
+     */
+    public boolean hasMiningDropSnapshot() {
+        return this.miningDropSnapshot != null;
+    }
+
+    /**
+     * Discards a snapshot when the world rejects the corresponding block removal.
+     */
+    public void discardMiningDropSnapshot() {
+        this.miningDropSnapshot = null;
+    }
+
+    /**
+     * Returns mining drops without mutating the core or a frozen snapshot.
+     *
+     * @return defensive copies of the frozen snapshot, or a fresh read-only capture for non-player disassembly
+     */
+    public List<ItemStack> getMiningDrops() {
+        List<ItemStack> snapshot = this.miningDropSnapshot;
+        if (snapshot != null) {
+            return copyMiningDrops(snapshot);
+        }
+        try {
+            return captureMiningDrops();
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to read Trinity pattern core mining drops at {}; refusing to provide a blank core drop",
+                    this.worldPosition,
+                    exception);
+            throw exception;
+        }
+    }
+
+    /**
+     * Captures one authoritative mining-drop snapshot without mutating the live core.
+     *
+     * <p>
+     * Installed patterns become separate stacks in physical slot order. The core item retains only queued inputs and
+     * pending outputs, so it can later be returned through the host without concealing a second copy of a pattern.
+     * </p>
+     *
+     * @return one core block item followed by each installed pattern stack
+     */
+    public List<ItemStack> captureMiningDrops() {
+        if (!isCoreStateReady() || this.level == null) {
+            throw new IllegalStateException("Cannot capture mining drops before Trinity pattern core state is ready");
+        }
+        HolderLookup.Provider registries = this.level.registryAccess();
+        ArrayList<ItemStack> drops = new ArrayList<>();
+        ItemStack coreDrop = new ItemStack(getBlockState().getBlock());
+        saveToItem(coreDrop, registries);
+        CustomData blockEntityData = coreDrop.get(DataComponents.BLOCK_ENTITY_DATA);
+        if (blockEntityData == null) {
+            throw new IllegalStateException("Trinity pattern core drop is missing block entity data");
+        }
+        CompoundTag retainedState = blockEntityData.copyTag();
+        this.core.writeRetainedWorkToTag(retainedState, registries);
+        BlockItem.setBlockEntityData(coreDrop, getType(), retainedState);
+        drops.add(coreDrop);
+        for (int slot = 0; slot < patternCapacity(); slot++) {
+            ItemStack pattern = this.core.pattern(slot);
+            if (!pattern.isEmpty()) {
+                drops.add(pattern.copy());
+            }
+        }
+        return List.copyOf(drops);
+    }
+
+    @Override
+    public InteractionResult disassembleWithWrench(Player player, Level level, BlockHitResult hitResult,
+                                                   ItemStack wrench) {
+        if (level instanceof ServerLevel && !freezeMiningDropSnapshot()) {
+            return InteractionResult.FAIL;
+        }
+        return super.disassembleWithWrench(player, level, hitResult, wrench);
+    }
+
+    private static List<ItemStack> copyMiningDrops(List<ItemStack> drops) {
+        ArrayList<ItemStack> copies = new ArrayList<>(drops.size());
+        for (ItemStack drop : drops) {
+            copies.add(drop.copy());
+        }
+        return List.copyOf(copies);
+    }
+
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
@@ -445,6 +566,16 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     @Override
+    public boolean hasPendingRefund(UUID hostId) {
+        return isCoreStateReady() && this.core.hasPendingRefund(hostId);
+    }
+
+    @Override
+    public PatternRefundTransaction preparePatternRefund() {
+        return readyCore().preparePatternRefund();
+    }
+
+    @Override
     public RefundTransaction prepareRefund() {
         return readyCore().prepareRefund();
     }
@@ -510,6 +641,9 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
 
     private BatchExecutionResult executeBatch(int slot, TrinityCraftingBatch batch) {
         IMolecularAssemblerSupportedPattern pattern = this.core.decodedPattern(slot);
+        if (pattern == null) {
+            return BatchExecutionResult.paused();
+        }
         try {
             List<ItemStack> inputs = batch.inputs();
             TransientCraftingContainer container = new TransientCraftingContainer(new AutoCraftingMenu(), 3, 3);

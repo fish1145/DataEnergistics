@@ -147,6 +147,6 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
                 cpu.getElapsedTimeNanos(),
                 cpu.getRemainingItemCount(),
                 cpu.getStartItemCount(),
-                entries.build());
+                entries.build(), false);
     }
 }

@@ -28,7 +28,6 @@ public final class TrinityCraftingBatch {
     private static final String DEFINITION_ID_TAG = "definition_id";
     private static final String INPUTS_TAG = "inputs";
     private static final String MERGEABLE_TAG = "mergeable";
-    private static final String PATTERN_TAG = "pattern";
     private static final String QUEUED_TICK_TAG = "queued_tick";
     private static final String ROUTE_TAG = "route";
     private static final String SLOT_TAG = "slot";
@@ -73,7 +72,7 @@ public final class TrinityCraftingBatch {
     }
 
     /**
-     * Creates one resolved queue group from a newly accepted dispatch or validated V2 state.
+     * Creates one queue group from a newly accepted dispatch or validated persisted state.
      *
      * @param queuedTick tick on which every dispatch in the group was accepted
      * @param route      exact host/core/slot destination
@@ -86,9 +85,6 @@ public final class TrinityCraftingBatch {
     public static TrinityCraftingBatch resolved(long queuedTick, PatternRoute route,
                                                 TrinityPatternDefinition definition, List<ItemStack> inputs,
                                                 long count, boolean mergeable) {
-        if (!definition.resolved()) {
-            throw new IllegalArgumentException("A new queued crafting group requires a resolved definition");
-        }
         return new TrinityCraftingBatch(queuedTick, route, definition, inputs, count, mergeable);
     }
 
@@ -98,9 +94,6 @@ public final class TrinityCraftingBatch {
                                          InputSignature inputs,
                                          long count,
                                          boolean mergeable) {
-        if (!definition.resolved()) {
-            throw new IllegalArgumentException("A new queued crafting group requires a resolved definition");
-        }
         return new TrinityCraftingBatch(queuedTick, route, definition, inputs, count, mergeable);
     }
 
@@ -167,7 +160,7 @@ public final class TrinityCraftingBatch {
      * @return whether this group may execute against the supplied definition
      */
     public boolean matchesDefinition(TrinityPatternDefinition installedDefinition) {
-        return this.definition == installedDefinition && installedDefinition.resolved();
+        return this.definition == installedDefinition;
     }
 
     /**
@@ -231,11 +224,6 @@ public final class TrinityCraftingBatch {
                 this.mergeable);
     }
 
-    TrinityCraftingBatch withDefinition(TrinityPatternDefinition definition) {
-        return new TrinityCraftingBatch(
-                this.queuedTick, this.route, definition, this.inputs, this.count, this.mergeable);
-    }
-
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
         data.putLong(COUNT_TAG, this.count);
@@ -247,19 +235,15 @@ public final class TrinityCraftingBatch {
         return data;
     }
 
-    static TrinityCraftingBatch readV2(CompoundTag data, TrinityPatternDefinition definition,
-                                       HolderLookup.Provider registries) {
+    static TrinityCraftingBatch readFromTag(CompoundTag data, TrinityPatternDefinition definition,
+                                            HolderLookup.Provider registries) {
         if (!data.contains(COUNT_TAG, Tag.TAG_LONG) || !data.contains(DEFINITION_ID_TAG, Tag.TAG_LONG) ||
                 !data.contains(MERGEABLE_TAG, Tag.TAG_BYTE) || !data.contains(QUEUED_TICK_TAG, Tag.TAG_LONG) ||
                 !data.contains(ROUTE_TAG, Tag.TAG_COMPOUND) || !data.contains(INPUTS_TAG, Tag.TAG_LIST)) {
-            throw new IllegalArgumentException("V2 queued crafting group is incomplete");
+            throw new IllegalArgumentException("Queued crafting group is incomplete");
         }
         if (data.getLong(DEFINITION_ID_TAG) != definition.id()) {
-            throw new IllegalArgumentException("V2 queued crafting group references the wrong definition");
-        }
-        if (!definition.resolved() &&
-                (data.getLong(COUNT_TAG) != 1L || data.getBoolean(MERGEABLE_TAG))) {
-            throw new IllegalArgumentException("Unresolved V1 crafting groups must retain count one without merging");
+            throw new IllegalArgumentException("Queued crafting group references the wrong definition");
         }
         return new TrinityCraftingBatch(
                 data.getLong(QUEUED_TICK_TAG),
@@ -268,34 +252,6 @@ public final class TrinityCraftingBatch {
                 readInputs(data.getList(INPUTS_TAG, Tag.TAG_COMPOUND), registries),
                 data.getLong(COUNT_TAG),
                 data.getBoolean(MERGEABLE_TAG));
-    }
-
-    static V1Data readV1(CompoundTag data, HolderLookup.Provider registries) {
-        if (!data.contains(QUEUED_TICK_TAG, Tag.TAG_LONG) || !data.contains(ROUTE_TAG, Tag.TAG_COMPOUND) ||
-                !data.contains(PATTERN_TAG, Tag.TAG_COMPOUND)) {
-            throw new IllegalArgumentException("V1 queued crafting batch is missing its tick, route, or pattern");
-        }
-        ItemStack pattern = normalizedPattern(ItemStack.parseOptional(registries, data.getCompound(PATTERN_TAG)));
-        return new V1Data(
-                data.getLong(QUEUED_TICK_TAG),
-                PatternRoute.readFromTag(data.getCompound(ROUTE_TAG)),
-                pattern,
-                readInputs(data.getList(INPUTS_TAG, Tag.TAG_COMPOUND), registries));
-    }
-
-    static TrinityCraftingBatch fromV1(V1Data v1, TrinityPatternDefinition definition) {
-        return new TrinityCraftingBatch(v1.queuedTick(), v1.route(), definition, v1.inputs(), 1L, false);
-    }
-
-    /**
-     * Parsed no-version queue entry used only during atomic V1 migration.
-     */
-    record V1Data(long queuedTick, PatternRoute route, ItemStack pattern, List<ItemStack> inputs) {
-
-        V1Data {
-            pattern = pattern.copy();
-            inputs = copyStacks(inputs);
-        }
     }
 
     private ListTag writeInputs(HolderLookup.Provider registries) {
@@ -362,15 +318,6 @@ public final class TrinityCraftingBatch {
                         "Queued crafting input " + slot + " exceeds its maximum stack size: " + input.getCount());
             }
         }
-    }
-
-    private static ItemStack normalizedPattern(ItemStack pattern) {
-        if (pattern.isEmpty()) {
-            throw new IllegalArgumentException("A queued crafting group requires an encoded pattern definition");
-        }
-        ItemStack normalized = pattern.copy();
-        normalized.setCount(1);
-        return normalized;
     }
 
     private static List<ItemStack> copyStacks(List<ItemStack> stacks) {

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /** Strict bounded codec shared by Trinity hosted refund, auto-build, and response payloads. */
 final class TrinityHostedActionPayloadCodec {
@@ -43,6 +44,23 @@ final class TrinityHostedActionPayloadCodec {
         buffer.writeVarInt(containerId);
     }
 
+    /** Reads one required UUID used to bind a request or response to its exact menu host/session. */
+    static UUID readUuid(RegistryFriendlyByteBuf buffer, String field) {
+        UUID value = buffer.readUUID();
+        if (value == null) {
+            throw new IllegalArgumentException("Trinity hosted " + field + " cannot be null");
+        }
+        return value;
+    }
+
+    /** Writes one required UUID used to bind a request or response to its exact menu host/session. */
+    static void writeUuid(RegistryFriendlyByteBuf buffer, UUID value, String field) {
+        if (value == null) {
+            throw new IllegalArgumentException("Trinity hosted " + field + " cannot be null");
+        }
+        buffer.writeUUID(value);
+    }
+
     /** Reads a positive bounded window generation. */
     static long readGeneration(RegistryFriendlyByteBuf buffer) {
         return readBoundedLong(buffer, "generation", 1L, TrinityHostedActionTicket.MAX_GENERATION);
@@ -51,6 +69,12 @@ final class TrinityHostedActionPayloadCodec {
     /** Reads a positive bounded action sequence. */
     static long readSequence(RegistryFriendlyByteBuf buffer) {
         return readBoundedLong(buffer, "sequence", 1L, TrinityHostedActionTicket.MAX_SEQUENCE);
+    }
+
+    /** Writes a validated action sequence for a static menu action whose session identity is carried separately. */
+    static void writeSequence(RegistryFriendlyByteBuf buffer, long sequence) {
+        requireRange("sequence", sequence, 1L, TrinityHostedActionTicket.MAX_SEQUENCE);
+        buffer.writeVarLong(sequence);
     }
 
     /** Writes a validated ticket suffix. */
