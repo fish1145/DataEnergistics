@@ -9,7 +9,7 @@ import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.serializer.EmiStackSerializer;
 
 /**
- * Persists the two component-free Data Energistics EMI stack identities in favorites and resources.
+ * Persists component-free Data Energistics EMI stack identities in favorites and resources.
  */
 public final class DataResourceEmiStackSerializer implements EmiStackSerializer<DataResourceEmiStack> {
 

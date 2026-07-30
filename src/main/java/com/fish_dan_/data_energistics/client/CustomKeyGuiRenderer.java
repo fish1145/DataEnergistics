@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
+import com.fish_dan_.data_energistics.ae2.EchoKey;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -18,6 +19,7 @@ public final class CustomKeyGuiRenderer {
 
     private static final ResourceLocation DATA_FLOW_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data_flow");
     private static final ResourceLocation DATA_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data");
+    private static final ResourceLocation ECHO_SPRITE = ResourceLocation.withDefaultNamespace("item/echo_shard");
 
     private CustomKeyGuiRenderer() {}
 
@@ -36,6 +38,10 @@ public final class CustomKeyGuiRenderer {
             drawSprite(guiGraphics, x, y, dataSprite());
             return true;
         }
+        if (key instanceof EchoKey) {
+            drawSprite(guiGraphics, x, y, echoSprite());
+            return true;
+        }
         return false;
     }
 
@@ -45,6 +51,10 @@ public final class CustomKeyGuiRenderer {
 
     public static TextureAtlasSprite dataSprite() {
         return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(DATA_SPRITE);
+    }
+
+    public static TextureAtlasSprite echoSprite() {
+        return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(ECHO_SPRITE);
     }
 
     private static void drawSprite(GuiGraphics guiGraphics, int x, int y, TextureAtlasSprite sprite) {

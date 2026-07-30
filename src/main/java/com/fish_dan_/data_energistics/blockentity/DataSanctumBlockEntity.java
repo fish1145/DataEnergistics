@@ -78,7 +78,7 @@ public class DataSanctumBlockEntity extends AENetworkedPoweredBlockEntity implem
     private static final int BLACK_HOLE_WORK_INTERVAL_TICKS = 200;
     private static final int BLACK_HOLE_DEV_WORK_INTERVAL_TICKS = 20;
     private static final int BLACK_HOLE_BLOCKS_PER_CYCLE = 20;
-    private static final long BLACK_HOLE_DATA_FLOW_PER_CYCLE = 2_000L;
+    private static final long BLACK_HOLE_DATA_FLOW_PER_CYCLE = 1_000L;
     private static final long BLACK_HOLE_DATA_FLOW_PER_ENTITY = BLACK_HOLE_DATA_FLOW_PER_CYCLE;
     private static final double BLACK_HOLE_AE_COST_PER_BLOCK = 2_500.0D;
     private static final int BLACK_HOLE_CHUNK_RADIUS = 2;

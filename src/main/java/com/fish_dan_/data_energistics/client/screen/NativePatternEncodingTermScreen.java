@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
@@ -121,7 +121,7 @@ public class NativePatternEncodingTermScreen extends PatternEncodingPreviewScree
 
         AEKey what = wrappedGenericStack.unwrapWhat(slot.getItem());
         long amount = wrappedGenericStack.unwrapAmount(slot.getItem());
-        if (!(what instanceof DataFlowKey) || amount <= 0) {
+        if (!ModAE2Keys.isCustomKey(what) || amount <= 0) {
             return null;
         }
         return new GenericStack(what, amount);

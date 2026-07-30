@@ -29,6 +29,7 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new TrinityPatternCoreReloadEventHandler());
         NeoForge.EVENT_BUS.register(new DataMeteoritePreloader());
         NeoForge.EVENT_BUS.register(new DataSanctumPortalLogic());
+        NeoForge.EVENT_BUS.register(new SonicBoomEchoCaptureImpl());
         NeoForge.EVENT_BUS.register(new ServerTickDelayQueue());
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, DataMimeticFieldBlockEntity::captureSimulatedSpawnedDrops);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, DataMimeticFieldBlockEntity::captureSimulatedDeathDrops);

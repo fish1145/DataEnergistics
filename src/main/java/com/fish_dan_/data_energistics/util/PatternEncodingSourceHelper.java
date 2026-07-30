@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.util;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
@@ -168,8 +167,7 @@ public final class PatternEncodingSourceHelper {
             }
 
             GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
-            if (wrapped == null ||
-                    (wrapped.what().getType() != DataFlowKeyType.TYPE && wrapped.what().getType() != DataKeyType.TYPE)) {
+            if (wrapped == null || !ModAE2Keys.isCustomKey(wrapped.what())) {
                 normalized.add(stack);
                 continue;
             }
