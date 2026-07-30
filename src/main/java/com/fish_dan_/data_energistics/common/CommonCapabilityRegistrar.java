@@ -289,6 +289,10 @@ final class CommonCapabilityRegistrar {
                 AECapabilities.GENERIC_INTERNAL_INV,
                 (part, context) -> part.getReturnInventory(),
                 DataSanctumInterfacePart.class);
+        event.register(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                (part, context) -> part.getLogic().getReturnInv(),
+                AdaptivePatternProviderPart.class);
     }
 
     private static void registerPoweredItemEnergyStorage(RegisterCapabilitiesEvent event, Item item) {
