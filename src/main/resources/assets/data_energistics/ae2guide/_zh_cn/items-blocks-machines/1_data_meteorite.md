@@ -32,12 +32,12 @@ item_ids:
   <Block id="ae2:sky_stone_block" x="2" y="0" z="3" />
 
   <Block id="data_energistics:budding_data_crystal_0" x="0" y="0" z="0" />
-  <Block id="ae2:damaged_budding_quartz" x="1" y="0" z="0" />
-  <Block id="ae2:flawed_budding_quartz" x="2" y="0" z="0" />
+  <Block id="data_energistics:budding_data_crystal_1" x="1" y="0" z="0" />
+  <Block id="data_energistics:budding_data_crystal_2" x="2" y="0" z="0" />
   <Block id="ae2:quartz_block" x="0" y="0" z="1" />
   <Block id="ae2:flawed_budding_quartz" x="0" y="0" z="2" />
   <Block id="ae2:chipped_budding_quartz" x="1" y="0" z="1" />
-  <Block id="data_energistics:budding_data_crystal_0" x="1" y="0" z="2" />
+  <Block id="data_energistics:budding_data_crystal_3" x="1" y="0" z="2" />
   <Block id="ae2:flawless_budding_quartz" x="2" y="0" z="1" />
   <Block id="ae2:quartz_block" x="2" y="0" z="2" />
 
@@ -56,9 +56,31 @@ item_ids:
 
   <IsometricCamera yaw="150" pitch="25" />
 </GameScene>
-一种基于AE陨石的特殊变种，陨石坑以及陨石都会比正常的AE陨石要大  
-陨石内部有27%的概率拥有1~2个充盈数据水晶母岩(至少我见到大部分玩家实际上挺难找到他的)  
-陨石内能出现的方块在它的这个总览结构上面已经显示了(如上图)  
+一种基于 AE 陨石的特殊变种，陨石本体与陨石坑都比普通 AE 陨石更大。核心中心的下方与上方各有 9 个母岩位置，共 18 个位置；每个位置都会相互独立地抽取一种母岩。
+
+| 母岩 | 每个位置的概率 |
+|---|---:|
+| <ItemImage id="ae2:damaged_budding_quartz" /> 损坏赛特斯母岩 | 13.75% |
+| <ItemImage id="ae2:chipped_budding_quartz" /> 开裂赛特斯母岩 | 13.75% |
+| <ItemImage id="ae2:flawed_budding_quartz" /> 有瑕赛特斯母岩 | 13.75% |
+| <ItemImage id="ae2:flawless_budding_quartz" /> 无瑕赛特斯母岩 | 13.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_0" /> 失活数据水晶母岩 | 11.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_1" /> 无能数据水晶母岩 | 10.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_2" /> 疲劳数据水晶母岩 | 9.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_3" /> 欠亏数据水晶母岩 | 8.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_4" /> 充盈数据水晶母岩 | 4.00% |
+
+数据水晶母岩的品质越高，生成概率越低。只有下方母岩为赛特斯母岩时，核心中层才可能生成现有的随机赛特斯晶芽；下方为数据水晶母岩时，中层保持为空。新分布仅影响新生成的数位化陨石。
+
+使用精准采集挖掘时，五档数据水晶母岩都会掉落自身。未使用精准采集时，仍沿用原有的降级规则：
+
+| 母岩 | 普通采集掉落 |
+|---|---|
+| <ItemImage id="data_energistics:budding_data_crystal_0" /> 失活 | 无掉落 |
+| <ItemImage id="data_energistics:budding_data_crystal_1" /> 无能 | <ItemImage id="data_energistics:budding_data_crystal_0" /> 失活 |
+| <ItemImage id="data_energistics:budding_data_crystal_2" /> 疲劳 | <ItemImage id="data_energistics:budding_data_crystal_1" /> 无能 |
+| <ItemImage id="data_energistics:budding_data_crystal_3" /> 欠亏 | <ItemImage id="data_energistics:budding_data_crystal_2" /> 疲劳 |
+| <ItemImage id="data_energistics:budding_data_crystal_4" /> 充盈 | <ItemImage id="data_energistics:budding_data_crystal_2" /> 疲劳 |
 
 >⚠他将作为你本模组的开端
 >

@@ -1,13 +1,11 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
-import com.fish_dan_.data_energistics.ae2.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.parts.automation.ExportBusPart;
 import appeng.util.ConfigInventory;
@@ -36,8 +34,7 @@ public abstract class ExportBusPartWrappedKeyMixin {
         }
 
         AEKey wrappedKey = wrapped.what();
-        AEKeyType wrappedType = wrappedKey.getType();
-        if (wrappedType == DataFlowKeyType.TYPE || wrappedType == DataKeyType.TYPE) {
+        if (ModAE2Keys.isCustomKey(wrappedKey)) {
             return wrappedKey;
         }
 

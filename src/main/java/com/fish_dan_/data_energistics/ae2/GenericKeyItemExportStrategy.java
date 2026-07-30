@@ -44,7 +44,7 @@ public class GenericKeyItemExportStrategy implements StackExportStrategy {
     }
 
     public static void registerMissingStrategies() {
-        for (AEKeyType type : new AEKeyType[] { DataFlowKeyType.TYPE, DataKeyType.TYPE }) {
+        for (AEKeyType type : ModAE2Keys.types()) {
             if (type == AEKeyType.items() || type == AEKeyType.fluids()) {
                 continue;
             }

@@ -54,7 +54,7 @@ public final class DataDistributionTowerTargetsGameTest {
 
     private static final int TARGET_COUNT = 70;
     private static final int FULL_WIRELESS_BOOSTER_COUNT = 64;
-    private static final int FULL_TOWER_CHUNK_RADIUS = 8;
+    private static final int FULL_TOWER_CHUNK_RADIUS = 4;
     private static final int MENU_ID = 17;
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos TARGET_GRID_ORIGIN = new BlockPos(13, 4, 18);
@@ -75,7 +75,7 @@ public final class DataDistributionTowerTargetsGameTest {
                 .thenWaitUntil(() -> helper.assertValueEqual(
                         tower.getConfiguredChunkRadius(),
                         FULL_TOWER_CHUNK_RADIUS,
-                        "A full wireless booster stack must expand the tower to its 17x17 chunk scope"))
+                        "A full wireless booster stack must expand the tower to its 9x9 chunk scope"))
                 .thenIdle(320)
                 .thenSucceed();
     }

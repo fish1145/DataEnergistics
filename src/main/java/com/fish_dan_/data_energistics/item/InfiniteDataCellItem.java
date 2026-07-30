@@ -1,8 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
-import com.fish_dan_.data_energistics.ae2.DataFlowKey;
-import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.ae2.InfiniteDataCellInventory;
+import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 
 import net.minecraft.core.component.DataComponents;
@@ -44,9 +43,9 @@ public class InfiniteDataCellItem extends Item implements ICellWorkbenchItem {
     public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
         return Optional.of(new StorageCellTooltipComponent(
                 List.of(),
-                List.of(
-                        new GenericStack(DataFlowKey.of(), InfiniteDataCellInventory.STORED_AMOUNT),
-                        new GenericStack(DataKey.of(), InfiniteDataCellInventory.STORED_AMOUNT)),
+                ModAE2Keys.keys().stream()
+                        .map(key -> new GenericStack(key, InfiniteDataCellInventory.STORED_AMOUNT))
+                        .toList(),
                 false,
                 false));
     }

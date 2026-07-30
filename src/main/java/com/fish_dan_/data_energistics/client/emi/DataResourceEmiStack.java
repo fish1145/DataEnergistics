@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Native EMI representation of Data or DataFlow without degrading it to AE2's wrapper item.
+ * Native EMI representation of a Data Energistics custom AE resource without degrading it to AE2's wrapper item.
  */
 public final class DataResourceEmiStack extends EmiStack {
 
