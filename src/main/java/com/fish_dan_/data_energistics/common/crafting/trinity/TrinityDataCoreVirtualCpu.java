@@ -184,7 +184,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.logic.isCantStoreItems();
     }
 
-    /** Delegates durable removal recovery to this partition's concrete CPU inventory. */
+    /**
+     * Delegates durable removal recovery to this partition's concrete CPU inventory.
+     */
     boolean recoverIdleInventory(BiFunction<AEKey, Long, Long> recovery) {
         return this.logic.recoverIdleInventory(recovery);
     }
@@ -260,6 +262,24 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      */
     public int getOccupiedWorkerCount() {
         return this.runtime.occupiedWorkerCount();
+    }
+
+    /**
+     * Returns recent physical submissions used to balance otherwise equivalent automatic candidates.
+     *
+     * @return this worker's load, or the complete runtime load for coordinator CPU zero
+     */
+    public long getRecentOperationLoad() {
+        return number() == 0 ? this.runtime.recentOperationLoad() : this.logic.recentOperationLoad();
+    }
+
+    /**
+     * Returns a persistent identity that does not depend on registry or collection iteration order.
+     *
+     * @return stable host identity combined with the virtual CPU number
+     */
+    public String getStableDispatchIdentity() {
+        return "trinity:" + this.host.getHostId() + ':' + number();
     }
 
     @Nullable
@@ -364,7 +384,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.logic;
     }
 
-    /** Returns the stable runtime number: zero for the reserve and one through the worker capacity for workers. */
+    /**
+     * Returns the stable runtime number: zero for the reserve and one through the worker capacity for workers.
+     */
     public int number() {
         return this.profile.index();
     }
@@ -381,7 +403,9 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.logic.isReleasable();
     }
 
-    /** Forwards one logic-level AEKey change into the runtime's aggregate waiting index. */
+    /**
+     * Forwards one logic-level AEKey change into the runtime's aggregate waiting index.
+     */
     private void craftingVisibleChanged(AEKey what) {
         this.runtime.workerCraftingVisibleChanged(this, what);
     }

@@ -22,14 +22,26 @@ public interface WorkerOperationBudget {
      * Calculates how many physical pattern submissions the worker may start in the current tick.
      *
      * @param coProcessors complete co-processor count owned by this worker
+     * @param currentTick  current monotonic server tick
      * @return available physical submissions
      */
-    int availableOperations(int coProcessors);
+    int availableOperations(int coProcessors, long currentTick);
 
     /**
-     * Advances the rolling window after the worker finishes its current crafting tick.
+     * Returns the physical submissions retained in this worker's time-aware rolling window for load-aware CPU
+     * selection.
      *
+     * @param currentTick current monotonic server tick
+     * @return recent physical-operation load
+     */
+    long recentOperations(long currentTick);
+
+    /**
+     * Adds the worker's completed physical submissions for the current server tick. Multiple execution slices in the
+     * same tick accumulate into one window slot.
+     *
+     * @param currentTick       current monotonic server tick
      * @param startedOperations physical pattern submissions started by this worker
      */
-    void recordTickUsage(int startedOperations);
+    void recordTickUsage(long currentTick, int startedOperations);
 }

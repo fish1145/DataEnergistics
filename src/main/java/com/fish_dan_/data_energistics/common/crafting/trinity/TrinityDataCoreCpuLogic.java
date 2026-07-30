@@ -161,7 +161,8 @@ final class TrinityDataCoreCpuLogic {
             cancel();
             return;
         }
-        int remainingOperations = this.operationBudget.availableOperations(this.cpu.getCoProcessors());
+        long currentTick = TickHandler.instance().getCurrentTick();
+        int remainingOperations = this.operationBudget.availableOperations(this.cpu.getCoProcessors(), currentTick);
         int started = remainingOperations;
         Level level = this.cpu.level();
         if (level == null) {
@@ -181,7 +182,7 @@ final class TrinityDataCoreCpuLogic {
             }
             remainingOperations -= pushedPatterns;
         }
-        this.operationBudget.recordTickUsage(started - remainingOperations);
+        this.operationBudget.recordTickUsage(currentTick, started - remainingOperations);
     }
 
     /**
@@ -406,7 +407,9 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    /** Isolates provider busy-state failures and caches them only for the affected provider-pattern pair. */
+    /**
+     * Isolates provider busy-state failures and caches them only for the affected provider-pattern pair.
+     */
     private boolean providerBusy(ICraftingProvider provider,
                                  IPatternDetails details,
                                  CraftingDispatchWindow dispatchWindow) {
@@ -449,7 +452,9 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    /** Finalizes CPU ownership and job accounting after a provider has taken the admitted batch. */
+    /**
+     * Finalizes CPU ownership and job accounting after a provider has taken the admitted batch.
+     */
     private void commitAcceptedDispatch(TrinityDataCoreExecutingCraftingJob currentJob,
                                         TrinityDataCoreExecutingCraftingJob.TaskProgress task,
                                         PatternInputTransaction inputTransaction,
@@ -950,7 +955,9 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    /** Independently rollbackable ownership of the copies beyond the retained one-craft prototype. */
+    /**
+     * Independently rollbackable ownership of the copies beyond the retained one-craft prototype.
+     */
     private final class AdditionalInputTransaction {
 
         private final KeyCounter ownedInputs = new KeyCounter();
@@ -982,7 +989,9 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    /** Single-craft admission preserves the exact behavior of providers that do not opt into counted dispatch. */
+    /**
+     * Single-craft admission preserves the exact behavior of providers that do not opt into counted dispatch.
+     */
     private record SingleCraftingAdmission(ICraftingProvider provider, IPatternDetails details)
             implements CountedCraftingAdmission {
 
@@ -1098,12 +1107,16 @@ final class TrinityDataCoreCpuLogic {
         return this.job != null;
     }
 
-    /** Returns whether this worker owns state that must survive hiding, saving, and pool reuse. */
+    /**
+     * Returns whether this worker owns state that must survive hiding, saving, and pool reuse.
+     */
     boolean hasRetainedState() {
         return this.job != null || !this.inventory.list.isEmpty();
     }
 
-    /** Returns whether the runtime can discard this worker and reuse its number. */
+    /**
+     * Returns whether the runtime can discard this worker and reuse its number.
+     */
     boolean isReleasable() {
         return !hasRetainedState();
     }
@@ -1256,7 +1269,9 @@ final class TrinityDataCoreCpuLogic {
         return this.cantStoreItems;
     }
 
-    /** Moves idle inventory through a durable sink and reports whether no remainder is retained. */
+    /**
+     * Moves idle inventory through a durable sink and reports whether no remainder is retained.
+     */
     boolean recoverIdleInventory(BiFunction<AEKey, Long, Long> recovery) {
         Preconditions.checkState(this.job == null, "CPU should not have a job while recovering inventory");
         for (var entry : this.inventory.list) {
@@ -1351,6 +1366,13 @@ final class TrinityDataCoreCpuLogic {
         for (Consumer<AEKey> listener : this.listeners) {
             listener.accept(what);
         }
+    }
+
+    /**
+     * Returns this worker's recent physical-operation load without exposing its mutable budget window.
+     */
+    long recentOperationLoad() {
+        return this.operationBudget.recentOperations(TickHandler.instance().getCurrentTick());
     }
 
     private void notifyJobOwner(TrinityDataCoreExecutingCraftingJob job, CraftingJobStatusPacket.Status status) {

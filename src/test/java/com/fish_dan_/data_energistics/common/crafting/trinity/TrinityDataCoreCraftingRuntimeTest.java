@@ -32,11 +32,13 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IGridService;
+import appeng.api.networking.crafting.CraftingSubmitErrorCode;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.crafting.ICraftingService;
 import appeng.api.networking.crafting.ICraftingSubmitResult;
+import appeng.api.networking.crafting.UnsuitableCpus;
 import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.events.GridEvent;
 import appeng.api.networking.security.IActionSource;
@@ -571,6 +573,98 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "The second runtime must receive the auto-selected job");
         fullHost.getCraftingRuntime().cancelAllJobs();
         availableHost.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_auto_selection_reports_full_runtime")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuAutoSelectionReportsFullRuntime(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("selection_diagnostic", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        helper.assertTrue(
+                host.getCpuPartitions()
+                        .getFirst()
+                        .submitJob(grid, emptyJobPlan(), IActionSource.empty(), null)
+                        .successful(),
+                "The only Trinity worker must be occupied before checking diagnostics");
+        TrinityCraftingRuntimeRegistry registry = (TrinityCraftingRuntimeRegistry) grid.craftingService();
+        registry.publish(new RuntimeGridNode(grid), host.getCraftingRuntime());
+
+        ICraftingSubmitResult result = grid.craftingService().submitJob(
+                emptyJobPlan(),
+                null,
+                null,
+                true,
+                IActionSource.empty());
+
+        helper.assertValueEqual(
+                result.errorCode(),
+                CraftingSubmitErrorCode.NO_SUITABLE_CPU_FOUND,
+                "A full pure-Trinity grid must report an unsuitable CPU instead of no CPU");
+        helper.assertValueEqual(
+                result.errorDetail(),
+                new UnsuitableCpus(0, 1, 0, 0),
+                "The unsuitable diagnostic must identify the occupied Trinity coordinator");
+        host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_auto_selection_round_robins_equal_runtimes")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuAutoSelectionRoundRobinsEqualRuntimes(GameTestHelper helper) {
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost firstHost = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        NetworkedTestHost secondHost = new NetworkedTestHost(helper.absolutePos(new BlockPos(3, 1, 1)), grid);
+        for (NetworkedTestHost host : List.of(firstHost, secondHost)) {
+            host.setLevel(helper.getLevel());
+            host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+            host.setCpuContribution("selection_rr", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        }
+        TrinityCraftingRuntimeRegistry registry = (TrinityCraftingRuntimeRegistry) grid.craftingService();
+        registry.publish(new RuntimeGridNode(grid), firstHost.getCraftingRuntime());
+        registry.publish(new RuntimeGridNode(grid), secondHost.getCraftingRuntime());
+
+        ICraftingSubmitResult firstResult = grid.craftingService().submitJob(
+                emptyJobPlan(),
+                null,
+                null,
+                true,
+                IActionSource.empty());
+        helper.assertTrue(firstResult.successful(),
+                "First equal-runtime auto-selection should succeed: " + firstResult.errorCode());
+        int firstHostInitialJobs = firstHost.getCraftingRuntime().occupiedWorkerCount();
+        int secondHostInitialJobs = secondHost.getCraftingRuntime().occupiedWorkerCount();
+        helper.assertValueEqual(
+                firstHostInitialJobs + secondHostInitialJobs,
+                1,
+                "Exactly one equal runtime should receive the first job");
+
+        firstHost.getCraftingRuntime().cancelAllJobs();
+        secondHost.getCraftingRuntime().cancelAllJobs();
+        ICraftingSubmitResult secondResult = grid.craftingService().submitJob(
+                emptyJobPlan(),
+                null,
+                null,
+                true,
+                IActionSource.empty());
+
+        helper.assertTrue(secondResult.successful(),
+                "Second equal-runtime auto-selection should succeed: " + secondResult.errorCode());
+        helper.assertValueEqual(
+                firstHost.getCraftingRuntime().occupiedWorkerCount(),
+                secondHostInitialJobs,
+                "The first host should receive the opposite allocation after cursor advancement");
+        helper.assertValueEqual(
+                secondHost.getCraftingRuntime().occupiedWorkerCount(),
+                firstHostInitialJobs,
+                "The second host should receive the opposite allocation after cursor advancement");
+        firstHost.getCraftingRuntime().cancelAllJobs();
+        secondHost.getCraftingRuntime().cancelAllJobs();
         helper.succeed();
     }
 
