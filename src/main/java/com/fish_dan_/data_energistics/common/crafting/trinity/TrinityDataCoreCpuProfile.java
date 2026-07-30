@@ -9,7 +9,8 @@ import java.util.TreeMap;
  * Aggregate CPU data for a formed Trinity Data Core host.
  *
  * <p>
- * The profile is built from named structure contributions and resolves them into stable virtual CPU partitions.
+ * The profile is built from named structure contributions and resolves them into stable virtual workers. Every worker
+ * receives the complete storage and co-processor values; worker resources are not divided by the worker count.
  */
 public record TrinityDataCoreCpuProfile(long storageBytes,
                                         int coProcessors,
@@ -32,8 +33,8 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
         if (partitionCount > MAX_PARTITION_COUNT) {
             throw new IllegalArgumentException("CPU profile partition count must not exceed " + MAX_PARTITION_COUNT);
         }
-        if (partitionCount > 0 && storageBytes < partitionCount) {
-            throw new IllegalArgumentException("CPU profile storage bytes must provide at least one byte per partition");
+        if (partitionCount > 0 && storageBytes == 0) {
+            throw new IllegalArgumentException("CPU profile with workers must provide positive storage bytes");
         }
         if (partitionCount == 0 && storageBytes > 0) {
             throw new IllegalArgumentException("CPU profile with storage bytes must expose at least one partition");

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.WorkerOperationBudget;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -63,7 +64,7 @@ final class TrinityDataCoreCpuLogic {
     @Nullable
     private TrinityDataCoreExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
-    private final int[] usedOps = new int[3];
+    private final WorkerOperationBudget operationBudget = WorkerOperationBudget.create();
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private boolean cantStoreItems;
     private long lastModifiedOnTick = TickHandler.instance().getCurrentTick();
@@ -160,7 +161,7 @@ final class TrinityDataCoreCpuLogic {
             cancel();
             return;
         }
-        int remainingOperations = operationBudget(this.cpu.getCoProcessors(), this.usedOps);
+        int remainingOperations = this.operationBudget.availableOperations(this.cpu.getCoProcessors());
         int started = remainingOperations;
         Level level = this.cpu.level();
         if (level == null) {
@@ -180,30 +181,7 @@ final class TrinityDataCoreCpuLogic {
             }
             remainingOperations -= pushedPatterns;
         }
-        this.usedOps[2] = this.usedOps[1];
-        this.usedOps[1] = this.usedOps[0];
-        this.usedOps[0] = started - remainingOperations;
-    }
-
-    /**
-     * Calculates this tick's dispatch window without overflowing at the maximum co-processor count.
-     */
-    static int operationBudget(int coProcessors, int[] usedOps) {
-        if (coProcessors < 0) {
-            throw new IllegalArgumentException("coProcessors must not be negative");
-        }
-        if (usedOps.length != 3) {
-            throw new IllegalArgumentException("usedOps must contain exactly three ticks");
-        }
-        long recentlyUsed = 0L;
-        for (int used : usedOps) {
-            if (used < 0) {
-                throw new IllegalArgumentException("usedOps must not contain negative values");
-            }
-            recentlyUsed += used;
-        }
-        long available = (long) coProcessors + 1L - recentlyUsed;
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, available));
+        this.operationBudget.recordTickUsage(started - remainingOperations);
     }
 
     /**

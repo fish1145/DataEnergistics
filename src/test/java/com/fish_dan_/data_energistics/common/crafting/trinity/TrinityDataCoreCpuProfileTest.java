@@ -76,10 +76,26 @@ public final class TrinityDataCoreCpuProfileTest {
     }
 
     @Test
-    void rejectsProfilesThatWouldCreateZeroStoragePartitions() {
+    void allWorkersRetainCompleteHardwareAtMaximumCapacity() {
+        TrinityDataCoreCpuProfile profile = new TrinityDataCoreCpuProfile(
+                1L,
+                3,
+                TrinityDataCoreCpuProfile.MAX_PARTITION_COUNT,
+                CpuSelectionMode.ANY);
+
+        for (int workerNumber = 1; workerNumber <= TrinityDataCoreCpuProfile.MAX_PARTITION_COUNT; workerNumber++) {
+            TrinityDataCoreCpuPartitionProfile worker = profile.partition(workerNumber);
+            assertEquals(workerNumber, worker.index());
+            assertEquals(1L, worker.storageBytes());
+            assertEquals(3, worker.coProcessors());
+        }
+    }
+
+    @Test
+    void rejectsWorkerPoolWithoutStorage() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new TrinityDataCoreCpuProfile(2L, 0, 3, CpuSelectionMode.ANY));
+                () -> new TrinityDataCoreCpuProfile(0L, 0, 3, CpuSelectionMode.ANY));
     }
 
     @Test
