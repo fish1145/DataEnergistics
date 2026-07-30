@@ -13,7 +13,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class TowerCoverageImpl implements TowerCoverage {
 
-    private static final int BOOSTERS_PER_CHUNK_RING = 8;
+    private static final int BOOSTERS_PER_CHUNK_RING = 16;
     private static final int VERTICAL_RANGE_ABOVE = 256;
     private static final int VERTICAL_RANGE_BELOW = 128;
 

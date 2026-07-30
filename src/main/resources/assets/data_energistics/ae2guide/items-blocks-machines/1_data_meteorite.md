@@ -32,12 +32,12 @@ item_ids:
   <Block id="ae2:sky_stone_block" x="2" y="0" z="3" />
 
   <Block id="data_energistics:budding_data_crystal_0" x="0" y="0" z="0" />
-  <Block id="ae2:damaged_budding_quartz" x="1" y="0" z="0" />
-  <Block id="ae2:flawed_budding_quartz" x="2" y="0" z="0" />
+  <Block id="data_energistics:budding_data_crystal_1" x="1" y="0" z="0" />
+  <Block id="data_energistics:budding_data_crystal_2" x="2" y="0" z="0" />
   <Block id="ae2:quartz_block" x="0" y="0" z="1" />
   <Block id="ae2:flawed_budding_quartz" x="0" y="0" z="2" />
   <Block id="ae2:chipped_budding_quartz" x="1" y="0" z="1" />
-  <Block id="data_energistics:budding_data_crystal_0" x="1" y="0" z="2" />
+  <Block id="data_energistics:budding_data_crystal_3" x="1" y="0" z="2" />
   <Block id="ae2:flawless_budding_quartz" x="2" y="0" z="1" />
   <Block id="ae2:quartz_block" x="2" y="0" z="2" />
 
@@ -56,9 +56,31 @@ item_ids:
 
   <IsometricCamera yaw="150" pitch="25" />
 </GameScene>
-A special variant based on AE meteorites, where both craters and meteorites are larger than normal AE meteorites  
-There is a 27% chance inside meteorites to have 1~2 Charged Data Crystal Motherrock (at least from what I've seen, most players actually find it quite hard to find).  
-The blocks that can appear inside the meteorite are already shown in this overview structure (as shown above).  
+A special variant based on AE meteorites, with a larger body and crater than an ordinary AE meteorite. Its core has nine positions below the center and nine above it. Each of these 18 positions independently selects one mother rock.
+
+| Mother rock | Chance per position |
+|---|---:|
+| <ItemImage id="ae2:damaged_budding_quartz" /> Damaged Budding Certus Quartz | 13.75% |
+| <ItemImage id="ae2:chipped_budding_quartz" /> Chipped Budding Certus Quartz | 13.75% |
+| <ItemImage id="ae2:flawed_budding_quartz" /> Flawed Budding Certus Quartz | 13.75% |
+| <ItemImage id="ae2:flawless_budding_quartz" /> Flawless Budding Certus Quartz | 13.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_0" /> Deactivated Data Crystal Motherrock | 11.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_1" /> Powerless Data Crystal Motherrock | 10.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_2" /> Fatigued Data Crystal Motherrock | 9.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_3" /> Deficient Data Crystal Motherrock | 8.75% |
+| <ItemImage id="data_energistics:budding_data_crystal_4" /> Charged Data Crystal Motherrock | 4.00% |
+
+Higher-quality Data Crystal mother rocks are progressively rarer. A center-layer Certus bud can appear only when the mother rock below it is a Certus tier; a Data Crystal mother rock below leaves that center position empty. This distribution applies only to newly generated digitized meteorites.
+
+All five Data Crystal mother rocks preserve their own tier when mined with Silk Touch. Without Silk Touch, their existing downgrade rules remain:
+
+| Mother rock | Ordinary mining |
+|---|---|
+| <ItemImage id="data_energistics:budding_data_crystal_0" /> Deactivated | No drop |
+| <ItemImage id="data_energistics:budding_data_crystal_1" /> Powerless | <ItemImage id="data_energistics:budding_data_crystal_0" /> Deactivated |
+| <ItemImage id="data_energistics:budding_data_crystal_2" /> Fatigued | <ItemImage id="data_energistics:budding_data_crystal_1" /> Powerless |
+| <ItemImage id="data_energistics:budding_data_crystal_3" /> Deficient | <ItemImage id="data_energistics:budding_data_crystal_2" /> Fatigued |
+| <ItemImage id="data_energistics:budding_data_crystal_4" /> Charged | <ItemImage id="data_energistics:budding_data_crystal_2" /> Fatigued |
 
 > ⚠ it will be the start of your mod
 >
