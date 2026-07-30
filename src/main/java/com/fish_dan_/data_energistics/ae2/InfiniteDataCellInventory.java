@@ -35,8 +35,9 @@ public final class InfiniteDataCellInventory implements StorageCell {
 
     @Override
     public void getAvailableStacks(KeyCounter out) {
-        out.add(DataFlowKey.of(), STORED_AMOUNT);
-        out.add(DataKey.of(), STORED_AMOUNT);
+        for (AEKey key : ModAE2Keys.keys()) {
+            out.add(key, STORED_AMOUNT);
+        }
     }
 
     @Override
@@ -68,6 +69,6 @@ public final class InfiniteDataCellInventory implements StorageCell {
     public void persist() {}
 
     private static boolean supports(AEKey key) {
-        return DataFlowKey.of().equals(key) || DataKey.of().equals(key);
+        return ModAE2Keys.isCustomKey(key);
     }
 }

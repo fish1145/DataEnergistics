@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.ae2.DataKeyType;
+import com.fish_dan_.data_energistics.ae2.EchoKey;
+import com.fish_dan_.data_energistics.ae2.EchoKeyType;
 
 import appeng.api.client.AEKeyRenderHandler;
 import appeng.api.client.AEKeyRendering;
@@ -18,6 +20,7 @@ public final class ClientAeKeyRenderers {
     private static boolean registered;
     private static final DataFlowKeyRenderHandler DATA_FLOW_RENDER_HANDLER = new DataFlowKeyRenderHandler();
     private static final DataKeyRenderHandler DATA_RENDER_HANDLER = new DataKeyRenderHandler();
+    private static final EchoKeyRenderHandler ECHO_RENDER_HANDLER = new EchoKeyRenderHandler();
 
     private ClientAeKeyRenderers() {}
 
@@ -29,11 +32,13 @@ public final class ClientAeKeyRenderers {
         registered = true;
         AEKeyRendering.register(DataFlowKeyType.TYPE, DataFlowKey.class, DATA_FLOW_RENDER_HANDLER);
         AEKeyRendering.register(DataKeyType.TYPE, DataKey.class, DATA_RENDER_HANDLER);
+        AEKeyRendering.register(EchoKeyType.TYPE, EchoKey.class, ECHO_RENDER_HANDLER);
     }
 
     public static void reregister() {
         overwrite(DataFlowKeyType.TYPE, DATA_FLOW_RENDER_HANDLER);
         overwrite(DataKeyType.TYPE, DATA_RENDER_HANDLER);
+        overwrite(EchoKeyType.TYPE, ECHO_RENDER_HANDLER);
         registered = true;
     }
 

@@ -16,10 +16,10 @@ public final class DataFlowBusStrategies {
         }
 
         registered = true;
-        StackImportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> NoopImportStrategy.INSTANCE);
-        StackExportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> new GenericKeyItemExportStrategy(DataFlowKeyType.TYPE, level, pos, side));
-        StackImportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> NoopImportStrategy.INSTANCE);
-        StackExportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> new GenericKeyItemExportStrategy(DataKeyType.TYPE, level, pos, side));
+        for (var type : ModAE2Keys.types()) {
+            StackImportStrategy.register(type, (level, pos, side) -> NoopImportStrategy.INSTANCE);
+            StackExportStrategy.register(type, (level, pos, side) -> new GenericKeyItemExportStrategy(type, level, pos, side));
+        }
     }
 
     private enum NoopImportStrategy implements StackImportStrategy {

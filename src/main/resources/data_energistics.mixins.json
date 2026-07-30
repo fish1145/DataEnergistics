@@ -55,6 +55,7 @@
 		"core.PatternProviderLogicMixin",
 		"core.PatternProviderMenuMixin",
 		"core.PatternProviderPartMixin",
+		"core.ProjectileUtilMixin",
 		"core.ResultSlotMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
 		"extendedae.ExtendedInscriberThreadMixin"

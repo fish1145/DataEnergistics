@@ -1,6 +1,6 @@
 [versions]
 ae2 = "19.2.17"
-ae2wt = "19.5.0"
+ae2wt = "19.5.1"
 
 jei = "19.25.1.328"
 emi = "1.1.24+1.21.1"
@@ -28,23 +28,23 @@ bhc = "1.21.1-1.4.1"
 
 ## cursemaven ##
 spark = "6225208"
-guideme = "8129788"
+guideme = "21.1.17"
 geckolib = "7707149"
 glodium = "5821676"
 ae2ji = "7727898"
-eae = "8025439"
+eae = "8511901"
 aae = "7849217"
-aecs = "8036407"
-aelt = "8235417"
-aeltpp = "8235153"
+aecs = "8498888"
+aelt = "8458199"
+aeltpp = "8417755"
 actually-additions = "8281896"
-eco = "8438281"
-extendedae-plus = "7960385"
-applied-flux = "7429565"
+eco = "8463264"
+extendedae-plus = "8379620"
+applied-flux = "8204513"
 applied-pneumatics = "7723695"
-applied-create = "7945860"
+applied-create = "8424628"
 mega-cells = "7952621"
-sut = "8374712"
+sut = "8472409"
 cloth-config = "5729127"
 amek = "7096962"
 jech = "8117474"
@@ -58,7 +58,7 @@ athena = "dJgL278E"
 mdlib = "0.0.1"
 
 [libraries]
-guideme             = { module = "curse.maven:guideme-1173950", version.ref = "guideme" }
+guideme             = { module = "org.appliedenergistics:guideme", version.ref = "guideme" }
 ae2                 = { module = "org.appliedenergistics:appliedenergistics2", version.ref = "ae2" }
 ae2wt               = { module = "de.mari_023:ae2wtlib", version.ref = "ae2wt"}
 ae2wt_api           = { module = "de.mari_023:ae2wtlib_api", version.ref = "ae2wt"}
