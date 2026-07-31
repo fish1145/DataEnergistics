@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtSoftInterfaceInjector;
 
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;

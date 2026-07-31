@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.mixin;
+package com.fish_dan_.data_energistics.integration.ae2lt;
 
 import org.objectweb.asm.tree.ClassNode;
 

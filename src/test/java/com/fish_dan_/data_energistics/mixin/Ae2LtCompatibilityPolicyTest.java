@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtSoftInterfaceInjector;
+
 import org.junit.jupiter.api.Test;
 import org.objectweb.asm.tree.ClassNode;
 
