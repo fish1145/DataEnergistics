@@ -7,6 +7,7 @@ dependencies {
 
     jarJar(api(forge.mdlib.get()))
     jarJar(api(libs.ojalgo.get()))
+    additionalRuntimeClasspath(libs.ojalgo)
 
     // Misc libraries
     compileOnly(forge.jech)

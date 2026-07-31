@@ -162,7 +162,9 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     target,
                     requestedAmount,
                     quantityMode,
-                    available);
+                    available,
+                    settings.maxScheduleStates(),
+                    control);
             assembled = propagated.successful() ?
                     TrinityAlgorithmResult.success(assembleAcyclic(propagated.value())) :
                     TrinityAlgorithmResult.failure(propagated.diagnostic());

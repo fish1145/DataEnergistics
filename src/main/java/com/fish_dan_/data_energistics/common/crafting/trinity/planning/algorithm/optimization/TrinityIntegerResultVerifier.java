@@ -1,4 +1,4 @@
-package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle;
+package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 

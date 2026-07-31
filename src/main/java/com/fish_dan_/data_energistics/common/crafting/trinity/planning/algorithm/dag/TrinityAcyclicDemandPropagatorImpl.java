@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
@@ -26,6 +28,12 @@ import java.util.Map;
  */
 final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPropagator {
 
+    private final TrinityAcyclicRouteOptimizer routeOptimizer;
+
+    TrinityAcyclicDemandPropagatorImpl(TrinityAcyclicRouteOptimizer routeOptimizer) {
+        this.routeOptimizer = routeOptimizer;
+    }
+
     @Override
     public TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
                                                                 TrinityCraftingTopology topology,
@@ -33,23 +41,70 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
                                                                 AEKey target,
                                                                 BigInteger requestedAmount,
                                                                 CraftingQuantityMode quantityMode,
-                                                                Map<AEKey, BigInteger> available) {
+                                                                Map<AEKey, BigInteger> available,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningControl control) {
         if (topology == null || variants == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null) {
+                requestedAmount.signum() <= 0 || quantityMode == null || available == null ||
+                maxSearchStates <= 0 || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic propagation requires complete, positive inputs");
         }
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
+        StopState initialState = stopState(control);
+        if (initialState != StopState.RUNNING) {
+            return stopped(initialState);
+        }
+        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(variants);
+        Integer targetComponent = topology.componentByKey().get(target);
+        if (targetComponent == null) {
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                    Component.literal("The requested key is absent from the Trinity acyclic graph"),
+                    Map.of("key", target.toString())));
+        }
+        List<Integer> reachableComponents = reachablePredecessors(topology, targetComponent);
+        for (Integer componentIndex : reachableComponents) {
+            StopState state = stopState(control);
+            if (state != StopState.RUNNING) {
+                return stopped(state);
+            }
+            TrinityStronglyConnectedComponent component = topology.components().get(componentIndex);
+            if (component.cyclic()) {
+                return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
+                        Component.literal("A cyclic demand reached the acyclic Trinity propagator"),
+                        Map.of("component", Integer.toString(component.index()))));
+            }
+        }
+        if (requiresGlobalRouteOptimization(topology, reachableComponents, producers)) {
+            return this.routeOptimizer.optimize(
+                    topology,
+                    variants,
+                    target,
+                    requestedAmount,
+                    quantityMode,
+                    available,
+                    maxSearchStates,
+                    control);
+        }
 
+        Map<AEKey, BigInteger> inventory = copyAvailable(available);
         LinkedHashMap<AEKey, BigInteger> need = new LinkedHashMap<>();
         merge(need, target, requestedAmount);
-        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(variants);
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> reservedInputs = new LinkedHashMap<>();
         int states = 0;
         List<Integer> componentOrder = topology.topologicalOrder();
         for (int position = componentOrder.size() - 1; position >= 0; position--) {
+            StopState state = stopState(control);
+            if (state != StopState.RUNNING) {
+                return stopped(state);
+            }
             TrinityStronglyConnectedComponent component = topology.components().get(componentOrder.get(position));
             for (AEKey key : component.keys()) {
+                state = stopState(control);
+                if (state != StopState.RUNNING) {
+                    return stopped(state);
+                }
                 BigInteger required = need.getOrDefault(key, BigInteger.ZERO);
                 boolean forceFinalTotalProduction = key.equals(target) &&
                         quantityMode == CraftingQuantityMode.FINAL_TOTAL;
@@ -80,13 +135,6 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
                                     "required", required.max(BigInteger.ZERO).toString(),
                                     "available", availableAmount.toString())));
                 }
-                if (component.cyclic()) {
-                    return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
-                            TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
-                            Component.literal("A cyclic demand reached the acyclic Trinity propagator"),
-                            Map.of("component", Integer.toString(component.index()))));
-                }
-
                 TrinityPatternVariant selected = candidates.getFirst();
                 BigInteger outputPerFiring = selected.outputs().get(key);
                 BigInteger count = missing.signum() > 0 ?
@@ -108,6 +156,10 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
                 .forEach(entry -> executionOrder.add(new TrinityVariantFiring(entry.getKey(), entry.getValue())));
         LinkedHashMap<TrinityPatternVariant, BigInteger> orderedFirings = new LinkedHashMap<>();
         executionOrder.forEach(firing -> orderedFirings.put(firing.variant(), firing.count()));
+        StopState completedState = stopState(control);
+        if (completedState != StopState.RUNNING) {
+            return stopped(completedState);
+        }
         return TrinityAlgorithmResult.success(new TrinityAcyclicPlan(
                 executionOrder,
                 orderedFirings,
@@ -148,6 +200,36 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
             producers.put(key, List.copyOf(candidates));
         });
         return producers;
+    }
+
+    private static List<Integer> reachablePredecessors(TrinityCraftingTopology topology, int targetComponent) {
+        ArrayList<Integer> pending = new ArrayList<>();
+        LinkedHashMap<Integer, Boolean> visited = new LinkedHashMap<>();
+        pending.add(targetComponent);
+        for (int index = 0; index < pending.size(); index++) {
+            int component = pending.get(index);
+            if (visited.putIfAbsent(component, Boolean.TRUE) != null) {
+                continue;
+            }
+            pending.addAll(topology.components().get(component).predecessorIndexes());
+        }
+        return List.copyOf(visited.keySet());
+    }
+
+    private static boolean requiresGlobalRouteOptimization(
+                                                           TrinityCraftingTopology topology,
+                                                           List<Integer> reachableComponents,
+                                                           Map<AEKey, List<TrinityPatternVariant>> producers) {
+        for (Integer componentIndex : reachableComponents) {
+            for (AEKey key : topology.components().get(componentIndex).keys()) {
+                List<TrinityPatternVariant> candidates = producers.getOrDefault(key, List.of());
+                if (candidates.size() > 1 ||
+                        candidates.stream().anyMatch(variant -> variant.outputs().size() > 1)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static int producerPosition(TrinityCraftingTopology topology,
@@ -193,5 +275,32 @@ final class TrinityAcyclicDemandPropagatorImpl implements TrinityAcyclicDemandPr
 
     private static void merge(Map<AEKey, BigInteger> amounts, AEKey key, BigInteger amount) {
         amounts.merge(key, amount, BigInteger::add);
+    }
+
+    private static StopState stopState(TrinityPlanningControl control) {
+        if (control.cancellationRequested()) {
+            return StopState.CANCELLED;
+        }
+        return control.deadlineExceeded() ? StopState.DEADLINE_EXCEEDED : StopState.RUNNING;
+    }
+
+    private static <T> TrinityAlgorithmResult<T> stopped(StopState state) {
+        return switch (state) {
+            case CANCELLED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    Component.literal("Trinity acyclic propagation was cancelled"),
+                    Map.of("phase", "dag")));
+            case DEADLINE_EXCEEDED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                    Component.literal("Trinity acyclic propagation exhausted its shared deadline"),
+                    Map.of("phase", "dag")));
+            case RUNNING -> throw new IllegalArgumentException("A running Trinity propagation is not stopped");
+        };
+    }
+
+    private enum StopState {
+        RUNNING,
+        CANCELLED,
+        DEADLINE_EXCEEDED
     }
 }

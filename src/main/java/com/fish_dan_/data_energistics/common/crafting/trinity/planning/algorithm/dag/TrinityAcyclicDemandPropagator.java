@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -20,7 +22,7 @@ public interface TrinityAcyclicDemandPropagator {
      * @return stateless exact propagator
      */
     static TrinityAcyclicDemandPropagator create() {
-        return new TrinityAcyclicDemandPropagatorImpl();
+        return new TrinityAcyclicDemandPropagatorImpl(TrinityAcyclicRouteOptimizer.create());
     }
 
     /**
@@ -30,6 +32,8 @@ public interface TrinityAcyclicDemandPropagator {
      * @param requestedAmount positive requested amount
      * @param quantityMode    net-new or final-total semantics
      * @param available       immutable non-negative inventory snapshot
+     * @param maxSearchStates maximum aggregate route-optimization states
+     * @param control         cooperative cancellation and shared deadline
      * @return compact plan, or an explicit cycle/unsupported diagnostic
      */
     TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
@@ -38,5 +42,7 @@ public interface TrinityAcyclicDemandPropagator {
                                                          AEKey target,
                                                          BigInteger requestedAmount,
                                                          CraftingQuantityMode quantityMode,
-                                                         Map<AEKey, BigInteger> available);
+                                                         Map<AEKey, BigInteger> available,
+                                                         int maxSearchStates,
+                                                         TrinityPlanningControl control);
 }

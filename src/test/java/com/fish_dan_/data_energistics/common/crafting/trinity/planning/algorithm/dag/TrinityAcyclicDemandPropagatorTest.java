@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
@@ -27,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public final class TrinityAcyclicDemandPropagatorTest {
+
+    private static final int MAX_SEARCH_STATES = 1_000;
 
     @BeforeAll
     static void bootstrapRegistries() {
@@ -60,7 +63,9 @@ public final class TrinityAcyclicDemandPropagatorTest {
                         target,
                         request,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(raw, availableRaw))
+                        Map.of(raw, availableRaw),
+                        MAX_SEARCH_STATES,
+                        control())
                 .value();
 
         BigInteger targetFirings = request.divide(BigInteger.TWO);
@@ -78,13 +83,24 @@ public final class TrinityAcyclicDemandPropagatorTest {
 
     @Test
     void stateCountDoesNotGrowWithRequestedAmount() {
-        AEKey raw = AEItemKey.of(Items.COBBLESTONE);
+        AEKey oak = AEItemKey.of(Items.OAK_PLANKS);
+        AEKey crimson = AEItemKey.of(Items.CRIMSON_PLANKS);
+        AEKey table = AEItemKey.of(Items.CRAFTING_TABLE);
+        AEKey stick = AEItemKey.of(Items.STICK);
         AEKey target = AEItemKey.of(Items.DIAMOND);
-        TrinityPatternVariant producer = variant(
-                "producer",
-                amounts(raw, BigInteger.ONE),
+        TrinityPatternVariant oakTable = variant(
+                "a-oak-table",
+                amounts(oak, BigInteger.valueOf(4L)),
+                amounts(table, BigInteger.ONE, stick, BigInteger.ONE));
+        TrinityPatternVariant crimsonTable = variant(
+                "b-crimson-table",
+                amounts(crimson, BigInteger.valueOf(4L)),
+                amounts(table, BigInteger.ONE, stick, BigInteger.ONE));
+        TrinityPatternVariant finish = variant(
+                "c-finish",
+                amounts(table, BigInteger.TWO, stick, BigInteger.ONE),
                 amounts(target, BigInteger.ONE));
-        List<TrinityPatternVariant> variants = List.of(producer);
+        List<TrinityPatternVariant> variants = List.of(oakTable, crimsonTable, finish);
         TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
                 .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
                 .value();
@@ -97,20 +113,87 @@ public final class TrinityAcyclicDemandPropagatorTest {
                         target,
                         BigInteger.ONE,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(raw, BigInteger.ONE))
+                        Map.of(oak, BigInteger.valueOf(4L), crimson, BigInteger.valueOf(4L)),
+                        MAX_SEARCH_STATES,
+                        control())
                 .value();
+        BigInteger largeRequest = BigInteger.valueOf(1_000L);
         TrinityAcyclicPlan huge = propagator
                 .propagate(
                         topology,
                         variants,
                         target,
-                        BigInteger.TEN.pow(1000),
+                        largeRequest,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(raw, BigInteger.TEN.pow(1000)))
+                        Map.of(
+                                oak, largeRequest.multiply(BigInteger.valueOf(4L)),
+                                crimson, largeRequest.multiply(BigInteger.valueOf(4L))),
+                        MAX_SEARCH_STATES,
+                        control())
                 .value();
 
         assertEquals(one.statesVisited(), huge.statesVisited());
-        assertEquals(1, huge.statesVisited());
+        assertEquals(4, huge.statesVisited());
+        assertEquals(largeRequest, huge.firings().get(oakTable));
+        assertEquals(largeRequest, huge.firings().get(crimsonTable));
+        assertEquals(largeRequest, huge.firings().get(finish));
+        assertFalse(huge.externalInputs().containsKey(stick));
+        assertEquals(List.of(oakTable, crimsonTable, finish),
+                huge.executionOrder().stream().map(TrinityVariantFiring::variant).toList());
+    }
+
+    @Test
+    void selectsInventoryBackedBindingInsteadOfStableFirstUnavailableBinding() {
+        AEKey oakLog = AEItemKey.of(Items.OAK_LOG);
+        AEKey crimsonStem = AEItemKey.of(Items.CRIMSON_STEM);
+        AEKey oak = AEItemKey.of(Items.OAK_PLANKS);
+        AEKey crimson = AEItemKey.of(Items.CRIMSON_PLANKS);
+        AEKey target = AEItemKey.of(Items.CRAFTING_TABLE);
+        TrinityPatternVariant oakPlanks = variant(
+                "a-oak-planks",
+                amounts(oakLog, BigInteger.ONE),
+                amounts(oak, BigInteger.valueOf(4L)));
+        TrinityPatternVariant crimsonPlanks = variant(
+                "b-crimson-planks",
+                amounts(crimsonStem, BigInteger.ONE),
+                amounts(crimson, BigInteger.valueOf(4L)));
+        TrinityPatternVariant stableFirstOak = variant(
+                "c-oak-table",
+                amounts(oak, BigInteger.valueOf(4L)),
+                amounts(target, BigInteger.ONE));
+        TrinityPatternVariant availableCrimson = variant(
+                "d-crimson-table",
+                amounts(crimson, BigInteger.valueOf(4L)),
+                amounts(target, BigInteger.ONE));
+        List<TrinityPatternVariant> variants = List.of(
+                oakPlanks,
+                crimsonPlanks,
+                stableFirstOak,
+                availableCrimson);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+
+        TrinityAcyclicPlan plan = TrinityAcyclicDemandPropagator.create()
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.valueOf(128L),
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(crimsonStem, BigInteger.valueOf(128L)),
+                        MAX_SEARCH_STATES,
+                        control())
+                .value();
+
+        assertFalse(plan.firings().containsKey(oakPlanks));
+        assertFalse(plan.firings().containsKey(stableFirstOak));
+        assertEquals(BigInteger.valueOf(128L), plan.firings().get(crimsonPlanks));
+        assertEquals(BigInteger.valueOf(128L), plan.firings().get(availableCrimson));
+        assertEquals(BigInteger.valueOf(128L), plan.externalInputs().get(crimsonStem));
+        assertEquals(List.of(crimsonPlanks, availableCrimson),
+                plan.executionOrder().stream().map(TrinityVariantFiring::variant).toList());
+        assertEquals(5, plan.statesVisited());
     }
 
     @Test
@@ -134,7 +217,9 @@ public final class TrinityAcyclicDemandPropagatorTest {
                         target,
                         BigInteger.TEN,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(target, BigInteger.valueOf(7L), raw, BigInteger.TEN))
+                        Map.of(target, BigInteger.valueOf(7L), raw, BigInteger.TEN),
+                        MAX_SEARCH_STATES,
+                        control())
                 .value();
         TrinityAcyclicPlan finalTotal = propagator
                 .propagate(
@@ -143,7 +228,9 @@ public final class TrinityAcyclicDemandPropagatorTest {
                         target,
                         BigInteger.TEN,
                         CraftingQuantityMode.FINAL_TOTAL,
-                        Map.of(target, BigInteger.valueOf(7L), raw, BigInteger.TEN))
+                        Map.of(target, BigInteger.valueOf(7L), raw, BigInteger.TEN),
+                        MAX_SEARCH_STATES,
+                        control())
                 .value();
 
         assertEquals(BigInteger.TEN, netNew.firings().get(producer));
@@ -171,7 +258,9 @@ public final class TrinityAcyclicDemandPropagatorTest {
                         target,
                         BigInteger.TEN,
                         CraftingQuantityMode.FINAL_TOTAL,
-                        Map.of(target, BigInteger.valueOf(20L), raw, BigInteger.ONE))
+                        Map.of(target, BigInteger.valueOf(20L), raw, BigInteger.ONE),
+                        MAX_SEARCH_STATES,
+                        control())
                 .value();
 
         assertEquals(BigInteger.ONE, plan.firings().get(producer));
@@ -199,11 +288,17 @@ public final class TrinityAcyclicDemandPropagatorTest {
                         target,
                         BigInteger.ONE,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(raw, BigInteger.valueOf(3L)));
+                        Map.of(raw, BigInteger.valueOf(3L)),
+                        MAX_SEARCH_STATES,
+                        control());
 
         assertFalse(result.successful());
         assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, result.diagnostic().code());
         assertEquals("5", result.diagnostic().metadata().get("required"));
         assertEquals("3", result.diagnostic().metadata().get("available"));
+    }
+
+    private static TrinityPlanningControl control() {
+        return TrinityPlanningControl.create(() -> false, () -> 0L, Long.MAX_VALUE);
     }
 }

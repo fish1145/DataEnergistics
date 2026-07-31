@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern;
 
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
+
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 
@@ -33,7 +35,7 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
             throw new IllegalArgumentException("A Trinity runtime binding requires an ordinal, work and variant limit");
         }
 
-        IPatternDetails.IInput[] inputs = pattern.getInputs();
+        List<RuntimeInput> inputs = captureInputs(pattern.getInputs());
         BigInteger exactVariantCount = countVariants(inputs);
         if (exactVariantCount.compareTo(BigInteger.valueOf(maxVariants)) > 0) {
             return new VariantLimit(exactVariantCount, maxVariants);
@@ -45,7 +47,7 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
 
         LinkedHashSet<AEKey> observedKeys = allAlternativeKeys(inputs);
         Candidate best = null;
-        int[] alternatives = new int[inputs.length];
+        int[] alternatives = new int[inputs.size()];
         for (int ordinal = 0; ordinal < variantCount; ordinal++) {
             if (dynamic || ordinal == plannedOrdinal) {
                 Candidate candidate;
@@ -79,42 +81,47 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
                 observedKeys);
     }
 
-    private static BigInteger countVariants(IPatternDetails.IInput[] inputs) {
-        BigInteger count = BigInteger.ONE;
+    private static List<RuntimeInput> captureInputs(IPatternDetails.IInput[] inputs) {
+        ArrayList<RuntimeInput> captured = new ArrayList<>(inputs.length);
         for (IPatternDetails.IInput input : inputs) {
-            int alternatives = input.getPossibleInputs().length;
-            if (alternatives == 0) {
-                return BigInteger.ZERO;
-            }
-            count = count.multiply(BigInteger.valueOf(alternatives));
+            captured.add(new RuntimeInput(input, TrinityPatternPublicationSignature.Input.capture(input)));
+        }
+        return List.copyOf(captured);
+    }
+
+    private static BigInteger countVariants(List<RuntimeInput> inputs) {
+        BigInteger count = BigInteger.ONE;
+        for (RuntimeInput input : inputs) {
+            count = count.multiply(BigInteger.valueOf(input.signature().alternatives().size()));
         }
         return count;
     }
 
-    private static LinkedHashSet<AEKey> allAlternativeKeys(IPatternDetails.IInput[] inputs) {
+    private static LinkedHashSet<AEKey> allAlternativeKeys(List<RuntimeInput> inputs) {
         LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
-        for (IPatternDetails.IInput input : inputs) {
-            for (GenericStack alternative : input.getPossibleInputs()) {
-                keys.add(alternative.what());
+        for (RuntimeInput input : inputs) {
+            for (TrinityPatternPublicationSignature.Alternative alternative : input.signature().alternatives()) {
+                keys.add(alternative.stack().what());
             }
         }
         return keys;
     }
 
-    private static Candidate evaluate(IPatternDetails.IInput[] inputs,
+    private static Candidate evaluate(List<RuntimeInput> inputs,
                                       int[] alternatives,
                                       int ordinal,
                                       long remainingCrafts,
                                       ToLongFunction<AEKey> cpuAvailability,
                                       ToLongFunction<AEKey> networkAvailability) {
-        ArrayList<SelectedInput> selected = new ArrayList<>(inputs.length);
+        ArrayList<SelectedInput> selected = new ArrayList<>(inputs.size());
         LinkedHashMap<AEKey, Long> aggregated = new LinkedHashMap<>();
-        for (int slot = 0; slot < inputs.length; slot++) {
-            IPatternDetails.IInput input = inputs[slot];
-            GenericStack template = input.getPossibleInputs()[alternatives[slot]];
-            long amount = Math.multiplyExact(template.amount(), input.getMultiplier());
+        for (int slot = 0; slot < inputs.size(); slot++) {
+            RuntimeInput input = inputs.get(slot);
+            TrinityPatternPublicationSignature.Alternative alternative = input.signature().alternatives().get(alternatives[slot]);
+            GenericStack template = alternative.stack();
+            long amount = Math.multiplyExact(template.amount(), input.signature().multiplier());
             aggregated.merge(template.what(), amount, Math::addExact);
-            selected.add(new SelectedInput(input, template));
+            selected.add(new SelectedInput(input.delegate(), template, alternative.remainingKey()));
         }
 
         long maximumCrafts = remainingCrafts;
@@ -155,10 +162,10 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         return left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
     }
 
-    private static void incrementOdometer(int[] alternatives, IPatternDetails.IInput[] inputs) {
+    private static void incrementOdometer(int[] alternatives, List<RuntimeInput> inputs) {
         for (int slot = alternatives.length - 1; slot >= 0; slot--) {
             alternatives[slot]++;
-            if (alternatives[slot] < inputs[slot].getPossibleInputs().length) {
+            if (alternatives[slot] < inputs.get(slot).signature().alternatives().size()) {
                 return;
             }
             alternatives[slot] = 0;
@@ -182,7 +189,12 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         }
     }
 
-    private record SelectedInput(IPatternDetails.IInput delegate, GenericStack template) {}
+    private record RuntimeInput(IPatternDetails.IInput delegate,
+                                TrinityPatternPublicationSignature.Input signature) {}
+
+    private record SelectedInput(IPatternDetails.IInput delegate,
+                                 GenericStack template,
+                                 AEKey remainingKey) {}
 
     /** Pattern wrapper used only for exact CPU-side extraction; providers always receive the registered delegate. */
     private static final class BoundPatternDetails implements IPatternDetails {
@@ -241,7 +253,7 @@ final class TrinityPatternSelectorImpl implements TrinityPatternSelector {
         private BoundInput(SelectedInput selected) {
             this.delegate = selected.delegate();
             this.template = selected.template();
-            this.remainingKey = this.delegate.getRemainingKey(this.template.what());
+            this.remainingKey = selected.remainingKey();
         }
 
         @Override

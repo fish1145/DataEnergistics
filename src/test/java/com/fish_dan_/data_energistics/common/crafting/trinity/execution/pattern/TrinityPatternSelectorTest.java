@@ -58,6 +58,29 @@ public final class TrinityPatternSelectorTest {
     }
 
     @Test
+    void interpretsPlannedOrdinalAfterDeduplicatingEquivalentAlternatives() {
+        IPatternDetails pattern = pattern(input(
+                1L,
+                stack(iron, 1L),
+                stack(iron, 1L),
+                stack(gold, 1L)));
+
+        TrinityPatternSelector.Selected selected = assertInstanceOf(
+                TrinityPatternSelector.Selected.class,
+                TrinityPatternSelector.create().select(
+                        pattern,
+                        1,
+                        false,
+                        4L,
+                        availability(Map.of(gold, 4L)),
+                        ignored -> 0L,
+                        2));
+
+        assertEquals(1, selected.variantOrdinal());
+        assertEquals(List.of(stack(gold, 1L)), selected.inputsPerCraft());
+    }
+
+    @Test
     void dynamicallyChoosesLargestExecutableCycleBatch() {
         IPatternDetails pattern = pattern(input(1L, stack(iron, 1L), stack(gold, 1L)));
 

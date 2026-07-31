@@ -293,7 +293,7 @@ RUNTIME_DEADLOCK
 2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。**已实现**
 3. ready queue、seed 门、动态借料和 schema 2。**已实现**
 4. Craft Amount 数量模式、确认页诊断和 Trinity-only 过滤。**已实现**
-5. 全量逻辑测试、GameTest、性能计数和重载验收。
+5. 全量逻辑测试、GameTest、性能计数和重载验收。**已实现**
 
 ### 11.1 已落地的基础边界
 
@@ -342,3 +342,14 @@ RUNTIME_DEADLOCK
 - 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果，并保留 AE2 结果与诊断；
 - 确认页显示 Trinity-only、循环动态材料警告和诊断；
 - 确认页过滤、自动选核与 `submitJob` 都复用同一 CPU-family admission 边界。
+
+### 11.5 已完成的集成验收
+
+第五步已补齐并验证以下关键证据：
+
+- 真实 Trinity CPU 可执行单样板 `A -> 2A`，一个 seed 对 `NET_NEW 31` 形成紧凑 repeat block，最终守恒为 32；
+- DAG 多路线使用完整目标可达区域求解，库存不可用的稳定首选路线不会遮蔽可执行替代路线；
+- 运行时 variant ordinal 与图快照采用同一去重 publication signature，不会因重复输入候选绑定到错误材料；
+- 大数量 DAG 的状态计数只随图和 variant 数变化，不随请求量逐个展开；
+- `test`、470 项必需 GameTest、`build` 和改动文件 IDEA inspections 均通过；
+- 发布 JAR 内含 ojAlgo 57.1.0 的 jar-in-jar 元数据，开发运行通过 additional runtime classpath 加载同一版本。
