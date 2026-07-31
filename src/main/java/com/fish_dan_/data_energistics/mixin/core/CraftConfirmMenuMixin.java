@@ -1,39 +1,155 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
+import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
+import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.util.UniversalTerminalHostAccessor;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MenuType;
 
 import appeng.api.networking.crafting.ICraftingCPU;
+import appeng.api.networking.crafting.ICraftingPlan;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEKey;
+import appeng.menu.AEBaseMenu;
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.locator.MenuHostLocator;
 import appeng.menu.me.crafting.CraftConfirmMenu;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Owns confirmation-page quantity context, diagnostics, and CPU-family filtering.
+ */
 @Mixin(CraftConfirmMenu.class)
-public abstract class CraftConfirmMenuMixin {
+public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements TrinityCraftConfirmMenuState {
+
+    @Unique
+    private static final TrinityPlanAdmission DATA_ENERGISTICS_PLAN_ADMISSION = TrinityPlanAdmission.create();
+
+    @Shadow
+    @Nullable
+    private ICraftingPlan result;
+
+    @GuiSync(791)
+    @Unique
+    public int dataEnergistics$quantityMode = TrinityCraftingConfig.settings().defaultQuantityMode().ordinal();
+
+    @GuiSync(792)
+    @Unique
+    public boolean dataEnergistics$trinityOnly;
+
+    @GuiSync(793)
+    @Unique
+    public boolean dataEnergistics$dynamicMaterialWarning;
+
+    @GuiSync(794)
+    @Unique
+    public boolean dataEnergistics$hasDiagnostic;
+
+    @GuiSync(795)
+    @Unique
+    public Component dataEnergistics$diagnostic = Component.empty();
+
+    protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
+        super(menuType, id, playerInventory, host);
+    }
+
+    @Inject(method = "broadcastChanges", at = @At("HEAD"))
+    private void dataEnergistics$preparePlanningMetadata(CallbackInfo ci) {
+        if (!this.isServerSide()) {
+            return;
+        }
+
+        this.dataEnergistics$trinityOnly = false;
+        this.dataEnergistics$dynamicMaterialWarning = false;
+        this.dataEnergistics$hasDiagnostic = false;
+        this.dataEnergistics$diagnostic = Component.empty();
+
+        if (this.result instanceof TrinityCraftingPlan plan) {
+            this.dataEnergistics$quantityMode = plan.quantityMode().ordinal();
+            this.dataEnergistics$trinityOnly = true;
+            this.dataEnergistics$dynamicMaterialWarning = plan.stages().stream().anyMatch(TrinityPlanStage::cycleStage);
+            if (!plan.diagnostics().isEmpty()) {
+                this.dataEnergistics$hasDiagnostic = true;
+                this.dataEnergistics$diagnostic = plan.diagnostics().getFirst().message();
+            }
+        } else if (this.result instanceof TrinityDiagnosedCraftingPlan diagnosed) {
+            this.dataEnergistics$hasDiagnostic = true;
+            this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
+        }
+    }
 
     @Inject(method = "cpuMatches", at = @At("HEAD"), cancellable = true, require = 1, remap = false)
-    private void dataEnergistics$excludeBusyTrinityWorker(ICraftingCPU cpu,
-                                                          CallbackInfoReturnable<Boolean> cir) {
-        if (cpu instanceof TrinityDataCoreVirtualCpu && cpu.isBusy()) {
+    private void dataEnergistics$filterCpuByPlanFamily(
+                                                       ICraftingCPU c,
+                                                       CallbackInfoReturnable<Boolean> cir) {
+        TrinityPlanAdmission.CpuFamily family = c instanceof TrinityDataCoreVirtualCpu ?
+                TrinityPlanAdmission.CpuFamily.TRINITY :
+                TrinityPlanAdmission.CpuFamily.NON_TRINITY;
+        if (this.result != null && !DATA_ENERGISTICS_PLAN_ADMISSION.isCompatibleWith(this.result, family)) {
+            cir.setReturnValue(false);
+            return;
+        }
+        if (c instanceof TrinityDataCoreVirtualCpu trinityCpu && !trinityCpu.canAcceptJob()) {
             cir.setReturnValue(false);
         }
     }
 
-    @Inject(method = "startJob",
-            at = @At(value = "INVOKE",
+    @ModifyReturnValue(method = "getActionSrc", at = @At("RETURN"))
+    private IActionSource dataEnergistics$attachQuantityContext(IActionSource original) {
+        return TrinityCraftingRequestContext.attach(original, data_energistics$quantityMode());
+    }
+
+    @WrapOperation(
+                   method = "goBack",
+                   at = @At(
+                            value = "INVOKE",
+                            target = "Lappeng/menu/me/crafting/CraftAmountMenu;open(Lnet/minecraft/server/level/ServerPlayer;Lappeng/menu/locator/MenuHostLocator;Lappeng/api/stacks/AEKey;I)V"))
+    private void dataEnergistics$restoreQuantityMode(
+                                                     ServerPlayer player,
+                                                     MenuHostLocator locator,
+                                                     AEKey whatToCraft,
+                                                     int initialAmount,
+                                                     Operation<Void> original) {
+        original.call(player, locator, whatToCraft, initialAmount);
+        if (player.containerMenu instanceof TrinityCraftAmountMenuState amountMenu) {
+            amountMenu.data_energistics$setQuantityMode(data_energistics$quantityMode());
+        }
+    }
+
+    @Inject(
+            method = "startJob",
+            at = @At(
+                     value = "INVOKE",
                      target = "Lappeng/api/storage/ISubMenuHost;returnToMainMenu(Lnet/minecraft/world/entity/player/Player;Lappeng/menu/ISubMenu;)V",
                      shift = At.Shift.AFTER),
             remap = false)
     private void dataEnergistics$returnUniversalTerminalAfterSubmit(CallbackInfo ci) {
         CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
         Player player = self.getPlayer();
-        if (player == null || player.level().isClientSide) {
+        if (player.level().isClientSide) {
             return;
         }
 
@@ -46,5 +162,35 @@ public abstract class CraftConfirmMenuMixin {
         if (target instanceof UniversalTerminalHostAccessor accessor) {
             accessor.getUniversalTerminalPart().returnToMainMenu(player, self);
         }
+    }
+
+    @Override
+    public CraftingQuantityMode data_energistics$quantityMode() {
+        return CraftingQuantityMode.fromOrdinal(this.dataEnergistics$quantityMode);
+    }
+
+    @Override
+    public void data_energistics$setQuantityMode(CraftingQuantityMode quantityMode) {
+        this.dataEnergistics$quantityMode = quantityMode.ordinal();
+    }
+
+    @Override
+    public boolean data_energistics$isTrinityOnly() {
+        return this.dataEnergistics$trinityOnly;
+    }
+
+    @Override
+    public boolean data_energistics$hasDynamicMaterialWarning() {
+        return this.dataEnergistics$dynamicMaterialWarning;
+    }
+
+    @Override
+    public boolean data_energistics$hasDiagnostic() {
+        return this.dataEnergistics$hasDiagnostic;
+    }
+
+    @Override
+    public Component data_energistics$diagnostic() {
+        return this.dataEnergistics$diagnostic;
     }
 }

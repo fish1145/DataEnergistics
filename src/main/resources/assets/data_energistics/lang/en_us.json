@@ -599,5 +599,12 @@
 	"message.data_energistics.trinity_data_core.refund.stale_state": "%s changed before the return could run",
 	"message.data_energistics.trinity_data_core.refund.delivery_failed": "Could not return %s; no return was made",
 	"message.data_energistics.trinity_data_core.refund.internal_error": "Could not return %s due to an internal error",
-	"message.data_energistics.trinity_data_core.refund.rejected": "The return request for %s was rejected"
+	"message.data_energistics.trinity_data_core.refund.rejected": "The return request for %s was rejected",
+	"gui.data_energistics.trinity_quantity.mode": "Quantity: %s",
+	"gui.data_energistics.trinity_quantity.net_new": "Net New",
+	"gui.data_energistics.trinity_quantity.final_total": "Final Total",
+	"gui.data_energistics.trinity_planning.only": "Trinity CPU only · %s",
+	"gui.data_energistics.trinity_planning.dynamic_warning": "Estimated materials; cyclic alternatives may change",
+	"gui.data_energistics.trinity_planning.cpu_too_small": "Trinity plan needs %s bytes; largest eligible CPU has %s",
+	"gui.data_energistics.trinity_planning.graph_unavailable": "Trinity crafting graph is rebuilding; using AE2"
 }

@@ -18,4 +18,12 @@ final class TrinityPlanAdmissionImpl implements TrinityPlanAdmission {
             case EXPLICIT_TARGET, DIRECT_CPU -> Decision.REJECT_TRINITY;
         };
     }
+
+    @Override
+    public boolean isCompatibleWith(ICraftingPlan plan, CpuFamily cpuFamily) {
+        return switch (cpuFamily) {
+            case TRINITY -> decide(plan, Route.AUTOMATIC_SELECTION) == Decision.SUBMIT_TO_TRINITY;
+            case NON_TRINITY -> !(plan instanceof TrinityCpuExecutablePlan);
+        };
+    }
 }

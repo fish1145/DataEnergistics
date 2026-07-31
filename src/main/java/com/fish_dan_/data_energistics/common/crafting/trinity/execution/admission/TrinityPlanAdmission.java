@@ -48,6 +48,20 @@ public interface TrinityPlanAdmission {
     }
 
     /**
+     * CPU implementation family used by both confirmation filtering and final submission routing.
+     */
+    enum CpuFamily {
+        /**
+         * A Data Energistics Trinity CPU that understands {@link TrinityCpuExecutablePlan}.
+         */
+        TRINITY,
+        /**
+         * AE2-native and third-party CPUs whose execution contract is not owned by Trinity.
+         */
+        NON_TRINITY
+    }
+
+    /**
      * @return default allowlist-based admission policy
      */
     static TrinityPlanAdmission create() {
@@ -62,4 +76,18 @@ public interface TrinityPlanAdmission {
      * @return required routing action
      */
     Decision decide(ICraftingPlan plan, Route route);
+
+    /**
+     * Applies the plan ownership boundary to a concrete CPU family.
+     *
+     * <p>
+     * Trinity-only plans can never reach another CPU. Unknown third-party extended plans remain eligible for their
+     * own CPU family but are never admitted to Trinity.
+     * </p>
+     *
+     * @param plan      calculated crafting plan
+     * @param cpuFamily target CPU implementation family
+     * @return whether that CPU family may receive the plan
+     */
+    boolean isCompatibleWith(ICraftingPlan plan, CpuFamily cpuFamily);
 }

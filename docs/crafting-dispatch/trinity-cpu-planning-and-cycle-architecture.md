@@ -3,7 +3,7 @@
 ## 1. 文档状态
 
 - 方案状态：已确定，按功能提交实施
-- 实现进度：网格图、规划入口、DAG/SCC/循环求解、事件执行、动态借料和 schema 2 已完成；界面轨道待实现
+- 实现进度：网格图、双轨规划入口、DAG/SCC/循环求解、事件执行、动态借料、schema 2 和数量/诊断界面均已完成
 - 适用范围：Trinity CPU 专属计算计划、无环大数量计算、自增殖、多步增殖和多路线生产循环
 - 前置基础：派发架构 Phase 0 至 Phase 2
 - 非依赖项：派发架构 Phase 3 容量切片、Phase 4 Actor/Shard、Phase 5 Governor
@@ -292,7 +292,7 @@ RUNTIME_DEADLOCK
 1. 网格图、计划接口、规划入口和配置。**已实现**
 2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。**已实现**
 3. ready queue、seed 门、动态借料和 schema 2。**已实现**
-4. Craft Amount 数量模式、确认页诊断和 Trinity-only 过滤。
+4. Craft Amount 数量模式、确认页诊断和 Trinity-only 过滤。**已实现**
 5. 全量逻辑测试、GameTest、性能计数和重载验收。
 
 ### 11.1 已落地的基础边界
@@ -317,8 +317,8 @@ RUNTIME_DEADLOCK
 - 完整 stage/repeat 守恒校验、`NET_NEW`/`FINAL_TOTAL` 数量约束和 AE2 `long` 边界诊断；
 - 按 `plan`、`gateway`、`topology`、`dag`、`cycle`、`schedule` 职责组织的规划代码边界。
 
-当前仍不直接包装 `CraftingService.beginCraftingCalculation`。schema 2 执行与所有权轨道已经具备消费
-`TrinityCraftingPlan` 的能力，下一步由数量页和确认页接入规划入口，并完成 Trinity-only 候选过滤与诊断展示。
+`CraftingService.beginCraftingCalculation` 已接入共享规划网关；只有服务器线程捕获合格 CPU 容量、不可变图与库存
+快照，后台线程不读取世界状态。Trinity 结果在预算内通过容量与所有权校验时优先，否则保留 AE2 结果并附加诊断。
 
 ### 11.3 已落地的执行与所有权轨道
 
@@ -331,3 +331,14 @@ RUNTIME_DEADLOCK
 - pattern signature 失效后的有界异步剩余量重规划，以及无可行方案时按 revision 等待；
 - 作业 schema 2 的阶段、repeat、seed、账本、封存输出和交付余量持久化，schema 1 普通作业继续恢复；
 - `TrinityPlanAdmission` 统一显式目标、自动选择、fallback 和直接 CPU 的计划接纳语义。
+
+### 11.4 已落地的数量与诊断轨道
+
+第四步已经建立以下玩家入口和最终隔离：
+
+- Craft Amount 页面同步 `NET_NEW`/`FINAL_TOTAL`，返回数量页时保留本次选择；
+- 玩家选择通过 AE2 `IActionSource` context 进入本次计算，机器和外部请求使用 COMMON 默认值；
+- 有合格 Trinity CPU 时并行启动 Trinity 与 AE2 Future，无合格 CPU 时不捕获图或库存并直接走 AE2；
+- 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果，并保留 AE2 结果与诊断；
+- 确认页显示 Trinity-only、循环动态材料警告和诊断；
+- 确认页过滤、自动选核与 `submitJob` 都复用同一 CPU-family admission 边界。

@@ -4,7 +4,7 @@
 
 当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题。当前分支也
 已完成 Trinity 独立 DAG/SCC 计算内核、schema 2、seed 输出门、动态借料和事件执行器。扩展计划已经可以由真实
-Trinity CPU 按阶段安全消费；玩家数量页与确认页入口仍待接入。
+Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` 双轨入口也已接入。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。
@@ -24,8 +24,8 @@ Craft Amount / 外部请求
 ```
 
 当前分支已建立网格图、扩展计划契约、`TrinityPlanningGateway` 双路 Future、完整 DAG/SCC 规划器和 schema 2
-执行器，但尚未在数量页接管 `beginCraftingCalculation`。真实玩家请求仍走 AE2，直接行为测试和 GameTest 通过构造
-扩展计划验证执行及所有权边界。
+执行器。玩家请求会携带数量模式；存在合格 Trinity CPU 时，入口并行启动 Trinity 与 AE2 计算，Trinity 结果只有在
+预算、容量和计划所有权均通过时才优先采用，否则保留 AE2 结果和 Trinity 诊断。机器及外部请求使用 COMMON 默认模式。
 
 ## 3. 缺陷证据
 
@@ -148,6 +148,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 | C-008 | dispatch scope 边界检查 | 已完成 | 零额外 MODULATE 调用 |
 | C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
 | C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |
+| C-011 | 数量语义与初始规划入口 | 已完成 | 请求上下文、双轨入口、容量拒绝和确认页 CPU-family 过滤 |
 
 ## 5. 风险与控制
 
@@ -192,13 +193,15 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 - 无 Trinity 时 AE2 回退；
 - 扩展计划被原生 CPU 拒绝；
 - Thunderbolt 风格 LoopCraftingPlan 在显式、自动和 fallback 路径均不被 Trinity 接管；
+- 玩家 `NET_NEW`/`FINAL_TOTAL` 上下文与机器 COMMON 默认模式；
+- 初始 Trinity 计划超过所有合格 CPU 容量时保留 AE2 结果；
 - `test`、`runGameTestServer`、`build` 和 IDEA inspections。
 
 ## 7. 完成判定
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-009 均有直接行为测试或集成证据；
+1. C-001 至 C-011 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

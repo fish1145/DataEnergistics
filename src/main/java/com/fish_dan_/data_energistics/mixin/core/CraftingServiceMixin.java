@@ -13,23 +13,36 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingC
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityInitialPlanCalculation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityInitialPlanningRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningAttempt;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.NetworkCraftingGraphCaptureSource;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingGraphRebuilder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.networking.crafting.CraftingSubmitErrorCode;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.networking.crafting.ICraftingRequester;
+import appeng.api.networking.crafting.ICraftingSimulationRequester;
 import appeng.api.networking.crafting.ICraftingSubmitResult;
 import appeng.api.networking.crafting.UnsuitableCpus;
 import appeng.api.networking.energy.IEnergyService;
@@ -54,14 +67,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 @Mixin(CraftingService.class)
@@ -72,6 +90,12 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Unique
     private static final TrinityPlanAdmission DATA_ENERGISTICS_PLAN_ADMISSION = TrinityPlanAdmission.create();
+
+    @Unique
+    private static final TrinityInitialPlanCalculation DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION = TrinityInitialPlanCalculation.create();
+
+    @Unique
+    private static final AtomicLong DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE = new AtomicLong();
 
     @Unique
     private final TrinityCraftingRuntimeRegistry.Local dataEnergistics$trinityCraftingRuntimeRegistry = TrinityCraftingRuntimeRegistry.createLocal();
@@ -129,6 +153,121 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Shadow
     private long lastProcessedCraftingLogicChangeTick;
+
+    @WrapMethod(method = "beginCraftingCalculation")
+    private Future<ICraftingPlan> dataEnergistics$beginTrinityCraftingCalculation(
+                                                                                  Level level,
+                                                                                  ICraftingSimulationRequester simRequester,
+                                                                                  AEKey what,
+                                                                                  long amount,
+                                                                                  CalculationStrategy strategy,
+                                                                                  Operation<Future<ICraftingPlan>> original) {
+        if (level == null || simRequester == null || what == null || strategy == null || amount <= 0L) {
+            return original.call(level, simRequester, what, amount, strategy);
+        }
+
+        TrinityCraftingConfig.Settings settings = TrinityCraftingConfig.settings();
+        IActionSource actionSource = simRequester.getActionSource();
+        CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
+                actionSource,
+                settings.defaultQuantityMode());
+        long maxTrinityBytes = dataEnergistics$maxEligibleTrinityBytes(actionSource);
+        if (maxTrinityBytes <= 0L) {
+            return original.call(level, simRequester, what, amount, strategy);
+        }
+
+        long requestId = DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE.incrementAndGet();
+        Optional<TrinityCraftingGraphSnapshot> graph = data_energistics$trinityCraftingGraphSnapshot();
+        Map<AEKey, BigInteger> available = graph
+                .map(this::dataEnergistics$capturePlanningInventory)
+                .orElse(Map.of());
+
+        return TrinityPlanningGatewayLifecycle.gateway().begin(
+                true,
+                () -> dataEnergistics$calculateInitialTrinityPlan(
+                        requestId,
+                        graph,
+                        what,
+                        amount,
+                        quantityMode,
+                        available,
+                        maxTrinityBytes,
+                        settings),
+                () -> original.call(level, simRequester, what, amount, strategy));
+    }
+
+    @Unique
+    private TrinityPlanningAttempt dataEnergistics$calculateInitialTrinityPlan(
+                                                                               long requestId,
+                                                                               Optional<TrinityCraftingGraphSnapshot> graph,
+                                                                               AEKey target,
+                                                                               long amount,
+                                                                               CraftingQuantityMode quantityMode,
+                                                                               Map<AEKey, BigInteger> available,
+                                                                               long maxTrinityBytes,
+                                                                               TrinityCraftingConfig.Settings settings) {
+        if (graph.isEmpty()) {
+            TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.STALE_GRAPH,
+                    Component.translatable("gui.data_energistics.trinity_planning.graph_unavailable"),
+                    Map.of("request", Long.toString(requestId)));
+            Data_Energistics.LOGGER.info(
+                    "Trinity planning fallback request={} target={} mode={} revision=-1 reason={} metadata={}",
+                    requestId,
+                    target,
+                    quantityMode,
+                    diagnostic.code(),
+                    diagnostic.metadata());
+            return TrinityPlanningAttempt.failure(diagnostic);
+        }
+
+        TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
+                .requestId(requestId)
+                .graph(graph.orElseThrow())
+                .target(target)
+                .requestedAmount(BigInteger.valueOf(amount))
+                .quantityMode(quantityMode)
+                .available(available)
+                .settings(settings)
+                .maxTrinityBytes(maxTrinityBytes)
+                .build();
+        return DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION.calculate(request);
+    }
+
+    @Unique
+    private Map<AEKey, BigInteger> dataEnergistics$capturePlanningInventory(
+                                                                            TrinityCraftingGraphSnapshot graph) {
+        LinkedHashMap<AEKey, BigInteger> available = new LinkedHashMap<>();
+        var cachedInventory = this.grid.getStorageService().getCachedInventory();
+        for (AEKey key : graph.keys()) {
+            long amount = cachedInventory.get(key);
+            if (amount > 0L) {
+                available.put(key, BigInteger.valueOf(amount));
+            }
+        }
+        return Collections.unmodifiableMap(available);
+    }
+
+    @Unique
+    private long dataEnergistics$maxEligibleTrinityBytes(@Nullable IActionSource source) {
+        long maxBytes = 0L;
+        for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
+            if (runtime.publishedCpus().isEmpty()) {
+                continue;
+            }
+            TrinityDataCoreVirtualCpu coordinator = runtime.publishedCpus().getFirst();
+            boolean sourceAllowed = source == null ?
+                    coordinator.getSelectionMode() == CpuSelectionMode.ANY :
+                    coordinator.canBeAutoSelectedFor(source);
+            if (coordinator.number() == 0 &&
+                    coordinator.isActive() &&
+                    coordinator.canAcceptJob() &&
+                    sourceAllowed) {
+                maxBytes = Math.max(maxBytes, coordinator.getAvailableStorage());
+            }
+        }
+        return maxBytes;
+    }
 
     @Override
     public boolean data_energistics$publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
@@ -271,10 +410,19 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
                                                                               boolean prioritizePower,
                                                                               IActionSource src,
                                                                               Operation<ICraftingSubmitResult> original) {
+        if (target != null) {
+            TrinityPlanAdmission.CpuFamily targetFamily = target instanceof TrinityDataCoreVirtualCpu ?
+                    TrinityPlanAdmission.CpuFamily.TRINITY :
+                    TrinityPlanAdmission.CpuFamily.NON_TRINITY;
+            if (!DATA_ENERGISTICS_PLAN_ADMISSION.isCompatibleWith(job, targetFamily)) {
+                return dataEnergistics$incompatiblePlanCpu();
+            }
+        }
+
         if (target instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu) {
             if (DATA_ENERGISTICS_PLAN_ADMISSION.decide(job, TrinityPlanAdmission.Route.EXPLICIT_TARGET) !=
                     TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
-                return dataEnergistics$unsupportedTrinityPlan();
+                return dataEnergistics$incompatiblePlanCpu();
             }
             if (!job.simulation()) {
                 return dataEnergistics$hasTrinityDataCoreCpu(trinityDataCoreCpu) ?
@@ -283,9 +431,12 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
             }
         }
 
+        boolean trinityOnly = !DATA_ENERGISTICS_PLAN_ADMISSION.isCompatibleWith(
+                job,
+                TrinityPlanAdmission.CpuFamily.NON_TRINITY);
         if (target == null &&
                 !job.simulation() &&
-                !dataEnergistics$hasExternalCraftingCpu() &&
+                (trinityOnly || !dataEnergistics$hasExternalCraftingCpu()) &&
                 DATA_ENERGISTICS_PLAN_ADMISSION.decide(job, TrinityPlanAdmission.Route.AUTOMATIC_SELECTION) ==
                         TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
             ICraftingSubmitResult attemptedKnownCpuResult = dataEnergistics$submitToKnownCpuCandidates(
@@ -293,11 +444,14 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
                     prioritizePower,
                     src,
                     requestingMachine,
-                    true,
-                    true,
+                    !trinityOnly,
+                    !trinityOnly,
                     original);
             if (attemptedKnownCpuResult != null) {
                 return attemptedKnownCpuResult;
+            }
+            if (trinityOnly) {
+                return dataEnergistics$incompatiblePlanCpu();
             }
         }
 
@@ -336,7 +490,7 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     }
 
     @Unique
-    private static ICraftingSubmitResult dataEnergistics$unsupportedTrinityPlan() {
+    private static ICraftingSubmitResult dataEnergistics$incompatiblePlanCpu() {
         return CraftingSubmitResult.noSuitableCpu(new UnsuitableCpus(0, 0, 0, 1));
     }
 
@@ -618,6 +772,11 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
                                                                           boolean delegateNativeAttempt,
                                                                           Operation<ICraftingSubmitResult> original) {
         if (candidate.kind() == CraftingCpuKind.TRINITY) {
+            if (!DATA_ENERGISTICS_PLAN_ADMISSION.isCompatibleWith(
+                    job,
+                    TrinityPlanAdmission.CpuFamily.TRINITY)) {
+                return dataEnergistics$incompatiblePlanCpu();
+            }
             if (!(submissionHandle instanceof TrinityDataCoreVirtualCpu trinityCpu)) {
                 Data_Energistics.LOGGER.error(
                         "Trinity candidate {} resolved to incompatible handle {}",
@@ -628,6 +787,11 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
             return trinityCpu.submitJob(this.grid, job, source, requester);
         }
         if (candidate.kind() == CraftingCpuKind.NATIVE) {
+            if (!DATA_ENERGISTICS_PLAN_ADMISSION.isCompatibleWith(
+                    job,
+                    TrinityPlanAdmission.CpuFamily.NON_TRINITY)) {
+                return dataEnergistics$incompatiblePlanCpu();
+            }
             if (!(submissionHandle instanceof CraftingCPUCluster nativeCpu)) {
                 Data_Energistics.LOGGER.error(
                         "Native candidate {} resolved to incompatible handle {}",

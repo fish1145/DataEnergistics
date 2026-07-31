@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TrinityPlanAdmissionTest {
 
@@ -87,6 +89,21 @@ final class TrinityPlanAdmissionTest {
                 TrinityPlanAdmission.create().decide(
                         new LoopCraftingPlan(nativePlan()),
                         TrinityPlanAdmission.Route.FALLBACK));
+    }
+
+    @Test
+    void enforcesPlanOwnershipAcrossCpuFamilies() {
+        TrinityPlanAdmission admission = TrinityPlanAdmission.create();
+        ICraftingPlan nativePlan = nativePlan();
+        ICraftingPlan trinityPlan = trinityPlan();
+        ICraftingPlan loopPlan = new LoopCraftingPlan(nativePlan);
+
+        assertTrue(admission.isCompatibleWith(nativePlan, TrinityPlanAdmission.CpuFamily.TRINITY));
+        assertTrue(admission.isCompatibleWith(nativePlan, TrinityPlanAdmission.CpuFamily.NON_TRINITY));
+        assertTrue(admission.isCompatibleWith(trinityPlan, TrinityPlanAdmission.CpuFamily.TRINITY));
+        assertFalse(admission.isCompatibleWith(trinityPlan, TrinityPlanAdmission.CpuFamily.NON_TRINITY));
+        assertFalse(admission.isCompatibleWith(loopPlan, TrinityPlanAdmission.CpuFamily.TRINITY));
+        assertTrue(admission.isCompatibleWith(loopPlan, TrinityPlanAdmission.CpuFamily.NON_TRINITY));
     }
 
     private static CraftingPlan nativePlan() {
