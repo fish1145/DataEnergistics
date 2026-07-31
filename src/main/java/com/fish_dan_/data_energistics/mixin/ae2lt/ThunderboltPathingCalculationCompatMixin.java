@@ -16,11 +16,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Prevents AE2LT 1.1.4's phase-three max-flow result from overwriting Channel Hub shared-pool assignments.
+ * Prevents Thunderbolt's phase-three max-flow result from overwriting Channel Hub shared-pool assignments.
  */
 @Pseudo
-@Mixin(targets = "com.moakiee.ae2lt.grid.BorrowedCapacityCalculator", remap = false)
-public abstract class Ae2ltPathingCalculationCompatMixin {
+@Mixin(targets = "com.moakiee.thunderbolt.ae2.channel.BorrowedCapacityCalculator", remap = false)
+public abstract class ThunderboltPathingCalculationCompatMixin {
 
     @Unique
     private static final AtomicBoolean DATA_ENERGISTICS_LOGGED_BYPASS = new AtomicBoolean();
@@ -38,7 +38,7 @@ public abstract class Ae2ltPathingCalculationCompatMixin {
         }
         if (DATA_ENERGISTICS_LOGGED_BYPASS.compareAndSet(false, true)) {
             Data_Energistics.LOGGER.info(
-                    "Channel Hub shared-pool allocation is authoritative for matching grids; " + "AE2LT max-flow remains active for grids without a Hub.");
+                    "Channel Hub shared-pool allocation is authoritative for matching grids; " + "Thunderbolt max-flow remains active for grids without a Hub.");
         }
         callback.setReturnValue(null);
     }

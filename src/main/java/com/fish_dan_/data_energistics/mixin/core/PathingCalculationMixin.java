@@ -3,16 +3,18 @@ package com.fish_dan_.data_energistics.mixin.core;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.ChannelHubCapacity;
 import com.fish_dan_.data_energistics.ae2.ChannelHubCapacityImpl;
+import com.fish_dan_.data_energistics.ae2.ChannelHubGrid;
 import com.fish_dan_.data_energistics.ae2.ChannelHubHost;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.me.GridConnection;
 import appeng.me.GridNode;
 import appeng.me.pathfinding.IPathItem;
 import appeng.me.pathfinding.PathingCalculation;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
@@ -23,13 +25,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+
+import static com.fish_dan_.data_energistics.ae2.ChannelHubAllocationPolicy.Allocator.DATA_ENERGISTICS_SHARED_POOL;
 
 /**
  * Adds a controller-wide channel pool to AE2 pathing and compresses every hub's controller-facing route to one channel.
@@ -89,6 +92,12 @@ public abstract class PathingCalculationMixin {
     private int dataEnergistics$allocatedChannels;
 
     /**
+     * Number of physical controller-side channels exposed by each active Hub route.
+     */
+    @Unique
+    private int dataEnergistics$hubUpstreamChannels;
+
+    /**
      * Detects hubs and snapshots controller geometry after AE2 initializes its routing queues.
      *
      * @param grid     grid passed to the target constructor
@@ -96,12 +105,11 @@ public abstract class PathingCalculationMixin {
      */
     @Inject(method = "<init>", at = @At("RETURN"), require = 1)
     private void dataEnergistics$initializeSharedCapacity(IGrid grid, CallbackInfo callback) {
-        for (IGridNode node : this.grid.getNodes()) {
-            if (node.getOwner() instanceof ChannelHubHost) {
-                this.dataEnergistics$hasChannelHub = true;
-                this.dataEnergistics$sharedCapacity = DATA_ENERGISTICS_CHANNEL_HUB_CAPACITY.calculate(this.grid);
-                return;
-            }
+        var decision = ChannelHubGrid.decide(this.grid, false);
+        if (decision.allocator() == DATA_ENERGISTICS_SHARED_POOL) {
+            this.dataEnergistics$hasChannelHub = true;
+            this.dataEnergistics$sharedCapacity = DATA_ENERGISTICS_CHANNEL_HUB_CAPACITY.calculate(this.grid);
+            this.dataEnergistics$hubUpstreamChannels = decision.hubUpstreamChannels();
         }
     }
 
@@ -109,15 +117,14 @@ public abstract class PathingCalculationMixin {
      * Allocates from the shared pool while retaining AE2's local cable and compressed-channel checks.
      *
      * @param start    channel-consuming node being considered
-     * @param callback return callback receiving the allocation result
+     * @param original original AE2 allocation path used for grids without a Hub
      */
-    @Inject(method = "tryUseChannel", at = @At("HEAD"), cancellable = true, require = 1)
-    private void dataEnergistics$tryUseSharedChannel(GridNode start,
-                                                     CallbackInfoReturnable<Boolean> callback) {
+    @WrapMethod(method = "tryUseChannel")
+    private boolean dataEnergistics$tryUseSharedChannel(GridNode start, Operation<Boolean> original) {
         if (!this.dataEnergistics$hasChannelHub) {
-            return;
+            return original.call(start);
         }
-        callback.setReturnValue(dataEnergistics$allocateSharedChannel(start));
+        return dataEnergistics$allocateSharedChannel(start);
     }
 
     /**
@@ -137,7 +144,7 @@ public abstract class PathingCalculationMixin {
         if (!(downstream.getOwner() instanceof ChannelHubHost)) {
             return connection.propagateChannelsUpwards();
         }
-        int compressedChannels = this.channelNodes.contains(downstream) ? 1 : 0;
+        int compressedChannels = this.channelNodes.contains(downstream) ? this.dataEnergistics$hubUpstreamChannels : 0;
         connection.setAdHocChannels(compressedChannels);
         return compressedChannels;
     }

@@ -36,19 +36,9 @@ public final class Ae2LtAdaptiveProviderCompat {
         return adaptive != null ? adaptive.getConnections() : List.of();
     }
 
-    public static List<AdaptiveWirelessConnection> getConnectionsFromAnyProvider(@Nullable BlockEntity blockEntity) {
+    public static boolean addOrUpdateConnection(@Nullable BlockEntity blockEntity, ResourceKey<Level> dimension, BlockPos pos, Direction face) {
         AdaptivePatternProviderBlockEntity adaptive = asAdaptiveOverloadedProvider(blockEntity);
-        if (adaptive != null) {
-            return adaptive.getConnections();
-        }
-        return Ae2LtWirelessBridge.getConnectionsFromVanilla(blockEntity);
-    }
-
-    public static void addOrUpdateConnection(@Nullable BlockEntity blockEntity, ResourceKey<Level> dimension, BlockPos pos, Direction face) {
-        AdaptivePatternProviderBlockEntity adaptive = asAdaptiveOverloadedProvider(blockEntity);
-        if (adaptive != null) {
-            adaptive.addOrUpdateConnection(dimension, pos, face);
-        }
+        return adaptive != null && adaptive.addOrUpdateConnection(dimension, pos, face);
     }
 
     public static boolean removeConnection(@Nullable BlockEntity blockEntity, ResourceKey<Level> dimension, BlockPos pos) {
