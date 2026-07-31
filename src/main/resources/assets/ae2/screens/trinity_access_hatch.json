@@ -1,0 +1,4 @@
+{
+	"$schema": "schema.json",
+	"includes": ["terminals/pattern_access_terminal.json"]
+}

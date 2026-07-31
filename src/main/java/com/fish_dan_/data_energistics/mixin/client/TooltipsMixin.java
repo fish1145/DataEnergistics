@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
-import com.fish_dan_.data_energistics.client.util.Ae2AmountFormatter;
-import com.fish_dan_.data_energistics.client.util.Ae2AmountFormatter.FormattedAmount;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter.FormattedAmount;
 
 import appeng.core.localization.Tooltips;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Extends AE2's compact amount formatting to cover every non-negative {@code long} value safely. */
+/** Uses Trinity's GregTech-MoreMachine-compatible formatter for every non-negative AE2 amount. */
 @Mixin(Tooltips.class)
 public abstract class TooltipsMixin {
 
@@ -21,7 +21,7 @@ public abstract class TooltipsMixin {
     private static void dataEnergistics$formatByteAmount(long amount,
                                                          CallbackInfoReturnable<Tooltips.Amount> cir) {
         if (amount >= 0L) {
-            cir.setReturnValue(dataEnergistics$toAe2Amount(Ae2AmountFormatter.formatByteAmount(amount)));
+            cir.setReturnValue(dataEnergistics$toAe2Amount(TrinityAmountFormatter.formatParts(amount)));
         }
     }
 
@@ -31,7 +31,7 @@ public abstract class TooltipsMixin {
             cancellable = true)
     private static void dataEnergistics$formatAmount(long amount, CallbackInfoReturnable<Tooltips.Amount> cir) {
         if (amount >= 0L) {
-            cir.setReturnValue(dataEnergistics$toAe2Amount(Ae2AmountFormatter.formatAmount(amount)));
+            cir.setReturnValue(dataEnergistics$toAe2Amount(TrinityAmountFormatter.formatParts(amount)));
         }
     }
 

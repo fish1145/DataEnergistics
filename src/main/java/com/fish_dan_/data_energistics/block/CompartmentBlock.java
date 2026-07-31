@@ -127,8 +127,19 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
                                                BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof CompartmentBlockEntity compartment) {
-            MenuOpener.open(menuTypeFor(compartment.compartmentType()).get(), player, MenuLocators.forBlockEntity(compartment));
+        if (!level.isClientSide()) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity instanceof TrinityAccessHatchBlockEntity hatch) {
+                MenuOpener.open(
+                        ModMenus.TRINITY_ACCESS_HATCH.get(),
+                        player,
+                        MenuLocators.forBlockEntity(hatch));
+            } else if (blockEntity instanceof CompartmentBlockEntity compartment) {
+                MenuOpener.open(
+                        menuTypeFor(compartment.compartmentType()).get(),
+                        player,
+                        MenuLocators.forBlockEntity(compartment));
+            }
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
@@ -139,7 +150,7 @@ public class CompartmentBlock extends AEBaseBlock implements EntityBlock {
             case ME_INPUT -> ModMenus.ME_COMPOSITE_INPUT_WAREHOUSE;
             case ME_OUTPUT -> ModMenus.ME_COMPOSITE_OUTPUT_WAREHOUSE;
             case PATTERN_BUFFER -> ModMenus.ME_PATTERN_BUFFER;
-            case TRINITY_ACCESS -> throw new IllegalStateException("Trinity access hatch has no menu");
+            case TRINITY_ACCESS -> ModMenus.TRINITY_ACCESS_HATCH;
         };
     }
 }
