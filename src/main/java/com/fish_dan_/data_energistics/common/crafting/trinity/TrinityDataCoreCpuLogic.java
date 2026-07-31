@@ -175,7 +175,7 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
 
-        while (remainingOperations > 0) {
+        while (remainingOperations > 0 && !dispatchWindow.isExhausted()) {
             int pushedPatterns = executeCrafting(
                     remainingOperations,
                     craftingService,
@@ -212,7 +212,7 @@ final class TrinityDataCoreCpuLogic {
 
         int pushedPatterns = 0;
         var iterator = currentJob.tasks.entrySet().iterator();
-        while (iterator.hasNext() && pushedPatterns < maxPatterns) {
+        while (!dispatchWindow.isExhausted() && iterator.hasNext() && pushedPatterns < maxPatterns) {
             var task = iterator.next();
             if (task.getValue().value <= 0) {
                 iterator.remove();
@@ -268,138 +268,49 @@ final class TrinityDataCoreCpuLogic {
             ExtractedPatternInputs inputs = null;
             double powerPerCraft = 0.0D;
             long maximumCount = 0L;
-            for (ICraftingProvider provider : candidates) {
-                if (!dispatchWindow.canAttempt(provider, details) ||
-                        providerBusy(provider, details, dispatchWindow)) {
+            var candidateIterator = candidates.iterator();
+            while (!dispatchWindow.isExhausted() && candidateIterator.hasNext()) {
+                ICraftingProvider provider = candidateIterator.next();
+                if (!dispatchWindow.canAttempt(provider, details)) {
                     continue;
                 }
-                if (inputTransaction == null) {
-                    inputTransaction = beginPatternInputTransaction(details, level);
+                try (CraftingDispatchWindow.SubmissionScope submission = dispatchWindow.beginSubmission(provider, details)) {
+                    if (providerBusy(provider, details, dispatchWindow)) {
+                        continue;
+                    }
+                    if (dispatchWindow.isExhausted()) {
+                        continue;
+                    }
                     if (inputTransaction == null) {
-                        return false;
+                        inputTransaction = beginPatternInputTransaction(details, level);
+                        if (inputTransaction == null) {
+                            return false;
+                        }
+                        inputs = inputTransaction.inputs();
+                        powerPerCraft = CraftingCpuHelper.calculatePatternPower(inputs.inputHolder());
+                        maximumCount = limitByInputAvailability(inputs.inputsPerCraft(), task.value);
+                        maximumCount = limitByWaitingCapacity(currentJob, inputs.waitingPerCraft(), maximumCount);
+                        maximumCount = limitByEnergy(powerPerCraft, maximumCount, energyService);
+                        if (maximumCount <= 0L) {
+                            return false;
+                        }
                     }
-                    inputs = inputTransaction.inputs();
-                    powerPerCraft = CraftingCpuHelper.calculatePatternPower(inputs.inputHolder());
-                    maximumCount = limitByInputAvailability(inputs.inputsPerCraft(), task.value);
-                    maximumCount = limitByWaitingCapacity(currentJob, inputs.waitingPerCraft(), maximumCount);
-                    maximumCount = limitByEnergy(powerPerCraft, maximumCount, energyService);
-                    if (maximumCount <= 0L) {
-                        return false;
-                    }
-                }
-
-                CountedCraftingPreparation preparation;
-                try {
-                    preparation = prepareAdmission(
-                            provider,
-                            details,
-                            inputs.inputHolder(),
-                            maximumCount,
-                            target -> dispatchWindow.canAttempt(provider, details, target));
-                } catch (RuntimeException exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Crafting provider {} threw while preparing pattern {} on Trinity CPU {}; isolating the provider for this dispatch window",
-                            provider,
-                            details.getDefinition(),
-                            this.cpu.number(),
-                            exception);
-                    dispatchWindow.recordResult(
-                            provider,
-                            details,
-                            null,
-                            CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
-                    continue;
-                }
-                for (CraftingDispatchRejection rejection : preparation.rejections()) {
-                    dispatchWindow.recordResult(provider, details, rejection.target(), rejection.status());
-                }
-                if (!preparation.accepted()) {
-                    continue;
-                }
-
-                CountedCraftingAdmission admission = preparation.admission();
-                CraftingDispatchTarget target = preparation.target();
-                if (admission == null || target == null) {
-                    throw new IllegalStateException("Accepted counted preparation lost its admission or target");
-                }
-                if (!dispatchWindow.canAttempt(provider, details, target)) {
-                    continue;
-                }
-                long count;
-                try {
-                    count = validatedAdmissionCount(provider, admission, maximumCount);
-                } catch (RuntimeException exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Crafting provider {} returned an invalid counted admission for pattern {} on Trinity CPU {}",
-                            provider,
-                            details.getDefinition(),
-                            this.cpu.number(),
-                            exception);
-                    dispatchWindow.recordResult(
-                            provider,
-                            details,
-                            null,
-                            CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
-                    continue;
-                }
-
-                PreparedPatternCommit commit = preparePatternCommit(currentJob, details, task, inputs, count);
-                if (commit == null) {
-                    return false;
-                }
-                AdditionalInputTransaction additionalInputs = extractAdditionalInputs(inputs.inputsPerCraft(), count);
-                if (additionalInputs == null) {
-                    return false;
-                }
-                EnergyCharge energyCharge = chargeEnergy(energyService, powerPerCraft * count);
-                if (energyCharge == null) {
-                    additionalInputs.rollback();
-                    return false;
-                }
-                try {
-                    if (!dispatchWindow.tryAcquire(provider, details, target)) {
+                    if (dispatchWindow.isExhausted()) {
                         continue;
                     }
 
-                    KeyCounter[] rejectedPrototype = copyInputCounters(inputs.inputHolder());
-                    boolean accepted;
+                    CountedCraftingPreparation preparation;
                     try {
-                        accepted = admission.commit(inputs.inputHolder());
-                    } catch (RuntimeException exception) {
-                        if (transferredInputOwnership(
+                        preparation = prepareAdmission(
                                 provider,
                                 details,
-                                admission,
-                                target,
-                                rejectedPrototype,
-                                inputs.inputHolder())) {
-                            Data_Energistics.LOGGER.error(
-                                    "Crafting provider {} target {} threw after taking ownership of {} crafts for pattern {} on Trinity CPU {}; recording the batch as dispatched to prevent input duplication",
-                                    provider,
-                                    target.stableIdentity(),
-                                    count,
-                                    details.getDefinition(),
-                                    this.cpu.number(),
-                                    exception);
-                            dispatchWindow.recordResult(
-                                    provider,
-                                    details,
-                                    target,
-                                    CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP);
-                            commitAcceptedDispatch(
-                                    currentJob,
-                                    task,
-                                    inputTransaction,
-                                    additionalInputs,
-                                    energyCharge,
-                                    commit);
-                            return true;
-                        }
+                                inputs.inputHolder(),
+                                maximumCount,
+                                target -> dispatchWindow.canAttempt(provider, details, target));
+                    } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
-                                "Crafting provider {} target {} threw before taking ownership of {} crafts for pattern {} on Trinity CPU {}; isolating it for this dispatch window",
+                                "Crafting provider {} threw while preparing pattern {} on Trinity CPU {}; isolating the provider for this dispatch window",
                                 provider,
-                                target.stableIdentity(),
-                                count,
                                 details.getDefinition(),
                                 this.cpu.number(),
                                 exception);
@@ -410,59 +321,170 @@ final class TrinityDataCoreCpuLogic {
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
                         continue;
                     }
-                    if (!accepted) {
-                        if (transferredInputOwnership(
+                    for (CraftingDispatchRejection rejection : preparation.rejections()) {
+                        dispatchWindow.recordResult(provider, details, rejection.target(), rejection.status());
+                    }
+                    if (!preparation.accepted() || dispatchWindow.isExhausted()) {
+                        continue;
+                    }
+
+                    CountedCraftingAdmission admission = preparation.admission();
+                    CraftingDispatchTarget target = preparation.target();
+                    if (admission == null || target == null) {
+                        throw new IllegalStateException("Accepted counted preparation lost its admission or target");
+                    }
+                    if (!dispatchWindow.canAttempt(provider, details, target)) {
+                        continue;
+                    }
+                    long count;
+                    try {
+                        count = validatedAdmissionCount(provider, admission, maximumCount);
+                    } catch (RuntimeException exception) {
+                        Data_Energistics.LOGGER.error(
+                                "Crafting provider {} returned an invalid counted admission for pattern {} on Trinity CPU {}",
+                                provider,
+                                details.getDefinition(),
+                                this.cpu.number(),
+                                exception);
+                        dispatchWindow.recordResult(
                                 provider,
                                 details,
-                                admission,
-                                target,
-                                rejectedPrototype,
-                                inputs.inputHolder())) {
+                                null,
+                                CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
+                        continue;
+                    }
+                    if (dispatchWindow.isExhausted()) {
+                        continue;
+                    }
+
+                    PreparedPatternCommit commit = preparePatternCommit(currentJob, details, task, inputs, count);
+                    if (commit == null) {
+                        return false;
+                    }
+                    if (dispatchWindow.isExhausted()) {
+                        continue;
+                    }
+                    AdditionalInputTransaction additionalInputs = extractAdditionalInputs(inputs.inputsPerCraft(), count);
+                    if (additionalInputs == null) {
+                        return false;
+                    }
+                    if (dispatchWindow.isExhausted()) {
+                        additionalInputs.rollback();
+                        continue;
+                    }
+                    EnergyCharge energyCharge = chargeEnergy(energyService, powerPerCraft * count);
+                    if (energyCharge == null) {
+                        additionalInputs.rollback();
+                        return false;
+                    }
+                    try {
+                        KeyCounter[] rejectedPrototype = copyInputCounters(inputs.inputHolder());
+                        if (!submission.tryAcquire(target)) {
+                            continue;
+                        }
+
+                        boolean accepted;
+                        try {
+                            accepted = admission.commit(inputs.inputHolder());
+                        } catch (RuntimeException exception) {
+                            if (transferredInputOwnership(
+                                    provider,
+                                    details,
+                                    admission,
+                                    target,
+                                    rejectedPrototype,
+                                    inputs.inputHolder())) {
+                                Data_Energistics.LOGGER.error(
+                                        "Crafting provider {} target {} threw after taking ownership of {} crafts for pattern {} on Trinity CPU {}; recording the batch as dispatched to prevent input duplication",
+                                        provider,
+                                        target.stableIdentity(),
+                                        count,
+                                        details.getDefinition(),
+                                        this.cpu.number(),
+                                        exception);
+                                dispatchWindow.recordResult(
+                                        provider,
+                                        details,
+                                        target,
+                                        CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP);
+                                commitAcceptedDispatch(
+                                        currentJob,
+                                        task,
+                                        inputTransaction,
+                                        additionalInputs,
+                                        energyCharge,
+                                        commit);
+                                return true;
+                            }
                             Data_Energistics.LOGGER.error(
-                                    "Crafting provider {} target {} returned false after taking ownership of {} crafts for pattern {} on Trinity CPU {}; recording the batch as dispatched to prevent input duplication",
+                                    "Crafting provider {} target {} threw before taking ownership of {} crafts for pattern {} on Trinity CPU {}; isolating it for this dispatch window",
                                     provider,
                                     target.stableIdentity(),
                                     count,
                                     details.getDefinition(),
-                                    this.cpu.number());
+                                    this.cpu.number(),
+                                    exception);
+                            dispatchWindow.recordResult(
+                                    provider,
+                                    details,
+                                    null,
+                                    CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
+                            continue;
+                        }
+                        if (!accepted) {
+                            if (transferredInputOwnership(
+                                    provider,
+                                    details,
+                                    admission,
+                                    target,
+                                    rejectedPrototype,
+                                    inputs.inputHolder())) {
+                                Data_Energistics.LOGGER.error(
+                                        "Crafting provider {} target {} returned false after taking ownership of {} crafts for pattern {} on Trinity CPU {}; recording the batch as dispatched to prevent input duplication",
+                                        provider,
+                                        target.stableIdentity(),
+                                        count,
+                                        details.getDefinition(),
+                                        this.cpu.number());
+                                dispatchWindow.recordResult(
+                                        provider,
+                                        details,
+                                        target,
+                                        CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP);
+                                commitAcceptedDispatch(
+                                        currentJob,
+                                        task,
+                                        inputTransaction,
+                                        additionalInputs,
+                                        energyCharge,
+                                        commit);
+                                return true;
+                            }
                             dispatchWindow.recordResult(
                                     provider,
                                     details,
                                     target,
-                                    CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP);
-                            commitAcceptedDispatch(
-                                    currentJob,
-                                    task,
-                                    inputTransaction,
-                                    additionalInputs,
-                                    energyCharge,
-                                    commit);
-                            return true;
+                                    CraftingDispatchStatus.REJECTED);
+                            continue;
                         }
+
                         dispatchWindow.recordResult(
                                 provider,
                                 details,
                                 target,
-                                CraftingDispatchStatus.REJECTED);
-                        continue;
+                                CraftingDispatchStatus.ACCEPTED);
+                        commitAcceptedDispatch(
+                                currentJob,
+                                task,
+                                inputTransaction,
+                                additionalInputs,
+                                energyCharge,
+                                commit);
+                        return true;
+                    } finally {
+                        energyCharge.rollback();
+                        additionalInputs.rollback();
                     }
-
-                    dispatchWindow.recordResult(
-                            provider,
-                            details,
-                            target,
-                            CraftingDispatchStatus.ACCEPTED);
-                    commitAcceptedDispatch(
-                            currentJob,
-                            task,
-                            inputTransaction,
-                            additionalInputs,
-                            energyCharge,
-                            commit);
-                    return true;
-                } finally {
-                    energyCharge.rollback();
-                    additionalInputs.rollback();
                 }
             }
             return false;

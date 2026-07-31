@@ -334,21 +334,24 @@ public final class TrinityDataCoreCraftingRuntime {
         List<TrinityDataCoreVirtualCpu> workers = new ArrayList<>(this.retainedWorkers.size());
         workers.addAll(this.retainedWorkers.tailMap(startNumber, true).values());
         workers.addAll(this.retainedWorkers.headMap(startNumber, false).values());
-        int lastAttemptingWorkerNumber = -1;
+        int lastSubmittingWorkerNumber = -1;
         for (TrinityDataCoreVirtualCpu worker : workers) {
+            if (dispatchWindow.isExhausted()) {
+                break;
+            }
             int workerNumber = worker.number();
             if (this.retainedWorkers.get(workerNumber) != worker) {
                 continue;
             }
-            int attemptsBeforeWorker = dispatchWindow.attemptCount();
+            int submissionsBeforeWorker = dispatchWindow.serverSubmissionCount();
             worker.tick(energyService, craftingService, dispatchWindow);
-            if (dispatchWindow.attemptCount() > attemptsBeforeWorker) {
-                lastAttemptingWorkerNumber = workerNumber;
+            if (dispatchWindow.serverSubmissionCount() > submissionsBeforeWorker) {
+                lastSubmittingWorkerNumber = workerNumber;
             }
             removeWorkerIfReleasable(workerNumber, worker);
         }
-        if (lastAttemptingWorkerNumber >= 0) {
-            advanceWorkerTickStartAfter(lastAttemptingWorkerNumber);
+        if (lastSubmittingWorkerNumber >= 0) {
+            advanceWorkerTickStartAfter(lastSubmittingWorkerNumber);
         }
     }
 

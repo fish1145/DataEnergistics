@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchExhaustion;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
 
@@ -11,6 +13,7 @@ import appeng.api.stacks.KeyCounter;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,42 +24,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class CraftingDispatchWindowImplTest {
 
     @Test
-    void limitsOneProviderToSixteenPhysicalAttempts() {
-        CraftingDispatchWindow window = CraftingDispatchWindow.create();
+    void limitsOneProviderToItsConfiguredPhysicalAttempts() {
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(10, 2, 1_000L);
+        CraftingDispatchWindow window = fixedWindow(limits);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget target = target("north");
 
-        for (int attempt = 0; attempt < CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER; attempt++) {
+        for (int attempt = 0; attempt < limits.maxAttemptsPerProvider(); attempt++) {
             assertTrue(window.canAttempt(provider, pattern, target));
-            assertTrue(window.tryAcquire(provider, pattern, target));
+            assertTrue(acquire(window, provider, pattern, target));
         }
 
         assertFalse(window.canAttempt(provider, pattern));
-        assertFalse(window.tryAcquire(provider, pattern, target));
+        assertEquals(limits.maxAttemptsPerProvider(), window.attemptCount());
+        assertEquals(limits.maxAttemptsPerProvider(), window.serverSubmissionCount());
     }
 
     @Test
     void accountsByProviderIdentityInsteadOfEquality() {
-        CraftingDispatchWindow window = CraftingDispatchWindow.create();
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
         ICraftingProvider first = new EqualCraftingProvider();
         ICraftingProvider second = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget target = target("north");
         assertNotSame(first, second);
 
-        for (int attempt = 0; attempt < CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER; attempt++) {
-            assertTrue(window.tryAcquire(first, pattern, target));
+        for (int attempt = 0; attempt < CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER; attempt++) {
+            assertTrue(acquire(window, first, pattern, target));
         }
 
         assertFalse(window.canAttempt(first, pattern));
         assertTrue(window.canAttempt(second, pattern));
-        assertTrue(window.tryAcquire(second, pattern, target));
+        assertTrue(acquire(window, second, pattern, target));
     }
 
     @Test
     void targetRejectionDoesNotBlockAnotherTargetOrConsumePhysicalQuota() {
-        CraftingDispatchWindow window = CraftingDispatchWindow.create();
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget blocked = target("north");
@@ -67,16 +72,17 @@ public final class CraftingDispatchWindowImplTest {
 
         assertTrue(window.canAttempt(provider, pattern));
         assertFalse(window.canAttempt(provider, pattern, blocked));
-        assertFalse(window.tryAcquire(provider, pattern, blocked));
+        assertFalse(acquire(window, provider, pattern, blocked));
         assertTrue(window.canAttempt(provider, pattern, available));
-        assertTrue(window.tryAcquire(provider, pattern, available));
+        assertTrue(acquire(window, provider, pattern, available));
         assertEquals(1, window.attemptCount());
+        assertEquals(2, window.serverSubmissionCount());
         assertEquals(2, window.resultCount(CraftingDispatchStatus.BLOCKED));
     }
 
     @Test
     void scopedNoCapacityDoesNotBlockAnotherPatternOnTheSameProvider() {
-        CraftingDispatchWindow window = CraftingDispatchWindow.create();
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails unavailablePattern = new IdentityPatternDetails();
         IPatternDetails availablePattern = new IdentityPatternDetails();
@@ -86,12 +92,12 @@ public final class CraftingDispatchWindowImplTest {
 
         assertFalse(window.canAttempt(provider, unavailablePattern));
         assertTrue(window.canAttempt(provider, availablePattern));
-        assertTrue(window.tryAcquire(provider, availablePattern, target));
+        assertTrue(acquire(window, provider, availablePattern, target));
     }
 
     @Test
     void patternCacheUsesIdentityInsteadOfEquality() {
-        CraftingDispatchWindow window = CraftingDispatchWindow.create();
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails blocked = new EqualPatternDetails();
         IPatternDetails available = new EqualPatternDetails();
@@ -110,7 +116,7 @@ public final class CraftingDispatchWindowImplTest {
                 CraftingDispatchStatus.BUSY,
                 CraftingDispatchStatus.OFFLINE,
                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP)) {
-            CraftingDispatchWindow window = CraftingDispatchWindow.create();
+            CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
             ICraftingProvider provider = new EqualCraftingProvider();
             IPatternDetails firstPattern = new IdentityPatternDetails();
             IPatternDetails secondPattern = new IdentityPatternDetails();
@@ -130,7 +136,7 @@ public final class CraftingDispatchWindowImplTest {
                 CraftingDispatchStatus.STALE,
                 CraftingDispatchStatus.REJECTED,
                 CraftingDispatchStatus.FAILED_AFTER_OWNERSHIP)) {
-            CraftingDispatchWindow window = CraftingDispatchWindow.create();
+            CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
             ICraftingProvider provider = new EqualCraftingProvider();
             IPatternDetails pattern = new IdentityPatternDetails();
             CraftingDispatchTarget target = target("north");
@@ -144,39 +150,141 @@ public final class CraftingDispatchWindowImplTest {
 
     @Test
     void limitsTotalPhysicalAttemptsAcrossDifferentProviders() {
-        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(3);
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(3, 3, 1_000L);
+        CraftingDispatchWindow window = fixedWindow(limits);
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget target = target("north");
 
-        for (int attempt = 0; attempt < 3; attempt++) {
+        for (int attempt = 0; attempt < limits.maxAttemptsPerGrid(); attempt++) {
             ICraftingProvider provider = new EqualCraftingProvider();
             assertTrue(window.canAttempt(provider, pattern));
-            assertTrue(window.tryAcquire(provider, pattern, target));
+            assertTrue(acquire(window, provider, pattern, target));
         }
 
         ICraftingProvider extraProvider = new EqualCraftingProvider();
         assertEquals(3, window.attemptCount());
         assertFalse(window.canAttempt(extraProvider, pattern));
-        assertFalse(window.tryAcquire(extraProvider, pattern, target));
+        assertEquals(CraftingDispatchExhaustion.GRID_CALL_BUDGET, window.exhaustion());
     }
 
     @Test
-    void independentWindowsResetAllTransientState() {
+    void activeSubmissionAtTimeBoundaryDoesNotAcquirePhysicalCall() {
+        AtomicLong nanoClock = new AtomicLong();
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
+        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
         ICraftingProvider provider = new EqualCraftingProvider();
         IPatternDetails pattern = new IdentityPatternDetails();
-        CraftingDispatchWindow first = CraftingDispatchWindow.create();
-        CraftingDispatchWindow second = CraftingDispatchWindow.create();
+
+        try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
+            nanoClock.set(limits.maxServerSubmissionNanos());
+            assertFalse(submission.tryAcquire(target("north")));
+        }
+
+        assertEquals(0, window.attemptCount());
+        assertEquals(1, window.serverSubmissionCount());
+        assertEquals(100L, window.serverSubmissionNanos());
+        assertEquals(CraftingDispatchExhaustion.SERVER_TIME_BUDGET, window.exhaustion());
+    }
+
+    @Test
+    void inFlightPhysicalCallMayCrossTimeBoundaryButLaterWorkStops() {
+        AtomicLong nanoClock = new AtomicLong();
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
+        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+
+        try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
+            nanoClock.set(99L);
+            assertTrue(submission.tryAcquire(target("north")));
+            nanoClock.set(101L);
+        }
+
+        assertEquals(1, window.attemptCount());
+        assertEquals(101L, window.serverSubmissionNanos());
+        assertFalse(window.canAttempt(provider, pattern));
+        assertEquals(CraftingDispatchExhaustion.SERVER_TIME_BUDGET, window.exhaustion());
+    }
+
+    @Test
+    void accumulatesOnlyMeasuredScopeDurations() {
+        AtomicLong nanoClock = new AtomicLong(10L);
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 1_000L);
+        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+
+        try (CraftingDispatchWindow.SubmissionScope ignored = window.beginSubmission(provider, pattern)) {
+            nanoClock.set(40L);
+        }
+        nanoClock.set(100L);
+        try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
+            assertTrue(submission.tryAcquire(target("north")));
+            nanoClock.set(125L);
+        }
+
+        assertEquals(2, window.serverSubmissionCount());
+        assertEquals(55L, window.serverSubmissionNanos());
+        assertEquals(1, window.attemptCount());
+        assertEquals(CraftingDispatchExhaustion.NONE, window.exhaustion());
+    }
+
+    @Test
+    void independentWindowsResetAllTransientStateAndBudgets() {
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+        CraftingDispatchWindow first = fixedWindow(new CraftingDispatchLimits(4, 4, 1L));
+        CraftingDispatchWindow second = fixedWindow(new CraftingDispatchLimits(4, 4, 1L));
         CraftingDispatchTarget target = target("north");
         first.recordResult(provider, pattern, target, CraftingDispatchStatus.BLOCKED);
 
         assertFalse(first.canAttempt(provider, pattern, target));
         assertTrue(second.canAttempt(provider, pattern, target));
-        assertTrue(second.tryAcquire(provider, pattern, target));
+        assertTrue(acquire(second, provider, pattern, target));
     }
 
     @Test
-    void rejectsNullProvidersBeforeMutatingState() {
-        CraftingDispatchWindow window = CraftingDispatchWindow.create();
+    void rejectsNestedAndClosedSubmissionScopes() {
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+        CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern);
+
+        assertIllegalState(
+                "Crafting dispatch submission scopes must not be nested",
+                () -> window.beginSubmission(provider, pattern));
+        submission.close();
+        assertIllegalState(
+                "Crafting dispatch submission scope is already closed",
+                submission::close);
+    }
+
+    @Test
+    void rejectsBackwardClockAndReleasesFailedScope() {
+        AtomicLong nanoClock = new AtomicLong(100L);
+        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(
+                new CraftingDispatchLimits(4, 4, 100L),
+                nanoClock::get);
+        ICraftingProvider provider = new EqualCraftingProvider();
+        IPatternDetails pattern = new IdentityPatternDetails();
+        CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern);
+        nanoClock.set(99L);
+
+        assertIllegalState(
+                "Crafting dispatch nano clock moved backwards",
+                submission::close);
+        assertEquals(0, window.serverSubmissionCount());
+        assertEquals(0L, window.serverSubmissionNanos());
+
+        nanoClock.set(200L);
+        try (CraftingDispatchWindow.SubmissionScope ignored = window.beginSubmission(provider, pattern)) {
+            assertTrue(window.canAttempt(provider, pattern));
+        }
+    }
+
+    @Test
+    void rejectsNullDispatchInputsBeforeMutatingState() {
+        CraftingDispatchWindow window = fixedWindow(CraftingDispatchLimits.DEFAULT);
         IPatternDetails pattern = new IdentityPatternDetails();
         CraftingDispatchTarget target = target("north");
         ICraftingProvider provider = new EqualCraftingProvider();
@@ -189,11 +297,13 @@ public final class CraftingDispatchWindowImplTest {
         assertIllegalArgument("Crafting dispatch target must not be null",
                 () -> window.canAttempt(provider, pattern, null));
         assertIllegalArgument("Crafting dispatch provider must not be null",
-                () -> window.tryAcquire(null, pattern, target));
+                () -> window.beginSubmission(null, pattern));
         assertIllegalArgument("Crafting dispatch pattern must not be null",
-                () -> window.tryAcquire(provider, null, target));
-        assertIllegalArgument("Crafting dispatch target must not be null",
-                () -> window.tryAcquire(provider, pattern, null));
+                () -> window.beginSubmission(provider, null));
+        try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
+            assertIllegalArgument("Crafting dispatch target must not be null",
+                    () -> submission.tryAcquire(null));
+        }
         assertIllegalArgument("Crafting dispatch provider must not be null",
                 () -> window.recordResult(null, pattern, target, CraftingDispatchStatus.REJECTED));
         assertIllegalArgument("Crafting dispatch pattern must not be null",
@@ -201,20 +311,48 @@ public final class CraftingDispatchWindowImplTest {
         assertIllegalArgument("Crafting dispatch status must not be null",
                 () -> window.recordResult(provider, pattern, target, null));
         assertIllegalArgument("Crafting dispatch status must not be null", () -> window.resultCount(null));
+        assertIllegalArgument(
+                "Crafting dispatch limits must not be null",
+                () -> new CraftingDispatchWindowImpl(null, () -> 0L));
+        assertIllegalArgument(
+                "Crafting dispatch nano clock must not be null",
+                () -> new CraftingDispatchWindowImpl(CraftingDispatchLimits.DEFAULT, null));
     }
 
     @Test
-    void rejectsNonpositiveGridAttemptLimits() {
+    void rejectsNonpositiveHardLimits() {
         assertIllegalArgument(
                 "Grid crafting dispatch limit must be positive",
-                () -> new CraftingDispatchWindowImpl(0));
+                () -> new CraftingDispatchLimits(0, 1, 1L));
         assertIllegalArgument(
-                "Grid crafting dispatch limit must be positive",
-                () -> new CraftingDispatchWindowImpl(-1));
+                "Provider crafting dispatch limit must be positive",
+                () -> new CraftingDispatchLimits(1, 0, 1L));
+        assertIllegalArgument(
+                "Server crafting submission time limit must be positive",
+                () -> new CraftingDispatchLimits(1, 1, 0L));
+    }
+
+    private static CraftingDispatchWindow fixedWindow(CraftingDispatchLimits limits) {
+        return new CraftingDispatchWindowImpl(limits, () -> 0L);
+    }
+
+    private static boolean acquire(
+                                   CraftingDispatchWindow window,
+                                   ICraftingProvider provider,
+                                   IPatternDetails pattern,
+                                   CraftingDispatchTarget target) {
+        try (CraftingDispatchWindow.SubmissionScope submission = window.beginSubmission(provider, pattern)) {
+            return submission.tryAcquire(target);
+        }
     }
 
     private static void assertIllegalArgument(String expectedMessage, Runnable action) {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, action::run);
+        assertEquals(expectedMessage, exception.getMessage());
+    }
+
+    private static void assertIllegalState(String expectedMessage, Runnable action) {
+        IllegalStateException exception = assertThrows(IllegalStateException.class, action::run);
         assertEquals(expectedMessage, exception.getMessage());
     }
 

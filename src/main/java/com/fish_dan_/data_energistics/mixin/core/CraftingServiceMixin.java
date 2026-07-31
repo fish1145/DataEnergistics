@@ -155,6 +155,9 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
         CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
         List<TrinityDataCoreCraftingRuntime> runtimes = dataEnergistics$trinityDataCoreRuntimes();
         long latestChange = 0L;
+        for (TrinityDataCoreCraftingRuntime runtime : runtimes) {
+            latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
+        }
         if (!runtimes.isEmpty()) {
             int start = Math.floorMod(this.dataEnergistics$nextTrinityRuntimeTickStart, runtimes.size());
             this.dataEnergistics$nextTrinityRuntimeTickStart = (start + 1) % runtimes.size();
@@ -162,6 +165,9 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
                 TrinityDataCoreCraftingRuntime runtime = runtimes.get((start + offset) % runtimes.size());
                 runtime.tick(this.energyGrid, service, dispatchWindow);
                 latestChange = Math.max(latestChange, runtime.getLastModifiedOnTick());
+                if (dispatchWindow.isExhausted()) {
+                    break;
+                }
             }
         }
         if (latestChange != this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick) {

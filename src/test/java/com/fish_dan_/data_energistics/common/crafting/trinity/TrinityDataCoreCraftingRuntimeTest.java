@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.common.crafting.trinity;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchExhaustion;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
@@ -72,6 +74,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -303,7 +306,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     @GameTest(template = "empty_5x5")
     public static void workers256DispatchIndependentOperationBudgets(GameTestHelper helper) {
         int workerCount = TrinityDataCoreCpuProfile.MAX_PARTITION_COUNT;
-        int providerCount = workerCount / CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER;
+        int providerCount = workerCount / CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER;
         AEItemKey output = AEItemKey.of(Items.DIAMOND);
         PendingPatternDetails pattern = new PendingPatternDetails(output);
         List<RecordingCraftingProvider> providers = new ArrayList<>(providerCount);
@@ -327,7 +330,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             helper.assertTrue(result.successful(), "Independent budget job should allocate worker " + workerNumber);
         }
 
-        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
+        CraftingDispatchLimits baselineLimits = new CraftingDispatchLimits(
+                CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_GRID,
+                CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
+                Long.MAX_VALUE);
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create(baselineLimits);
         long startedNanos = System.nanoTime();
         host.getCraftingRuntime().tick(grid.energyService(), grid.craftingService(), dispatchWindow);
         long elapsedNanos = System.nanoTime() - startedNanos;
@@ -339,7 +346,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         for (int providerIndex = 0; providerIndex < providers.size(); providerIndex++) {
             helper.assertValueEqual(
                     providers.get(providerIndex).pushCount(),
-                    CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                    CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
                     "Provider " + providerIndex + " should receive its complete fair physical window");
         }
         List<TrinityDataCoreVirtualCpu> workers = host.getCpuPartitions().subList(1, workerCount + 1);
@@ -464,7 +471,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuRuntimeRotatesWorkerDispatchPriority(GameTestHelper helper) {
-        long taskCount = CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER * 2L;
+        long taskCount = CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER * 2L;
         PendingPatternDetails firstPattern = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
         PendingPatternDetails secondPattern = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
         SequencedCraftingProvider provider = new SequencedCraftingProvider(List.of(firstPattern, secondPattern));
@@ -499,7 +506,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
         helper.assertValueEqual(
                 provider.pushCount(firstPattern),
-                (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                (long) CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
                 "First tick should give worker 1 the shared provider window");
         helper.assertValueEqual(
                 provider.pushCount(secondPattern),
@@ -509,11 +516,11 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         runtime.tick(grid.energyService(), grid.craftingService(), CraftingDispatchWindow.create());
         helper.assertValueEqual(
                 provider.pushCount(firstPattern),
-                (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                (long) CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
                 "Second tick must not let worker 1 take the new provider window again");
         helper.assertValueEqual(
                 provider.pushCount(secondPattern),
-                (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                (long) CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
                 "Second tick should rotate the new provider window to worker 2");
         runtime.cancelAllJobs();
         helper.succeed();
@@ -782,11 +789,133 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_cpu_grid_call_budget_delays_without_losing_accounting")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuGridCallBudgetDelaysWithoutLosingAccounting(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT,
+                1);
+        fixture.provider().setMaximumAdmissionCount(1L);
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(1, 4, 1_000L);
+        CraftingDispatchWindow firstWindow = new CraftingDispatchWindowImpl(limits, () -> 0L);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                firstWindow);
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "The first window must stop at its one physical grid call");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), COUNTED_BATCH_SIZE - 1L,
+                "Only the admitted craft may transfer its input before grid exhaustion");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), 1L,
+                "Only the admitted craft may enter waiting output accounting");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), COUNTED_BATCH_SIZE - 1.0D,
+                "Only the admitted craft may retain its energy charge");
+        helper.assertValueEqual(firstWindow.attemptCount(), 1,
+                "The grid window must record exactly one physical call");
+        helper.assertTrue(
+                firstWindow.exhaustion() == CraftingDispatchExhaustion.GRID_CALL_BUDGET,
+                "The window must expose grid-call exhaustion");
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                firstWindow);
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "Reusing the exhausted window must not prepare or submit another craft");
+        CraftingDispatchWindow secondWindow = new CraftingDispatchWindowImpl(limits, () -> 0L);
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                secondWindow);
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 2,
+                "A new grid window must resume the preserved task");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), COUNTED_BATCH_SIZE - 2L,
+                "The resumed craft must transfer exactly one additional input");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), 2L,
+                "The resumed craft must add exactly one waiting output");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), COUNTED_BATCH_SIZE - 2.0D,
+                "The resumed craft must retain exactly one additional energy charge");
+        fixture.cpu().logic().cancel();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_server_time_budget_rolls_back_unsubmitted_preparation")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuServerTimeBudgetRollsBackUnsubmittedPreparation(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT,
+                1);
+        AtomicLong nanoClock = new AtomicLong();
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
+        fixture.provider().setPreparationAction(() -> nanoClock.addAndGet(limits.maxServerSubmissionNanos()));
+        CraftingDispatchWindow firstWindow = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                firstWindow);
+
+        helper.assertValueEqual(fixture.provider().prepareCount(), 1,
+                "The measured provider path must include counted preparation");
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 0,
+                "A preparation that consumes the time budget must not start a physical call");
+        helper.assertValueEqual(firstWindow.attemptCount(), 0,
+                "Time exhaustion before commit must not consume physical call quota");
+        helper.assertValueEqual(firstWindow.serverSubmissionCount(), 1,
+                "The slow provider path must remain observable even without a physical call");
+        helper.assertValueEqual(firstWindow.serverSubmissionNanos(), limits.maxServerSubmissionNanos(),
+                "The window must retain the complete measured preparation duration");
+        helper.assertValueEqual(fixture.grid().energyService().modulatedExtractionCount(), 0,
+                "Time exhaustion after preparation must stop before a reversible energy charge");
+        helper.assertTrue(
+                firstWindow.exhaustion() == CraftingDispatchExhaustion.SERVER_TIME_BUDGET,
+                "The window must expose server submission time exhaustion");
+        assertUncommittedAdmissionState(helper, fixture, "Time-budgeted");
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                firstWindow);
+        helper.assertValueEqual(fixture.provider().prepareCount(), 1,
+                "Reusing the exhausted time window must not prepare the provider again");
+
+        fixture.provider().setPreparationAction(null);
+        CraftingDispatchWindow secondWindow = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                secondWindow);
+
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "A new time window must resume and submit the preserved batch");
+        helper.assertValueEqual(fixture.cpu().getStored(fixture.input()), 0L,
+                "The resumed batch must transfer every preserved input");
+        helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
+                "The resumed batch must restore complete waiting output accounting");
+        helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
+                "The resumed batch must consume its complete energy charge");
+        helper.assertValueEqual(fixture.grid().energyService().modulatedExtractionCount(), 1,
+                "Only the resumed physical submission may modulate energy");
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_multi_runtime_worker_rotation_avoids_phase_lock")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void cpuMultiRuntimeWorkerRotationAvoidsPhaseLock(GameTestHelper helper) {
-        long taskCount = CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER * 4L;
+        long taskCount = CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER * 4L;
         PendingPatternDetails firstA = new PendingPatternDetails(AEItemKey.of(Items.DIAMOND));
         PendingPatternDetails secondA = new PendingPatternDetails(AEItemKey.of(Items.EMERALD));
         PendingPatternDetails firstB = new PendingPatternDetails(AEItemKey.of(Items.GOLD_INGOT));
@@ -826,7 +955,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         for (IPatternDetails pattern : List.of(firstA, secondA, firstB, secondB)) {
             helper.assertValueEqual(
                     provider.pushCount(pattern),
-                    (long) CraftingDispatchWindow.MAX_ATTEMPTS_PER_PROVIDER,
+                    (long) CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
                     "Every runtime worker must receive one complete physical window without phase-lock starvation");
         }
         runtimeA.cancelAllJobs();
@@ -2513,6 +2642,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private double storedPower = Double.MAX_VALUE;
         private double maxModulatedExtraction = Double.MAX_VALUE;
+        private int modulatedExtractionCount;
 
         private void setStoredPower(double storedPower) {
             this.storedPower = storedPower;
@@ -2522,10 +2652,15 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.maxModulatedExtraction = maxModulatedExtraction;
         }
 
+        private int modulatedExtractionCount() {
+            return this.modulatedExtractionCount;
+        }
+
         @Override
         public double extractAEPower(double amount, Actionable mode, PowerMultiplier multiplier) {
             double extracted = Math.min(amount, this.storedPower);
             if (mode == Actionable.MODULATE) {
+                this.modulatedExtractionCount++;
                 extracted = Math.min(extracted, this.maxModulatedExtraction);
                 this.storedPower -= extracted;
             }
@@ -2852,6 +2987,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         private long maximumAdmissionCount = Long.MAX_VALUE;
         @Nullable
         private Long invalidAdmissionCount;
+        @Nullable
+        private Runnable preparationAction;
         private boolean noCapacity;
         private int prepareCount;
         private int batchPushCount;
@@ -2876,6 +3013,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private void setInvalidAdmissionCount(long invalidAdmissionCount) {
             this.invalidAdmissionCount = invalidAdmissionCount;
+        }
+
+        private void setPreparationAction(@Nullable Runnable preparationAction) {
+            this.preparationAction = preparationAction;
         }
 
         private void setNoCapacity(boolean noCapacity) {
@@ -2917,6 +3058,9 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                                                      KeyCounter[] prototype,
                                                      long requestedCount) {
             this.prepareCount++;
+            if (this.preparationAction != null) {
+                this.preparationAction.run();
+            }
             if (this.noCapacity) {
                 return null;
             }

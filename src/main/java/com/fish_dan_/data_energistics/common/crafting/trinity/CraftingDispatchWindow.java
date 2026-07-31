@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchExhaustion;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
 
@@ -11,19 +13,13 @@ import org.jetbrains.annotations.Nullable;
  * Bounds physical crafting submissions for one AE grid tick while sharing provider state across Trinity runtimes.
  *
  * <p>
- * Accounting is based on provider and pattern object identity. Preparing capacity does not consume quota; a successful
- * {@link #tryAcquire(ICraftingProvider, IPatternDetails, CraftingDispatchTarget)} call records one real submission
- * attempt regardless of that attempt's result. Explicit result facts drive provider, pattern and target scoped
- * exclusions that expire with this window.
+ * Accounting is based on provider and pattern object identity. A {@link SubmissionScope} measures the complete
+ * server-thread provider path, while each successful {@link SubmissionScope#tryAcquire(CraftingDispatchTarget)} call
+ * records one real physical attempt regardless of its result. Explicit result facts drive provider, pattern and target
+ * scoped exclusions that expire with this window.
  * </p>
  */
 public interface CraftingDispatchWindow {
-
-    /** Maximum number of physical submission attempts permitted for one provider in a window. */
-    int MAX_ATTEMPTS_PER_PROVIDER = 16;
-
-    /** Maximum number of physical submission attempts permitted across the complete grid in one window. */
-    int MAX_ATTEMPTS_PER_GRID = MAX_ATTEMPTS_PER_PROVIDER * 16;
 
     /**
      * Creates an empty dispatch window for one AE grid tick.
@@ -32,6 +28,16 @@ public interface CraftingDispatchWindow {
      */
     static CraftingDispatchWindow create() {
         return new CraftingDispatchWindowImpl();
+    }
+
+    /**
+     * Creates an empty dispatch window with an explicit immutable hard-limit snapshot.
+     *
+     * @param limits physical call and server submission time limits
+     * @return independent dispatch window
+     */
+    static CraftingDispatchWindow create(CraftingDispatchLimits limits) {
+        return new CraftingDispatchWindowImpl(limits);
     }
 
     /**
@@ -46,6 +52,12 @@ public interface CraftingDispatchWindow {
     /**
      * Checks whether one exact provider-pattern-target route remains available in this window.
      *
+     * <p>
+     * During an active submission scope this method deliberately ignores that scope's still-running elapsed time so a
+     * provider can filter targets consistently. The scope must still acquire the final physical call immediately
+     * before commit.
+     * </p>
+     *
      * @param provider provider instance to inspect
      * @param pattern  pattern about to be prepared
      * @param target   stable provider-local target
@@ -57,17 +69,18 @@ public interface CraftingDispatchWindow {
                        CraftingDispatchTarget target);
 
     /**
-     * Atomically acquires and records one physical submission attempt when quota and route state permit it.
+     * Starts measuring one provider's complete server-thread preparation and submission path.
      *
-     * @param provider provider instance about to receive a real submission
-     * @param pattern  pattern about to be submitted
-     * @param target   stable provider-local target fixed during preparation
-     * @return {@code true} when the attempt was recorded, or {@code false} when unavailable or exhausted
+     * <p>
+     * Callers must first verify {@link #canAttempt(ICraftingProvider, IPatternDetails)} and must close the returned
+     * scope. Dispatch windows are server-thread confined and reject nested submission scopes.
+     * </p>
+     *
+     * @param provider provider instance about to be prepared
+     * @param pattern  exact pattern being prepared
+     * @return closeable scope that owns physical attempt acquisition for this provider path
      */
-    boolean tryAcquire(
-                       ICraftingProvider provider,
-                       IPatternDetails pattern,
-                       CraftingDispatchTarget target);
+    SubmissionScope beginSubmission(ICraftingProvider provider, IPatternDetails pattern);
 
     /**
      * Records one explicit preparation or submission result and updates only the status-defined negative-cache scope.
@@ -97,4 +110,50 @@ public interface CraftingDispatchWindow {
      * @return number of recorded occurrences
      */
     int resultCount(CraftingDispatchStatus status);
+
+    /**
+     * Returns the grid-wide hard budget that currently prevents more submission work.
+     *
+     * @return exhaustion reason, or {@link CraftingDispatchExhaustion#NONE}
+     */
+    CraftingDispatchExhaustion exhaustion();
+
+    /**
+     * Checks whether a grid-wide hard budget has been exhausted.
+     *
+     * @return whether later workers and runtimes must defer their work
+     */
+    default boolean isExhausted() {
+        return exhaustion() != CraftingDispatchExhaustion.NONE;
+    }
+
+    /**
+     * Returns how many measured provider submission paths completed in this window.
+     *
+     * @return completed server submission scopes
+     */
+    int serverSubmissionCount();
+
+    /**
+     * Returns the accumulated monotonic time spent in completed provider submission paths.
+     *
+     * @return measured server submission nanoseconds
+     */
+    long serverSubmissionNanos();
+
+    /** Measures one provider path and controls every physical call made from that path. */
+    interface SubmissionScope extends AutoCloseable {
+
+        /**
+         * Atomically acquires and records one physical submission attempt when quota, time and route state permit it.
+         *
+         * @param target stable provider-local target fixed during preparation
+         * @return {@code true} when the attempt was recorded, or {@code false} when unavailable or exhausted
+         */
+        boolean tryAcquire(CraftingDispatchTarget target);
+
+        /** Completes timing for this provider path without declaring checked cleanup failures. */
+        @Override
+        void close();
+    }
 }
