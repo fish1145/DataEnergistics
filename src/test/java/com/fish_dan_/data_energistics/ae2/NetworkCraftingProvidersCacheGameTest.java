@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -40,16 +40,16 @@ public final class NetworkCraftingProvidersCacheGameTest {
         if (!(providers instanceof TrinityCraftingProviderRevision revision)) {
             throw new IllegalStateException("Network crafting providers do not expose a Trinity mutation revision");
         }
-        long initialRevision = revision.trinityCraftingProviderRevision();
+        long initialRevision = revision.data_energistics$trinityCraftingProviderRevision();
 
         providers.addProvider(lowPriorityProvider);
         helper.assertValueEqual(
-                revision.trinityCraftingProviderRevision(),
+                revision.data_energistics$trinityCraftingProviderRevision(),
                 Math.incrementExact(initialRevision),
                 "First same-tick provider mutation revision");
         providers.addProvider(highPriorityProvider);
         helper.assertValueEqual(
-                revision.trinityCraftingProviderRevision(),
+                revision.data_energistics$trinityCraftingProviderRevision(),
                 Math.addExact(initialRevision, 2L),
                 "Second same-tick provider mutation revision");
 
@@ -60,7 +60,7 @@ public final class NetworkCraftingProvidersCacheGameTest {
 
         providers.removeProvider(highPriorityProvider);
         helper.assertValueEqual(
-                revision.trinityCraftingProviderRevision(),
+                revision.data_energistics$trinityCraftingProviderRevision(),
                 Math.addExact(initialRevision, 3L),
                 "Same-tick provider removal revision");
         Collection<IPatternDetails> afterRemoval = providers.getCraftingFor(sharedOutput.what());
@@ -72,7 +72,7 @@ public final class NetworkCraftingProvidersCacheGameTest {
 
         providers.addProvider(highPriorityProvider);
         helper.assertValueEqual(
-                revision.trinityCraftingProviderRevision(),
+                revision.data_energistics$trinityCraftingProviderRevision(),
                 Math.addExact(initialRevision, 4L),
                 "Same-tick provider re-add revision");
         Collection<IPatternDetails> afterAddition = providers.getCraftingFor(sharedOutput.what());

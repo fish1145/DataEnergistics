@@ -2,9 +2,9 @@
 
 ## 1. 审计结论
 
-当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题，但计算与
-执行仍沿用 AE2 的扁平计划契约。现状不能安全执行自增殖或多步增殖，并且 AE2 多路径和输入输出重叠路径会在大数量
-请求下退化为逐次模拟。
+当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题。当前分支也
+已完成 Trinity 独立 DAG/SCC 计算内核，但生产请求与执行器仍沿用 AE2 的扁平计划契约。因 schema 2、seed 输出门和
+动态借料尚未接入，现阶段仍不能在真实 CPU 上安全执行自增殖或多步增殖。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。
@@ -23,9 +23,9 @@ Craft Amount / 外部请求
   -> TrinityDataCoreCpuLogic.insert
 ```
 
-当前分支已建立网格图、扩展计划契约和 `TrinityPlanningGateway` 双路 Future 基础，但尚未在
-`CraftingServiceMixin` 接管 `beginCraftingCalculation`。真实请求仍走 AE2；下一功能提交在 DAG/SCC 规划器可产出
-完整计划后再激活入口。
+当前分支已建立网格图、扩展计划契约、`TrinityPlanningGateway` 双路 Future 和完整 DAG/SCC 规划器，但尚未在
+`CraftingServiceMixin` 接管 `beginCraftingCalculation`。真实请求仍走 AE2；必须先由下一执行轨道完成 schema 2、
+seed/completion buffer 和动态借料所有权，再激活扩展入口。
 
 ## 3. 缺陷证据
 
@@ -130,8 +130,8 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
 | --- | --- | --- | --- |
 | C-001 | graph snapshot、扩展计划、schema 2 | 计划契约已完成；schema 2 待实现 | 计划不持有 decoded pattern、阶段聚合和边界测试 |
-| C-002 | Tarjan、闭式循环、Trinity planner | 待实现 | 自增殖和多步增殖逻辑测试 |
-| C-003 | DAG 批量传播、revision 图缓存 | revision 图缓存已完成；DAG 待实现 | 同 tick 失效与大数量状态计数 |
+| C-002 | Tarjan、闭式循环、Trinity planner | 计算内核已完成；真实 CPU 执行待实现 | 自增殖、多步增殖、MIP 与 seed 前缀逻辑测试 |
+| C-003 | DAG 批量传播、revision 图缓存 | 已完成 | 同 tick 失效、大数量状态计数与 `long` 溢出测试 |
 | C-007 | 已有 pattern-sort dirty flag Mixin | 已完成 | 重复读取不会重复排序 |
 | C-004 | working inventory、completion buffer | 待实现 | seed 保留和精确交付测试 |
 | C-005 | ready queue、反向索引、retry queue | 待实现 | 无关任务不被重复访问 |

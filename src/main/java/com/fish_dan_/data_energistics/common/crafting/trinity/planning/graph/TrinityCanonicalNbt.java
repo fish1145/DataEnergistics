@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Objects;
 
 /**
  * Produces a deterministic NBT value encoding without relying on {@link CompoundTag} map iteration order.
@@ -30,7 +29,6 @@ final class TrinityCanonicalNbt {
      * @return URL-safe canonical byte representation
      */
     static String encode(Tag tag) {
-        Objects.requireNonNull(tag, "Canonical NBT requires a tag");
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream output = new DataOutputStream(bytes)) {
             writeTag(output, tag);

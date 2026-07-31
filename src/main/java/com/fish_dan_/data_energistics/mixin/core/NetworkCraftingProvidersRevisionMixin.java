@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 
 import appeng.me.service.helpers.NetworkCraftingProviders;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,7 +27,7 @@ public abstract class NetworkCraftingProvidersRevisionMixin implements TrinityCr
     }
 
     @Override
-    public long trinityCraftingProviderRevision() {
+    public long data_energistics$trinityCraftingProviderRevision() {
         return this.dataEnergistics$craftingProviderRevision;
     }
 }

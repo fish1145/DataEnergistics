@@ -9,7 +9,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * AE-visible pattern semantics used to distinguish a harmless recipe-object rebind from a publication change.
@@ -29,7 +28,9 @@ public record TrinityPatternPublicationSignature(AEItemKey definition,
      * publication.
      */
     public TrinityPatternPublicationSignature {
-        Objects.requireNonNull(definition, "A Trinity pattern publication requires a definition");
+        if (definition == null) {
+            throw new IllegalArgumentException("A Trinity pattern publication requires a definition");
+        }
         inputs = List.copyOf(inputs);
         outputs = copyPositiveOutputs(outputs);
         if (outputs.isEmpty()) {
@@ -49,7 +50,6 @@ public record TrinityPatternPublicationSignature(AEItemKey definition,
      * @return immutable publication signature
      */
     public static TrinityPatternPublicationSignature capture(IPatternDetails pattern) {
-        Objects.requireNonNull(pattern, "A Trinity pattern publication requires pattern details");
         IPatternDetails.IInput[] patternInputs = pattern.getInputs();
         if (patternInputs == null) {
             throw new IllegalArgumentException("A Trinity pattern publication requires an input array");
@@ -88,7 +88,6 @@ public record TrinityPatternPublicationSignature(AEItemKey definition,
             if (multiplier <= 0L) {
                 throw new IllegalArgumentException("A Trinity pattern input multiplier must be positive");
             }
-            Objects.requireNonNull(alternatives, "A Trinity pattern input alternative collection is required");
             if (alternatives.isEmpty()) {
                 throw new IllegalArgumentException("A Trinity pattern input requires at least one alternative");
             }
@@ -109,7 +108,6 @@ public record TrinityPatternPublicationSignature(AEItemKey definition,
          * @return immutable input semantics
          */
         public static Input capture(IPatternDetails.IInput input) {
-            Objects.requireNonNull(input, "A Trinity pattern input is required");
             GenericStack[] possibleInputs = input.getPossibleInputs();
             if (possibleInputs == null) {
                 throw new IllegalArgumentException("A Trinity pattern input requires an alternative array");
@@ -147,7 +145,6 @@ public record TrinityPatternPublicationSignature(AEItemKey definition,
     }
 
     private static List<GenericStack> copyPositiveOutputs(List<GenericStack> stacks) {
-        Objects.requireNonNull(stacks, "A Trinity pattern output collection is required");
         ArrayList<GenericStack> copied = new ArrayList<>(stacks.size());
         for (GenericStack stack : stacks) {
             copied.add(requirePositiveStack(stack, "output"));

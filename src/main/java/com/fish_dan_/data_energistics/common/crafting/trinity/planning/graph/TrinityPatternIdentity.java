@@ -10,8 +10,6 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Objects;
-
 /**
  * Stable, component-aware identity of one published pattern semantic.
  *
@@ -46,9 +44,6 @@ public record TrinityPatternIdentity(String definitionEncoding,
      */
     public static TrinityPatternIdentity capture(TrinityPatternPublicationSignature signature,
                                                  HolderLookup.Provider registries) {
-        Objects.requireNonNull(signature, "A Trinity pattern identity requires a publication signature");
-        Objects.requireNonNull(registries, "A Trinity pattern identity requires registry access");
-
         CompoundTag publication = new CompoundTag();
         CompoundTag definition = encodeKey(signature.definition(), registries);
         publication.put("definition", definition.copy());
@@ -64,7 +59,6 @@ public record TrinityPatternIdentity(String definitionEncoding,
 
     @Override
     public int compareTo(@NotNull TrinityPatternIdentity other) {
-        Objects.requireNonNull(other, "A Trinity pattern identity cannot be compared with null");
         int definitionOrder = this.definitionEncoding.compareTo(other.definitionEncoding);
         return definitionOrder != 0 ? definitionOrder :
                 this.publicationEncoding.compareTo(other.publicationEncoding);

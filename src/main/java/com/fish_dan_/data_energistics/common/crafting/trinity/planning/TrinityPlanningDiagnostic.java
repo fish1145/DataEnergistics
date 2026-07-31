@@ -18,7 +18,9 @@ public record TrinityPlanningDiagnostic(
                                         Component message,
                                         Map<String, String> metadata) {
 
-    /** Isolates mutable component/map implementations from the retained planning result. */
+    /**
+     * Isolates mutable component/map implementations from the retained planning result.
+     */
     public TrinityPlanningDiagnostic {
         if (code == null || message == null || metadata == null) {
             throw new IllegalArgumentException("A Trinity planning diagnostic requires code, message and metadata");
@@ -48,7 +50,9 @@ public record TrinityPlanningDiagnostic(
         return new TrinityPlanningDiagnostic(code, Component.literal(detail), Map.of());
     }
 
-    /** Prevents callers from mutating the retained component through a concrete mutable implementation. */
+    /**
+     * Prevents callers from mutating the retained component through a concrete mutable implementation.
+     */
     @Override
     public Component message() {
         return this.message.copy();

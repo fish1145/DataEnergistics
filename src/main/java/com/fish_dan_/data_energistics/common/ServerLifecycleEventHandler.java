@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningGatewayLifecycle;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 
 import net.minecraft.server.MinecraftServer;

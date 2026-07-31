@@ -3,6 +3,7 @@
 ## 1. 文档状态
 
 - 方案状态：已确定，按功能提交实施
+- 实现进度：网格图与规划入口、DAG/SCC/循环求解内核已经完成；运行时与界面轨道待实现
 - 适用范围：Trinity CPU 专属计算计划、无环大数量计算、自增殖、多步增殖和多路线生产循环
 - 前置基础：派发架构 Phase 0 至 Phase 2
 - 非依赖项：派发架构 Phase 3 容量切片、Phase 4 Actor/Shard、Phase 5 Governor
@@ -283,7 +284,7 @@ RUNTIME_DEADLOCK
 ## 11. 实施顺序
 
 1. 网格图、计划接口、规划入口和配置。**已实现**
-2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。
+2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。**已实现**
 3. ready queue、seed 门、动态借料和 schema 2。
 4. Craft Amount 数量模式、确认页诊断和 Trinity-only 隔离。
 5. 全量逻辑测试、GameTest、性能计数和重载验收。
@@ -299,5 +300,17 @@ RUNTIME_DEADLOCK
 - 单服务器共享的有界规划线程池、队列拒绝诊断、Trinity/AE2 双 Future 取消与限时优先选择；
 - 独立 COMMON 配置和 ojAlgo 57.1.0 jar-in-jar/许可证声明。
 
-第二步接入真实 DAG/SCC 规划器时才会包装 `CraftingService.beginCraftingCalculation`。在此之前现有玩家和机器请求仍由
-AE2 计算，避免把尚未具备算法结果的扩展入口误标为可用。
+### 11.2 已落地的计算内核
+
+第二步已经建立以下可独立验证的计算能力：
+
+- binding variant 的稳定展开、Tarjan SCC 和凝聚 DAG；
+- 不随请求量逐次展开的 `BigInteger` 无环需求传播；
+- `A -> 2A` 与 `A -> B -> 2A` 的闭式 repeat block 和最大前缀 seed；
+- ojAlgo 顺序词典序 MIP、精确整数复验和有界压缩排程证明；
+- 完整 stage/repeat 守恒校验、`NET_NEW`/`FINAL_TOTAL` 数量约束和 AE2 `long` 边界诊断；
+- 按 `plan`、`gateway`、`topology`、`dag`、`cycle`、`schedule` 职责组织的规划代码边界。
+
+计算内核完成后仍不直接包装 `CraftingService.beginCraftingCalculation`。现有玩家和机器请求继续使用 AE2，直到 schema 2
+执行器、seed/completion buffer 和动态借料所有权轨道可以完整消费 `TrinityCraftingPlan`，避免生成执行器无法安全消费的
+扩展计划。

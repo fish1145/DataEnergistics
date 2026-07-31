@@ -6,7 +6,6 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Immutable planner-facing transition captured from one AE crafting pattern.
@@ -16,14 +15,6 @@ import java.util.Objects;
  */
 public record TrinityCraftingGraphPattern(TrinityPatternIdentity identity,
                                           TrinityPatternPublicationSignature publication) {
-
-    /**
-     * Ensures a graph transition cannot retain a partial capture.
-     */
-    public TrinityCraftingGraphPattern {
-        Objects.requireNonNull(identity, "A Trinity graph pattern requires an identity");
-        Objects.requireNonNull(publication, "A Trinity graph pattern requires publication semantics");
-    }
 
     /**
      * @return encoded pattern key with all data components

@@ -13,10 +13,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingC
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.NetworkCraftingGraphCaptureSource;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphRebuilder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.NetworkCraftingGraphCaptureSource;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingGraphRebuilder;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
 
@@ -223,7 +223,7 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
             this.dataEnergistics$trinityCraftingGraphRebuilder.advance(budgetNanos);
         } catch (RuntimeException exception) {
             long revision = ((TrinityCraftingProviderRevision) this.craftingProviders)
-                    .trinityCraftingProviderRevision();
+                    .data_energistics$trinityCraftingProviderRevision();
             if (revision != this.dataEnergistics$lastLoggedGraphFailureRevision) {
                 this.dataEnergistics$lastLoggedGraphFailureRevision = revision;
                 Data_Energistics.LOGGER.error(

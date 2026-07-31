@@ -16,11 +16,11 @@ import java.util.Map;
  * Initializes the minimal Minecraft and AE key registries needed by direct graph logic tests.
  */
 @SuppressWarnings("UnstableApiUsage")
-final class TrinityPlanningGraphTestBootstrap {
+public final class TrinityPlanningGraphTestBootstrap {
 
     private TrinityPlanningGraphTestBootstrap() {}
 
-    static void initialize() {
+    public static void initialize() {
         if (LoadingModList.get() == null) {
             LoadingModList.of(List.of(), List.of(), List.of(), List.of(), Map.of());
         }

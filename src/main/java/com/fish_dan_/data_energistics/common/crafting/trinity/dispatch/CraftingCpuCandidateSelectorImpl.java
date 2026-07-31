@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -23,9 +22,6 @@ final class CraftingCpuCandidateSelectorImpl implements CraftingCpuCandidateSele
     public CraftingCpuCandidateSelection evaluate(
                                                   List<CraftingCpuCandidate> candidates,
                                                   CraftingCpuSelectionRequest request) {
-        Objects.requireNonNull(candidates, "Crafting CPU candidate list must not be null");
-        Objects.requireNonNull(request, "Crafting CPU selection request must not be null");
-
         Set<String> identities = new HashSet<>();
         ArrayList<CraftingCpuCandidate> eligible = new ArrayList<>(candidates.size());
         int offline = 0;
@@ -33,7 +29,6 @@ final class CraftingCpuCandidateSelectorImpl implements CraftingCpuCandidateSele
         int tooSmall = 0;
         int excluded = 0;
         for (CraftingCpuCandidate candidate : candidates) {
-            Objects.requireNonNull(candidate, "Crafting CPU candidate list must not contain null");
             if (!identities.add(candidate.stableIdentity())) {
                 throw new IllegalArgumentException(
                         "Duplicate crafting CPU stable identity: " + candidate.stableIdentity());
@@ -65,7 +60,6 @@ final class CraftingCpuCandidateSelectorImpl implements CraftingCpuCandidateSele
 
     @Override
     public CraftingCpuSelectionGroup group(CraftingCpuCandidate candidate, boolean playerRequest) {
-        Objects.requireNonNull(candidate, "Crafting CPU candidate must not be null");
         return new CraftingCpuSelectionGroup(
                 candidate.selectionMode(),
                 preferredFor(candidate.selectionMode(), playerRequest),
@@ -75,7 +69,6 @@ final class CraftingCpuCandidateSelectorImpl implements CraftingCpuCandidateSele
 
     @Override
     public boolean isRetryable(ICraftingSubmitResult result) {
-        Objects.requireNonNull(result, "Crafting CPU submit result must not be null");
         CraftingSubmitErrorCode errorCode = result.errorCode();
         return errorCode == CraftingSubmitErrorCode.CPU_BUSY ||
                 errorCode == CraftingSubmitErrorCode.CPU_OFFLINE ||

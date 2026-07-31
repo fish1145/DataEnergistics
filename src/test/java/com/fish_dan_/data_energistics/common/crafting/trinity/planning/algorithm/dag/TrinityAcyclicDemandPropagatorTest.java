@@ -1,0 +1,209 @@
+package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag;
+
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPlanningGraphTestBootstrap;
+
+import net.minecraft.world.item.Items;
+
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Map;
+
+import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmTestPatterns.amounts;
+import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmTestPatterns.variant;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+public final class TrinityAcyclicDemandPropagatorTest {
+
+    @BeforeAll
+    static void bootstrapRegistries() {
+        TrinityPlanningGraphTestBootstrap.initialize();
+    }
+
+    @Test
+    void propagatesHugeDemandInGraphBoundedStates() {
+        AEKey raw = AEItemKey.of(Items.COBBLESTONE);
+        AEKey intermediate = AEItemKey.of(Items.IRON_INGOT);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant rawToIntermediate = variant(
+                "raw-intermediate",
+                amounts(raw, BigInteger.valueOf(2L)),
+                amounts(intermediate, BigInteger.valueOf(3L)));
+        TrinityPatternVariant intermediateToTarget = variant(
+                "intermediate-target",
+                amounts(intermediate, BigInteger.valueOf(5L)),
+                amounts(target, BigInteger.valueOf(2L)));
+        List<TrinityPatternVariant> variants = List.of(rawToIntermediate, intermediateToTarget);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+        BigInteger request = BigInteger.TEN.pow(100);
+        BigInteger availableRaw = request.multiply(BigInteger.TEN);
+
+        TrinityAcyclicPlan plan = TrinityAcyclicDemandPropagator.create()
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        request,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(raw, availableRaw))
+                .value();
+
+        BigInteger targetFirings = request.divide(BigInteger.TWO);
+        BigInteger intermediateFirings = targetFirings
+                .multiply(BigInteger.valueOf(5L))
+                .add(BigInteger.TWO)
+                .divide(BigInteger.valueOf(3L));
+        assertEquals(targetFirings, plan.firings().get(intermediateToTarget));
+        assertEquals(intermediateFirings, plan.firings().get(rawToIntermediate));
+        assertEquals(intermediateFirings.multiply(BigInteger.TWO), plan.externalInputs().get(raw));
+        assertEquals(2, plan.statesVisited());
+        assertEquals(List.of(rawToIntermediate, intermediateToTarget),
+                plan.executionOrder().stream().map(TrinityVariantFiring::variant).toList());
+    }
+
+    @Test
+    void stateCountDoesNotGrowWithRequestedAmount() {
+        AEKey raw = AEItemKey.of(Items.COBBLESTONE);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant producer = variant(
+                "producer",
+                amounts(raw, BigInteger.ONE),
+                amounts(target, BigInteger.ONE));
+        List<TrinityPatternVariant> variants = List.of(producer);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+        TrinityAcyclicDemandPropagator propagator = TrinityAcyclicDemandPropagator.create();
+
+        TrinityAcyclicPlan one = propagator
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(raw, BigInteger.ONE))
+                .value();
+        TrinityAcyclicPlan huge = propagator
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.TEN.pow(1000),
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(raw, BigInteger.TEN.pow(1000)))
+                .value();
+
+        assertEquals(one.statesVisited(), huge.statesVisited());
+        assertEquals(1, huge.statesVisited());
+    }
+
+    @Test
+    void appliesTargetInventoryOnlyToFinalTotalSemantics() {
+        AEKey raw = AEItemKey.of(Items.COBBLESTONE);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant producer = variant(
+                "producer",
+                amounts(raw, BigInteger.ONE),
+                amounts(target, BigInteger.ONE));
+        List<TrinityPatternVariant> variants = List.of(producer);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+        TrinityAcyclicDemandPropagator propagator = TrinityAcyclicDemandPropagator.create();
+
+        TrinityAcyclicPlan netNew = propagator
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.TEN,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(target, BigInteger.valueOf(7L), raw, BigInteger.TEN))
+                .value();
+        TrinityAcyclicPlan finalTotal = propagator
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.TEN,
+                        CraftingQuantityMode.FINAL_TOTAL,
+                        Map.of(target, BigInteger.valueOf(7L), raw, BigInteger.TEN))
+                .value();
+
+        assertEquals(BigInteger.TEN, netNew.firings().get(producer));
+        assertEquals(BigInteger.valueOf(3L), finalTotal.firings().get(producer));
+        assertEquals(BigInteger.valueOf(3L), finalTotal.externalInputs().get(raw));
+    }
+
+    @Test
+    void finalTotalStillRunsOneCompleteProductionWhenTargetInventoryAlreadySuffices() {
+        AEKey raw = AEItemKey.of(Items.COBBLESTONE);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant producer = variant(
+                "producer",
+                amounts(raw, BigInteger.ONE),
+                amounts(target, BigInteger.TWO));
+        List<TrinityPatternVariant> variants = List.of(producer);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+
+        TrinityAcyclicPlan plan = TrinityAcyclicDemandPropagator.create()
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.TEN,
+                        CraftingQuantityMode.FINAL_TOTAL,
+                        Map.of(target, BigInteger.valueOf(20L), raw, BigInteger.ONE))
+                .value();
+
+        assertEquals(BigInteger.ONE, plan.firings().get(producer));
+        assertEquals(BigInteger.TEN, plan.externalInputs().get(target));
+        assertEquals(BigInteger.ONE, plan.externalInputs().get(raw));
+    }
+
+    @Test
+    void rejectsUncraftableSourceShortageInsteadOfReturningExecutablePlan() {
+        AEKey raw = AEItemKey.of(Items.COBBLESTONE);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant producer = variant(
+                "producer",
+                amounts(raw, BigInteger.valueOf(5L)),
+                amounts(target, BigInteger.ONE));
+        List<TrinityPatternVariant> variants = List.of(producer);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+
+        TrinityAlgorithmResult<TrinityAcyclicPlan> result = TrinityAcyclicDemandPropagator.create()
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(raw, BigInteger.valueOf(3L)));
+
+        assertFalse(result.successful());
+        assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, result.diagnostic().code());
+        assertEquals("5", result.diagnostic().metadata().get("required"));
+        assertEquals("3", result.diagnostic().metadata().get("available"));
+    }
+}

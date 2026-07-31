@@ -10,7 +10,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -38,11 +37,8 @@ public final class TrinityCraftingGraphSnapshot {
         if (revision < 0L) {
             throw new IllegalArgumentException("A Trinity crafting graph revision cannot be negative");
         }
-        Objects.requireNonNull(patterns, "A Trinity crafting graph requires a pattern collection");
-
         TreeMap<TrinityPatternIdentity, TrinityCraftingGraphPattern> sortedPatterns = new TreeMap<>();
         for (TrinityCraftingGraphPattern pattern : patterns) {
-            Objects.requireNonNull(pattern, "A Trinity crafting graph cannot contain a null pattern");
             if (sortedPatterns.putIfAbsent(pattern.identity(), pattern) != null) {
                 throw new IllegalArgumentException(
                         "A Trinity crafting graph cannot contain duplicate pattern identity " + pattern.identity());
@@ -106,7 +102,6 @@ public final class TrinityCraftingGraphSnapshot {
      * @return immutable identity-sorted producer list
      */
     public List<TrinityCraftingGraphPattern> patternsProducing(AEKey key) {
-        Objects.requireNonNull(key, "A Trinity crafting graph lookup requires a key");
         return this.patternsByOutput.getOrDefault(key, List.of());
     }
 
