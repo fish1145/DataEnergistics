@@ -50,6 +50,7 @@ public final class TrinityDataCoreHostUi {
     private static final int PLAYER_INVENTORY_WIDTH = 162;
     private static final int PLAYER_INVENTORY_HEIGHT = 76;
     private static final int PLAYER_HOTBAR_MARGIN_TOP = 4;
+    private static final int TITLE_COLOR = 0xFF404040;
     private static final IGuiTexture ROOT_BACKGROUND = GuiTextureGroup.of(
             new ColorRectTexture(0xFFE3E3EA),
             new ColorBorderTexture(-1, 0xFF696D88));
@@ -102,7 +103,6 @@ public final class TrinityDataCoreHostUi {
                     PLAYER_INVENTORY_WIDTH));
             root.addChild(TrinityDataCoreStatusPanel.create(sync.hostStatusProvider()));
             root.addChild(TrinityDataCoreStoragePanel.create(sync.storageStatusProvider()));
-            root.addChild(TrinityDataCoreRefundPanel.create(menu));
             InventorySlots playerInventorySlots = playerInventorySlots();
             root.addChild(playerInventorySlots);
             root.addChild(cpuList(menu, sync.cpuListStatusProvider(), sync.hostStatusProvider()));
@@ -241,6 +241,7 @@ public final class TrinityDataCoreHostUi {
         label.textStyle(style -> style
                 .adaptiveWidth(false)
                 .adaptiveHeight(false)
+                .textColor(TITLE_COLOR)
                 .textShadow(false));
         label.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)

@@ -17,24 +17,31 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCra
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
+import com.fish_dan_.data_energistics.common.trinity.TrinityHostedActionStatus;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.TrinityCraftingStatusSelection.TargetState;
 import com.fish_dan_.data_energistics.menu.TrinityDataCoreMenu;
+import com.fish_dan_.data_energistics.menu.trinity.TrinityAccessHatchMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.world.TrinityDataCoreStorageSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.Settings;
+import appeng.api.config.ShowPatternProviders;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.networking.IGrid;
@@ -57,13 +64,16 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.api.util.IConfigManager;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.helpers.patternprovider.PatternContainer;
 import appeng.menu.ISubMenu;
-import appeng.util.NullConfigManager;
+import appeng.util.ConfigManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,13 +82,17 @@ import java.util.UUID;
 /**
  * AE network hatch that exposes the bound Trinity Data Core UUID storage instead of storing contents locally.
  */
-public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implements CompartmentPart, ITerminalHost {
+public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
+                                           implements CompartmentPart, ITerminalHost, TrinityAccessHatchMenuHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    private static final String TERMINAL_CONFIG_TAG = "terminal_config";
 
     private final MEStorage networkStorage = new HatchStorage();
     private final IStorageProvider storageProvider = new HatchStorageProvider();
     private final ICraftingProvider craftingProvider = new HatchCraftingProvider();
+    private final ConfigManager configManager = new ConfigManager(this::onTerminalConfigChanged);
+    private final Set<PatternContainer> managedTerminalPartitions = Collections.newSetFromMap(new IdentityHashMap<>());
     @Nullable
     private TrinityAccessHatchBindingState compartmentBindingState;
     @Nullable
@@ -97,9 +111,13 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private CpuPublication cpuPublication;
     @Nullable
     private PatternPublication patternPublication;
+    private boolean loadingTerminalConfig;
 
     public TrinityAccessHatchBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.TRINITY_ACCESS_HATCH_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.configManager.registerSetting(
+                Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
+                ShowPatternProviders.VISIBLE);
         this.getMainNode()
                 .addService(IStorageProvider.class, this.storageProvider)
                 .addService(ICraftingProvider.class, this.craftingProvider)
@@ -116,6 +134,15 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     @Override
     public AECableType getCableConnectionType(Direction dir) {
         return AECableType.COVERED;
+    }
+
+    /**
+     * Exposes the hatch's main node as the anchor used by AE2's pattern-access menu.
+     */
+    @Nullable
+    @Override
+    public IGridNode getGridNode() {
+        return this.getMainNode().getNode();
     }
 
     /**
@@ -147,11 +174,32 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     /**
-     * Crafting status does not expose configurable terminal settings for this host.
+     * Shares the persisted pattern-provider visibility setting with AE2's pattern-access terminal menu.
      */
     @Override
     public IConfigManager getConfigManager() {
-        return NullConfigManager.INSTANCE;
+        return this.configManager;
+    }
+
+    @Override
+    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        super.loadTag(data, registries);
+        this.loadingTerminalConfig = true;
+        try {
+            if (data.contains(TERMINAL_CONFIG_TAG)) {
+                this.configManager.readFromNBT(data.getCompound(TERMINAL_CONFIG_TAG), registries);
+            }
+        } finally {
+            this.loadingTerminalConfig = false;
+        }
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
+        super.saveAdditional(data, registries);
+        CompoundTag terminalConfig = new CompoundTag();
+        this.configManager.writeToNBT(terminalConfig, registries);
+        data.put(TERMINAL_CONFIG_TAG, terminalConfig);
     }
 
     @Override
@@ -273,6 +321,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     private void discardShutdownPublications() {
         this.terminalPartitionsDirty = false;
         this.terminalPartitions = List.of();
+        this.managedTerminalPartitions.clear();
         this.terminalPartitionHostId = null;
         this.terminalPartitionGrid = null;
         this.terminalPartitionLayoutRevision = -1L;
@@ -756,6 +805,85 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
     }
 
     /**
+     * Validates the physical block-entity route and normal eight-block menu interaction range.
+     */
+    @Override
+    public boolean isAccessHatchMenuValid(Player player) {
+        if (player == null) {
+            throw new IllegalArgumentException("Trinity access hatch menu player cannot be null");
+        }
+        Level currentLevel = this.level;
+        return currentLevel != null &&
+                !this.isRemoved() &&
+                player.level() == currentLevel &&
+                currentLevel.getBlockEntity(this.worldPosition) == this &&
+                currentLevel.getBlockState(this.worldPosition).is(ModBlocks.TRINITY_ACCESS_HATCH.get()) &&
+                player.distanceToSqr(
+                        this.worldPosition.getX() + 0.5D,
+                        this.worldPosition.getY() + 0.5D,
+                        this.worldPosition.getZ() + 0.5D) <= 64.0D;
+    }
+
+    /**
+     * Validates the complete server route before a data-core management operation is allowed.
+     */
+    @Override
+    public boolean isAccessHatchManagementAvailable(Player player) {
+        Level currentLevel = this.level;
+        return player instanceof ServerPlayer &&
+                isAccessHatchMenuValid(player) &&
+                currentLevel != null &&
+                !currentLevel.isClientSide() &&
+                isAccessOnline();
+    }
+
+    /**
+     * Accepts only an identity currently mounted by this exact lease-holding hatch.
+     */
+    @Override
+    public boolean isManagedPatternContainer(PatternContainer container) {
+        if (container == null) {
+            throw new IllegalArgumentException("Trinity pattern container cannot be null");
+        }
+        return isAccessOnline() && this.managedTerminalPartitions.contains(container);
+    }
+
+    /**
+     * Refunds installed patterns through the currently bound host after revalidating the access lease.
+     */
+    @Override
+    public TrinityHostedActionStatus refundPatterns(Player player) {
+        TrinityDataCoreBlockEntity host = refundHost(player);
+        if (host == null) {
+            return TrinityHostedActionStatus.REJECTED;
+        }
+        return switch (host.tryRefundPatterns(player)) {
+            case COMPLETED -> TrinityHostedActionStatus.COMPLETED;
+            case NO_PATTERNS -> TrinityHostedActionStatus.NO_OP;
+            case BLOCKED_BY_WORK, STALE -> TrinityHostedActionStatus.STALE_STATE;
+            case DELIVERY_REJECTED, DELIVERY_FAILED -> TrinityHostedActionStatus.DELIVERY_FAILED;
+            case INTERNAL_ERROR -> TrinityHostedActionStatus.INTERNAL_ERROR;
+        };
+    }
+
+    /**
+     * Refunds queued inputs and pending outputs through the current host after revalidating the access lease.
+     */
+    @Override
+    public TrinityHostedActionStatus refundRetainedItems(Player player) {
+        TrinityDataCoreBlockEntity host = refundHost(player);
+        if (host == null) {
+            return TrinityHostedActionStatus.REJECTED;
+        }
+        if (!host.hasRefundablePatternState()) {
+            return host.isCraftingStructureFormed() ?
+                    TrinityHostedActionStatus.NO_OP : TrinityHostedActionStatus.STALE_STATE;
+        }
+        return host.tryRefundAll(player) ?
+                TrinityHostedActionStatus.COMPLETED : TrinityHostedActionStatus.DELIVERY_FAILED;
+    }
+
+    /**
      * Returns the immutable set of terminal partitions currently owned by this hatch.
      */
     public List<TrinityPatternTerminalPartition> terminalPartitions() {
@@ -764,6 +892,21 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
 
     public IActionSource actionSource() {
         return IActionSource.ofMachine(this);
+    }
+
+    private void onTerminalConfigChanged() {
+        if (!this.loadingTerminalConfig) {
+            this.saveChanges();
+        }
+    }
+
+    @Nullable
+    private TrinityDataCoreBlockEntity refundHost(Player player) {
+        if (!isAccessHatchManagementAvailable(player)) {
+            return null;
+        }
+        TrinityDataCoreBlockEntity host = boundHost(false);
+        return host != null && host.isLeaseOwner(this) && host.isStorageAvailable() ? host : null;
     }
 
     @Nullable
@@ -1000,6 +1143,8 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         }
 
         this.terminalPartitions = List.copyOf(reconciled);
+        this.managedTerminalPartitions.clear();
+        this.managedTerminalPartitions.addAll(this.terminalPartitions);
         for (TrinityPatternTerminalPartition partition : this.terminalPartitions) {
             if (!partition.isAttachedTo(grid)) {
                 partition.detach();
@@ -1031,6 +1176,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             partition.detach();
         }
         this.terminalPartitions = List.of();
+        this.managedTerminalPartitions.clear();
         this.terminalPartitionHostId = null;
         this.terminalPartitionGrid = null;
         this.terminalPartitionLayoutRevision = -1L;
