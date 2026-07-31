@@ -109,7 +109,7 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     void setResonatingPullEnabled(boolean enabled);
 
-    void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace);
+    boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace);
 
     boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos);
 

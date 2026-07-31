@@ -322,9 +322,12 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
-    public void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
-        onAdaptiveStateChanged();
+    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
+        boolean accepted = getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
+        if (accepted) {
+            onAdaptiveStateChanged();
+        }
+        return accepted;
     }
 
     @Override

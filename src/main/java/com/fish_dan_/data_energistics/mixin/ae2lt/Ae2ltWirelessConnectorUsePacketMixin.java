@@ -6,15 +6,11 @@ import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtWirelessBridge;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -66,7 +62,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         String hostType = hasSelection ? Ae2LtWirelessBridge.getSelectedHostType(stack) : null;
         String hostProviderType = Ae2LtWirelessBridge.hostProviderType();
         boolean selectedAdaptiveProvider = hasSelection && hostProviderType != null && hostProviderType.equals(hostType) && Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(
-                dataEnergistics$getSelectedAdaptiveOrVanillaProvider(level, stack));
+                dataEnergistics$getSelectedAdaptiveProvider(level, stack));
 
         if (isAdaptiveProvider && !hasSelection) {
             if (!Ae2LtAdaptiveProviderCompat.isWirelessMode(targetBe)) {
@@ -92,7 +88,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             return;
         }
 
-        BlockEntity selectedHost = dataEnergistics$getSelectedAdaptiveOrVanillaProvider(level, stack);
+        BlockEntity selectedHost = dataEnergistics$getSelectedAdaptiveProvider(level, stack);
         if (selectedHost == null) {
             return;
         }
@@ -116,7 +112,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         var disconnected = new ArrayList<BlockPos>();
         var updated = new ArrayList<BlockPos>();
         var connected = new ArrayList<BlockPos>();
-        var existingConnections = Ae2LtAdaptiveProviderCompat.getConnectionsFromAnyProvider(selectedHost);
+        var existingConnections = Ae2LtAdaptiveProviderCompat.getConnections(selectedHost);
 
         for (var targetPos : targets) {
             var existing = existingConnections.stream()
@@ -125,17 +121,20 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
 
             if (existing != null) {
                 if (existing.boundFace() == face) {
-                    boolean removed = Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedHost) ? Ae2LtAdaptiveProviderCompat.removeConnection(selectedHost, targetDim, targetPos) : Ae2LtWirelessBridge.removeConnection(selectedHost, targetDim, targetPos);
+                    boolean removed = Ae2LtAdaptiveProviderCompat.removeConnection(
+                            selectedHost, targetDim, targetPos);
                     if (removed) {
                         disconnected.add(targetPos.immutable());
                     }
                 } else {
-                    dataEnergistics$addConnection(selectedHost, targetDim, targetPos, face);
-                    updated.add(targetPos.immutable());
+                    if (dataEnergistics$addConnection(selectedHost, targetDim, targetPos, face)) {
+                        updated.add(targetPos.immutable());
+                    }
                 }
             } else {
-                dataEnergistics$addConnection(selectedHost, targetDim, targetPos, face);
-                connected.add(targetPos.immutable());
+                if (dataEnergistics$addConnection(selectedHost, targetDim, targetPos, face)) {
+                    connected.add(targetPos.immutable());
+                }
             }
         }
 
@@ -144,36 +143,17 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
     }
 
     @Unique
-    private BlockEntity dataEnergistics$getSelectedAdaptiveOrVanillaProvider(Level level, ItemStack stack) {
-        BlockEntity vanilla = Ae2LtWirelessBridge.getSelectedProvider(level, stack);
-        if (vanilla != null) {
-            return vanilla;
-        }
-
-        var tag = stack.getOrDefault(DataComponents.CUSTOM_DATA,
-                CustomData.EMPTY).copyTag();
-        if (!tag.contains("SelectedProvider")) {
-            return null;
-        }
-
-        var sel = tag.getCompound("SelectedProvider");
-        var dimKey = ResourceKey.create(Registries.DIMENSION,
-                ResourceLocation.parse(sel.getString("Dim")));
-        var selectedPos = BlockPos.of(sel.getLong("Pos"));
-        if (!level.dimension().equals(dimKey) || !level.isLoaded(selectedPos)) {
-            return null;
-        }
-
-        return Ae2LtAdaptiveProviderCompat.asAdaptiveOverloadedProvider(level.getBlockEntity(selectedPos));
+    private BlockEntity dataEnergistics$getSelectedAdaptiveProvider(Level level, ItemStack stack) {
+        return Ae2LtAdaptiveProviderCompat.asAdaptiveOverloadedProvider(
+                Ae2LtWirelessBridge.resolveSelectedBlockEntity(level, stack));
     }
 
     @Unique
-    private void dataEnergistics$addConnection(BlockEntity provider, ResourceKey<Level> dimension, BlockPos pos, Direction face) {
-        if (Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(provider)) {
-            Ae2LtAdaptiveProviderCompat.addOrUpdateConnection(provider, dimension, pos, face);
-        } else {
-            Ae2LtWirelessBridge.addOrUpdateConnection(provider, dimension, pos, face);
-        }
+    private boolean dataEnergistics$addConnection(BlockEntity provider,
+                                                  ResourceKey<Level> dimension,
+                                                  BlockPos pos,
+                                                  Direction face) {
+        return Ae2LtAdaptiveProviderCompat.addOrUpdateConnection(provider, dimension, pos, face);
     }
 
     @Unique
