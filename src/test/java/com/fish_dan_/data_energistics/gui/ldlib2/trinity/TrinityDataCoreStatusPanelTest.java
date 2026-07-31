@@ -22,13 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class TrinityDataCoreStatusPanelTest {
 
     @Test
-    void compactsBinaryCapacityAtExactBoundaries() {
+    void usesGregTechMoreMachineDecimalCapacityUnits() {
         assertEquals("0", TrinityDataCoreStatusPanel.compactNumber(""));
         assertEquals("0", TrinityDataCoreStatusPanel.compactNumber("0"));
-        assertEquals("1023", TrinityDataCoreStatusPanel.compactNumber("1023"));
+        assertEquals("999", TrinityDataCoreStatusPanel.compactNumber("999"));
+        assertEquals("1K", TrinityDataCoreStatusPanel.compactNumber("1000"));
         assertEquals("1K", TrinityDataCoreStatusPanel.compactNumber("1024"));
         assertEquals("1.5K", TrinityDataCoreStatusPanel.compactNumber("1536"));
-        assertEquals("10K", TrinityDataCoreStatusPanel.compactNumber("10240"));
+        assertEquals("10.2K", TrinityDataCoreStatusPanel.compactNumber("10240"));
         assertEquals("-1.5K", TrinityDataCoreStatusPanel.compactNumber("-1536"));
     }
 
