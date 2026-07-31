@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
@@ -13,6 +14,7 @@ import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.crafting.ICraftingSubmitResult;
+import appeng.api.networking.crafting.UnsuitableCpus;
 import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
@@ -34,6 +36,8 @@ import java.util.function.Consumer;
  * CPUs.
  */
 public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
+
+    private static final TrinityPlanAdmission PLAN_ADMISSION = TrinityPlanAdmission.create();
 
     private final TrinityDataCoreBlockEntity host;
     private final TrinityDataCoreCraftingRuntime runtime;
@@ -71,6 +75,10 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
                                            ICraftingPlan plan,
                                            IActionSource source,
                                            @Nullable ICraftingRequester requester) {
+        if (PLAN_ADMISSION.decide(plan, TrinityPlanAdmission.Route.DIRECT_CPU) !=
+                TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
+            return unsupportedPlan();
+        }
         if (number() == 0) {
             return this.runtime.submitJob(grid, plan, source, requester);
         }
@@ -81,10 +89,18 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
                                           ICraftingPlan plan,
                                           IActionSource source,
                                           @Nullable ICraftingRequester requester) {
+        if (PLAN_ADMISSION.decide(plan, TrinityPlanAdmission.Route.DIRECT_CPU) !=
+                TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
+            return unsupportedPlan();
+        }
         if (number() == 0) {
             throw new IllegalStateException("Reserved Trinity CPU cannot own a crafting job");
         }
         return this.logic.trySubmitJob(grid, plan, source, requester);
+    }
+
+    private static ICraftingSubmitResult unsupportedPlan() {
+        return CraftingSubmitResult.noSuitableCpu(new UnsuitableCpus(0, 0, 0, 1));
     }
 
     /**

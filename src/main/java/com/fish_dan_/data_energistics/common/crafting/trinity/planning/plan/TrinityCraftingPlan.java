@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityCpuExecutablePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 
-import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * Executable compact plan understood exclusively by Trinity crafting CPUs.
  */
-public interface TrinityCraftingPlan extends ICraftingPlan {
+public interface TrinityCraftingPlan extends TrinityCpuExecutablePlan {
 
     /**
      * @return crafting-provider revision from which every retained pattern signature was captured

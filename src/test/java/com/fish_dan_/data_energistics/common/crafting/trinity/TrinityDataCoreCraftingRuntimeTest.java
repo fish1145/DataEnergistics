@@ -41,6 +41,7 @@ import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IGridService;
 import appeng.api.networking.crafting.CraftingSubmitErrorCode;
 import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.crafting.ICraftingService;
@@ -131,6 +132,45 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.setCpuProviderAvailable(true);
         host.clearCpuContribution("cpu");
         assertOfflineWithoutExtraction(helper, reserveCpu, leaseGrid, plan, iron, "Stale CPU partition");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_rejects_foreign_extended_plan_before_allocation")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuRejectsForeignExtendedPlanBeforeAllocation(GameTestHelper helper) {
+        AEItemKey iron = AEItemKey.of(Items.IRON_INGOT);
+        TestGrid grid = new TestGrid();
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(new BlockPos(1, 1, 1)), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("cpu", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
+        seedStorage(grid.storage(), iron, 2L);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+
+        ICraftingSubmitResult result = reserveCpu.submitJob(
+                grid,
+                new LoopCraftingPlan(ingredientPlan(iron, 2L)),
+                IActionSource.empty(),
+                null);
+
+        helper.assertValueEqual(
+                result.errorCode(),
+                CraftingSubmitErrorCode.NO_SUITABLE_CPU_FOUND,
+                "A foreign extended plan must be rejected by the final Trinity CPU boundary");
+        helper.assertValueEqual(
+                result.errorDetail(),
+                new UnsuitableCpus(0, 0, 0, 1),
+                "The rejection must identify one plan-incompatible Trinity target");
+        helper.assertValueEqual(
+                grid.storage().getStored(iron),
+                2L,
+                "Rejecting a foreign plan must not extract its ingredients");
+        helper.assertValueEqual(
+                reserveCpu.getOccupiedWorkerCount(),
+                0,
+                "Rejecting a foreign plan must not allocate a worker");
+        helper.assertTrue(reserveCpu.canAcceptJob(), "The rejected plan must leave Trinity available");
         helper.succeed();
     }
 
@@ -3315,6 +3355,49 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         @Override
         public List<GenericStack> getOutputs() {
             return List.of(new GenericStack(this.output, 1L));
+        }
+    }
+
+    private record LoopCraftingPlan(ICraftingPlan delegate) implements ICraftingPlan {
+
+        @Override
+        public GenericStack finalOutput() {
+            return this.delegate.finalOutput();
+        }
+
+        @Override
+        public long bytes() {
+            return this.delegate.bytes();
+        }
+
+        @Override
+        public boolean simulation() {
+            return this.delegate.simulation();
+        }
+
+        @Override
+        public boolean multiplePaths() {
+            return this.delegate.multiplePaths();
+        }
+
+        @Override
+        public KeyCounter usedItems() {
+            return this.delegate.usedItems();
+        }
+
+        @Override
+        public KeyCounter emittedItems() {
+            return this.delegate.emittedItems();
+        }
+
+        @Override
+        public KeyCounter missingItems() {
+            return this.delegate.missingItems();
+        }
+
+        @Override
+        public Map<IPatternDetails, Long> patternTimes() {
+            return this.delegate.patternTimes();
         }
     }
 

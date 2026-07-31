@@ -125,6 +125,16 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 修复：正确性测试保留相同调用额度并使用 `Long.MAX_VALUE` 时间额度；真实耗时只记录，30 ms 边界由 fake clock
 测试验证。
 
+### C-010：未知扩展计划可能被 Trinity 错误接管
+
+`ICraftingPlan` 只表达 AE2 基础字段，第三方实现还可能携带专用 CPU 才理解的隐藏语义。Thunderbolt
+`LoopCraftingPlan` 包含 TimeWheel 的 host 限制、循环 seed 与借用语义；Trinity 若只读取 `patternTimes()`，会在
+显式目标、自动选择或原路由失败后的 fallback 中丢失这些约束。
+
+修复：建立唯一的 `TrinityPlanAdmission`。AE2 原生 `CraftingPlan` 与显式 opt-in 的
+`TrinityCpuExecutablePlan` 可提交；未知扩展计划在显式/直接路径拒绝，在自动/fallback 路径交回原实现。Mixin 和
+`TrinityDataCoreVirtualCpu` 均调用同一契约，不硬依赖 Thunderbolt，也不使用反射。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -138,6 +148,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 | C-006 | schema 2 | 待实现 | 各阶段重载与 schema 1 兼容测试 |
 | C-008 | dispatch scope 边界检查 | 已完成 | 零额外 MODULATE 调用 |
 | C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
+| C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |
 
 ## 5. 风险与控制
 
@@ -149,6 +160,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 | 动态借料复制或误退款 | RESERVED/COMMITTED/RELEASED 所有权状态 |
 | 配方热更新执行旧语义 | pattern signature 校验，只重规划剩余量 |
 | 扩展计划进入原生 CPU | UI、自动选择、submit 三层隔离 |
+| 专用第三方计划进入 Trinity | 未知扩展计划交回原路由，显式 Trinity 目标 fail fast |
 | 缺料等待造成忙轮询 | key 唤醒加最高 200 tick 退避 |
 | 大数量溢出 | 内部 `BigInteger`，AE2 边界精确转换 |
 
@@ -180,6 +192,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 - Trinity 与原生 CPU 同网格；
 - 无 Trinity 时 AE2 回退；
 - 扩展计划被原生 CPU 拒绝；
+- Thunderbolt 风格 LoopCraftingPlan 在显式、自动和 fallback 路径均不被 Trinity 接管；
 - `test`、`runGameTestServer`、`build` 和 IDEA inspections。
 
 ## 7. 完成判定

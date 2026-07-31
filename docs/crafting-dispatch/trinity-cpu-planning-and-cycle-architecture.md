@@ -82,7 +82,8 @@ provider、BlockEntity 或世界引用。
 
 ## 5. 计划接口
 
-内部接口 `TrinityCraftingPlan extends ICraftingPlan` 由 `TrinityCraftingPlanImpl` 实现。除 AE2 原字段外，计划至少包含：
+内部接口 `TrinityCraftingPlan extends TrinityCpuExecutablePlan` 由 `TrinityCraftingPlanImpl` 实现。除 AE2 原字段外，
+计划至少包含：
 
 - graph revision 与请求数量模式；
 - 初始预计原料和聚合 pattern 次数；
@@ -92,11 +93,16 @@ provider、BlockEntity 或世界引用。
 
 `TrinityDiagnosedCraftingPlan` 委托原 AE2 simulation 结果并附加诊断，只用于 UI，不允许提交。
 
+所有 Trinity 提交入口共享 `TrinityPlanAdmission` 接纳边界。AE2 原生 `CraftingPlan` 和显式实现
+`TrinityCpuExecutablePlan` 的扩展计划可执行；其它 `ICraftingPlan` 可能携带专用 CPU 的 host、seed、借用或排程语义，
+不能按普通计划接管。显式目标和直接 CPU 调用返回不适用，自动选择和 fallback 则交还原路由。Thunderbolt
+`LoopCraftingPlan` 因此继续由 Thunderbolt/TimeWheel 执行，不引入硬依赖或反射识别。
+
 三层隔离必须同时存在：
 
 1. Craft Confirm 菜单不把原生 CPU 列为扩展计划候选。
 2. 自动选核只选择 Trinity CPU。
-3. `CraftingServiceMixin.submitJob` 对 plan/CPU 类型做最终校验。
+3. `CraftingServiceMixin.submitJob` 和 `TrinityDataCoreVirtualCpu.submitJob` 都调用统一接纳边界。
 
 ## 6. 图算法
 

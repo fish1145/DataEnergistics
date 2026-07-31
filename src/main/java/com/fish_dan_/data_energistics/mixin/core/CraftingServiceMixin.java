@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingC
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuKind;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.NetworkCraftingGraphCaptureSource;
@@ -68,6 +69,9 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Unique
     private static final CraftingCpuCandidateSelector DATA_ENERGISTICS_CPU_SELECTOR = CraftingCpuCandidateSelector.create();
+
+    @Unique
+    private static final TrinityPlanAdmission DATA_ENERGISTICS_PLAN_ADMISSION = TrinityPlanAdmission.create();
 
     @Unique
     private final TrinityCraftingRuntimeRegistry.Local dataEnergistics$trinityCraftingRuntimeRegistry = TrinityCraftingRuntimeRegistry.createLocal();
@@ -267,13 +271,23 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
                                                                               boolean prioritizePower,
                                                                               IActionSource src,
                                                                               Operation<ICraftingSubmitResult> original) {
-        if (target instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu && !job.simulation()) {
-            return dataEnergistics$hasTrinityDataCoreCpu(trinityDataCoreCpu) ?
-                    trinityDataCoreCpu.submitJob(this.grid, job, src, requestingMachine) :
-                    CraftingSubmitResult.CPU_OFFLINE;
+        if (target instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu) {
+            if (DATA_ENERGISTICS_PLAN_ADMISSION.decide(job, TrinityPlanAdmission.Route.EXPLICIT_TARGET) !=
+                    TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
+                return dataEnergistics$unsupportedTrinityPlan();
+            }
+            if (!job.simulation()) {
+                return dataEnergistics$hasTrinityDataCoreCpu(trinityDataCoreCpu) ?
+                        trinityDataCoreCpu.submitJob(this.grid, job, src, requestingMachine) :
+                        CraftingSubmitResult.CPU_OFFLINE;
+            }
         }
 
-        if (target == null && !job.simulation() && !dataEnergistics$hasExternalCraftingCpu()) {
+        if (target == null &&
+                !job.simulation() &&
+                !dataEnergistics$hasExternalCraftingCpu() &&
+                DATA_ENERGISTICS_PLAN_ADMISSION.decide(job, TrinityPlanAdmission.Route.AUTOMATIC_SELECTION) ==
+                        TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
             ICraftingSubmitResult attemptedKnownCpuResult = dataEnergistics$submitToKnownCpuCandidates(
                     job,
                     prioritizePower,
@@ -301,6 +315,10 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
                 errorCode != CraftingSubmitErrorCode.NO_SUITABLE_CPU_FOUND) {
             return originalResult;
         }
+        if (DATA_ENERGISTICS_PLAN_ADMISSION.decide(job, TrinityPlanAdmission.Route.FALLBACK) !=
+                TrinityPlanAdmission.Decision.SUBMIT_TO_TRINITY) {
+            return originalResult;
+        }
         ICraftingSubmitResult fallbackResult = dataEnergistics$submitToKnownCpuCandidates(
                 job,
                 prioritizePower,
@@ -315,6 +333,11 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
             return originalResult;
         }
         return fallbackResult;
+    }
+
+    @Unique
+    private static ICraftingSubmitResult dataEnergistics$unsupportedTrinityPlan() {
+        return CraftingSubmitResult.noSuitableCpu(new UnsuitableCpus(0, 0, 0, 1));
     }
 
     @Inject(
