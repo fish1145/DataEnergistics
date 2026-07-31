@@ -1,11 +1,13 @@
-# Trinity CPU 高可用高并行合批发配设计
+# Trinity CPU 高可用高并行合批发配架构
 
 ## 1. 文档状态
 
-- 方案状态：已确定总体架构，待分阶段实现
+- 方案状态：Phase 0、Phase 1、Phase 2 已实现；Phase 3 至 Phase 5 保留为后续轨道
 - 适用范围：Trinity Data Core CPU、AE2 原版样板供应器以及可选模组自定义样板供应器
-- 核心目标：在保留 256 份完整独立硬件资源、高容量、高并行和独立规划线程的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
-- 本文档只定义架构、行为、边界、实施顺序和验收标准，不包含源码修改
+- 核心目标：在保留 256 份完整独立硬件资源、高容量和高并行的前提下，提高 CPU 选择、合批、容量切分、供应器发配和输出回收效率
+- 本文档只负责“计划提交后的派发”架构；计算、循环配方和数量语义见
+  `trinity-cpu-planning-and-cycle-architecture.md`
+- 当前缺陷证据、修复映射和验证矩阵见 `trinity-cpu-calculation-audit-and-remediation.md`
 
 ## 2. 已确认需求
 
@@ -57,6 +59,7 @@ CPU 对以下行为负权威责任：
 5. 不假定所有自定义供应器都支持原子合批或定向派发。
 6. 不把所有 `pushPattern == false` 都解释为 Blocking。
 7. 不以牺牲物品守恒、任务账本或重载恢复正确性换取吞吐量。
+8. 不在本文档中定义循环配方求解、动态替代或最终产物 seed 保留；这些能力属于独立计算与循环轨道。
 
 ## 4. 术语
 
@@ -85,15 +88,21 @@ CPU 对以下行为负权威责任：
 - Blocking、结果锁、脉冲锁和专用 `ICraftingMachine` 已回退原版单次派发；
 - 网格 tick 已有 runtime 起始位置轮换和共享 `CraftingDispatchWindow`。
 
-当前需要改进的部分包括：
+Phase 0 至 Phase 2 已补齐：
 
-- 自动预选命中已满载 Data Core 后缺少完整候选续选；
-- 同规格核心缺少稳定的负载加权和成功后轮询；
-- `availableProviders` 完整消费 AE2 的循环迭代器，可能破坏跨次 round-robin 公平性；
-- `CraftingDispatchWindow` 固定每供应器 16 次物理尝试，无法表达大量机器容量，也无法根据 TPS 自适应；
-- Blocking 或容量耗尽后的明确拒绝缺少精确的本 tick 负缓存；
-- CPU 主派发路径没有统一的第三方供应器只读容量模型；
-- 核心派发仍在服务器线程同步规划，没有独立的不可变快照规划阶段。
+- 完整 CPU 候选收集、busy/offline/too-small 失败续选；
+- 同规格 CPU 的负载排序、成功后轮询和 provider 惰性迭代；
+- 明确的拒绝原因、provider/target 本 tick 负缓存；
+- 网格、provider 和 worker 物理调用预算；
+- 服务器提交时间预算与供应器准备/提交作用域核算。
+
+仍属于本文档后续阶段的部分包括：
+
+- 第三方供应器只读容量协议和 CPU 容量切片；
+- Virtual Worker Actor、Provider Shard 和有界 proposal 队列；
+- 基于实测指标的自适应 Governor。
+
+计算入口、样板图、SCC/MIP 和循环执行不依赖上述 Phase 3 至 Phase 5，可在保持服务器线程事务边界的前提下作为独立轨道推进。
 
 ## 6. 总体架构
 
@@ -646,28 +655,28 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 
 ## 19. 分阶段实施
 
-### 阶段 0：建立行为基线
+### 阶段 0：建立行为基线（已完成）
 
 - 固化 256 worker 独立硬件不变量；
 - 增加 CPU 候选选择、Blocking、Lock、round-robin 和批量账本的直接逻辑测试；
 - 记录当前大网络的物理调用数、派发数量和 tick 耗时；
 - 不修改第三方供应器行为。
 
-### 阶段 1：CPU 预选和公平性
+### 阶段 1：CPU 预选和公平性（已完成）
 
 - 修复满载 Data Core 自动预选；
 - 建立完整候选列表和 `CPU_BUSY` / `CPU_OFFLINE` 续选；
 - 同规格 CPU 按负载和成功 round-robin；
 - 修复 provider 迭代器消费导致的轮询问题。
 
-### 阶段 2：拒绝原因和物理窗口
+### 阶段 2：拒绝原因和物理窗口（已完成）
 
 - 扩展 `CraftingDispatchWindow`；
 - 增加 provider + target 本 tick 负缓存；
 - 区分 Blocking、Lock、No Capacity 和普通拒绝；
 - 引入网格物理调用和服务器提交时间预算。
 
-### 阶段 3：只读容量协议和 CPU 切片
+### 阶段 3：只读容量协议和 CPU 切片（后续）
 
 - 建立 `ProviderCapacityView` 和不可变快照；
 - 先支持本模组可控目标，再接入 AE2LT 等第三方只读适配；
@@ -675,7 +684,7 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 - 实现 slice 部分成功事务和回滚；
 - 供应器兼容层不加入任何写行为。
 
-### 阶段 4：Virtual Worker Actor 和 Provider Shard
+### 阶段 4：Virtual Worker Actor 和 Provider Shard（后续）
 
 - 把纯规划从服务器线程迁移到不可变快照 Actor；
 - 建立有界 proposal 队列；
@@ -683,7 +692,7 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 - 增加 generation 失效、取消和卸载清理；
 - 保持所有真实世界提交在服务器线程。
 
-### 阶段 5：自适应 Governor
+### 阶段 5：自适应 Governor（后续）
 
 - 采集规划、提交、接受率、stale 和公平性指标；
 - 自适应调整 shard、quantum、批次和物理额度；
@@ -808,12 +817,6 @@ CPU 不要求第三方供应器为物品附加 worker 标签，也不修改第�
 - `src/main/java/com/fish_dan_/data_energistics/common/crafting/trinity/CountedCraftingAdmission.java`
 - `src/main/java/com/fish_dan_/data_energistics/ae2/PatternProviderBatching.java`
 - `src/main/java/com/fish_dan_/data_energistics/mixin/core/PatternProviderLogicMixin.java`
-- `docs/defect-audit/DE-004-trinity-batch-dispatch-accounting.md`
-- `docs/defect-audit/DE-005-adaptive-pattern-provider-crafted-contents-conservation.md`
-- `docs/defect-audit/DE-013-adaptive-pattern-provider-meteorite-energy-preflight.md`
-- `docs/defect-audit/DE-015-adaptive-pattern-provider-advancedae-first-key-contract.md`
-- `docs/defect-audit/DE-016-adaptive-pattern-provider-state-stream-boundary.md`
-- `docs/defect-audit/DE-020-adaptive-pattern-provider-directed-state-sync-boundary.md`
-- `docs/defect-audit/DE-031-trinity-pattern-core-authoritative-release.md`
-- `docs/defect-audit/DE-032-trinity-crafting-admission-token.md`
-- `docs/defect-audit/DE-043-trinity-pattern-core-dual-refund-actions.md`
+- `docs/crafting-dispatch/trinity-cpu-dispatch-phase-0-baseline.md`
+- `docs/crafting-dispatch/trinity-cpu-planning-and-cycle-architecture.md`
+- `docs/crafting-dispatch/trinity-cpu-calculation-audit-and-remediation.md`
