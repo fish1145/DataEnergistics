@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingProviderRevision;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -36,9 +37,21 @@ public final class NetworkCraftingProvidersCacheGameTest {
         ICraftingProvider lowPriorityProvider = new TestProvider(lowPriorityPattern, 10);
         ICraftingProvider highPriorityProvider = new TestProvider(highPriorityPattern, 100);
         NetworkCraftingProviders providers = new NetworkCraftingProviders();
+        if (!(providers instanceof TrinityCraftingProviderRevision revision)) {
+            throw new IllegalStateException("Network crafting providers do not expose a Trinity mutation revision");
+        }
+        long initialRevision = revision.trinityCraftingProviderRevision();
 
         providers.addProvider(lowPriorityProvider);
+        helper.assertValueEqual(
+                revision.trinityCraftingProviderRevision(),
+                Math.incrementExact(initialRevision),
+                "First same-tick provider mutation revision");
         providers.addProvider(highPriorityProvider);
+        helper.assertValueEqual(
+                revision.trinityCraftingProviderRevision(),
+                Math.addExact(initialRevision, 2L),
+                "Second same-tick provider mutation revision");
 
         Collection<IPatternDetails> initial = providers.getCraftingFor(sharedOutput.what());
         assertPatterns(helper, initial, highPriorityPattern, lowPriorityPattern);
@@ -46,6 +59,10 @@ public final class NetworkCraftingProvidersCacheGameTest {
                 "Unchanged pattern lookups must reuse the sorted list");
 
         providers.removeProvider(highPriorityProvider);
+        helper.assertValueEqual(
+                revision.trinityCraftingProviderRevision(),
+                Math.addExact(initialRevision, 3L),
+                "Same-tick provider removal revision");
         Collection<IPatternDetails> afterRemoval = providers.getCraftingFor(sharedOutput.what());
         assertNotSame(helper, initial, afterRemoval,
                 "Removing a provider must invalidate the sorted list");
@@ -54,6 +71,10 @@ public final class NetworkCraftingProvidersCacheGameTest {
                 "The rebuilt list after removal must be reused");
 
         providers.addProvider(highPriorityProvider);
+        helper.assertValueEqual(
+                revision.trinityCraftingProviderRevision(),
+                Math.addExact(initialRevision, 4L),
+                "Same-tick provider re-add revision");
         Collection<IPatternDetails> afterAddition = providers.getCraftingFor(sharedOutput.what());
         assertNotSame(helper, afterRemoval, afterAddition,
                 "Adding a provider must invalidate the sorted list");

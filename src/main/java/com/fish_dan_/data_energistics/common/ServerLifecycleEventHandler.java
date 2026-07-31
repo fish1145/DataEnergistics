@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.common;
 
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningGatewayLifecycle;
+import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,6 +19,7 @@ public final class ServerLifecycleEventHandler {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         stoppingServer = null;
+        TrinityPlanningGatewayLifecycle.start(TrinityCraftingConfig.settings());
     }
 
     @SubscribeEvent
@@ -29,8 +32,12 @@ public final class ServerLifecycleEventHandler {
         try {
             DataTeleportAnchorBlockEntity.clearRuntimeAnchorCache();
         } finally {
-            if (stoppingServer == event.getServer()) {
-                stoppingServer = null;
+            try {
+                TrinityPlanningGatewayLifecycle.stop();
+            } finally {
+                if (stoppingServer == event.getServer()) {
+                    stoppingServer = null;
+                }
             }
         }
     }

@@ -72,7 +72,8 @@ provider、BlockEntity 或世界引用。
 
 ### 4.2 Revision 与重建
 
-- 图 revision 来源于 AE2 crafting provider 的 `getLastModifiedOnTick()`。
+- 图 revision 来源于 `NetworkCraftingProviders` 每次有效 mount/unmount 递增的 Trinity 单调 revision bridge；不使用同
+  tick 内可能重复的 `getLastModifiedOnTick()`。
 - 每 tick 最多使用 `graphRebuildBudgetMs` 构建快照。
 - 构建开始和发布前都校验 revision；中途变化则丢弃未发布结果。
 - 完整快照构建后一次性原子替换，规划线程不会看到半成品。
@@ -281,8 +282,22 @@ RUNTIME_DEADLOCK
 
 ## 11. 实施顺序
 
-1. 网格图、计划接口、规划入口和配置。
+1. 网格图、计划接口、规划入口和配置。**已实现**
 2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。
 3. ready queue、seed 门、动态借料和 schema 2。
 4. Craft Amount 数量模式、确认页诊断和 Trinity-only 隔离。
 5. 全量逻辑测试、GameTest、性能计数和重载验收。
+
+### 11.1 已落地的基础边界
+
+第一步已经建立以下可独立验证的生产基础：
+
+- `NetworkCraftingProviders` 每次变更递增的真实 revision，避免同 tick 多次 mount/unmount 漏失效；
+- 服务器线程分预算捕获、revision 中途变化重启、失败丢弃半成品和完整快照原子发布；
+- component-aware 的稳定 pattern identity，以及不持有 Grid、Level、provider 或 decoded pattern 的只读图；
+- `TrinityCraftingPlan`/`TrinityCraftingPlanImpl`、stage、repeat block、seed、净变化、统计和保守 AE2 byte 估算；
+- 单服务器共享的有界规划线程池、队列拒绝诊断、Trinity/AE2 双 Future 取消与限时优先选择；
+- 独立 COMMON 配置和 ojAlgo 57.1.0 jar-in-jar/许可证声明。
+
+第二步接入真实 DAG/SCC 规划器时才会包装 `CraftingService.beginCraftingCalculation`。在此之前现有玩家和机器请求仍由
+AE2 计算，避免把尚未具备算法结果的扩展入口误标为可用。

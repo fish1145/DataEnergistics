@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdm
 import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
 import com.fish_dan_.data_energistics.common.trinity.TrinityAutoBuildBlockMap;
@@ -71,8 +73,57 @@ public final class TrinityDataCoreAe2CraftingGameTest {
     private static final int STRUCTURE_PAUSE_PATTERN_SLOT = 40;
     private static final int SAME_TICK_STORAGE_PATTERN_SLOT = 41;
     private static final int ADMISSION_INVALIDATION_PATTERN_SLOT = 42;
+    private static final int GRAPH_SNAPSHOT_PATTERN_SLOT = 43;
 
     private TrinityDataCoreAe2CraftingGameTest() {}
+
+    @TestHolder("trinity_grid_publishes_revision_consistent_crafting_graph")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 300)
+    public static void publishesRevisionConsistentGridCraftingGraph(GameTestHelper helper) {
+        TrinityDataCoreGameTestFixture fixture = TrinityDataCoreGameTestFixture.create(helper);
+        TrinityDataCoreBlockEntity host = fixture.host();
+        TrinityPatternCore core = host.getPatternCatalog().mountedCores().getFirst().core();
+        ServerLevel level = helper.getLevel();
+        AEKey target = AEItemKey.of(Items.CRAFTING_TABLE);
+        helper.assertTrue(
+                core.patternCapacity() > GRAPH_SNAPSHOT_PATTERN_SLOT,
+                "Selected P core should expose the graph snapshot test slot");
+
+        helper.startSequence()
+                .thenWaitUntil(fixture::awaitOnline)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            core.trySetPattern(GRAPH_SNAPSHOT_PATTERN_SLOT, craftingTablePattern(level)),
+                            "Graph snapshot test pattern should install in its exact physical slot");
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                })
+                .thenWaitUntil(() -> {
+                    host.serverTick();
+                    fixture.refreshPatternPublication();
+                    IGrid grid = fixture.grid();
+                    if (!(grid.getCraftingService() instanceof TrinityCraftingGraphAccess graphAccess)) {
+                        throw new GameTestAssertException("AE2 crafting service does not expose the Trinity graph");
+                    }
+                    TrinityCraftingGraphSnapshot snapshot = graphAccess.trinityCraftingGraphSnapshot().orElse(null);
+                    IPatternDetails decoded = core.decodedPattern(GRAPH_SNAPSHOT_PATTERN_SLOT);
+                    if (snapshot == null || decoded == null || snapshot.patternsProducing(target).stream()
+                            .noneMatch(pattern -> pattern.definition().equals(decoded.getDefinition()))) {
+                        throw new GameTestAssertException(
+                                "Trinity graph has not published the installed pattern yet");
+                    }
+                })
+                .thenExecute(() -> {
+                    TrinityCraftingGraphAccess graphAccess = (TrinityCraftingGraphAccess) fixture.grid().getCraftingService();
+                    TrinityCraftingGraphSnapshot snapshot = graphAccess.trinityCraftingGraphSnapshot().orElseThrow();
+                    helper.assertTrue(snapshot.revision() >= 0L,
+                            "Published Trinity graph must carry a non-negative provider revision");
+                    helper.assertTrue(!snapshot.patternsProducing(target).isEmpty(),
+                            "Published Trinity graph must index the installed target pattern");
+                })
+                .thenSucceed();
+    }
 
     @TestHolder("trinity_data_core_access_withdrawal_is_synchronous_with_storage")
     @EmptyTemplate("50x32x50")

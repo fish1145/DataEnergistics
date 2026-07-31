@@ -23,8 +23,9 @@ Craft Amount / 外部请求
   -> TrinityDataCoreCpuLogic.insert
 ```
 
-当前 `CraftingServiceMixin` 只接管提交、CPU 候选和输出插入，没有接管 `beginCraftingCalculation`，因此 Trinity 没有
-独立计算入口。
+当前分支已建立网格图、扩展计划契约和 `TrinityPlanningGateway` 双路 Future 基础，但尚未在
+`CraftingServiceMixin` 接管 `beginCraftingCalculation`。真实请求仍走 AE2；下一功能提交在 DAG/SCC 规划器可产出
+完整计划后再激活入口。
 
 ## 3. 缺陷证据
 
@@ -41,6 +42,9 @@ AE2 `ICraftingPlan` 只公开最终输出、初始原料、emitted items 和 `Ma
 - 仅删除 AE2 递归检查仍会在执行阶段死锁。
 
 修复：增加 `TrinityCraftingPlan` 扩展契约和 schema 2；普通 AE2 计划继续走 schema 1 兼容路径。
+
+当前状态：扩展计划、stage、repeat block、seed、净变化和精确 byte 边界已经实现；schema 2 与运行时消费仍待执行轨道
+提交。
 
 ### C-002：AE2 明确拒绝递归生产路径
 
@@ -123,16 +127,17 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 
 ## 4. 修复映射
 
-| 缺陷 | 修复组件 | 主要证据 |
-| --- | --- | --- |
-| C-001、C-002 | graph snapshot、Trinity planner、扩展计划 | 自增殖和多步增殖逻辑测试 |
-| C-003 | DAG 批量传播、revision 图缓存 | 大数量状态数不随 Q 线性增长 |
-| C-007 | 已有 pattern-sort dirty flag Mixin | 重复读取不会重复排序 |
-| C-004 | working inventory、completion buffer | seed 保留和精确交付测试 |
-| C-005 | ready queue、反向索引、retry queue | 无关任务不被重复访问 |
-| C-006 | schema 2 | 各阶段重载与 schema 1 兼容测试 |
-| C-008 | dispatch scope 边界检查 | 零额外 MODULATE 调用 |
-| C-009 | 确定性测试窗口 | 256-worker 测试不依赖墙钟 |
+| 缺陷 | 修复组件 | 当前状态 | 主要证据 |
+| --- | --- | --- | --- |
+| C-001 | graph snapshot、扩展计划、schema 2 | 计划契约已完成；schema 2 待实现 | 计划不持有 decoded pattern、阶段聚合和边界测试 |
+| C-002 | Tarjan、闭式循环、Trinity planner | 待实现 | 自增殖和多步增殖逻辑测试 |
+| C-003 | DAG 批量传播、revision 图缓存 | revision 图缓存已完成；DAG 待实现 | 同 tick 失效与大数量状态计数 |
+| C-007 | 已有 pattern-sort dirty flag Mixin | 已完成 | 重复读取不会重复排序 |
+| C-004 | working inventory、completion buffer | 待实现 | seed 保留和精确交付测试 |
+| C-005 | ready queue、反向索引、retry queue | 待实现 | 无关任务不被重复访问 |
+| C-006 | schema 2 | 待实现 | 各阶段重载与 schema 1 兼容测试 |
+| C-008 | dispatch scope 边界检查 | 已完成 | 零额外 MODULATE 调用 |
+| C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
 
 ## 5. 风险与控制
 

@@ -6,6 +6,7 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
 
     jarJar(api(forge.mdlib.get()))
+    jarJar(api(libs.ojalgo.get()))
 
     // Misc libraries
     compileOnly(forge.jech)

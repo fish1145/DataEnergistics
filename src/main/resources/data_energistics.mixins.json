@@ -43,6 +43,7 @@
 		"core.InterfaceLogicUpgradesAccessor",
 		"core.LivingEntityDropInvoker",
 		"core.NetworkCraftingProvidersPatternsForKeyMixin",
+		"core.NetworkCraftingProvidersRevisionMixin",
 		"core.NetworkStatusMixin",
 		"core.NetworkStorageMixin",
 		"core.NeoForgeEnergyStorageAccessor",

@@ -12,6 +12,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingC
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuKind;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionGroup;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingCpuSelectionRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.NetworkCraftingGraphCaptureSource;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphRebuilder;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
 
 import net.minecraft.nbt.CompoundTag;
@@ -31,6 +37,7 @@ import appeng.api.stacks.AEKey;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.service.CraftingService;
+import appeng.me.service.helpers.NetworkCraftingProviders;
 import com.google.common.collect.ImmutableSet;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -51,11 +58,13 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Mixin(CraftingService.class)
-public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegistry {
+public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegistry, TrinityCraftingGraphAccess {
 
     @Unique
     private static final CraftingCpuCandidateSelector DATA_ENERGISTICS_CPU_SELECTOR = CraftingCpuCandidateSelector.create();
@@ -78,6 +87,19 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     @Unique
     private final Map<CraftingCpuSelectionGroup, String> dataEnergistics$nextCpuSubmitByGroup = new HashMap<>();
 
+    /**
+     * Server-thread-only incremental capture state; published snapshots contain no reference back to this object.
+     */
+    @Unique
+    @Nullable
+    private TrinityCraftingGraphRebuilder dataEnergistics$trinityCraftingGraphRebuilder;
+
+    /**
+     * Prevents one malformed provider revision from writing an error every server tick.
+     */
+    @Unique
+    private long dataEnergistics$lastLoggedGraphFailureRevision = Long.MIN_VALUE;
+
     @Shadow
     @Final
     private IGrid grid;
@@ -93,6 +115,10 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     @Shadow
     @Final
     private Set<CraftingCPUCluster> craftingCPUClusters;
+
+    @Shadow
+    @Final
+    private NetworkCraftingProviders craftingProviders;
 
     @Shadow
     private boolean updateList;
@@ -112,6 +138,12 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     @Override
     public boolean withdraw(IGridNode node) {
         return this.dataEnergistics$trinityCraftingRuntimeRegistry.withdraw(node);
+    }
+
+    @Override
+    public Optional<TrinityCraftingGraphSnapshot> trinityCraftingGraphSnapshot() {
+        TrinityCraftingGraphRebuilder rebuilder = this.dataEnergistics$trinityCraftingGraphRebuilder;
+        return rebuilder == null ? Optional.empty() : rebuilder.publishedSnapshot();
     }
 
     @Inject(method = "addNode", at = @At("RETURN"))
@@ -173,6 +205,32 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
         if (latestChange != this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick) {
             this.dataEnergistics$lastProcessedTrinityDataCoreCraftingLogicChangeTick = latestChange;
             this.lastProcessedCraftingLogicChangeTick = -1L;
+        }
+    }
+
+    @Inject(method = "onServerEndTick", at = @At("TAIL"))
+    private void dataEnergistics$advanceTrinityCraftingGraph(CallbackInfo ci) {
+        try {
+            if (this.dataEnergistics$trinityCraftingGraphRebuilder == null) {
+                this.dataEnergistics$trinityCraftingGraphRebuilder = new TrinityCraftingGraphRebuilder(
+                        new NetworkCraftingGraphCaptureSource(
+                                this.craftingProviders,
+                                this.grid.getPivot().getLevel().registryAccess()),
+                        System::nanoTime);
+            }
+            long budgetNanos = TimeUnit.MILLISECONDS.toNanos(
+                    TrinityCraftingConfig.settings().graphRebuildBudgetMs());
+            this.dataEnergistics$trinityCraftingGraphRebuilder.advance(budgetNanos);
+        } catch (RuntimeException exception) {
+            long revision = ((TrinityCraftingProviderRevision) this.craftingProviders)
+                    .trinityCraftingProviderRevision();
+            if (revision != this.dataEnergistics$lastLoggedGraphFailureRevision) {
+                this.dataEnergistics$lastLoggedGraphFailureRevision = revision;
+                Data_Energistics.LOGGER.error(
+                        "Failed to rebuild the immutable Trinity crafting graph at provider revision {}",
+                        revision,
+                        exception);
+            }
         }
     }
 

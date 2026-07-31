@@ -13,6 +13,7 @@ junit-jupiter = "5.10.2"
 junit-platform = "1.10.2"
 renderNurse = "0.0.26"
 mixin = "0.8.7"
+ojalgo = "57.1.0"
 
 [libraries]
 minecraft               = { module = "com.mojang:minecraft", version.ref = "minecraft" }
@@ -23,6 +24,7 @@ junit-jupiter            = { module = "org.junit.jupiter:junit-jupiter", version
 junit-platform-launcher  = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
 renderNurse             = { module = "net.neoforged:render-nurse", version.ref = "renderNurse" }
 mixin                   = { module = "org.spongepowered:mixin", version.ref = "mixin" }
+ojalgo                  = { module = "org.ojalgo:ojalgo", version.ref = "ojalgo" }
 
 [plugins]
 modDevGradle            = { id = "net.neoforged.moddev", version.ref = "modDevGradle" }
