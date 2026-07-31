@@ -14,6 +14,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdm
 import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreCraftingRuntime;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTargetAvailability;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
@@ -75,6 +80,8 @@ import java.util.UUID;
 public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implements CompartmentPart, ITerminalHost {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
+    /** Stable target identity for the bound Trinity pattern catalog. */
+    private static final CraftingDispatchTarget CRAFTING_CATALOG_TARGET = new CraftingDispatchTarget("trinity-pattern-catalog");
 
     private final MEStorage networkStorage = new HatchStorage();
     private final IStorageProvider storageProvider = new HatchStorageProvider();
@@ -1098,6 +1105,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
         public @Nullable CountedCraftingAdmission prepareBatch(IPatternDetails patternDetails,
                                                                KeyCounter[] prototype,
                                                                long requestedCount) {
+            return prepareBatch(
+                    patternDetails,
+                    prototype,
+                    requestedCount,
+                    CraftingDispatchTargetAvailability.all()).admission();
+        }
+
+        @Override
+        public CountedCraftingPreparation prepareBatch(
+                                                       IPatternDetails patternDetails,
+                                                       KeyCounter[] prototype,
+                                                       long requestedCount,
+                                                       CraftingDispatchTargetAvailability targetAvailability) {
             if (patternDetails == null) {
                 throw new IllegalArgumentException("Trinity pattern details must not be null");
             }
@@ -1107,9 +1127,19 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
             if (requestedCount <= 0L) {
                 throw new IllegalArgumentException("requestedCount must be positive");
             }
+            if (targetAvailability == null) {
+                throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
+            }
+            if (!targetAvailability.canAttempt(CRAFTING_CATALOG_TARGET)) {
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.targeted(
+                                CraftingDispatchStatus.NO_CAPACITY,
+                                CRAFTING_CATALOG_TARGET));
+            }
             TrinityDataCoreBlockEntity host = patternProviderHost();
             if (host == null || level == null || level.isClientSide()) {
-                return null;
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.scoped(CraftingDispatchStatus.OFFLINE));
             }
             CraftingAdmissionToken token = host.issueCraftingAdmission(
                     TrinityAccessHatchBlockEntity.this,
@@ -1117,12 +1147,17 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity implem
                     level.getGameTime(),
                     requestedCount);
             if (token == null) {
-                return null;
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.targeted(
+                                CraftingDispatchStatus.NO_CAPACITY,
+                                CRAFTING_CATALOG_TARGET));
             }
-            return new HatchCraftingAdmission(
-                    host,
-                    token,
-                    prototype);
+            return CountedCraftingPreparation.accepted(
+                    new HatchCraftingAdmission(
+                            host,
+                            token,
+                            prototype),
+                    CRAFTING_CATALOG_TARGET);
         }
 
         @Override

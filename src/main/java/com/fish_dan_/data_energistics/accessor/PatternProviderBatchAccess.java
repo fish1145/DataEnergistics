@@ -4,6 +4,7 @@ import net.minecraft.core.Direction;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternProviderTarget;
@@ -31,6 +32,9 @@ public interface PatternProviderBatchAccess {
 
     /** Returns the currently published patterns. */
     List<IPatternDetails> dataEnergistics$getPatterns();
+
+    /** Returns the normalized input keys used by AE2 Blocking Mode. */
+    Set<AEKey> dataEnergistics$getPatternInputs();
 
     /** Returns pending inputs that AE2 still needs to send to the selected target. */
     List<GenericStack> dataEnergistics$getSendList();

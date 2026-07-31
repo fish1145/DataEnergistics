@@ -7,6 +7,11 @@ import com.fish_dan_.data_energistics.accessor.PatternProviderLogicFieldAccess;
 import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.CountedCraftingProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTargetAvailability;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtPackagedRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.ae2lt.Ae2LtRuntimeBridge;
@@ -503,14 +508,38 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                                                  IPatternDetails patternDetails,
                                                  KeyCounter[] prototype,
                                                  long requestedCount) {
+        return prepareBatch(
+                patternDetails,
+                prototype,
+                requestedCount,
+                CraftingDispatchTargetAvailability.all()).admission();
+    }
+
+    @Override
+    public CountedCraftingPreparation prepareBatch(
+                                                   IPatternDetails patternDetails,
+                                                   KeyCounter[] prototype,
+                                                   long requestedCount,
+                                                   CraftingDispatchTargetAvailability targetAvailability) {
+        if (targetAvailability == null) {
+            throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
+        }
         if (usesSpecialBatchRoute(patternDetails)) {
-            return PatternProviderBatching.prepareSingle(this, patternDetails, prototype, requestedCount);
+            CraftingDispatchTarget target = CraftingDispatchTarget.provider();
+            if (!targetAvailability.canAttempt(target)) {
+                return CountedCraftingPreparation.rejected(
+                        CraftingDispatchRejection.targeted(CraftingDispatchStatus.NO_CAPACITY, target));
+            }
+            return CountedCraftingPreparation.accepted(
+                    PatternProviderBatching.prepareSingle(this, patternDetails, prototype, requestedCount),
+                    target);
         }
         return ((PatternProviderBatchBridge) this).dataEnergistics$prepareStandardBatch(
                 patternDetails,
                 prototype,
                 requestedCount,
-                this::dataEnergistics$afterPushPattern);
+                this::dataEnergistics$afterPushPattern,
+                targetAvailability);
     }
 
     private boolean usesSpecialBatchRoute(IPatternDetails patternDetails) {

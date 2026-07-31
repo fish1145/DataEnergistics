@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
@@ -37,6 +38,10 @@ public interface PatternProviderLogicFieldAccessor extends PatternProviderLogicF
     @Override
     @Accessor("patterns")
     List<IPatternDetails> dataEnergistics$getPatterns();
+
+    @Override
+    @Accessor("patternInputs")
+    Set<AEKey> dataEnergistics$getPatternInputs();
 
     @Override
     @Accessor("sendList")

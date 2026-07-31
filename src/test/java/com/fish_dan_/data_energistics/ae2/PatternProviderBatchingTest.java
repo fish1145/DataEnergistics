@@ -466,6 +466,11 @@ public final class PatternProviderBatchingTest {
         }
 
         @Override
+        public Set<AEKey> dataEnergistics$getPatternInputs() {
+            throw unexpectedAccess();
+        }
+
+        @Override
         public List<GenericStack> dataEnergistics$getSendList() {
             return this.sendList;
         }

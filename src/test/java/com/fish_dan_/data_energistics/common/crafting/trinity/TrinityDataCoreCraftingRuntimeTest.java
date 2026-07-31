@@ -2,6 +2,11 @@ package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTargetAvailability;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
@@ -718,16 +723,62 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 coordinator.submitJob(grid, patternPlan(acceptedPattern, 1L), IActionSource.empty(), null).successful(),
                 "Accepted-pattern worker should be allocated");
 
+        CraftingDispatchWindow sharedWindow = CraftingDispatchWindow.create();
         host.getCraftingRuntime().tick(
                 grid.energyService(),
                 grid.craftingService(),
-                CraftingDispatchWindow.create());
+                sharedWindow);
 
         helper.assertValueEqual(provider.blockedPrepareCount(), 1,
                 "The no-capacity pattern should be prepared once");
         helper.assertValueEqual(provider.acceptedCommitCount(), 1,
                 "A different pattern on the same provider must remain eligible in the shared window");
+        helper.assertValueEqual(
+                sharedWindow.resultCount(CraftingDispatchStatus.NO_CAPACITY),
+                1,
+                "The shared window should retain the explicit no-capacity reason");
         host.getCraftingRuntime().cancelAllJobs();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_target_rejection_is_precisely_cached")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuTargetRejectionIsPreciselyCached(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT,
+                1);
+        TargetAwareBatchCraftingProvider provider = new TargetAwareBatchCraftingProvider(fixture.provider().pattern());
+        fixture.grid().setCraftingProvider(provider);
+        CraftingDispatchWindow sharedWindow = CraftingDispatchWindow.create();
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                sharedWindow);
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                sharedWindow);
+
+        helper.assertValueEqual(provider.prepareCount(), 2,
+                "The accepted target must remain eligible for another physical submission");
+        helper.assertValueEqual(provider.blockedTargetProbeCount(), 1,
+                "The blocked target must be filtered from later preparations in the same window");
+        helper.assertValueEqual(provider.commitCount(), 2,
+                "The unblocked target must accept both physical submissions");
+        helper.assertValueEqual(
+                sharedWindow.resultCount(CraftingDispatchStatus.BLOCKED),
+                1,
+                "Blocking should be recorded only when first observed");
+        helper.assertValueEqual(
+                sharedWindow.resultCount(CraftingDispatchStatus.ACCEPTED),
+                2,
+                "Both accepted target submissions should remain observable");
+        fixture.cpu().logic().cancel();
         helper.succeed();
     }
 
@@ -872,6 +923,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         assertUncommittedAdmissionState(helper, noCapacity, "Zero-capacity");
         helper.assertValueEqual(noCapacity.provider().prepareCount(), 1,
                 "A zero-capacity provider must be prepared only once in one dispatch window");
+        helper.assertValueEqual(
+                sharedWindow.resultCount(CraftingDispatchStatus.NO_CAPACITY),
+                1,
+                "A zero-capacity preparation must retain its explicit reason");
 
         CountedBatchFixture invalid = countedBatchFixture(
                 helper,
@@ -936,11 +991,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 fixture.input(),
                 BatchPushOutcome.ACCEPT);
         fixture.grid().setCraftingProviders(List.of(fixture.provider(), fallback));
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
                 fixture.grid().craftingService(),
-                CraftingDispatchWindow.create());
+                dispatchWindow);
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 "The first provider must receive one rejected physical attempt");
@@ -954,6 +1010,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Fallback acceptance must record every expected output exactly once");
         helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
                 "Fallback acceptance must retain one complete batch energy charge");
+        helper.assertValueEqual(
+                dispatchWindow.resultCount(CraftingDispatchStatus.REJECTED),
+                1,
+                "A plain false return must remain an ordinary rejection");
+        helper.assertValueEqual(
+                dispatchWindow.resultCount(CraftingDispatchStatus.ACCEPTED),
+                1,
+                "The fallback acceptance must be recorded independently");
         helper.succeed();
     }
 
@@ -971,11 +1035,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 fixture.input(),
                 BatchPushOutcome.ACCEPT);
         fixture.grid().setCraftingProviders(List.of(fixture.provider(), fallback));
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
                 fixture.grid().craftingService(),
-                CraftingDispatchWindow.create());
+                dispatchWindow);
 
         helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
                 "The throwing provider must consume one physical attempt");
@@ -987,6 +1052,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Fallback acceptance must commit the complete expected output count");
         helper.assertValueEqual(fixture.grid().energyService().getStoredPower(), 0.0D,
                 "The failed provider charge must roll back before the fallback charge commits");
+        helper.assertValueEqual(
+                dispatchWindow.resultCount(CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP),
+                1,
+                "A pre-ownership exception must isolate only the failed provider");
+        helper.assertValueEqual(
+                dispatchWindow.resultCount(CraftingDispatchStatus.ACCEPTED),
+                1,
+                "The fallback provider must still report acceptance");
         helper.succeed();
     }
 
@@ -1001,11 +1074,12 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 BatchPushOutcome.ACCEPT);
         BusyThrowingCraftingProvider throwingProvider = new BusyThrowingCraftingProvider(fixture.provider().pattern());
         fixture.grid().setCraftingProviders(List.of(throwingProvider, fixture.provider()));
+        CraftingDispatchWindow dispatchWindow = CraftingDispatchWindow.create();
 
         fixture.cpu().tick(
                 fixture.grid().energyService(),
                 fixture.grid().craftingService(),
-                CraftingDispatchWindow.create());
+                dispatchWindow);
 
         helper.assertValueEqual(throwingProvider.busyCheckCount(), 1,
                 "The faulty provider busy state should be checked once");
@@ -1015,6 +1089,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "The accepted fallback must receive every input exactly once");
         helper.assertValueEqual(fixture.cpu().getWaitingFor(fixture.output()), COUNTED_BATCH_SIZE,
                 "The accepted fallback must retain complete waiting-output accounting");
+        helper.assertValueEqual(
+                dispatchWindow.resultCount(CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP),
+                1,
+                "A busy-state exception must be classified before ownership");
         helper.succeed();
     }
 
@@ -1789,6 +1867,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                                                            BlockPos hostPos,
                                                            double availableEnergy,
                                                            BatchPushOutcome outcome) {
+        return countedBatchFixture(helper, hostPos, availableEnergy, outcome, 0);
+    }
+
+    private static CountedBatchFixture countedBatchFixture(GameTestHelper helper,
+                                                           BlockPos hostPos,
+                                                           double availableEnergy,
+                                                           BatchPushOutcome outcome,
+                                                           int coprocessors) {
         AEItemKey input = AEItemKey.of(Items.IRON_INGOT);
         AEItemKey output = AEItemKey.of(Items.DIAMOND);
         CountedPatternDetails pattern = new CountedPatternDetails(input, output);
@@ -1801,7 +1887,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
         host.setCpuContribution(
                 "counted_batch",
-                TrinityDataCoreCpuContribution.of(4096L, 0, 1));
+                TrinityDataCoreCpuContribution.of(4096L, coprocessors, 1));
         seedStorage(grid.storage(), input, COUNTED_BATCH_SIZE);
 
         KeyCounter usedItems = new KeyCounter();
@@ -2655,6 +2741,101 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                     return true;
                 }
             };
+        }
+
+        @Override
+        public boolean isBusy() {
+            return false;
+        }
+    }
+
+    private static final class TargetAwareBatchCraftingProvider implements CountedCraftingProvider {
+
+        private static final CraftingDispatchTarget BLOCKED_TARGET = new CraftingDispatchTarget("test:blocked");
+        private static final CraftingDispatchTarget ACCEPTED_TARGET = new CraftingDispatchTarget("test:accepted");
+
+        private final IPatternDetails pattern;
+        private int prepareCount;
+        private int blockedTargetProbeCount;
+        private int commitCount;
+
+        private TargetAwareBatchCraftingProvider(IPatternDetails pattern) {
+            this.pattern = pattern;
+        }
+
+        private int prepareCount() {
+            return this.prepareCount;
+        }
+
+        private int blockedTargetProbeCount() {
+            return this.blockedTargetProbeCount;
+        }
+
+        private int commitCount() {
+            return this.commitCount;
+        }
+
+        @Override
+        public List<IPatternDetails> getAvailablePatterns() {
+            return List.of(this.pattern);
+        }
+
+        @Override
+        public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+            throw new AssertionError("Target-aware provider must use counted dispatch");
+        }
+
+        @Override
+        public CountedCraftingAdmission prepareBatch(
+                                                     IPatternDetails patternDetails,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCount) {
+            return prepareBatch(
+                    patternDetails,
+                    prototype,
+                    requestedCount,
+                    CraftingDispatchTargetAvailability.all()).admission();
+        }
+
+        @Override
+        public CountedCraftingPreparation prepareBatch(
+                                                       IPatternDetails patternDetails,
+                                                       KeyCounter[] prototype,
+                                                       long requestedCount,
+                                                       CraftingDispatchTargetAvailability targetAvailability) {
+            if (targetAvailability == null) {
+                throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
+            }
+            this.prepareCount++;
+            ArrayList<CraftingDispatchRejection> rejections = new ArrayList<>();
+            if (targetAvailability.canAttempt(BLOCKED_TARGET)) {
+                this.blockedTargetProbeCount++;
+                rejections.add(CraftingDispatchRejection.targeted(
+                        CraftingDispatchStatus.BLOCKED,
+                        BLOCKED_TARGET));
+            }
+            if (!targetAvailability.canAttempt(ACCEPTED_TARGET)) {
+                rejections.add(CraftingDispatchRejection.targeted(
+                        CraftingDispatchStatus.NO_CAPACITY,
+                        ACCEPTED_TARGET));
+                return CountedCraftingPreparation.rejected(rejections);
+            }
+            return CountedCraftingPreparation.accepted(
+                    new CountedCraftingAdmission() {
+
+                        @Override
+                        public long count() {
+                            return Math.min(1L, requestedCount);
+                        }
+
+                        @Override
+                        public boolean commit(KeyCounter[] inputHolder) {
+                            commitCount++;
+                            return true;
+                        }
+                    },
+                    ACCEPTED_TARGET,
+                    rejections);
         }
 
         @Override

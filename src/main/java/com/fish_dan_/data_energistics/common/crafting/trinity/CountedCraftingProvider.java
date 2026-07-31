@@ -1,5 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CountedCraftingPreparation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchRejection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTargetAvailability;
+
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.KeyCounter;
@@ -34,4 +40,39 @@ public interface CountedCraftingProvider extends ICraftingProvider {
                                           IPatternDetails patternDetails,
                                           KeyCounter[] prototype,
                                           long requestedCount);
+
+    /**
+     * Prepares a counted batch with access to current-window target exclusions and explicit rejection reporting.
+     *
+     * <p>
+     * Existing providers retain source compatibility through this default bridge. A provider that exposes stable target
+     * identities should override it so one blocked or capacity-zero target does not suppress its other targets.
+     * </p>
+     *
+     * @param patternDetails     exact pattern selected by the crafting plan
+     * @param prototype          one exact per-craft input prototype
+     * @param requestedCount     positive maximum logical craft count
+     * @param targetAvailability current-window target filter
+     * @return accepted admission or explicit rejection facts
+     */
+    default CountedCraftingPreparation prepareBatch(
+                                                    IPatternDetails patternDetails,
+                                                    KeyCounter[] prototype,
+                                                    long requestedCount,
+                                                    CraftingDispatchTargetAvailability targetAvailability) {
+        if (targetAvailability == null) {
+            throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
+        }
+        CraftingDispatchTarget target = CraftingDispatchTarget.provider();
+        if (!targetAvailability.canAttempt(target)) {
+            return CountedCraftingPreparation.rejected(
+                    CraftingDispatchRejection.targeted(CraftingDispatchStatus.NO_CAPACITY, target));
+        }
+        CountedCraftingAdmission admission = prepareBatch(patternDetails, prototype, requestedCount);
+        if (admission == null) {
+            return CountedCraftingPreparation.rejected(
+                    CraftingDispatchRejection.scoped(CraftingDispatchStatus.NO_CAPACITY));
+        }
+        return CountedCraftingPreparation.accepted(admission, target);
+    }
 }
