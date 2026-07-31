@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.integration.ae2lt;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 
 import net.minecraft.core.BlockPos;
@@ -48,17 +49,15 @@ public final class Ae2LtRuntimeBridge {
     private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> OVERLOAD_OUTPUT_MATCH_MODE_CACHE = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Optional<MethodHandle>> OVERLOAD_OUTPUT_TEMPLATE_CACHE = new ConcurrentHashMap<>();
 
-    private static volatile @Nullable Access access;
-    private static volatile boolean initialized;
+    private static final Set<String> LOGGED_INVOCATION_FAILURES = ConcurrentHashMap.newKeySet();
+
+    private static volatile @Nullable RuntimeCapabilities runtimeCapabilities;
 
     private Ae2LtRuntimeBridge() {}
 
     public static boolean isReady() {
-        if (!initialized) {
-            initialize();
-        }
-
-        return access != null;
+        RuntimeCapabilities capabilities = capabilities();
+        return capabilities.machine() != null && capabilities.energy() != null;
     }
 
     public static @Nullable List<GenericStack> pushConnection(ServerLevel targetLevel,
@@ -70,16 +69,12 @@ public final class Ae2LtRuntimeBridge {
                                                               Set<AEKey> patternInputs,
                                                               IActionSource actionSource,
                                                               @Nullable PatternProviderTarget fallbackTarget) {
-        if (!isReady()) {
+        MachineAccess methods = capabilities().machine();
+        if (methods == null) {
             return null;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return null;
-            }
-
             Object adapter = methods.machineAdapterFind().invoke(targetLevel, pos);
             if (adapter == null) {
                 return null;
@@ -118,7 +113,8 @@ public final class Ae2LtRuntimeBridge {
                 }
             }
             return converted;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("machine", "pushConnection", exception);
             return null;
         }
     }
@@ -127,16 +123,12 @@ public final class Ae2LtRuntimeBridge {
                                     BlockPos pos,
                                     Direction face,
                                     IPatternDetails patternDetails) {
-        if (!isReady() || patternDetails == null) {
+        MachineAccess methods = capabilities().machine();
+        if (methods == null || patternDetails == null) {
             return false;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return false;
-            }
-
             Object adapter = methods.machineAdapterFind().invoke(targetLevel, pos);
             if (adapter == null) {
                 return false;
@@ -144,7 +136,8 @@ public final class Ae2LtRuntimeBridge {
 
             Object result = methods.adapterCanAccept().invoke(adapter, targetLevel, pos, face, patternDetails);
             return result instanceof Boolean accepted && accepted;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("machine", "canAccept", exception);
             return false;
         }
     }
@@ -152,19 +145,16 @@ public final class Ae2LtRuntimeBridge {
     public static boolean shouldBypassAdvancedBlocking(PatternProviderLogic logic,
                                                        PatternProviderTarget target,
                                                        IPatternDetails patternDetails) {
-        if (!isReady()) {
+        AdvancedBlockingAccess methods = capabilities().advancedBlocking();
+        if (methods == null) {
             return false;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return false;
-            }
-
             Object result = methods.advancedBlockingShouldBypass().invoke(logic, target, patternDetails);
             return result instanceof Boolean bypass && bypass;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("advanced-blocking", "shouldBypassBlocking", exception);
             return false;
         }
     }
@@ -175,16 +165,12 @@ public final class Ae2LtRuntimeBridge {
                                         List<GenericStack> overflow,
                                         IActionSource actionSource,
                                         @Nullable PatternProviderTarget fallbackTarget) {
-        if (!isReady()) {
+        MachineAccess methods = capabilities().machine();
+        if (methods == null) {
             return false;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return false;
-            }
-
             Object adapter = methods.machineAdapterFind().invoke(targetLevel, pos);
             if (adapter == null) {
                 return false;
@@ -198,7 +184,8 @@ public final class Ae2LtRuntimeBridge {
                     actionSource,
                     fallbackTarget);
             return Boolean.TRUE.equals(result);
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("machine", "flushOverflow", exception);
             return false;
         }
     }
@@ -208,16 +195,12 @@ public final class Ae2LtRuntimeBridge {
                                                     Direction face,
                                                     @Nullable Object allowedOutputFilter,
                                                     IActionSource actionSource) {
-        if (!isReady() || allowedOutputFilter == null) {
+        MachineAccess methods = capabilities().machine();
+        if (methods == null || allowedOutputFilter == null) {
             return List.of();
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return List.of();
-            }
-
             Object adapter = methods.machineAdapterFind().invoke(level, pos);
             if (adapter == null) {
                 return List.of();
@@ -243,93 +226,85 @@ public final class Ae2LtRuntimeBridge {
                 }
                 return converted;
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("machine", "extractOutputs", exception);
             return List.of();
         }
     }
 
     public static long maxAffordable(IGrid grid, AEKey key, long amount) {
-        if (!isReady()) {
+        EnergyAccess methods = capabilities().energy();
+        if (methods == null) {
             return 0L;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return 0L;
-            }
-
             Object result = methods.powerCostMaxAffordable().invoke(grid, key, amount);
             return result instanceof Number number ? number.longValue() : 0L;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("energy", "maxAffordable", exception);
             return 0L;
         }
     }
 
     public static void consume(IGrid grid, AEKey key, long amount) {
-        if (!isReady()) {
+        EnergyAccess methods = capabilities().energy();
+        if (methods == null) {
             return;
         }
 
         try {
-            Access methods = access;
-            if (methods != null) {
-                methods.powerCostConsume().invoke(grid, key, amount);
-            }
-        } catch (Throwable ignored) {}
+            methods.powerCostConsume().invoke(grid, key, amount);
+        } catch (Throwable exception) {
+            handleInvocationFailure("energy", "consume", exception);
+        }
     }
 
     public static double totalCost(KeyCounter[] inputHolder) {
-        if (!isReady()) {
-            return 0.0D;
+        EnergyAccess methods = capabilities().energy();
+        if (methods == null) {
+            return Double.POSITIVE_INFINITY;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return 0.0D;
-            }
-
             Object result = methods.powerCostTotalCost().invoke((Object) inputHolder);
-            return result instanceof Number number ? number.doubleValue() : 0.0D;
-        } catch (Throwable ignored) {
-            return 0.0D;
+            return result instanceof Number number ? number.doubleValue() : Double.POSITIVE_INFINITY;
+        } catch (Throwable exception) {
+            handleInvocationFailure("energy", "totalCost", exception);
+            return Double.POSITIVE_INFINITY;
         }
     }
 
     public static boolean canAffordRaw(IGrid grid, double totalCost) {
-        if (!isReady()) {
-            return true;
+        EnergyAccess methods = capabilities().energy();
+        if (methods == null) {
+            return false;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return true;
-            }
-
             Object result = methods.powerCostCanAfford().invoke(grid, totalCost);
-            return !(result instanceof Boolean canAfford) || canAfford;
-        } catch (Throwable ignored) {
-            return true;
+            return result instanceof Boolean canAfford && canAfford;
+        } catch (Throwable exception) {
+            handleInvocationFailure("energy", "canAfford", exception);
+            return false;
         }
     }
 
     public static void consumeRaw(IGrid grid, double totalCost) {
-        if (!isReady()) {
+        EnergyAccess methods = capabilities().energy();
+        if (methods == null) {
             return;
         }
 
         try {
-            Access methods = access;
-            if (methods != null) {
-                methods.powerCostConsumeRaw().invoke(grid, totalCost);
-            }
-        } catch (Throwable ignored) {}
+            methods.powerCostConsumeRaw().invoke(grid, totalCost);
+        } catch (Throwable exception) {
+            handleInvocationFailure("energy", "consumeRaw", exception);
+        }
     }
 
     public static @Nullable Object overloadPatternDetailsView(IPatternDetails pattern) {
-        if (!isReady() || pattern == null) {
+        if (pattern == null) {
             return null;
         }
 
@@ -342,7 +317,8 @@ public final class Ae2LtRuntimeBridge {
 
         try {
             return method.get().invoke(pattern);
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("overload-pattern", "overloadPatternDetailsView", exception);
             return null;
         }
     }
@@ -351,57 +327,51 @@ public final class Ae2LtRuntimeBridge {
         if (patterns.contains(pattern)) {
             return true;
         }
-        if (!isReady() || pattern == null) {
+        SmartDoublingAccess methods = capabilities().smartDoubling();
+        if (methods == null || pattern == null) {
             return false;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return false;
-            }
-
             Object result = methods.smartDoublingContainsOrUnwrapped().invoke(patterns, pattern);
             return result instanceof Boolean matched && matched;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("smart-doubling", "containsOrUnwrapped", exception);
             return false;
         }
     }
 
     public static @Nullable IPatternDetails unwrapSmartDoublingPattern(IPatternDetails pattern) {
-        if (!isReady() || pattern == null) {
+        SmartDoublingAccess methods = capabilities().smartDoubling();
+        if (methods == null || pattern == null) {
             return null;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return null;
-            }
-
             Object result = methods.smartDoublingUnwrap().invoke(pattern);
             return result instanceof IPatternDetails unwrapped ? unwrapped : null;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("smart-doubling", "unwrap", exception);
             return null;
         }
     }
 
     public static void applySmartDoubling(PatternProviderLogic logic, List<IPatternDetails> patterns) {
-        if (!isReady()) {
+        SmartDoublingAccess methods = capabilities().smartDoubling();
+        if (methods == null) {
             return;
         }
 
         try {
-            Access methods = access;
-            if (methods != null) {
-                methods.smartDoublingApplyTo().invoke(logic, patterns);
-            }
-        } catch (Throwable ignored) {}
+            methods.smartDoublingApplyTo().invoke(logic, patterns);
+        } catch (Throwable exception) {
+            handleInvocationFailure("smart-doubling", "applyTo", exception);
+        }
     }
 
     @SuppressWarnings("unchecked")
     public static @Nullable List<Object> overloadOutputs(Object overloadDetails) {
-        if (!isReady() || overloadDetails == null) {
+        if (overloadDetails == null) {
             return null;
         }
 
@@ -415,13 +385,14 @@ public final class Ae2LtRuntimeBridge {
         try {
             Object result = method.get().invoke(overloadDetails);
             return result instanceof List<?> list ? (List<Object>) list : null;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("overload-pattern", "outputs", exception);
             return null;
         }
     }
 
     public static @Nullable String overloadOutputMatchMode(Object outputSlot) {
-        if (!isReady() || outputSlot == null) {
+        if (outputSlot == null) {
             return null;
         }
 
@@ -435,13 +406,14 @@ public final class Ae2LtRuntimeBridge {
         try {
             Object result = method.get().invoke(outputSlot);
             return result == null ? null : String.valueOf(result);
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("overload-pattern", "matchMode", exception);
             return null;
         }
     }
 
     public static @Nullable ItemStack overloadOutputTemplate(Object outputSlot) {
-        if (!isReady() || outputSlot == null) {
+        if (outputSlot == null) {
             return null;
         }
 
@@ -455,7 +427,8 @@ public final class Ae2LtRuntimeBridge {
         try {
             Object result = method.get().invoke(outputSlot);
             return result instanceof ItemStack stack && !stack.isEmpty() ? stack.copy() : null;
-        } catch (Throwable ignored) {
+        } catch (Throwable exception) {
+            handleInvocationFailure("overload-pattern", "template", exception);
             return null;
         }
     }
@@ -464,16 +437,12 @@ public final class Ae2LtRuntimeBridge {
                                                  List<AdaptiveWirelessConnection> connections,
                                                  boolean ejectModeEnabled,
                                                  boolean wirelessModeEnabled) {
-        if (!isReady() || !(host.getLevel() instanceof ServerLevel level)) {
+        EjectAccess methods = capabilities().eject();
+        if (methods == null || !(host.getLevel() instanceof ServerLevel level)) {
             return;
         }
 
         try {
-            Access methods = access;
-            if (methods == null) {
-                return;
-            }
-
             Object removed = methods.ejectUnregisterAll().invoke(host, true);
             invalidateCapabilities(methods, removed, level);
 
@@ -501,10 +470,14 @@ public final class Ae2LtRuntimeBridge {
                 methods.ejectRegister().invoke(targetLevel.dimension(), adjacentPos.asLong(), queryFace, entry);
                 targetLevel.invalidateCapabilities(adjacentPos);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable exception) {
+            handleInvocationFailure("eject", "refreshRegistrations", exception);
+        }
     }
 
-    private static void invalidateCapabilities(Access methods, @Nullable Object positions, ServerLevel sourceLevel) {
+    private static void invalidateCapabilities(EjectAccess methods,
+                                               @Nullable Object positions,
+                                               ServerLevel sourceLevel) {
         if (!(positions instanceof Iterable<?> iterable)) {
             return;
         }
@@ -523,147 +496,193 @@ public final class Ae2LtRuntimeBridge {
                 if (targetLevel != null) {
                     targetLevel.invalidateCapabilities(blockPos);
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable exception) {
+                handleInvocationFailure("eject", "invalidateCapabilities", exception);
+            }
         }
     }
 
-    private static void initialize() {
-        initialized = true;
-        try {
-            Class<?> machineAdapterRegistryClass = Class.forName(MACHINE_ADAPTER_REGISTRY_CLASS);
-            MethodHandle machineAdapterFind = findStatic(
-                    machineAdapterRegistryClass,
-                    "find",
-                    ServerLevel.class,
-                    BlockPos.class);
+    /**
+     * Initializes and safely publishes all capability groups once. Expected optional-mod lookup failures are isolated
+     * by
+     * {@link Ae2LtRuntimeBootstrap}; unknown runtime failures remain fail-fast and leave initialization retryable.
+     */
+    private static RuntimeCapabilities capabilities() {
+        RuntimeCapabilities current = runtimeCapabilities;
+        if (current != null) {
+            return current;
+        }
 
-            Class<?> machineAdapterClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter");
-            MethodHandle adapterCanAccept = findVirtual(
-                    machineAdapterClass,
-                    "canAccept",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    IPatternDetails.class);
-            Class<?> pushResultClass = Class.forName("com.moakiee.ae2lt.logic.PushResult");
-            MethodHandle adapterPushCopies = findVirtual(
-                    machineAdapterClass,
-                    "pushCopies",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    IPatternDetails.class,
-                    KeyCounter[].class,
-                    int.class,
-                    boolean.class,
-                    Set.class,
-                    IActionSource.class,
-                    PatternProviderTarget.class);
-            MethodHandle adapterFlushOverflow = findVirtual(
-                    machineAdapterClass,
-                    "flushOverflow",
-                    ServerLevel.class,
-                    BlockPos.class,
-                    Direction.class,
-                    List.class,
-                    IActionSource.class,
-                    PatternProviderTarget.class);
-            Class<?> allowedOutputFilterClass = Class.forName("com.moakiee.ae2lt.logic.AllowedOutputFilter");
-            Class<?> outputSinkClass = null;
-            MethodHandle adapterExtractOutputs;
-            try {
-                adapterExtractOutputs = findVirtual(
-                        machineAdapterClass,
-                        "extractOutputs",
-                        ServerLevel.class,
-                        BlockPos.class,
-                        Direction.class,
-                        allowedOutputFilterClass,
-                        IActionSource.class);
-            } catch (NoSuchMethodException oldSignatureMissing) {
-                outputSinkClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter$OutputSink");
-                adapterExtractOutputs = findVirtual(
-                        machineAdapterClass,
-                        "extractOutputs",
-                        ServerLevel.class,
-                        BlockPos.class,
-                        Direction.class,
-                        allowedOutputFilterClass,
-                        IActionSource.class,
-                        outputSinkClass);
+        synchronized (Ae2LtRuntimeBridge.class) {
+            current = runtimeCapabilities;
+            if (current != null) {
+                return current;
             }
 
-            MethodHandle pushResultAcceptedCopies = findVirtual(pushResultClass, "acceptedCopies");
-            MethodHandle pushResultOverflow = findVirtual(pushResultClass, "overflow");
-
-            Class<?> powerCostClass = Class.forName(POWER_COST_UTIL_CLASS);
-            MethodHandle powerCostMaxAffordable = findStatic(powerCostClass, "maxAffordable", IGrid.class, AEKey.class, long.class);
-            MethodHandle powerCostConsume = findStatic(powerCostClass, "consume", IGrid.class, AEKey.class, long.class);
-            MethodHandle powerCostTotalCost = findStatic(powerCostClass, "totalCost", KeyCounter[].class);
-            MethodHandle powerCostCanAfford = findStatic(powerCostClass, "canAfford", IGrid.class, double.class);
-            MethodHandle powerCostConsumeRaw = findStatic(powerCostClass, "consumeRaw", IGrid.class, double.class);
-
-            Class<?> smartDoublingClass = Class.forName(SMART_DOUBLING_COMPAT_CLASS);
-            MethodHandle smartDoublingContainsOrUnwrapped = findStatic(smartDoublingClass, "containsOrUnwrapped", List.class, IPatternDetails.class);
-            MethodHandle smartDoublingUnwrap = findStatic(smartDoublingClass, "unwrap", IPatternDetails.class);
-            MethodHandle smartDoublingApplyTo = findStatic(smartDoublingClass, "applyTo", PatternProviderLogic.class, List.class);
-
-            Class<?> advancedBlockingClass = Class.forName(ADVANCED_BLOCKING_COMPAT_CLASS);
-            MethodHandle advancedBlockingShouldBypass = findStatic(advancedBlockingClass, "shouldBypassBlocking", PatternProviderLogic.class, PatternProviderTarget.class, IPatternDetails.class);
-
-            Class<?> ejectRegistryClass = Class.forName(EJECT_MODE_REGISTRY_CLASS);
-            MethodHandle ejectUnregisterAll = findStatic(ejectRegistryClass, "unregisterAll", BlockEntity.class, boolean.class);
-            Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
-            Class<?> ghostClass = Class.forName(GHOST_OUTPUT_BLOCK_ENTITY_CLASS);
-            MethodHandle ejectEntryConstructor = findConstructor(
-                    ejectEntryClass,
-                    WeakReference.class,
-                    ghostClass,
-                    ResourceKey.class,
-                    BlockPos.class);
-            MethodHandle ejectRegister = findStatic(
-                    ejectRegistryClass,
-                    "register",
-                    ResourceKey.class,
-                    long.class,
-                    Direction.class,
-                    ejectEntryClass);
-
-            Class<?> dimPosClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$DimPos");
-            MethodHandle dimPosDimension = findVirtual(dimPosClass, "dimension");
-            MethodHandle dimPosPos = findVirtual(dimPosClass, "pos");
-
-            MethodHandle ghostOutputConstructor = findConstructor(ghostClass, BlockPos.class);
-            MethodHandle ghostOutputSetLevel = findVirtual(ghostClass, "setLevel", Level.class);
-
-            access = new Access(
-                    machineAdapterFind,
-                    adapterCanAccept,
-                    adapterPushCopies,
-                    adapterFlushOverflow,
-                    adapterExtractOutputs,
-                    outputSinkClass,
-                    pushResultAcceptedCopies,
-                    pushResultOverflow,
-                    powerCostMaxAffordable,
-                    powerCostConsume,
-                    powerCostTotalCost,
-                    powerCostCanAfford,
-                    powerCostConsumeRaw,
-                    smartDoublingContainsOrUnwrapped,
-                    smartDoublingUnwrap,
-                    smartDoublingApplyTo,
-                    advancedBlockingShouldBypass,
-                    ejectUnregisterAll,
-                    ejectRegister,
-                    dimPosDimension,
-                    dimPosPos,
-                    ghostOutputConstructor,
-                    ghostOutputSetLevel,
-                    ejectEntryConstructor);
-        } catch (ReflectiveOperationException | LinkageError | SecurityException ignored) {
-            access = null;
+            var loaded = Ae2LtRuntimeBootstrap.initialize(
+                    new Ae2LtRuntimeBootstrap.Loaders<>(
+                            Ae2LtRuntimeBridge::loadMachineAccess,
+                            Ae2LtRuntimeBridge::loadEnergyAccess,
+                            Ae2LtRuntimeBridge::loadSmartDoublingAccess,
+                            Ae2LtRuntimeBridge::loadAdvancedBlockingAccess,
+                            Ae2LtRuntimeBridge::loadEjectAccess),
+                    (capability, exception) -> Data_Energistics.LOGGER.warn(
+                            "AE2LT runtime capability {} is unavailable; only that capability was disabled.",
+                            capability,
+                            exception));
+            current = new RuntimeCapabilities(
+                    loaded.machine(),
+                    loaded.energy(),
+                    loaded.smartDoubling(),
+                    loaded.advancedBlocking(),
+                    loaded.eject());
+            runtimeCapabilities = current;
+            return current;
         }
+    }
+
+    /**
+     * Resolves machine dispatch and output extraction as one atomic capability.
+     */
+    private static MachineAccess loadMachineAccess() throws ReflectiveOperationException {
+        Class<?> machineAdapterRegistryClass = Class.forName(MACHINE_ADAPTER_REGISTRY_CLASS);
+        MethodHandle machineAdapterFind = findStatic(
+                machineAdapterRegistryClass,
+                "find",
+                ServerLevel.class,
+                BlockPos.class);
+
+        Class<?> machineAdapterClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter");
+        MethodHandle adapterCanAccept = findVirtual(
+                machineAdapterClass,
+                "canAccept",
+                ServerLevel.class,
+                BlockPos.class,
+                Direction.class,
+                IPatternDetails.class);
+        Class<?> pushResultClass = Class.forName("com.moakiee.ae2lt.logic.PushResult");
+        MethodHandle adapterPushCopies = findVirtual(
+                machineAdapterClass,
+                "pushCopies",
+                ServerLevel.class,
+                BlockPos.class,
+                Direction.class,
+                IPatternDetails.class,
+                KeyCounter[].class,
+                int.class,
+                boolean.class,
+                Set.class,
+                IActionSource.class,
+                PatternProviderTarget.class);
+        MethodHandle adapterFlushOverflow = findVirtual(
+                machineAdapterClass,
+                "flushOverflow",
+                ServerLevel.class,
+                BlockPos.class,
+                Direction.class,
+                List.class,
+                IActionSource.class,
+                PatternProviderTarget.class);
+        Class<?> allowedOutputFilterClass = Class.forName("com.moakiee.ae2lt.logic.AllowedOutputFilter");
+        Class<?> outputSinkClass = null;
+        MethodHandle adapterExtractOutputs;
+        try {
+            adapterExtractOutputs = findVirtual(
+                    machineAdapterClass,
+                    "extractOutputs",
+                    ServerLevel.class,
+                    BlockPos.class,
+                    Direction.class,
+                    allowedOutputFilterClass,
+                    IActionSource.class);
+        } catch (NoSuchMethodException oldSignatureMissing) {
+            outputSinkClass = Class.forName("com.moakiee.ae2lt.logic.MachineAdapter$OutputSink");
+            adapterExtractOutputs = findVirtual(
+                    machineAdapterClass,
+                    "extractOutputs",
+                    ServerLevel.class,
+                    BlockPos.class,
+                    Direction.class,
+                    allowedOutputFilterClass,
+                    IActionSource.class,
+                    outputSinkClass);
+        }
+
+        return new MachineAccess(
+                machineAdapterFind,
+                adapterCanAccept,
+                adapterPushCopies,
+                adapterFlushOverflow,
+                adapterExtractOutputs,
+                outputSinkClass,
+                findVirtual(pushResultClass, "acceptedCopies"),
+                findVirtual(pushResultClass, "overflow"));
+    }
+
+    /**
+     * Resolves all energy accounting entry points together so missing energy support fails closed.
+     */
+    private static EnergyAccess loadEnergyAccess() throws ReflectiveOperationException {
+        Class<?> powerCostClass = Class.forName(POWER_COST_UTIL_CLASS);
+        return new EnergyAccess(
+                findStatic(powerCostClass, "maxAffordable", IGrid.class, AEKey.class, long.class),
+                findStatic(powerCostClass, "consume", IGrid.class, AEKey.class, long.class),
+                findStatic(powerCostClass, "totalCost", KeyCounter[].class),
+                findStatic(powerCostClass, "canAfford", IGrid.class, double.class),
+                findStatic(powerCostClass, "consumeRaw", IGrid.class, double.class));
+    }
+
+    /**
+     * Resolves the optional Smart Doubling hook independently from every core capability.
+     */
+    private static SmartDoublingAccess loadSmartDoublingAccess() throws ReflectiveOperationException {
+        Class<?> smartDoublingClass = Class.forName(SMART_DOUBLING_COMPAT_CLASS);
+        return new SmartDoublingAccess(
+                findStatic(smartDoublingClass, "containsOrUnwrapped", List.class, IPatternDetails.class),
+                findStatic(smartDoublingClass, "unwrap", IPatternDetails.class),
+                findStatic(smartDoublingClass, "applyTo", PatternProviderLogic.class, List.class));
+    }
+
+    /**
+     * Resolves the optional Advanced Blocking hook independently from Smart Doubling.
+     */
+    private static AdvancedBlockingAccess loadAdvancedBlockingAccess() throws ReflectiveOperationException {
+        Class<?> advancedBlockingClass = Class.forName(ADVANCED_BLOCKING_COMPAT_CLASS);
+        return new AdvancedBlockingAccess(findStatic(
+                advancedBlockingClass,
+                "shouldBypassBlocking",
+                PatternProviderLogic.class,
+                PatternProviderTarget.class,
+                IPatternDetails.class));
+    }
+
+    /**
+     * Resolves wireless EJECT registration independently from machine, energy, and pattern hooks.
+     */
+    private static EjectAccess loadEjectAccess() throws ReflectiveOperationException {
+        Class<?> ejectRegistryClass = Class.forName(EJECT_MODE_REGISTRY_CLASS);
+        Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
+        Class<?> ghostClass = Class.forName(GHOST_OUTPUT_BLOCK_ENTITY_CLASS);
+        Class<?> dimPosClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$DimPos");
+        return new EjectAccess(
+                findStatic(ejectRegistryClass, "unregisterAll", BlockEntity.class, boolean.class),
+                findStatic(
+                        ejectRegistryClass,
+                        "register",
+                        ResourceKey.class,
+                        long.class,
+                        Direction.class,
+                        ejectEntryClass),
+                findVirtual(dimPosClass, "dimension"),
+                findVirtual(dimPosClass, "pos"),
+                findConstructor(ghostClass, BlockPos.class),
+                findVirtual(ghostClass, "setLevel", Level.class),
+                findConstructor(
+                        ejectEntryClass,
+                        WeakReference.class,
+                        ghostClass,
+                        ResourceKey.class,
+                        BlockPos.class));
     }
 
     private static Object createOutputSink(Class<?> outputSinkClass, List<GenericStack> outputs) {
@@ -774,34 +793,99 @@ public final class Ae2LtRuntimeBridge {
                     return Optional.of(PUBLIC_LOOKUP.unreflect(method));
                 }
             }
-        } catch (IllegalAccessException | SecurityException ignored) {
+        } catch (IllegalAccessException | SecurityException exception) {
+            logInvocationFailureOnce("duck-lookup", type.getName() + "." + methodName, exception);
             return Optional.empty();
         }
         return Optional.empty();
     }
 
-    private record Access(MethodHandle machineAdapterFind,
-                          MethodHandle adapterCanAccept,
-                          MethodHandle adapterPushCopies,
-                          MethodHandle adapterFlushOverflow,
-                          MethodHandle adapterExtractOutputs,
-                          @Nullable Class<?> adapterOutputSinkClass,
-                          MethodHandle pushResultAcceptedCopies,
-                          MethodHandle pushResultOverflow,
-                          MethodHandle powerCostMaxAffordable,
-                          MethodHandle powerCostConsume,
-                          MethodHandle powerCostTotalCost,
-                          MethodHandle powerCostCanAfford,
-                          MethodHandle powerCostConsumeRaw,
-                          MethodHandle smartDoublingContainsOrUnwrapped,
-                          MethodHandle smartDoublingUnwrap,
-                          MethodHandle smartDoublingApplyTo,
-                          MethodHandle advancedBlockingShouldBypass,
-                          MethodHandle ejectUnregisterAll,
-                          MethodHandle ejectRegister,
-                          MethodHandle dimPosDimension,
-                          MethodHandle dimPosPos,
-                          MethodHandle ghostOutputConstructor,
-                          MethodHandle ghostOutputSetLevel,
-                          MethodHandle ejectEntryConstructor) {}
+    /**
+     * Logs expected cross-version invocation failures once while preserving fail-fast behavior for unknown runtime
+     * exceptions and non-linkage errors.
+     */
+    private static void handleInvocationFailure(String capability, String operation, Throwable exception) {
+        if (exception instanceof LinkageError) {
+            logInvocationFailureOnce(capability, operation, exception);
+            return;
+        }
+        Data_Energistics.LOGGER.error(
+                "AE2LT {} operation {} failed with an unexpected exception.",
+                capability,
+                operation,
+                exception);
+        if (exception instanceof RuntimeException runtimeException) throw runtimeException;
+        if (exception instanceof Error error) {
+            throw error;
+        }
+        throw new IllegalStateException("Unexpected checked exception from AE2LT " + capability + ' ' + operation,
+                exception);
+    }
+
+    /**
+     * Emits one diagnostic for a stable capability/operation/failure combination.
+     */
+    private static void logInvocationFailureOnce(String capability, String operation, Throwable exception) {
+        String key = capability + ':' + operation + ':' + exception.getClass().getName();
+        if (LOGGED_INVOCATION_FAILURES.add(key)) {
+            Data_Energistics.LOGGER.error(
+                    "AE2LT {} operation {} is unavailable for this runtime combination.",
+                    capability,
+                    operation,
+                    exception);
+        }
+    }
+
+    /**
+     * Safely published aggregate whose nullable members are independent capability states.
+     */
+    private record RuntimeCapabilities(@Nullable MachineAccess machine,
+                                       @Nullable EnergyAccess energy,
+                                       @Nullable SmartDoublingAccess smartDoubling,
+                                       @Nullable AdvancedBlockingAccess advancedBlocking,
+                                       @Nullable EjectAccess eject) {}
+
+    /**
+     * Method handles required for machine dispatch and output extraction.
+     */
+    private record MachineAccess(MethodHandle machineAdapterFind,
+                                 MethodHandle adapterCanAccept,
+                                 MethodHandle adapterPushCopies,
+                                 MethodHandle adapterFlushOverflow,
+                                 MethodHandle adapterExtractOutputs,
+                                 @Nullable Class<?> adapterOutputSinkClass,
+                                 MethodHandle pushResultAcceptedCopies,
+                                 MethodHandle pushResultOverflow) {}
+
+    /**
+     * Method handles required for fail-closed AE2LT energy accounting.
+     */
+    private record EnergyAccess(MethodHandle powerCostMaxAffordable,
+                                MethodHandle powerCostConsume,
+                                MethodHandle powerCostTotalCost,
+                                MethodHandle powerCostCanAfford,
+                                MethodHandle powerCostConsumeRaw) {}
+
+    /**
+     * Optional Smart Doubling pattern hooks.
+     */
+    private record SmartDoublingAccess(MethodHandle smartDoublingContainsOrUnwrapped,
+                                       MethodHandle smartDoublingUnwrap,
+                                       MethodHandle smartDoublingApplyTo) {}
+
+    /**
+     * Optional Advanced Blocking hook.
+     */
+    private record AdvancedBlockingAccess(MethodHandle advancedBlockingShouldBypass) {}
+
+    /**
+     * Method handles required to register and invalidate EJECT endpoints.
+     */
+    private record EjectAccess(MethodHandle ejectUnregisterAll,
+                               MethodHandle ejectRegister,
+                               MethodHandle dimPosDimension,
+                               MethodHandle dimPosPos,
+                               MethodHandle ghostOutputConstructor,
+                               MethodHandle ghostOutputSetLevel,
+                               MethodHandle ejectEntryConstructor) {}
 }

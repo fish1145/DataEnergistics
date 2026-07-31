@@ -46,7 +46,10 @@ public final class AdaptivePatternProviderState {
     public static final int EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD = 4;
     public static final int BASE_UPGRADE_SLOTS = 6;
     private static final int MAX_NETWORK_SAFE_MENU_SLOTS = Short.MAX_VALUE + 1;
-    private static final int MAX_STREAM_CONNECTIONS = 256;
+    /**
+     * Shared persistence, network-stream, and AE2LT 2.0 host-interface bound for wireless endpoints.
+     */
+    public static final int MAX_WIRELESS_CONNECTIONS = 256;
     // Keep the large backing inventory headroom so future provider variants can scale up without another migration.
     // The adaptive menu now pages against proxy slots instead of registering one GUI slot for every backing slot.
     private static final int FIXED_MENU_SLOT_OVERHEAD = 36 + 18 + 2 + 36 + (BASE_UPGRADE_SLOTS * 2) + 3;
@@ -176,15 +179,19 @@ public final class AdaptivePatternProviderState {
         this.ae2LtWirelessSpeedMode = this.ae2LtWirelessSpeedMode.next();
     }
 
-    public void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
+    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
         for (int i = 0; i < this.ae2LtConnections.size(); i++) {
             if (this.ae2LtConnections.get(i).sameTarget(dimension, pos)) {
                 this.ae2LtConnections.set(i, new AdaptiveWirelessConnection(dimension, pos, boundFace));
-                return;
+                return true;
             }
         }
 
+        if (this.ae2LtConnections.size() >= MAX_WIRELESS_CONNECTIONS) {
+            return false;
+        }
         this.ae2LtConnections.add(new AdaptiveWirelessConnection(dimension, pos, boundFace));
+        return true;
     }
 
     public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
@@ -238,11 +245,9 @@ public final class AdaptivePatternProviderState {
         this.ae2LtWirelessSpeedMode = readEnum(data, AE2LT_WIRELESS_SPEED_MODE_TAG,
                 AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.NORMAL,
                 AdaptivePatternProviderModes.Ae2LtWirelessSpeedMode.class);
-        this.ae2LtConnections.clear();
         ListTag connectionList = data.getList(AE2LT_CONNECTIONS_TAG, CompoundTag.TAG_COMPOUND);
-        for (int i = 0; i < connectionList.size(); i++) {
-            this.ae2LtConnections.add(AdaptiveWirelessConnection.fromTag(connectionList.getCompound(i)));
-        }
+        this.ae2LtConnections.clear();
+        this.ae2LtConnections.addAll(readBoundedConnections(connectionList));
     }
 
     public CompoundTag writeMemoryCardSettings() {
@@ -313,10 +318,7 @@ public final class AdaptivePatternProviderState {
 
         if (data.contains(AE2LT_CONNECTIONS_TAG)) {
             ListTag connectionList = data.getList(AE2LT_CONNECTIONS_TAG, CompoundTag.TAG_COMPOUND);
-            List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(connectionList.size());
-            for (int i = 0; i < connectionList.size(); i++) {
-                incomingConnections.add(AdaptiveWirelessConnection.fromTag(connectionList.getCompound(i)));
-            }
+            List<AdaptiveWirelessConnection> incomingConnections = readBoundedConnections(connectionList);
             if (!this.ae2LtConnections.equals(incomingConnections)) {
                 this.ae2LtConnections.clear();
                 this.ae2LtConnections.addAll(incomingConnections);
@@ -454,7 +456,7 @@ public final class AdaptivePatternProviderState {
                 return List.of();
             }
 
-            int retainedConnectionCount = Math.min(connectionCount, MAX_STREAM_CONNECTIONS);
+            int retainedConnectionCount = Math.min(connectionCount, MAX_WIRELESS_CONNECTIONS);
             List<AdaptiveWirelessConnection> incomingConnections = new ArrayList<>(retainedConnectionCount);
             for (int i = 0; i < retainedConnectionCount; i++) {
                 AdaptiveWirelessConnection connection = readStreamConnection(data, i);
@@ -463,10 +465,10 @@ public final class AdaptivePatternProviderState {
                 }
             }
 
-            if (connectionCount > MAX_STREAM_CONNECTIONS) {
+            if (connectionCount > MAX_WIRELESS_CONNECTIONS) {
                 Data_Energistics.LOGGER.warn(
                         "Received {} adaptive pattern provider wireless connections; retaining the first {} and discarding the remaining state stream bytes.",
-                        connectionCount, MAX_STREAM_CONNECTIONS);
+                        connectionCount, MAX_WIRELESS_CONNECTIONS);
                 data.skipBytes(data.readableBytes());
             }
             return incomingConnections;
@@ -510,6 +512,26 @@ public final class AdaptivePatternProviderState {
             }
         }
         connections.add(connection);
+    }
+
+    /**
+     * Reads a bounded, de-duplicated connection list from persistent or memory-card state.
+     */
+    private static List<AdaptiveWirelessConnection> readBoundedConnections(ListTag connectionList) {
+        int retainedConnectionCount = Math.min(connectionList.size(), MAX_WIRELESS_CONNECTIONS);
+        List<AdaptiveWirelessConnection> connections = new ArrayList<>(retainedConnectionCount);
+        for (int index = 0; index < retainedConnectionCount; index++) {
+            addOrReplaceConnection(
+                    connections,
+                    AdaptiveWirelessConnection.fromTag(connectionList.getCompound(index)));
+        }
+        if (connectionList.size() > MAX_WIRELESS_CONNECTIONS) {
+            Data_Energistics.LOGGER.warn(
+                    "Loaded {} adaptive pattern provider wireless connections; retaining the first {}.",
+                    connectionList.size(),
+                    MAX_WIRELESS_CONNECTIONS);
+        }
+        return connections;
     }
 
     private static final class ProviderFilter implements IAEItemFilter {

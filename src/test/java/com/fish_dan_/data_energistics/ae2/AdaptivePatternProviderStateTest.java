@@ -20,11 +20,40 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class AdaptivePatternProviderStateTest {
 
-    private static final int STREAM_CONNECTION_LIMIT = 256;
+    private static final int STREAM_CONNECTION_LIMIT = AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS;
+
+    @Test
+    void wirelessConnectionLimitStillAllowsExistingTargetUpdates() {
+        AdaptivePatternProviderState state = newState();
+        for (int index = 0; index < AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS; index++) {
+            assertTrue(state.addOrUpdateConnection(
+                    Level.OVERWORLD,
+                    new BlockPos(index, 64, 0),
+                    Direction.NORTH));
+        }
+
+        assertFalse(state.addOrUpdateConnection(
+                Level.OVERWORLD,
+                new BlockPos(AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS, 64, 0),
+                Direction.NORTH));
+        assertTrue(state.addOrUpdateConnection(
+                Level.OVERWORLD,
+                BlockPos.ZERO.atY(64),
+                Direction.SOUTH));
+        assertEquals(Direction.SOUTH, state.getConnections().getFirst().boundFace());
+
+        assertTrue(state.removeConnection(Level.OVERWORLD, new BlockPos(1, 64, 0)));
+        assertTrue(state.addOrUpdateConnection(
+                Level.OVERWORLD,
+                new BlockPos(AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS, 64, 0),
+                Direction.NORTH));
+        assertEquals(AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS, state.getConnections().size());
+    }
 
     @SuppressWarnings("UnstableApiUsage")
     @BeforeAll

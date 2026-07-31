@@ -351,9 +351,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Override
-    public void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
-        this.onAe2LtStateChanged();
+    public boolean addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
+        boolean accepted = getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
+        if (accepted) {
+            this.onAe2LtStateChanged();
+        }
+        return accepted;
     }
 
     @Override
@@ -368,6 +371,33 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public List<AdaptiveWirelessConnection> getConnections() {
         return getAdaptiveState().getConnections();
+    }
+
+    /**
+     * Exposes the host position required by AE2LT 2.0's soft-attached provider interface.
+     *
+     * @return this provider's world position
+     */
+    public BlockPos getProviderPos() {
+        return getBlockPos();
+    }
+
+    /**
+     * Reports whether AE2LT may currently bind wireless endpoints to this adaptive provider.
+     *
+     * @return whether a wireless-compatible AE2LT provider mode is active
+     */
+    public boolean isWirelessProvider() {
+        return isAe2LtWirelessConnectableProviderSelected();
+    }
+
+    /**
+     * Keeps AE2LT 2.0's advertised capacity aligned with persistence and state-stream bounds.
+     *
+     * @return maximum stored wireless endpoints
+     */
+    public int getMaxWirelessConnections() {
+        return AdaptivePatternProviderState.MAX_WIRELESS_CONNECTIONS;
     }
 
     @Override
