@@ -9,6 +9,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingD
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTarget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.CraftingDispatchTargetAvailability;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlanImpl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.common.trinity.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModDataComponents;
 import com.fish_dan_.data_energistics.util.LongAmountMath;
@@ -68,6 +76,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -87,6 +96,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     private static final int LEGACY_RUNTIME_SCHEMA_VERSION = 1;
     private static final int CPU_LOGIC_SCHEMA_VERSION = 1;
     private static final long COUNTED_BATCH_SIZE = 128L;
+    private static final long SELF_CYCLE_REPETITIONS = 7L;
 
     private TrinityDataCoreCraftingRuntimeTest() {}
 
@@ -172,6 +182,246 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Rejecting a foreign plan must not allocate a worker");
         helper.assertTrue(reserveCpu.canAcceptJob(), "The rejected plan must leave Trinity available");
         helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_compact_plan_batches_and_seals_output")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compactPlanBatchesAndSealsOutput(GameTestHelper helper) {
+        CountedBatchFixture fixture = trinityCountedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                64L);
+        CraftingDispatchLimits oneAttempt = new CraftingDispatchLimits(1, 1, Long.MAX_VALUE);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1, "The first tick must commit one physical batch");
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), 64L, "The provider cap must split the compact firing");
+        helper.assertValueEqual(
+                fixture.cpu().insert(fixture.output(), 64L, Actionable.MODULATE),
+                64L,
+                "The first in-flight batch must return to the owning CPU");
+        helper.assertValueEqual(
+                fixture.grid().storage().getStored(fixture.output()),
+                0L,
+                "Intermediate target output must remain isolated from network storage");
+
+        helper.runAfterDelay(1L, () -> runSecondCompactBatch(helper, fixture, oneAttempt));
+    }
+
+    @TestHolder("trinity_data_core_compact_self_cycle_uses_geometric_batches")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compactSelfCycleUsesGeometricBatches(GameTestHelper helper) {
+        CountedBatchFixture fixture = trinitySelfCycleFixture(helper, new BlockPos(1, 1, 1));
+        CraftingDispatchLimits oneAttempt = new CraftingDispatchLimits(1, 1, Long.MAX_VALUE);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), 1L,
+                "The first self-cycle batch must consume only the initial seed");
+        helper.assertValueEqual(
+                fixture.cpu().insert(fixture.output(), 2L, Actionable.MODULATE),
+                2L,
+                "The first doubled output must return to Trinity working inventory");
+        helper.runAfterDelay(1L, () -> runSecondSelfCycleBatch(helper, fixture, oneAttempt));
+    }
+
+    @TestHolder("trinity_data_core_compact_plan_cancel_returns_owned_seed")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compactPlanCancelReturnsOwnedSeed(GameTestHelper helper) {
+        CountedBatchFixture fixture = trinitySelfCycleFixture(helper, new BlockPos(1, 1, 1));
+        ICraftingLink link = fixture.cpu().logic().getLastLink();
+        if (link == null) {
+            helper.fail("The compact self-cycle must expose its crafting link");
+            return;
+        }
+
+        link.cancel();
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create());
+
+        helper.assertFalse(fixture.cpu().isBusy(), "A canceled compact plan must release its worker");
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 0,
+                "Cancellation before dispatch must not transfer seed ownership to the provider");
+        helper.assertValueEqual(fixture.grid().storage().getStored(fixture.input()), 1L,
+                "Cancellation must return exactly the seed still owned by Trinity");
+        helper.succeed();
+    }
+
+    private static void runSecondSelfCycleBatch(GameTestHelper helper,
+                                                CountedBatchFixture fixture,
+                                                CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), 2L,
+                "The second self-cycle batch must consume both available seed units");
+        helper.assertValueEqual(
+                fixture.cpu().insert(fixture.output(), 4L, Actionable.MODULATE),
+                4L,
+                "The second doubled output must return to Trinity working inventory");
+        helper.runAfterDelay(1L, () -> runFinalSelfCycleBatch(helper, fixture, oneAttempt));
+    }
+
+    private static void runFinalSelfCycleBatch(GameTestHelper helper,
+                                               CountedBatchFixture fixture,
+                                               CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().lastBatchCount(), 4L,
+                "The final self-cycle batch must consume the complete established wave");
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 3,
+                "Seven logical firings must require exactly three counted provider commits");
+        helper.assertValueEqual(
+                fixture.cpu().insert(fixture.output(), 8L, Actionable.MODULATE),
+                8L,
+                "The final doubled output must remain in Trinity until completion is sealed");
+        helper.runAfterDelay(1L, () -> finishSelfCycle(helper, fixture, oneAttempt));
+    }
+
+    private static void finishSelfCycle(GameTestHelper helper,
+                                        CountedBatchFixture fixture,
+                                        CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertFalse(fixture.cpu().isBusy(), "The compact self-cycle must finish after the final output returns");
+        helper.assertValueEqual(
+                fixture.grid().storage().getStored(fixture.output()),
+                8L,
+                "NET_NEW must return the one-unit seed and seven-unit delivery without duplication");
+        helper.succeed();
+    }
+
+    private static void runSecondCompactBatch(GameTestHelper helper,
+                                              CountedBatchFixture fixture,
+                                              CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 2, "The second tick must commit the remaining batch");
+        helper.assertValueEqual(
+                fixture.cpu().insert(fixture.output(), 64L, Actionable.MODULATE),
+                64L,
+                "The final in-flight batch must return to the owning CPU");
+        helper.assertValueEqual(
+                fixture.grid().storage().getStored(fixture.output()),
+                0L,
+                "The complete target must stay sealed until the stage has no in-flight outputs");
+
+        helper.runAfterDelay(1L, () -> finishCompactBatch(helper, fixture, oneAttempt));
+    }
+
+    private static void finishCompactBatch(GameTestHelper helper,
+                                           CountedBatchFixture fixture,
+                                           CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertFalse(fixture.cpu().isBusy(), "The compact Trinity plan must finish after sealing its output");
+        helper.assertValueEqual(
+                fixture.grid().storage().getStored(fixture.output()),
+                COUNTED_BATCH_SIZE,
+                "A standalone compact plan must release its exact completed output to the network");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_compact_plan_retains_failed_and_partial_delivery")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compactPlanRetainsFailedAndPartialDelivery(GameTestHelper helper) {
+        TestRequester requester = new TestRequester(2L);
+        requester.throwOnNextModulatedInsert();
+        CountedBatchFixture fixture = trinityCountedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                5L,
+                5L,
+                requester);
+        CraftingDispatchLimits oneAttempt = new CraftingDispatchLimits(1, 1, Long.MAX_VALUE);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(
+                fixture.cpu().insert(fixture.output(), 5L, Actionable.MODULATE),
+                5L,
+                "The complete provider output must enter Trinity working inventory");
+        helper.runAfterDelay(1L, () -> assertFailedCompletionRetained(helper, fixture, requester, oneAttempt));
+    }
+
+    private static void assertFailedCompletionRetained(GameTestHelper helper,
+                                                       CountedBatchFixture fixture,
+                                                       TestRequester requester,
+                                                       CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertTrue(fixture.cpu().isBusy(), "A requester exception must retain the compact job");
+        helper.assertValueEqual(requester.received(fixture.output()), 0L,
+                "A requester exception must not deduct an unknown amount from completion");
+        helper.assertValueEqual(visibleAmount(fixture.cpu(), fixture.output()), 5L,
+                "A requester exception must retain the complete sealed offer");
+        helper.runAfterDelay(1L, () -> assertPartialCompletionRetained(helper, fixture, requester, oneAttempt));
+    }
+
+    private static void assertPartialCompletionRetained(GameTestHelper helper,
+                                                        CountedBatchFixture fixture,
+                                                        TestRequester requester,
+                                                        CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertTrue(fixture.cpu().isBusy(), "Partial requester acceptance must keep the compact job active");
+        helper.assertValueEqual(requester.received(fixture.output()), 2L,
+                "Only the requester's accepted amount may be delivered");
+        helper.assertValueEqual(visibleAmount(fixture.cpu(), fixture.output()), 3L,
+                "The undelivered completion remainder must remain sealed");
+        requester.setMaxAccepted(3L);
+        helper.runAfterDelay(1L, () -> finishRequesterCompletion(helper, fixture, requester, oneAttempt));
+    }
+
+    private static void finishRequesterCompletion(GameTestHelper helper,
+                                                  CountedBatchFixture fixture,
+                                                  TestRequester requester,
+                                                  CraftingDispatchLimits oneAttempt) {
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertFalse(fixture.cpu().isBusy(), "The compact job must finish after its remainder is accepted");
+        helper.assertValueEqual(requester.received(fixture.output()), 5L,
+                "The requester must receive the exact target amount across retries");
+        helper.assertValueEqual(requester.jobStateChanges(), 1,
+                "Completion must notify the requester exactly once");
+        helper.assertValueEqual(fixture.grid().storage().getStored(fixture.output()), 0L,
+                "Requester-owned completion must not also be refunded to network storage");
+        helper.succeed();
+    }
+
+    private static long visibleAmount(TrinityDataCoreVirtualCpu cpu, AEKey key) {
+        KeyCounter visible = new KeyCounter();
+        cpu.getAllItems(visible);
+        return visible.get(key);
     }
 
     @TestHolder("trinity_data_core_permanent_removal_recovers_cpu_inventory_when_grid_rejects")
@@ -607,8 +857,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                         .successful(),
                 "The first runtime must be full before auto-selection");
         TrinityCraftingRuntimeRegistry registry = (TrinityCraftingRuntimeRegistry) grid.craftingService();
-        registry.publish(new RuntimeGridNode(grid), fullHost.getCraftingRuntime());
-        registry.publish(new RuntimeGridNode(grid), availableHost.getCraftingRuntime());
+        registry.data_energistics$publish(new RuntimeGridNode(grid), fullHost.getCraftingRuntime());
+        registry.data_energistics$publish(new RuntimeGridNode(grid), availableHost.getCraftingRuntime());
 
         ICraftingSubmitResult result = grid.craftingService().submitJob(
                 emptyJobPlan(),
@@ -644,7 +894,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                         .successful(),
                 "The only Trinity worker must be occupied before checking diagnostics");
         TrinityCraftingRuntimeRegistry registry = (TrinityCraftingRuntimeRegistry) grid.craftingService();
-        registry.publish(new RuntimeGridNode(grid), host.getCraftingRuntime());
+        registry.data_energistics$publish(new RuntimeGridNode(grid), host.getCraftingRuntime());
 
         ICraftingSubmitResult result = grid.craftingService().submitJob(
                 emptyJobPlan(),
@@ -678,8 +928,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             host.setCpuContribution("selection_rr", TrinityDataCoreCpuContribution.of(1024L, 0, 1));
         }
         TrinityCraftingRuntimeRegistry registry = (TrinityCraftingRuntimeRegistry) grid.craftingService();
-        registry.publish(new RuntimeGridNode(grid), firstHost.getCraftingRuntime());
-        registry.publish(new RuntimeGridNode(grid), secondHost.getCraftingRuntime());
+        registry.data_energistics$publish(new RuntimeGridNode(grid), firstHost.getCraftingRuntime());
+        registry.data_energistics$publish(new RuntimeGridNode(grid), secondHost.getCraftingRuntime());
 
         ICraftingSubmitResult firstResult = grid.craftingService().submitJob(
                 emptyJobPlan(),
@@ -2186,6 +2436,153 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 output);
     }
 
+    private static CountedBatchFixture trinityCountedBatchFixture(GameTestHelper helper,
+                                                                  BlockPos hostPos,
+                                                                  long amount,
+                                                                  long maximumAdmissionCount) {
+        return trinityCountedBatchFixture(helper, hostPos, amount, maximumAdmissionCount, null);
+    }
+
+    private static CountedBatchFixture trinityCountedBatchFixture(GameTestHelper helper,
+                                                                  BlockPos hostPos,
+                                                                  long amount,
+                                                                  long maximumAdmissionCount,
+                                                                  @Nullable TestRequester requester) {
+        AEItemKey input = AEItemKey.of(Items.IRON_INGOT);
+        AEItemKey output = AEItemKey.of(Items.DIAMOND);
+        CountedPatternDetails pattern = new CountedPatternDetails(input, output);
+        RecordingBatchCraftingProvider provider = new RecordingBatchCraftingProvider(
+                pattern,
+                input,
+                BatchPushOutcome.ACCEPT);
+        provider.setMaximumAdmissionCount(maximumAdmissionCount);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        grid.energyService().setStoredPower(amount);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(hostPos), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("trinity_batch", TrinityDataCoreCpuContribution.of(4096L, 2, 1));
+        seedStorage(grid.storage(), input, amount);
+
+        TrinityCraftingPlan plan = trinityCountedPlan(helper, pattern, amount);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), requester);
+        helper.assertTrue(result.successful(), "The compact Trinity fixture must submit its complete plan");
+        if (requester != null) {
+            ICraftingLink link = result.link();
+            if (link == null) {
+                throw new IllegalStateException("Compact requester submission did not return its crafting link");
+            }
+            requester.track(link);
+        }
+        return new CountedBatchFixture(
+                grid,
+                singleBusyWorker(host.getCraftingRuntime()),
+                provider,
+                input,
+                output);
+    }
+
+    private static CountedBatchFixture trinitySelfCycleFixture(GameTestHelper helper,
+                                                               BlockPos hostPos) {
+        AEItemKey key = AEItemKey.of(Items.IRON_INGOT);
+        CountedSelfCyclePatternDetails pattern = new CountedSelfCyclePatternDetails(key);
+        RecordingBatchCraftingProvider provider = new RecordingBatchCraftingProvider(
+                pattern,
+                key,
+                BatchPushOutcome.ACCEPT);
+        TestGrid grid = new TestGrid();
+        grid.setCraftingProvider(provider);
+        grid.energyService().setStoredPower(SELF_CYCLE_REPETITIONS);
+        NetworkedTestHost host = new NetworkedTestHost(helper.absolutePos(hostPos), grid);
+        host.setLevel(helper.getLevel());
+        host.loadTag(formedTrinityTag(), helper.getLevel().registryAccess());
+        host.setCpuContribution("trinity_self_cycle", TrinityDataCoreCpuContribution.of(4096L, 2, 1));
+        seedStorage(grid.storage(), key, 1L);
+
+        TrinityCraftingPlan plan = trinitySelfCyclePlan(helper, pattern, SELF_CYCLE_REPETITIONS);
+        TrinityDataCoreVirtualCpu reserveCpu = host.getCpuPartitions().getFirst();
+        ICraftingSubmitResult result = reserveCpu.submitJob(grid, plan, IActionSource.empty(), null);
+        helper.assertTrue(result.successful(), "The compact self-cycle fixture must reserve its initial seed");
+        return new CountedBatchFixture(
+                grid,
+                singleBusyWorker(host.getCraftingRuntime()),
+                provider,
+                key,
+                key);
+    }
+
+    private static TrinityCraftingPlan trinitySelfCyclePlan(GameTestHelper helper,
+                                                            CountedSelfCyclePatternDetails pattern,
+                                                            long repetitions) {
+        BigInteger repeated = BigInteger.valueOf(repetitions);
+        TrinityPatternIdentity identity = TrinityPatternIdentity.capture(
+                TrinityPatternPublicationSignature.capture(pattern),
+                helper.getLevel().registryAccess());
+        Map<AEKey, BigInteger> seed = Map.of(pattern.key(), BigInteger.ONE);
+        Map<AEKey, BigInteger> netPerCycle = Map.of(pattern.key(), BigInteger.ONE);
+        TrinityPlanStage stage = new TrinityPlanStage(
+                0,
+                true,
+                Set.of(),
+                List.of(new TrinityPlanPatternFiring(identity, pattern.key(), 0, BigInteger.ONE)),
+                seed,
+                netPerCycle);
+        TrinityCycleRepeatBlock repeatBlock = new TrinityCycleRepeatBlock(
+                0,
+                List.of(0),
+                repeated,
+                seed,
+                Map.of(pattern.key(), repeated));
+        return TrinityCraftingPlanImpl.builder()
+                .finalOutput(new GenericStack(pattern.key(), repetitions))
+                .bytes(1L)
+                .catalogRevision(1L)
+                .quantityMode(CraftingQuantityMode.NET_NEW)
+                .initialExpectedInputs(seed)
+                .patternFirings(Map.of(identity, repeated))
+                .stages(List.of(stage))
+                .stageOrder(List.of(0))
+                .cycleRepeatBlocks(List.of(repeatBlock))
+                .minimumSeed(seed)
+                .targetNetChange(Map.of(pattern.key(), repeated))
+                .build();
+    }
+
+    private static TrinityCraftingPlan trinityCountedPlan(GameTestHelper helper,
+                                                          CountedPatternDetails pattern,
+                                                          long amount) {
+        BigInteger count = BigInteger.valueOf(amount);
+        TrinityPatternIdentity identity = TrinityPatternIdentity.capture(
+                TrinityPatternPublicationSignature.capture(pattern),
+                helper.getLevel().registryAccess());
+        Map<AEKey, BigInteger> expectedInputs = Map.of(pattern.input(), count);
+        Map<AEKey, BigInteger> netChange = Map.of(
+                pattern.input(), count.negate(),
+                pattern.output(), count);
+        TrinityPlanStage stage = new TrinityPlanStage(
+                0,
+                false,
+                Set.of(),
+                List.of(new TrinityPlanPatternFiring(identity, pattern.output(), 0, count)),
+                expectedInputs,
+                netChange);
+        return TrinityCraftingPlanImpl.builder()
+                .finalOutput(new GenericStack(pattern.output(), amount))
+                .bytes(1L)
+                .catalogRevision(1L)
+                .quantityMode(CraftingQuantityMode.NET_NEW)
+                .initialExpectedInputs(expectedInputs)
+                .patternFirings(Map.of(identity, count))
+                .stages(List.of(stage))
+                .stageOrder(List.of(0))
+                .cycleRepeatBlocks(List.of())
+                .minimumSeed(Map.of())
+                .targetNetChange(netChange)
+                .build();
+    }
+
     private static void assertCountedBatchRollback(GameTestHelper helper,
                                                    BlockPos hostPos,
                                                    BatchPushOutcome failureOutcome) {
@@ -2691,6 +3088,16 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                     return provider;
                 }
             };
+        }
+
+        @Override
+        public Collection<IPatternDetails> getCraftingFor(AEKey whatToCraft) {
+            return this.providers.stream()
+                    .flatMap(provider -> provider.getAvailablePatterns().stream())
+                    .filter(pattern -> pattern.getOutputs().stream()
+                            .anyMatch(output -> output.what().equals(whatToCraft)))
+                    .distinct()
+                    .toList();
         }
     }
 
@@ -3262,6 +3669,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         private long simulatedAcceptance;
         private long modulatedAcceptance;
         private boolean capAcceptanceAtRequested;
+        private boolean throwOnNextModulatedInsert;
         private int jobStateChanges;
 
         private TestRequester(long maxAccepted) {
@@ -3284,6 +3692,14 @@ public final class TrinityDataCoreCraftingRuntimeTest {
             this.capAcceptanceAtRequested = false;
         }
 
+        private void throwOnNextModulatedInsert() {
+            this.throwOnNextModulatedInsert = true;
+        }
+
+        private long received(AEKey key) {
+            return this.received.get(key);
+        }
+
         private void track(ICraftingLink link) {
             this.requestedJobs.add(link);
         }
@@ -3302,6 +3718,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                                        AEKey what,
                                        long amount,
                                        Actionable mode) {
+            if (mode == Actionable.MODULATE && this.throwOnNextModulatedInsert) {
+                this.throwOnNextModulatedInsert = false;
+                throw new IllegalStateException("Test requester completion failure");
+            }
             long configuredAcceptance = mode == Actionable.SIMULATE ? this.simulatedAcceptance : this.modulatedAcceptance;
             long accepted = this.capAcceptanceAtRequested ? Math.min(amount, configuredAcceptance) : configuredAcceptance;
             if (mode == Actionable.MODULATE) {
@@ -3355,6 +3775,24 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         @Override
         public List<GenericStack> getOutputs() {
             return List.of(new GenericStack(this.output, 1L));
+        }
+    }
+
+    private record CountedSelfCyclePatternDetails(AEItemKey key) implements IPatternDetails {
+
+        @Override
+        public AEItemKey getDefinition() {
+            return AEItemKey.of(Items.CRAFTING_TABLE);
+        }
+
+        @Override
+        public IInput[] getInputs() {
+            return new IInput[] { new ExactPatternInput(this.key) };
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return List.of(new GenericStack(this.key, 2L));
         }
     }
 

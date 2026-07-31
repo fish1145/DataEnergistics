@@ -12,5 +12,5 @@ public interface TrinityCraftingGraphAccess {
     /**
      * @return last revision-consistent graph, or empty while the first time-sliced capture is incomplete
      */
-    Optional<TrinityCraftingGraphSnapshot> trinityCraftingGraphSnapshot();
+    Optional<TrinityCraftingGraphSnapshot> data_energistics$trinityCraftingGraphSnapshot();
 }

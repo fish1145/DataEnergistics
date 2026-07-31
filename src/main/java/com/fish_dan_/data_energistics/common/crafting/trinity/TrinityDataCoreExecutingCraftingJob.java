@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.trinity.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.RoutedCraftingPatternDetails;
 
@@ -21,6 +23,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.crafting.CraftingLink;
 import appeng.crafting.inv.ListCraftingInventory;
+import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,7 +48,8 @@ import static com.fish_dan_.data_energistics.util.LongAmountMath.saturatingMulti
 final class TrinityDataCoreExecutingCraftingJob {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 1;
+    private static final int LEGACY_SCHEMA_VERSION = 1;
+    private static final int PLAN_SCHEMA_VERSION = 2;
     private static final String LINK_TAG = "link";
     private static final String PLAYER_ID_TAG = "player_id";
     private static final String FINAL_OUTPUT_TAG = "final_output";
@@ -59,12 +63,15 @@ final class TrinityDataCoreExecutingCraftingJob {
     private static final String PROVIDER_TASK_KIND = "provider";
     private static final String TRINITY_TASK_KIND = "trinity";
     private static final String ROUTE_TAG = "route";
+    private static final String PLAN_EXECUTION_TAG = "plan_execution";
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
     private final ScheduledTasks scheduledTasks = new ScheduledTasks();
     final Map<IPatternDetails, TaskProgress> tasks = this.scheduledTasks.tasks();
     final TrinityDataCoreElapsedTimeTracker timeTracker;
+    @Nullable
+    private final TrinityPlanExecution planExecution;
     GenericStack finalOutput;
     long remainingAmount;
     @Nullable
@@ -89,17 +96,24 @@ final class TrinityDataCoreExecutingCraftingJob {
         this.remainingAmount = this.finalOutput.amount();
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker();
-        for (var entry : plan.emittedItems()) {
-            this.waitingFor.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
-            this.timeTracker.addMaxItems(entry.getLongValue(), entry.getKey().getType());
-        }
-        for (Map.Entry<IPatternDetails, Long> entry : plan.patternTimes().entrySet()) {
-            long craftCount = entry.getValue();
-            this.scheduledTasks.add(entry.getKey(), craftCount);
-            for (GenericStack output : entry.getKey().getOutputs()) {
-                long amount = saturatingMultiplyNonNegative(output.amount(), craftCount);
-                amount = saturatingMultiplyNonNegative(amount, output.what().getAmountPerUnit());
-                this.timeTracker.addMaxItems(amount, output.what().getType());
+        if (plan instanceof TrinityCraftingPlan trinityPlan) {
+            this.planExecution = TrinityPlanExecution.create(
+                    trinityPlan,
+                    TickHandler.instance().getCurrentTick());
+        } else {
+            this.planExecution = null;
+            for (var entry : plan.emittedItems()) {
+                this.waitingFor.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+                this.timeTracker.addMaxItems(entry.getLongValue(), entry.getKey().getType());
+            }
+            for (Map.Entry<IPatternDetails, Long> entry : plan.patternTimes().entrySet()) {
+                long craftCount = entry.getValue();
+                this.scheduledTasks.add(entry.getKey(), craftCount);
+                for (GenericStack output : entry.getKey().getOutputs()) {
+                    long amount = saturatingMultiplyNonNegative(output.amount(), craftCount);
+                    amount = saturatingMultiplyNonNegative(amount, output.what().getAmountPerUnit());
+                    this.timeTracker.addMaxItems(amount, output.what().getType());
+                }
             }
         }
         this.link = link;
@@ -110,9 +124,10 @@ final class TrinityDataCoreExecutingCraftingJob {
                                         HolderLookup.Provider registries,
                                         CraftingDifferenceListener differenceListener,
                                         TrinityDataCoreCpuLogic logic) {
-        if (!hasCurrentSchema(data)) {
+        if (!hasSupportedSchema(data)) {
             throw new IllegalArgumentException("Unsupported persisted Trinity Data Core CPU job schema");
         }
+        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
@@ -121,16 +136,33 @@ final class TrinityDataCoreExecutingCraftingJob {
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
         this.playerId = data.contains(PLAYER_ID_TAG, Tag.TAG_INT) ? data.getInt(PLAYER_ID_TAG) : null;
 
-        Level level = logic.cpu().level();
-
-        ListTag tasksTag = data.getList(TASKS_TAG, Tag.TAG_COMPOUND);
-        for (int index = 0; index < tasksTag.size(); index++) {
-            CompoundTag item = tasksTag.getCompound(index);
-            IPatternDetails details = readTaskDetails(
-                    item,
-                    taskTag -> PatternDetailsHelper.decodePattern(AEItemKey.fromTag(registries, taskTag), level));
-            if (details != null) {
-                this.scheduledTasks.add(details, item.getLong(CRAFTING_PROGRESS_TAG));
+        if (schemaVersion == PLAN_SCHEMA_VERSION) {
+            if (!data.contains(PLAN_EXECUTION_TAG, Tag.TAG_COMPOUND)) {
+                throw new IllegalArgumentException("Persisted Trinity plan job is missing execution state");
+            }
+            this.planExecution = TrinityPlanExecution.restore(
+                    data.getCompound(PLAN_EXECUTION_TAG),
+                    registries,
+                    TickHandler.instance().getCurrentTick());
+            GenericStack executionOutput = this.planExecution.finalOutput();
+            if (this.finalOutput == null ||
+                    !this.finalOutput.what().equals(executionOutput.what()) ||
+                    this.finalOutput.amount() != executionOutput.amount() ||
+                    this.remainingAmount != this.planExecution.deliveryRemaining()) {
+                throw new IllegalArgumentException("Persisted Trinity plan job disagrees with its execution target");
+            }
+        } else {
+            this.planExecution = null;
+            Level level = logic.cpu().level();
+            ListTag tasksTag = data.getList(TASKS_TAG, Tag.TAG_COMPOUND);
+            for (int index = 0; index < tasksTag.size(); index++) {
+                CompoundTag item = tasksTag.getCompound(index);
+                IPatternDetails details = readTaskDetails(
+                        item,
+                        taskTag -> PatternDetailsHelper.decodePattern(AEItemKey.fromTag(registries, taskTag), level));
+                if (details != null) {
+                    this.scheduledTasks.add(details, item.getLong(CRAFTING_PROGRESS_TAG));
+                }
             }
         }
 
@@ -146,7 +178,9 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
-        data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
+        data.putInt(
+                SCHEMA_VERSION_TAG,
+                this.planExecution == null ? LEGACY_SCHEMA_VERSION : PLAN_SCHEMA_VERSION);
 
         CompoundTag linkData = new CompoundTag();
         this.link.writeToNBT(linkData);
@@ -156,13 +190,17 @@ final class TrinityDataCoreExecutingCraftingJob {
         data.put(WAITING_FOR_TAG, this.waitingFor.writeToNBT(registries));
         data.put(TIME_TRACKER_TAG, this.timeTracker.writeToTag());
 
-        ListTag taskList = new ListTag();
-        for (Map.Entry<IPatternDetails, TaskProgress> entry : this.tasks.entrySet()) {
-            CompoundTag item = writeTaskDetails(entry.getKey(), registries);
-            item.putLong(CRAFTING_PROGRESS_TAG, entry.getValue().value);
-            taskList.add(item);
+        if (this.planExecution == null) {
+            ListTag taskList = new ListTag();
+            for (Map.Entry<IPatternDetails, TaskProgress> entry : this.tasks.entrySet()) {
+                CompoundTag item = writeTaskDetails(entry.getKey(), registries);
+                item.putLong(CRAFTING_PROGRESS_TAG, entry.getValue().value);
+                taskList.add(item);
+            }
+            data.put(TASKS_TAG, taskList);
+        } else {
+            data.put(PLAN_EXECUTION_TAG, this.planExecution.save(registries));
         }
-        data.put(TASKS_TAG, taskList);
 
         data.putLong(REMAINING_AMOUNT_TAG, this.remainingAmount);
         if (this.playerId != null) {
@@ -178,7 +216,26 @@ final class TrinityDataCoreExecutingCraftingJob {
      * @return true when the job can transition to its finished state
      */
     boolean isComplete() {
+        if (this.planExecution != null) {
+            return this.planExecution.productionComplete() &&
+                    this.planExecution.deliveryRemaining() == 0L &&
+                    this.planExecution.completionOffer().isEmpty() &&
+                    this.waitingFor.list.isEmpty();
+        }
         return this.remainingAmount <= 0L && this.tasks.isEmpty() && this.waitingFor.list.isEmpty();
+    }
+
+    /** @return whether this job owns a compact schema 2 Trinity execution cursor */
+    boolean isTrinityPlan() {
+        return this.planExecution != null;
+    }
+
+    /** @return schema 2 execution cursor for a Trinity plan */
+    TrinityPlanExecution trinityExecution() {
+        if (this.planExecution == null) {
+            throw new IllegalStateException("A legacy AE2 job has no Trinity execution cursor");
+        }
+        return this.planExecution;
     }
 
     /** Returns the indexed amount still scheduled by undispatched tasks. */
@@ -256,17 +313,18 @@ final class TrinityDataCoreExecutingCraftingJob {
         return details == null ? null : new RoutedCraftingPatternDetails(route, details);
     }
 
-    static boolean hasCurrentSchema(CompoundTag data) {
+    static boolean hasSupportedSchema(CompoundTag data) {
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
             Data_Energistics.LOGGER.warn("Ignoring persisted Trinity Data Core CPU job without a schema version");
             return false;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion != LEGACY_SCHEMA_VERSION && schemaVersion != PLAN_SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {}",
+                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {} or {}",
                     schemaVersion,
-                    SCHEMA_VERSION);
+                    LEGACY_SCHEMA_VERSION,
+                    PLAN_SCHEMA_VERSION);
             return false;
         }
         return true;

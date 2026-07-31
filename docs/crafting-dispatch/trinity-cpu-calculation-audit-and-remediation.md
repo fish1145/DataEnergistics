@@ -3,8 +3,8 @@
 ## 1. 审计结论
 
 当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题。当前分支也
-已完成 Trinity 独立 DAG/SCC 计算内核，但生产请求与执行器仍沿用 AE2 的扁平计划契约。因 schema 2、seed 输出门和
-动态借料尚未接入，现阶段仍不能在真实 CPU 上安全执行自增殖或多步增殖。
+已完成 Trinity 独立 DAG/SCC 计算内核、schema 2、seed 输出门、动态借料和事件执行器。扩展计划已经可以由真实
+Trinity CPU 按阶段安全消费；玩家数量页与确认页入口仍待接入。
 
 本报告只记录当前证据和修复映射。目标架构见 `trinity-cpu-planning-and-cycle-architecture.md`，派发事务不变量见
 `trinity-cpu-dispatch-architecture.md`。
@@ -23,9 +23,9 @@ Craft Amount / 外部请求
   -> TrinityDataCoreCpuLogic.insert
 ```
 
-当前分支已建立网格图、扩展计划契约、`TrinityPlanningGateway` 双路 Future 和完整 DAG/SCC 规划器，但尚未在
-`CraftingServiceMixin` 接管 `beginCraftingCalculation`。真实请求仍走 AE2；必须先由下一执行轨道完成 schema 2、
-seed/completion buffer 和动态借料所有权，再激活扩展入口。
+当前分支已建立网格图、扩展计划契约、`TrinityPlanningGateway` 双路 Future、完整 DAG/SCC 规划器和 schema 2
+执行器，但尚未在数量页接管 `beginCraftingCalculation`。真实玩家请求仍走 AE2，直接行为测试和 GameTest 通过构造
+扩展计划验证执行及所有权边界。
 
 ## 3. 缺陷证据
 
@@ -43,8 +43,7 @@ AE2 `ICraftingPlan` 只公开最终输出、初始原料、emitted items 和 `Ma
 
 修复：增加 `TrinityCraftingPlan` 扩展契约和 schema 2；普通 AE2 计划继续走 schema 1 兼容路径。
 
-当前状态：扩展计划、stage、repeat block、seed、净变化和精确 byte 边界已经实现；schema 2 与运行时消费仍待执行轨道
-提交。
+当前状态：扩展计划、stage、repeat block、seed、净变化、精确 byte 边界、schema 2 与运行时消费均已实现。
 
 ### C-002：AE2 明确拒绝递归生产路径
 
@@ -139,13 +138,13 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
 | --- | --- | --- | --- |
-| C-001 | graph snapshot、扩展计划、schema 2 | 计划契约已完成；schema 2 待实现 | 计划不持有 decoded pattern、阶段聚合和边界测试 |
-| C-002 | Tarjan、闭式循环、Trinity planner | 计算内核已完成；真实 CPU 执行待实现 | 自增殖、多步增殖、MIP 与 seed 前缀逻辑测试 |
+| C-001 | graph snapshot、扩展计划、schema 2 | 已完成 | 计划不持有 decoded pattern、阶段聚合、schema 1/2 恢复测试 |
+| C-002 | Tarjan、闭式循环、Trinity planner | 已完成 | 自增殖、多步增殖、MIP、seed 前缀和真实 CPU 紧凑执行测试 |
 | C-003 | DAG 批量传播、revision 图缓存 | 已完成 | 同 tick 失效、大数量状态计数与 `long` 溢出测试 |
 | C-007 | 已有 pattern-sort dirty flag Mixin | 已完成 | 重复读取不会重复排序 |
-| C-004 | working inventory、completion buffer | 待实现 | seed 保留和精确交付测试 |
-| C-005 | ready queue、反向索引、retry queue | 待实现 | 无关任务不被重复访问 |
-| C-006 | schema 2 | 待实现 | 各阶段重载与 schema 1 兼容测试 |
+| C-004 | working inventory、completion buffer | 已完成 | 封存、异常重试、部分接收和 standalone 精确交付测试 |
+| C-005 | ready queue、反向索引、retry queue | 已完成 | 无关 key 不唤醒、队列去重和独立退避测试 |
+| C-006 | schema 2 | 已完成 | cycle/借料/封存重载与 schema 1 兼容测试 |
 | C-008 | dispatch scope 边界检查 | 已完成 | 零额外 MODULATE 调用 |
 | C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
 | C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |

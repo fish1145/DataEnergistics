@@ -21,18 +21,18 @@ public interface TrinityCraftingRuntimeRegistry {
 
     /**
      * Publishes one node-runtime pair. Repeating the same identities is idempotent; replacing a runtime requires an
-     * explicit {@link #withdraw(IGridNode)} first.
+     * explicit {@link #data_energistics$withdraw(IGridNode)} first.
      *
      * @return whether node membership changed
      */
-    boolean publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime);
+    boolean data_energistics$publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime);
 
     /**
      * Withdraws the runtime published by the exact node identity.
      *
      * @return whether node membership changed
      */
-    boolean withdraw(IGridNode node);
+    boolean data_energistics$withdraw(IGridNode node);
 
     /** Creates isolated membership state for one crafting service instance. */
     static Local createLocal() {
@@ -61,7 +61,7 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
     private volatile List<TrinityDataCoreCraftingRuntime> snapshot = List.of();
 
     @Override
-    public synchronized boolean publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
+    public synchronized boolean data_energistics$publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
         if (this.registrations.containsKey(node)) {
             TrinityDataCoreCraftingRuntime current = this.registrations.get(node);
             if (current == runtime) {
@@ -82,7 +82,7 @@ final class TrinityCraftingRuntimeRegistryImpl implements TrinityCraftingRuntime
     }
 
     @Override
-    public synchronized boolean withdraw(IGridNode node) {
+    public synchronized boolean data_energistics$withdraw(IGridNode node) {
         if (!this.registrations.containsKey(node)) {
             return false;
         }

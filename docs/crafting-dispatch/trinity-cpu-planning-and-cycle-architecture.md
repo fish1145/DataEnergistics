@@ -3,7 +3,7 @@
 ## 1. 文档状态
 
 - 方案状态：已确定，按功能提交实施
-- 实现进度：网格图与规划入口、DAG/SCC/循环求解内核已经完成；运行时与界面轨道待实现
+- 实现进度：网格图、规划入口、DAG/SCC/循环求解、事件执行、动态借料和 schema 2 已完成；界面轨道待实现
 - 适用范围：Trinity CPU 专属计算计划、无环大数量计算、自增殖、多步增殖和多路线生产循环
 - 前置基础：派发架构 Phase 0 至 Phase 2
 - 非依赖项：派发架构 Phase 3 容量切片、Phase 4 Actor/Shard、Phase 5 Governor
@@ -291,8 +291,8 @@ RUNTIME_DEADLOCK
 
 1. 网格图、计划接口、规划入口和配置。**已实现**
 2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。**已实现**
-3. ready queue、seed 门、动态借料和 schema 2。
-4. Craft Amount 数量模式、确认页诊断和 Trinity-only 隔离。
+3. ready queue、seed 门、动态借料和 schema 2。**已实现**
+4. Craft Amount 数量模式、确认页诊断和 Trinity-only 过滤。
 5. 全量逻辑测试、GameTest、性能计数和重载验收。
 
 ### 11.1 已落地的基础边界
@@ -317,6 +317,17 @@ RUNTIME_DEADLOCK
 - 完整 stage/repeat 守恒校验、`NET_NEW`/`FINAL_TOTAL` 数量约束和 AE2 `long` 边界诊断；
 - 按 `plan`、`gateway`、`topology`、`dag`、`cycle`、`schedule` 职责组织的规划代码边界。
 
-计算内核完成后仍不直接包装 `CraftingService.beginCraftingCalculation`。现有玩家和机器请求继续使用 AE2，直到 schema 2
-执行器、seed/completion buffer 和动态借料所有权轨道可以完整消费 `TrinityCraftingPlan`，避免生成执行器无法安全消费的
-扩展计划。
+当前仍不直接包装 `CraftingService.beginCraftingCalculation`。schema 2 执行与所有权轨道已经具备消费
+`TrinityCraftingPlan` 的能力，下一步由数量页和确认页接入规划入口，并完成 Trinity-only 候选过滤与诊断展示。
+
+### 11.3 已落地的执行与所有权轨道
+
+第三步已经建立以下可独立验证的运行时能力：
+
+- 去重 ready queue、输入反向索引、provider retry 和动态输入指数退避；
+- counted provider 压缩批次，以及 generic provider 保持单次调用的兼容边界；
+- 循环工作库存、隔离 completion buffer、requester 异常重试和部分接收精确扣减；
+- 动态 variant 选择、服务器线程借料事务和 `RESERVED`/`COMMITTED`/`RELEASED` 守恒账本；
+- pattern signature 失效后的有界异步剩余量重规划，以及无可行方案时按 revision 等待；
+- 作业 schema 2 的阶段、repeat、seed、账本、封存输出和交付余量持久化，schema 1 普通作业继续恢复；
+- `TrinityPlanAdmission` 统一显式目标、自动选择、fallback 和直接 CPU 的计划接纳语义。

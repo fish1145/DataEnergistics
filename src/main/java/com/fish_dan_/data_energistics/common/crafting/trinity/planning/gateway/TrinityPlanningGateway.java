@@ -37,6 +37,14 @@ public interface TrinityPlanningGateway extends AutoCloseable {
                                 Supplier<Future<ICraftingPlan>> ae2Calculation);
 
     /**
+     * Submits a Trinity-only continuation such as remaining-work replanning through the same bounded pool.
+     *
+     * @param trinityCalculation immutable-snapshot calculation
+     * @return cooperative bounded future, including an explicit queue-full outcome
+     */
+    Future<TrinityPlanningAttempt> beginTrinity(Callable<TrinityPlanningAttempt> trinityCalculation);
+
+    /**
      * Stops gateway-owned planner workers and cooperatively interrupts queued calculations.
      */
     @Override

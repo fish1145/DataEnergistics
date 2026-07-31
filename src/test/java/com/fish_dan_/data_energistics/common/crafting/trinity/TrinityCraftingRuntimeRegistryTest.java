@@ -32,18 +32,18 @@ public final class TrinityCraftingRuntimeRegistryTest {
         IGridNode secondNode = new EqualGridNode(grid);
         TrinityDataCoreCraftingRuntime runtime = runtime();
 
-        assertTrue(this.registry.publish(firstNode, runtime));
-        assertTrue(this.registry.publish(secondNode, runtime));
+        assertTrue(this.registry.data_energistics$publish(firstNode, runtime));
+        assertTrue(this.registry.data_energistics$publish(secondNode, runtime));
 
         List<TrinityDataCoreCraftingRuntime> published = this.registry.snapshot();
         assertEquals(1, published.size());
         assertSame(runtime, published.getFirst());
         assertThrows(UnsupportedOperationException.class, () -> published.add(runtime()));
 
-        assertTrue(this.registry.withdraw(firstNode));
+        assertTrue(this.registry.data_energistics$withdraw(firstNode));
         assertEquals(List.of(runtime), this.registry.snapshot());
-        assertTrue(this.registry.withdraw(secondNode));
-        assertFalse(this.registry.withdraw(secondNode));
+        assertTrue(this.registry.data_energistics$withdraw(secondNode));
+        assertFalse(this.registry.data_energistics$withdraw(secondNode));
         assertTrue(this.registry.snapshot().isEmpty());
         assertEquals(List.of(runtime), published);
     }
@@ -55,19 +55,19 @@ public final class TrinityCraftingRuntimeRegistryTest {
         TrinityDataCoreCraftingRuntime firstRuntime = runtime();
         TrinityDataCoreCraftingRuntime replacementRuntime = runtime();
 
-        assertTrue(this.registry.publish(node, firstRuntime));
+        assertTrue(this.registry.data_energistics$publish(node, firstRuntime));
         List<TrinityDataCoreCraftingRuntime> published = this.registry.snapshot();
-        assertFalse(this.registry.publish(node, firstRuntime));
+        assertFalse(this.registry.data_energistics$publish(node, firstRuntime));
         assertSame(published, this.registry.snapshot());
 
         assertThrows(
                 IllegalStateException.class,
-                () -> this.registry.publish(node, replacementRuntime));
+                () -> this.registry.data_energistics$publish(node, replacementRuntime));
         assertSame(published, this.registry.snapshot());
         assertSame(firstRuntime, this.registry.snapshot().getFirst());
 
-        assertTrue(this.registry.withdraw(node));
-        assertTrue(this.registry.publish(node, replacementRuntime));
+        assertTrue(this.registry.data_energistics$withdraw(node));
+        assertTrue(this.registry.data_energistics$publish(node, replacementRuntime));
         assertSame(replacementRuntime, this.registry.snapshot().getFirst());
     }
 
@@ -76,9 +76,9 @@ public final class TrinityCraftingRuntimeRegistryTest {
         IGridNode node = new EqualGridNode(new StubGrid());
         TrinityDataCoreCraftingRuntime runtime = runtime();
 
-        assertThrows(NullPointerException.class, () -> this.registry.publish(node, null));
+        assertThrows(NullPointerException.class, () -> this.registry.data_energistics$publish(node, null));
         assertTrue(this.registry.snapshot().isEmpty());
-        assertTrue(this.registry.publish(node, runtime));
+        assertTrue(this.registry.data_energistics$publish(node, runtime));
         assertEquals(List.of(runtime), this.registry.snapshot());
     }
 
@@ -91,7 +91,7 @@ public final class TrinityCraftingRuntimeRegistryTest {
         TrinityDataCoreCraftingRuntime oldRuntime = runtime();
         TrinityDataCoreCraftingRuntime replacementRuntime = runtime();
         TrinityCraftingRuntimeRegistry.Local otherRegistry = TrinityCraftingRuntimeRegistry.createLocal();
-        this.registry.publish(oldNode, oldRuntime);
+        this.registry.data_energistics$publish(oldNode, oldRuntime);
         List<TrinityDataCoreCraftingRuntime> oldSnapshot = this.registry.snapshot();
 
         Map<IGridNode, TrinityDataCoreCraftingRuntime> replacementScan = new IdentityHashMap<>();
@@ -103,10 +103,10 @@ public final class TrinityCraftingRuntimeRegistryTest {
         assertEquals(List.of(replacementRuntime), reconciled);
         assertSame(reconciled, this.registry.snapshot());
         assertTrue(otherRegistry.snapshot().isEmpty());
-        assertFalse(this.registry.withdraw(oldNode));
-        this.registry.withdraw(firstReplacementNode);
+        assertFalse(this.registry.data_energistics$withdraw(oldNode));
+        this.registry.data_energistics$withdraw(firstReplacementNode);
         assertEquals(List.of(replacementRuntime), this.registry.snapshot());
-        this.registry.withdraw(secondReplacementNode);
+        this.registry.data_energistics$withdraw(secondReplacementNode);
         assertTrue(this.registry.snapshot().isEmpty());
     }
 
@@ -115,7 +115,7 @@ public final class TrinityCraftingRuntimeRegistryTest {
         IGridNode node = new EqualGridNode(new StubGrid());
         TrinityDataCoreCraftingRuntime staleRuntime = runtime();
         TrinityDataCoreCraftingRuntime repairedRuntime = runtime();
-        this.registry.publish(node, staleRuntime);
+        this.registry.data_energistics$publish(node, staleRuntime);
         List<TrinityDataCoreCraftingRuntime> staleSnapshot = this.registry.snapshot();
         Map<IGridNode, TrinityDataCoreCraftingRuntime> completeScan = new IdentityHashMap<>();
         completeScan.put(node, repairedRuntime);
@@ -125,11 +125,11 @@ public final class TrinityCraftingRuntimeRegistryTest {
         assertEquals(List.of(staleRuntime), staleSnapshot);
         assertEquals(List.of(repairedRuntime), repairedSnapshot);
         assertSame(repairedSnapshot, this.registry.snapshot());
-        assertFalse(this.registry.publish(node, repairedRuntime));
-        assertThrows(IllegalStateException.class, () -> this.registry.publish(node, staleRuntime));
+        assertFalse(this.registry.data_energistics$publish(node, repairedRuntime));
+        assertThrows(IllegalStateException.class, () -> this.registry.data_energistics$publish(node, staleRuntime));
         assertTrue(this.registry.reconcile(new IdentityHashMap<>()).isEmpty());
         assertTrue(this.registry.snapshot().isEmpty());
-        assertFalse(this.registry.withdraw(node));
+        assertFalse(this.registry.data_energistics$withdraw(node));
     }
 
     @Test
@@ -139,8 +139,8 @@ public final class TrinityCraftingRuntimeRegistryTest {
         IGridNode secondNode = new EqualGridNode(grid);
         TrinityDataCoreCraftingRuntime firstRuntime = runtime();
         TrinityDataCoreCraftingRuntime secondRuntime = runtime();
-        this.registry.publish(firstNode, firstRuntime);
-        this.registry.publish(secondNode, secondRuntime);
+        this.registry.data_energistics$publish(firstNode, firstRuntime);
+        this.registry.data_energistics$publish(secondNode, secondRuntime);
 
         Map<IGridNode, TrinityDataCoreCraftingRuntime> completeScan = new IdentityHashMap<>();
         completeScan.put(secondNode, secondRuntime);

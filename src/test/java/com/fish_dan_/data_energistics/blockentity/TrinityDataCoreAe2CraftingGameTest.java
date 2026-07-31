@@ -106,7 +106,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                     if (!(grid.getCraftingService() instanceof TrinityCraftingGraphAccess graphAccess)) {
                         throw new GameTestAssertException("AE2 crafting service does not expose the Trinity graph");
                     }
-                    TrinityCraftingGraphSnapshot snapshot = graphAccess.trinityCraftingGraphSnapshot().orElse(null);
+                    TrinityCraftingGraphSnapshot snapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot().orElse(null);
                     IPatternDetails decoded = core.decodedPattern(GRAPH_SNAPSHOT_PATTERN_SLOT);
                     if (snapshot == null || decoded == null || snapshot.patternsProducing(target).stream()
                             .noneMatch(pattern -> pattern.definition().equals(decoded.getDefinition()))) {
@@ -116,7 +116,7 @@ public final class TrinityDataCoreAe2CraftingGameTest {
                 })
                 .thenExecute(() -> {
                     TrinityCraftingGraphAccess graphAccess = (TrinityCraftingGraphAccess) fixture.grid().getCraftingService();
-                    TrinityCraftingGraphSnapshot snapshot = graphAccess.trinityCraftingGraphSnapshot().orElseThrow();
+                    TrinityCraftingGraphSnapshot snapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot().orElseThrow();
                     helper.assertTrue(snapshot.revision() >= 0L,
                             "Published Trinity graph must carry a non-negative provider revision");
                     helper.assertTrue(!snapshot.patternsProducing(target).isEmpty(),

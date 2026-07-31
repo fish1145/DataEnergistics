@@ -95,15 +95,18 @@ public final class TrinityDataCoreExecutingCraftingJobTest {
     }
 
     @Test
-    void jobSchemaAcceptsOnlyCurrentVersion() {
+    void jobSchemaAcceptsLegacyAndPlanVersions() {
         CompoundTag persistedJob = new CompoundTag();
-        assertFalse(TrinityDataCoreExecutingCraftingJob.hasCurrentSchema(persistedJob));
+        assertFalse(TrinityDataCoreExecutingCraftingJob.hasSupportedSchema(persistedJob));
 
-        persistedJob.putInt("schema_version", 2);
-        assertFalse(TrinityDataCoreExecutingCraftingJob.hasCurrentSchema(persistedJob));
+        persistedJob.putInt("schema_version", 3);
+        assertFalse(TrinityDataCoreExecutingCraftingJob.hasSupportedSchema(persistedJob));
 
         persistedJob.putInt("schema_version", 1);
-        assertTrue(TrinityDataCoreExecutingCraftingJob.hasCurrentSchema(persistedJob));
+        assertTrue(TrinityDataCoreExecutingCraftingJob.hasSupportedSchema(persistedJob));
+
+        persistedJob.putInt("schema_version", 2);
+        assertTrue(TrinityDataCoreExecutingCraftingJob.hasSupportedSchema(persistedJob));
     }
 
     private static CompoundTag definitionTag() {

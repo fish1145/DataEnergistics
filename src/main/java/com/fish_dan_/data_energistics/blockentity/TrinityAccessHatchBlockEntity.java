@@ -1026,7 +1026,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return withdrawUntrackedCraftingCpuPublicationAndNotify();
         }
 
-        boolean published = desired.registry().publish(desired.node(), desired.runtime());
+        boolean published = desired.registry().data_energistics$publish(desired.node(), desired.runtime());
         this.cpuPublication = desired;
         boolean notified = false;
         if (withdrawn != null && !withdrawn.hasSameNotificationTarget(desired)) {
@@ -1064,7 +1064,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return null;
         }
         this.cpuPublication = null;
-        return publication.registry().withdraw(publication.node()) ? publication : null;
+        return publication.registry().data_energistics$withdraw(publication.node()) ? publication : null;
     }
 
     private void withdrawCraftingCpuPublicationAndNotify() {
@@ -1083,7 +1083,7 @@ public class TrinityAccessHatchBlockEntity extends AENetworkedBlockEntity
             return false;
         }
         IGrid grid = node.getGrid();
-        if (grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry && registry.withdraw(node)) {
+        if (grid.getCraftingService() instanceof TrinityCraftingRuntimeRegistry registry && registry.data_energistics$withdraw(node)) {
             grid.postEvent(new GridCraftingCpuChange(node));
             return true;
         }

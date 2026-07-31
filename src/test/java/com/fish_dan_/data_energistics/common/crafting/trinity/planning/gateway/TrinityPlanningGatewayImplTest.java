@@ -241,6 +241,36 @@ public final class TrinityPlanningGatewayImplTest {
     }
 
     @Test
+    void submitsTrinityOnlyContinuationThroughSharedBoundedExecutor() throws Exception {
+        this.executor = Executors.newSingleThreadExecutor();
+        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(
+                this.executor,
+                TimeUnit.SECONDS.toNanos(1L),
+                false);
+        TrinityCraftingPlan plan = trinityPlan();
+
+        TrinityPlanningAttempt attempt = gateway.beginTrinity(
+                () -> TrinityPlanningAttempt.success(plan)).get(1L, TimeUnit.SECONDS);
+
+        assertTrue(attempt.successful());
+        assertSame(plan, attempt.plan());
+    }
+
+    @Test
+    void reportsQueueFullForRejectedTrinityOnlyContinuation() throws Exception {
+        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(
+                new RejectingExecutor(),
+                TimeUnit.SECONDS.toNanos(1L),
+                false);
+
+        TrinityPlanningAttempt attempt = gateway.beginTrinity(
+                () -> TrinityPlanningAttempt.success(trinityPlan())).get();
+
+        assertFalse(attempt.successful());
+        assertEquals(TrinityPlanningDiagnosticCode.PLANNER_QUEUE_FULL, attempt.diagnostic().code());
+    }
+
+    @Test
     void diagnosedPlanRejectsExecutableAe2Delegate() {
         TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.of(
                 TrinityPlanningDiagnosticCode.INTERNAL_ERROR,

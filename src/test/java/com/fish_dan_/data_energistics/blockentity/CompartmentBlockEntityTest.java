@@ -28,7 +28,6 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResol
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.State;
-import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Status;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidation.Structure;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureValidationImpl;
 import com.fish_dan_.data_energistics.common.trinity.TrinityStructureWorldViewFactory;
@@ -540,7 +539,7 @@ public final class CompartmentBlockEntityTest {
                     List<IPatternDetails> patternSnapshotBeforeStorage = host.getPatternCatalog().getAvailablePatterns();
                     long publicationBeforeStorage = host.getPatternCatalog().publicationRevision();
                     TrinityCraftingRuntimeRegistry registry = runtimeRegistry(grid);
-                    helper.assertTrue(!registry.publish(leaseNode, host.getCraftingRuntime()),
+                    helper.assertTrue(!registry.data_energistics$publish(leaseNode, host.getCraftingRuntime()),
                             "The CPU publication must exist before storage feedback");
                     long routeCountBeforeStorage = publishedRouteCount(grid, patternOutput, publishedRoute.get());
                     helper.assertValueEqual(routeCountBeforeStorage, 1L,
@@ -561,7 +560,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertValueEqual(availableAmount(grid, feedbackProbe), 0L,
                             "Extracted grid storage feedback must be immediately absent");
 
-                    helper.assertTrue(!registry.publish(leaseNode, host.getCraftingRuntime()),
+                    helper.assertTrue(!registry.data_energistics$publish(leaseNode, host.getCraftingRuntime()),
                             "Storage feedback must retain the exact CPU registry publication");
                     helper.assertValueEqual(
                             publishedCpuCount(grid, host.getCpuPartitions()),
@@ -767,14 +766,14 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(unloadedNode != null && unloadedGrid != null,
                             "The lease owner must have an initialized grid node");
                     TrinityCraftingRuntimeRegistry unloadedRegistry = runtimeRegistry(unloadedGrid);
-                    helper.assertTrue(!unloadedRegistry.publish(unloadedNode, host.getCraftingRuntime()),
+                    helper.assertTrue(!unloadedRegistry.data_energistics$publish(unloadedNode, host.getCraftingRuntime()),
                             "The lease owner runtime must be published before chunk unload");
                     helper.assertTrue(!unloadedOwner.terminalPartitions().isEmpty(),
                             "The lease owner must publish terminal partitions before chunk unload");
 
                     unloadedOwner.onChunkUnloaded();
 
-                    helper.assertTrue(!unloadedRegistry.withdraw(unloadedNode),
+                    helper.assertTrue(!unloadedRegistry.data_energistics$withdraw(unloadedNode),
                             "Chunk unload must withdraw the local CPU publication before returning");
                     helper.assertTrue(unloadedOwner.terminalPartitions().isEmpty(),
                             "Chunk unload must detach local terminal partitions before returning");
@@ -1066,7 +1065,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(host.isLeaseOwner(initialOwner),
                             "The first online hatch should receive the initial lease");
                     TrinityCraftingRuntimeRegistry ownerRegistry = runtimeRegistry(selectedGrid);
-                    helper.assertTrue(!ownerRegistry.publish(initializedOwnerNode, host.getCraftingRuntime()),
+                    helper.assertTrue(!ownerRegistry.data_energistics$publish(initializedOwnerNode, host.getCraftingRuntime()),
                             "The selected owner node must already publish its runtime synchronously");
                     List<TrinityDataCoreVirtualCpu> cpuPartitions = host.getCpuPartitions();
                     helper.assertValueEqual(
@@ -1109,7 +1108,7 @@ public final class CompartmentBlockEntityTest {
                     helper.assertTrue(!host.isLeaseOwner(competitor),
                             "The second online grid must remain outside the sticky lease");
                     TrinityCraftingRuntimeRegistry competitorRegistry = runtimeRegistry(otherGrid);
-                    helper.assertTrue(!competitorRegistry.withdraw(initializedCompetitorNode),
+                    helper.assertTrue(!competitorRegistry.data_energistics$withdraw(initializedCompetitorNode),
                             "A non-owning node must have no runtime publication");
                     helper.assertValueEqual(availableAmount(ownerGrid.get(), leaseProbe), 5L,
                             "Sticky owner grid should expose the host storage once");
@@ -1142,9 +1141,9 @@ public final class CompartmentBlockEntityTest {
                     competitor.refreshTrinityPatternPublication();
                     helper.assertTrue(host.isLeaseOwner(competitor),
                             "An idle host should switch after its owner grid goes offline");
-                    helper.assertTrue(!runtimeRegistry(ownerGrid.get()).withdraw(ownerNode.get()),
+                    helper.assertTrue(!runtimeRegistry(ownerGrid.get()).data_energistics$withdraw(ownerNode.get()),
                             "The old owner publication must be absent when lease reevaluation returns");
-                    helper.assertTrue(!runtimeRegistry(competitorGrid.get()).publish(
+                    helper.assertTrue(!runtimeRegistry(competitorGrid.get()).data_energistics$publish(
                             competitorNode.get(), host.getCraftingRuntime()),
                             "The replacement owner publication must exist when lease reevaluation returns");
                     helper.assertTrue(host.accessGrid() == competitorGrid.get(),

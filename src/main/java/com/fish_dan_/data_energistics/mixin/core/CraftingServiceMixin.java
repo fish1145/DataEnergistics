@@ -131,21 +131,21 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
     private long lastProcessedCraftingLogicChangeTick;
 
     @Override
-    public boolean publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
+    public boolean data_energistics$publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
         if (node.getGrid() != this.grid) {
             Data_Energistics.LOGGER.error("Cannot publish a Trinity crafting runtime through a different grid service");
             throw new IllegalArgumentException("The Trinity crafting node belongs to a different grid");
         }
-        return this.dataEnergistics$trinityCraftingRuntimeRegistry.publish(node, runtime);
+        return this.dataEnergistics$trinityCraftingRuntimeRegistry.data_energistics$publish(node, runtime);
     }
 
     @Override
-    public boolean withdraw(IGridNode node) {
-        return this.dataEnergistics$trinityCraftingRuntimeRegistry.withdraw(node);
+    public boolean data_energistics$withdraw(IGridNode node) {
+        return this.dataEnergistics$trinityCraftingRuntimeRegistry.data_energistics$withdraw(node);
     }
 
     @Override
-    public Optional<TrinityCraftingGraphSnapshot> trinityCraftingGraphSnapshot() {
+    public Optional<TrinityCraftingGraphSnapshot> data_energistics$trinityCraftingGraphSnapshot() {
         TrinityCraftingGraphRebuilder rebuilder = this.dataEnergistics$trinityCraftingGraphRebuilder;
         return rebuilder == null ? Optional.empty() : rebuilder.publishedSnapshot();
     }
@@ -161,7 +161,7 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Inject(method = "removeNode", at = @At("HEAD"))
     private void dataEnergistics$removeTrinityDataCoreCpuNode(IGridNode gridNode, CallbackInfo ci) {
-        boolean withdrawn = withdraw(gridNode);
+        boolean withdrawn = data_energistics$withdraw(gridNode);
         if (withdrawn || gridNode.getOwner() instanceof TrinityAccessHatchBlockEntity) {
             this.updateList = true;
         }
