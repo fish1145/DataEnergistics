@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.trinity;
 
-import com.fish_dan_.data_energistics.client.util.Ae2AmountFormatter;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCpuStatus;
 
@@ -370,7 +370,7 @@ public final class TrinityCpuStatusList extends BindableUIElement<TrinityCpuList
         }
         lines.add(Component.translatable(
                 "gui.tooltips.ae2.CpuStatusStorage",
-                Ae2AmountFormatter.formatByteAmount(cpu.storage()).text()).withStyle(ChatFormatting.GRAY));
+                TrinityAmountFormatter.format(cpu.storage())).withStyle(ChatFormatting.GRAY));
         if (cpu.mode() != CpuSelectionMode.ANY) {
             lines.add(modeText(cpu.mode()).copy().withStyle(ChatFormatting.GRAY));
         }

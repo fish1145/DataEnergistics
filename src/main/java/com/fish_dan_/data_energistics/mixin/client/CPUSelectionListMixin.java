@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.util.Ae2AmountFormatter;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
@@ -116,7 +116,7 @@ public abstract class CPUSelectionListMixin {
     private void dataEnergistics$formatTrinityCpuStorage(CraftingStatusMenu.CraftingCpuListEntry cpu,
                                                          CallbackInfoReturnable<String> cir) {
         if (dataEnergistics$isTrinityCpu(cpu)) {
-            cir.setReturnValue(Ae2AmountFormatter.formatByteAmount(cpu.storage()).text());
+            cir.setReturnValue(TrinityAmountFormatter.format(cpu.storage()));
         }
     }
 
@@ -132,7 +132,7 @@ public abstract class CPUSelectionListMixin {
                index = 0)
     private String dataEnergistics$formatTrinityCpuCoProcessors(String formattedAmount) {
         if (this.dataEnergistics$currentCpu != null && dataEnergistics$isTrinityCpu(this.dataEnergistics$currentCpu)) {
-            return Ae2AmountFormatter.formatAmount(this.dataEnergistics$currentCpu.coProcessors()).text();
+            return TrinityAmountFormatter.format(this.dataEnergistics$currentCpu.coProcessors());
         }
         return formattedAmount;
     }

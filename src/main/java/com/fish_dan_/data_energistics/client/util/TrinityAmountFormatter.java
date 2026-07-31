@@ -1,62 +1,134 @@
 package com.fish_dan_.data_energistics.client.util;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
+import java.util.Objects;
 
-/** Formats Trinity's arbitrary-precision storage amounts for compact UI display. */
+/**
+ * Formats Trinity and AE2 amounts with GregTech-MoreMachine's decimal compact-unit convention.
+ *
+ * <p>
+ * Values advance by powers of one thousand through the same extended unit sequence used by both maintained
+ * GregTech-MoreMachine branches. Values beyond {@code Att} use scientific notation, so arbitrary-precision Trinity
+ * capacities remain representable without falling back to AE2's binary byte units.
+ * </p>
+ */
 public final class TrinityAmountFormatter {
 
-    private static final BigInteger UNIT_BASE = BigInteger.valueOf(1_024L);
-    private static final String[] COMPACT_UNITS = { "", "K", "M", "G", "T", "P", "E" };
+    private static final BigInteger UNIT_BASE = BigInteger.valueOf(1_000L);
+    private static final String[] COMPACT_UNITS = {
+            "", "K", "M", "G", "T", "P", "E", "Z", "Y", "B", "N", "D", "C", "S", "O", "Q", "X", "W", "V",
+            "U", "Tt", "Gt", "Mt", "St", "Ot", "Nt", "Dt", "Ct", "Lt", "Kt", "Jt", "It", "Ht", "Gtt", "Ett",
+            "Dtt", "Ctt", "Btt", "Att"
+    };
     private static final BigInteger SCIENTIFIC_THRESHOLD = UNIT_BASE.pow(COMPACT_UNITS.length);
 
     private TrinityAmountFormatter() {}
 
     /**
-     * Uses binary compact units through exbibytes, then switches to four-significant-digit scientific notation.
+     * Parses and formats one signed decimal integer.
      *
      * @param value signed decimal integer, with surrounding whitespace permitted
      * @return compact display text
      */
     public static String format(String value) {
+        Objects.requireNonNull(value, "amount text must not be null");
         if (value.isBlank()) {
             return "0";
         }
-        BigInteger amount = new BigInteger(value.trim());
+        return format(new BigInteger(value.trim()));
+    }
+
+    /**
+     * Formats one signed {@code long} without converting through {@code double}.
+     *
+     * @param value amount to format
+     * @return compact display text
+     */
+    public static String format(long value) {
+        return format(BigInteger.valueOf(value));
+    }
+
+    /**
+     * Formats one arbitrary-precision signed integer.
+     *
+     * @param value amount to format
+     * @return compact display text
+     */
+    public static String format(BigInteger value) {
+        return formatParts(value).text();
+    }
+
+    /**
+     * Formats one {@code long} while keeping the numeric and unit portions separate for AE2 tooltip coloring.
+     *
+     * @param value amount to format
+     * @return separated numeric text and compact unit
+     */
+    public static FormattedAmount formatParts(long value) {
+        return formatParts(BigInteger.valueOf(value));
+    }
+
+    /**
+     * Formats one arbitrary-precision integer while keeping its suffix separate.
+     *
+     * @param value amount to format
+     * @return separated numeric text and compact unit
+     */
+    public static FormattedAmount formatParts(BigInteger value) {
+        BigInteger amount = Objects.requireNonNull(value, "amount must not be null");
         if (amount.signum() == 0) {
-            return "0";
+            return new FormattedAmount("0", "");
         }
 
         BigInteger absoluteAmount = amount.abs();
         if (absoluteAmount.compareTo(SCIENTIFIC_THRESHOLD) >= 0) {
-            return formatScientific(amount);
+            return new FormattedAmount(formatScientific(amount), "");
         }
 
-        BigInteger divisor = BigInteger.ONE;
-        int unitIndex = 0;
-        while (unitIndex < COMPACT_UNITS.length - 1 && absoluteAmount.compareTo(divisor.multiply(UNIT_BASE)) >= 0) {
-            divisor = divisor.multiply(UNIT_BASE);
-            unitIndex++;
+        int unitIndex = (absoluteAmount.toString().length() - 1) / 3;
+        BigDecimal scaledAmount = new BigDecimal(absoluteAmount).movePointLeft(unitIndex * 3);
+        String digits = compactFormat().format(scaledAmount);
+        if (amount.signum() < 0) {
+            digits = "-" + digits;
         }
-        if (unitIndex == 0) {
-            return amount.toString();
-        }
-
-        BigInteger whole = absoluteAmount.divide(divisor);
-        BigInteger fraction = absoluteAmount.remainder(divisor).multiply(BigInteger.TEN).divide(divisor);
-        String sign = amount.signum() < 0 ? "-" : "";
-        if (whole.compareTo(BigInteger.TEN) >= 0 || fraction.signum() == 0) {
-            return sign + whole + COMPACT_UNITS[unitIndex];
-        }
-        return sign + whole + "." + fraction + COMPACT_UNITS[unitIndex];
+        return new FormattedAmount(digits, COMPACT_UNITS[unitIndex]);
     }
 
     private static String formatScientific(BigInteger amount) {
-        DecimalFormat format = new DecimalFormat("0.###E0", DecimalFormatSymbols.getInstance(Locale.ROOT));
-        format.setRoundingMode(RoundingMode.HALF_UP);
+        DecimalFormat format = decimalFormat("0.00E00");
         return format.format(amount);
+    }
+
+    private static DecimalFormat compactFormat() {
+        return decimalFormat("#,##0.#");
+    }
+
+    private static DecimalFormat decimalFormat(String pattern) {
+        DecimalFormat format = new DecimalFormat(pattern, DecimalFormatSymbols.getInstance(Locale.ROOT));
+        format.setRoundingMode(RoundingMode.HALF_EVEN);
+        return format;
+    }
+
+    /**
+     * One compact value split so AE2 callers can retain their separate number and unit styles.
+     *
+     * @param digits formatted numeric portion, including a sign when negative
+     * @param unit   compact suffix, or an empty string for unscaled/scientific values
+     */
+    public record FormattedAmount(String digits, String unit) {
+
+        /**
+         * Joins the numeric portion and suffix for plain-text controls.
+         *
+         * @return complete formatted value
+         */
+        public String text() {
+            return this.digits + this.unit;
+        }
     }
 }
