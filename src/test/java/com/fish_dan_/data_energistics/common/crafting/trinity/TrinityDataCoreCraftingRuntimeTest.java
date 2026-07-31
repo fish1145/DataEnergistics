@@ -911,6 +911,111 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.succeed();
     }
 
+    @TestHolder("trinity_data_core_cpu_server_time_budget_stops_before_input_transaction")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuServerTimeBudgetStopsBeforeInputTransaction(GameTestHelper helper) {
+        CountedBatchFixture fixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT,
+                1);
+        AtomicLong nanoClock = new AtomicLong();
+        AtomicLong inputInventoryChanges = new AtomicLong();
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
+        fixture.cpu().logic().addListener(what -> {
+            if (what.equals(fixture.input())) {
+                inputInventoryChanges.incrementAndGet();
+            }
+        });
+        fixture.provider().setBusyCheckAction(() -> nanoClock.addAndGet(limits.maxServerSubmissionNanos()));
+        CraftingDispatchWindow window = new CraftingDispatchWindowImpl(limits, nanoClock::get);
+
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                window);
+
+        helper.assertValueEqual(fixture.provider().prepareCount(), 0,
+                "A busy check that consumes the time budget must stop before provider preparation");
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 0,
+                "A busy check that consumes the time budget must not reach a physical call");
+        helper.assertValueEqual(inputInventoryChanges.get(), 0L,
+                "Time exhaustion at the busy boundary must not modulate CPU input inventory");
+        helper.assertValueEqual(fixture.grid().energyService().modulatedExtractionCount(), 0,
+                "Time exhaustion at the busy boundary must not modulate grid energy");
+        assertUncommittedAdmissionState(helper, fixture, "Busy-boundary");
+        helper.assertTrue(
+                window.exhaustion() == CraftingDispatchExhaustion.SERVER_TIME_BUDGET,
+                "The busy-boundary window must expose server submission time exhaustion");
+        fixture.cpu().logic().cancel();
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_data_core_cpu_server_time_budget_stops_at_input_boundaries")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cpuServerTimeBudgetStopsAtInputBoundaries(GameTestHelper helper) {
+        CountedBatchFixture initialFixture = countedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT,
+                1);
+        AtomicLong initialClock = new AtomicLong();
+        AtomicLong initialInputChanges = new AtomicLong();
+        CraftingDispatchLimits limits = new CraftingDispatchLimits(4, 4, 100L);
+        initialFixture.cpu().logic().addListener(what -> {
+            if (what.equals(initialFixture.input()) && initialInputChanges.incrementAndGet() == 1L) {
+                initialClock.addAndGet(limits.maxServerSubmissionNanos());
+            }
+        });
+
+        initialFixture.cpu().tick(
+                initialFixture.grid().energyService(),
+                initialFixture.grid().craftingService(),
+                new CraftingDispatchWindowImpl(limits, initialClock::get));
+
+        helper.assertValueEqual(initialFixture.provider().prepareCount(), 0,
+                "Time exhaustion during initial input extraction must stop before provider preparation");
+        helper.assertValueEqual(initialFixture.provider().batchPushCount(), 0,
+                "Time exhaustion during initial input extraction must not reach a physical call");
+        helper.assertValueEqual(initialFixture.grid().energyService().modulatedExtractionCount(), 0,
+                "Time exhaustion during initial input extraction must stop before energy mutation");
+        assertUncommittedAdmissionState(helper, initialFixture, "Initial-input-boundary");
+
+        CountedBatchFixture additionalFixture = countedBatchFixture(
+                helper,
+                new BlockPos(3, 1, 1),
+                COUNTED_BATCH_SIZE,
+                BatchPushOutcome.ACCEPT,
+                1);
+        AtomicLong additionalClock = new AtomicLong();
+        AtomicLong additionalInputChanges = new AtomicLong();
+        additionalFixture.cpu().logic().addListener(what -> {
+            if (what.equals(additionalFixture.input()) && additionalInputChanges.incrementAndGet() == 2L) {
+                additionalClock.addAndGet(limits.maxServerSubmissionNanos());
+            }
+        });
+
+        additionalFixture.cpu().tick(
+                additionalFixture.grid().energyService(),
+                additionalFixture.grid().craftingService(),
+                new CraftingDispatchWindowImpl(limits, additionalClock::get));
+
+        helper.assertValueEqual(additionalFixture.provider().prepareCount(), 1,
+                "Additional-input boundary coverage must complete provider preparation");
+        helper.assertValueEqual(additionalFixture.provider().batchPushCount(), 0,
+                "Time exhaustion during additional input extraction must not reach a physical call");
+        helper.assertValueEqual(additionalFixture.grid().energyService().modulatedExtractionCount(), 0,
+                "Time exhaustion during additional input extraction must stop before energy mutation");
+        assertUncommittedAdmissionState(helper, additionalFixture, "Additional-input-boundary");
+        initialFixture.cpu().logic().cancel();
+        additionalFixture.cpu().logic().cancel();
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_cpu_multi_runtime_worker_rotation_avoids_phase_lock")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -2989,6 +3094,8 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         private Long invalidAdmissionCount;
         @Nullable
         private Runnable preparationAction;
+        @Nullable
+        private Runnable busyCheckAction;
         private boolean noCapacity;
         private int prepareCount;
         private int batchPushCount;
@@ -3017,6 +3124,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         private void setPreparationAction(@Nullable Runnable preparationAction) {
             this.preparationAction = preparationAction;
+        }
+
+        private void setBusyCheckAction(@Nullable Runnable busyCheckAction) {
+            this.busyCheckAction = busyCheckAction;
         }
 
         private void setNoCapacity(boolean noCapacity) {
@@ -3097,6 +3208,9 @@ public final class TrinityDataCoreCraftingRuntimeTest {
 
         @Override
         public boolean isBusy() {
+            if (this.busyCheckAction != null) {
+                this.busyCheckAction.run();
+            }
             return false;
         }
     }
