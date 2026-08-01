@@ -46,8 +46,8 @@ public final class EchoKeyTest {
     }
 
     @Test
-    void exposesOneUnitStorageAndOperationAccounting() {
-        assertEquals(1, EchoKeyType.TYPE.getAmountPerByte());
+    void exposesEightUnitsPerByteAndOneUnitPerOperationAccounting() {
+        assertEquals(8, EchoKeyType.TYPE.getAmountPerByte());
         assertEquals(1, EchoKeyType.TYPE.getAmountPerOperation());
     }
 

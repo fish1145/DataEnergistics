@@ -35,7 +35,7 @@ public final class EchoKeyType extends AEKeyType {
 
     @Override
     public int getAmountPerByte() {
-        return 1;
+        return 8;
     }
 
     @Override

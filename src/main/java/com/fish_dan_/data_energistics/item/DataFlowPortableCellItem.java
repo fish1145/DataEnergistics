@@ -1,18 +1,23 @@
 package com.fish_dan_.data_energistics.item;
 
+import com.fish_dan_.data_energistics.ae2.DataFlowCellTooltip;
 import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
+import com.fish_dan_.data_energistics.ae2.EchoKeyType;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 
 import appeng.api.config.Actionable;
@@ -20,17 +25,39 @@ import appeng.api.implementations.items.IAEItemPowerStorage;
 import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.CellState;
 import appeng.core.definitions.AEItems;
+import appeng.items.contents.CellConfig;
 import appeng.items.storage.StorageTier;
 import appeng.items.tools.powered.PortableCellItem;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.ItemMenuHostLocator;
 import appeng.menu.locator.MenuLocators;
+import appeng.util.ConfigInventory;
 import appeng.util.InteractionUtil;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 public class DataFlowPortableCellItem extends PortableCellItem {
 
     public DataFlowPortableCellItem(StorageTier tier, Item.Properties properties, int color) {
-        super(DataFlowKeyType.TYPE, 1, null, tier, properties.stacksTo(1), color);
+        super(DataFlowKeyType.TYPE, 2, null, tier, properties.stacksTo(1), color);
+    }
+
+    @Override
+    public ConfigInventory getConfigInventory(ItemStack stack) {
+        return CellConfig.create(Set.of(DataFlowKeyType.TYPE, EchoKeyType.TYPE), stack);
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> lines, TooltipFlag tooltipFlag) {
+        super.appendHoverText(stack, context, lines, tooltipFlag);
+        DataFlowCellTooltip.addCellInformation(stack, lines);
+    }
+
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        return DataFlowCellTooltip.getTooltipImage(stack);
     }
 
     @Override

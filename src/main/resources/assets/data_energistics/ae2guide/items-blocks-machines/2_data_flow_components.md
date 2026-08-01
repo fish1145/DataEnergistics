@@ -103,6 +103,8 @@ Data Flow Component Housing is used to encapsulate storage components into usabl
 
 After assembly, you can obtain Data Flow storage components of the corresponding grade.
 
+Each Data Flow cell stores both Data Flow and Echo. The two resources share one byte pool and both use 8 units per byte.
+
 <Column>
   <Row>
     <RecipeFor id="data_flow_cell_1k" />
@@ -114,7 +116,7 @@ After assembly, you can obtain Data Flow storage components of the corresponding
 </Column>
 
 Other storage components also follow the same formula
-When there is no Data Flow to hold, you can use Shift + right-click to disassemble
+When it holds neither Data Flow nor Echo, you can use Shift + right-click to disassemble
 
 ---
 
@@ -128,7 +130,7 @@ Other portable storage components also follow the same formula
   </Row>
 </Column>
 
-If there is no Data Flow to hold, you can right-click Shift + remove it  
+If it holds neither Data Flow nor Echo, you can Shift + right-click to disassemble it
 
 ---
 
@@ -147,4 +149,4 @@ Maximum energy = base capacity × (1 + 8 × number of energy cards)
   <Row>
     <ItemImage id="data_cell_infinity" />
   </Row>
-A component formed by an unknown force that can infinitely retrieve Data Flow and data; no one knows where it comes from or where it will go
+A component formed by an unknown force that can infinitely retrieve Data Flow, Data, and Echo; no one knows where it comes from or where it will go
