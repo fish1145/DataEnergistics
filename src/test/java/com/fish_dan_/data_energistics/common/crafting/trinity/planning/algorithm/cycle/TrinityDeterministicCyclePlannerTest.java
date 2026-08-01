@@ -104,6 +104,36 @@ public final class TrinityDeterministicCyclePlannerTest {
     }
 
     @Test
+    void keepsOrderDependentMultiStepShortageAsAnAe2Fallback() {
+        AEKey a = AEItemKey.of(Items.IRON_INGOT);
+        AEKey b = AEItemKey.of(Items.GOLD_INGOT);
+        TrinityPatternVariant aToB = variant(
+                "a-to-b",
+                amounts(a, BigInteger.ONE),
+                amounts(b, BigInteger.ONE));
+        TrinityPatternVariant aAndBToThreeA = variant(
+                "a-and-b-to-three-a",
+                amounts(a, BigInteger.ONE, b, BigInteger.ONE),
+                amounts(a, BigInteger.valueOf(3L)));
+
+        TrinityAlgorithmResult<TrinityCyclePlan> result = TrinityDeterministicCyclePlanner.create()
+                .plan(
+                        List.of(
+                                new TrinityVariantFiring(aToB, BigInteger.ONE),
+                                new TrinityVariantFiring(aAndBToThreeA, BigInteger.ONE)),
+                        a,
+                        BigInteger.ONE,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(a, BigInteger.ONE, b, BigInteger.ONE),
+                        16,
+                        unlimitedControl());
+
+        assertFalse(result.successful());
+        assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, result.diagnostic().code());
+        assertTrue(result.diagnostic().inputShortage().isEmpty());
+    }
+
+    @Test
     void includesExternalFuelAcrossEverySelfMultiplicationRepetition() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         AEKey fuel = AEItemKey.of(Items.COAL);
@@ -130,23 +160,36 @@ public final class TrinityDeterministicCyclePlannerTest {
         assertEquals(requiredFuel.negate(), plan.netChange().get(fuel));
         assertEquals(List.of(new TrinityVariantFiring(fuelled, request)), plan.schedule().batches());
 
-        TrinityAlgorithmResult<TrinityCyclePlan> shortage = TrinityDeterministicCyclePlanner.create()
+        BigInteger largeRequest = BigInteger.valueOf(1_256_000_000L);
+        BigInteger largeRequiredFuel = BigInteger.valueOf(8_792_000_000L);
+        BigInteger largeAvailableFuel = BigInteger.valueOf(2_147_483_821L);
+        TrinityDeterministicCyclePlanner shortagePlanner = new TrinityDeterministicCyclePlannerImpl(
+                (firings, initialBalances, maxStates, control) -> {
+                    throw new AssertionError("An exact input shortage must be resolved before scheduling");
+                });
+        TrinityAlgorithmResult<TrinityCyclePlan> shortage = shortagePlanner
                 .plan(
                         List.of(new TrinityVariantFiring(fuelled, BigInteger.ONE)),
                         a,
-                        request,
+                        largeRequest,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(a, BigInteger.ONE, fuel, BigInteger.valueOf(384L)),
+                        Map.of(a, BigInteger.ONE, fuel, largeAvailableFuel),
                         16,
                         unlimitedControl());
 
         assertFalse(shortage.successful());
         assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, shortage.diagnostic().code());
         assertEquals("net_consumed_external_input", shortage.diagnostic().metadata().get("input_role"));
-        assertEquals("700", shortage.diagnostic().metadata().get("required"));
-        assertEquals("384", shortage.diagnostic().metadata().get("available"));
-        assertEquals("316", shortage.diagnostic().metadata().get("missing"));
-        assertEquals("700", shortage.diagnostic().metadata().get("net_consumed"));
+        assertEquals("8792000000", shortage.diagnostic().metadata().get("required"));
+        assertEquals("2147483821", shortage.diagnostic().metadata().get("available"));
+        assertEquals("6644516179", shortage.diagnostic().metadata().get("missing"));
+        assertEquals("8792000000", shortage.diagnostic().metadata().get("net_consumed"));
+        assertEquals(fuel, shortage.diagnostic().inputShortage().orElseThrow().key());
+        assertEquals(largeRequiredFuel, shortage.diagnostic().inputShortage().orElseThrow().required());
+        assertEquals(largeAvailableFuel, shortage.diagnostic().inputShortage().orElseThrow().available());
+        assertEquals(
+                BigInteger.valueOf(6_644_516_179L),
+                shortage.diagnostic().inputShortage().orElseThrow().missing());
         assertEquals(
                 "gui.data_energistics.trinity_planning.missing_external_input",
                 assertInstanceOf(TranslatableContents.class, shortage.diagnostic().message().getContents()).getKey());

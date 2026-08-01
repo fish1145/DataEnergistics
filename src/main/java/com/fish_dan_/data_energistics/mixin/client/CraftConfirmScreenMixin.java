@@ -60,6 +60,13 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
             if (state.data_energistics$hasDiagnostic()) {
                 this.setTextContent("cpu_status", state.data_energistics$diagnostic());
             }
+        } else if (state.data_energistics$hasDiagnostic()) {
+            this.setTextContent(
+                    TEXT_ID_DIALOG_TITLE,
+                    Component.translatable(
+                            "gui.data_energistics.trinity_planning.diagnostic_title",
+                            quantityMode));
+            this.setTextContent("cpu_status", state.data_energistics$diagnostic());
         }
     }
 }

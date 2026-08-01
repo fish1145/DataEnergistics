@@ -11,6 +11,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 
 import net.minecraft.network.chat.Component;
 
+import appeng.api.stacks.GenericStack;
+
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -40,9 +42,9 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
                 request.settings(),
                 control);
         if (!result.successful()) {
-            TrinityPlanningDiagnostic diagnostic = result.diagnostic();
-            logFallback(request, diagnostic);
-            return TrinityPlanningAttempt.failure(diagnostic);
+            TrinityPlanningAttempt failedAttempt = failedAttempt(request, result.diagnostic());
+            logFallback(request, failedAttempt.diagnostic());
+            return failedAttempt;
         }
 
         TrinityCraftingPlan plan = result.value();
@@ -73,6 +75,24 @@ final class TrinityInitialPlanCalculationImpl implements TrinityInitialPlanCalcu
                 statistics.mipNanos(),
                 statistics.scheduleStates());
         return TrinityPlanningAttempt.success(plan);
+    }
+
+    private static TrinityPlanningAttempt failedAttempt(
+                                                        TrinityInitialPlanningRequest request,
+                                                        TrinityPlanningDiagnostic diagnostic) {
+        if (diagnostic.inputShortage().isEmpty()) {
+            return TrinityPlanningAttempt.failure(diagnostic);
+        }
+        try {
+            return TrinityPlanningAttempt.authoritativeSimulation(TrinityDiagnosedCraftingPlan.forInputShortage(
+                    new GenericStack(request.target(), request.requestedAmount().longValueExact()),
+                    diagnostic));
+        } catch (ArithmeticException exception) {
+            return TrinityPlanningAttempt.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
+                    Component.literal("The exact Trinity shortage exceeds an AE2 long boundary"),
+                    Map.of("reason", exception.getClass().getSimpleName())));
+        }
     }
 
     private static void logFallback(

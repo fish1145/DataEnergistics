@@ -199,7 +199,7 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             if (!this.trinity.isDone() && now < this.trinityDeadlineNanos) {
                 return false;
             }
-            if (this.trinity.isDone() && hasSuccessfulTrinityResult(this.trinity)) {
+            if (this.trinity.isDone() && hasPreferredTrinityResult(this.trinity)) {
                 return true;
             }
             return this.ae2.isDone();
@@ -242,6 +242,10 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
                 if (attempt.successful()) {
                     this.ae2.cancel(true);
                     return publish(attempt.plan());
+                }
+                if (attempt.authoritativeSimulation().isPresent()) {
+                    this.ae2.cancel(true);
+                    return publish(attempt.authoritativeSimulation().orElseThrow());
                 }
                 diagnostic = attempt.diagnostic();
             } catch (ExecutionException exception) {
@@ -337,11 +341,11 @@ final class TrinityPlanningGatewayImpl implements TrinityPlanningGateway {
             return this.result;
         }
 
-        private boolean hasSuccessfulTrinityResult(Future<CompletedPlanningAttempt> future) {
+        private boolean hasPreferredTrinityResult(Future<CompletedPlanningAttempt> future) {
             try {
                 CompletedPlanningAttempt completed = future.get();
                 return completed.completedNanos() <= this.trinityDeadlineNanos &&
-                        completed.attempt().successful();
+                        (completed.attempt().successful() || completed.attempt().authoritativeSimulation().isPresent());
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return false;

@@ -163,6 +163,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 | 专用第三方计划进入 Trinity | 未知扩展计划交回原路由，显式 Trinity 目标 fail fast |
 | 缺料等待造成忙轮询 | key 唤醒加最高 200 tick 退避 |
 | 大数量溢出 | 内部 `BigInteger`，AE2 边界精确转换 |
+| 单样板自环缺料后继续等待 AE2 大数量展开 | 发布 Trinity 权威诊断 simulation 并协作取消 AE2；多步顺序相关结果继续 fallback |
 
 ## 6. 验证矩阵
 
@@ -174,6 +175,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 - 多路线 SCC 和确定性 tie-break；
 - 非生产 SCC、无 seed、MIP 超时、SCC/variant/search 上限；
 - `NET_NEW` 与 `FINAL_TOTAL`；
+- 十亿级确定性循环缺料在 scheduler 前完成，组合 Future 不等待 AE2；
 - `long` 边界与溢出。
 
 ### 6.2 执行与守恒

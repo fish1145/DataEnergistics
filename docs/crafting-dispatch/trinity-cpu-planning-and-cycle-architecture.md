@@ -50,8 +50,9 @@ flowchart LR
 ```
 
 当存在在线、空闲的 Trinity CPU 时，Trinity 与 AE2 计算并行启动。Trinity 在配置预算内生成有效计划且存在容量匹配
-的 Trinity CPU 时优先；否则采用 AE2 结果。两者都失败时保留 AE2 的 simulation/missing 结果，并附加 Trinity
-诊断。
+的 Trinity CPU 时优先；否则采用 AE2 结果。若 Trinity 已对单 transition 自环精确证明循环输入不足，则立即发布常量
+空间的 Trinity diagnosis simulation 并取消 AE2，避免大数量请求继续进入 AE2 的逐量级计算；多步顺序相关缺料及
+不支持、超限、超时等非权威失败仍采用 AE2，AE2 返回 simulation 时保留其原始 missing 内容并附加 Trinity 诊断。
 
 ## 4. 网格级不可变样板图
 
@@ -91,7 +92,9 @@ provider、BlockEntity 或世界引用。
 - minimum seed、目标净增量和最终交付量；
 - 保守 `bytes()`、诊断与算法统计。
 
-`TrinityDiagnosedCraftingPlan` 委托原 AE2 simulation 结果并附加诊断，只用于 UI，不允许提交。
+`TrinityDiagnosedCraftingPlan` 只用于 UI，不允许提交：普通 fallback 原样委托 AE2 simulation；单 transition
+自环可精确证明输入不足时，则以常量空间投影 `available` 与 `missing` 计数，不再等待 AE2 大数量展开。多步循环的
+候选顺序不能单独构成不可行证明，仍保留 AE2 fallback。
 
 所有 Trinity 提交入口共享 `TrinityPlanAdmission` 接纳边界。AE2 原生 `CraftingPlan` 和显式实现
 `TrinityCpuExecutablePlan` 的扩展计划可执行；其它 `ICraftingPlan` 可能携带专用 CPU 的 host、seed、借用或排程语义，

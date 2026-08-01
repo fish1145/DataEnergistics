@@ -11,6 +11,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 
+import net.minecraft.network.chat.Component;
+
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -125,6 +127,68 @@ public final class TrinityPlanningGatewayImplTest {
         assertSame(simulation, diagnosed.delegate());
         assertSame(simulation.missingItems(), diagnosed.missingItems());
         assertEquals(TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE, diagnosed.diagnostic().code());
+    }
+
+    @Test
+    void publishesExactTrinityShortageWithoutWaitingForAe2() throws Exception {
+        ManualExecutor manualExecutor = new ManualExecutor();
+        this.executor = manualExecutor;
+        AtomicLong clock = new AtomicLong();
+        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(
+                manualExecutor,
+                5L,
+                false,
+                clock::get);
+        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                Component.literal("material shortage"),
+                Map.of(),
+                new TrinityPlanningDiagnostic.InputShortage(
+                        INPUT,
+                        BigInteger.valueOf(8_792_000_000L),
+                        BigInteger.valueOf(2_147_483_821L),
+                        BigInteger.valueOf(6_644_516_179L)));
+        TrinityDiagnosedCraftingPlan trinitySimulation = TrinityDiagnosedCraftingPlan.forInputShortage(
+                new GenericStack(TARGET, 1_256_000_000L),
+                diagnostic);
+        CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
+
+        Future<ICraftingPlan> selected = gateway.begin(
+                true,
+                () -> TrinityPlanningAttempt.authoritativeSimulation(trinitySimulation),
+                () -> ae2);
+        manualExecutor.runNext();
+
+        assertTrue(selected.isDone());
+        assertSame(trinitySimulation, selected.get());
+        assertTrue(ae2.isCancelled());
+    }
+
+    @Test
+    void unsupportedTrinityResultStillWaitsForAe2() throws Exception {
+        ManualExecutor manualExecutor = new ManualExecutor();
+        this.executor = manualExecutor;
+        AtomicLong clock = new AtomicLong();
+        TrinityPlanningGateway gateway = new TrinityPlanningGatewayImpl(
+                manualExecutor,
+                5L,
+                false,
+                clock::get);
+        TrinityPlanningDiagnostic diagnostic = TrinityPlanningDiagnostic.of(
+                TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
+                "unsupported by Trinity");
+        CompletableFuture<ICraftingPlan> ae2 = new CompletableFuture<>();
+        Future<ICraftingPlan> selected = gateway.begin(
+                true,
+                () -> TrinityPlanningAttempt.failure(diagnostic),
+                () -> ae2);
+        manualExecutor.runNext();
+
+        assertFalse(selected.isDone());
+        assertFalse(ae2.isCancelled());
+        ICraftingPlan ae2Plan = ae2Plan(false);
+        ae2.complete(ae2Plan);
+        assertSame(ae2Plan, selected.get());
     }
 
     @Test

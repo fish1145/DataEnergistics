@@ -49,10 +49,10 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         CycleBalance oneCycle = cycleBalance(oneCycleOrder);
         BigInteger targetEffect = oneCycle.netChange().getOrDefault(target, BigInteger.ZERO);
         if (targetEffect.signum() <= 0) {
-            return failure(
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
                     Component.literal("The deterministic Trinity cycle has no positive target effect"),
-                    Map.of("target_effect", targetEffect.toString()));
+                    Map.of("target_effect", targetEffect.toString())));
         }
 
         BigInteger requiredNet = quantityMode == CraftingQuantityMode.NET_NEW ?
@@ -64,6 +64,7 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         }
         Map<AEKey, BigInteger> minimumSeed = repeatedMinimumSeed(oneCycle, repetitions);
         Map<AEKey, BigInteger> netChange = multiply(oneCycle.netChange(), repetitions);
+        boolean authoritativeShortage = isSingleTransitionSelfCycle(oneCycleOrder, target);
         LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(minimumSeed);
         if (quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
             BigInteger targetContribution = requestedAmount
@@ -82,7 +83,8 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
                         input.getValue(),
                         availableAmount,
                         minimumSeed,
-                        netChange);
+                        netChange,
+                        authoritativeShortage);
             }
         }
 
@@ -187,13 +189,26 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         return division[1].signum() == 0 ? division[0] : division[0].add(BigInteger.ONE);
     }
 
+    private static boolean isSingleTransitionSelfCycle(
+                                                       List<TrinityVariantFiring> oneCycleOrder,
+                                                       AEKey target) {
+        if (oneCycleOrder.size() != 1) {
+            return false;
+        }
+        TrinityVariantFiring firing = oneCycleOrder.getFirst();
+        return firing.count().equals(BigInteger.ONE) &&
+                firing.variant().inputs().containsKey(target) &&
+                firing.variant().outputs().containsKey(target);
+    }
+
     private static <T> TrinityAlgorithmResult<T> insufficientInput(
                                                                    AEKey key,
                                                                    AEKey target,
                                                                    BigInteger required,
                                                                    BigInteger available,
                                                                    Map<AEKey, BigInteger> minimumSeed,
-                                                                   Map<AEKey, BigInteger> netChange) {
+                                                                   Map<AEKey, BigInteger> netChange,
+                                                                   boolean authoritativeShortage) {
         BigInteger missing = required.subtract(available);
         BigInteger netConsumed = netChange.getOrDefault(key, BigInteger.ZERO).negate().max(BigInteger.ZERO);
         InputRole role;
@@ -204,31 +219,30 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         } else {
             role = InputRole.CYCLE_WORKING_SEED;
         }
-        return failure(
-                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                Component.translatable(
-                        role.translationKey,
-                        key.getDisplayName(),
-                        required.toString(),
-                        available.toString(),
-                        missing.toString()),
-                Map.of(
-                        "key", key.toString(),
-                        "input_role", role.metadataValue,
-                        "required", required.toString(),
-                        "available", available.toString(),
-                        "missing", missing.toString(),
-                        "net_consumed", netConsumed.toString()));
-    }
-
-    private static <T> TrinityAlgorithmResult<T> failure(
-                                                         TrinityPlanningDiagnosticCode code,
-                                                         Component detail,
-                                                         Map<String, String> metadata) {
-        return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
-                code,
-                detail,
-                metadata));
+        Component message = Component.translatable(
+                role.translationKey,
+                key.getDisplayName(),
+                required.toString(),
+                available.toString(),
+                missing.toString());
+        Map<String, String> metadata = Map.of(
+                "key", key.toString(),
+                "input_role", role.metadataValue,
+                "required", required.toString(),
+                "available", available.toString(),
+                "missing", missing.toString(),
+                "net_consumed", netConsumed.toString());
+        TrinityPlanningDiagnostic diagnostic = authoritativeShortage ?
+                new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                        message,
+                        metadata,
+                        new TrinityPlanningDiagnostic.InputShortage(key, required, available, missing)) :
+                new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                        message,
+                        metadata);
+        return TrinityAlgorithmResult.failure(diagnostic);
     }
 
     private enum InputRole {

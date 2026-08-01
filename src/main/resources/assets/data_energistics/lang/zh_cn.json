@@ -611,6 +611,7 @@
 	"gui.data_energistics.trinity_planning.title": "Trinity · %s · %s B",
 	"gui.data_energistics.trinity_planning.dynamic_title": "Trinity · %s · 动态预估 · %s B",
 	"gui.data_energistics.trinity_planning.ae2_fallback_title": "AE2 回退估算 · %s · %s B",
+	"gui.data_energistics.trinity_planning.diagnostic_title": "Trinity 快速诊断 · %s",
 	"gui.data_energistics.trinity_planning.missing_target_cycle_seed": "循环种子缺 %4$s：%1$s（%3$s/%2$s）",
 	"gui.data_energistics.trinity_planning.missing_external_input": "材料缺 %4$s：%1$s（%3$s/%2$s）",
 	"gui.data_energistics.trinity_planning.missing_cycle_working_seed": "启动库存缺 %4$s：%1$s（%3$s/%2$s）",

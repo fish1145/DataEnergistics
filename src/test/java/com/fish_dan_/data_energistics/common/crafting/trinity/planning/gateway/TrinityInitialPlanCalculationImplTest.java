@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
@@ -13,6 +14,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.config.TrinityCraftingConfig;
+
+import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -25,6 +28,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class TrinityInitialPlanCalculationImplTest {
 
@@ -52,6 +56,40 @@ final class TrinityInitialPlanCalculationImplTest {
         assertEquals(TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU, attempt.diagnostic().code());
         assertEquals("11", attempt.diagnostic().metadata().get("planBytes"));
         assertEquals("10", attempt.diagnostic().metadata().get("maxTrinityBytes"));
+    }
+
+    @Test
+    void turnsExactCycleShortageIntoAStandaloneDiagnosticSimulation() {
+        BigInteger requested = BigInteger.valueOf(1_256_000_000L);
+        BigInteger required = BigInteger.valueOf(8_792_000_000L);
+        BigInteger available = BigInteger.valueOf(2_147_483_821L);
+        BigInteger missing = BigInteger.valueOf(6_644_516_179L);
+        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                Component.literal("material shortage"),
+                Map.of(),
+                new TrinityPlanningDiagnostic.InputShortage(INPUT, required, available, missing));
+        TrinityGraphPlanner planner = (snapshot, target, requestedAmount, quantityMode, inventory, settings, control) -> TrinityAlgorithmResult.failure(diagnostic);
+        TrinityInitialPlanningRequest request = TrinityInitialPlanningRequest.builder()
+                .requestId(8L)
+                .graph(new TrinityCraftingGraphSnapshot(20L, List.of()))
+                .target(TARGET)
+                .requestedAmount(requested)
+                .quantityMode(CraftingQuantityMode.NET_NEW)
+                .available(Map.of(INPUT, available))
+                .settings(TrinityCraftingConfig.Settings.defaults(4))
+                .maxTrinityBytes(Long.MAX_VALUE)
+                .build();
+
+        TrinityPlanningAttempt attempt = new TrinityInitialPlanCalculationImpl(planner).calculate(request);
+
+        assertFalse(attempt.successful());
+        TrinityDiagnosedCraftingPlan simulation = attempt.authoritativeSimulation().orElseThrow();
+        assertFalse(simulation.ae2FallbackEstimate());
+        assertTrue(simulation.simulation());
+        assertEquals(requested.longValueExact(), simulation.finalOutput().amount());
+        assertEquals(available.longValueExact(), simulation.usedItems().get(INPUT));
+        assertEquals(missing.longValueExact(), simulation.missingItems().get(INPUT));
     }
 
     private static TrinityCraftingPlan oversizedPlan() {

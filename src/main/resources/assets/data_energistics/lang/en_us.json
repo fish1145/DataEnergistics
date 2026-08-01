@@ -606,6 +606,7 @@
 	"gui.data_energistics.trinity_planning.title": "Trinity · %s · %s B",
 	"gui.data_energistics.trinity_planning.dynamic_title": "Trinity · %s · Dynamic estimate · %s B",
 	"gui.data_energistics.trinity_planning.ae2_fallback_title": "AE2 fallback · %s · %s B",
+	"gui.data_energistics.trinity_planning.diagnostic_title": "Trinity fast diagnostic · %s",
 	"gui.data_energistics.trinity_planning.missing_target_cycle_seed": "Cycle seed -%4$s: %1$s (%3$s/%2$s)",
 	"gui.data_energistics.trinity_planning.missing_external_input": "Material -%4$s: %1$s (%3$s/%2$s)",
 	"gui.data_energistics.trinity_planning.missing_cycle_working_seed": "Cycle stock -%4$s: %1$s (%3$s/%2$s)",

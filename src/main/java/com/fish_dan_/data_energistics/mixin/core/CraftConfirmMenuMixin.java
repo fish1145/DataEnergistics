@@ -103,7 +103,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         } else if (this.result instanceof TrinityDiagnosedCraftingPlan diagnosed) {
             this.dataEnergistics$hasDiagnostic = true;
             this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
-            this.dataEnergistics$ae2FallbackEstimate = true;
+            this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
         }
     }
 
