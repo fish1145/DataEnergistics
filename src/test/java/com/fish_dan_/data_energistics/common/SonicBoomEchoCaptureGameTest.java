@@ -94,12 +94,23 @@ public final class SonicBoomEchoCaptureGameTest {
                 .thenExecute(() -> {
                     helper.assertValueEqual(
                             capture.capture(level, warden, target, () -> 0.0D),
-                            2,
-                            "A successful independent roll for each physical formation plane must produce one Echo");
+                            10,
+                            "The first successful formation plane must produce ten Echo and stop the capture ray");
                     helper.assertValueEqual(
                             storedEcho(fixture.depot()),
-                            2L,
-                            "Both successful Echo rolls must enter the network depot");
+                            10L,
+                            "A successful capture must not reach the formation plane behind it");
+
+                    double[] rolls = { 0.75D, 0.0D };
+                    int[] rollIndex = { 0 };
+                    helper.assertValueEqual(
+                            capture.capture(level, warden, target, () -> rolls[rollIndex[0]++]),
+                            10,
+                            "A failed capture must allow the ray to reach the next formation plane");
+                    helper.assertValueEqual(
+                            storedEcho(fixture.depot()),
+                            20L,
+                            "The second formation plane must capture after the first plane fails its roll");
 
                     fillKeyStorage(fixture.depot());
                     long fullEchoAmount = storedEcho(fixture.depot());

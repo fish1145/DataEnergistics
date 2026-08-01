@@ -28,8 +28,9 @@ import appeng.api.storage.MEStorage;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.automation.FormationPlanePart;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.DoubleSupplier;
 
 /**
@@ -40,8 +41,8 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
 
     private static final double SONIC_EXTENSION_BEYOND_TARGET = 7.0D;
     private static final double INTERSECTION_EPSILON = 1.0E-7D;
-    private static final double ECHO_CAPTURE_CHANCE = 0.10D;
-    private static final long ECHO_PER_PLANE = 1L;
+    private static final double ECHO_CAPTURE_CHANCE = 0.70D;
+    private static final long ECHO_PER_PLANE = 10L;
 
     /**
      * Observes only direct Warden sonic damage. It deliberately leaves the event untouched so vanilla damage and
@@ -76,8 +77,7 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
             return 0;
         }
 
-        Set<FormationPlaneIdentity> visitedPlanes = new HashSet<>();
-        int insertedEcho = 0;
+        List<FormationPlaneCandidate> candidates = new ArrayList<>();
         int minimumChunkX = SectionPos.blockToSectionCoord(Mth.floor(Math.min(start.x, end.x)) - 1);
         int maximumChunkX = SectionPos.blockToSectionCoord(Mth.floor(Math.max(start.x, end.x)) + 1);
         int minimumChunkZ = SectionPos.blockToSectionCoord(Mth.floor(Math.min(start.z, end.z)) - 1);
@@ -91,12 +91,28 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
                 }
                 for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
                     if (blockEntity instanceof IPartHost partHost) {
-                        insertedEcho += captureFromHost(start, end, partHost, visitedPlanes, echoRollSupplier);
+                        collectCandidates(start, end, partHost, candidates);
                     }
                 }
             }
         }
-        return insertedEcho;
+
+        candidates.sort(Comparator.comparingDouble(FormationPlaneCandidate::distanceAlongPath));
+        for (FormationPlaneCandidate candidate : candidates) {
+            try {
+                if (insertEcho(candidate.formationPlane(), candidate.position(), candidate.side(), echoRollSupplier)) {
+                    return Math.toIntExact(ECHO_PER_PLANE);
+                }
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to capture Warden Echo at formation plane {} on face {}: {}",
+                        candidate.position(),
+                        candidate.side(),
+                        exception.getMessage(),
+                        exception);
+            }
+        }
+        return 0;
     }
 
     /**
@@ -125,7 +141,7 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
     }
 
     /**
-     * Applies the ten-percent chance that turns an eligible formation-plane crossing into one Echo.
+     * Applies the seventy-percent chance that turns an eligible formation-plane crossing into ten Echo.
      */
     static boolean shouldCaptureEcho(double roll) {
         return roll < ECHO_CAPTURE_CHANCE;
@@ -141,61 +157,67 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
      * @return true when the ray approaches and crosses the plane's front face
      */
     static boolean intersectsFrontFace(Vec3 start, Vec3 end, BlockPos pos, Direction side) {
+        return !Double.isNaN(frontFaceIntersectionDistance(start, end, pos, side));
+    }
+
+    private static double frontFaceIntersectionDistance(Vec3 start, Vec3 end, BlockPos pos, Direction side) {
         Vec3 delta = end.subtract(start);
         double normalTravel = delta.x * side.getStepX() + delta.y * side.getStepY() + delta.z * side.getStepZ();
         if (normalTravel >= -INTERSECTION_EPSILON) {
-            return false;
+            return Double.NaN;
         }
 
         Direction.Axis axis = side.getAxis();
         double axisTravel = component(delta, axis);
         if (Math.abs(axisTravel) <= INTERSECTION_EPSILON) {
-            return false;
+            return Double.NaN;
         }
 
         double planeCoordinate = coordinate(pos, axis) + (side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 1.0D : 0.0D);
         double distanceAlongSegment = (planeCoordinate - component(start, axis)) / axisTravel;
         if (distanceAlongSegment < -INTERSECTION_EPSILON || distanceAlongSegment > 1.0D + INTERSECTION_EPSILON) {
-            return false;
+            return Double.NaN;
         }
 
         Vec3 intersection = start.add(delta.scale(distanceAlongSegment));
-        return switch (axis) {
+        boolean withinFace = switch (axis) {
             case X -> withinBlockFace(intersection.y, pos.getY()) && withinBlockFace(intersection.z, pos.getZ());
             case Y -> withinBlockFace(intersection.x, pos.getX()) && withinBlockFace(intersection.z, pos.getZ());
             case Z -> withinBlockFace(intersection.x, pos.getX()) && withinBlockFace(intersection.y, pos.getY());
         };
+        return withinFace ? distanceAlongSegment : Double.NaN;
     }
 
-    private int captureFromHost(
-                                Vec3 start,
-                                Vec3 end,
-                                IPartHost partHost,
-                                Set<FormationPlaneIdentity> visitedPlanes,
-                                DoubleSupplier echoRollSupplier) {
+    private void collectCandidates(
+                                   Vec3 start,
+                                   Vec3 end,
+                                   IPartHost partHost,
+                                   List<FormationPlaneCandidate> candidates) {
         BlockPos position = partHost.getBlockEntity().getBlockPos();
-        int insertedEcho = 0;
         for (Direction side : Direction.values()) {
             try {
                 IPart part = partHost.getPart(side);
-                FormationPlaneIdentity identity = new FormationPlaneIdentity(position, side);
-                if (!(part instanceof FormationPlanePart formationPlane) || !intersectsFrontFace(start, end, position, side) || !visitedPlanes.add(identity)) {
+                if (!(part instanceof FormationPlanePart formationPlane)) {
                     continue;
                 }
 
-                if (insertEcho(formationPlane, position, side, echoRollSupplier)) {
-                    insertedEcho++;
+                double distanceAlongPath = frontFaceIntersectionDistance(start, end, position, side);
+                if (!Double.isNaN(distanceAlongPath)) {
+                    candidates.add(new FormationPlaneCandidate(
+                            position.immutable(),
+                            side,
+                            formationPlane,
+                            distanceAlongPath));
                 }
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
-                        "Failed to capture Warden Echo at formation plane {} on face {}: {}",
+                        "Failed to inspect Warden Echo formation plane {} on face {}: {}",
                         position,
                         side,
                         exception.getMessage(),
                         exception);
             }
         }
-        return insertedEcho;
     }
 
     private boolean insertEcho(
@@ -226,9 +248,10 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
         long inserted = storage.insert(EchoKey.of(), ECHO_PER_PLANE, Actionable.MODULATE, source);
         if (inserted != ECHO_PER_PLANE) {
             Data_Energistics.LOGGER.error(
-                    "Formation plane {} on face {} simulated one Echo but inserted {}",
+                    "Formation plane {} on face {} simulated {} Echo but inserted {}",
                     position,
                     side,
+                    ECHO_PER_PLANE,
                     inserted);
             return false;
         }
@@ -255,10 +278,9 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
         return coordinate >= minimum - INTERSECTION_EPSILON && coordinate <= minimum + 1.0D + INTERSECTION_EPSILON;
     }
 
-    private record FormationPlaneIdentity(BlockPos position, Direction side) {
-
-        private FormationPlaneIdentity {
-            position = position.immutable();
-        }
-    }
+    private record FormationPlaneCandidate(
+                                           BlockPos position,
+                                           Direction side,
+                                           FormationPlanePart formationPlane,
+                                           double distanceAlongPath) {}
 }
