@@ -159,6 +159,16 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 环外产物需求回传给 owner，不再作为普通 DAG firing 重复接管。串联 SCC 在上游库存不足时传播完整 seed 余额，混合路线则在
 统一状态上限内按稳定顺序回溯。该规则逐 SCC 应用，最终请求物无需位于循环内。
 
+### C-014：确认页重算与 CPU 过滤存在跨 tick 提交竞态
+
+AE2 开始新计算时服务端会清空 `result`，但客户端和服务端仍可能短暂保留上一份计划摘要；同时计划 Future 完成的当个
+`broadcastChanges` 中，CPU 列表会先于新 `result` 被重新过滤。玩家在这个窗口点击“开始”时，可能无声命中
+`result == null`，或使用尚未按 Trinity 计划重新筛选的 CPU 状态。
+
+修复：确认菜单同步一个计划就绪门。开始计算或重算时立即清除旧摘要并关闭门；只有服务端结果已存在，且下一轮 CPU
+资格过滤已经观察到该结果后才重新开放。按钮和 Enter 提交统一受门控制，提前到达服务端的手动提交返回
+`INCOMPLETE_PLAN`，AE2 auto-start 仍可在结果产生后直接提交。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -176,6 +186,7 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 | C-011 | 数量语义与初始规划入口 | 已完成 | 请求上下文、双轨入口、容量拒绝和确认页 CPU-family 过滤 |
 | C-012 | retry 时钟重基、durable revision、作业暂停 | 已完成 | 高 tick→低 tick 恢复、在途续接、真实菜单 toggle |
 | C-013 | 上游循环 final-balance 与 boundary-output 传播 | 已完成 | 完整/部分库存、串并联 SCC、多轴联合求解、环外输出与混合路线回溯 |
+| C-014 | 确认页计划就绪门 | 已完成 | 真实 `CraftConfirmMenu` 首次/二次广播、提前提交和重算提交 GameTest |
 
 ## 5. 风险与控制
 
@@ -226,13 +237,14 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 - Thunderbolt 风格 LoopCraftingPlan 在显式、自动和 fallback 路径均不被 Trinity 接管；
 - 玩家 `NET_NEW`/`FINAL_TOTAL` 上下文与机器 COMMON 默认模式；
 - 初始 Trinity 计划超过所有合格 CPU 容量时保留 AE2 结果；
+- 确认页计划完成与 CPU-family 过滤同步后才允许提交，重算期间旧摘要不可复用；
 - `test`、`runGameTestServer`、`build` 和 IDEA inspections。
 
 ## 7. 完成判定
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-013 均有直接行为测试或集成证据；
+1. C-001 至 C-014 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

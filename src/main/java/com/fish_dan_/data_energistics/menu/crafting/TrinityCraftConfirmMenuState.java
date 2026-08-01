@@ -20,6 +20,11 @@ public interface TrinityCraftConfirmMenuState {
     void data_energistics$setQuantityMode(CraftingQuantityMode quantityMode);
 
     /**
+     * @return whether the displayed plan and the server-side CPU eligibility pass belong to the same result
+     */
+    boolean data_energistics$isPlanReady();
+
+    /**
      * @return whether the executable result can run only on Trinity CPUs
      */
     boolean data_energistics$isTrinityOnly();

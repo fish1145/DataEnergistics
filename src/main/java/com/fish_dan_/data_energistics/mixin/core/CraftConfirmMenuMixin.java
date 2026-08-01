@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
@@ -19,10 +20,13 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 
+import appeng.api.networking.crafting.CalculationStrategy;
+import appeng.api.networking.crafting.CraftingSubmitErrorCode;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
+import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.locator.MenuHostLocator;
@@ -76,6 +80,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     public boolean dataEnergistics$ae2FallbackEstimate;
 
+    @GuiSync(797)
+    @Unique
+    public boolean dataEnergistics$planReady;
+
     protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
@@ -86,6 +94,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             return;
         }
 
+        this.dataEnergistics$planReady = this.result != null;
         this.dataEnergistics$trinityOnly = false;
         this.dataEnergistics$dynamicMaterialWarning = false;
         this.dataEnergistics$hasDiagnostic = false;
@@ -105,6 +114,46 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
         }
+    }
+
+    @Inject(method = "planJob", at = @At("HEAD"))
+    private void dataEnergistics$beginPlanning(AEKey what,
+                                               int amount,
+                                               CalculationStrategy strategy,
+                                               CallbackInfoReturnable<Boolean> cir) {
+        dataEnergistics$clearPlanReadiness();
+    }
+
+    @Inject(method = "replan", at = @At("HEAD"))
+    private void dataEnergistics$beginReplanning(CallbackInfo ci) {
+        dataEnergistics$clearPlanReadiness();
+    }
+
+    @Inject(method = "startJob", at = @At("HEAD"), cancellable = true)
+    private void dataEnergistics$rejectEarlyManualStart(CallbackInfo ci) {
+        CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
+        if (!this.isServerSide()) {
+            if (!this.dataEnergistics$planReady) {
+                ci.cancel();
+            }
+            return;
+        }
+        if (this.result != null && (this.dataEnergistics$planReady || self.isAutoStart())) {
+            return;
+        }
+        Data_Energistics.LOGGER.debug(
+                "Rejected an early crafting confirmation while its current plan was not ready; resultPresent={}, autoStart={}",
+                this.result != null,
+                self.isAutoStart());
+        self.submitError = new CraftConfirmMenu.SyncableSubmitResult(
+                CraftingSubmitResult.simpleError(CraftingSubmitErrorCode.INCOMPLETE_PLAN));
+        ci.cancel();
+    }
+
+    @Unique
+    private void dataEnergistics$clearPlanReadiness() {
+        this.dataEnergistics$planReady = false;
+        ((CraftConfirmMenu) (Object) this).setPlan(null);
     }
 
     @Inject(method = "cpuMatches", at = @At("HEAD"), cancellable = true, require = 1, remap = false)
@@ -178,6 +227,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public void data_energistics$setQuantityMode(CraftingQuantityMode quantityMode) {
         this.dataEnergistics$quantityMode = quantityMode.ordinal();
+    }
+
+    @Override
+    public boolean data_energistics$isPlanReady() {
+        return this.dataEnergistics$planReady;
     }
 
     @Override
