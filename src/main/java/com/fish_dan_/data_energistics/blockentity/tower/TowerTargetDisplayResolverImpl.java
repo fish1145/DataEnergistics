@@ -83,7 +83,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
             if (shouldHideFromBoundTargetDisplay(blockEntity)) {
                 continue;
             }
-            if (appendCableBusSummaries(results, blockEntity, pos, target.kind(), maxEntries)) {
+            if (appendCableBusSummaries(results, level, blockEntity, pos, target.kind(), maxEntries)) {
                 if (results.size() >= maxEntries) {
                     break;
                 }
@@ -145,7 +145,8 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         return isAeCraftingNoiseTarget(blockEntity);
     }
 
-    private boolean appendCableBusSummaries(List<BoundTargetSummary> results, @Nullable BlockEntity blockEntity, BlockPos pos,
+    private boolean appendCableBusSummaries(List<BoundTargetSummary> results, Level level,
+                                            @Nullable BlockEntity blockEntity, BlockPos pos,
                                             TargetKind kind, int maxEntries) {
         if (!(blockEntity instanceof CableBusBlockEntity cableBusBlockEntity)) {
             return false;
@@ -155,7 +156,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         boolean appended = false;
         IPart centerPart = cableBus.getPart(null);
         if (centerPart != null) {
-            appended = appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "");
+            appended = appendPartSummary(results, level, centerPart, pos, kind, maxEntries, null, "");
             if (results.size() >= maxEntries) {
                 return appended;
             }
@@ -172,7 +173,8 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         for (int i = 0; i < sideParts.size() && results.size() < maxEntries; i++) {
             CableBusDisplayPart sidePart = sideParts.get(i);
             String prefix = centerPart != null ? (i == sideParts.size() - 1 ? "└" : "├") : "";
-            if (appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix)) {
+            if (appendPartSummary(
+                    results, level, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix)) {
                 appended = true;
             }
         }
@@ -180,10 +182,9 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         return appended;
     }
 
-    private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind,
+    private boolean appendPartSummary(List<BoundTargetSummary> results, Level level, IPart part, BlockPos pos, TargetKind kind,
                                       int maxEntries, @Nullable Direction direction, String prefix) {
-        Level level = this.context.level();
-        if (part == null || level == null || results.size() >= maxEntries) {
+        if (results.size() >= maxEntries) {
             return false;
         }
 
@@ -210,7 +211,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
     }
 
     private String resolvePartDisplayName(IPart part, Item item, @Nullable Direction direction, String prefix) {
-        String directionSuffix = direction == null ? "" : " [" + formatDirection(direction) + "]";
+        String directionSuffix = direction == null ? "" : " [" + direction.getName() + "]";
         if (part instanceof Nameable nameable) {
             Component displayName = nameable.getDisplayName();
             String resolved = displayName.getString();
@@ -226,18 +227,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
             }
         }
 
-        return prefix + part.getClass().getSimpleName() + directionSuffix;
-    }
-
-    private String formatDirection(Direction direction) {
-        return switch (direction) {
-            case NORTH -> "北";
-            case SOUTH -> "南";
-            case WEST -> "西";
-            case EAST -> "东";
-            case UP -> "上";
-            case DOWN -> "下";
-        };
+        return prefix + Component.translatable("screen.data_energistics.data_distribution_tower.unknown_device").getString() + directionSuffix;
     }
 
     private List<DisplayTarget> collectDisplayTargets() {
@@ -400,7 +390,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
     @Nullable
     private BlockPos findAeCraftingClusterRepresentative(@Nullable BlockEntity blockEntity) {
         Level level = this.context.level();
-        if (!isAeCraftingClusterComponent(blockEntity) || level == null) {
+        if (blockEntity == null || !isAeCraftingClusterComponent(blockEntity) || level == null) {
             return null;
         }
 
@@ -485,7 +475,7 @@ public final class TowerTargetDisplayResolverImpl implements TowerTargetDisplayR
         return Integer.compare(a.getZ(), b.getZ());
     }
 
-    private record CableBusDisplayPart(IPart part, @Nullable Direction direction) {}
+    private record CableBusDisplayPart(IPart part, Direction direction) {}
 
     private record DisplayTarget(BlockPos pos, TargetKind kind) {}
 }

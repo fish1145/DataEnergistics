@@ -7,15 +7,15 @@ import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 
 /**
- * Calculates the shared channel budget exposed through all channel hubs on one AE grid.
+ * Calculates the total channel budget available to one tower network domain.
  */
-public interface ChannelHubCapacity {
+public interface TowerChannelCapacity {
 
     /**
      * Calculates the capacity from the current controller state, channel mode and controller geometry of a grid.
      *
-     * @param grid grid whose hubs share the resulting budget
-     * @return shared channel capacity
+     * @param grid physical primary grid whose budget is requested
+     * @return total channel capacity
      */
     int calculate(IGrid grid);
 
@@ -26,7 +26,7 @@ public interface ChannelHubCapacity {
      * @param controllerState     controller validation result
      * @param channelMode         active AE channel multiplier
      * @param controllerPositions controller block positions belonging to the same grid
-     * @return shared channel capacity
+     * @return total channel capacity
      */
     int calculate(ControllerState controllerState, ChannelMode channelMode, Iterable<BlockPos> controllerPositions);
 
@@ -38,7 +38,7 @@ public interface ChannelHubCapacity {
      * @param normalControllerPositions  ordinary controllers whose exposed faces provide channels
      * @param allControllerPositions     all ordinary and overloaded controller blocks used for adjacency checks
      * @param overloadedControllerSupply already-scaled sum supplied by overloaded controllers
-     * @return shared channel capacity
+     * @return total channel capacity
      */
     int calculateCombined(ControllerState controllerState,
                           ChannelMode channelMode,

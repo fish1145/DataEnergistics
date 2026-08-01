@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.block.CompartmentBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHostState;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentPart;
@@ -72,6 +75,7 @@ import appeng.api.config.PowerMultiplier;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
+import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -704,14 +708,28 @@ public final class CompartmentBlockEntityTest {
                     host.serverTick();
                     IGridNode towerNode = tower.getMainNode().getNode();
                     IGridNode hatchNode = hatch.getMainNode().getNode();
+                    IGrid towerGrid = towerNode.getGrid();
+                    TargetTransferInfo transferInfo = tower.getTargetTransferInfo(hatch.getBlockPos());
+                    int expectedChannels = hatchNode.hasFlag(GridFlags.REQUIRE_CHANNEL) ? 1 : 0;
                     helper.assertValueEqual(
-                            tower.getTargetTransferInfo(hatch.getBlockPos()).channelConnections(),
-                            1,
-                            "Tower must create one wireless connection to the ME access hatch");
-                    helper.assertTrue(towerNode.getGrid() == hatchNode.getGrid(),
-                            "Tower and ME access hatch must join the same compatible AE grid");
+                            transferInfo.requestedChannels(),
+                            expectedChannels,
+                            "The ME access hatch must request its exact virtual channel cost");
                     helper.assertValueEqual(
-                            availableAmount(towerNode.getGrid(), probe),
+                            transferInfo.channelConnections(),
+                            expectedChannels,
+                            "The ME access hatch must receive every requested virtual channel lease");
+                    helper.assertValueEqual(
+                            transferInfo.state(),
+                            TowerVirtualDeviceState.ALLOCATED,
+                            "The ME access hatch must be allocated through the virtual bridge");
+                    helper.assertTrue(towerGrid != hatchNode.getGrid(),
+                            "Tower and ME access hatch must retain distinct physical Grid identities");
+                    helper.assertTrue(
+                            ((VirtualGridBridge) towerGrid).containsIncomingVirtualMember(hatchNode),
+                            "The ME access hatch must be registered as a primary-grid virtual member");
+                    helper.assertValueEqual(
+                            availableAmount(towerGrid, probe),
                             11L,
                             "A terminal on the tower grid must see Trinity storage through the ME access hatch");
                 })

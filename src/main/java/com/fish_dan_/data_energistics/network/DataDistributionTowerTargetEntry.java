@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerDeviceKey;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -34,6 +36,8 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
      * Maximum character count accepted for one target display name.
      */
     public static final int MAX_DISPLAY_NAME_LENGTH = 1024;
+    /** Maximum diagnostic or device type text accepted from one payload entry. */
+    public static final int MAX_RUNTIME_TEXT_LENGTH = 1024;
 
     /**
      * Validates and freezes one structured target entry.
@@ -52,6 +56,12 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
         }
         if (transferInfo.storedFe() < 0L || transferInfo.capacityFe() < 0L) {
             throw new IllegalArgumentException("Target FE amounts must be non-negative: stored=" + transferInfo.storedFe() + ", capacity=" + transferInfo.capacityFe());
+        }
+        if (transferInfo.failure().length() > MAX_RUNTIME_TEXT_LENGTH) {
+            throw new IllegalArgumentException("Target failure text exceeds protocol limit");
+        }
+        if (transferInfo.deviceKey() != null && transferInfo.deviceKey().nodeType().length() > MAX_RUNTIME_TEXT_LENGTH) {
+            throw new IllegalArgumentException("Target device type exceeds protocol limit");
         }
     }
 
@@ -94,7 +104,13 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
                 buffer.readVarLong(),
                 buffer.readVarLong(),
                 buffer.readBoolean(),
-                buffer.readBoolean());
+                buffer.readBoolean(),
+                buffer.readVarInt(),
+                readEnum(buffer, TowerVirtualDeviceState.values(), "virtual device state"),
+                buffer.readUtf(MAX_RUNTIME_TEXT_LENGTH),
+                buffer.readResourceLocation(),
+                BlockPos.STREAM_CODEC.decode(buffer),
+                readDeviceKey(buffer));
         return new DataDistributionTowerTargetEntry(
                 itemId,
                 displayName,
@@ -126,6 +142,41 @@ public record DataDistributionTowerTargetEntry(ResourceLocation itemId,
         buffer.writeVarLong(this.transferInfo.capacityFe());
         buffer.writeBoolean(this.transferInfo.canExtractFe());
         buffer.writeBoolean(this.transferInfo.canReceiveFe());
+        buffer.writeVarInt(this.transferInfo.requestedChannels());
+        buffer.writeVarInt(this.transferInfo.state().ordinal());
+        buffer.writeUtf(this.transferInfo.failure(), MAX_RUNTIME_TEXT_LENGTH);
+        buffer.writeResourceLocation(this.transferInfo.bindingDimensionId());
+        BlockPos.STREAM_CODEC.encode(buffer, this.transferInfo.bindingAnchor());
+        writeDeviceKey(buffer, this.transferInfo.deviceKey());
+    }
+
+    /** Decodes the optional stable virtual-device identity carried by a row. */
+    private static TowerDeviceKey readDeviceKey(RegistryFriendlyByteBuf buffer) {
+        if (!buffer.readBoolean()) {
+            return null;
+        }
+        ResourceLocation dimensionId = buffer.readResourceLocation();
+        BlockPos position = buffer.readBoolean() ? BlockPos.STREAM_CODEC.decode(buffer) : null;
+        int side = buffer.readVarInt();
+        String nodeType = buffer.readUtf(MAX_RUNTIME_TEXT_LENGTH);
+        int occurrence = buffer.readVarInt();
+        return new TowerDeviceKey(dimensionId, position, side, nodeType, occurrence);
+    }
+
+    /** Encodes an optional stable virtual-device identity without reflection or owner serialization. */
+    private static void writeDeviceKey(RegistryFriendlyByteBuf buffer, TowerDeviceKey deviceKey) {
+        buffer.writeBoolean(deviceKey != null);
+        if (deviceKey == null) {
+            return;
+        }
+        buffer.writeResourceLocation(deviceKey.dimensionId());
+        buffer.writeBoolean(deviceKey.position() != null);
+        if (deviceKey.position() != null) {
+            BlockPos.STREAM_CODEC.encode(buffer, deviceKey.position());
+        }
+        buffer.writeVarInt(deviceKey.side());
+        buffer.writeUtf(deviceKey.nodeType(), MAX_RUNTIME_TEXT_LENGTH);
+        buffer.writeVarInt(deviceKey.occurrence());
     }
 
     /**

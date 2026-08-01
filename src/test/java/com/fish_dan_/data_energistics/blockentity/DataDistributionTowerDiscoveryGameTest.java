@@ -1,11 +1,16 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerBindingPersistenceImpl;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerNetworkDomain;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -35,7 +40,9 @@ import appeng.api.AECapabilities;
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
+import appeng.api.networking.GridFlags;
 import appeng.api.networking.GridHelper;
+import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IInWorldGridNodeHost;
@@ -62,7 +69,6 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos CONNECTED_REGULAR_CHARGER_POS = new BlockPos(16, 4, 25);
     private static final BlockPos CONNECTED_EXTENDED_CHARGER_POS = new BlockPos(18, 4, 25);
-    private static final BlockPos STANDALONE_PART_HOST_POS = new BlockPos(16, 4, 25);
     private static final BlockPos SANCTUM_MAIN_POS = new BlockPos(25, 4, 25);
     private static final Direction SANCTUM_FACING = Direction.NORTH;
     private static final long BUFFERED_TRANSFER_ENERGY = (long) Integer.MAX_VALUE + 4_096L;
@@ -215,54 +221,6 @@ public final class DataDistributionTowerDiscoveryGameTest {
                 .thenSucceed();
     }
 
-    @TestHolder("data_distribution_tower_connects_standalone_ae_parts")
-    @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50", timeoutTicks = 200)
-    public static void connectsStandaloneAeParts(GameTestHelper helper) {
-        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
-        CableBusBlockEntity partHost = placeCableBus(helper, STANDALONE_PART_HOST_POS);
-        IPart patternProvider = partHost.addPart(AEParts.PATTERN_PROVIDER.get(), Direction.NORTH, null);
-        IPart storageBus = partHost.addPart(AEParts.STORAGE_BUS.get(), Direction.SOUTH, null);
-        helper.assertTrue(patternProvider != null, "The standalone pattern provider must be installed");
-        helper.assertTrue(storageBus != null, "The standalone storage bus must be installed");
-        helper.assertTrue(partHost.getPart(null) == null, "The regression requires a host without a center cable");
-        GridPower power = new GridPower(helper);
-
-        helper.startSequence()
-                .thenWaitUntil(() -> {
-                    assertTowerNodeReady(helper, tower);
-                    helper.assertTrue(patternProvider.getGridNode() != null, "The pattern provider node must be ready");
-                    helper.assertTrue(storageBus.getGridNode() != null, "The storage bus node must be ready");
-                })
-                .thenExecute(() -> {
-                    power.connect(requireNode(tower));
-                    assertAeBindSuccess(helper, tower, partHost.getBlockPos(), "Standalone AE parts");
-                })
-                .thenWaitUntil(() -> {
-                    List<IGridNode> discovered = DataDistributionTowerBlockEntity.getConnectableNodes(
-                            helper.getLevel(), partHost.getBlockPos());
-                    helper.assertValueEqual(discovered.size(), 2, "Both standalone AE part nodes must be discovered");
-                    helper.assertTrue(
-                            discovered.stream().anyMatch(node -> node == patternProvider.getGridNode()),
-                            "The pattern provider node must be retained");
-                    helper.assertTrue(
-                            discovered.stream().anyMatch(node -> node == storageBus.getGridNode()),
-                            "The storage bus node must be retained");
-                    helper.assertValueEqual(
-                            tower.getTargetTransferInfo(partHost.getBlockPos()).channelConnections(),
-                            2,
-                            "The tower must connect every standalone AE part node");
-                    IGridNode towerNode = requireNode(tower);
-                    helper.assertTrue(
-                            patternProvider.getGridNode().getGrid() == towerNode.getGrid(),
-                            "The pattern provider must join the tower grid");
-                    helper.assertTrue(
-                            storageBus.getGridNode().getGrid() == towerNode.getGrid(),
-                            "The storage bus must join the tower grid");
-                })
-                .thenSucceed();
-    }
-
     @TestHolder("data_distribution_tower_preserves_ae_part_external_node")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 100)
@@ -282,9 +240,13 @@ public final class DataDistributionTowerDiscoveryGameTest {
 
                     List<IGridNode> discovered = DataDistributionTowerBlockEntity.getConnectableNodes(
                             helper.getLevel(), partHost.getBlockPos());
-                    helper.assertValueEqual(discovered.size(), 2, "Both quartz fiber nodes must be discovered");
-                    helper.assertTrue(discovered.get(0) == internalNode, "The internal node must retain first priority");
-                    helper.assertTrue(discovered.get(1) == externalNode, "The external node must remain connectable");
+                    helper.assertValueEqual(
+                            discovered.size(), 1,
+                            "Only the quartz fiber node exposed through the six-face Capability may be discovered");
+                    helper.assertTrue(discovered.getFirst() == externalNode, "The exposed external node must remain connectable");
+                    helper.assertTrue(
+                            !discovered.contains(internalNode),
+                            "Capability-only discovery must not traverse the multipart host for its internal node");
                 })
                 .thenSucceed();
     }
@@ -332,11 +294,20 @@ public final class DataDistributionTowerDiscoveryGameTest {
                     List<BoundTargetSummary> summaries = tower.getBoundTargetSummaries(Integer.MAX_VALUE);
 
                     helper.assertValueEqual(
-                            summaries.size(), 1, "All parts of one sanctum must produce one GUI target");
-                    helper.assertValueEqual(
-                            summaries.getFirst().pos(),
-                            networkPort,
-                            "The sanctum GUI target must use the canonical network port position");
+                            summaries.size(),
+                            2,
+                            "The sanctum main node and network-port node must produce independent device rows");
+                    helper.assertTrue(
+                            summaries.stream().allMatch(summary -> summary.pos().equals(sanctum.getBlockPos())),
+                            "Every positioned sanctum device must use its owning block entity position");
+                    helper.assertTrue(
+                            summaries.stream().allMatch(summary -> summary.transferInfo()
+                                    .bindingAnchor()
+                                    .equals(networkPort)),
+                            "Every device payload must retain the canonical network port as its binding anchor");
+                    helper.assertTrue(
+                            summaries.stream().map(summary -> summary.transferInfo().deviceKey()).distinct().count() == 2,
+                            "The two sanctum nodes must retain distinct stable device keys");
                 })
                 .thenSucceed();
     }
@@ -395,9 +366,12 @@ public final class DataDistributionTowerDiscoveryGameTest {
 
         helper.assertFalse(level.hasChunkAt(unloadedTarget), "Saving the tower must not load a linked target chunk");
         helper.assertValueEqual(
-                savedData.getList("linked_positions", Tag.TAG_COMPOUND).size(),
+                savedData.getList(TowerBindingPersistenceImpl.BINDINGS_TAG, Tag.TAG_COMPOUND).size(),
                 1,
-                "Saving must retain the unloaded linked target");
+                "Saving must retain the unloaded target in the versioned binding list");
+        helper.assertFalse(
+                savedData.contains(TowerBindingPersistenceImpl.LEGACY_LINKED_POSITIONS_TAG),
+                "Saving must remove the migrated legacy linked-position list");
         helper.succeed();
     }
 
@@ -525,7 +499,7 @@ public final class DataDistributionTowerDiscoveryGameTest {
                                             BlockPos targetPos,
                                             String description) {
         ConnectorBindResult result = tower.bindTargetFromConnector(targetPos);
-        helper.assertTrue(result.success(), description + " must bind to the real tower");
+        helper.assertTrue(result.success(), description + " must bind to the real tower: " + result.failure());
         helper.assertTrue(result.aeSupported(), description + " binding must discover an AE target");
     }
 
@@ -536,17 +510,45 @@ public final class DataDistributionTowerDiscoveryGameTest {
                                               IGridNode targetNode,
                                               String description) {
         IGridNode towerNode = requireNode(tower);
+        TargetTransferInfo transferInfo = tower.getTargetTransferInfo(targetPos);
+        List<IGridNode> targetNodes = targetNode.getGrid().getService(TowerNetworkDomain.class).localNodes();
+        int expectedChannels = Math.toIntExact(targetNodes
+                .stream()
+                .filter(node -> node.hasFlag(GridFlags.REQUIRE_CHANNEL))
+                .count());
         helper.assertValueEqual(
-                tower.getTargetTransferInfo(targetPos).channelConnections(),
-                1,
-                description + " must have exactly one identity-deduplicated wireless connection");
+                transferInfo.requestedChannels(),
+                expectedChannels,
+                description + " must request exactly its per-device virtual channel cost");
+        helper.assertValueEqual(
+                transferInfo.channelConnections(),
+                expectedChannels,
+                description + " must receive every requested virtual channel lease");
+        helper.assertValueEqual(
+                transferInfo.state(),
+                TowerVirtualDeviceState.ALLOCATED,
+                description + " must be allocated through the virtual bridge");
         helper.assertTrue(towerNode.getGrid() != null, "The powered tower must belong to an AE grid");
-        helper.assertTrue(targetNode.getGrid() == towerNode.getGrid(), description + " must join the tower's real AE grid");
+        helper.assertTrue(
+                targetNode.getGrid() != towerNode.getGrid(),
+                description + " must retain a distinct subordinate Grid identity");
+        VirtualGridBridge primaryBridge = (VirtualGridBridge) towerNode.getGrid();
+        helper.assertTrue(
+                targetNodes.stream().allMatch(primaryBridge::containsIncomingVirtualMember),
+                description + " must register every allocated subordinate node as a primary-grid virtual member");
+        for (IGridConnection connection : towerNode.getConnections()) {
+            helper.assertTrue(
+                    connection.getOtherSide(towerNode) != targetNode,
+                    description + " must not create a physical tower-to-target IGridConnection");
+        }
 
         long matchingRows = tower.getBoundTargetSummaries(Integer.MAX_VALUE).stream()
-                .filter(summary -> summary.pos().equals(targetPos))
+                .filter(summary -> summary.transferInfo().bindingAnchor().equals(targetPos))
                 .count();
-        helper.assertValueEqual(matchingRows, 1L, description + " must appear exactly once in the GUI");
+        helper.assertValueEqual(
+                matchingRows,
+                (long) targetNodes.size(),
+                description + " must expose one GUI row per subordinate device");
     }
 
     private static IGridNode requireNode(DataDistributionTowerBlockEntity tower) {

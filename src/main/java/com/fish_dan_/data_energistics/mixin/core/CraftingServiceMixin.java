@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.TrinityAccessHatchBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.TrinityCraftingRuntimeRegistry;
@@ -95,7 +96,7 @@ public abstract class CraftingServiceMixin implements TrinityCraftingRuntimeRegi
 
     @Override
     public boolean publish(IGridNode node, TrinityDataCoreCraftingRuntime runtime) {
-        if (node.getGrid() != this.grid) {
+        if (node.getGrid() != this.grid && !((VirtualGridBridge) this.grid).containsIncomingVirtualMember(node)) {
             Data_Energistics.LOGGER.error("Cannot publish a Trinity crafting runtime through a different grid service");
             throw new IllegalArgumentException("The Trinity crafting node belongs to a different grid");
         }
