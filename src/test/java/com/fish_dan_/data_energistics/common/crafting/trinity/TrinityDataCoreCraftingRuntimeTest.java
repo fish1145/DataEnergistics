@@ -213,6 +213,66 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.runAfterDelay(1L, () -> runSecondCompactBatch(helper, fixture, oneAttempt));
     }
 
+    @TestHolder("trinity_data_core_compact_plan_resumes_after_host_nbt_reload")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void compactPlanResumesAfterHostNbtReload(GameTestHelper helper) {
+        CountedBatchFixture fixture = trinityCountedBatchFixture(
+                helper,
+                new BlockPos(1, 1, 1),
+                2L,
+                1L);
+        CraftingDispatchLimits oneAttempt = new CraftingDispatchLimits(1, 1, Long.MAX_VALUE);
+        fixture.cpu().tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "The source worker must transfer exactly one firing before reload");
+
+        CompoundTag saved = new CompoundTag();
+        fixture.host().saveAdditional(saved, helper.getLevel().registryAccess());
+        NetworkedTestHost restoredHost = new NetworkedTestHost(
+                helper.absolutePos(new BlockPos(3, 1, 1)),
+                fixture.grid());
+        restoredHost.setLevel(helper.getLevel());
+        restoredHost.loadTag(saved, helper.getLevel().registryAccess());
+        TrinityDataCoreVirtualCpu restoredCpu = singleBusyWorker(restoredHost.getCraftingRuntime());
+
+        helper.assertValueEqual(
+                restoredCpu.insert(fixture.output(), 1L, Actionable.MODULATE),
+                1L,
+                "The restored worker must accept the pre-reload in-flight output");
+        restoredCpu.setJobSuspended(true);
+        restoredCpu.tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 1,
+                "A suspended restored worker must not dispatch new provider work");
+        restoredCpu.setJobSuspended(false);
+        restoredCpu.tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+        helper.assertValueEqual(fixture.provider().batchPushCount(), 2,
+                "Reload must continue with only the undispatched firing");
+        helper.assertValueEqual(
+                restoredCpu.insert(fixture.output(), 1L, Actionable.MODULATE),
+                1L,
+                "The restored worker must accept the final output once");
+        restoredCpu.tick(
+                fixture.grid().energyService(),
+                fixture.grid().craftingService(),
+                CraftingDispatchWindow.create(oneAttempt));
+
+        helper.assertFalse(restoredCpu.isBusy(), "The restored compact plan must complete normally");
+        helper.assertValueEqual(fixture.grid().storage().getStored(fixture.output()), 2L,
+                "Reloaded execution must settle the requested output exactly once");
+        fixture.cpu().cancelJob();
+        helper.succeed();
+    }
+
     @TestHolder("trinity_data_core_compact_self_cycle_uses_geometric_batches")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -2037,6 +2097,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     @GameTest(template = "empty_5x5")
     public static void hostRootNbtRoundTripsActiveJob(GameTestHelper helper) {
         BusyRuntimeFixture fixture = busyRuntime(helper, new BlockPos(1, 1, 1));
+        fixture.cpu().setJobSuspended(true);
         UUID storageId = fixture.host().getStorageId();
         UUID hostId = fixture.host().getHostId();
         helper.assertTrue(fixture.runtime().hasBusyJobs(), "Source host should own an active CPU job before saving");
@@ -2057,6 +2118,10 @@ public final class TrinityDataCoreCraftingRuntimeTest {
                 "Root NBT should restore reserved CPU 0 and the active worker");
         helper.assertTrue(restored.getCraftingRuntime().hasBusyJobs(), "Root NBT should restore the active CPU job");
         helper.assertTrue(restored.getCpuPartitions().get(1).isBusy(), "Restored worker should own the active job");
+        helper.assertTrue(
+                restored.getCpuPartitions().get(1).isJobSuspended(),
+                "Root NBT should preserve the worker scheduling pause");
+        restored.getCpuPartitions().get(1).setJobSuspended(false);
 
         fixture.runtime().cancelAllJobs();
         restored.getCraftingRuntime().cancelAllJobs();
@@ -2430,6 +2495,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(result.successful(), "Counted batch fixture must submit its complete crafting plan");
         return new CountedBatchFixture(
                 grid,
+                host,
                 singleBusyWorker(host.getCraftingRuntime()),
                 provider,
                 input,
@@ -2478,6 +2544,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         }
         return new CountedBatchFixture(
                 grid,
+                host,
                 singleBusyWorker(host.getCraftingRuntime()),
                 provider,
                 input,
@@ -2507,6 +2574,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
         helper.assertTrue(result.successful(), "The compact self-cycle fixture must reserve its initial seed");
         return new CountedBatchFixture(
                 grid,
+                host,
                 singleBusyWorker(host.getCraftingRuntime()),
                 provider,
                 key,
@@ -3873,6 +3941,7 @@ public final class TrinityDataCoreCraftingRuntimeTest {
     }
 
     private record CountedBatchFixture(TestGrid grid,
+                                       NetworkedTestHost host,
                                        TrinityDataCoreVirtualCpu cpu,
                                        RecordingBatchCraftingProvider provider,
                                        AEItemKey input,

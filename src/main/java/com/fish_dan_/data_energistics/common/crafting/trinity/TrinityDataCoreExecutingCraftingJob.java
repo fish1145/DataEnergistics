@@ -64,6 +64,7 @@ final class TrinityDataCoreExecutingCraftingJob {
     private static final String TRINITY_TASK_KIND = "trinity";
     private static final String ROUTE_TAG = "route";
     private static final String PLAN_EXECUTION_TAG = "plan_execution";
+    private static final String SUSPENDED_TAG = "suspended";
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
@@ -74,6 +75,7 @@ final class TrinityDataCoreExecutingCraftingJob {
     private final TrinityPlanExecution planExecution;
     GenericStack finalOutput;
     long remainingAmount;
+    boolean suspended;
     @Nullable
     Integer playerId;
 
@@ -131,6 +133,7 @@ final class TrinityDataCoreExecutingCraftingJob {
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
+        this.suspended = data.getBoolean(SUSPENDED_TAG);
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(WAITING_FOR_TAG, Tag.TAG_COMPOUND), registries);
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
@@ -199,10 +202,13 @@ final class TrinityDataCoreExecutingCraftingJob {
             }
             data.put(TASKS_TAG, taskList);
         } else {
-            data.put(PLAN_EXECUTION_TAG, this.planExecution.save(registries));
+            data.put(
+                    PLAN_EXECUTION_TAG,
+                    this.planExecution.save(registries, TickHandler.instance().getCurrentTick()));
         }
 
         data.putLong(REMAINING_AMOUNT_TAG, this.remainingAmount);
+        data.putBoolean(SUSPENDED_TAG, this.suspended);
         if (this.playerId != null) {
             data.putInt(PLAYER_ID_TAG, this.playerId);
         }

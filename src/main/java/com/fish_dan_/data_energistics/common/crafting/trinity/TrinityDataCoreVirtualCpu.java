@@ -319,6 +319,24 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         }
     }
 
+    /**
+     * @return whether this worker's active job is suspended from new scheduling
+     */
+    public boolean isJobSuspended() {
+        return this.logic.isJobSuspended();
+    }
+
+    /**
+     * Applies the AE2 CPU scheduling control to this worker's active job.
+     *
+     * @param suspended requested scheduling state
+     */
+    public void setJobSuspended(boolean suspended) {
+        if (number() != 0) {
+            this.logic.setJobSuspended(suspended);
+        }
+    }
+
     @Override
     public long getAvailableStorage() {
         return this.profile.storageBytes();

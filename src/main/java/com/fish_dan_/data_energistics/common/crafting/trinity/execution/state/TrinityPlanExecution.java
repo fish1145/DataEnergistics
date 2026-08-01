@@ -290,10 +290,23 @@ public interface TrinityPlanExecution {
     long deliveryRemaining();
 
     /**
-     * Encodes schema 2 durable state without serializing transient queues or indexes.
+     * Returns a transient counter that changes whenever durable execution state changes.
      *
-     * @param registries server registry lookup used by AE key codecs
+     * <p>
+     * The counter is not persisted; callers use it only to decide whether the owning block entity must be marked
+     * dirty after a state-machine step.
+     * </p>
+     *
+     * @return current durable-state revision
+     */
+    long durableRevision();
+
+    /**
+     * Encodes durable state without serializing transient queues or indexes.
+     *
+     * @param registries  server registry lookup used by AE key codecs
+     * @param currentTick current server tick used to persist relative retry delays
      * @return strict execution NBT
      */
-    CompoundTag save(HolderLookup.Provider registries);
+    CompoundTag save(HolderLookup.Provider registries, long currentTick);
 }

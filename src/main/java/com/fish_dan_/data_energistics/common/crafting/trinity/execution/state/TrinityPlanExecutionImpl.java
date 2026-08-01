@@ -60,6 +60,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     private long catalogRevision;
     private CraftingQuantityMode quantityMode;
     private long generation;
+    private long durableRevision;
     private Work currentWork;
     private boolean planning;
     private boolean failed;
@@ -111,10 +112,16 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         restored.completionSealed = snapshot.completionSealed();
         restored.completionBuffer = snapshot.completionBuffer();
         restored.deliveryRemaining = snapshot.deliveryRemaining();
-        restored.budgetRetryAt = snapshot.budgetRetryAt();
+        restored.budgetRetryAt = rebaseRetryAt(
+                snapshot.budgetRetryAt(),
+                snapshot.savedAtTick(),
+                currentTick);
         restored.stageOrder.addAll(snapshot.stageOrder());
         for (Stage stageSnapshot : snapshot.stages()) {
-            StageState stage = StageState.fromSnapshot(stageSnapshot);
+            StageState stage = StageState.fromSnapshot(
+                    stageSnapshot,
+                    snapshot.savedAtTick(),
+                    currentTick);
             if (restored.stages.putIfAbsent(stage.index, stage) != null) {
                 throw new IllegalArgumentException("A Trinity execution contains duplicate stage indexes");
             }
@@ -215,6 +222,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         activateDueRetries(currentTick);
         if (this.budgetRetryAt >= 0L && currentTick >= this.budgetRetryAt) {
             this.budgetRetryAt = -1L;
+            markDurableMutation();
         }
         if (this.currentWork != null) {
             return Optional.of(this.currentWork);
@@ -245,10 +253,15 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     public void registerInputKeys(int stageIndex, Set<AEKey> keys) {
         StageState stage = requireStage(stageIndex);
         Set<AEKey> copied = copyKeys(keys, "registered input");
+        boolean changed = false;
         for (AEKey key : copied) {
             if (stage.inputKeys.add(key)) {
                 this.inputStageIndex.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(stageIndex);
+                changed = true;
             }
+        }
+        if (changed) {
+            markDurableMutation();
         }
     }
 
@@ -271,6 +284,9 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                 released = true;
             }
         }
+        if (released) {
+            markDurableMutation();
+        }
         return released;
     }
 
@@ -280,6 +296,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         StageState stage = releaseCurrentWork(work);
         registerInputKeys(stage.index, copied);
         beginWait(stage, WaitKind.INPUT, copied, -1L);
+        markDurableMutation();
     }
 
     @Override
@@ -297,6 +314,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         beginWait(stage, WaitKind.DYNAMIC_INPUT, copied, Math.addExact(currentTick, delay));
         stage.nextDynamicDelay = nextDelay(delay, maxRetryTicks);
         scheduleRetry(stage);
+        markDurableMutation();
     }
 
     @Override
@@ -308,6 +326,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         beginWait(stage, WaitKind.PROVIDER, Set.of(), Math.addExact(currentTick, delay));
         stage.nextProviderDelay = nextDelay(delay, maxRetryTicks);
         scheduleRetry(stage);
+        markDurableMutation();
     }
 
     @Override
@@ -315,6 +334,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         releaseCurrentWork(work);
         this.planning = true;
         this.budgetRetryAt = -1L;
+        markDurableMutation();
     }
 
     @Override
@@ -339,6 +359,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         this.planning = false;
         this.budgetRetryAt = -1L;
         rebuildTransientState(currentTick);
+        markDurableMutation();
     }
 
     @Override
@@ -367,6 +388,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         clearCurrentWork(stage);
         stage.nextDynamicDelay = 1;
         stage.nextProviderDelay = 1;
+        markDurableMutation();
 
         if (firing.remainingCount > 0L) {
             enqueueIfEligible(stage);
@@ -387,6 +409,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         StageState stage = releaseCurrentWork(work);
         enqueueIfEligible(stage);
         this.budgetRetryAt = Math.addExact(currentTick, 1L);
+        markDurableMutation();
     }
 
     @Override
@@ -423,6 +446,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             stage.leased = false;
             clearWait(stage);
         });
+        markDurableMutation();
     }
 
     @Override
@@ -457,6 +481,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         }
         this.completionSealed = true;
         this.completionBuffer = amount;
+        markDurableMutation();
     }
 
     @Override
@@ -473,6 +498,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         }
         this.completionBuffer -= acceptedAmount;
         this.deliveryRemaining -= acceptedAmount;
+        markDurableMutation();
     }
 
     @Override
@@ -483,6 +509,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         GenericStack released = new GenericStack(this.targetKey, this.completionBuffer);
         this.deliveryRemaining = Math.subtractExact(this.deliveryRemaining, this.completionBuffer);
         this.completionBuffer = 0L;
+        markDurableMutation();
         return Optional.of(released);
     }
 
@@ -492,11 +519,17 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     }
 
     @Override
-    public CompoundTag save(HolderLookup.Provider registries) {
-        return TrinityExecutionNbtCodec.encode(snapshot(), registries);
+    public long durableRevision() {
+        return this.durableRevision;
     }
 
-    private TrinityExecutionSnapshot snapshot() {
+    @Override
+    public CompoundTag save(HolderLookup.Provider registries, long currentTick) {
+        requireTick(currentTick);
+        return TrinityExecutionNbtCodec.encode(snapshot(currentTick), registries);
+    }
+
+    private TrinityExecutionSnapshot snapshot(long currentTick) {
         ArrayList<Stage> stageSnapshots = new ArrayList<>();
         for (Integer stageIndex : this.stageOrder) {
             stageSnapshots.add(requireStage(stageIndex).snapshot());
@@ -519,6 +552,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                 this.completionBuffer,
                 this.deliveryRemaining,
                 this.borrowingLedger.entries(),
+                currentTick,
                 this.budgetRetryAt);
     }
 
@@ -788,6 +822,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         }
         if (this.budgetRetryAt >= 0L && currentTick >= this.budgetRetryAt) {
             this.budgetRetryAt = -1L;
+            markDurableMutation();
         }
         if (!this.failed && !this.planning && !productionComplete()) {
             for (Integer stageIndex : this.stageOrder) {
@@ -974,6 +1009,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
     }
 
     private void activateDueRetries(long currentTick) {
+        boolean changed = false;
         while (!this.retryQueue.isEmpty() && this.retryQueue.peek().retryAt <= currentTick) {
             RetryEntry retry = this.retryQueue.remove();
             StageState stage = requireStage(retry.stageIndex);
@@ -983,7 +1019,15 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             }
             clearWait(stage);
             enqueueIfEligible(stage);
+            changed = true;
         }
+        if (changed) {
+            markDurableMutation();
+        }
+    }
+
+    private void markDurableMutation() {
+        this.durableRevision = Math.incrementExact(this.durableRevision);
     }
 
     private StageState requireStage(int stageIndex) {
@@ -1028,6 +1072,16 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
         if (currentTick < 0L) {
             throw new IllegalArgumentException("A Trinity execution tick cannot be negative");
         }
+    }
+
+    private static long rebaseRetryAt(long retryAt, long savedAtTick, long currentTick) {
+        if (retryAt < 0L) {
+            return -1L;
+        }
+        if (savedAtTick < 0L || retryAt <= savedAtTick) {
+            return currentTick;
+        }
+        return Math.addExact(currentTick, Math.subtractExact(retryAt, savedAtTick));
     }
 
     private static void requireRetryCap(int maxRetryTicks) {
@@ -1156,7 +1210,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
                     exactAmounts(stage.netChange()));
         }
 
-        private static StageState fromSnapshot(Stage snapshot) {
+        private static StageState fromSnapshot(Stage snapshot, long savedAtTick, long currentTick) {
             ArrayList<FiringState> firings = new ArrayList<>();
             snapshot.firings().forEach(firing -> firings.add(FiringState.fromSnapshot(firing)));
             StageState restored = new StageState(
@@ -1171,7 +1225,7 @@ public final class TrinityPlanExecutionImpl implements TrinityPlanExecution {
             restored.inputKeys.addAll(snapshot.inputKeys());
             restored.waitingKeys.addAll(snapshot.waitingKeys());
             restored.waitKind = snapshot.waitKind();
-            restored.retryAt = snapshot.retryAt();
+            restored.retryAt = rebaseRetryAt(snapshot.retryAt(), savedAtTick, currentTick);
             restored.nextDynamicDelay = snapshot.nextDynamicDelay();
             restored.nextProviderDelay = snapshot.nextProviderDelay();
             restored.retryVersion = snapshot.retryVersion();

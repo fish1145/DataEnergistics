@@ -72,6 +72,59 @@ public final class TrinityPlanExecutionImplTest {
     }
 
     @Test
+    void timedRetriesRebaseAcrossServerRestartAndLegacyDeadlinesExpireOnce() {
+        long previousSessionTick = 500_000L;
+        TrinityPlanExecution provider = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.dagPlan(1L),
+                previousSessionTick);
+        provider.deferProvider(provider.poll(previousSessionTick).orElseThrow(), previousSessionTick, 200);
+        CompoundTag providerTag = provider.save(RegistryAccess.EMPTY, previousSessionTick);
+        TrinityPlanExecution restoredProvider = TrinityPlanExecution.restore(
+                providerTag,
+                RegistryAccess.EMPTY,
+                0L);
+        assertEquals(TrinityPlanExecution.Status.WAITING_PROVIDER, restoredProvider.status());
+        assertTrue(restoredProvider.poll(0L).isEmpty());
+        assertTrue(restoredProvider.poll(1L).isPresent());
+
+        TrinityPlanExecution dynamic = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.selfCyclePlan(1L),
+                previousSessionTick);
+        dynamic.deferDynamicInput(
+                dynamic.poll(previousSessionTick).orElseThrow(),
+                Set.of(TrinityExecutionStateTestSupport.data()),
+                previousSessionTick,
+                200);
+        TrinityPlanExecution restoredDynamic = TrinityPlanExecution.restore(
+                dynamic.save(RegistryAccess.EMPTY, previousSessionTick),
+                RegistryAccess.EMPTY,
+                0L);
+        assertTrue(restoredDynamic.poll(0L).isEmpty());
+        assertTrue(restoredDynamic.poll(1L).isPresent());
+
+        TrinityPlanExecution budgeted = TrinityPlanExecution.create(
+                TrinityExecutionStateTestSupport.dagPlan(1L),
+                previousSessionTick);
+        budgeted.markBudgetExhausted(
+                budgeted.poll(previousSessionTick).orElseThrow(),
+                previousSessionTick);
+        TrinityPlanExecution restoredBudget = TrinityPlanExecution.restore(
+                budgeted.save(RegistryAccess.EMPTY, previousSessionTick),
+                RegistryAccess.EMPTY,
+                0L);
+        assertTrue(restoredBudget.poll(0L).isEmpty());
+        assertTrue(restoredBudget.poll(1L).isPresent());
+
+        providerTag.putInt("schema_version", 2);
+        providerTag.remove("saved_at_tick");
+        TrinityPlanExecution migratedProvider = TrinityPlanExecution.restore(
+                providerTag,
+                RegistryAccess.EMPTY,
+                0L);
+        assertTrue(migratedProvider.poll(0L).isPresent());
+    }
+
+    @Test
     void budgetGateAndReplanningPreserveWorkWithoutAcceptingStaleOffers() {
         TrinityPlanExecution budgeted = TrinityPlanExecution.create(
                 TrinityExecutionStateTestSupport.dagPlan(2L),
@@ -260,21 +313,21 @@ public final class TrinityPlanExecutionImplTest {
     }
 
     @Test
-    void schemaTwoRejectsUnknownAndDamagedFields() {
+    void currentSchemaRejectsUnknownAndDamagedFields() {
         TrinityPlanExecution execution = TrinityPlanExecution.create(
                 TrinityExecutionStateTestSupport.dagPlan(1L),
                 0L);
-        CompoundTag unknownField = execution.save(RegistryAccess.EMPTY);
+        CompoundTag unknownField = execution.save(RegistryAccess.EMPTY, 0L);
         unknownField.putBoolean("unexpected", true);
         assertThrows(IllegalArgumentException.class,
                 () -> TrinityPlanExecution.restore(unknownField, RegistryAccess.EMPTY, 0L));
 
-        CompoundTag unknownStatus = execution.save(RegistryAccess.EMPTY);
+        CompoundTag unknownStatus = execution.save(RegistryAccess.EMPTY, 0L);
         unknownStatus.putString("status", "UNKNOWN");
         assertThrows(IllegalArgumentException.class,
                 () -> TrinityPlanExecution.restore(unknownStatus, RegistryAccess.EMPTY, 0L));
 
-        CompoundTag damagedFiring = execution.save(RegistryAccess.EMPTY);
+        CompoundTag damagedFiring = execution.save(RegistryAccess.EMPTY, 0L);
         ListTag stages = damagedFiring.getList("stages", CompoundTag.TAG_COMPOUND);
         stages.getCompound(0).getList("firings", CompoundTag.TAG_COMPOUND)
                 .getCompound(0).putLong("planned_count", 0L);
@@ -284,7 +337,7 @@ public final class TrinityPlanExecutionImplTest {
 
     private static TrinityPlanExecution roundTrip(TrinityPlanExecution execution, long currentTick) {
         return TrinityPlanExecution.restore(
-                execution.save(RegistryAccess.EMPTY),
+                execution.save(RegistryAccess.EMPTY, currentTick),
                 RegistryAccess.EMPTY,
                 currentTick);
     }

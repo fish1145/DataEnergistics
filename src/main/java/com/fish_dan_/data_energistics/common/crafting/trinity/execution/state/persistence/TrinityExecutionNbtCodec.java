@@ -25,11 +25,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Strict schema 2 NBT codec for durable Trinity execution snapshots.
+ * Strict NBT codec for durable Trinity execution snapshots.
  */
 public final class TrinityExecutionNbtCodec {
 
-    private static final int SCHEMA = 2;
+    private static final int LEGACY_SCHEMA = 2;
+    private static final int SCHEMA = 3;
     private static final String PLAN_KIND = "trinity_compact";
     private static final String SCHEMA_TAG = "schema_version";
     private static final String PLAN_KIND_TAG = "plan_kind";
@@ -48,6 +49,7 @@ public final class TrinityExecutionNbtCodec {
     private static final String COMPLETION_BUFFER_TAG = "completion_buffer";
     private static final String DELIVERY_REMAINING_TAG = "delivery_remaining";
     private static final String LEDGER_TAG = "borrowing_ledger";
+    private static final String SAVED_AT_TICK_TAG = "saved_at_tick";
     private static final String BUDGET_RETRY_AT_TAG = "budget_retry_at";
 
     private static final String INDEX_TAG = "index";
@@ -83,6 +85,26 @@ public final class TrinityExecutionNbtCodec {
     private static final String AMOUNT_TAG = "amount";
 
     private static final Set<String> ROOT_FIELDS = Set.of(
+            SCHEMA_TAG,
+            PLAN_KIND_TAG,
+            CATALOG_REVISION_TAG,
+            QUANTITY_MODE_TAG,
+            TARGET_KEY_TAG,
+            TARGET_AMOUNT_TAG,
+            STATUS_TAG,
+            FAILURE_REASON_TAG,
+            GENERATION_TAG,
+            STAGES_TAG,
+            STAGE_ORDER_TAG,
+            REPEAT_BLOCKS_TAG,
+            SEED_RESERVE_TAG,
+            COMPLETION_SEALED_TAG,
+            COMPLETION_BUFFER_TAG,
+            DELIVERY_REMAINING_TAG,
+            LEDGER_TAG,
+            SAVED_AT_TICK_TAG,
+            BUDGET_RETRY_AT_TAG);
+    private static final Set<String> LEGACY_ROOT_FIELDS = Set.of(
             SCHEMA_TAG,
             PLAN_KIND_TAG,
             CATALOG_REVISION_TAG,
@@ -164,6 +186,7 @@ public final class TrinityExecutionNbtCodec {
         root.putLong(COMPLETION_BUFFER_TAG, snapshot.completionBuffer());
         root.putLong(DELIVERY_REMAINING_TAG, snapshot.deliveryRemaining());
         root.put(LEDGER_TAG, TrinityBorrowingLedgerNbtCodec.encode(snapshot.borrowingEntries(), registries));
+        root.putLong(SAVED_AT_TICK_TAG, snapshot.savedAtTick());
         root.putLong(BUDGET_RETRY_AT_TAG, snapshot.budgetRetryAt());
         return root;
     }
@@ -179,8 +202,12 @@ public final class TrinityExecutionNbtCodec {
         if (registries == null) {
             throw new IllegalArgumentException("Trinity execution restoration requires registries");
         }
-        requireFields(tag, ROOT_FIELDS, "execution root");
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "execution schema");
+        int schema = tag.getInt(SCHEMA_TAG);
+        if (schema != LEGACY_SCHEMA && schema != SCHEMA) {
+            throw new IllegalArgumentException("Unsupported Trinity execution schema");
+        }
+        requireFields(tag, schema == SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
         requireType(tag, PLAN_KIND_TAG, Tag.TAG_STRING, "execution plan kind");
         requireType(tag, CATALOG_REVISION_TAG, Tag.TAG_LONG, "execution catalog revision");
         requireType(tag, QUANTITY_MODE_TAG, Tag.TAG_STRING, "execution quantity mode");
@@ -194,9 +221,12 @@ public final class TrinityExecutionNbtCodec {
         requireType(tag, COMPLETION_BUFFER_TAG, Tag.TAG_LONG, "execution completion buffer");
         requireType(tag, DELIVERY_REMAINING_TAG, Tag.TAG_LONG, "execution delivery remainder");
         requireType(tag, LEDGER_TAG, Tag.TAG_COMPOUND, "execution borrowing ledger");
+        if (schema == SCHEMA) {
+            requireType(tag, SAVED_AT_TICK_TAG, Tag.TAG_LONG, "execution save tick");
+        }
         requireType(tag, BUDGET_RETRY_AT_TAG, Tag.TAG_LONG, "execution budget retry");
-        if (tag.getInt(SCHEMA_TAG) != SCHEMA || !PLAN_KIND.equals(tag.getString(PLAN_KIND_TAG))) {
-            throw new IllegalArgumentException("Unsupported Trinity execution schema or plan kind");
+        if (!PLAN_KIND.equals(tag.getString(PLAN_KIND_TAG))) {
+            throw new IllegalArgumentException("Unsupported Trinity execution plan kind");
         }
 
         return new TrinityExecutionSnapshot(
@@ -215,6 +245,7 @@ public final class TrinityExecutionNbtCodec {
                 tag.getLong(COMPLETION_BUFFER_TAG),
                 tag.getLong(DELIVERY_REMAINING_TAG),
                 TrinityBorrowingLedgerNbtCodec.decode(tag.getCompound(LEDGER_TAG), registries),
+                schema == SCHEMA ? nonNegative(tag.getLong(SAVED_AT_TICK_TAG), "save tick") : -1L,
                 tag.getLong(BUDGET_RETRY_AT_TAG));
     }
 

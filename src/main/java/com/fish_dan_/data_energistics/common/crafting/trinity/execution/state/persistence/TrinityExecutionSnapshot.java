@@ -38,6 +38,7 @@ import java.util.Set;
  * @param completionBuffer  undelivered output currently isolated from cycle inputs
  * @param deliveryRemaining total target amount still owed to the requester
  * @param borrowingEntries  ownership-preserving dynamic borrowing history
+ * @param savedAtTick       server tick used to convert retry deadlines across a restart, or {@code -1} for schema 2
  * @param budgetRetryAt     next tick after a physical budget exhaustion, or {@code -1}
  */
 public record TrinityExecutionSnapshot(
@@ -56,6 +57,7 @@ public record TrinityExecutionSnapshot(
                                        long completionBuffer,
                                        long deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
+                                       long savedAtTick,
                                        long budgetRetryAt) {
 
     /**
@@ -67,6 +69,9 @@ public record TrinityExecutionSnapshot(
         repeatBlocks = List.copyOf(repeatBlocks);
         seedReserve = immutableMap(seedReserve);
         borrowingEntries = immutableMap(borrowingEntries);
+        if (savedAtTick < -1L) {
+            throw new IllegalArgumentException("A Trinity execution save tick cannot be less than the legacy sentinel");
+        }
     }
 
     /**

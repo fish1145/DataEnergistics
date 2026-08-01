@@ -91,6 +91,11 @@ public final class TrinityCraftingStatusMenuGameTest {
         helper.assertTrue(
                 targetedMenu.dataEnergistics$getTrinityTarget() == target,
                 "Opened CPU status menu should retain the exact validated target");
+        menu.toggleScheduling();
+        helper.assertTrue(worker.isJobSuspended(), "AE2 CPU scheduling control should suspend the Trinity worker");
+        menu.broadcastChanges();
+        menu.toggleScheduling();
+        helper.assertFalse(worker.isJobSuspended(), "AE2 CPU scheduling control should resume the Trinity worker");
         CraftingStatusMenu.CraftingCpuListEntry coordinatorEntry = requireCpuEntry(menu, coordinator);
         helper.assertTrue(
                 coordinatorEntry.serial() != workerSerial,

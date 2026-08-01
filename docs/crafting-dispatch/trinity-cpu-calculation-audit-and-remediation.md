@@ -141,6 +141,14 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 `TrinityCpuExecutablePlan` 可提交；未知扩展计划在显式/直接路径拒绝，在自动/fallback 路径交回原实现。Mixin 和
 `TrinityDataCoreVirtualCpu` 均调用同一契约，不硬依赖 Thunderbolt，也不使用反射。
 
+### C-012：重载后的绝对 retry tick 与未标脏迁移会冻结作业
+
+schema 2 曾直接保存进程内绝对 `retryAt`/`budgetRetryAt`；服务器重启后计数从零开始，旧 deadline 可能让作业等待数十万
+tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁移没有统一触发宿主 dirty。
+
+修复：执行快照升级 schema 3，保存时钟基准并在恢复时重基剩余延迟；旧 schema 2 deadline 立即到期一次。执行状态机
+维护 transient durable revision，CPU tick 统一比较并标脏；AE2 作业级暂停也随 job 保存，暂停时仍接收在途输出。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -156,6 +164,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 | C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
 | C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |
 | C-011 | 数量语义与初始规划入口 | 已完成 | 请求上下文、双轨入口、容量拒绝和确认页 CPU-family 过滤 |
+| C-012 | retry 时钟重基、durable revision、作业暂停 | 已完成 | 高 tick→低 tick 恢复、在途续接、真实菜单 toggle |
 
 ## 5. 风险与控制
 
@@ -198,6 +207,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 
 - schema 1 普通任务恢复；
 - schema 2 在每个 cycle phase、借料后和封存后恢复；
+- 新会话 tick 重基 retry、旧 schema 2 迁移和 AE2 CPU 作业级暂停；
 - Trinity 与原生 CPU 同网格；
 - 无 Trinity 时 AE2 回退；
 - 扩展计划被原生 CPU 拒绝；
@@ -210,7 +220,7 @@ MODULATE 库存和能源调用次数，而不只检查最终净值。
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-011 均有直接行为测试或集成证据；
+1. C-001 至 C-012 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

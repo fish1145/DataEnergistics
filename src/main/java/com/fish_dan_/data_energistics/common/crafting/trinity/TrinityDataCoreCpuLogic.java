@@ -185,28 +185,42 @@ final class TrinityDataCoreCpuLogic {
             cancel();
             return;
         }
+        if (this.job.suspended) {
+            if (this.job.isTrinityPlan()) {
+                advanceTrinityCompletion(this.job);
+            }
+            return;
+        }
         long currentTick = TickHandler.instance().getCurrentTick();
         int remainingOperations = this.operationBudget.availableOperations(this.cpu.getCoProcessors(), currentTick);
         int started = remainingOperations;
+        TrinityPlanExecution execution = this.job.isTrinityPlan() ? this.job.trinityExecution() : null;
+        long durableRevision = execution == null ? 0L : execution.durableRevision();
         Level level = this.cpu.level();
         if (level == null) {
             Data_Energistics.LOGGER.warn("Trinity Data Core CPU cannot tick crafting job without a level");
             return;
         }
 
-        while (remainingOperations > 0 && !dispatchWindow.isExhausted()) {
-            int pushedPatterns = executeCrafting(
-                    remainingOperations,
-                    craftingService,
-                    energyService,
-                    level,
-                    dispatchWindow);
-            if (pushedPatterns <= 0) {
-                break;
+        try {
+            while (remainingOperations > 0 && !dispatchWindow.isExhausted()) {
+                int pushedPatterns = executeCrafting(
+                        remainingOperations,
+                        craftingService,
+                        energyService,
+                        level,
+                        dispatchWindow);
+                if (pushedPatterns <= 0) {
+                    break;
+                }
+                remainingOperations -= pushedPatterns;
             }
-            remainingOperations -= pushedPatterns;
+            this.operationBudget.recordTickUsage(currentTick, started - remainingOperations);
+        } finally {
+            if (execution != null && execution.durableRevision() != durableRevision) {
+                this.cpu.markDirty();
+            }
         }
-        this.operationBudget.recordTickUsage(currentTick, started - remainingOperations);
     }
 
     /**
@@ -1696,6 +1710,27 @@ final class TrinityDataCoreCpuLogic {
     }
 
     /**
+     * @return whether the active job is suspended through the AE2 CPU scheduling control
+     */
+    boolean isJobSuspended() {
+        return this.job != null && this.job.suspended;
+    }
+
+    /**
+     * Suspends or resumes only this worker's active job without changing host lifecycle state.
+     *
+     * @param suspended requested scheduling state
+     */
+    void setJobSuspended(boolean suspended) {
+        if (this.job == null || this.job.suspended == suspended) {
+            return;
+        }
+        this.job.suspended = suspended;
+        this.lastModifiedOnTick = TickHandler.instance().getCurrentTick();
+        this.cpu.markDirty();
+    }
+
+    /**
      * @return true when this CPU currently owns a job
      */
     boolean hasJob() {
@@ -1939,6 +1974,7 @@ final class TrinityDataCoreCpuLogic {
                 this.job,
                 success ? CraftingJobStatusPacket.Status.FINISHED : CraftingJobStatusPacket.Status.CANCELLED);
         this.job = null;
+        this.cpu.markDirty();
         storeItems();
     }
 
