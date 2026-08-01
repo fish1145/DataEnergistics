@@ -166,69 +166,97 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                                                            ModelRequest request,
                                                            TrinityPlanningControl control,
                                                            SolverMetrics metrics) {
-        if (control.cancellationRequested()) {
-            return failure(
-                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                    "Trinity MIP solving was cancelled",
-                    Map.of("passes", Integer.toString(metrics.passes)));
-        }
-        if (control.deadlineExceeded()) {
-            return failure(
-                    TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                    "Trinity MIP exhausted its shared deadline",
-                    Map.of("passes", Integer.toString(metrics.passes)));
-        }
-
-        ModelData data = createModel(request);
-        long remainingNanos = control.remainingNanos();
-        long remainingMillis = Math.max(
-                1L,
-                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
-                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
-        data.model().options.time_abort = remainingMillis;
-        data.model().options.time_suffice = remainingMillis;
-        long started = System.nanoTime();
-        Optimisation.Result result = data.model().minimise();
-        long elapsed = System.nanoTime() - started;
-        metrics.passes = Math.addExact(metrics.passes, 1);
-        metrics.nanos = Math.addExact(metrics.nanos, Math.max(0L, elapsed));
-
-        if (control.cancellationRequested()) {
-            return failure(
-                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                    "Trinity MIP solving was cancelled",
-                    Map.of("passes", Integer.toString(metrics.passes)));
-        }
-        if (!result.getState().isOptimal()) {
-            if (control.deadlineExceeded() || result.getState().isFeasible()) {
+        LinkedHashSet<AEKey> enforcedUpperBounds = new LinkedHashSet<>();
+        while (true) {
+            if (control.cancellationRequested()) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        "Trinity MIP solving was cancelled",
+                        Map.of("passes", Integer.toString(metrics.passes)));
+            }
+            if (control.deadlineExceeded()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                        "Trinity MIP did not prove an optimum before its deadline",
+                        "Trinity MIP exhausted its shared deadline",
+                        Map.of("passes", Integer.toString(metrics.passes)));
+            }
+
+            ModelData data = createModel(request, enforcedUpperBounds);
+            long remainingNanos = control.remainingNanos();
+            long remainingMillis = Math.max(
+                    1L,
+                    TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
+                            (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
+            data.model().options.time_abort = remainingMillis;
+            data.model().options.time_suffice = remainingMillis;
+            long started = System.nanoTime();
+            Optimisation.Result result = data.model().minimise();
+            long elapsed = System.nanoTime() - started;
+            metrics.passes = Math.addExact(metrics.passes, 1);
+            metrics.nanos = Math.addExact(metrics.nanos, Math.max(0L, elapsed));
+
+            if (control.cancellationRequested()) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        "Trinity MIP solving was cancelled",
+                        Map.of("passes", Integer.toString(metrics.passes)));
+            }
+            if (!result.getState().isOptimal()) {
+                if (control.deadlineExceeded() || result.getState().isFeasible()) {
+                    return failure(
+                            TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                            "Trinity MIP did not prove an optimum before its deadline",
+                            Map.of("state", result.getState().name()));
+                }
+                return failure(
+                        TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
+                        "Trinity MIP has no integer solution for the requested bounds",
                         Map.of("state", result.getState().name()));
             }
-            return failure(
-                    TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
-                    "Trinity MIP has no integer solution for the requested bounds",
-                    Map.of("state", result.getState().name()));
-        }
 
-        ArrayList<BigDecimal> rawValues = new ArrayList<>(data.variables().size());
-        for (Variable variable : data.variables()) {
-            rawValues.add(result.get(data.model().indexOf(variable)));
+            ArrayList<BigDecimal> rawValues = new ArrayList<>(data.variables().size());
+            for (Variable variable : data.variables()) {
+                rawValues.add(result.get(data.model().indexOf(variable)));
+            }
+            TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(rawValues);
+            if (!verified.successful()) {
+                return TrinityAlgorithmResult.failure(verified.diagnostic());
+            }
+            if (verified.value().stream().anyMatch(value -> value.signum() < 0)) {
+                return inexactResult("variable_lower", "negative");
+            }
+            SolvedModel solved = data.decode(verified.value());
+            Set<AEKey> violatedUpperBounds = violatedUpperBounds(request, solved);
+            if (!violatedUpperBounds.isEmpty()) {
+                if (!enforcedUpperBounds.addAll(violatedUpperBounds)) {
+                    return inexactResult("variable_upper", "enforced_bound_was_violated");
+                }
+                continue;
+            }
+            TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExactModelResult(request, solved);
+            if (!exact.successful()) {
+                return TrinityAlgorithmResult.failure(exact.diagnostic());
+            }
+            return TrinityAlgorithmResult.success(solved);
         }
-        TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(rawValues);
-        if (!verified.successful()) {
-            return TrinityAlgorithmResult.failure(verified.diagnostic());
-        }
-        if (verified.value().stream().anyMatch(value -> value.signum() < 0)) {
-            return inexactResult("variable_lower", "negative");
-        }
-        SolvedModel solved = data.decode(verified.value());
-        TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExactModelResult(request, solved);
-        if (!exact.successful()) {
-            return TrinityAlgorithmResult.failure(exact.diagnostic());
-        }
-        return TrinityAlgorithmResult.success(solved);
+    }
+
+    private static Set<AEKey> violatedUpperBounds(ModelRequest request, SolvedModel solved) {
+        LinkedHashSet<AEKey> violated = new LinkedHashSet<>();
+        collectViolatedUpperBounds(request, solved.modelSeed(), violated);
+        collectViolatedUpperBounds(request, solved.externalInputs(), violated);
+        return Collections.unmodifiableSet(violated);
+    }
+
+    private static void collectViolatedUpperBounds(ModelRequest request,
+                                                   Map<AEKey, BigInteger> amounts,
+                                                   Set<AEKey> violated) {
+        amounts.forEach((key, amount) -> {
+            if (!request.producibleInputs().contains(key) &&
+                    amount.compareTo(request.available().getOrDefault(key, BigInteger.ZERO)) > 0) {
+                violated.add(key);
+            }
+        });
     }
 
     private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExactModelResult(
@@ -290,7 +318,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         return exact;
     }
 
-    private static ModelData createModel(ModelRequest request) {
+    private static ModelData createModel(ModelRequest request, Set<AEKey> enforcedUpperBounds) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
         ArrayList<Variable> allVariables = new ArrayList<>();
         LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
@@ -308,7 +336,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             Variable variable = model.addVariable("seed_" + seedIndex++)
                     .integer()
                     .lower(BigInteger.ZERO);
-            if (!request.producibleInputs().contains(key)) {
+            if (enforcedUpperBounds.contains(key)) {
                 variable.upper(request.available().getOrDefault(key, BigInteger.ZERO));
             }
             seedVariables.put(key, variable);
@@ -321,7 +349,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             Variable variable = model.addVariable("external_" + externalIndex++)
                     .integer()
                     .lower(BigInteger.ZERO);
-            if (!request.producibleInputs().contains(key)) {
+            if (enforcedUpperBounds.contains(key)) {
                 variable.upper(request.available().getOrDefault(key, BigInteger.ZERO));
             }
             externalVariables.put(key, variable);
