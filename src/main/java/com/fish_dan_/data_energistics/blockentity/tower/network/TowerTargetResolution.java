@@ -7,7 +7,8 @@ import java.util.List;
 /**
  * Complete six-face capability result for one binding anchor.
  *
- * @param exposedNodes identity-de-duplicated nodes exposed directly at the anchor
+ * @param exposedNodes identity-de-duplicated nodes authorized through the anchor capability, including tower-only
+ *                     mounted-device fallbacks
  * @param grids        identity-de-duplicated target-grid results
  */
 public record TowerTargetResolution(List<IGridNode> exposedNodes, List<TowerResolvedGrid> grids) {

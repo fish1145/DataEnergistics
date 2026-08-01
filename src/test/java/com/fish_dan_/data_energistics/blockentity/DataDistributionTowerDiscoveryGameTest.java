@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.BoundTargetSummary;
-import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindFailure;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectorBindResult;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
@@ -70,7 +69,6 @@ public final class DataDistributionTowerDiscoveryGameTest {
     private static final BlockPos TOWER_POS = new BlockPos(20, 4, 25);
     private static final BlockPos CONNECTED_REGULAR_CHARGER_POS = new BlockPos(16, 4, 25);
     private static final BlockPos CONNECTED_EXTENDED_CHARGER_POS = new BlockPos(18, 4, 25);
-    private static final BlockPos STANDALONE_PART_HOST_POS = new BlockPos(16, 4, 25);
     private static final BlockPos SANCTUM_MAIN_POS = new BlockPos(25, 4, 25);
     private static final Direction SANCTUM_FACING = Direction.NORTH;
     private static final long BUFFERED_TRANSFER_ENERGY = (long) Integer.MAX_VALUE + 4_096L;
@@ -219,41 +217,6 @@ public final class DataDistributionTowerDiscoveryGameTest {
                             discovered.get(0) == firstNode, "Discovery must preserve the first node's direction order");
                     helper.assertTrue(
                             discovered.get(1) == secondNode, "Discovery must retain the second unique managed node");
-                })
-                .thenSucceed();
-    }
-
-    @TestHolder("data_distribution_tower_rejects_unexposed_standalone_ae_parts")
-    @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50", timeoutTicks = 200)
-    public static void rejectsUnexposedStandaloneAeParts(GameTestHelper helper) {
-        DataDistributionTowerBlockEntity tower = placeTower(helper, TOWER_POS);
-        CableBusBlockEntity partHost = placeCableBus(helper, STANDALONE_PART_HOST_POS);
-        IPart patternProvider = partHost.addPart(AEParts.PATTERN_PROVIDER.get(), Direction.NORTH, null);
-        IPart storageBus = partHost.addPart(AEParts.STORAGE_BUS.get(), Direction.SOUTH, null);
-        helper.assertTrue(patternProvider != null, "The standalone pattern provider must be installed");
-        helper.assertTrue(storageBus != null, "The standalone storage bus must be installed");
-        helper.assertTrue(partHost.getPart(null) == null, "The regression requires a host without a center cable");
-        helper.startSequence()
-                .thenWaitUntil(() -> {
-                    assertTowerNodeReady(helper, tower);
-                    helper.assertTrue(patternProvider.getGridNode() != null, "The pattern provider node must be ready");
-                    helper.assertTrue(storageBus.getGridNode() != null, "The storage bus node must be ready");
-                })
-                .thenExecute(() -> {
-                    List<IGridNode> discovered = DataDistributionTowerBlockEntity.getConnectableNodes(
-                            helper.getLevel(), partHost.getBlockPos());
-                    helper.assertTrue(
-                            discovered.isEmpty(),
-                            "Internal multipart nodes without a six-face Capability exposure must remain hidden");
-                    helper.assertTrue(
-                            !discovered.contains(patternProvider.getGridNode()) && !discovered.contains(storageBus.getGridNode()),
-                            "Capability-only discovery must not fall back to direct IPartHost traversal");
-                    ConnectorBindResult result = tower.bindTargetFromConnector(partHost.getBlockPos());
-                    helper.assertTrue(!result.success(), "An unexposed multipart target must be rejected");
-                    helper.assertValueEqual(
-                            result.failure(), ConnectorBindFailure.UNSUPPORTED,
-                            "An unexposed multipart target must fail as unsupported");
                 })
                 .thenSucceed();
     }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network;
 
 import com.fish_dan_.data_energistics.ae2.VirtualGridBridge;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -8,11 +9,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import appeng.api.AECapabilities;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
-import appeng.api.networking.IInWorldGridNodeHost;
 import appeng.api.parts.IPart;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
@@ -30,8 +29,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Capability-only AE target resolver. Multipart access is limited to metadata for nodes already selected through the
- * public capability; discovery never traverses a multipart host and never creates a grid connection.
+ * Capability-gated AE target resolver. Multipart fallback nodes come from a typed Mixin bridge on the capability host;
+ * discovery never casts to a multipart host and never creates a grid connection.
  */
 public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
 
@@ -44,7 +43,7 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
             return new TowerTargetResolution(List.of(), List.of());
         }
 
-        List<IGridNode> exposedNodes = collectExposedNodes(level, anchor);
+        List<IGridNode> exposedNodes = DataDistributionTowerBlockEntity.getConnectableNodes(level, anchor);
         Set<IGrid> seenGrids = Collections.newSetFromMap(new IdentityHashMap<>());
         Map<RawDeviceIdentity, Integer> occurrences = new HashMap<>();
         ArrayList<TowerResolvedGrid> resolvedGrids = new ArrayList<>();
@@ -63,22 +62,6 @@ public final class TowerAeTargetResolverImpl implements TowerAeTargetResolver {
                     validateGrid(targetGrid, primaryGrid, mode, devices)));
         }
         return new TowerTargetResolution(exposedNodes, resolvedGrids);
-    }
-
-    private static List<IGridNode> collectExposedNodes(Level level, BlockPos anchor) {
-        Set<IGridNode> seenNodes = Collections.newSetFromMap(new IdentityHashMap<>());
-        ArrayList<IGridNode> nodes = new ArrayList<>();
-        IInWorldGridNodeHost host = level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, anchor);
-        if (host == null) {
-            return List.of();
-        }
-        for (Direction direction : Direction.values()) {
-            IGridNode node = host.getGridNode(direction);
-            if (node != null && seenNodes.add(node)) {
-                nodes.add(node);
-            }
-        }
-        return List.copyOf(nodes);
     }
 
     private static List<TowerResolvedDevice> resolveDevices(

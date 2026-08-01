@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverage;
 import com.fish_dan_.data_energistics.blockentity.tower.TowerCoverageImpl;
@@ -2374,7 +2375,12 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     /**
-     * Collects every distinct sided node exposed by one capability host.
+     * Collects every distinct node reachable from the six faces of one capability-authorized AE host.
+     *
+     * <p>
+     * The standard exposed node remains authoritative. When a face has no physical exposure, the typed cable-bus
+     * bridge may supply its mounted device node for virtual binding without changing AE's physical connection rules.
+     * </p>
      *
      * @param nodeHost host returned by the direction-neutral AE capability query
      * @return immutable nodes in AE direction iteration order, de-duplicated by node identity
@@ -2384,7 +2390,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         ArrayList<IGridNode> orderedNodes = new ArrayList<>();
 
         for (Direction direction : Direction.values()) {
-            addConnectableNode(nodeHost.getGridNode(direction), nodes, orderedNodes);
+            IGridNode exposedNode = nodeHost.getGridNode(direction);
+            addConnectableNode(exposedNode, nodes, orderedNodes);
+            if (exposedNode == null && nodeHost instanceof TowerMountedGridNodeHost mountedNodeHost) {
+                addConnectableNode(mountedNodeHost.dataEnergistics$mountedGridNode(direction), nodes, orderedNodes);
+            }
         }
 
         return List.copyOf(orderedNodes);
