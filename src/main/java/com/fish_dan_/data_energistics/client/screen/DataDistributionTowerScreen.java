@@ -3,7 +3,9 @@ package com.fish_dan_.data_energistics.client.screen;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.RangeAdjustmentMode;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetKind;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferInfo;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.TargetTransferMode;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerVirtualDeviceState;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerTextureToggleButton;
@@ -15,6 +17,7 @@ import com.fish_dan_.data_energistics.util.PinyinUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -30,6 +33,7 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
 import appeng.client.gui.widgets.Scrollbar;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -122,9 +126,11 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         setTextContent("dialog_title", Component.translatable(
                 this.menu.online ? "screen.data_energistics.data_distribution_tower.title.online" : "screen.data_energistics.data_distribution_tower.title.offline"));
         setTextContent("ae_channels", Component.translatable(
-                "screen.data_energistics.ae_channels",
-                this.menu.usedChannels,
-                this.menu.maxChannels));
+                "screen.data_energistics.data_distribution_tower.channel_overview",
+                this.menu.unlimitedChannels ? "∞" : Long.toString(this.menu.maxChannels),
+                this.menu.physicalChannels,
+                this.menu.virtualChannels,
+                this.menu.unlimitedChannels ? "∞" : Long.toString(this.menu.remainingChannels)));
         setTextContent("available_fe", Component.translatable(
                 "screen.data_energistics.network_fe",
                 formatFeAmount(this.menu.availableFe)));
@@ -164,12 +170,12 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         for (int i = start; i < end; i++) {
             int y = LIST_Y + (i - start) * LIST_ROW_HEIGHT;
             BoundRow row = lines.get(i);
-            renderRowIcon(guiGraphics, row.iconStack(), LIST_X, y - 2);
+            renderRowIcon(guiGraphics, row.iconStack(), y - 2);
             String line = row.displayText();
             if (this.font.width(line) > LIST_WIDTH) {
                 line = this.font.plainSubstrByWidth(line, LIST_WIDTH - 6) + "...";
             }
-            guiGraphics.drawString(this.font, line, LIST_X + 14, y, getRowColor(row.kind()), false);
+            guiGraphics.drawString(this.font, line, LIST_X + 14, y, getRowColor(row), false);
         }
     }
 
@@ -193,7 +199,12 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                 return true;
             }
             if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
-                DataDistributionTowerSelectionHighlighter.highlight(hoveredRow.dimension(), hoveredRow.pos());
+                if (hoveredRow.transferInfo() != null && hoveredRow.transferInfo().logicalDevice()) {
+                    return true;
+                }
+                TargetTransferInfo transferInfo = hoveredRow.transferInfo();
+                Direction deviceSide = transferInfo != null && transferInfo.deviceKey() != null && transferInfo.deviceKey().side() >= 0 ? Direction.values()[transferInfo.deviceKey().side()] : null;
+                DataDistributionTowerSelectionHighlighter.highlight(hoveredRow.dimension(), hoveredRow.pos(), deviceSide);
                 this.menu.sendFocusTarget(
                         hoveredRow.dimension().location().toString(),
                         hoveredRow.pos().getX(),
@@ -266,12 +277,18 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     new TargetRef(Level.OVERWORLD, new BlockPos(0, 0, 0)),
                     RowKind.FE,
                     TargetMode.DISABLED,
+                    null,
                     true));
         }
 
         ArrayList<BoundRow> rows = new ArrayList<>();
         for (DataDistributionTowerTargetEntry entry : this.menu.boundTargetEntries) {
-            String displayText = entry.count() > 1 ? entry.displayName() + " x" + entry.count() + " (" + entry.kind().name() + ")" : entry.displayName() + " (" + entry.kind().name() + ")";
+            TargetTransferInfo transferInfo = entry.transferInfo();
+            String stateText = Component.translatable(
+                    "screen.data_energistics.data_distribution_tower.state." + transferInfo.state().name().toLowerCase(Locale.ROOT)).getString();
+            String channelText = transferInfo.requestedChannels() == 0 ? "" : " " + transferInfo.channelConnections() + "/" + transferInfo.requestedChannels();
+            String failureText = transferInfo.failure().isBlank() ? "" : " !" + transferInfo.failure();
+            String displayText = entry.displayName() + (entry.count() > 1 ? " x" + entry.count() : "") + " [" + stateText + channelText + "]" + failureText;
             rows.add(new BoundRow(
                     toStack(entry.itemId()),
                     displayText,
@@ -279,6 +296,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                     new TargetRef(ResourceKey.create(Registries.DIMENSION, entry.dimensionId()), entry.pos()),
                     entry.kind() == TargetKind.AE ? RowKind.AE : RowKind.FE,
                     toTargetMode(entry.transferMode()),
+                    transferInfo,
                     false));
         }
         return rows;
@@ -305,20 +323,35 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         };
     }
 
-    private void renderRowIcon(GuiGraphics guiGraphics, ItemStack stack, int x, int y) {
+    private void renderRowIcon(GuiGraphics guiGraphics, ItemStack stack, int y) {
         var pose = guiGraphics.pose();
         pose.pushPose();
-        pose.translate(x, y, 0);
+        pose.translate(LIST_X, y, 0);
         pose.scale(0.75f, 0.75f, 1.0f);
         guiGraphics.renderItem(stack, 0, 0);
         pose.popPose();
     }
 
-    private int getRowColor(RowKind kind) {
-        return kind == RowKind.AE ? 0xD58CFF : 0x9FFFA8;
+    private int getRowColor(BoundRow row) {
+        if (row.transferInfo() != null) {
+            return switch (row.transferInfo().state()) {
+                case ALLOCATED -> row.kind() == RowKind.AE ? 0xD58CFF : 0x9FFFA8;
+                case WAITING_CHANNEL, WAITING_TARGET -> 0xFFE07A;
+                case DISABLED -> 0x8A8A8A;
+                case CONFLICT, BRIDGE_ERROR -> 0xFF7777;
+            };
+        }
+        return row.kind() == RowKind.AE ? 0xD58CFF : 0x9FFFA8;
     }
 
     private void toggleTargetDisabled(BoundRow row) {
+        TargetTransferInfo transferInfo = row.transferInfo();
+        if (transferInfo != null && transferInfo.deviceKey() != null) {
+            this.menu.sendSetVirtualDeviceDisabled(
+                    transferInfo,
+                    transferInfo.state() != TowerVirtualDeviceState.DISABLED);
+            return;
+        }
         TargetMode nextMode = row.mode() == TargetMode.DISABLED ? TargetMode.AUTO : TargetMode.DISABLED;
         this.menu.sendSetTargetTransferMode(
                 row.dimension().location().toString(),
@@ -376,8 +409,14 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
         return null;
     }
 
-    private record BoundRow(ItemStack iconStack, String displayText, String searchIndex, TargetRef target, RowKind kind,
-                            TargetMode mode, boolean placeholder) {
+    private record BoundRow(ItemStack iconStack,
+                            String displayText,
+                            String searchIndex,
+                            TargetRef target,
+                            RowKind kind,
+                            TargetMode mode,
+                            @Nullable TargetTransferInfo transferInfo,
+                            boolean placeholder) {
 
         private ResourceKey<Level> dimension() {
             return target.dimension();

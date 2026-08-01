@@ -439,6 +439,10 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
             if (!level.isClientSide() && state.getValue(PART) == 0) {
+                BlockEntity blockEntity = level.getBlockEntity(pos);
+                if (blockEntity instanceof DataDistributionTowerBlockEntity tower) {
+                    tower.onPermanentlyRemoved();
+                }
                 dropAdditionalBlockEntityContents(level, pos);
             }
             removeOtherParts(level, pos, state);

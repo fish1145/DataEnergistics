@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.core;
 
+import com.fish_dan_.data_energistics.ae2.TowerMountedGridNodeHost;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 
 import net.minecraft.core.BlockPos;
@@ -9,21 +10,34 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
+import appeng.api.networking.IGridNode;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.blockentity.AEBaseBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(CableBusBlockEntity.class)
-public abstract class CableBusBlockEntityMixin extends AEBaseBlockEntity {
+public abstract class CableBusBlockEntityMixin extends AEBaseBlockEntity implements TowerMountedGridNodeHost {
 
     public CableBusBlockEntityMixin(BlockEntityType<?> blockEntityType, BlockPos pos, BlockState blockState) {
         super(blockEntityType, pos, blockState);
+    }
+
+    @Shadow
+    @Nullable
+    public abstract IPart getPart(@Nullable Direction side);
+
+    @Override
+    @Nullable
+    public IGridNode dataEnergistics$mountedGridNode(Direction side) {
+        IPart mountedDevice = getPart(side);
+        return mountedDevice == null ? null : mountedDevice.getGridNode();
     }
 
     @Inject(method = "addPart", at = @At("RETURN"))

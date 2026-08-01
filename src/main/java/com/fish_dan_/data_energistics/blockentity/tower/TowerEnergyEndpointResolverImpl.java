@@ -61,7 +61,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
     @Nullable
     public IEnergyStorage getEnergyStorageAt(BlockPos pos, @Nullable Direction side) {
         Level level = this.context.level();
-        if (level == null || this.context.isTowerBlock(pos)) {
+        if (level == null || !level.isLoaded(pos) || this.context.isTowerBlock(pos)) {
             return null;
         }
 
@@ -182,7 +182,7 @@ public final class TowerEnergyEndpointResolverImpl implements TowerEnergyEndpoin
 
     private List<TowerEnergyEndpointCandidate> resolveEndpointCandidates(BlockPos pos) {
         Level level = this.context.level();
-        if (level == null) {
+        if (level == null || !level.isLoaded(pos)) {
             return List.of();
         }
 

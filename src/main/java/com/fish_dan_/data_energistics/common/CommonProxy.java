@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.GenericKeyItemExportStrategy;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
+import com.fish_dan_.data_energistics.blockentity.tower.network.TowerGridServices;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
 import com.fish_dan_.data_energistics.integration.ftbultimine.DataCrystalPickaxeFtbUltimineCompat;
@@ -32,6 +33,8 @@ public class CommonProxy {
 
     public static void init(IEventBus modEventBus) {
         CommonProxy instance = new CommonProxy();
+
+        TowerGridServices.init();
 
         ModFluids.register(modEventBus);
         ModDataComponents.register(modEventBus);
