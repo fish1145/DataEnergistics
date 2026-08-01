@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -69,6 +70,19 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
         BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
         SearchBudget budget = new SearchBudget(maxSearchStates);
+        Optional<UniformBindingFamily> uniformBindings = UniformBindingFamily.tryCreate(reachable, target);
+        if (uniformBindings.isPresent()) {
+            return optimizeUniformBindings(
+                    topology,
+                    uniformBindings.get(),
+                    target,
+                    requestedAmount,
+                    requiredTargetNet,
+                    quantityMode,
+                    inventory,
+                    budget,
+                    control);
+        }
 
         TrinityAlgorithmResult<SolvedModel> externalResult = solve(
                 new ModelRequest(
@@ -127,6 +141,100 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
             fixedPrefix.put(preferred, selected.firings().getOrDefault(preferred, BigInteger.ZERO));
         }
         return buildPlan(topology, selected, budget.used());
+    }
+
+    /**
+     * Solves the common AE2 substitution shape without starting one MIP per stable binding.
+     *
+     * <p>
+     * Every accepted variant is the same physical pattern, produces the same target amount and consumes the same
+     * quantity of exactly one interchangeable input. External-input and firing objectives are therefore constant;
+     * allocating available inputs in stable variant order is the exact lexicographic optimum.
+     * </p>
+     */
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> optimizeUniformBindings(
+            TrinityCraftingTopology topology,
+            UniformBindingFamily family,
+            AEKey target,
+            BigInteger requestedAmount,
+            BigInteger requiredTargetNet,
+            CraftingQuantityMode quantityMode,
+            Map<AEKey, BigInteger> available,
+            SearchBudget budget,
+            TrinityPlanningControl control) {
+        BigInteger requiredFirings = ceilDivide(requiredTargetNet, family.outputPerFiring());
+        BigInteger remainingFirings = requiredFirings;
+        LinkedHashMap<AEKey, BigInteger> remainingInventory = new LinkedHashMap<>(available);
+        LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> reserves = new LinkedHashMap<>();
+        BigInteger targetReserve = targetReserve(target, requestedAmount, quantityMode, available);
+        if (targetReserve.signum() > 0) {
+            reserves.put(target, targetReserve);
+        }
+
+        for (TrinityPatternVariant variant : family.variants()) {
+            if (control.cancellationRequested()) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        "Trinity uniform binding optimization was cancelled",
+                        Map.of("states", Integer.toString(budget.used())));
+            }
+            if (control.deadlineExceeded()) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                        "Trinity uniform binding optimization exhausted its shared deadline",
+                        Map.of("states", Integer.toString(budget.used())));
+            }
+            if (!budget.consume()) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                        "Trinity uniform binding optimization reached its state limit",
+                        Map.of("states", Integer.toString(budget.used())));
+            }
+
+            Map.Entry<AEKey, BigInteger> input = variant.inputs().entrySet().iterator().next();
+            BigInteger availableInput = remainingInventory.getOrDefault(input.getKey(), BigInteger.ZERO);
+            BigInteger selectedFirings = remainingFirings.min(availableInput.divide(family.inputPerFiring()));
+            if (selectedFirings.signum() > 0) {
+                BigInteger consumed = family.inputPerFiring().multiply(selectedFirings);
+                firings.put(variant, selectedFirings);
+                reserves.merge(input.getKey(), consumed, BigInteger::add);
+                remainingInventory.put(input.getKey(), availableInput.subtract(consumed));
+                remainingFirings = remainingFirings.subtract(selectedFirings);
+            }
+            if (remainingFirings.signum() == 0) {
+                break;
+            }
+        }
+        if (remainingFirings.signum() > 0) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                    "Available Trinity substitutions cannot satisfy the requested firing count",
+                    Map.of(
+                            "requiredFirings", requiredFirings.toString(),
+                            "availableFirings", requiredFirings.subtract(remainingFirings).toString()));
+        }
+
+        ModelRequest verificationRequest = new ModelRequest(
+                family.variants(),
+                target,
+                requestedAmount,
+                requiredTargetNet,
+                quantityMode,
+                available,
+                ExternalPass.INSTANCE);
+        SolvedModel selected = new SolvedModel(
+                Collections.unmodifiableMap(new LinkedHashMap<>(firings)),
+                Collections.unmodifiableMap(new LinkedHashMap<>(reserves)),
+                Map.of());
+        TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verify(verificationRequest, selected);
+        if (!exact.successful()) {
+            return TrinityAlgorithmResult.failure(exact.diagnostic());
+        }
+        return buildPlan(
+                topology,
+                new SolvedModel(selected.firings(), selected.reserves(), exact.value()),
+                budget.used());
     }
 
     private TrinityAlgorithmResult<SolvedModel> solve(
@@ -508,6 +616,11 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         return amounts.values().stream().reduce(BigInteger.ZERO, BigInteger::add);
     }
 
+    private static BigInteger ceilDivide(BigInteger numerator, BigInteger denominator) {
+        BigInteger[] division = numerator.divideAndRemainder(denominator);
+        return division[1].signum() == 0 ? division[0] : division[0].add(BigInteger.ONE);
+    }
+
     private static <T> TrinityAlgorithmResult<T> insufficient(
                                                               AEKey key,
                                                               BigInteger required) {
@@ -597,6 +710,37 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
                                Map<TrinityPatternVariant, BigInteger> firings,
                                Map<AEKey, BigInteger> reserves,
                                Map<AEKey, BigInteger> netChange) {}
+
+    private record UniformBindingFamily(
+            List<TrinityPatternVariant> variants,
+            BigInteger inputPerFiring,
+            BigInteger outputPerFiring) {
+
+        private static Optional<UniformBindingFamily> tryCreate(
+                List<TrinityPatternVariant> variants,
+                AEKey target) {
+            TrinityPatternVariant first = variants.getFirst();
+            if (first.inputs().size() != 1 || first.outputs().size() != 1 ||
+                    !first.outputs().containsKey(target) || first.inputs().containsKey(target)) {
+                return Optional.empty();
+            }
+            BigInteger inputPerFiring = first.inputs().values().iterator().next();
+            BigInteger outputPerFiring = first.outputs().get(target);
+            for (TrinityPatternVariant variant : variants) {
+                if (!variant.patternIdentity().equals(first.patternIdentity()) ||
+                        variant.inputs().size() != 1 || variant.outputs().size() != 1 ||
+                        variant.inputs().containsKey(target) ||
+                        !variant.inputs().values().iterator().next().equals(inputPerFiring) ||
+                        !outputPerFiring.equals(variant.outputs().get(target))) {
+                    return Optional.empty();
+                }
+            }
+            return Optional.of(new UniformBindingFamily(
+                    List.copyOf(variants),
+                    inputPerFiring,
+                    outputPerFiring));
+        }
+    }
 
     private static final class SearchBudget {
 

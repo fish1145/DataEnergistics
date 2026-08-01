@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPlanningGraphTestBootstrap;
 
@@ -26,6 +27,7 @@ import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.al
 import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmTestPatterns.variant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class TrinityAcyclicDemandPropagatorTest {
 
@@ -197,6 +199,49 @@ public final class TrinityAcyclicDemandPropagatorTest {
     }
 
     @Test
+    void plansUniformBindingsWithoutSequentialMipPasses() {
+        AEKey oak = AEItemKey.of(Items.OAK_PLANKS);
+        AEKey crimson = AEItemKey.of(Items.CRIMSON_PLANKS);
+        AEKey mangrove = AEItemKey.of(Items.MANGROVE_PLANKS);
+        AEKey target = AEItemKey.of(Items.CRAFTING_TABLE);
+        TrinityPatternIdentity identity = new TrinityPatternIdentity(
+                "definition-table-bindings",
+                "publication-table-bindings");
+        TrinityPatternVariant stableFirstOak = bindingVariant(identity, 0, oak, target);
+        TrinityPatternVariant availableCrimson = bindingVariant(identity, 1, crimson, target);
+        TrinityPatternVariant availableMangrove = bindingVariant(identity, 2, mangrove, target);
+        List<TrinityPatternVariant> variants = List.of(
+                stableFirstOak,
+                availableCrimson,
+                availableMangrove);
+        TrinityCraftingTopology topology = TrinityGraphTopologyAnalyzer.create()
+                .analyze(new TrinityCraftingGraphSnapshot(1L, List.of()), variants, 8)
+                .value();
+
+        TrinityAlgorithmResult<TrinityAcyclicPlan> result = TrinityAcyclicDemandPropagator.create()
+                .propagate(
+                        topology,
+                        variants,
+                        target,
+                        BigInteger.TEN,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(
+                                crimson, BigInteger.valueOf(16L),
+                                mangrove, BigInteger.valueOf(24L)),
+                        variants.size(),
+                        control());
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityAcyclicPlan plan = result.value();
+        assertFalse(plan.firings().containsKey(stableFirstOak));
+        assertEquals(BigInteger.valueOf(4L), plan.firings().get(availableCrimson));
+        assertEquals(BigInteger.valueOf(6L), plan.firings().get(availableMangrove));
+        assertEquals(BigInteger.valueOf(16L), plan.externalInputs().get(crimson));
+        assertEquals(BigInteger.valueOf(24L), plan.externalInputs().get(mangrove));
+        assertEquals(variants.size(), plan.statesVisited());
+    }
+
+    @Test
     void appliesTargetInventoryOnlyToFinalTotalSemantics() {
         AEKey raw = AEItemKey.of(Items.COBBLESTONE);
         AEKey target = AEItemKey.of(Items.DIAMOND);
@@ -300,5 +345,21 @@ public final class TrinityAcyclicDemandPropagatorTest {
 
     private static TrinityPlanningControl control() {
         return TrinityPlanningControl.create(() -> false, () -> 0L, Long.MAX_VALUE);
+    }
+
+    private static TrinityPatternVariant bindingVariant(TrinityPatternIdentity identity,
+                                                        int ordinal,
+                                                        AEKey input,
+                                                        AEKey output) {
+        BigInteger inputAmount = BigInteger.valueOf(4L);
+        return new TrinityPatternVariant(
+                identity,
+                output,
+                ordinal,
+                List.of(),
+                List.of(),
+                amounts(input, inputAmount),
+                amounts(output, BigInteger.ONE),
+                amounts(input, inputAmount.negate(), output, BigInteger.ONE));
     }
 }
