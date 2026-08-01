@@ -608,8 +608,12 @@
 	"gui.data_energistics.trinity_quantity.mode": "数量语义：%s",
 	"gui.data_energistics.trinity_quantity.net_new": "净新增",
 	"gui.data_energistics.trinity_quantity.final_total": "最终总量",
-	"gui.data_energistics.trinity_planning.only": "仅限 Trinity CPU · %s",
-	"gui.data_energistics.trinity_planning.dynamic_warning": "当前为预计材料，循环替代路线可能动态变化",
+	"gui.data_energistics.trinity_planning.title": "Trinity · %s · %s B",
+	"gui.data_energistics.trinity_planning.dynamic_title": "Trinity · %s · 动态预估 · %s B",
+	"gui.data_energistics.trinity_planning.ae2_fallback_title": "AE2 回退估算 · %s · %s B",
+	"gui.data_energistics.trinity_planning.missing_target_cycle_seed": "循环种子缺 %4$s：%1$s（%3$s/%2$s）",
+	"gui.data_energistics.trinity_planning.missing_external_input": "材料缺 %4$s：%1$s（%3$s/%2$s）",
+	"gui.data_energistics.trinity_planning.missing_cycle_working_seed": "启动库存缺 %4$s：%1$s（%3$s/%2$s）",
 	"gui.data_energistics.trinity_planning.cpu_too_small": "Trinity 计划需要 %s 字节，最大合格 CPU 仅有 %s 字节",
 	"gui.data_energistics.trinity_planning.graph_unavailable": "Trinity 合成图正在重建，已使用 AE2 规划"
 }

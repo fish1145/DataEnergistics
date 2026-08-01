@@ -72,6 +72,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     public Component dataEnergistics$diagnostic = Component.empty();
 
+    @GuiSync(796)
+    @Unique
+    public boolean dataEnergistics$ae2FallbackEstimate;
+
     protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
@@ -86,6 +90,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$dynamicMaterialWarning = false;
         this.dataEnergistics$hasDiagnostic = false;
         this.dataEnergistics$diagnostic = Component.empty();
+        this.dataEnergistics$ae2FallbackEstimate = false;
 
         if (this.result instanceof TrinityCraftingPlan plan) {
             this.dataEnergistics$quantityMode = plan.quantityMode().ordinal();
@@ -98,6 +103,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         } else if (this.result instanceof TrinityDiagnosedCraftingPlan diagnosed) {
             this.dataEnergistics$hasDiagnostic = true;
             this.dataEnergistics$diagnostic = diagnosed.diagnostic().message();
+            this.dataEnergistics$ae2FallbackEstimate = true;
         }
     }
 
@@ -187,6 +193,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public boolean data_energistics$hasDiagnostic() {
         return this.dataEnergistics$hasDiagnostic;
+    }
+
+    @Override
+    public boolean data_energistics$isAe2FallbackEstimate() {
+        return this.dataEnergistics$ae2FallbackEstimate;
     }
 
     @Override

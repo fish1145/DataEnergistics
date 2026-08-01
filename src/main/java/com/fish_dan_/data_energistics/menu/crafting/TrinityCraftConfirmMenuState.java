@@ -35,6 +35,11 @@ public interface TrinityCraftConfirmMenuState {
     boolean data_energistics$hasDiagnostic();
 
     /**
+     * @return whether the visible counters come from an AE2 simulation after Trinity planning failed
+     */
+    boolean data_energistics$isAe2FallbackEstimate();
+
+    /**
      * @return synchronized player-facing diagnostic
      */
     Component data_energistics$diagnostic();

@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPlanningGraphTestBootstrap;
 
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.item.Items;
 
 import appeng.api.stacks.AEItemKey;
@@ -26,6 +27,7 @@ import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.al
 import static com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmTestPatterns.variant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -107,9 +109,10 @@ public final class TrinityDeterministicCyclePlannerTest {
         AEKey fuel = AEItemKey.of(Items.COAL);
         TrinityPatternVariant fuelled = variant(
                 "fuelled",
-                amounts(a, BigInteger.ONE, fuel, BigInteger.ONE),
+                amounts(a, BigInteger.ONE, fuel, BigInteger.valueOf(7L)),
                 amounts(a, BigInteger.TWO));
-        BigInteger request = BigInteger.valueOf(1000L);
+        BigInteger request = BigInteger.valueOf(100L);
+        BigInteger requiredFuel = BigInteger.valueOf(700L);
 
         TrinityCyclePlan plan = TrinityDeterministicCyclePlanner.create()
                 .plan(
@@ -117,15 +120,36 @@ public final class TrinityDeterministicCyclePlannerTest {
                         a,
                         request,
                         CraftingQuantityMode.NET_NEW,
-                        Map.of(a, BigInteger.ONE, fuel, request),
+                        Map.of(a, BigInteger.ONE, fuel, requiredFuel),
                         16,
                         unlimitedControl())
                 .value();
 
         assertEquals(BigInteger.ONE, plan.minimumSeed().get(a));
-        assertEquals(request, plan.minimumSeed().get(fuel));
-        assertEquals(request.negate(), plan.netChange().get(fuel));
+        assertEquals(requiredFuel, plan.minimumSeed().get(fuel));
+        assertEquals(requiredFuel.negate(), plan.netChange().get(fuel));
         assertEquals(List.of(new TrinityVariantFiring(fuelled, request)), plan.schedule().batches());
+
+        TrinityAlgorithmResult<TrinityCyclePlan> shortage = TrinityDeterministicCyclePlanner.create()
+                .plan(
+                        List.of(new TrinityVariantFiring(fuelled, BigInteger.ONE)),
+                        a,
+                        request,
+                        CraftingQuantityMode.NET_NEW,
+                        Map.of(a, BigInteger.ONE, fuel, BigInteger.valueOf(384L)),
+                        16,
+                        unlimitedControl());
+
+        assertFalse(shortage.successful());
+        assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, shortage.diagnostic().code());
+        assertEquals("net_consumed_external_input", shortage.diagnostic().metadata().get("input_role"));
+        assertEquals("700", shortage.diagnostic().metadata().get("required"));
+        assertEquals("384", shortage.diagnostic().metadata().get("available"));
+        assertEquals("316", shortage.diagnostic().metadata().get("missing"));
+        assertEquals("700", shortage.diagnostic().metadata().get("net_consumed"));
+        assertEquals(
+                "gui.data_energistics.trinity_planning.missing_external_input",
+                assertInstanceOf(TranslatableContents.class, shortage.diagnostic().message().getContents()).getKey());
     }
 
     @Test
@@ -187,6 +211,13 @@ public final class TrinityDeterministicCyclePlannerTest {
 
         assertFalse(missingSeed.successful());
         assertEquals(TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, missingSeed.diagnostic().code());
+        assertEquals("target_cycle_seed", missingSeed.diagnostic().metadata().get("input_role"));
+        assertEquals("1", missingSeed.diagnostic().metadata().get("required"));
+        assertEquals("0", missingSeed.diagnostic().metadata().get("available"));
+        assertEquals("1", missingSeed.diagnostic().metadata().get("missing"));
+        assertEquals(
+                "gui.data_energistics.trinity_planning.missing_target_cycle_seed",
+                assertInstanceOf(TranslatableContents.class, missingSeed.diagnostic().message().getContents()).getKey());
         assertFalse(nonProductive.successful());
         assertEquals(TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE, nonProductive.diagnostic().code());
     }

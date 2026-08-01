@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.mixin.client;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
@@ -16,8 +15,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.text.NumberFormat;
+
 /**
- * Renders synchronized Trinity ownership, dynamic-material, and fallback diagnostics in the confirmation dialog.
+ * Places synchronized Trinity ownership and fallback diagnostics in the confirmation dialog's native text slots.
  */
 @Mixin(CraftConfirmScreen.class)
 public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmMenu> {
@@ -30,46 +31,35 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
         super(menu, playerInventory, title, style);
     }
 
-    @Inject(method = "drawFG", at = @At("RETURN"))
-    private void dataEnergistics$drawPlanningMetadata(
-                                                      GuiGraphics guiGraphics,
-                                                      int offsetX,
-                                                      int offsetY,
-                                                      int mouseX,
-                                                      int mouseY,
-                                                      CallbackInfo ci) {
+    @Inject(method = "updateBeforeRender", at = @At("TAIL"))
+    private void dataEnergistics$placePlanningMetadata(CallbackInfo ci) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
-        if (state.data_energistics$isTrinityOnly()) {
-            guiGraphics.drawString(
-                    this.font,
-                    Component.translatable(
-                            "gui.data_energistics.trinity_planning.only",
-                            Component.translatable(state.data_energistics$quantityMode() ==
-                                    CraftingQuantityMode.NET_NEW ?
-                                            "gui.data_energistics.trinity_quantity.net_new" :
-                                            "gui.data_energistics.trinity_quantity.final_total")),
-                    8,
-                    139,
-                    0x55FFFF,
-                    false);
+        var plan = this.menu.getPlan();
+        if (plan == null) {
+            return;
         }
 
-        if (state.data_energistics$hasDiagnostic()) {
-            guiGraphics.drawString(
-                    this.font,
-                    state.data_energistics$diagnostic(),
-                    8,
-                    150,
-                    0xFF7777,
-                    false);
-        } else if (state.data_energistics$hasDynamicMaterialWarning()) {
-            guiGraphics.drawString(
-                    this.font,
-                    Component.translatable("gui.data_energistics.trinity_planning.dynamic_warning"),
-                    8,
-                    150,
-                    0xFFCC55,
-                    false);
+        Component quantityMode = Component.translatable(state.data_energistics$quantityMode() ==
+                CraftingQuantityMode.NET_NEW ?
+                        "gui.data_energistics.trinity_quantity.net_new" :
+                        "gui.data_energistics.trinity_quantity.final_total");
+        String bytes = NumberFormat.getInstance().format(plan.getUsedBytes());
+        if (state.data_energistics$isAe2FallbackEstimate()) {
+            this.setTextContent(
+                    TEXT_ID_DIALOG_TITLE,
+                    Component.translatable(
+                            "gui.data_energistics.trinity_planning.ae2_fallback_title",
+                            quantityMode,
+                            bytes));
+            this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+        } else if (state.data_energistics$isTrinityOnly()) {
+            String titleKey = state.data_energistics$hasDynamicMaterialWarning() ?
+                    "gui.data_energistics.trinity_planning.dynamic_title" :
+                    "gui.data_energistics.trinity_planning.title";
+            this.setTextContent(TEXT_ID_DIALOG_TITLE, Component.translatable(titleKey, quantityMode, bytes));
+            if (state.data_energistics$hasDiagnostic()) {
+                this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+            }
         }
     }
 }

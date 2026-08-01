@@ -51,7 +51,7 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         if (targetEffect.signum() <= 0) {
             return failure(
                     TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
-                    "The deterministic Trinity cycle has no positive target effect",
+                    Component.literal("The deterministic Trinity cycle has no positive target effect"),
                     Map.of("target_effect", targetEffect.toString()));
         }
 
@@ -76,13 +76,13 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         for (Map.Entry<AEKey, BigInteger> input : initialInputs.entrySet()) {
             BigInteger availableAmount = inventory.getOrDefault(input.getKey(), BigInteger.ZERO);
             if (availableAmount.compareTo(input.getValue()) < 0) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                        "Trinity inventory cannot reserve the exact cycle seed",
-                        Map.of(
-                                "key", input.getKey().toString(),
-                                "required", input.getValue().toString(),
-                                "available", availableAmount.toString()));
+                return insufficientInput(
+                        input.getKey(),
+                        target,
+                        input.getValue(),
+                        availableAmount,
+                        minimumSeed,
+                        netChange);
             }
         }
 
@@ -187,14 +187,69 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
         return division[1].signum() == 0 ? division[0] : division[0].add(BigInteger.ONE);
     }
 
+    private static <T> TrinityAlgorithmResult<T> insufficientInput(
+                                                                   AEKey key,
+                                                                   AEKey target,
+                                                                   BigInteger required,
+                                                                   BigInteger available,
+                                                                   Map<AEKey, BigInteger> minimumSeed,
+                                                                   Map<AEKey, BigInteger> netChange) {
+        BigInteger missing = required.subtract(available);
+        BigInteger netConsumed = netChange.getOrDefault(key, BigInteger.ZERO).negate().max(BigInteger.ZERO);
+        InputRole role;
+        if (key.equals(target) && available.compareTo(minimumSeed.getOrDefault(key, BigInteger.ZERO)) < 0) {
+            role = InputRole.TARGET_CYCLE_SEED;
+        } else if (netConsumed.signum() > 0) {
+            role = InputRole.NET_CONSUMED_EXTERNAL_INPUT;
+        } else {
+            role = InputRole.CYCLE_WORKING_SEED;
+        }
+        return failure(
+                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                Component.translatable(
+                        role.translationKey,
+                        key.getDisplayName(),
+                        required.toString(),
+                        available.toString(),
+                        missing.toString()),
+                Map.of(
+                        "key", key.toString(),
+                        "input_role", role.metadataValue,
+                        "required", required.toString(),
+                        "available", available.toString(),
+                        "missing", missing.toString(),
+                        "net_consumed", netConsumed.toString()));
+    }
+
     private static <T> TrinityAlgorithmResult<T> failure(
                                                          TrinityPlanningDiagnosticCode code,
-                                                         String detail,
+                                                         Component detail,
                                                          Map<String, String> metadata) {
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 code,
-                Component.literal(detail),
+                detail,
                 metadata));
+    }
+
+    private enum InputRole {
+
+        TARGET_CYCLE_SEED(
+                "target_cycle_seed",
+                "gui.data_energistics.trinity_planning.missing_target_cycle_seed"),
+        NET_CONSUMED_EXTERNAL_INPUT(
+                "net_consumed_external_input",
+                "gui.data_energistics.trinity_planning.missing_external_input"),
+        CYCLE_WORKING_SEED(
+                "cycle_working_seed",
+                "gui.data_energistics.trinity_planning.missing_cycle_working_seed");
+
+        private final String metadataValue;
+        private final String translationKey;
+
+        InputRole(String metadataValue, String translationKey) {
+            this.metadataValue = metadataValue;
+            this.translationKey = translationKey;
+        }
     }
 
     private record CycleBalance(
