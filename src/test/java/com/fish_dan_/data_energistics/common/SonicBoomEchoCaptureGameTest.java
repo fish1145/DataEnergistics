@@ -57,7 +57,7 @@ public final class SonicBoomEchoCaptureGameTest {
         ServerLevel level = helper.getLevel();
         Warden warden = createWarden(helper, level);
         LivingEntity target = createTarget(helper, level);
-        SonicBoomEchoCapture capture = new SonicBoomEchoCaptureImpl();
+        SonicBoomEchoCaptureImpl capture = new SonicBoomEchoCaptureImpl();
 
         helper.startSequence()
                 .thenWaitUntil(() -> {
@@ -75,7 +75,7 @@ public final class SonicBoomEchoCaptureGameTest {
                                     level.damageSources().mobAttack(warden)),
                             "Ordinary Warden damage must not be recognized as a sonic boom");
                     helper.assertValueEqual(
-                            capture.capture(level, warden, target),
+                            capture.capture(level, warden, target, () -> 0.0D),
                             0,
                             "Offline formation planes must not produce Echo");
                     helper.assertValueEqual(
@@ -93,18 +93,18 @@ public final class SonicBoomEchoCaptureGameTest {
                 })
                 .thenExecute(() -> {
                     helper.assertValueEqual(
-                            capture.capture(level, warden, target),
+                            capture.capture(level, warden, target, () -> 0.0D),
                             2,
-                            "Two physical formation planes on the same network must each produce one Echo");
+                            "A successful independent roll for each physical formation plane must produce one Echo");
                     helper.assertValueEqual(
                             storedEcho(fixture.depot()),
                             2L,
-                            "Both Echo units must enter the network depot");
+                            "Both successful Echo rolls must enter the network depot");
 
                     fillKeyStorage(fixture.depot());
                     long fullEchoAmount = storedEcho(fixture.depot());
                     helper.assertValueEqual(
-                            capture.capture(level, warden, target),
+                            capture.capture(level, warden, target, () -> 0.0D),
                             0,
                             "A full key inventory must reject the complete simulated insertion");
                     helper.assertValueEqual(

@@ -46,7 +46,7 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
     private static final double CHARGE_RATE = 50_000.0D;
     private static final double INITIAL_POWER = 1_000.0D;
     public static final double ENERGY_PER_CAPTURE = 1_000.0D;
-    private static final int BYTES = 64;
+    private static final int BYTES = 16;
     private static final int BYTES_PER_TYPE = 1;
     private static final int TOTAL_TYPES = 1;
     private static final int MAX_UPGRADES = 3;
@@ -252,13 +252,13 @@ public class DataCaptureBallItem extends Item implements IAEItemPowerStorage, IB
             return 0;
         }
 
-        if (storedData <= 8L) {
+        if (storedData <= 16L) {
             return 1;
         }
-        if (storedData <= 16L) {
+        if (storedData <= 32L) {
             return 2;
         }
-        if (storedData <= 32L) {
+        if (storedData <= 64L) {
             return 3;
         }
         return 4;

@@ -29,6 +29,7 @@
 		"core.AEBaseMenuMixin",
 		"core.AEBasePartNameAccessor",
 		"core.AnvilMenuMixin",
+		"core.BasicCellHandlerMixin",
 		"core.BlockRedstonePulseMixin",
 		"core.CableBusBlockEntityMixin",
 		"core.CondenserBlockEntityMixin",

@@ -30,6 +30,7 @@ import appeng.parts.automation.FormationPlanePart;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.DoubleSupplier;
 
 /**
  * Server implementation that reconstructs the vanilla sonic-boom path and deposits Echo into each intersected
@@ -39,6 +40,7 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
 
     private static final double SONIC_EXTENSION_BEYOND_TARGET = 7.0D;
     private static final double INTERSECTION_EPSILON = 1.0E-7D;
+    private static final double ECHO_CAPTURE_CHANCE = 0.10D;
     private static final long ECHO_PER_PLANE = 1L;
 
     /**
@@ -59,6 +61,14 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
 
     @Override
     public int capture(ServerLevel level, Warden warden, LivingEntity target) {
+        return capture(level, warden, target, level.getRandom()::nextDouble);
+    }
+
+    /**
+     * Executes the sonic-path capture using the supplied rolls so deterministic callers can verify the same server
+     * logic.
+     */
+    int capture(ServerLevel level, Warden warden, LivingEntity target, DoubleSupplier echoRollSupplier) {
         Vec3 start = warden.position().add(
                 warden.getAttachments().get(EntityAttachment.WARDEN_CHEST, 0, warden.getYRot()));
         Vec3 end = extendPastTarget(start, target.getEyePosition());
@@ -81,7 +91,7 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
                 }
                 for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
                     if (blockEntity instanceof IPartHost partHost) {
-                        insertedEcho += captureFromHost(start, end, partHost, visitedPlanes);
+                        insertedEcho += captureFromHost(start, end, partHost, visitedPlanes, echoRollSupplier);
                     }
                 }
             }
@@ -112,6 +122,13 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
             return targetEye;
         }
         return targetEye.add(direction.normalize().scale(SONIC_EXTENSION_BEYOND_TARGET));
+    }
+
+    /**
+     * Applies the ten-percent chance that turns an eligible formation-plane crossing into one Echo.
+     */
+    static boolean shouldCaptureEcho(double roll) {
+        return roll < ECHO_CAPTURE_CHANCE;
     }
 
     /**
@@ -154,7 +171,8 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
                                 Vec3 start,
                                 Vec3 end,
                                 IPartHost partHost,
-                                Set<FormationPlaneIdentity> visitedPlanes) {
+                                Set<FormationPlaneIdentity> visitedPlanes,
+                                DoubleSupplier echoRollSupplier) {
         BlockPos position = partHost.getBlockEntity().getBlockPos();
         int insertedEcho = 0;
         for (Direction side : Direction.values()) {
@@ -165,7 +183,7 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
                     continue;
                 }
 
-                if (insertEcho(formationPlane, position, side)) {
+                if (insertEcho(formationPlane, position, side, echoRollSupplier)) {
                     insertedEcho++;
                 }
             } catch (RuntimeException exception) {
@@ -180,13 +198,21 @@ public final class SonicBoomEchoCaptureImpl implements SonicBoomEchoCapture {
         return insertedEcho;
     }
 
-    private boolean insertEcho(FormationPlanePart formationPlane, BlockPos position, Direction side) {
+    private boolean insertEcho(
+                               FormationPlanePart formationPlane,
+                               BlockPos position,
+                               Direction side,
+                               DoubleSupplier echoRollSupplier) {
         if (!formationPlane.getMainNode().isOnline()) {
             return false;
         }
 
         IGrid grid = formationPlane.getMainNode().getGrid();
         if (grid == null) {
+            return false;
+        }
+
+        if (!shouldCaptureEcho(echoRollSupplier.getAsDouble())) {
             return false;
         }
 
