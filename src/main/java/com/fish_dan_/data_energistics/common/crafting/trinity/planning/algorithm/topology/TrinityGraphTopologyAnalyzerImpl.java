@@ -139,11 +139,24 @@ final class TrinityGraphTopologyAnalyzerImpl implements TrinityGraphTopologyAnal
         for (int componentIndex = 0; componentIndex < outputVariants.size(); componentIndex++) {
             variantsByOutputComponent.put(componentIndex, List.copyOf(outputVariants.get(componentIndex)));
         }
+        LinkedHashMap<TrinityPatternVariant, Integer> cyclicOwnerByVariant = new LinkedHashMap<>();
+        for (TrinityStronglyConnectedComponent component : components) {
+            if (!component.cyclic()) {
+                continue;
+            }
+            for (TrinityPatternVariant variant : component.cycleVariants()) {
+                Integer previous = cyclicOwnerByVariant.putIfAbsent(variant, component.index());
+                if (previous != null && previous != component.index()) {
+                    throw new IllegalStateException("A Trinity feedback transition cannot belong to multiple SCCs");
+                }
+            }
+        }
         return new TrinityCraftingTopology(
                 components,
                 mapping,
                 topologicalOrder(predecessors, successors),
-                variantsByOutputComponent);
+                variantsByOutputComponent,
+                cyclicOwnerByVariant);
     }
 
     private static List<Integer> topologicalOrder(

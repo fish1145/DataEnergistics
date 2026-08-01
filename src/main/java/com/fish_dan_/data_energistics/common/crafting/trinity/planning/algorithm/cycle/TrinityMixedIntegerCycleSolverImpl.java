@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
@@ -53,39 +52,25 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
     @Override
     public TrinityAlgorithmResult<TrinityMipCyclePlan> solve(
                                                              TrinityStronglyConnectedComponent component,
-                                                             AEKey target,
-                                                             BigInteger requestedAmount,
-                                                             CraftingQuantityMode quantityMode,
+                                                             TrinityCycleDemand demand,
                                                              Map<AEKey, BigInteger> available,
                                                              Set<AEKey> producibleInputs,
                                                              int maxSearchStates,
                                                              TrinityPlanningControl control) {
-        if (component == null || !component.cyclic() || component.cycleVariants().isEmpty() || target == null ||
-                requestedAmount == null || requestedAmount.signum() <= 0 || quantityMode == null ||
+        if (component == null || !component.cyclic() || component.cycleVariants().isEmpty() || demand == null ||
                 available == null || producibleInputs == null || maxSearchStates <= 0 || control == null) {
             throw new IllegalArgumentException("A Trinity multi-route cycle request is incomplete");
-        }
-        if (!component.keys().contains(target)) {
-            throw new IllegalArgumentException("The Trinity MIP target must belong to its SCC");
         }
         List<TrinityPatternVariant> variants = component.cycleVariants().stream().sorted().toList();
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
         Set<AEKey> producible = copyKeys(producibleInputs);
         Set<AEKey> internalKeys = Collections.unmodifiableSet(new LinkedHashSet<>(component.keys()));
-        BigInteger requiredTargetNet = requiredTargetNet(
-                target,
-                requestedAmount,
-                quantityMode,
-                inventory);
         SolverMetrics metrics = new SolverMetrics();
 
         ModelRequest externalRequest = new ModelRequest(
                 variants,
                 internalKeys,
-                target,
-                requestedAmount,
-                requiredTargetNet,
-                quantityMode,
+                demand,
                 inventory,
                 producible,
                 ExternalInputPass.INSTANCE);
@@ -102,10 +87,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             ModelRequest seedRequest = new ModelRequest(
                     variants,
                     internalKeys,
-                    target,
-                    requestedAmount,
-                    requiredTargetNet,
-                    quantityMode,
+                    demand,
                     inventory,
                     producible,
                     new SeedPass(optimalExternal, seedLower));
@@ -118,10 +100,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             ModelRequest firingRequest = new ModelRequest(
                     variants,
                     internalKeys,
-                    target,
-                    requestedAmount,
-                    requiredTargetNet,
-                    quantityMode,
+                    demand,
                     inventory,
                     producible,
                     new FiringPass(optimalExternal, optimalSeed, firingLower));
@@ -139,10 +118,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             CandidateSearch candidateSearch = new CandidateSearch(
                     variants,
                     internalKeys,
-                    target,
-                    requestedAmount,
-                    requiredTargetNet,
-                    quantityMode,
+                    demand,
                     inventory,
                     producible,
                     optimalExternal,
@@ -269,19 +245,16 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         Map<AEKey, BigInteger> finiteUpperBounds = finiteInputUpperBounds(
                 request.variants(),
                 request.internalKeys(),
+                request.demand(),
                 request.available(),
                 request.producibleInputs());
-        Map<AEKey, BigInteger> finalLowerBounds = request.quantityMode() == CraftingQuantityMode.FINAL_TOTAL ?
-                Map.of(request.target(), request.requestedAmount()) :
-                Map.of();
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
                 solved.firings(),
                 initialInputs,
                 finiteUpperBounds,
-                finalLowerBounds,
-                request.target(),
-                request.requiredTargetNet());
+                request.demand().finalBalanceLowerBounds(),
+                request.demand().requiredNetChangeLowerBounds());
         if (!exact.successful()) {
             return exact;
         }
@@ -344,7 +317,10 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             seedVariables.put(key, variable);
             allVariables.add(variable);
         }
-        Set<AEKey> externalKeys = externalInputKeys(request.variants(), request.internalKeys());
+        Set<AEKey> externalKeys = externalReserveKeys(
+                request.variants(),
+                request.internalKeys(),
+                request.demand());
         LinkedHashMap<AEKey, Variable> externalVariables = new LinkedHashMap<>();
         int externalIndex = 0;
         for (AEKey key : externalKeys) {
@@ -363,6 +339,8 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             touchedKeys.addAll(variant.inputs().keySet());
             touchedKeys.addAll(variant.outputs().keySet());
         });
+        touchedKeys.addAll(request.demand().finalBalanceLowerBounds().keySet());
+        touchedKeys.addAll(request.demand().requiredNetChangeLowerBounds().keySet());
         int conservationIndex = 0;
         for (AEKey key : touchedKeys) {
             Expression conservation = model.addExpression("conservation_" + conservationIndex++);
@@ -378,20 +356,24 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             if (reserve != null) {
                 conservation.set(reserve, BigInteger.ONE);
             }
-            BigInteger finalLower = request.quantityMode() == CraftingQuantityMode.FINAL_TOTAL &&
-                    key.equals(request.target()) ?
-                            request.requestedAmount() :
-                            BigInteger.ZERO;
+            BigInteger finalLower = request.demand()
+                    .finalBalanceLowerBounds()
+                    .getOrDefault(key, BigInteger.ZERO);
             conservation.lower(finalLower);
         }
-        Expression targetNet = model.addExpression("target_net");
-        firingVariables.forEach((variant, variable) -> {
-            BigInteger coefficient = variant.netChange().getOrDefault(request.target(), BigInteger.ZERO);
-            if (coefficient.signum() != 0) {
-                targetNet.set(variable, coefficient);
-            }
-        });
-        targetNet.lower(request.requiredTargetNet());
+        int netIndex = 0;
+        for (Map.Entry<AEKey, BigInteger> bound : request.demand()
+                .requiredNetChangeLowerBounds()
+                .entrySet()) {
+            Expression requiredNet = model.addExpression("required_net_" + netIndex++);
+            firingVariables.forEach((variant, variable) -> {
+                BigInteger coefficient = variant.netChange().getOrDefault(bound.getKey(), BigInteger.ZERO);
+                if (coefficient.signum() != 0) {
+                    requiredNet.set(variable, coefficient);
+                }
+            });
+            requiredNet.lower(bound.getValue());
+        }
 
         Expression seedTotal = expression(model, "seed_total", seedVariables.values());
         seedTotal.lower(minimumFirstInternalInput(request.variants(), request.internalKeys()));
@@ -456,9 +438,10 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                 .orElse(BigInteger.ZERO);
     }
 
-    private static Set<AEKey> externalInputKeys(
-                                                List<TrinityPatternVariant> variants,
-                                                Set<AEKey> internalKeys) {
+    private static Set<AEKey> externalReserveKeys(
+                                                  List<TrinityPatternVariant> variants,
+                                                  Set<AEKey> internalKeys,
+                                                  TrinityCycleDemand demand) {
         LinkedHashSet<AEKey> externalKeys = new LinkedHashSet<>();
         for (TrinityPatternVariant variant : variants) {
             for (AEKey key : variant.inputs().keySet()) {
@@ -467,20 +450,10 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                 }
             }
         }
+        demand.finalBalanceLowerBounds().keySet().stream()
+                .filter(key -> !internalKeys.contains(key))
+                .forEach(externalKeys::add);
         return Collections.unmodifiableSet(externalKeys);
-    }
-
-    private static BigInteger requiredTargetNet(AEKey target,
-                                                BigInteger requestedAmount,
-                                                CraftingQuantityMode quantityMode,
-                                                Map<AEKey, BigInteger> available) {
-        if (quantityMode == CraftingQuantityMode.NET_NEW) {
-            return requestedAmount;
-        }
-        return requestedAmount
-                .subtract(available.getOrDefault(target, BigInteger.ZERO))
-                .max(BigInteger.ZERO)
-                .max(BigInteger.ONE);
     }
 
     private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
@@ -559,10 +532,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
     private record ModelRequest(
                                 List<TrinityPatternVariant> variants,
                                 Set<AEKey> internalKeys,
-                                AEKey target,
-                                BigInteger requestedAmount,
-                                BigInteger requiredTargetNet,
-                                CraftingQuantityMode quantityMode,
+                                TrinityCycleDemand demand,
                                 Map<AEKey, BigInteger> available,
                                 Set<AEKey> producibleInputs,
                                 ModelPass pass) {
@@ -621,10 +591,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
 
         private final List<TrinityPatternVariant> variants;
         private final Set<AEKey> internalKeys;
-        private final AEKey target;
-        private final BigInteger requestedAmount;
-        private final BigInteger requiredTargetNet;
-        private final CraftingQuantityMode quantityMode;
+        private final TrinityCycleDemand demand;
         private final Map<AEKey, BigInteger> available;
         private final Set<AEKey> producibleInputs;
         private final Set<AEKey> externalKeys;
@@ -640,10 +607,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         private CandidateSearch(
                                 List<TrinityPatternVariant> variants,
                                 Set<AEKey> internalKeys,
-                                AEKey target,
-                                BigInteger requestedAmount,
-                                BigInteger requiredTargetNet,
-                                CraftingQuantityMode quantityMode,
+                                TrinityCycleDemand demand,
                                 Map<AEKey, BigInteger> available,
                                 Set<AEKey> producibleInputs,
                                 BigInteger optimalExternal,
@@ -654,13 +618,10 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                                 SolverMetrics metrics) {
             this.variants = variants;
             this.internalKeys = internalKeys;
-            this.target = target;
-            this.requestedAmount = requestedAmount;
-            this.requiredTargetNet = requiredTargetNet;
-            this.quantityMode = quantityMode;
+            this.demand = demand;
             this.available = available;
             this.producibleInputs = producibleInputs;
-            this.externalKeys = externalInputKeys(variants, internalKeys);
+            this.externalKeys = externalReserveKeys(variants, internalKeys, demand);
             this.optimalExternal = optimalExternal;
             this.optimalSeed = optimalSeed;
             this.optimalFirings = optimalFirings;
@@ -731,10 +692,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             Optional<CandidateAccounting> candidateAccounting = accountCandidate(
                     firings,
                     this.internalKeys,
-                    this.target,
-                    this.requestedAmount,
-                    this.requiredTargetNet,
-                    this.quantityMode);
+                    this.demand);
             if (candidateAccounting.isEmpty()) {
                 return;
             }
@@ -806,19 +764,16 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             Map<AEKey, BigInteger> finiteUpperBounds = finiteInputUpperBounds(
                     this.variants,
                     this.internalKeys,
+                    this.demand,
                     this.available,
                     this.producibleInputs);
-            Map<AEKey, BigInteger> finalLowerBounds = this.quantityMode == CraftingQuantityMode.FINAL_TOTAL ?
-                    Map.of(this.target, this.requestedAmount) :
-                    Map.of();
             TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = conservationVerifier.verify(
                     this.variants,
                     firings,
                     initialInputs,
                     finiteUpperBounds,
-                    finalLowerBounds,
-                    this.target,
-                    this.requiredTargetNet);
+                    this.demand.finalBalanceLowerBounds(),
+                    this.demand.requiredNetChangeLowerBounds());
             if (!exact.successful()) {
                 this.terminal = Optional.of(TrinityAlgorithmResult.failure(exact.diagnostic()));
                 return;
@@ -854,10 +809,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
     private static Optional<CandidateAccounting> accountCandidate(
                                                                   Map<TrinityPatternVariant, BigInteger> firings,
                                                                   Set<AEKey> internalKeys,
-                                                                  AEKey target,
-                                                                  BigInteger requestedAmount,
-                                                                  BigInteger requiredTargetNet,
-                                                                  CraftingQuantityMode quantityMode) {
+                                                                  TrinityCycleDemand demand) {
         if (firings.isEmpty()) {
             return Optional.empty();
         }
@@ -865,17 +817,18 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         firings.forEach((variant, count) -> variant.netChange().forEach(
                 (key, amount) -> net.merge(key, amount.multiply(count), BigInteger::add)));
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
-        if (net.getOrDefault(target, BigInteger.ZERO).compareTo(requiredTargetNet) < 0) {
-            return Optional.empty();
+        for (Map.Entry<AEKey, BigInteger> bound : demand.requiredNetChangeLowerBounds().entrySet()) {
+            if (net.getOrDefault(bound.getKey(), BigInteger.ZERO).compareTo(bound.getValue()) < 0) {
+                return Optional.empty();
+            }
         }
         LinkedHashSet<AEKey> keys = new LinkedHashSet<>(net.keySet());
         keys.addAll(internalKeys);
+        keys.addAll(demand.finalBalanceLowerBounds().keySet());
         LinkedHashMap<AEKey, BigInteger> external = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> modelSeed = new LinkedHashMap<>();
         for (AEKey key : keys) {
-            BigInteger finalLower = quantityMode == CraftingQuantityMode.FINAL_TOTAL && key.equals(target) ?
-                    requestedAmount :
-                    BigInteger.ZERO;
+            BigInteger finalLower = demand.finalBalanceLowerBounds().getOrDefault(key, BigInteger.ZERO);
             BigInteger required = finalLower.subtract(net.getOrDefault(key, BigInteger.ZERO)).max(BigInteger.ZERO);
             if (required.signum() > 0) {
                 if (internalKeys.contains(key)) {
@@ -902,10 +855,12 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
     private static Map<AEKey, BigInteger> finiteInputUpperBounds(
                                                                  List<TrinityPatternVariant> variants,
                                                                  Set<AEKey> internalKeys,
+                                                                 TrinityCycleDemand demand,
                                                                  Map<AEKey, BigInteger> available,
                                                                  Set<AEKey> producibleInputs) {
         LinkedHashSet<AEKey> inputKeys = new LinkedHashSet<>(internalKeys);
         variants.forEach(variant -> inputKeys.addAll(variant.inputs().keySet()));
+        inputKeys.addAll(demand.finalBalanceLowerBounds().keySet());
         LinkedHashMap<AEKey, BigInteger> bounds = new LinkedHashMap<>();
         for (AEKey key : inputKeys) {
             if (!producibleInputs.contains(key)) {

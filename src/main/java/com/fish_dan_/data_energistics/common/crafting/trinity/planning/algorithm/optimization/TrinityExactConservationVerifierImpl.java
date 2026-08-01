@@ -28,24 +28,20 @@ final class TrinityExactConservationVerifierImpl implements TrinityExactConserva
                                                                  Map<AEKey, BigInteger> initialInputs,
                                                                  Map<AEKey, BigInteger> upperBounds,
                                                                  Map<AEKey, BigInteger> finalLowerBounds,
-                                                                 AEKey target,
-                                                                 BigInteger requiredTargetNet) {
+                                                                 Map<AEKey, BigInteger> requiredNetChangeLowerBounds) {
         if (variants == null || firings == null || initialInputs == null || upperBounds == null ||
-                finalLowerBounds == null || target == null || requiredTargetNet == null ||
-                requiredTargetNet.signum() <= 0) {
+                finalLowerBounds == null || requiredNetChangeLowerBounds == null ||
+                requiredNetChangeLowerBounds.isEmpty()) {
             throw new IllegalArgumentException(
-                    "A Trinity conservation verification requires complete inputs and a positive target net");
+                    "A Trinity conservation verification requires complete inputs and positive net bounds");
         }
 
         LinkedHashSet<TrinityPatternVariant> legalVariants = new LinkedHashSet<>(variants);
         if (legalVariants.contains(null)) {
             throw new IllegalArgumentException("A Trinity conservation model cannot contain a null variant");
         }
-        finalLowerBounds.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("A Trinity exact final bound cannot be negative or null");
-            }
-        });
+        validatePositiveBounds(finalLowerBounds, "final");
+        validatePositiveBounds(requiredNetChangeLowerBounds, "net change");
         LinkedHashMap<AEKey, BigInteger> net = new LinkedHashMap<>();
         for (Map.Entry<TrinityPatternVariant, BigInteger> firing : firings.entrySet()) {
             if (!legalVariants.contains(firing.getKey()) || firing.getValue() == null ||
@@ -55,8 +51,11 @@ final class TrinityExactConservationVerifierImpl implements TrinityExactConserva
             firing.getKey().netChange().forEach((key, amount) -> net.merge(key, amount.multiply(firing.getValue()), BigInteger::add));
         }
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
-        if (net.getOrDefault(target, BigInteger.ZERO).compareTo(requiredTargetNet) < 0) {
-            return inexact("target_net", net.getOrDefault(target, BigInteger.ZERO).toString());
+        for (Map.Entry<AEKey, BigInteger> bound : requiredNetChangeLowerBounds.entrySet()) {
+            BigInteger actual = net.getOrDefault(bound.getKey(), BigInteger.ZERO);
+            if (actual.compareTo(bound.getValue()) < 0) {
+                return inexact("required_net", bound.getKey() + ":" + actual + "<" + bound.getValue());
+            }
         }
 
         for (Map.Entry<AEKey, BigInteger> input : initialInputs.entrySet()) {
@@ -77,6 +76,7 @@ final class TrinityExactConservationVerifierImpl implements TrinityExactConserva
         LinkedHashSet<AEKey> keys = new LinkedHashSet<>(net.keySet());
         keys.addAll(initialInputs.keySet());
         keys.addAll(finalLowerBounds.keySet());
+        keys.addAll(requiredNetChangeLowerBounds.keySet());
         for (AEKey key : keys) {
             BigInteger finalBalance = initialInputs.getOrDefault(key, BigInteger.ZERO)
                     .add(net.getOrDefault(key, BigInteger.ZERO));
@@ -86,6 +86,14 @@ final class TrinityExactConservationVerifierImpl implements TrinityExactConserva
             }
         }
         return TrinityAlgorithmResult.success(Collections.unmodifiableMap(net));
+    }
+
+    private static void validatePositiveBounds(Map<AEKey, BigInteger> bounds, String description) {
+        bounds.forEach((key, amount) -> {
+            if (key == null || amount == null || amount.signum() <= 0) {
+                throw new IllegalArgumentException("A Trinity exact " + description + " bound must be positive");
+            }
+        });
     }
 
     private static <T> TrinityAlgorithmResult<T> inexact(String constraint, String value) {

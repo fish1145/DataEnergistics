@@ -256,6 +256,74 @@ public final class TrinityMixedIntegerCycleSolverTest {
     }
 
     @Test
+    void solvesAllFinalBalanceAxesOfOneComponentTogether() {
+        AEKey a = AEItemKey.of(Items.IRON_INGOT);
+        AEKey b = AEItemKey.of(Items.GOLD_INGOT);
+        TrinityPatternVariant aToB = variant(
+                "a-to-b",
+                amounts(a, BigInteger.ONE),
+                amounts(b, BigInteger.TWO));
+        TrinityPatternVariant bToA = variant(
+                "b-to-a",
+                amounts(b, BigInteger.ONE),
+                amounts(a, BigInteger.TWO));
+        TrinityStronglyConnectedComponent component = new TrinityStronglyConnectedComponent(
+                0,
+                List.of(a, b),
+                true,
+                List.of(aToB, bToA),
+                List.of(),
+                List.of());
+        TrinityCycleDemand demand = new TrinityCycleDemand(
+                Map.of(a, BigInteger.ONE, b, BigInteger.valueOf(3L)),
+                Map.of(b, BigInteger.valueOf(3L)));
+
+        TrinityAlgorithmResult<TrinityMipCyclePlan> result = TrinityMixedIntegerCycleSolver.create().solve(
+                component,
+                demand,
+                Map.of(a, BigInteger.ONE),
+                100,
+                TrinityPlanningControl.create(() -> false, () -> 0L, 1_000_000_000L));
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityMipCyclePlan plan = result.value();
+        assertEquals(Map.of(aToB, BigInteger.TWO, bToA, BigInteger.ONE), plan.firings());
+        assertEquals(Map.of(a, BigInteger.ONE), plan.initialInputs());
+        assertEquals(Map.of(b, BigInteger.valueOf(3L)), plan.netChange());
+        assertEquals(
+                Map.of(a, BigInteger.ONE, b, BigInteger.valueOf(3L)),
+                plan.schedule().finalBalances());
+    }
+
+    @Test
+    void solvesBoundaryOutputNetDemandWithoutConsumingTheInternalSeed() {
+        AEKey a = AEItemKey.of(Items.IRON_INGOT);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityPatternVariant growthWithBoundaryOutput = variant(
+                "growth-with-boundary-output",
+                amounts(a, BigInteger.ONE),
+                amounts(a, BigInteger.TWO, target, BigInteger.ONE));
+        TrinityCycleDemand demand = new TrinityCycleDemand(
+                Map.of(),
+                Map.of(target, BigInteger.ONE));
+
+        TrinityAlgorithmResult<TrinityMipCyclePlan> result = TrinityMixedIntegerCycleSolver.create().solve(
+                component(a, growthWithBoundaryOutput),
+                demand,
+                Map.of(a, BigInteger.ONE),
+                100,
+                TrinityPlanningControl.create(() -> false, () -> 0L, 1_000_000_000L));
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityMipCyclePlan plan = result.value();
+        assertEquals(Map.of(growthWithBoundaryOutput, BigInteger.ONE), plan.firings());
+        assertEquals(Map.of(a, BigInteger.ONE), plan.minimumSeed());
+        assertEquals(Map.of(a, BigInteger.ONE), plan.initialInputs());
+        assertEquals(Map.of(a, BigInteger.ONE, target, BigInteger.ONE), plan.netChange());
+        assertEquals(Map.of(a, BigInteger.TWO, target, BigInteger.ONE), plan.schedule().finalBalances());
+    }
+
+    @Test
     void reportsInfeasibleCancellationTimeoutAndCandidateLimit() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         AEKey fuel = AEItemKey.of(Items.COAL);

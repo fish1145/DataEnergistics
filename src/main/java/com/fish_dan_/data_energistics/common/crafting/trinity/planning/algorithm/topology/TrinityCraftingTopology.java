@@ -16,19 +16,21 @@ import java.util.Map;
  * @param componentByKey            exact key-to-component lookup
  * @param topologicalOrder          input-to-output condensation order
  * @param variantsByOutputComponent explicit transition ownership for every output-side component
+ * @param cyclicOwnerByVariant      unique cyclic component that owns a transition with internal feedback
  */
 public record TrinityCraftingTopology(
                                       List<TrinityStronglyConnectedComponent> components,
                                       Map<AEKey, Integer> componentByKey,
                                       List<Integer> topologicalOrder,
-                                      Map<Integer, List<TrinityPatternVariant>> variantsByOutputComponent) {
+                                      Map<Integer, List<TrinityPatternVariant>> variantsByOutputComponent,
+                                      Map<TrinityPatternVariant, Integer> cyclicOwnerByVariant) {
 
     /**
      * Validates complete component coverage and a legal condensation ordering.
      */
     public TrinityCraftingTopology {
         if (components == null || components.isEmpty() || componentByKey == null || topologicalOrder == null ||
-                variantsByOutputComponent == null ||
+                variantsByOutputComponent == null || cyclicOwnerByVariant == null ||
                 components.size() != topologicalOrder.size()) {
             throw new IllegalArgumentException("A Trinity crafting topology requires complete components and order");
         }
@@ -59,6 +61,17 @@ public record TrinityCraftingTopology(
             copiedVariants.put(index, List.copyOf(variants));
         });
         variantsByOutputComponent = Collections.unmodifiableMap(copiedVariants);
+        LinkedHashMap<TrinityPatternVariant, Integer> copiedOwners = new LinkedHashMap<>();
+        for (Map.Entry<TrinityPatternVariant, Integer> owner : cyclicOwnerByVariant.entrySet()) {
+            TrinityPatternVariant variant = owner.getKey();
+            Integer index = owner.getValue();
+            if (variant == null || index == null || index < 0 || index >= componentCount ||
+                    !components.get(index).cyclic() || !components.get(index).cycleVariants().contains(variant)) {
+                throw new IllegalArgumentException("A Trinity cyclic transition owner must reference its feedback component");
+            }
+            copiedOwners.put(variant, index);
+        }
+        cyclicOwnerByVariant = Collections.unmodifiableMap(copiedOwners);
         componentByKey = Collections.unmodifiableMap(copiedMapping);
         topologicalOrder = List.copyOf(topologicalOrder);
         boolean[] seen = new boolean[components.size()];

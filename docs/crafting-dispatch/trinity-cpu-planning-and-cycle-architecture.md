@@ -127,6 +127,15 @@ provider、BlockEntity 或世界引用。
 - 多路线且在限制内：局部 MIP；
 - 非生产、超上限或无法排程：明确诊断。
 
+目标位于凝聚 DAG 下游、上游原料位于一个或多个循环 SCC 时，下游传入的是循环原料的最终余额需求，而不是新的
+`NET_NEW` 请求。已有库存足以覆盖该余额时直接预留并跳过对应循环；仅部分覆盖时，求解器同时把现有数量作为 seed 与
+最终余额的一部分，再把各循环 block 排在下游 DAG stage 之前。该规则逐 SCC 应用，因此不要求最终请求物本身属于循环。
+
+一个 SCC 同时承担多个下游原料或直接产生 SCC 外输出时，规划器构造 component-wide demand：内部 key 使用最终余额下界，
+boundary output 使用净变化下界，并由同一个整数 firing vector 与压缩排程共同满足。任何含内部反馈边的 variant 只归属于唯一
+cyclic owner；其环外输出需求回传给 owner，禁止再作为普通 DAG producer 生成缺少前缀 seed 的重复 stage。串联 SCC 的
+启动材料不足时向上游传播完整余额而不是局部缺口；普通混合路线按稳定 identity 做有界回溯，找到可行路线后才发布计划。
+
 ### 6.3 确定性循环
 
 当 SCC 中每个内部 key 都只有一个生产者时，先以精确有理数高斯消元求 primitive positive integer firing ratio。

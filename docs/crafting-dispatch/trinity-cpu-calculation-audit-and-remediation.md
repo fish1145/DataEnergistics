@@ -149,6 +149,16 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 修复：执行快照升级 schema 3，保存时钟基准并在恢复时重基剩余延迟；旧 schema 2 deadline 立即到期一次。执行状态机
 维护 transient durable revision，CPU tick 统一比较并标脏；AE2 作业级暂停也随 job 保存，暂停时仍接收在途输出。
 
+### C-013：非循环终点把上游循环中间料误算为净新增
+
+凝聚 DAG 的下游需求进入循环 SCC 时，旧实现把中间料 gross demand 作为新的 `NET_NEW` 请求，忽略网络中已经存在的
+循环产物。已有库存足够时仍会无意义增殖；部分库存时还会把本可作为 seed 的数量从最终余额语义中丢失。
+
+修复：非根循环需求使用 final-balance 约束。库存完整覆盖时直接预留并跳过循环；部分覆盖时由循环求解器同时处理 seed、
+现有余额和缺口。同一 SCC 的全部余额轴与环外输出轴一次联合求解；跨 SCC hyper-transition 只归属于唯一 cyclic owner，
+环外产物需求回传给 owner，不再作为普通 DAG firing 重复接管。串联 SCC 在上游库存不足时传播完整 seed 余额，混合路线则在
+统一状态上限内按稳定顺序回溯。该规则逐 SCC 应用，最终请求物无需位于循环内。
+
 ## 4. 修复映射
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
@@ -165,6 +175,7 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 | C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |
 | C-011 | 数量语义与初始规划入口 | 已完成 | 请求上下文、双轨入口、容量拒绝和确认页 CPU-family 过滤 |
 | C-012 | retry 时钟重基、durable revision、作业暂停 | 已完成 | 高 tick→低 tick 恢复、在途续接、真实菜单 toggle |
+| C-013 | 上游循环 final-balance 与 boundary-output 传播 | 已完成 | 完整/部分库存、串并联 SCC、多轴联合求解、环外输出与混合路线回溯 |
 
 ## 5. 风险与控制
 
@@ -191,6 +202,7 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 - 多路线 SCC 和确定性 tie-break；
 - 非生产 SCC、无 seed、MIP 超时、SCC/variant/search 上限；
 - `NET_NEW` 与 `FINAL_TOTAL`；
+- 非循环终点复用已库存循环中间料，串并联 SCC 的 final-balance 传播，同 SCC 多轴与 cyclic-owned 环外输出；
 - 十亿级确定性循环缺料在 scheduler 前完成，组合 Future 不等待 AE2；
 - `long` 边界与溢出。
 
@@ -220,7 +232,7 @@ tick。另有 provider、动态材料、预算和 planning 等 durable 状态迁
 
 只有以下证据同时成立才可关闭本审计：
 
-1. C-001 至 C-012 均有直接行为测试或集成证据；
+1. C-001 至 C-013 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

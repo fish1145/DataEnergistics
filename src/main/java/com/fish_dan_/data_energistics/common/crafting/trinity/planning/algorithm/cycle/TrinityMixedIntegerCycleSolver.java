@@ -31,7 +31,7 @@ public interface TrinityMixedIntegerCycleSolver {
 
     /**
      * @param component       cyclic component and its externally connected cycle variants
-     * @param target          requested productive key inside the component
+     * @param target          requested SCC key or boundary output
      * @param requestedAmount positive requested delivery
      * @param quantityMode    net-new or final-total semantics
      * @param available       immutable non-negative inventory snapshot
@@ -64,11 +64,57 @@ public interface TrinityMixedIntegerCycleSolver {
      *
      * @param producibleInputs keys that can be produced by predecessor DAG stages
      */
+    default TrinityAlgorithmResult<TrinityMipCyclePlan> solve(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              AEKey target,
+                                                              BigInteger requestedAmount,
+                                                              CraftingQuantityMode quantityMode,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
+        return solve(
+                component,
+                TrinityCycleDemand.forTarget(target, requestedAmount, quantityMode, available),
+                available,
+                producibleInputs,
+                maxSearchStates,
+                control);
+    }
+
+    /**
+     * Solves all final-balance and net-change lower bounds for one component in a single firing vector.
+     *
+     * @param component       cyclic component and its owned transition variants
+     * @param demand          immutable component-wide demand, including optional boundary outputs
+     * @param available       immutable non-negative inventory snapshot
+     * @param maxSearchStates shared candidate/schedule search bound
+     * @param control         cancellation and shared MIP/search deadline
+     * @return exact lexicographic plan or stable bounded rejection
+     */
+    default TrinityAlgorithmResult<TrinityMipCyclePlan> solve(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
+        return solve(component, demand, available, Set.of(), maxSearchStates, control);
+    }
+
+    /**
+     * Solves a generalized component demand while leaving predecessor-craftable inputs unbounded by current storage.
+     *
+     * @param component        cyclic component and its owned transition variants
+     * @param demand           immutable component-wide demand, including optional boundary outputs
+     * @param available        immutable non-negative inventory snapshot
+     * @param producibleInputs keys that can be produced by predecessor DAG stages
+     * @param maxSearchStates  shared candidate/schedule search bound
+     * @param control          cancellation and shared MIP/search deadline
+     * @return exact lexicographic plan or stable bounded rejection
+     */
     TrinityAlgorithmResult<TrinityMipCyclePlan> solve(
                                                       TrinityStronglyConnectedComponent component,
-                                                      AEKey target,
-                                                      BigInteger requestedAmount,
-                                                      CraftingQuantityMode quantityMode,
+                                                      TrinityCycleDemand demand,
                                                       Map<AEKey, BigInteger> available,
                                                       Set<AEKey> producibleInputs,
                                                       int maxSearchStates,

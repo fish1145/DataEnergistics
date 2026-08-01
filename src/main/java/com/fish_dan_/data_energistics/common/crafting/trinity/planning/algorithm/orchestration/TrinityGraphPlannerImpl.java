@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCycleSequence;
@@ -279,10 +280,12 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
         private final TrinityCraftingConfig.Settings settings;
         private final TrinityPlanningControl control;
         private final Map<Integer, Integer> topologicalPositions;
+        private final RouteSearchBudget routeSearchBudget;
         private final LinkedHashMap<AEKey, BigInteger> demand = new LinkedHashMap<>();
         private final LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>();
         private final LinkedHashMap<TrinityPatternVariant, AcyclicFiring> acyclicFirings = new LinkedHashMap<>();
         private final ArrayList<CycleSolution> cycleSolutions = new ArrayList<>();
+        private final LinkedHashMap<Integer, LinkedHashMap<AEKey, BigInteger>> cycleOutputDemands = new LinkedHashMap<>();
         private int scheduleStates;
         private long mipNanos;
 
@@ -303,26 +306,73 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             this.settings = settings;
             this.control = control;
             this.topologicalPositions = topologicalPositions(topology);
+            this.routeSearchBudget = new RouteSearchBudget(settings.maxScheduleStates());
             this.demand.put(target, requestedAmount);
         }
 
+        private PlanningAccumulator(PlanningAccumulator source) {
+            this.topology = source.topology;
+            this.variants = source.variants;
+            this.target = source.target;
+            this.quantityMode = source.quantityMode;
+            this.inventory = new LinkedHashMap<>(source.inventory);
+            this.settings = source.settings;
+            this.control = source.control;
+            this.topologicalPositions = source.topologicalPositions;
+            this.routeSearchBudget = source.routeSearchBudget;
+            this.demand.putAll(source.demand);
+            this.initialInputs.putAll(source.initialInputs);
+            this.acyclicFirings.putAll(source.acyclicFirings);
+            this.cycleSolutions.addAll(source.cycleSolutions);
+            source.cycleOutputDemands.forEach((component, amounts) -> this.cycleOutputDemands.put(component, new LinkedHashMap<>(amounts)));
+            this.scheduleStates = source.scheduleStates;
+            this.mipNanos = source.mipNanos;
+        }
+
         private TrinityAlgorithmResult<PlanAssembly> solve() {
-            List<Integer> order = this.topology.topologicalOrder();
-            for (int position = order.size() - 1; position >= 0; position--) {
-                StopState state = stopState(this.control);
-                if (state == StopState.CANCELLED) {
-                    return cancelled();
-                }
-                if (state == StopState.DEADLINE_EXCEEDED) {
-                    return deadlineExceeded();
-                }
-                TrinityStronglyConnectedComponent component = this.topology.components().get(order.get(position));
-                TrinityAlgorithmResult<StepSuccess> processed = component.cyclic() ?
-                        processCycleComponent(component) :
-                        processAcyclicComponent(component);
-                if (!processed.successful()) {
-                    return TrinityAlgorithmResult.failure(processed.diagnostic());
-                }
+            return solveComponent(this.topology.topologicalOrder().size() - 1);
+        }
+
+        private TrinityAlgorithmResult<PlanAssembly> solveComponent(int position) {
+            StopState state = stopState(this.control);
+            if (state == StopState.CANCELLED) {
+                return cancelled();
+            }
+            if (state == StopState.DEADLINE_EXCEEDED) {
+                return deadlineExceeded();
+            }
+            if (position < 0) {
+                return completePlan();
+            }
+            int componentIndex = this.topology.topologicalOrder().get(position);
+            TrinityStronglyConnectedComponent component = this.topology.components().get(componentIndex);
+            if (!component.cyclic()) {
+                return processAcyclicComponent(component, 0, position);
+            }
+            TrinityAlgorithmResult<Optional<PreparedCycle>> prepared = prepareCycleComponent(component);
+            if (!prepared.successful()) {
+                return TrinityAlgorithmResult.failure(prepared.diagnostic());
+            }
+            if (prepared.value().isEmpty()) {
+                return solveComponent(position - 1);
+            }
+            PreparedCycle cycle = prepared.value().orElseThrow();
+            return satisfyCycleInputs(
+                    component,
+                    cycle,
+                    List.copyOf(cycle.solution().initialInputs().entrySet()),
+                    0,
+                    position);
+        }
+
+        private TrinityAlgorithmResult<PlanAssembly> completePlan() {
+            if (this.cycleOutputDemands.values().stream()
+                    .flatMap(amounts -> amounts.values().stream())
+                    .anyMatch(amount -> amount.signum() > 0)) {
+                return failure(
+                        TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                        "A Trinity boundary-output demand outlived its cyclic owner",
+                        Map.of());
             }
             for (Map.Entry<AEKey, BigInteger> remaining : this.demand.entrySet()) {
                 if (remaining.getValue().signum() > 0) {
@@ -332,135 +382,172 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             return assemble();
         }
 
-        private TrinityAlgorithmResult<StepSuccess> processAcyclicComponent(
-                                                                            TrinityStronglyConnectedComponent component) {
-            for (AEKey key : component.keys()) {
-                BigInteger required = positiveDemand(key);
-                boolean forceFinalProduction = key.equals(this.target) &&
-                        this.quantityMode == CraftingQuantityMode.FINAL_TOTAL;
-                if (required.signum() <= 0 && !forceFinalProduction) {
-                    continue;
-                }
-
-                boolean netNewTarget = key.equals(this.target) &&
-                        this.quantityMode == CraftingQuantityMode.NET_NEW;
-                if (!netNewTarget && required.signum() > 0) {
-                    BigInteger reserved = reserveFromInventory(key, required);
-                    merge(this.demand, key, reserved.negate());
-                }
-                BigInteger missing = positiveDemand(key);
-                if (missing.signum() <= 0 && !forceFinalProduction) {
-                    continue;
-                }
-
-                List<TrinityPatternVariant> candidates = producersFor(key, component.index(), false);
-                this.scheduleStates = Math.addExact(
-                        this.scheduleStates,
-                        Math.max(1, candidates.size()));
-                if (candidates.isEmpty()) {
-                    return insufficient(key, missing.max(BigInteger.ONE));
-                }
-                TrinityPatternVariant selected = candidates.getFirst();
-                BigInteger count = missing.signum() > 0 ?
-                        ceilDivide(missing, selected.outputs().get(key)) :
-                        BigInteger.ONE;
-                registerAcyclic(
-                        selected,
-                        count,
-                        Math.multiplyExact(this.topologicalPositions.get(component.index()), 2));
-                applyReverseDemand(selected, count, null);
+        private TrinityAlgorithmResult<PlanAssembly> processAcyclicComponent(
+                                                                             TrinityStronglyConnectedComponent component,
+                                                                             int keyIndex,
+                                                                             int position) {
+            if (keyIndex >= component.keys().size()) {
+                return solveComponent(position - 1);
             }
-            return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
+            AEKey key = component.keys().get(keyIndex);
+            BigInteger required = positiveDemand(key);
+            boolean forceFinalProduction = key.equals(this.target) &&
+                    this.quantityMode == CraftingQuantityMode.FINAL_TOTAL;
+            if (required.signum() <= 0 && !forceFinalProduction) {
+                return processAcyclicComponent(component, keyIndex + 1, position);
+            }
+
+            boolean netNewTarget = key.equals(this.target) &&
+                    this.quantityMode == CraftingQuantityMode.NET_NEW;
+            if (!netNewTarget && required.signum() > 0) {
+                BigInteger reserved = reserveFromInventory(key, required);
+                merge(this.demand, key, reserved.negate());
+            }
+            BigInteger missing = positiveDemand(key);
+            if (missing.signum() <= 0 && !forceFinalProduction) {
+                return processAcyclicComponent(component, keyIndex + 1, position);
+            }
+
+            List<TrinityPatternVariant> candidates = producersFor(key, component.index(), false);
+            if (candidates.isEmpty()) {
+                return insufficient(key, missing.max(BigInteger.ONE));
+            }
+            TrinityPlanningDiagnostic lastDiagnostic = null;
+            for (TrinityPatternVariant selected : candidates) {
+                if (!this.routeSearchBudget.consume()) {
+                    return routeSearchLimit();
+                }
+                PlanningAccumulator branch = new PlanningAccumulator(this);
+                BigInteger outputDemand = missing.signum() > 0 ? missing : BigInteger.ONE;
+                TrinityAlgorithmResult<StepSuccess> applied = branch.applyProducerChoice(
+                        component,
+                        key,
+                        selected,
+                        outputDemand,
+                        false);
+                if (!applied.successful()) {
+                    lastDiagnostic = applied.diagnostic();
+                    continue;
+                }
+                TrinityAlgorithmResult<PlanAssembly> result = branch.processAcyclicComponent(
+                        component,
+                        keyIndex + 1,
+                        position);
+                if (result.successful()) {
+                    return result;
+                }
+                lastDiagnostic = result.diagnostic();
+            }
+            return TrinityAlgorithmResult.failure(lastDiagnostic == null ?
+                    insufficient(key, missing.max(BigInteger.ONE)).diagnostic() :
+                    lastDiagnostic);
         }
 
-        private TrinityAlgorithmResult<StepSuccess> processCycleComponent(
-                                                                          TrinityStronglyConnectedComponent component) {
+        private TrinityAlgorithmResult<Optional<PreparedCycle>> prepareCycleComponent(
+                                                                                      TrinityStronglyConnectedComponent component) {
+            LinkedHashMap<AEKey, BigInteger> internalRequirements = new LinkedHashMap<>();
+            boolean requiresCycle = !this.cycleOutputDemands
+                    .getOrDefault(component.index(), new LinkedHashMap<>())
+                    .isEmpty();
             for (AEKey key : component.keys()) {
                 BigInteger required = positiveDemand(key);
                 if (required.signum() <= 0) {
                     continue;
                 }
-                CraftingQuantityMode cycleMode = key.equals(this.target) ?
-                        this.quantityMode :
-                        CraftingQuantityMode.NET_NEW;
-                Set<AEKey> producibleInputs = producibleInputs(component);
-                TrinityAlgorithmResult<CycleSolution> solved = solveCycle(
-                        component,
-                        key,
-                        required,
-                        cycleMode,
-                        producibleInputs);
-                if (!solved.successful()) {
-                    return TrinityAlgorithmResult.failure(solved.diagnostic());
-                }
-                CycleSolution solution = solved.value();
-                for (Map.Entry<AEKey, BigInteger> input : solution.initialInputs().entrySet()) {
-                    TrinityAlgorithmResult<StepSuccess> satisfied = satisfyCycleInput(
-                            component,
-                            input.getKey(),
-                            input.getValue(),
-                            producibleInputs);
-                    if (!satisfied.successful()) {
-                        return satisfied;
-                    }
-                }
-                this.cycleSolutions.add(solution);
-                this.scheduleStates = Math.addExact(this.scheduleStates, solution.scheduleStates());
-                this.mipNanos = Math.addExact(this.mipNanos, solution.mipNanos());
-                solution.netChange().forEach((output, amount) -> {
-                    if (amount.signum() > 0) {
-                        merge(this.demand, output, amount.negate());
-                    }
-                });
-                if (cycleMode == CraftingQuantityMode.FINAL_TOTAL) {
-                    this.demand.put(key, BigInteger.ZERO);
+                internalRequirements.put(key, required);
+                if (key.equals(this.target) ||
+                        this.inventory.getOrDefault(key, BigInteger.ZERO).compareTo(required) < 0) {
+                    requiresCycle = true;
                 }
             }
-            return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
+            if (!requiresCycle) {
+                internalRequirements.forEach((key, required) -> {
+                    BigInteger reserved = reserveFromInventory(key, required);
+                    merge(this.demand, key, reserved.negate());
+                });
+                return TrinityAlgorithmResult.success(Optional.empty());
+            }
+
+            LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>();
+            LinkedHashMap<AEKey, BigInteger> requiredNetChanges = new LinkedHashMap<>();
+            for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
+                AEKey key = requirement.getKey();
+                BigInteger required = requirement.getValue();
+                if (key.equals(this.target) && this.quantityMode == CraftingQuantityMode.NET_NEW) {
+                    merge(requiredNetChanges, key, required);
+                    continue;
+                }
+                finalBalances.put(key, required);
+                BigInteger shortage = required
+                        .subtract(this.inventory.getOrDefault(key, BigInteger.ZERO))
+                        .max(BigInteger.ZERO);
+                if (key.equals(this.target) && this.quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
+                    shortage = shortage.max(BigInteger.ONE);
+                }
+                if (shortage.signum() > 0) {
+                    requiredNetChanges.put(key, shortage);
+                }
+            }
+            this.cycleOutputDemands
+                    .getOrDefault(component.index(), new LinkedHashMap<>())
+                    .forEach((key, amount) -> merge(requiredNetChanges, key, amount));
+            TrinityCycleDemand cycleDemand = new TrinityCycleDemand(finalBalances, requiredNetChanges);
+            Set<AEKey> producibleInputs = producibleInputs(component);
+            TrinityAlgorithmResult<CycleSolution> solved = solveCycle(
+                    component,
+                    cycleDemand,
+                    producibleInputs);
+            if (!solved.successful()) {
+                return TrinityAlgorithmResult.failure(solved.diagnostic());
+            }
+            return TrinityAlgorithmResult.success(Optional.of(new PreparedCycle(
+                    solved.value(),
+                    internalRequirements,
+                    producibleInputs)));
         }
 
         private TrinityAlgorithmResult<CycleSolution> solveCycle(
                                                                  TrinityStronglyConnectedComponent component,
-                                                                 AEKey cycleTarget,
-                                                                 BigInteger amount,
-                                                                 CraftingQuantityMode cycleMode,
+                                                                 TrinityCycleDemand demand,
                                                                  Set<AEKey> producibleInputs) {
-            Optional<List<TrinityVariantFiring>> deterministicOrder = deterministicCycleSequence.resolve(
-                    component,
-                    cycleTarget,
-                    this.inventory);
-            if (deterministicOrder.isPresent()) {
-                TrinityAlgorithmResult<TrinityCyclePlan> deterministic = deterministicCyclePlanner.plan(
-                        deterministicOrder.orElseThrow(),
-                        cycleTarget,
-                        amount,
-                        cycleMode,
-                        this.inventory,
-                        this.settings.maxScheduleStates(),
-                        this.control);
-                if (deterministic.successful()) {
-                    TrinityCyclePlan plan = deterministic.value();
-                    return TrinityAlgorithmResult.success(new CycleSolution(
-                            component.index(),
-                            plan.oneCycleOrder(),
-                            plan.repetitions(),
-                            plan.minimumSeed(),
-                            plan.initialInputs(),
-                            plan.netChange(),
-                            plan.schedule().statesVisited(),
-                            0L));
-                }
-                if (deterministic.diagnostic().code() != TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT ||
-                        producibleInputs.isEmpty()) {
-                    return TrinityAlgorithmResult.failure(deterministic.diagnostic());
+            Optional<ScalarCycleDemand> scalar = scalarDemand(component, demand);
+            if (scalar.isPresent()) {
+                ScalarCycleDemand request = scalar.orElseThrow();
+                Optional<List<TrinityVariantFiring>> deterministicOrder = deterministicCycleSequence.resolve(
+                        component,
+                        request.target(),
+                        this.inventory);
+                if (deterministicOrder.isPresent()) {
+                    TrinityAlgorithmResult<TrinityCyclePlan> deterministic = deterministicCyclePlanner.plan(
+                            deterministicOrder.orElseThrow(),
+                            request.target(),
+                            request.amount(),
+                            request.quantityMode(),
+                            this.inventory,
+                            this.settings.maxScheduleStates(),
+                            this.control);
+                    if (deterministic.successful()) {
+                        TrinityCyclePlan plan = deterministic.value();
+                        return TrinityAlgorithmResult.success(new CycleSolution(
+                                component.index(),
+                                plan.oneCycleOrder(),
+                                plan.repetitions(),
+                                plan.minimumSeed(),
+                                plan.initialInputs(),
+                                plan.netChange(),
+                                plan.schedule().statesVisited(),
+                                0L));
+                    }
+                    if (deterministic.diagnostic().code() != TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT ||
+                            producibleInputs.isEmpty()) {
+                        return TrinityAlgorithmResult.failure(deterministic.diagnostic());
+                    }
                 }
             }
 
             TrinityAlgorithmResult<TrinityMipCyclePlan> mip = mixedIntegerCycleSolver.solve(
                     component,
-                    cycleTarget,
-                    amount,
-                    cycleMode,
+                    demand,
                     this.inventory,
                     producibleInputs,
                     this.settings.maxScheduleStates(),
@@ -483,24 +570,33 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     plan.solverNanos()));
         }
 
-        private TrinityAlgorithmResult<StepSuccess> satisfyCycleInput(
-                                                                      TrinityStronglyConnectedComponent component,
-                                                                      AEKey key,
-                                                                      BigInteger required,
-                                                                      Set<AEKey> producibleInputs) {
-            BigInteger missing = required.subtract(reserveFromInventory(key, required));
-            if (missing.signum() <= 0) {
-                return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
+        private TrinityAlgorithmResult<PlanAssembly> satisfyCycleInputs(
+                                                                        TrinityStronglyConnectedComponent component,
+                                                                        PreparedCycle prepared,
+                                                                        List<Map.Entry<AEKey, BigInteger>> inputs,
+                                                                        int inputIndex,
+                                                                        int position) {
+            if (inputIndex >= inputs.size()) {
+                return finishCycleComponent(component, prepared, position);
             }
-            if (!producibleInputs.contains(key)) {
+            Map.Entry<AEKey, BigInteger> input = inputs.get(inputIndex);
+            AEKey key = input.getKey();
+            BigInteger required = input.getValue();
+            BigInteger available = this.inventory.getOrDefault(key, BigInteger.ZERO);
+            if (available.compareTo(required) >= 0) {
+                reserveFromInventory(key, required);
+                return satisfyCycleInputs(component, prepared, inputs, inputIndex + 1, position);
+            }
+            if (!prepared.producibleInputs().contains(key)) {
+                BigInteger missing = required.subtract(reserveFromInventory(key, required));
                 return insufficient(key, missing);
             }
             int inputComponent = this.topology.componentByKey().get(key);
             int cyclePosition = this.topologicalPositions.get(component.index());
             int inputPosition = this.topologicalPositions.get(inputComponent);
             if (inputPosition < cyclePosition) {
-                merge(this.demand, key, missing);
-                return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
+                merge(this.demand, key, required);
+                return satisfyCycleInputs(component, prepared, inputs, inputIndex + 1, position);
             }
             if (inputComponent != component.index()) {
                 return failure(
@@ -508,28 +604,117 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                         "A Trinity cycle input producer violates condensation order",
                         Map.of("key", key.toString()));
             }
-            return planCrossBoundary(component, key, missing);
-        }
-
-        private TrinityAlgorithmResult<StepSuccess> planCrossBoundary(
-                                                                      TrinityStronglyConnectedComponent component,
-                                                                      AEKey key,
-                                                                      BigInteger missing) {
+            BigInteger missing = required.subtract(reserveFromInventory(key, required));
             List<TrinityPatternVariant> candidates = producersFor(key, component.index(), true);
-            this.scheduleStates = Math.addExact(
-                    this.scheduleStates,
-                    Math.max(1, candidates.size()));
             if (candidates.isEmpty()) {
                 return insufficient(key, missing);
             }
-            TrinityPatternVariant selected = candidates.getFirst();
-            BigInteger count = ceilDivide(missing, selected.outputs().get(key));
-            int rank = Math.subtractExact(
-                    Math.multiplyExact(this.topologicalPositions.get(component.index()), 2),
-                    1);
+            TrinityPlanningDiagnostic lastDiagnostic = null;
+            for (TrinityPatternVariant selected : candidates) {
+                if (!this.routeSearchBudget.consume()) {
+                    return routeSearchLimit();
+                }
+                PlanningAccumulator branch = new PlanningAccumulator(this);
+                TrinityAlgorithmResult<StepSuccess> applied = branch.applyProducerChoice(
+                        component,
+                        key,
+                        selected,
+                        missing,
+                        true);
+                if (!applied.successful()) {
+                    lastDiagnostic = applied.diagnostic();
+                    continue;
+                }
+                TrinityAlgorithmResult<PlanAssembly> result = branch.satisfyCycleInputs(
+                        component,
+                        prepared,
+                        inputs,
+                        inputIndex + 1,
+                        position);
+                if (result.successful()) {
+                    return result;
+                }
+                lastDiagnostic = result.diagnostic();
+            }
+            return TrinityAlgorithmResult.failure(lastDiagnostic == null ?
+                    insufficient(key, missing).diagnostic() :
+                    lastDiagnostic);
+        }
+
+        private TrinityAlgorithmResult<PlanAssembly> finishCycleComponent(
+                                                                          TrinityStronglyConnectedComponent component,
+                                                                          PreparedCycle prepared,
+                                                                          int position) {
+            CycleSolution solution = prepared.solution();
+            this.cycleSolutions.add(solution);
+            this.scheduleStates = Math.addExact(this.scheduleStates, solution.scheduleStates());
+            this.mipNanos = Math.addExact(this.mipNanos, solution.mipNanos());
+            prepared.internalRequirements().keySet().forEach(key -> this.demand.put(key, BigInteger.ZERO));
+            this.cycleOutputDemands.remove(component.index());
+            return solveComponent(position - 1);
+        }
+
+        private TrinityAlgorithmResult<StepSuccess> applyProducerChoice(
+                                                                        TrinityStronglyConnectedComponent outputComponent,
+                                                                        AEKey key,
+                                                                        TrinityPatternVariant selected,
+                                                                        BigInteger outputDemand,
+                                                                        boolean crossBoundaryInput) {
+            Integer cyclicOwner = this.topology.cyclicOwnerByVariant().get(selected);
+            if (cyclicOwner != null && cyclicOwner != outputComponent.index()) {
+                int ownerPosition = this.topologicalPositions.get(cyclicOwner);
+                int outputPosition = this.topologicalPositions.get(outputComponent.index());
+                if (ownerPosition >= outputPosition) {
+                    return failure(
+                            TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                            "A Trinity feedback transition owner violates condensation order",
+                            Map.of("key", key.toString()));
+                }
+                this.cycleOutputDemands
+                        .computeIfAbsent(cyclicOwner, ignored -> new LinkedHashMap<>())
+                        .merge(key, outputDemand, BigInteger::add);
+                if (!crossBoundaryInput) {
+                    merge(this.demand, key, outputDemand.negate());
+                }
+                return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
+            }
+            BigInteger count = ceilDivide(outputDemand, selected.outputs().get(key));
+            int rank = Math.multiplyExact(this.topologicalPositions.get(outputComponent.index()), 2);
+            if (crossBoundaryInput) {
+                rank = Math.subtractExact(rank, 1);
+            }
             registerAcyclic(selected, count, rank);
-            applyReverseDemand(selected, count, key);
+            applyReverseDemand(selected, count, crossBoundaryInput ? key : null);
             return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
+        }
+
+        private Optional<ScalarCycleDemand> scalarDemand(
+                                                         TrinityStronglyConnectedComponent component,
+                                                         TrinityCycleDemand demand) {
+            if (demand.requiredNetChangeLowerBounds().size() != 1) {
+                return Optional.empty();
+            }
+            Map.Entry<AEKey, BigInteger> net = demand.requiredNetChangeLowerBounds()
+                    .entrySet()
+                    .iterator()
+                    .next();
+            if (!component.keys().contains(net.getKey())) {
+                return Optional.empty();
+            }
+            if (demand.finalBalanceLowerBounds().isEmpty()) {
+                return Optional.of(new ScalarCycleDemand(
+                        net.getKey(),
+                        net.getValue(),
+                        CraftingQuantityMode.NET_NEW));
+            }
+            if (demand.finalBalanceLowerBounds().size() != 1 ||
+                    !demand.finalBalanceLowerBounds().containsKey(net.getKey())) {
+                return Optional.empty();
+            }
+            return Optional.of(new ScalarCycleDemand(
+                    net.getKey(),
+                    demand.finalBalanceLowerBounds().get(net.getKey()),
+                    CraftingQuantityMode.FINAL_TOTAL));
         }
 
         private List<TrinityPatternVariant> producersFor(
@@ -697,7 +882,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     Collections.unmodifiableMap(minimumSeed),
                     Collections.unmodifiableMap(netChange),
                     Collections.unmodifiableMap(stackRequests),
-                    this.scheduleStates,
+                    Math.addExact(this.scheduleStates, this.routeSearchBudget.used()),
                     this.mipNanos));
         }
 
@@ -706,6 +891,15 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                     TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
                     "Trinity planning cannot satisfy an upstream input",
                     Map.of("key", key.toString(), "required", amount.toString()));
+        }
+
+        private <T> TrinityAlgorithmResult<T> routeSearchLimit() {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    "Trinity mixed-route search reached the configured state limit",
+                    Map.of(
+                            "limit", Integer.toString(this.routeSearchBudget.limit()),
+                            "states", Integer.toString(this.routeSearchBudget.used())));
         }
     }
 
@@ -937,6 +1131,16 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                  int scheduleStates,
                                  long mipNanos) {}
 
+    private record PreparedCycle(
+                                 CycleSolution solution,
+                                 Map<AEKey, BigInteger> internalRequirements,
+                                 Set<AEKey> producibleInputs) {}
+
+    private record ScalarCycleDemand(
+                                     AEKey target,
+                                     BigInteger amount,
+                                     CraftingQuantityMode quantityMode) {}
+
     private record PlanAssembly(
                                 Map<AEKey, BigInteger> initialInputs,
                                 Map<TrinityPatternIdentity, BigInteger> patternFirings,
@@ -951,6 +1155,35 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
 
     private enum StepSuccess {
         INSTANCE
+    }
+
+    private static final class RouteSearchBudget {
+
+        private final int limit;
+        private int used;
+
+        private RouteSearchBudget(int limit) {
+            if (limit <= 0) {
+                throw new IllegalArgumentException("A Trinity route-search limit must be positive");
+            }
+            this.limit = limit;
+        }
+
+        private boolean consume() {
+            if (this.used >= this.limit) {
+                return false;
+            }
+            this.used = Math.incrementExact(this.used);
+            return true;
+        }
+
+        private int limit() {
+            return this.limit;
+        }
+
+        private int used() {
+            return this.used;
+        }
     }
 
     private enum StopState {

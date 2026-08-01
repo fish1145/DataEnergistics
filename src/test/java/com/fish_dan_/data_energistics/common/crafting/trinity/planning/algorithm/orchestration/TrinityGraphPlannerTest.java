@@ -114,6 +114,216 @@ public final class TrinityGraphPlannerTest {
     }
 
     @Test
+    void treatsUpstreamMultiStepCycleDemandAsFinalBalanceForADagTarget() {
+        AEKey material = AEItemKey.of(Items.IRON_INGOT);
+        AEKey charged = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey dust = AEItemKey.of(Items.REDSTONE);
+        AEKey fuel = AEItemKey.of(Items.STICK);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityCraftingGraphPattern charge = pattern(
+                "upstream-charge",
+                Items.PAPER,
+                List.of(stack(material, 1L)),
+                List.of(stack(charged, 1L)));
+        TrinityCraftingGraphPattern pulverize = pattern(
+                "upstream-pulverize",
+                Items.MAP,
+                List.of(stack(material, 1L)),
+                List.of(stack(dust, 1L)));
+        TrinityCraftingGraphPattern grow = pattern(
+                "upstream-grow",
+                Items.BOOK,
+                List.of(stack(charged, 1L), stack(dust, 1L), stack(fuel, 1L)),
+                List.of(stack(material, 4L)));
+        TrinityCraftingGraphPattern finish = pattern(
+                "downstream-finish",
+                Items.COMPASS,
+                List.of(stack(material, 1L)),
+                List.of(stack(target, 1L)));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
+                42L,
+                List.of(charge, pulverize, grow, finish));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> fullyStocked = TrinityGraphPlanner.create().plan(
+                snapshot,
+                target,
+                BigInteger.valueOf(2L),
+                CraftingQuantityMode.NET_NEW,
+                Map.of(material, BigInteger.valueOf(2L)),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(fullyStocked.successful(), () -> fullyStocked.diagnostic().message().getString());
+        assertTrue(fullyStocked.value().cycleRepeatBlocks().isEmpty());
+        assertEquals(BigInteger.valueOf(2L), fullyStocked.value().initialExpectedInputs().get(material));
+        assertEquals(BigInteger.valueOf(2L), fullyStocked.value().patternFirings().get(finish.identity()));
+        assertFalse(fullyStocked.value().patternFirings().containsKey(grow.identity()));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> partiallyStocked = TrinityGraphPlanner.create().plan(
+                snapshot,
+                target,
+                BigInteger.valueOf(4L),
+                CraftingQuantityMode.NET_NEW,
+                Map.of(material, BigInteger.valueOf(2L), fuel, BigInteger.ONE),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(partiallyStocked.successful(), () -> partiallyStocked.diagnostic().message().getString());
+        TrinityCraftingPlan partialPlan = partiallyStocked.value();
+        assertEquals(BigInteger.ONE, partialPlan.patternFirings().get(charge.identity()));
+        assertEquals(BigInteger.ONE, partialPlan.patternFirings().get(pulverize.identity()));
+        assertEquals(BigInteger.ONE, partialPlan.patternFirings().get(grow.identity()));
+        assertEquals(BigInteger.valueOf(4L), partialPlan.patternFirings().get(finish.identity()));
+        assertEquals(BigInteger.valueOf(2L), partialPlan.initialExpectedInputs().get(material));
+        assertEquals(BigInteger.ONE, partialPlan.initialExpectedInputs().get(fuel));
+        assertEquals(1, partialPlan.cycleRepeatBlocks().size());
+        assertTrue(stageIndex(partialPlan, grow.identity()) < stageIndex(partialPlan, finish.identity()));
+    }
+
+    @Test
+    void composesSerialAndParallelCycleComponentsWithoutConsumingAnUpstreamSeedEarly() {
+        AEKey first = AEItemKey.of(Items.IRON_INGOT);
+        AEKey firstFuel = AEItemKey.of(Items.STICK);
+        AEKey second = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey parallel = AEItemKey.of(Items.COPPER_INGOT);
+        AEKey parallelFuel = AEItemKey.of(Items.COAL);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityCraftingGraphPattern firstGrowth = pattern(
+                "first-growth",
+                Items.PAPER,
+                List.of(stack(first, 1L), stack(firstFuel, 1L)),
+                List.of(stack(first, 2L)));
+        TrinityCraftingGraphPattern secondGrowth = pattern(
+                "second-growth",
+                Items.MAP,
+                List.of(stack(second, 1L), stack(first, 1L)),
+                List.of(stack(second, 2L)));
+        TrinityCraftingGraphPattern parallelGrowth = pattern(
+                "parallel-growth",
+                Items.BOOK,
+                List.of(stack(parallel, 1L), stack(parallelFuel, 1L)),
+                List.of(stack(parallel, 2L)));
+        TrinityCraftingGraphPattern finish = pattern(
+                "multi-cycle-finish",
+                Items.COMPASS,
+                List.of(stack(second, 1L), stack(parallel, 1L)),
+                List.of(stack(target, 1L)));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
+                43L,
+                List.of(firstGrowth, secondGrowth, parallelGrowth, finish));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                snapshot,
+                target,
+                BigInteger.valueOf(3L),
+                CraftingQuantityMode.NET_NEW,
+                Map.of(
+                        first, BigInteger.ONE,
+                        firstFuel, BigInteger.ONE,
+                        second, BigInteger.ONE,
+                        parallel, BigInteger.ONE,
+                        parallelFuel, BigInteger.TWO),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityCraftingPlan plan = result.value();
+        assertEquals(3, plan.cycleRepeatBlocks().size());
+        assertEquals(BigInteger.ONE, plan.patternFirings().get(firstGrowth.identity()));
+        assertEquals(BigInteger.TWO, plan.patternFirings().get(secondGrowth.identity()));
+        assertEquals(BigInteger.TWO, plan.patternFirings().get(parallelGrowth.identity()));
+        assertEquals(BigInteger.valueOf(3L), plan.patternFirings().get(finish.identity()));
+        assertTrue(stageIndex(plan, firstGrowth.identity()) < stageIndex(plan, secondGrowth.identity()));
+        assertTrue(stageIndex(plan, secondGrowth.identity()) < stageIndex(plan, finish.identity()));
+        assertTrue(stageIndex(plan, parallelGrowth.identity()) < stageIndex(plan, finish.identity()));
+    }
+
+    @Test
+    void jointlySolvesMultipleSccAxesAndBoundaryOutputsForADagTarget() {
+        AEKey first = AEItemKey.of(Items.IRON_INGOT);
+        AEKey second = AEItemKey.of(Items.GOLD_INGOT);
+        AEKey boundary = AEItemKey.of(Items.REDSTONE);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityCraftingGraphPattern firstToSecond = pattern(
+                "joint-first-to-second",
+                Items.PAPER,
+                List.of(stack(first, 1L)),
+                List.of(stack(second, 2L), stack(boundary, 1L)));
+        TrinityCraftingGraphPattern secondToFirst = pattern(
+                "joint-second-to-first",
+                Items.MAP,
+                List.of(stack(second, 1L)),
+                List.of(stack(first, 2L)));
+        TrinityCraftingGraphPattern finish = pattern(
+                "joint-boundary-finish",
+                Items.COMPASS,
+                List.of(stack(first, 1L), stack(second, 3L), stack(boundary, 1L)),
+                List.of(stack(target, 1L)));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
+                44L,
+                List.of(firstToSecond, secondToFirst, finish));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                snapshot,
+                target,
+                BigInteger.ONE,
+                CraftingQuantityMode.NET_NEW,
+                Map.of(first, BigInteger.ONE),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityCraftingPlan plan = result.value();
+        assertEquals(BigInteger.TWO, plan.patternFirings().get(firstToSecond.identity()));
+        assertEquals(BigInteger.ONE, plan.patternFirings().get(secondToFirst.identity()));
+        assertEquals(BigInteger.ONE, plan.patternFirings().get(finish.identity()));
+        assertEquals(BigInteger.ONE, plan.initialExpectedInputs().get(first));
+        assertEquals(1, plan.cycleRepeatBlocks().size());
+        assertTrue(stageIndex(plan, firstToSecond.identity()) < stageIndex(plan, finish.identity()));
+    }
+
+    @Test
+    void backtracksFromAnUnavailableMixedRouteToACycleBackedRoute() {
+        AEKey unavailable = AEItemKey.of(Items.EMERALD);
+        AEKey material = AEItemKey.of(Items.IRON_INGOT);
+        AEKey fuel = AEItemKey.of(Items.STICK);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
+        TrinityCraftingGraphPattern unavailableRoute = pattern(
+                "a-unavailable-route",
+                Items.PAPER,
+                List.of(stack(unavailable, 1L)),
+                List.of(stack(target, 1L)));
+        TrinityCraftingGraphPattern growth = pattern(
+                "material-growth",
+                Items.MAP,
+                List.of(stack(material, 1L), stack(fuel, 1L)),
+                List.of(stack(material, 2L)));
+        TrinityCraftingGraphPattern cycleBackedRoute = pattern(
+                "z-cycle-backed-route",
+                Items.COMPASS,
+                List.of(stack(material, 1L)),
+                List.of(stack(target, 1L)));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
+                45L,
+                List.of(unavailableRoute, growth, cycleBackedRoute));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                snapshot,
+                target,
+                BigInteger.TWO,
+                CraftingQuantityMode.NET_NEW,
+                Map.of(material, BigInteger.ONE, fuel, BigInteger.ONE),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityCraftingPlan plan = result.value();
+        assertFalse(plan.patternFirings().containsKey(unavailableRoute.identity()));
+        assertEquals(BigInteger.ONE, plan.patternFirings().get(growth.identity()));
+        assertEquals(BigInteger.TWO, plan.patternFirings().get(cycleBackedRoute.identity()));
+    }
+
+    @Test
     void plansLargeAcyclicRequestWithGraphBoundedStateCount() {
         AEKey raw = AEItemKey.of(Items.REDSTONE);
         AEKey intermediate = AEItemKey.of(Items.IRON_INGOT);
@@ -153,13 +363,14 @@ public final class TrinityGraphPlannerTest {
 
     @ParameterizedTest
     @ValueSource(longs = { 1L, 10_000L, 1_256_000_000L, Integer.MAX_VALUE })
-    void plansDeterministicMultiStepGrowthAcrossThePlayerRequestDomain(long requestedAmount) {
+    void plansAnAcyclicTargetOverMultiStepGrowthAcrossThePlayerRequestDomain(long requestedAmount) {
         BigInteger requested = BigInteger.valueOf(requestedAmount);
         BigInteger repetitions = requested.add(BigInteger.valueOf(127L)).divide(BigInteger.valueOf(128L));
         AEKey certus = AEItemKey.of(Items.QUARTZ);
         AEKey chargedCertus = AEItemKey.of(Items.AMETHYST_SHARD);
         AEKey certusDust = AEItemKey.of(Items.REDSTONE);
         AEKey water = AEItemKey.of(Items.WATER_BUCKET);
+        AEKey target = AEItemKey.of(Items.DIAMOND);
         TrinityCraftingGraphPattern charge = pattern(
                 "growth-charge",
                 Items.PAPER,
@@ -175,13 +386,18 @@ public final class TrinityGraphPlannerTest {
                 Items.BOOK,
                 List.of(stack(chargedCertus, 16L), stack(certusDust, 16L), stack(water, 500L)),
                 List.of(stack(certus, 64L)));
+        TrinityCraftingGraphPattern finish = pattern(
+                "growth-finish",
+                Items.COMPASS,
+                List.of(stack(certus, 1L)),
+                List.of(stack(target, 1L)));
         TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
                 43L,
-                List.of(charge, pulverize, react));
+                List.of(charge, pulverize, react, finish));
 
         TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
                 snapshot,
-                certus,
+                target,
                 requested,
                 CraftingQuantityMode.NET_NEW,
                 Map.of(
@@ -196,13 +412,18 @@ public final class TrinityGraphPlannerTest {
         assertEquals(repetitions, plan.patternFirings().get(charge.identity()));
         assertEquals(repetitions.multiply(BigInteger.valueOf(64L)), plan.patternFirings().get(pulverize.identity()));
         assertEquals(repetitions.multiply(BigInteger.valueOf(4L)), plan.patternFirings().get(react.identity()));
-        assertEquals(repetitions.multiply(BigInteger.valueOf(128L)), plan.targetNetChange().get(certus));
+        assertEquals(requested, plan.patternFirings().get(finish.identity()));
+        assertEquals(requested, plan.targetNetChange().get(target));
+        assertEquals(
+                repetitions.multiply(BigInteger.valueOf(128L)).subtract(requested),
+                plan.targetNetChange().getOrDefault(certus, BigInteger.ZERO));
         assertEquals(repetitions.multiply(BigInteger.valueOf(3_000L)), plan.initialExpectedInputs().get(water));
         assertEquals(BigInteger.valueOf(64L), plan.minimumSeed().get(chargedCertus));
         assertEquals(BigInteger.valueOf(64L), plan.minimumSeed().get(certusDust));
         assertFalse(plan.targetNetChange().containsKey(chargedCertus));
         assertFalse(plan.targetNetChange().containsKey(certusDust));
         assertEquals(1, plan.cycleRepeatBlocks().size());
+        assertTrue(stageIndex(plan, react.identity()) < stageIndex(plan, finish.identity()));
         assertTrue(
                 plan.statistics().scheduleStates() <= 128,
                 () -> "compressed states=" + plan.statistics().scheduleStates());
