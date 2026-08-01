@@ -162,6 +162,9 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 状态搜索不逐个执行 firing，而按“当前最大安全批次”或下一个余额断点推进。状态包含剩余 firing vector、相关余额和
 阶段游标，并受 `maxScheduleStates` 限制。
 
+MIP 中的 seed 变量是最终守恒的整数下界，压缩排程负责求出真正满足所有执行前缀的 minimum seed。同一最优 firing
+层内按真实前缀 seed 比较候选；只要真实 seed 未超过可用库存，就不能因为它高于 MIP 松弛下界而把可执行循环判为无解。
+
 只有满足以下条件的结果才能进入计划：
 
 - 加入 minimum seed 后每个执行前缀余额非负；

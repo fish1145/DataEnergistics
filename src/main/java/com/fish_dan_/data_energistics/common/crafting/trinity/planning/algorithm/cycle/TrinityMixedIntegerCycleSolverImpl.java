@@ -604,7 +604,8 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         private final SearchBudget budget;
         private final TrinityPlanningControl control;
         private final SolverMetrics metrics;
-        private Optional<TrinityAlgorithmResult<TrinityMipCyclePlan>> found = Optional.empty();
+        private Optional<TrinityMipCyclePlan> best = Optional.empty();
+        private Optional<TrinityAlgorithmResult<TrinityMipCyclePlan>> terminal = Optional.empty();
 
         private CandidateSearch(
                                 List<TrinityPatternVariant> variants,
@@ -641,27 +642,33 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
         private TrinityAlgorithmResult<TrinityMipCyclePlan> search() {
             BigInteger[] counts = new BigInteger[this.variants.size()];
             enumerate(0, this.optimalFirings, counts);
-            return this.found.orElseGet(() -> failure(
+            if (this.terminal.isPresent()) {
+                return this.terminal.orElseThrow();
+            }
+            if (this.best.isPresent()) {
+                return TrinityAlgorithmResult.success(this.best.orElseThrow());
+            }
+            return failure(
                     TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
                     "No schedule reaches the exact seed lower bound at this firing count",
                     Map.of(
                             "firings", this.optimalFirings.toString(),
-                            "seed", this.optimalSeed.toString())));
+                            "seed", this.optimalSeed.toString()));
         }
 
         private void enumerate(int index, BigInteger remaining, BigInteger[] counts) {
-            if (this.found.isPresent()) {
+            if (this.terminal.isPresent() || hasProvenMinimumSeed()) {
                 return;
             }
             if (this.control.cancellationRequested()) {
-                this.found = Optional.of(failure(
+                this.terminal = Optional.of(failure(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
                         "Trinity MIP candidate search was cancelled",
                         Map.of("states", Integer.toString(this.budget.used))));
                 return;
             }
             if (this.control.deadlineExceeded()) {
-                this.found = Optional.of(failure(
+                this.terminal = Optional.of(failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
                         "Trinity MIP candidate search exhausted its deadline",
                         Map.of("states", Integer.toString(this.budget.used))));
@@ -673,7 +680,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                 return;
             }
             BigInteger count = remaining;
-            while (count.signum() >= 0 && this.found.isEmpty()) {
+            while (count.signum() >= 0 && this.terminal.isEmpty() && !hasProvenMinimumSeed()) {
                 counts[index] = count;
                 enumerate(index + 1, remaining.subtract(count), counts);
                 count = count.subtract(BigInteger.ONE);
@@ -682,7 +689,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
 
         private void evaluate(BigInteger[] counts) {
             if (!this.budget.consume(1)) {
-                this.found = Optional.of(searchLimit(this.budget));
+                this.terminal = Optional.of(searchLimit(this.budget));
                 return;
             }
             LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
@@ -720,7 +727,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     this.optimalSeed);
             int remainingStates = this.budget.remaining();
             if (remainingStates <= 0) {
-                this.found = Optional.of(searchLimit(this.budget));
+                this.terminal = Optional.of(searchLimit(this.budget));
                 return;
             }
             LinkedHashMap<AEKey, BigInteger> minimumInputs = new LinkedHashMap<>(
@@ -740,11 +747,11 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     this.budget.consume(diagnosticStates(seeded.diagnostic()));
                     return;
                 }
-                this.found = Optional.of(TrinityAlgorithmResult.failure(seeded.diagnostic()));
+                this.terminal = Optional.of(TrinityAlgorithmResult.failure(seeded.diagnostic()));
                 return;
             }
             if (!this.budget.consume(seeded.value().schedule().statesVisited())) {
-                this.found = Optional.of(searchLimit(this.budget));
+                this.terminal = Optional.of(searchLimit(this.budget));
                 return;
             }
 
@@ -760,7 +767,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     accounting.requiredModelSeed(),
                     seeded.value().minimumSeed());
             BigInteger requiredSlack = this.optimalSeed.subtract(sum(internalInitial));
-            if (requiredSlack.signum() < 0 ||
+            if (requiredSlack.signum() > 0 &&
                     hasUnfilledSlack(internalInitial, requiredSlack, this.internalKeys, maximumInputs)) {
                 return;
             }
@@ -783,7 +790,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     this.target,
                     this.requiredTargetNet);
             if (!exact.successful()) {
-                this.found = Optional.of(TrinityAlgorithmResult.failure(exact.diagnostic()));
+                this.terminal = Optional.of(TrinityAlgorithmResult.failure(exact.diagnostic()));
                 return;
             }
             Map<AEKey, BigInteger> finalBalances = addSigned(initialInputs, accounting.netChange());
@@ -791,7 +798,7 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     seeded.value().schedule().batches(),
                     finalBalances,
                     seeded.value().schedule().statesVisited());
-            this.found = Optional.of(TrinityAlgorithmResult.success(new TrinityMipCyclePlan(
+            TrinityMipCyclePlan candidate = new TrinityMipCyclePlan(
                     firings,
                     externalInitial,
                     seeded.value().minimumSeed(),
@@ -799,7 +806,18 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
                     accounting.netChange(),
                     adjustedSchedule,
                     this.metrics.passes,
-                    this.metrics.nanos)));
+                    this.metrics.nanos);
+            if (this.best.isEmpty() || seedTotal(candidate).compareTo(seedTotal(this.best.orElseThrow())) < 0) {
+                this.best = Optional.of(candidate);
+            }
+        }
+
+        private boolean hasProvenMinimumSeed() {
+            return this.best.isPresent() && seedTotal(this.best.orElseThrow()).equals(this.optimalSeed);
+        }
+
+        private static BigInteger seedTotal(TrinityMipCyclePlan plan) {
+            return sum(plan.minimumSeed());
         }
     }
 

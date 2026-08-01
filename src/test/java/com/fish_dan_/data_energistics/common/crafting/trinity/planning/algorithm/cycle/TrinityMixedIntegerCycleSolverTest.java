@@ -82,6 +82,49 @@ public final class TrinityMixedIntegerCycleSolverTest {
     }
 
     @Test
+    void solvesChargedDustReactionGrowthCycleWithAnExistingCertusSeed() {
+        AEKey certus = AEItemKey.of(Items.QUARTZ);
+        AEKey chargedCertus = AEItemKey.of(Items.AMETHYST_SHARD);
+        AEKey certusDust = AEItemKey.of(Items.REDSTONE);
+        AEKey water = AEItemKey.of(Items.WATER_BUCKET);
+        TrinityPatternVariant charge = variant(
+                "charge",
+                amounts(certus, BigInteger.valueOf(64L)),
+                amounts(chargedCertus, BigInteger.valueOf(64L)));
+        TrinityPatternVariant pulverize = variant(
+                "pulverize",
+                amounts(certus, BigInteger.ONE),
+                amounts(certusDust, BigInteger.ONE));
+        TrinityPatternVariant react = variant(
+                "react",
+                amounts(
+                        chargedCertus, BigInteger.valueOf(16L),
+                        certusDust, BigInteger.valueOf(16L),
+                        water, BigInteger.valueOf(500L)),
+                amounts(certus, BigInteger.valueOf(64L)));
+        TrinityStronglyConnectedComponent component = new TrinityStronglyConnectedComponent(
+                0,
+                List.of(certus, chargedCertus, certusDust),
+                true,
+                List.of(charge, pulverize, react),
+                List.of(),
+                List.of());
+
+        TrinityAlgorithmResult<TrinityMipCyclePlan> result = solve(
+                component,
+                certus,
+                BigInteger.valueOf(256L),
+                CraftingQuantityMode.NET_NEW,
+                Map.of(certus, BigInteger.valueOf(1024L), water, BigInteger.valueOf(8_000L)),
+                500_000);
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        assertEquals(BigInteger.valueOf(256L), result.value().netChange().get(certus));
+        assertEquals(BigInteger.valueOf(80L), result.value().minimumSeed().get(certus));
+        assertEquals(BigInteger.valueOf(4_000L), result.value().externalInputs().get(water));
+    }
+
+    @Test
     void exactPrefixSeedParticipatesInRouteSelectionBeforeStableIdentity() {
         AEKey a = AEItemKey.of(Items.IRON_INGOT);
         TrinityPatternVariant identityFirstButHighSeed = variant(

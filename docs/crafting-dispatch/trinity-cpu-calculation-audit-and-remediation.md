@@ -58,6 +58,8 @@ AE2 19.2.17 的 `CraftingTreeNode.notRecursive` 会沿祖先链拒绝输出或�
 
 修复：不修改 AE2 递归树；Trinity 使用样板超图、Tarjan SCC、闭式循环和受限 MIP 独立规划，失败时仍保留 AE2 结果。
 
+当前状态：多路线 SCC 会把 MIP 守恒 seed 作为下界，再由压缩排程计算真实前缀 seed；真实 seed 高于松弛下界但仍在库存范围内时，不再误报无整数解。
+
 ### C-003：多路径和复用路径按数量逐次模拟
 
 `CraftingTreeNode` 在同一资源存在多个 pattern 时循环调用 `pro.request(child, 1)`。
