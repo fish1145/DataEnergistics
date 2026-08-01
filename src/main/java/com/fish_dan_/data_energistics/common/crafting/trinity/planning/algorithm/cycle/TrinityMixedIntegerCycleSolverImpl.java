@@ -218,7 +218,9 @@ final class TrinityMixedIntegerCycleSolverImpl implements TrinityMixedIntegerCyc
             for (Variable variable : data.variables()) {
                 rawValues.add(result.get(data.model().indexOf(variable)));
             }
-            TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(rawValues);
+            TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(
+                    rawValues,
+                    data.model().options.integer().getIntegralityTolerance());
             if (!verified.successful()) {
                 return TrinityAlgorithmResult.failure(verified.diagnostic());
             }

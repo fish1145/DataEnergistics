@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedScheduler;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 
 import appeng.api.stacks.AEKey;
@@ -21,7 +21,7 @@ public interface TrinityDeterministicCyclePlanner {
      * @return planner using the exact compressed scheduler
      */
     static TrinityDeterministicCyclePlanner create() {
-        return new TrinityDeterministicCyclePlannerImpl(TrinityCompressedScheduler.create());
+        return new TrinityDeterministicCyclePlannerImpl(TrinityDeterministicRepeatScheduler.create());
     }
 
     /**

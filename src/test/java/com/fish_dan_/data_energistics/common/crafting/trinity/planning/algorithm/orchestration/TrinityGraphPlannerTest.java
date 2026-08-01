@@ -21,6 +21,8 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -147,6 +149,63 @@ public final class TrinityGraphPlannerTest {
         assertEquals(BigInteger.valueOf(7_500_000L), plan.initialExpectedInputs().get(raw));
         assertEquals(requested, plan.targetNetChange().get(target));
         assertTrue(plan.statistics().scheduleStates() < 16);
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = { 1L, 10_000L, 1_256_000_000L, Integer.MAX_VALUE })
+    void plansDeterministicMultiStepGrowthAcrossThePlayerRequestDomain(long requestedAmount) {
+        BigInteger requested = BigInteger.valueOf(requestedAmount);
+        BigInteger repetitions = requested.add(BigInteger.valueOf(127L)).divide(BigInteger.valueOf(128L));
+        AEKey certus = AEItemKey.of(Items.QUARTZ);
+        AEKey chargedCertus = AEItemKey.of(Items.AMETHYST_SHARD);
+        AEKey certusDust = AEItemKey.of(Items.REDSTONE);
+        AEKey water = AEItemKey.of(Items.WATER_BUCKET);
+        TrinityCraftingGraphPattern charge = pattern(
+                "growth-charge",
+                Items.PAPER,
+                List.of(stack(certus, 64L), stack(water, 1_000L)),
+                List.of(stack(chargedCertus, 64L)));
+        TrinityCraftingGraphPattern pulverize = pattern(
+                "growth-pulverize",
+                Items.MAP,
+                List.of(stack(certus, 1L)),
+                List.of(stack(certusDust, 1L)));
+        TrinityCraftingGraphPattern react = pattern(
+                "growth-react",
+                Items.BOOK,
+                List.of(stack(chargedCertus, 16L), stack(certusDust, 16L), stack(water, 500L)),
+                List.of(stack(certus, 64L)));
+        TrinityCraftingGraphSnapshot snapshot = new TrinityCraftingGraphSnapshot(
+                43L,
+                List.of(charge, pulverize, react));
+
+        TrinityAlgorithmResult<TrinityCraftingPlan> result = TrinityGraphPlanner.create().plan(
+                snapshot,
+                certus,
+                requested,
+                CraftingQuantityMode.NET_NEW,
+                Map.of(
+                        chargedCertus, BigInteger.valueOf(256L),
+                        certusDust, BigInteger.valueOf(320L),
+                        water, BigInteger.valueOf(2_147_483_647_000L)),
+                TrinityCraftingConfig.Settings.defaults(4),
+                unlimitedControl());
+
+        assertTrue(result.successful(), () -> result.diagnostic().message().getString());
+        TrinityCraftingPlan plan = result.value();
+        assertEquals(repetitions, plan.patternFirings().get(charge.identity()));
+        assertEquals(repetitions.multiply(BigInteger.valueOf(64L)), plan.patternFirings().get(pulverize.identity()));
+        assertEquals(repetitions.multiply(BigInteger.valueOf(4L)), plan.patternFirings().get(react.identity()));
+        assertEquals(repetitions.multiply(BigInteger.valueOf(128L)), plan.targetNetChange().get(certus));
+        assertEquals(repetitions.multiply(BigInteger.valueOf(3_000L)), plan.initialExpectedInputs().get(water));
+        assertEquals(BigInteger.valueOf(64L), plan.minimumSeed().get(chargedCertus));
+        assertEquals(BigInteger.valueOf(64L), plan.minimumSeed().get(certusDust));
+        assertFalse(plan.targetNetChange().containsKey(chargedCertus));
+        assertFalse(plan.targetNetChange().containsKey(certusDust));
+        assertEquals(1, plan.cycleRepeatBlocks().size());
+        assertTrue(
+                plan.statistics().scheduleStates() <= 128,
+                () -> "compressed states=" + plan.statistics().scheduleStates());
     }
 
     @Test

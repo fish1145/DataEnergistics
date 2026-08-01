@@ -129,14 +129,20 @@ provider、BlockEntity 或世界引用。
 
 ### 6.3 确定性循环
 
-对已验证顺序的阶段序列，定义：
+当 SCC 中每个内部 key 都只有一个生产者时，先以精确有理数高斯消元求 primitive positive integer firing ratio。
+该比例必须让所有非目标内部 key 的净变化严格为零，并让目标净变化为正；存在多维解空间、零/负 firing 或未覆盖 transition
+时不猜测路线，转入多路线 MIP。
+
+对求得整数比例并已验证顺序的阶段序列，定义：
 
 ```text
 effect[key] = Σ(outputs[key] - inputs[key])
 minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 ```
 
-目标必须满足 `effect[target] > 0`。计划存储阶段和 `BigInteger` 重复次数，不展开重复节点。
+目标必须满足 `effect[target] > 0`。计划存储阶段和 `BigInteger` 重复次数，不展开重复节点。重复排程按当前余额求完整循环的
+最大安全合并数，并在循环旋转的精确仿射余额断点推进；因此 `1`、`10000`、`1256000000` 和玩家数量页上限
+`Integer.MAX_VALUE` 使用同一算法路径，状态数不会随请求数量线性增长。
 
 数量模式：
 
@@ -154,8 +160,9 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 3. 固定前两阶段最优值后最小化 firing 数；
 4. 使用稳定 pattern identity 得到确定性结果。
 
-不使用 big-M 合并目标。ojAlgo 解必须取精确整数，并用 `BigInteger` 重新验证全部输入、输出、余额和目标约束。
-近似整数、负余额、溢出或目标不足均拒绝。
+不使用 big-M 合并目标。ojAlgo 整数变量只允许按本次求解器自身的 integrality tolerance 规范化到最近整数，随后必须用
+`BigInteger` 重新验证全部输入、输出、库存上界、词典序固定层、余额和目标约束。超出该 tolerance 的真实小数、规范化后
+不守恒、负余额、溢出或目标不足均拒绝。
 
 库存上界使用精确的 lazy constraint generation：先求省略非约束性容量上界的最优解；若某个 seed 或外部输入超过实际库存，
 只加入被违反项的精确上界并重新求解。这样既保留有限库存语义，也不会把无限存储单元发布的巨量容量直接交给数值求解器。

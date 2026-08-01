@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCyclePlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityDeterministicCycleSequence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityMipCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityMixedIntegerCycleSolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicDemandPropagator;
@@ -56,6 +57,7 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
     private final TrinityPatternVariantExpander variantExpander;
     private final TrinityGraphTopologyAnalyzer topologyAnalyzer;
     private final TrinityAcyclicDemandPropagator acyclicDemandPropagator;
+    private final TrinityDeterministicCycleSequence deterministicCycleSequence;
     private final TrinityDeterministicCyclePlanner deterministicCyclePlanner;
     private final TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver;
     private final TrinityPlanByteEstimator byteEstimator;
@@ -63,12 +65,14 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
     TrinityGraphPlannerImpl(TrinityPatternVariantExpander variantExpander,
                             TrinityGraphTopologyAnalyzer topologyAnalyzer,
                             TrinityAcyclicDemandPropagator acyclicDemandPropagator,
+                            TrinityDeterministicCycleSequence deterministicCycleSequence,
                             TrinityDeterministicCyclePlanner deterministicCyclePlanner,
                             TrinityMixedIntegerCycleSolver mixedIntegerCycleSolver,
                             TrinityPlanByteEstimator byteEstimator) {
         this.variantExpander = variantExpander;
         this.topologyAnalyzer = topologyAnalyzer;
         this.acyclicDemandPropagator = acyclicDemandPropagator;
+        this.deterministicCycleSequence = deterministicCycleSequence;
         this.deterministicCyclePlanner = deterministicCyclePlanner;
         this.mixedIntegerCycleSolver = mixedIntegerCycleSolver;
         this.byteEstimator = byteEstimator;
@@ -421,7 +425,10 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                                                                  BigInteger amount,
                                                                  CraftingQuantityMode cycleMode,
                                                                  Set<AEKey> producibleInputs) {
-            Optional<List<TrinityVariantFiring>> deterministicOrder = deterministicOrder(component, cycleTarget);
+            Optional<List<TrinityVariantFiring>> deterministicOrder = deterministicCycleSequence.resolve(
+                    component,
+                    cycleTarget,
+                    this.inventory);
             if (deterministicOrder.isPresent()) {
                 TrinityAlgorithmResult<TrinityCyclePlan> deterministic = deterministicCyclePlanner.plan(
                         deterministicOrder.orElseThrow(),
@@ -555,47 +562,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
                 }
             }
             return Collections.unmodifiableSet(producible);
-        }
-
-        private Optional<List<TrinityVariantFiring>> deterministicOrder(
-                                                                        TrinityStronglyConnectedComponent component,
-                                                                        AEKey cycleTarget) {
-            LinkedHashSet<TrinityPatternVariant> selected = new LinkedHashSet<>();
-            for (AEKey key : component.keys()) {
-                List<TrinityPatternVariant> producers = component.cycleVariants().stream()
-                        .filter(variant -> variant.outputs().containsKey(key))
-                        .toList();
-                if (producers.size() != 1) {
-                    return Optional.empty();
-                }
-                selected.add(producers.getFirst());
-            }
-            LinkedHashMap<AEKey, BigInteger> oneCycleNet = new LinkedHashMap<>();
-            selected.forEach(variant -> variant.netChange().forEach(
-                    (key, amount) -> merge(oneCycleNet, key, amount)));
-            if (oneCycleNet.getOrDefault(cycleTarget, BigInteger.ZERO).signum() <= 0) {
-                return Optional.empty();
-            }
-            for (AEKey key : component.keys()) {
-                if (!key.equals(cycleTarget) &&
-                        oneCycleNet.getOrDefault(key, BigInteger.ZERO).signum() != 0) {
-                    return Optional.empty();
-                }
-            }
-
-            ArrayList<TrinityPatternVariant> remaining = new ArrayList<>(selected.stream().sorted().toList());
-            LinkedHashMap<AEKey, BigInteger> balances = new LinkedHashMap<>(this.inventory);
-            ArrayList<TrinityVariantFiring> order = new ArrayList<>(remaining.size());
-            while (!remaining.isEmpty()) {
-                TrinityPatternVariant executable = remaining.stream()
-                        .filter(variant -> hasInputs(balances, variant.inputs()))
-                        .findFirst()
-                        .orElse(remaining.getFirst());
-                remaining.remove(executable);
-                order.add(new TrinityVariantFiring(executable, BigInteger.ONE));
-                executable.netChange().forEach((key, amount) -> merge(balances, key, amount));
-            }
-            return Optional.of(List.copyOf(order));
         }
 
         private void applyReverseDemand(
@@ -799,12 +765,6 @@ final class TrinityGraphPlannerImpl implements TrinityGraphPlanner {
             }
         });
         return Collections.unmodifiableMap(result);
-    }
-
-    private static boolean hasInputs(
-                                     Map<AEKey, BigInteger> balances,
-                                     Map<AEKey, BigInteger> inputs) {
-        return inputs.entrySet().stream().allMatch(entry -> balances.getOrDefault(entry.getKey(), BigInteger.ZERO).compareTo(entry.getValue()) >= 0);
     }
 
     private static Map<Integer, Integer> topologicalPositions(TrinityCraftingTopology topology) {

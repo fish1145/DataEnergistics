@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedScheduler;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -25,9 +25,9 @@ import java.util.Map;
  */
 final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministicCyclePlanner {
 
-    private final TrinityCompressedScheduler scheduler;
+    private final TrinityDeterministicRepeatScheduler scheduler;
 
-    TrinityDeterministicCyclePlannerImpl(TrinityCompressedScheduler scheduler) {
+    TrinityDeterministicCyclePlannerImpl(TrinityDeterministicRepeatScheduler scheduler) {
         this.scheduler = scheduler;
     }
 
@@ -96,7 +96,8 @@ final class TrinityDeterministicCyclePlannerImpl implements TrinityDeterministic
                     BigInteger::add);
         }
         TrinityAlgorithmResult<TrinityCompressedSchedule> schedule = this.scheduler.schedule(
-                aggregateFirings,
+                oneCycleOrder,
+                repetitions,
                 initialInputs,
                 maxScheduleStates,
                 control);

@@ -2,12 +2,14 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 
+import org.ojalgo.type.context.NumberContext;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 
 /**
- * Rejects approximate solver values before exact BigInteger conservation verification.
+ * Canonicalizes only values accepted by the active solver's integrality contract before exact conservation checks.
  */
 public interface TrinityIntegerResultVerifier {
 
@@ -19,8 +21,11 @@ public interface TrinityIntegerResultVerifier {
     }
 
     /**
-     * @param values raw ojAlgo decimal values
+     * @param values               raw ojAlgo decimal values
+     * @param integralityTolerance the same tolerance used by the integer solver that produced the values
      * @return exact integers or {@code MIP_INEXACT_RESULT}
      */
-    TrinityAlgorithmResult<List<BigInteger>> verify(List<BigDecimal> values);
+    TrinityAlgorithmResult<List<BigInteger>> verify(
+                                                    List<BigDecimal> values,
+                                                    NumberContext integralityTolerance);
 }

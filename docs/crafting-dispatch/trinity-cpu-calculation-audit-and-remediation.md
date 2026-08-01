@@ -60,6 +60,10 @@ AE2 19.2.17 的 `CraftingTreeNode.notRecursive` 会沿祖先链拒绝输出或�
 
 当前状态：多路线 SCC 会把 MIP 守恒 seed 作为下界，再由压缩排程计算真实前缀 seed；真实 seed 高于松弛下界但仍在库存范围内时，不再误报无整数解。
 库存容量约束采用逐项激活：只有无约束最优解实际超过某项库存时才向 ojAlgo 加入该项上界，避免无限存储单元发布的巨量可用值让本可行的整数模型数值失稳。
+单路线多步 SCC 不再假定“每个 transition 各执行一次”：实现以精确有理数消元求平衡中间产物的最小正整数 firing ratio，
+再按完整循环的仿射余额断点合并排程。真实 `64 certus + water -> 64 charged`、`certus -> dust`、
+`16 charged + 16 dust + water -> 64 certus` 路径可在玩家请求数量全域内保持压缩计划，不再落入大规模 MIP 分支树。
+ojAlgo 返回的整数变量允许按其本次 integrality tolerance 消除浮点残差，但规范化结果仍逐项经过 `BigInteger` 守恒与边界复验。
 
 ### C-003：多路径和复用路径按数量逐次模拟
 

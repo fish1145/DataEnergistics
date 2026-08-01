@@ -18,6 +18,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.ojalgo.optimisation.integer.IntegerStrategy;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -310,13 +311,17 @@ public final class TrinityMixedIntegerCycleSolverTest {
     }
 
     @Test
-    void exactIntegerVerifierRejectsFractionalSolverValuesWithoutRounding() {
+    void integerVerifierAcceptsSolverNoiseButRejectsFractionalValues() {
         TrinityIntegerResultVerifier verifier = TrinityIntegerResultVerifier.create();
 
-        TrinityAlgorithmResult<List<BigInteger>> exact = verifier.verify(List.of(new BigDecimal("1.0000"), new BigDecimal("2")));
-        TrinityAlgorithmResult<List<BigInteger>> inexact = verifier.verify(List.of(new BigDecimal("1"), new BigDecimal("2.0000001")));
+        TrinityAlgorithmResult<List<BigInteger>> exact = verifier.verify(
+                List.of(new BigDecimal("23.99999999999995"), new BigDecimal("320.0000000000018")),
+                IntegerStrategy.DEFAULT.getIntegralityTolerance());
+        TrinityAlgorithmResult<List<BigInteger>> inexact = verifier.verify(
+                List.of(new BigDecimal("1"), new BigDecimal("2.0000001")),
+                IntegerStrategy.DEFAULT.getIntegralityTolerance());
 
-        assertEquals(List.of(BigInteger.ONE, BigInteger.TWO), exact.value());
+        assertEquals(List.of(BigInteger.valueOf(24L), BigInteger.valueOf(320L)), exact.value());
         assertFalse(inexact.successful());
         assertEquals(TrinityPlanningDiagnosticCode.MIP_INEXACT_RESULT, inexact.diagnostic().code());
     }

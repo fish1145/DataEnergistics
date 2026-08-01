@@ -301,7 +301,9 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
         for (Variable variable : data.variables()) {
             values.add(result.get(data.model().indexOf(variable)));
         }
-        TrinityAlgorithmResult<List<BigInteger>> integers = this.integerVerifier.verify(values);
+        TrinityAlgorithmResult<List<BigInteger>> integers = this.integerVerifier.verify(
+                values,
+                data.model().options.integer().getIntegralityTolerance());
         if (!integers.successful()) {
             return TrinityAlgorithmResult.failure(integers.diagnostic());
         }
