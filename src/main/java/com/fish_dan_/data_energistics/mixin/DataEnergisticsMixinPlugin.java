@@ -21,10 +21,8 @@ import java.util.Set;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.AE2LT_CHANNEL_HELPER;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.AE2LT_EJECT_INTERCEPTOR;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.AE2LT_EJECT_REGISTRY;
-import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.AE2LT_MAX_FLOW;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.THUNDERBOLT_CHANNEL_HELPER;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.THUNDERBOLT_EJECT_INTERCEPTOR;
-import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.THUNDERBOLT_MAX_FLOW;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.THUNDERBOLT_WIRELESS_CONNECTION_API;
 import static com.fish_dan_.data_energistics.mixin.Ae2LtCompatibilityPolicy.Feature.WIRELESS_HOST_API;
 
@@ -40,9 +38,6 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
             AE2LT_EJECT_INTERCEPTOR, "com/moakiee/ae2lt/mixin/EjectCapabilityMixin.class",
             THUNDERBOLT_EJECT_INTERCEPTOR,
             "com/moakiee/thunderbolt/ae2/mixin/EjectCapabilityMixin.class",
-            AE2LT_MAX_FLOW, "com/moakiee/ae2lt/grid/BorrowedCapacityCalculator.class",
-            THUNDERBOLT_MAX_FLOW,
-            "com/moakiee/thunderbolt/ae2/channel/BorrowedCapacityCalculator.class",
             AE2LT_CHANNEL_HELPER, "com/moakiee/ae2lt/grid/OverloadedChannelOwnerHelper.class",
             THUNDERBOLT_CHANNEL_HELPER,
             "com/moakiee/thunderbolt/ae2/channel/OverloadedChannelOwnerHelper.class");
@@ -136,8 +131,6 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
             case "ae2lt.Ae2ltWirelessConnectorUsePacketMixin", "ae2lt.Ae2ltWirelessConnectorRendererMixin" -> Ae2LtCompatibilityPolicy.MixinRole.LEGACY_WIRELESS;
             case "ae2lt.Ae2lt2AdaptivePatternProviderHostMixin", "ae2lt.Ae2lt2AdaptiveWirelessConnectionMixin" -> Ae2LtCompatibilityPolicy.MixinRole.MODERN_WIRELESS_ADAPTER;
             case "ae2lt.Ae2ltEjectCapabilityMixin" -> Ae2LtCompatibilityPolicy.MixinRole.DATA_EJECT_INTERCEPTOR;
-            case "ae2lt.Ae2ltPathingCalculationCompatMixin" -> Ae2LtCompatibilityPolicy.MixinRole.LEGACY_MAX_FLOW_GUARD;
-            case "ae2lt.ThunderboltPathingCalculationCompatMixin" -> Ae2LtCompatibilityPolicy.MixinRole.MODERN_MAX_FLOW_GUARD;
             case "ae2lt.Ae2ltOverloadedControllerChannelSourceMixin" -> Ae2LtCompatibilityPolicy.MixinRole.LEGACY_CHANNEL_SOURCE;
             case "ae2lt.Ae2lt2OverloadedControllerChannelSourceMixin", "ae2lt.ThunderboltOverloadedChannelOwnerHelperInvoker" -> Ae2LtCompatibilityPolicy.MixinRole.MODERN_CHANNEL_SOURCE;
             default -> Ae2LtCompatibilityPolicy.MixinRole.GENERAL;

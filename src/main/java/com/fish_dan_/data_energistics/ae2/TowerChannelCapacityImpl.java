@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
@@ -16,10 +14,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Counts geometrically exposed controller faces and converts them to the dense-channel capacity shared by every hub on
- * the grid.
+ * Counts geometrically exposed controller faces and converts them to the total domain capacity available after native
+ * physical pathing runs.
  */
-public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
+public final class TowerChannelCapacityImpl implements TowerChannelCapacity {
 
     /**
      * Number of base channels supplied by one exposed controller face.
@@ -45,8 +43,8 @@ public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
             }
             BlockPos position = controller.getBlockPos().immutable();
             allControllerPositions.add(position);
-            if (controller instanceof ChannelHubControllerSource source) {
-                int supply = source.getChannelHubSupply(cableCapacityFactor);
+            if (controller instanceof TowerOverloadedChannelSource source) {
+                int supply = source.getVirtualChannelSupply(cableCapacityFactor);
                 if (supply < 0) {
                     throw new IllegalStateException("Overloaded controller supplied a negative channel capacity");
                 }
@@ -88,7 +86,6 @@ public final class ChannelHubCapacityImpl implements ChannelHubCapacity {
                                  Iterable<BlockPos> allControllerPositions,
                                  int overloadedControllerSupply) {
         if (controllerState == ControllerState.CONTROLLER_CONFLICT) {
-            Data_Energistics.LOGGER.error("Cannot expose channel-hub capacity while the AE controller is conflicted");
             return 0;
         }
         if (channelMode == ChannelMode.INFINITE) {
