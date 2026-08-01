@@ -13,10 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SonicBoomEchoCaptureImplTest {
 
     @Test
-    void capturesExactlyOneEchoOnlyForRollsBelowTenPercent() {
+    void capturesTenEchoOnlyForRollsBelowSeventyPercent() {
         assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.0D));
-        assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.099999D));
-        assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.10D));
+        assertTrue(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.699999D));
+        assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.70D));
         assertFalse(SonicBoomEchoCaptureImpl.shouldCaptureEcho(0.75D));
     }
 
