@@ -153,15 +153,15 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
      * </p>
      */
     private TrinityAlgorithmResult<TrinityAcyclicPlan> optimizeUniformBindings(
-            TrinityCraftingTopology topology,
-            UniformBindingFamily family,
-            AEKey target,
-            BigInteger requestedAmount,
-            BigInteger requiredTargetNet,
-            CraftingQuantityMode quantityMode,
-            Map<AEKey, BigInteger> available,
-            SearchBudget budget,
-            TrinityPlanningControl control) {
+                                                                               TrinityCraftingTopology topology,
+                                                                               UniformBindingFamily family,
+                                                                               AEKey target,
+                                                                               BigInteger requestedAmount,
+                                                                               BigInteger requiredTargetNet,
+                                                                               CraftingQuantityMode quantityMode,
+                                                                               Map<AEKey, BigInteger> available,
+                                                                               SearchBudget budget,
+                                                                               TrinityPlanningControl control) {
         BigInteger requiredFirings = ceilDivide(requiredTargetNet, family.outputPerFiring());
         BigInteger remainingFirings = requiredFirings;
         LinkedHashMap<AEKey, BigInteger> remainingInventory = new LinkedHashMap<>(available);
@@ -712,13 +712,13 @@ final class TrinityAcyclicRouteOptimizerImpl implements TrinityAcyclicRouteOptim
                                Map<AEKey, BigInteger> netChange) {}
 
     private record UniformBindingFamily(
-            List<TrinityPatternVariant> variants,
-            BigInteger inputPerFiring,
-            BigInteger outputPerFiring) {
+                                        List<TrinityPatternVariant> variants,
+                                        BigInteger inputPerFiring,
+                                        BigInteger outputPerFiring) {
 
         private static Optional<UniformBindingFamily> tryCreate(
-                List<TrinityPatternVariant> variants,
-                AEKey target) {
+                                                                List<TrinityPatternVariant> variants,
+                                                                AEKey target) {
             TrinityPatternVariant first = variants.getFirst();
             if (first.inputs().size() != 1 || first.outputs().size() != 1 ||
                     !first.outputs().containsKey(target) || first.inputs().containsKey(target)) {
